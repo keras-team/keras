@@ -35,6 +35,11 @@ def list_devices(device_type=None):
     ]
 
 
+def distribute_tensor(value, tensor_layout):
+    # TODO: Finish distributed Tensor implementation.
+    pass
+
+
 def distribute_variable(value, tensor_layout):
     """Create a distributed the variable wiht value based on the layout.
 

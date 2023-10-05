@@ -13,25 +13,23 @@ from keras import testing
 from keras.backend import distribution_lib as backend_dlib
 from keras.distribution import distribution_lib
 
+if backend.backend() == "jax":
+    # Due to https://github.com/google/jax/issues/17188, we can't
+    # override the XLA flag after the JAX back init. We have to
+    # run this at top level to let JAX pick the flag value.
+    xla_flags = os.getenv("XLA_FLAGS") or ""
+    # Don't override user-specified device count, or other XLA flags.
+    if "xla_force_host_platform_device_count" not in xla_flags:
+        os.environ["XLA_FLAGS"] = (
+            xla_flags + " --xla_force_host_platform_device_count=8"
+        )
+
 
 @pytest.mark.skipif(
     backend.backend() != "jax",
     reason="Backend specific test",
 )
 class JaxDistributionLibTest(testing.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        # Due to https://github.com/google/jax/issues/17188, we can't
-        # override the XLA flag after the JAX back init. We have to
-        # run this at top level to let JAX pick the flag value.
-        xla_flags = os.getenv("XLA_FLAGS") or ""
-        # Don't override user-specified device count, or other XLA flags.
-        if "xla_force_host_platform_device_count" not in xla_flags:
-            os.environ["XLA_FLAGS"] = (
-                xla_flags + " --xla_force_host_platform_device_count=8"
-            )
-
     def test_list_devices(self):
         self.assertEqual(len(distribution_lib.list_devices()), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)

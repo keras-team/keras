@@ -27,8 +27,14 @@ def list_devices(device_type=None):
     return [f"{device.device_kind}:{device.id}" for device in jax_devices]
 
 
-def distribute_value(value, tensor_layout):
-    """Distribute the value based on the layout.
+def _distribute_value(value, tensor_layout):
+    if not isinstance(tensor_layout, jax.sharding.Sharding):
+        tensor_layout = _to_jax_layout(tensor_layout)
+    return jax.device_put(value, tensor_layout)
+
+
+def distribute_tensor(value, tensor_layout):
+    """Distribute the Tensor based on the layout.
 
     Args:
         value: `jax.Array` that need to be distributed.
@@ -36,11 +42,23 @@ def distribute_value(value, tensor_layout):
             `jax.sharding.Sharding` instance.
 
     Returns:
-        Distributed value.
+        Distributed Tensor.
     """
-    if not isinstance(tensor_layout, jax.sharding.Sharding):
-        tensor_layout = _to_jax_layout(tensor_layout)
-    return jax.device_put(value, tensor_layout)
+    return _distribute_value(value=value, tensor_layout=tensor_layout)
+
+
+def distribute_variable(value, tensor_layout):
+    """Distribute the variable based on the layout.
+
+    Args:
+        value: `jax.Array` that need to be distributed.
+        tensor_layout: `TensorLayout` for the distribution information, or a
+            `jax.sharding.Sharding` instance.
+
+    Returns:
+        Distributed variable.
+    """
+    return _distribute_value(value=value, tensor_layout=tensor_layout)
 
 
 def _to_jax_device(device_id):

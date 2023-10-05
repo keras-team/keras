@@ -193,7 +193,7 @@ class Distribution:
 
         Returns:
             The `TensorLayout` for the data, which can be used by
-            `backend.distribute_value()` to redistribute a input data.
+            `backend.distribute_tensor()` to redistribute a input data.
         """
         raise NotImplementedError()
 
@@ -205,7 +205,7 @@ class Distribution:
 
         return:
             The `TensorLayout` for the variable, which can be used by
-            `backend.distribute_value()` to redistribute a variable.
+            `backend.distribute_variable()` to redistribute a variable.
         """
         raise NotImplementedError()
 
