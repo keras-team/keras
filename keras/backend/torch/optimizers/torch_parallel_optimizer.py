@@ -1,7 +1,10 @@
+import torch
+
 from keras.optimizers.base_optimizer import BaseOptimizer
 
 
 class TorchParallelOptimizer(BaseOptimizer):
+    @torch.no_grad
     def _internal_apply_gradients(self, grads_and_vars):
         grads, trainable_variables = zip(*grads_and_vars)
 
