@@ -2968,6 +2968,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_bincount(self):
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            if tf.test.is_gpu_available():
+                self.skipTest("bincount does not work in tensorflow gpu")
+
         x = np.array([1, 1, 2, 3, 2, 4, 4, 5])
         weights = np.array([0, 0, 3, 2, 1, 1, 4, 2])
         minlength = 3
@@ -3924,6 +3930,12 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_bincount(self, dtype):
         import jax.numpy as jnp
 
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            if tf.test.is_gpu_available():
+                self.skipTest("bincount does not work in tensorflow gpu")
+
         x = np.array([1, 1, 2, 3, 2, 4, 4, 5], dtype=dtype)
         weights = np.array([0, 0, 3, 2, 1, 1, 4, 2], dtype=dtype)
         minlength = 3
@@ -4002,10 +4014,16 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         import jax.numpy as jnp
 
         if backend.backend() == "torch":
+            import torch
+
             if dtype1 == "float16" or dtype2 == "float16":
                 self.skipTest("matmul does not support float16 in torch")
             if dtype1 == "bool" and dtype2 == "bool":
                 self.skipTest("matmul does not support bool in torch")
+            if torch.cuda.is_available():
+                dtype = backend.result_type(dtype1, dtype2)
+                if "int" in dtype:
+                    self.skipTest(f"dot does not support {dtype} in torch gpu")
 
         x1 = knp.ones((1,), dtype=dtype1)
         x2 = knp.ones((1,), dtype=dtype2)
@@ -4144,6 +4162,15 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             if dtype == "bool":
                 self.skipTest(f"argsort does not support {dtype} in tensorflow")
 
+        if backend.backend() == "torch":
+            import torch
+
+            if torch.cuda.is_available():
+                if dtype in ["bool", "int64"]:
+                    self.skipTest(
+                        f"argsort does not support {dtype} in torch gpu"
+                    )
+
         x = knp.array([[1, 2, 3], [4, 5, 6]], dtype=dtype)
         x_jax = jnp.array([[1, 2, 3], [4, 5, 6]], dtype=dtype)
         expected_dtype = standardize_dtype(jnp.argsort(x_jax).dtype)
@@ -4235,10 +4262,16 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             if dtype1 == "bool" and dtype2 == "bool":
                 self.skipTest("dot does not support bool in tensorflow")
         if backend.backend() == "torch":
+            import torch
+
             if "float16" in [dtype1, dtype2]:
                 self.skipTest("dot does not support float16 in torch")
             if dtype1 == "bool" and dtype2 == "bool":
                 self.skipTest("dot does not support bool in torch")
+            if torch.cuda.is_available():
+                dtype = backend.result_type(dtype1, dtype2)
+                if "int" in dtype:
+                    self.skipTest(f"dot does not support {dtype} in torch gpu")
 
         x1 = knp.ones((2, 3, 4), dtype=dtype1)
         x2 = knp.ones((4, 3), dtype=dtype2)

@@ -120,14 +120,14 @@ def zeros_like(x, dtype=None):
 
 
 def absolute(x):
-    # bool are always non-negative
-    if standardize_dtype(x.dtype) == "bool":
-        return x
     return abs(x)
 
 
 def abs(x):
     x = convert_to_tensor(x)
+    # bool are always non-negative
+    if standardize_dtype(x.dtype) == "bool":
+        return x
     return torch.abs(x)
 
 
