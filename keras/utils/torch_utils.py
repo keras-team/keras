@@ -71,13 +71,7 @@ class TorchModuleWrapper(Layer):
     ```
     """
 
-    def __init__(self, module, name="torch_module_wrapper"):
-        if name is None:
-            raise ValueError(
-                "The `name` argument is required for `TorchModuleWrapper`. "
-                "This helps save the `torch` state dictionary with an unique "
-                "name that's consistent during saving and loading of model."
-            )
+    def __init__(self, module, name=None):
         super().__init__(name=name)
         import torch.nn as nn
 
@@ -120,26 +114,17 @@ class TorchModuleWrapper(Layer):
         all of model's state.
         """
         state_dict = self.module.state_dict()
-        # Save all layer's state keys
-        store[self.name + "._keys"] = list(state_dict.keys())
         for key in state_dict.keys():
-            store[self.name + "." + key] = convert_to_numpy(state_dict[key])
+            store[key] = convert_to_numpy(state_dict[key])
 
     def load_own_variables(self, store):
         """Loads model's state via `state_dict`."""
-        keys_name = self.name + "._keys"
-        if keys_name not in store:
-            raise ValueError(
-                f"Weights file is missing state for {self.name} layer."
-            )
         state_dict = {}
-        for key in store[keys_name]:
+        for key in store.keys():
             if isinstance(key, bytes):
                 key = key.decode()
             try:
-                state_dict[key] = convert_to_tensor(
-                    store[self.name + "." + key]
-                )
+                state_dict[key] = convert_to_tensor(store[key])
             except KeyError:
                 raise ValueError(
                     f"Weights file is missing state for {self.name}.{key}"
