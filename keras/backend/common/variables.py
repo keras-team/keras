@@ -240,14 +240,6 @@ class KerasVariable:
         value = self.value
         return value.__rmul__(self._convert_to_tensor(other, dtype=value.dtype))
 
-    def __div__(self, other):
-        value = self.value
-        return value.__div__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __rdiv__(self, other):
-        value = self.value
-        return value.__rdiv__(self._convert_to_tensor(other, dtype=value.dtype))
-
     def __truediv__(self, other):
         value = self.value
         return value.__truediv__(

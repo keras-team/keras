@@ -524,18 +524,6 @@ class VariableOperationsTest(test_case.TestCase):
         v = backend.Variable(initializer=np.array([-1, 2]), trainable=False)
         self.assertAllClose(v.__pos__(), np.array([-1, 2]))
 
-    def test__div__(self):
-        """Test division operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
-        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
-        self.assertAllClose(v1.__div__(v2), np.array([0.25, 0.4, 0.5]))
-
-    def test__rdiv__(self):
-        """Test reverse division operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([4, 5, 6]))
-        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
-        self.assertAllClose(v1.__rdiv__(v2), np.array([0.25, 0.4, 0.5]))
-
     def test_variable_pow(self):
         """Test pow operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1, 2, 3]))
