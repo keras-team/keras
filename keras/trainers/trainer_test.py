@@ -188,9 +188,11 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             batch_size=batch_size,
             steps_per_epoch=steps_per_epoch if use_steps_per_epoch else None,
             epochs=epochs,
+            validation_split=0.2,
         )
         history = history.history
         self.assertIn("loss", history)
+        self.assertIn("val_loss", history)
         self.assertIn("mean_squared_error", history)
         self.assertAllClose(
             history["mean_squared_error"],
