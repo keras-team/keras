@@ -24,10 +24,11 @@ if [ "$KERAS_BACKEND" == "tensorflow" ]
 then
    echo "TensorFlow backend detected."
    pip uninstall -y tensorflow-cpu
-   pip install -U tensorflow
+   pip uninstall -y keras
+   pip install -U tf-nightly
    echo "Check that TensorFlow uses GPU"
    python3 -c 'import tensorflow as tf;print(tf.config.list_physical_devices("GPU"))'
 fi
-pip uninstall -y keras
+pip uninstall -y keras-nightly
 
 pytest keras --ignore keras/applications --cov=keras
