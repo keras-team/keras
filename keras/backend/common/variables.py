@@ -184,7 +184,7 @@ class KerasVariable:
         return self.value.__neg__()
 
     def __pos__(self):
-        return self.value.__pos__()
+        return self.value
 
     def __abs__(self):
         return self.value.__abs__()
@@ -240,14 +240,6 @@ class KerasVariable:
         value = self.value
         return value.__rmul__(self._convert_to_tensor(other, dtype=value.dtype))
 
-    def __div__(self, other):
-        value = self.value
-        return value.__div__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __rdiv__(self, other):
-        value = self.value
-        return value.__rdiv__(self._convert_to_tensor(other, dtype=value.dtype))
-
     def __truediv__(self, other):
         value = self.value
         return value.__truediv__(
@@ -269,18 +261,6 @@ class KerasVariable:
     def __rfloordiv__(self, other):
         value = self.value
         return value.__rfloordiv__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __divmod__(self, other):
-        value = self.value
-        return value.__divmod__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rdivmod__(self, other):
-        value = self.value
-        return value.__rdivmod__(
             self._convert_to_tensor(other, dtype=value.dtype)
         )
 
@@ -335,34 +315,6 @@ class KerasVariable:
     def __rxor__(self, other):
         value = self.value
         return value.__rxor__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __lshift__(self, other):
-        value = self.value
-        return value.__lshift__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rlshift__(self, other):
-        value = self.value
-        return value.__rlshift__(
-            self._convert_to_tensor(other, dtype=self.dtype)
-        )
-
-    def __rshift__(self, other):
-        value = self.value
-        return value.__rshift__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rrshift__(self, other):
-        value = self.value
-        return value.__rrshift__(
-            self._convert_to_tensor(other, dtype=self.dtype)
-        )
-
-    def __round__(self, ndigits=None):
-        value = self.value
-        return value.__round__(ndigits)
 
 
 def register_uninitialized_variable(variable):
