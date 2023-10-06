@@ -159,3 +159,20 @@ class DenseTest(testing.TestCase):
         )
         self.assertEqual(layer.bias, None)
         self.assertAllClose(layer(inputs), [[5.0, -6.0]])
+
+    def test_dense_with_activation(self):
+        """Check output correctness when an activation function is applied."""
+        layer = layers.Dense(units=2, use_bias=False, activation="relu")
+        layer.build((1, 2))
+        layer.set_weights(
+            [
+                np.array([[1.0, -2.0], [3.0, -4.0]]),
+            ]
+        )
+
+        inputs = np.array(
+            [[-1.0, 2.0]],
+        )
+        output = layer(inputs)
+        expected_output = np.array([[5.0, 0.0]])
+        self.assertAllClose(output, expected_output)
