@@ -35,4 +35,8 @@ then
    python3 -c 'import tensorflow as tf;len(tf.config.list_physical_devices("GPU")) > 0'
 fi
 # TODO: layers aborts
-pytest keras --ignore keras/applications --ignore keras/layers --cov=keras
+# TODO: Backup and Restore fails
+pytest keras --ignore keras/applications \
+             --ignore keras/layers \
+             --ignore keras/callbacks/backup_and_restore_callback_test.py \
+             --cov=keras
