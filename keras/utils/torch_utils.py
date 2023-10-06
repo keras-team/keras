@@ -1,3 +1,5 @@
+import io
+
 from keras.api_export import keras_export
 from keras.layers import Layer
 from keras.ops import convert_to_numpy
@@ -71,8 +73,8 @@ class TorchModuleWrapper(Layer):
     ```
     """
 
-    def __init__(self, module, name=None):
-        super().__init__(name=name)
+    def __init__(self, module, name=None, *args, **kwargs):
+        super().__init__(name=name, *args, **kwargs)
         import torch.nn as nn
 
         if (
@@ -125,3 +127,21 @@ class TorchModuleWrapper(Layer):
                 key = key.decode()
             state_dict[key] = convert_to_tensor(store[key])
         self.module.load_state_dict(state_dict)
+
+    def get_config(self):
+        base_config = super().get_config()
+        import torch
+
+        buffer = io.BytesIO()
+        torch.save(self.module, buffer)
+        config = {"module": buffer.getvalue()}
+        return {**base_config, **config}
+
+    @classmethod
+    def from_config(cls, config):
+        import torch
+
+        if "module" in config:
+            buffer = io.BytesIO(config["module"])
+            config["module"] = torch.load(buffer)
+        return cls(**config)

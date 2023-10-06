@@ -183,3 +183,11 @@ class TorchUtilsTest(testing.TestCase, parameterized.TestCase):
             self.assertAllClose(ref_w, new_w, atol=1e-5)
         loss = new_model.evaluate(x_test, y_test)
         self.assertAllClose(ref_loss, loss, atol=1e-5)
+
+    def test_from_config(self):
+        module = torch.nn.Sequential(torch.nn.Linear(2, 4))
+        mw = TorchModuleWrapper(module)
+        config = mw.get_config()
+        new_mw = TorchModuleWrapper.from_config(config)
+        for ref_w, new_w in zip(mw.get_weights(), new_mw.get_weights()):
+            self.assertAllClose(ref_w, new_w, atol=1e-5)
