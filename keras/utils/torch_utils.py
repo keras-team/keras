@@ -34,8 +34,8 @@ class TorchModuleWrapper(Layer):
     from keras.layers import TorchModuleWrapper
 
     class Classifier(keras.Model):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
             # Wrap `torch.nn.Module`s with `TorchModuleWrapper`
             # if they contain parameters
             self.conv1 = TorchModuleWrapper(
@@ -73,9 +73,11 @@ class TorchModuleWrapper(Layer):
     ```
     """
 
-    def __init__(self, module, name=None, *args, **kwargs):
-        super().__init__(name=name, *args, **kwargs)
+    def __init__(self, module, name=None, **kwargs):
+        super().__init__(name=name, **kwargs)
         import torch.nn as nn
+
+        from keras.backend.torch.core import get_device
 
         if (
             isinstance(module, nn.modules.lazy.LazyModuleMixin)
@@ -86,8 +88,6 @@ class TorchModuleWrapper(Layer):
                 "are already initialized. "
                 f"Received uninitialized LazyModule: module={module}"
             )
-
-        from keras.backend.torch.core import get_device
 
         self.module = module.to(get_device())
         self._track_module_parameters()
