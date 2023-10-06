@@ -444,34 +444,31 @@ class LayoutMap(collections.abc.MutableMapping):
 
         When there isn't an exact match, all the existing keys in the layout map
         will be treated as a regex and map against the input key again. When
-        there are multiple matches for the regex, an ValueError will be raised.
-        Returns `None` if there isn't any match found.
+        there are multiple matches for the regex, an `ValueError` will be
+        raised. Returns `None` if there isn't any match found.
 
         Args:
             key: String key to query a layout.
 
         Returns:
             Corresponding layout based on the query.
-
-        Raises:
-            ValueError when multiple keys are matched if the keys are treated
-            as regex.
         """
         if key in self._layout_map:
             return self._layout_map[key]
 
-        matching_key = []
+        matching_keys = []
         for k in self._layout_map:
             if re.search(k, key):
-                matching_key.append(k)
-        if len(matching_key) > 1:
+                matching_keys.append(k)
+        if len(matching_keys) > 1:
             raise ValueError(
-                f"The input {key} has matched to multiple layout "
-                f"rule: {matching_key}. Please make sure the "
-                "key only match to one rule."
+                f"Path '{key}' matches multiple layout "
+                f"specification keys: {matching_keys}. Please make "
+                "sure each tensor/variable path only matches at most "
+                "one layout specification key in the LayoutMap."
             )
-        elif len(matching_key) == 1:
-            return self._layout_map[matching_key[0]]
+        elif len(matching_keys) == 1:
+            return self._layout_map[matching_keys[0]]
         return None
 
     def __setitem__(self, key, layout):
