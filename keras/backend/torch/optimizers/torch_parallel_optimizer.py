@@ -5,8 +5,9 @@ from keras.optimizers.base_optimizer import BaseOptimizer
 
 
 class TorchParallelOptimizer(BaseOptimizer):
-    @(torch.no_grad 
-      if parse(torch.__version__) >= parse("2.1.0")
+    @(
+        torch.no_grad
+        if parse(torch.__version__) >= parse("2.1.0")
         else lambda x: x
     )
     def _internal_apply_gradients(self, grads_and_vars):

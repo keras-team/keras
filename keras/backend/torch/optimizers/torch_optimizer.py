@@ -34,8 +34,9 @@ class TorchOptimizer(BaseOptimizer):
             return OPTIMIZERS[cls](*args, **kwargs)
         return super().__new__(cls)
 
-    @(torch.no_grad 
-      if parse(torch.__version__) >= parse("2.1.0")
+    @(
+        torch.no_grad
+        if parse(torch.__version__) >= parse("2.1.0")
         else lambda x: x
     )
     def _apply_weight_decay(self, variables):
