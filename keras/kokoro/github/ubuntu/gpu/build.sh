@@ -47,9 +47,13 @@ then
 fi
 
 # TODO: Add test for JAX
-if [ "$KERAS_BACKEND" == "tensorflow" ]
+if [ "$KERAS_BACKEND" == "jax" ]
+then
+   echo "JAX backend detected."
 fi
 
 # TODO: Add test for PyTorch
 if [ "$KERAS_BACKEND" == "torch" ]
+then
+   echo "PyTorch backend detected."
 fi
