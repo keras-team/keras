@@ -1,4 +1,5 @@
 import torch
+from packaging.version import parse
 
 from keras import optimizers
 from keras.optimizers.base_optimizer import BaseOptimizer
@@ -33,7 +34,10 @@ class TorchOptimizer(BaseOptimizer):
             return OPTIMIZERS[cls](*args, **kwargs)
         return super().__new__(cls)
 
-    @torch.no_grad
+    @(torch.no_grad 
+      if parse(torch.__version__) >= parse("2.1.0")
+        else lambda x: x
+    )
     def _apply_weight_decay(self, variables):
         if self.weight_decay is None:
             return
