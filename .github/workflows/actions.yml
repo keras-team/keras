@@ -61,7 +61,7 @@ jobs:
           env_vars: PYTHON,KERAS_BACKEND
           flags: keras.applications,keras.applications-${{ matrix.backend }}
           files: apps-coverage.xml
-          fail_ci_if_error: true
+          fail_ci_if_error: false
       - name: Test integrations
         if: ${{ matrix.backend != 'numpy'}}
         run: |
@@ -84,7 +84,7 @@ jobs:
           env_vars: PYTHON,KERAS_BACKEND
           flags: keras,keras-${{ matrix.backend }}
           files: core-coverage.xml
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   format:
     name: Check the code format
