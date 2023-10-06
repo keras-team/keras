@@ -530,7 +530,7 @@ LayoutMap.get.__doc__ = LayoutMap.__getitem__.__doc__
 
 
 @keras_export("keras.distribution.distribute_tensor")
-def distribute_tensor(tensor, tensor_layout):
+def distribute_tensor(tensor, layout):
     """Change the layout of a Tensor value in the jit function execution.
 
     Note that this might not work outside of the jitted function for certain
@@ -539,7 +539,7 @@ def distribute_tensor(tensor, tensor_layout):
 
     Args:
         tensor: a Tensor to change the layout.
-        tensor_layout: TensorLayout to be applied on the value.
+        layout: `TensorLayout` to be applied on the value.
 
     Returns:
         a new value with the specified tensor layout.
@@ -548,7 +548,7 @@ def distribute_tensor(tensor, tensor_layout):
         # keras tensor is only used for building functional model, and can't be
         # used to alter layout/sharding.
         return tensor
-    return distribution_lib.distribute_tensor(tensor, tensor_layout)
+    return distribution_lib.distribute_tensor(tensor, layout)
 
 
 @keras_export("keras.distribution.distribution")

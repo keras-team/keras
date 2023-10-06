@@ -29,10 +29,10 @@ def list_devices(device_type=None):
     return [f"{device.device_kind}:{device.id}" for device in jax_devices]
 
 
-def distribute_variable(value, tensor_layout):
+def distribute_variable(value, layout):
     """Create a distributed variable for JAX.
 
-    Since JAX doesn't have variable class, this will just return a jax.Array
+    Since JAX doesn't have a variable class, this will just return a `jax.Array`
     with the corresponding layout/sharding specified.
 
     Note that this function should be used in eager context, not in jitted
@@ -40,18 +40,18 @@ def distribute_variable(value, tensor_layout):
 
     Args:
         value: the initial value of the variable.
-        tensor_layout: `TensorLayout` for the created variable, or a
+        layout: `TensorLayout` for the created variable, or a
             `jax.sharding.Sharding` instance.
 
     Returns:
         jax.Array which is the distributed variable.
     """
-    if not isinstance(tensor_layout, jax.sharding.Sharding):
-        tensor_layout = _to_jax_layout(tensor_layout)
-    return jax.device_put(value, tensor_layout)
+    if not isinstance(layout, jax.sharding.Sharding):
+        layout = _to_jax_layout(layout)
+    return jax.device_put(value, layout)
 
 
-def distribute_tensor(tensor, tensor_layout):
+def distribute_tensor(tensor, layout):
     """Distribute the tensor based on the layout.
 
     Note that this function can be used both in eager context, or within a
@@ -59,21 +59,20 @@ def distribute_tensor(tensor, tensor_layout):
 
     Args:
         value: `jax.Array` that need to be distributed.
-        tensor_layout: `TensorLayout` for the distribution information, or a
+        layout: `TensorLayout` for the distribution information, or a
             `jax.sharding.Sharding` instance.
 
     Returns:
         Distributed value.
     """
-    if not isinstance(tensor_layout, jax.sharding.Sharding):
-        tensor_layout = _to_jax_layout(tensor_layout)
+    if not isinstance(layout, jax.sharding.Sharding):
+        layout = _to_jax_layout(layout)
 
     # TODO(scottzhu): This might not be a cheap check, we should consider
     # have some proper JAX API for doing this check.
     if jax_utils.is_in_jax_tracing_scope():
-        return jax.lax.with_sharding_constraint(tensor, tensor_layout)
-    else:
-        return jax.device_put(tensor, tensor_layout)
+        return jax.lax.with_sharding_constraint(tensor, layout)
+    return jax.device_put(tensor, layout)
 
 
 def _to_jax_device(device_id):
