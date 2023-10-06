@@ -302,7 +302,7 @@ class LayoutMapTest(testing.TestCase):
         # Map against the wildcard bias rule for dense. This will cause a
         # ValueError
         with self.assertRaisesRegex(
-            ValueError, "The input dense_2/bias has matched to multiple"
+            ValueError, "Path 'dense_2/bias' matches multiple layout"
         ):
             layout_map["dense_2/bias"]
 
