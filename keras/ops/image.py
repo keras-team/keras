@@ -555,8 +555,7 @@ def _pad_to_bounding_box(
         image = backend.numpy.expand_dims(image, 0)
     elif len(image_shape) != 4:
         raise ValueError(
-            "'image' (shape %s) must have either 3 or 4 dimensions."
-            % image_shape
+            f"'image' (shape {image_shape}) must have either 3 or 4 dimensions."
         )
 
     batch, height, width, depth = image.shape
