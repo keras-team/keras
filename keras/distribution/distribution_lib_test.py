@@ -1,5 +1,6 @@
 """Test for distribution_lib.py."""
 
+import functools
 import os
 from unittest import mock
 
@@ -192,6 +193,15 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertIs(variable_layout.device_mesh, self.device_mesh)
         self.assertEqual(variable_layout.axes, (None,))
 
+    def test_get_tensor_layout(self):
+        distribution = distribution_lib.DataParallel(
+            device_mesh=self.device_mesh
+        )
+
+        path = "path/to/tensor"
+        tensor_layout = distribution.get_tensor_layout(path)
+        self.assertIsNone(tensor_layout)
+
 
 class ModelParallelDistributionTest(testing.TestCase):
     def setUp(self):
@@ -238,6 +248,22 @@ class ModelParallelDistributionTest(testing.TestCase):
         data_layout = distribution.get_data_layout(data.shape)
         self.assertIs(data_layout.device_mesh, self.device_mesh)
         self.assertEqual(data_layout.axes, ("data", None, None))
+
+    def test_get_tensor_layout(self):
+        layout_map = distribution_lib.LayoutMap(self.device_mesh)
+        layout_map[".*kernel"] = distribution_lib.TensorLayout([None, "model"])
+        layout_map[".*bias"] = distribution_lib.TensorLayout(["model"])
+        layout_map["/model/layer/tensor"] = ("data", None)
+
+        distribution = distribution_lib.ModelParallel(
+            self.device_mesh, layout_map, batch_dim_name="data"
+        )
+        layout = distribution.get_tensor_layout("/model/layer/tensor")
+        self.assertIs(layout.device_mesh, self.device_mesh)
+        self.assertEqual(layout.axes, ("data", None))
+
+        layout = distribution.get_tensor_layout("/model/layer/other_tensor")
+        self.assertIsNone(layout)
 
 
 class LayoutMapTest(testing.TestCase):
@@ -361,6 +387,30 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertEqual(len(distribution_lib.list_devices()), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
+
+    def test_distribute_tensor(self):
+        jax_mesh = jax.sharding.Mesh(
+            np.array(jax.devices()).reshape(2, 4), ("batch", "model")
+        )
+
+        inputs = jax.numpy.array(np.random.normal(size=(16, 8)))
+        target_layout = jax.sharding.NamedSharding(
+            jax_mesh, jax.sharding.PartitionSpec("batch", None)
+        )
+
+        @functools.partial(jax.jit, static_argnames="target_layout")
+        def test_function(inputs, target_layout):
+            return distribution_lib.distribute_tensor(inputs, target_layout)
+
+        result = test_function(inputs, target_layout)
+        # Note that the returned tensor has a different sharding implementation
+        # which is GSPMDSharding, but it should be equivalent as the target
+        # layout specified.
+        self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
+
+        # Test without jit
+        result = distribution_lib.distribute_tensor(inputs, target_layout)
+        self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
 
     def test_to_jax_mesh(self):
         devices = [f"cpu:{i}" for i in range(8)]
@@ -498,6 +548,78 @@ class JaxDistributionLibTest(testing.TestCase):
         with distribution.scope():
             model.compile(loss="mse")
             model.fit(inputs, labels)
+
+    def test_e2e_model_parallel_with_output_sharding(self):
+        shape = (4, 2)
+        axis_names = ["batch", "model"]
+        device_mesh = distribution_lib.DeviceMesh(
+            shape, axis_names, backend_dlib.list_devices()
+        )
+
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        layout_map[".*dense.*kernel"] = distribution_lib.TensorLayout(
+            [None, "model"]
+        )
+        layout_map[".*dense.*bias"] = distribution_lib.TensorLayout(["model"])
+        # Force the dense layer output to be batch parallel only, and not
+        # sharded on model dimension.
+        layout_map[".*dense.*output"] = ("batch", None)
+
+        distribution = distribution_lib.ModelParallel(
+            device_mesh, layout_map, batch_dim_name="batch"
+        )
+        sharding_capture = ShardingCaptureLayer()
+        with distribution.scope():
+            inputs = layers.Input(shape=[28, 28, 1])
+            y = layers.Flatten()(inputs)
+            y = layers.Dense(units=200, use_bias=False, activation="relu")(y)
+            y = sharding_capture(y)
+            y = layers.Dropout(0.4)(y)
+            y = layers.Dense(units=10, activation="softmax")(y)
+            model = models.Model(inputs=inputs, outputs=y)
+
+        for weight in model.weights:
+            if "kernel" in weight.name:
+                self.assertEqual(weight._value.sharding.spec, (None, "model"))
+            elif "bias" in weight.name:
+                self.assertEqual(weight._value.sharding.spec, ("model",))
+            else:
+                self.assertTrue(weight._value.sharding.is_fully_replicated)
+
+        inputs = np.random.normal(size=(32, 28, 28, 1))
+        labels = np.random.normal(size=(32, 10))
+
+        with distribution.scope():
+            model.compile(loss="mse")
+            model.fit(inputs, labels)
+
+        # Note that the intermediate_tensor_layout is only captured during the
+        # actual training, and not at the model building time.
+        intermediate_tensor_layout = jax.sharding.NamedSharding(
+            backend_dlib._to_jax_mesh(distribution.device_mesh),
+            jax.sharding.PartitionSpec("batch", None),
+        )
+        self.assertTrue(
+            sharding_capture.captured_input_sharding.is_equivalent_to(
+                intermediate_tensor_layout, ndim=2
+            )
+        )
+
+
+class ShardingCaptureLayer(layers.Layer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.captured_input_sharding = None
+        self.supports_masking = True
+
+    def call(self, inputs):
+        jax.debug.inspect_array_sharding(
+            inputs, callback=lambda x: self.capture_input_sharding(x)
+        )
+        return inputs
+
+    def capture_input_sharding(self, sharding):
+        self.captured_input_sharding = sharding
 
 
 # @pytest.mark.skipif(

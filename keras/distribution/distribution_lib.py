@@ -14,6 +14,7 @@ import warnings
 import numpy as np
 
 from keras.api_export import keras_export
+from keras.backend import KerasTensor
 from keras.backend import distribution_lib
 from keras.backend.common import global_state
 
@@ -170,6 +171,7 @@ class Distribution:
 
     1. Distribute the model variables to a `DeviceMesh`.
     2. Distribute the input data to a `DeviceMesh`.
+    3. Distribute an intermediate state tensor in the model.
 
     It can create a context scope so that the framework to properly detect the
     `Distribution` and distribute the variable/data accordingly.
@@ -202,6 +204,19 @@ class Distribution:
         return:
             The `TensorLayout` for the variable, which can be used by
             `backend.distribute_value()` to redistribute a variable.
+        """
+        raise NotImplementedError()
+
+    def get_tensor_layout(self, path):
+        """Retrieve the `TensorLayout` for the intermediate tensor.
+
+        Args:
+            path: a string path for the correspoding tensor.
+
+        return:
+            The `TensorLayout` for the intermediate tensor, which can be used
+            by `backend.relayout()` to reshard the tensor. Could also return
+            None.
         """
         raise NotImplementedError()
 
@@ -295,6 +310,10 @@ class DataParallel(Distribution):
     def get_variable_layout(self, variable):
         variable_shard_spec = [None] * len(variable.shape)
         return TensorLayout(variable_shard_spec, self.device_mesh)
+
+    def get_tensor_layout(self, path):
+        # For data parallel training, the intermediate state is not changed.
+        return None
 
 
 @keras_export("keras.distribution.ModelParallel")
@@ -392,6 +411,9 @@ class ModelParallel(Distribution):
             return variable_layout
         variable_shard_spec = [None] * len(variable.shape)
         return TensorLayout(variable_shard_spec, self.device_mesh)
+
+    def get_tensor_layout(self, path):
+        return self._layout_map[path]
 
 
 @keras_export("keras.distribution.LayoutMap")
@@ -505,6 +527,28 @@ class LayoutMap(collections.abc.MutableMapping):
 
 
 LayoutMap.get.__doc__ = LayoutMap.__getitem__.__doc__
+
+
+@keras_export("keras.distribution.distribute_tensor")
+def distribute_tensor(tensor, layout):
+    """Change the layout of a Tensor value in the jit function execution.
+
+    Note that this might not work outside of the jitted function for certain
+    backend. To change the layout of a value eagerly, please use
+    `backend.distribution_lib.distribute_value`.
+
+    Args:
+        tensor: a Tensor to change the layout.
+        layout: `TensorLayout` to be applied on the value.
+
+    Returns:
+        a new value with the specified tensor layout.
+    """
+    if isinstance(tensor, KerasTensor):
+        # keras tensor is only used for building functional model, and can't be
+        # used to alter layout/sharding.
+        return tensor
+    return distribution_lib.distribute_tensor(tensor, layout)
 
 
 @keras_export("keras.distribution.distribution")
