@@ -319,15 +319,18 @@ class LayoutMapTest(testing.TestCase):
         layout_map["dense.*kernel"] = self.replicated_2d
         layout_map["dense.*bias"] = self.replicated_1d
 
-        layout_map[".*bias"] = self.sharded_1d
+        layout_map["bias"] = self.sharded_1d
 
         self.assertEqual(layout_map["dense/kernel"], self.sharded_2d)
         self.assertEqual(layout_map["dense/bias"], self.sharded_1d)
 
-        # Map against the wildcard bias rule for dense, and based on the order
-        # of insertion, it will not use .*bias.
         self.assertEqual(layout_map["dense_2/kernel"], self.replicated_2d)
-        self.assertEqual(layout_map["dense_2/bias"], self.replicated_1d)
+        # Map against the wildcard bias rule for dense. This will cause a
+        # ValueError
+        with self.assertRaisesRegex(
+            ValueError, "Path 'dense_2/bias' matches multiple layout"
+        ):
+            layout_map["dense_2/bias"]
 
         self.assertIsNone(layout_map["conv2d/kernel"])
         self.assertEqual(layout_map["conv2d/bias"], self.sharded_1d)
