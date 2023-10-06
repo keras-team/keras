@@ -143,3 +143,19 @@ class DenseTest(testing.TestCase):
         )
         self.assertEqual(layer.bias, None)
         self.assertAllClose(layer(inputs), [[5.0, -6.0]])
+
+    def test_dense_without_activation_set(self):
+        """test when activation is explicitly set to None."""
+        layer = layers.Dense(units=2, use_bias=False)
+        layer.build((1, 2))
+        layer.set_weights(
+            [
+                np.array([[1.0, -2.0], [3.0, -4.0]]),
+            ]
+        )
+        layer.activation = None
+        inputs = np.array(
+            [[-1.0, 2.0]],
+        )
+        self.assertEqual(layer.bias, None)
+        self.assertAllClose(layer(inputs), [[5.0, -6.0]])
