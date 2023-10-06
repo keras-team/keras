@@ -84,7 +84,15 @@ class EmbeddingTest(test_case.TestCase):
         )
 
     def test_masking(self):
+        """Test masking with Embedding layer."""
         layer = layers.Embedding(input_dim=3, output_dim=2, mask_zero=True)
         layer.build()
         out = layer.compute_mask(np.array(([2, 1, 0])))
         self.assertAllClose(out, np.array([True, True, False]))
+
+    def test_compute_mask_no_masking(self):
+        """Test compute_mask with no masking."""
+        layer = layers.Embedding(input_dim=3, output_dim=2, mask_zero=False)
+        input_data = np.array([2, 1, 0])
+        mask = layer.compute_mask(input_data)
+        self.assertIsNone(mask)
