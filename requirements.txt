@@ -2,8 +2,8 @@
 tensorflow-cpu>=2.13.0
 
 # Torch.
-torch>=2.0.1+cpu
-torchvision>=0.15.1+cpu
+torch>=2.1.0+cpu
+torchvision>=0.16.0+cpu
 
 # Jax.
 jax[cpu]
