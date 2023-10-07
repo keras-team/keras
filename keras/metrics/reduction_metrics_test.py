@@ -58,6 +58,8 @@ class MeanTest(testing.TestCase):
         self.assertAllClose(result, 3.0, atol=1e-3)
 
 
+# How users would register a custom function or class to use with MeanMetricWrapper.
+@keras.saving.register_keras_serializable(package='test', name='mse')
 def mse(y_true, y_pred):
     return (y_true - y_pred) ** 2
 
@@ -70,7 +72,14 @@ class MetricWrapperTest(testing.TestCase):
         self.assertEqual(mse_obj.name, "mse")
         self.assertEqual(len(mse_obj.variables), 2)
         self.assertEqual(mse_obj._dtype, "float32")
-        # TODO: Check save and restore config
+        # Check save and restore config
+        mse_obj2 = reduction_metrics.MeanMetricWrapper.from_config(
+            mse_obj.get_config()
+        )
+        self.assertEqual(mse_obj2.name, "mse")
+        self.assertEqual(len(mse_obj2.variables), 2)
+        self.assertEqual(mse_obj2._dtype, "float32")
+        self.assertTrue("fn" in mse_obj2.get_config())
 
     def test_unweighted(self):
         mse_obj = reduction_metrics.MeanMetricWrapper(
