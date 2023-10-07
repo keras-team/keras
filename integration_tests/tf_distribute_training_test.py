@@ -1,12 +1,12 @@
 import numpy as np
 import tensorflow as tf
 
+import keras
 from keras import layers
 from keras import losses
 from keras import metrics
 from keras import models
 from keras import optimizers
-from keras.utils import rng_utils
 
 
 def test_model_fit():
@@ -19,7 +19,7 @@ def test_model_fit():
         ],
     )
 
-    rng_utils.set_random_seed(1337)
+    keras.utils.set_random_seed(1337)
 
     strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
     with strategy.scope():
