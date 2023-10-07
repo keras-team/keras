@@ -8,11 +8,8 @@ from keras.backend.common import keras_tensor
 
 
 class DenseTest(testing.TestCase):
-    """Test the Dense layer."""
-
     @pytest.mark.requires_trainable_backend
     def test_dense_basics(self):
-        """Basic properties and shapes test for Dense layer."""
         # 2D case, no bias.
         self.run_layer_test(
             layers.Dense,
@@ -50,7 +47,6 @@ class DenseTest(testing.TestCase):
         )
 
     def test_dense_correctness(self):
-        """Check output correctness with and without biases."""
         # With bias and activation.
         layer = layers.Dense(units=2, activation="relu")
         layer.build((1, 2))
@@ -80,7 +76,6 @@ class DenseTest(testing.TestCase):
         self.assertAllClose(layer(inputs), [[5.0, -6.0]])
 
     def test_dense_errors(self):
-        """Test error handling for incompatible input shapes."""
         with self.assertRaisesRegex(ValueError, "incompatible with the layer"):
             layer = layers.Dense(units=2, activation="relu")
             layer(keras_tensor.KerasTensor((1, 2)))
@@ -91,7 +86,6 @@ class DenseTest(testing.TestCase):
         reason="Backend does not support sparse tensors.",
     )
     def test_dense_sparse(self):
-        """Test the Dense layer with sparse input tensors."""
         import tensorflow as tf
 
         self.run_layer_test(
@@ -130,7 +124,6 @@ class DenseTest(testing.TestCase):
         )
 
     def test_dense_no_activation(self):
-        """Test Dense layer without any activation."""
         layer = layers.Dense(units=2, use_bias=False, activation=None)
         layer.build((1, 2))
         layer.set_weights(
@@ -145,7 +138,6 @@ class DenseTest(testing.TestCase):
         self.assertAllClose(layer(inputs), [[5.0, -6.0]])
 
     def test_dense_without_activation_set(self):
-        """test when activation is explicitly set to None."""
         layer = layers.Dense(units=2, use_bias=False)
         layer.build((1, 2))
         layer.set_weights(
@@ -161,7 +153,6 @@ class DenseTest(testing.TestCase):
         self.assertAllClose(layer(inputs), [[5.0, -6.0]])
 
     def test_dense_with_activation(self):
-        """Check output correctness when an activation function is applied."""
         layer = layers.Dense(units=2, use_bias=False, activation="relu")
         layer.build((1, 2))
         layer.set_weights(
