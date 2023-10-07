@@ -2,6 +2,7 @@ import numpy as np
 
 from keras import testing
 from keras.metrics import reduction_metrics
+from keras.saving import register_keras_serializable
 
 
 class SumTest(testing.TestCase):
@@ -59,7 +60,7 @@ class MeanTest(testing.TestCase):
 
 
 # How users would register a custom function or class to use with MeanMetricWrapper.
-@keras.saving.register_keras_serializable(package='test', name='mse')
+@register_keras_serializable(package='test', name='mse')
 def mse(y_true, y_pred):
     return (y_true - y_pred) ** 2
 
