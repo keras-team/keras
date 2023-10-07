@@ -14,6 +14,7 @@ import warnings
 import numpy as np
 
 from keras.api_export import keras_export
+from keras.backend import KerasTensor
 from keras.backend import distribution_lib
 from keras.backend.common import global_state
 
@@ -170,6 +171,7 @@ class Distribution:
 
     1. Distribute the model variables to a `DeviceMesh`.
     2. Distribute the input data to a `DeviceMesh`.
+    3. Distribute an intermediate state tensor in the model.
 
     It can create a context scope so that the framework to properly detect the
     `Distribution` and distribute the variable/data accordingly.
@@ -202,6 +204,19 @@ class Distribution:
         return:
             The `TensorLayout` for the variable, which can be used by
             `backend.distribute_value()` to redistribute a variable.
+        """
+        raise NotImplementedError()
+
+    def get_tensor_layout(self, path):
+        """Retrieve the `TensorLayout` for the intermediate tensor.
+
+        Args:
+            path: a string path for the correspoding tensor.
+
+        return:
+            The `TensorLayout` for the intermediate tensor, which can be used
+            by `backend.relayout()` to reshard the tensor. Could also return
+            None.
         """
         raise NotImplementedError()
 
@@ -296,6 +311,10 @@ class DataParallel(Distribution):
         variable_shard_spec = [None] * len(variable.shape)
         return TensorLayout(variable_shard_spec, self.device_mesh)
 
+    def get_tensor_layout(self, path):
+        # For data parallel training, the intermediate state is not changed.
+        return None
+
 
 @keras_export("keras.distribution.ModelParallel")
 class ModelParallel(Distribution):
@@ -327,10 +346,10 @@ class ModelParallel(Distribution):
     # will be split across 4 devices. Any other variable that doesn't
     # match any key in the layout map will be fully replicated.
     layout_map = LayoutMap(device_mesh)
-    layout_map['.*dense.*kernel'] = (None, 'model')
-    layout_map['.*dense.*bias'] = ('model',)
-    layout_map['.*conv2d.*kernel'] = (None, None, None, 'model')
-    layout_map['.*conv2d.*bias'] = ('model',)
+    layout_map['dense.*kernel'] = (None, 'model')
+    layout_map['dense.*bias'] = ('model',)
+    layout_map['conv2d.*kernel'] = (None, None, None, 'model')
+    layout_map['conv2d.*bias'] = ('model',)
 
     distribution = ModelParallel(device_mesh=device_mesh,
                                  layout_map=layout_map,
@@ -393,6 +412,9 @@ class ModelParallel(Distribution):
         variable_shard_spec = [None] * len(variable.shape)
         return TensorLayout(variable_shard_spec, self.device_mesh)
 
+    def get_tensor_layout(self, path):
+        return self._layout_map[path]
+
 
 @keras_export("keras.distribution.LayoutMap")
 class LayoutMap(collections.abc.MutableMapping):
@@ -415,10 +437,10 @@ class LayoutMap(collections.abc.MutableMapping):
 
     ```python
     layout_map = LayoutMap(device_mesh=None)
-    layout_map['.*dense.*kernel'] = (None, 'model')         # layout_2d
-    layout_map['.*dense.*bias'] = ('model',)                # layout_1d
-    layout_map['.*conv2d.*kernel'] = TensorLayout((None, None, None, 'model'))
-    layout_map['.*conv2d.*bias'] = TensorLayout(('model',))  # layout_1d
+    layout_map['dense.*kernel'] = (None, 'model')         # layout_2d
+    layout_map['dense.*bias'] = ('model',)                # layout_1d
+    layout_map['conv2d.*kernel'] = TensorLayout((None, None, None, 'model'))
+    layout_map['conv2d.*bias'] = TensorLayout(('model',))  # layout_1d
 
     layout_1 = layout_map['dense_1.kernel']             # layout_1 == layout_2d
     layout_2 = layout_map['dense_1.bias']               # layout_2 == layout_1d
@@ -443,9 +465,9 @@ class LayoutMap(collections.abc.MutableMapping):
         """Retrieves the corresponding layout by the string key.
 
         When there isn't an exact match, all the existing keys in the layout map
-        will be treated as a regex and map against the input key again. The
-        first match will be returned, based on the key insertion order. Returns
-        `None` if there isn't any match found.
+        will be treated as a regex and map against the input key again. When
+        there are multiple matches for the regex, an `ValueError` will be
+        raised. Returns `None` if there isn't any match found.
 
         Args:
             key: String key to query a layout.
@@ -456,9 +478,19 @@ class LayoutMap(collections.abc.MutableMapping):
         if key in self._layout_map:
             return self._layout_map[key]
 
+        matching_keys = []
         for k in self._layout_map:
-            if re.match(k, key):
-                return self._layout_map[k]
+            if re.search(k, key):
+                matching_keys.append(k)
+        if len(matching_keys) > 1:
+            raise ValueError(
+                f"Path '{key}' matches multiple layout "
+                f"specification keys: {matching_keys}. Please make "
+                "sure each tensor/variable path only matches at most "
+                "one layout specification key in the LayoutMap."
+            )
+        elif len(matching_keys) == 1:
+            return self._layout_map[matching_keys[0]]
         return None
 
     def __setitem__(self, key, layout):
@@ -505,6 +537,28 @@ class LayoutMap(collections.abc.MutableMapping):
 
 
 LayoutMap.get.__doc__ = LayoutMap.__getitem__.__doc__
+
+
+@keras_export("keras.distribution.distribute_tensor")
+def distribute_tensor(tensor, layout):
+    """Change the layout of a Tensor value in the jit function execution.
+
+    Note that this might not work outside of the jitted function for certain
+    backend. To change the layout of a value eagerly, please use
+    `backend.distribution_lib.distribute_value`.
+
+    Args:
+        tensor: a Tensor to change the layout.
+        layout: `TensorLayout` to be applied on the value.
+
+    Returns:
+        a new value with the specified tensor layout.
+    """
+    if isinstance(tensor, KerasTensor):
+        # keras tensor is only used for building functional model, and can't be
+        # used to alter layout/sharding.
+        return tensor
+    return distribution_lib.distribute_tensor(tensor, layout)
 
 
 @keras_export("keras.distribution.distribution")
