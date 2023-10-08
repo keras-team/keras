@@ -60,7 +60,7 @@ class MeanTest(testing.TestCase):
 
 
 # How users would register a custom function or class to use with MeanMetricWrapper.
-@register_keras_serializable(package='test', name='mse')
+@register_keras_serializable(package="test", name="mse")
 def mse(y_true, y_pred):
     return (y_true - y_pred) ** 2
 
