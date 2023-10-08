@@ -68,3 +68,13 @@ class WrapperTest(testing.TestCase):
             expected_num_losses=0,
             supports_masking=False,
         )
+
+    def test_wrapper_invalid_layer(self):
+        invalid_layer = "This is not a valid Keras layer."
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Layer .* supplied to Wrapper isn't a supported layer type. "
+            "Please ensure wrapped layer is a valid Keras layer.",
+        ):
+            layers.Wrapper(invalid_layer)
