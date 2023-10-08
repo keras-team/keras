@@ -37,10 +37,8 @@ then
    python3 -c 'import tensorflow as tf;len(tf.config.list_physical_devices("GPU")) > 0'
 
    # TODO: keras/layers/merging/merging_test.py::MergingLayersTest::test_sparse_dot_2d Fatal Python error: Aborted
-   # TODO: Embedding test failure
    pytest keras --ignore keras/applications \
                --ignore keras/layers/merging/merging_test.py \
-               --ignore keras/layers/core/embedding_test.py \
                --cov=keras
 fi
 
