@@ -126,3 +126,8 @@ class InputLayerTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(layer.batch_shape[1:], input_shape)
         self.assertEqual(layer.dtype, dtype)
         self.assertIsInstance(layer.output, KerasTensor)
+
+    def test_call_method(self):
+        layer = InputLayer(shape=(32,))
+        output = layer.call()
+        self.assertIsNone(output)

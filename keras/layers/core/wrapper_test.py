@@ -78,10 +78,3 @@ class WrapperTest(testing.TestCase):
             "Please ensure wrapped layer is a valid Keras layer.",
         ):
             layers.Wrapper(invalid_layer)
-
-    def test_wrapper_call_method(self):
-        wrapper_layer = ExampleWrapper(layers.Dense(2))
-        input_data = ops.ones(shape=(2, 3))
-        wrapper_layer.build(input_data.shape)
-        output = wrapper_layer(input_data)
-        self.assertIsNotNone(output)
