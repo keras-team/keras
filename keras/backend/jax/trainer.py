@@ -846,7 +846,7 @@ class JAXTrainer(base_trainer.Trainer):
 
             def distribute_single_value(d):
                 layout = distribution.get_data_layout(d.shape)
-                return jax_distribution_lib.distribute_value(d, layout)
+                return jax_distribution_lib.distribute_tensor(d, layout)
 
             return jax.tree_util.tree_map(distribute_single_value, data)
         else:

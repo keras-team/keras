@@ -32,7 +32,7 @@ class CanaryLayer(layers.Layer):
     def __init__(self):
         super().__init__()
         self.counter = self.add_weight(
-            shape=(), initializer="zeros", dtype="int32", trainable=False
+            shape=(), initializer="zeros", dtype="float32", trainable=False
         )
 
     def call(self, x):
