@@ -39,6 +39,7 @@ fi
 deactivate
 
 # TODO: Add test for JAX
+export KERAS_BACKEND="jax"
 if [ "$KERAS_BACKEND" == "jax" ]
 then
    echo "JAX backend detected."
@@ -72,6 +73,7 @@ then
    python3 -c 'import torch;assert torch.cuda.is_available()'
 
    # TODO: Fix the failing Torch GPU CI tests.
+   # TODO: nn_test failures are on correctness tests.
    pytest keras --ignore keras/applications \
                --ignore keras/layers/preprocessing/feature_space_test.py \
                --ignore keras/layers/reshaping/flatten_test.py \
