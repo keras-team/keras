@@ -437,7 +437,7 @@ def join(path, *paths):
             return gfile.join(path, *paths)
         else:
             _raise_if_no_gfile(path)
-    return os.path.join(path, *paths)
+    return os.path.join(path, *paths).replace("\\","/")
 
 
 def isdir(path):
