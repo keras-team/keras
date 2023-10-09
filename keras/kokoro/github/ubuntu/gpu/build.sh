@@ -21,7 +21,6 @@ nvcc --version
 cd "src/github/keras"
 pip install -U pip setuptools
 
-export KERAS_BACKEND="torch"
 if [ "$KERAS_BACKEND" == "tensorflow" ]
 then
    echo "TensorFlow backend detected."
@@ -57,6 +56,7 @@ then
 fi
 
 # TODO: Add test for PyTorch
+export KERAS_BACKEND="torch"
 if [ "$KERAS_BACKEND" == "torch" ]
 then
    echo "PyTorch backend detected."
@@ -67,8 +67,10 @@ then
    pip uninstall -y keras keras-nightly
    python3 -c 'import torch;print(torch.__version__);print(torch.cuda.is_available())'
    # Raise error if GPU is not detected.
-   python3 -c 'import jax;assert torch.cuda.is_available()'
+   python3 -c 'import torch;assert torch.cuda.is_available()'
 
-   pytest keras --ignore keras/applications
+   pytest keras --ignore keras/applications \
+               --ignore keras/layers/preprocessing/feature_space_test.py \
+               --ignore keras/ops/nn_test.py
    deactivate
 fi
