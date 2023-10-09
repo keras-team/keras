@@ -1,4 +1,5 @@
 import io
+
 from packaging.version import parse
 
 from keras.api_export import keras_export
@@ -146,6 +147,7 @@ class TorchModuleWrapper(Layer):
             buffer = io.BytesIO(config["module"])
             config["module"] = torch.load(buffer)
         return cls(**config)
+
 
 def no_grad(orig_func):
     import torch
