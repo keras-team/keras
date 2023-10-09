@@ -36,16 +36,11 @@ then
                --ignore keras/layers/merging/merging_test.py \
                --cov=keras
 fi
-deactivate
 
 # TODO: Add test for JAX
-export KERAS_BACKEND="jax"
 if [ "$KERAS_BACKEND" == "jax" ]
 then
    echo "JAX backend detected."
-   "${PYTHON_BINARY}" -m venv venv1
-   source venv1/bin/activate
-   pip install -U pip setuptools
    pip install -r requirements-jax-cuda.txt --progress-bar off
    pip uninstall -y keras keras-nightly
    python3 -c 'import jax;print(jax.__version__);print(jax.default_backend())'
@@ -58,17 +53,12 @@ then
                --ignore keras/layers/merging/merging_test.py \
                --ignore keras/trainers/data_adapters/py_dataset_adapter_test.py \
                --cov=keras
-   deactivate
 fi
 
 # TODO: Add test for PyTorch
-export KERAS_BACKEND="torch"
 if [ "$KERAS_BACKEND" == "torch" ]
 then
    echo "PyTorch backend detected."
-   "${PYTHON_BINARY}" -m venv venv2
-   source venv2/bin/activate
-   pip install -U pip setuptools
    pip install -r requirements-torch-cuda.txt --progress-bar off
    pip uninstall -y keras keras-nightly
    python3 -c 'import torch;print(torch.__version__);print(torch.cuda.is_available())'
@@ -82,5 +72,4 @@ then
                --ignore keras/layers/reshaping/flatten_test.py \
                --ignore keras/ops/nn_test.py \
                --cov=keras
-   deactivate
 fi
