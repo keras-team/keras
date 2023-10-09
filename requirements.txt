@@ -1,5 +1,5 @@
 # Tensorflow.
-tf-nightly
+tf-nightly==2.15.0.dev20231009  # Pin a working nightly until rc0.
 
 # Torch.
 --extra-index-url https://download.pytorch.org/whl/cpu
