@@ -21,7 +21,7 @@ nvcc --version
 cd "src/github/keras"
 pip install -U pip setuptools
 
-export KERAS_BACKEND="jax"
+export KERAS_BACKEND="torch"
 if [ "$KERAS_BACKEND" == "tensorflow" ]
 then
    echo "TensorFlow backend detected."
@@ -40,7 +40,6 @@ fi
 deactivate
 
 # TODO: Add test for JAX
-export KERAS_BACKEND="jax"
 if [ "$KERAS_BACKEND" == "jax" ]
 then
    echo "JAX backend detected."
@@ -58,7 +57,6 @@ then
 fi
 
 # TODO: Add test for PyTorch
-# export KERAS_BACKEND="torch"
 if [ "$KERAS_BACKEND" == "torch" ]
 then
    echo "PyTorch backend detected."
