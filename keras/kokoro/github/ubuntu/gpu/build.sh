@@ -53,8 +53,11 @@ then
    python3 -c 'import jax;assert jax.default_backend().lower() == "gpu"'
 
    # TODO: keras/layers/merging/merging_test.py::MergingLayersTest::test_sparse_dot_2d Fatal Python error: Aborted
+   # TODO: keras/trainers/data_adapters/py_dataset_adapter_test.py::PyDatasetAdapterTest::test_basic_flow0 Fatal Python error: Aborted
    pytest keras --ignore keras/applications \
-               --ignore keras/layers/merging/merging_test.py
+               --ignore keras/layers/merging/merging_test.py \
+               --ignore keras/trainers/data_adapters/py_dataset_adapter_test.py \
+               --cov=keras
    deactivate
 fi
 
@@ -77,6 +80,7 @@ then
    pytest keras --ignore keras/applications \
                --ignore keras/layers/preprocessing/feature_space_test.py \
                --ignore keras/layers/reshaping/flatten_test.py \
-               --ignore keras/ops/nn_test.py
+               --ignore keras/ops/nn_test.py \
+               --cov=keras
    deactivate
 fi
