@@ -30,6 +30,8 @@ from keras import utils
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend.common import global_state
+from keras.backend.common.name_scope import current_path
+from keras.distribution import distribution_lib
 from keras.layers import input_spec
 from keras.metrics.metric import Metric
 from keras.ops.operation import Operation
@@ -808,6 +810,19 @@ class Layer(BackendLayer, Operation):
                         outputs = super().__call__(*args, **kwargs)
                 else:
                     outputs = super().__call__(*args, **kwargs)
+                # Change the layout for the layer output if needed.
+                # This is useful for relayout intermediate tensor in the model
+                # to achieve the optimal performance.
+                distribution = distribution_lib.distribution()
+                if distribution is not None:
+                    current_layer_path = current_path()
+                    current_layer_path += "/output"
+                    layout = distribution.get_tensor_layout(current_layer_path)
+                    if layout:
+                        outputs = distribution_lib.distribute_tensor(
+                            outputs, layout
+                        )
+
                 if not self.built:
                     self.built = True
                 # Record activity regularizer loss.

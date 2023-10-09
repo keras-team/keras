@@ -1,9 +1,9 @@
-# Tensorflow
-tensorflow-cpu>=2.13.0
+# Tensorflow.
+tf-nightly
 
 # Torch.
-torch>=2.0.1+cpu
-torchvision>=0.15.1+cpu
+torch>=2.0.1
+torchvision>=0.15.1
 
 # Jax.
 jax[cpu]
