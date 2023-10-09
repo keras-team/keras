@@ -39,6 +39,7 @@ fi
 deactivate
 
 # TODO: Add test for JAX
+export KERAS_BACKEND="jax"
 if [ "$KERAS_BACKEND" == "jax" ]
 then
    echo "JAX backend detected."
@@ -51,11 +52,12 @@ then
    # Raise error if GPU is not detected.
    python3 -c 'import jax;assert jax.default_backend().lower() == "gpu"'
 
-   KERAS_BACKEND="jax" pytest keras --ignore keras/applications
+   pytest keras --ignore keras/applications
    deactivate
 fi
 
 # TODO: Add test for PyTorch
+export KERAS_BACKEND="torch"
 if [ "$KERAS_BACKEND" == "torch" ]
 then
    echo "PyTorch backend detected."
@@ -68,6 +70,6 @@ then
    # Raise error if GPU is not detected.
    python3 -c 'import jax;assert torch.cuda.is_available()'
 
-   KERAS_BACKEND="torch" pytest keras --ignore keras/applications
+   pytest keras --ignore keras/applications
    deactivate
 fi
