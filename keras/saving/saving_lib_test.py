@@ -587,7 +587,6 @@ class SavingAPITest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "are not supported"):
             model.save(temp_filepath, invalid_arg="hello")
 
-
     def test_safe_mode(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "unsafe_model.keras")
         model = keras.Sequential(
@@ -697,9 +696,7 @@ class SavingBattleTest(testing.TestCase):
         )
 
         inputs = keras.Input(shape=(4, 4))
-        outputs = keras.layers.Dense(
-            1, activation=GrowthFactor(0.5)
-        )(inputs)
+        outputs = keras.layers.Dense(1, activation=GrowthFactor(0.5))(inputs)
         model = keras.Model(inputs, outputs)
 
         model.save(temp_filepath)
@@ -710,9 +707,7 @@ class SavingBattleTest(testing.TestCase):
             _ = saving_lib.load_model(temp_filepath)
 
     def test_complex_model_without_explicit_deserialization(self):
-        temp_filepath = os.path.join(
-            self.get_temp_dir(), "complex_model.keras"
-        )
+        temp_filepath = os.path.join(self.get_temp_dir(), "complex_model.keras")
 
         inputs = keras.Input((32,))
         outputs = ComplexModel(first_layer=FactorLayer(0.5))(inputs)
