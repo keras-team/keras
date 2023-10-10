@@ -37,7 +37,6 @@ then
                --cov=keras
 fi
 
-# TODO: Add test for JAX
 if [ "$KERAS_BACKEND" == "jax" ]
 then
    echo "JAX backend detected."
@@ -59,7 +58,6 @@ then
                --cov=keras
 fi
 
-# TODO: Add test for PyTorch
 if [ "$KERAS_BACKEND" == "torch" ]
 then
    echo "PyTorch backend detected."
@@ -70,10 +68,8 @@ then
    python3 -c 'import torch;assert torch.cuda.is_available()'
 
    # TODO: Fix the failing Torch GPU CI tests.
-   # TODO: nn_test failures are on correctness tests.
    pytest keras --ignore keras/applications \
                --ignore keras/layers/preprocessing/feature_space_test.py \
                --ignore keras/layers/reshaping/flatten_test.py \
-               --ignore keras/ops/nn_test.py \
                --cov=keras
 fi
