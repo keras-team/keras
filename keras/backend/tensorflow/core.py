@@ -201,15 +201,16 @@ def scan(f, init, xs, length=None, reverse=False, unroll=1):
     if reverse:
         np.flip(xs)
 
-    init = (init, np.array(0,dtype=init.dtype))
+    init = (init, np.array(0, dtype=init.dtype))
 
-    carry,ys = tf.scan(f, xs, initializer=init)
+    carry, ys = tf.scan(f, xs, initializer=init)
 
     ys = ys.numpy()
+    carry = carry.numpy()
     if reverse:
         np.flip(ys)
 
-    return carry.numpy()[-1], ys
+    return carry[0], ys
 
 
 def while_loop(

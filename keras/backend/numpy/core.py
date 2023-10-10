@@ -205,7 +205,7 @@ def while_loop(
 
 
 def scan(f, init, xs, length=None, reverse=False, unroll=1):
-    print('here numpy')
+
     if xs is None:
         xs = [None] * length
     carry = init

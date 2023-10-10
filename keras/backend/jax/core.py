@@ -264,7 +264,7 @@ def slice_update(inputs, start_indices, updates):
 
 
 def scan(f, init, xs, length=None, reverse=False, unroll=1):
-    print('here jax')
+
     return jax.lax.scan(f, init, xs, length, reverse, unroll)
 
 

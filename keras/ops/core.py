@@ -175,6 +175,7 @@ class Scan(Operation):
     def compute_output_spec(self, f, init, xs, length, reverse, unroll):
         return KerasTensor(xs.shape, dtype=xs.dtype)
 
+
 @keras_export("keras.ops.slice_update")
 def slice_update(inputs, start_indices, updates):
     """Update an input by slicing in a tensor of updated values.
@@ -229,7 +230,7 @@ def scan(f, init, xs, length=None, reverse=False, unroll=1):
         carry = x
         return carry, x
 
-    inputs = keras.ops.scan(f, 1, [0,1,2,3,4,5,6,7,8,9], length=None, reverse=False, unroll=1)
+    inputs = keras.ops.scan(f,1,[0,1,2,3],length=None,reverse=False,unroll=1)
     ```
 
     Args:
