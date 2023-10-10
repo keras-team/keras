@@ -1,5 +1,3 @@
-import torch
-
 from keras.optimizers.base_optimizer import BaseOptimizer
 from keras.utils import torch_utils
 

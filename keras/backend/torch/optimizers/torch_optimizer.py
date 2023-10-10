@@ -1,5 +1,4 @@
 import torch
-from packaging.version import parse
 
 from keras import optimizers
 from keras.optimizers.base_optimizer import BaseOptimizer
