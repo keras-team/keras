@@ -108,3 +108,26 @@ class InputLayerTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(values.output, input_tensor)
         self.assertEqual(values.output.ndim, input_tensor.ndim)
         self.assertEqual(values.output.dtype, dtype)
+
+    def test_input_shape_deprecated(self):
+        input_shape = (2, 3)
+        batch_size = 4
+        dtype = "float32"
+
+        with self.assertWarnsRegex(
+            UserWarning,
+            "Argument `input_shape` is deprecated. Use `shape` instead.",
+        ):
+            layer = InputLayer(
+                input_shape=input_shape, batch_size=batch_size, dtype=dtype
+            )
+
+        self.assertEqual(layer.batch_shape[0], batch_size)
+        self.assertEqual(layer.batch_shape[1:], input_shape)
+        self.assertEqual(layer.dtype, dtype)
+        self.assertIsInstance(layer.output, KerasTensor)
+
+    def test_call_method(self):
+        layer = InputLayer(shape=(32,))
+        output = layer.call()
+        self.assertIsNone(output)

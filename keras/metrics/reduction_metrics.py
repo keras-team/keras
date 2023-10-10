@@ -197,7 +197,7 @@ class MeanMetricWrapper(Mean):
 
     def get_config(self):
         base_config = super().get_config()
-        config = {"fn": serialization_lib.serialize_keras_object(self.fn)}
+        config = {"fn": serialization_lib.serialize_keras_object(self._fn)}
         config.update(serialization_lib.serialize_keras_object(self._fn_kwargs))
         return {**base_config, **config}
 

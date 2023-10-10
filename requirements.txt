@@ -1,9 +1,9 @@
-# Tensorflow
-tensorflow-cpu>=2.13.0
+# Tensorflow.
+tf-nightly==2.15.0.dev20231009  # Pin a working nightly until rc0.
 
 # Torch.
-torch>=2.1.0+cpu
-torchvision>=0.16.0+cpu
+torch>=2.0.1
+torchvision>=0.15.1
 
 # Jax.
 jax[cpu]

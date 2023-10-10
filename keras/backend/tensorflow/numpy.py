@@ -810,7 +810,7 @@ def take(x, indices, axis=None):
             )
             return tfnp.take(x, tf.sparse.to_dense(indices), axis=axis)
         return tf.nn.safe_embedding_lookup_sparse(
-            embedding_weights=x,
+            embedding_weights=tf.convert_to_tensor(x),
             sparse_ids=tf.sparse.expand_dims(indices, axis=-1),
             default_id=0,
         )
