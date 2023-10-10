@@ -197,7 +197,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             [14.402393, 10.991339, 8.388159],
             atol=6.1051628e-1,
         )
-    
+
     @parameterized.named_parameters(
         [
             ("eager", True, False, False),
@@ -209,8 +209,9 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         ]
     )
     @pytest.mark.requires_trainable_backend
-    def test_fit_with_val_split(self, run_eagerly, 
-                                jit_compile, use_steps_per_epoch):
+    def test_fit_with_val_split(
+        self, run_eagerly, jit_compile, use_steps_per_epoch
+    ):
         if not run_eagerly and not jit_compile and use_steps_per_epoch:
             if backend.backend() == "tensorflow":
                 self.skipTest(
