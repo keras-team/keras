@@ -20,21 +20,16 @@ nvcc --version
 
 cd "src/github/keras"
 pip install -U pip setuptools
-pip install -r requirements.txt --progress-bar off
 
 if [ "$KERAS_BACKEND" == "tensorflow" ]
 then
    echo "TensorFlow backend detected."
-   pip uninstall -y tensorflow-cpu
-   pip uninstall -y keras
-   # TF 2.14 is not built with Cuda 12.2 and doesn't detect GPU
-   # TODO: Use TF Nightly until TF 2.15 RC is released
-   pip install -U tf-nightly
-   pip uninstall -y keras-nightly
+   pip install -r requirements-tensorflow-cuda.txt --progress-bar off
+   pip uninstall -y keras keras-nightly
    echo "Check that TensorFlow uses GPU"
    python3 -c 'import tensorflow as tf;print(tf.__version__);print(tf.config.list_physical_devices("GPU"))'
-   # Raise error if GPU is not detected by TensorFlow.
-   python3 -c 'import tensorflow as tf;len(tf.config.list_physical_devices("GPU")) > 0'
+   # Raise error if GPU is not detected.
+   python3 -c 'import tensorflow as tf;assert len(tf.config.list_physical_devices("GPU")) > 0'
 
    # TODO: keras/layers/merging/merging_test.py::MergingLayersTest::test_sparse_dot_2d Fatal Python error: Aborted
    pytest keras --ignore keras/applications \
@@ -46,10 +41,39 @@ fi
 if [ "$KERAS_BACKEND" == "jax" ]
 then
    echo "JAX backend detected."
+   pip install -r requirements-jax-cuda.txt --progress-bar off
+   pip uninstall -y keras keras-nightly
+   python3 -c 'import jax;print(jax.__version__);print(jax.default_backend())'
+   # Raise error if GPU is not detected.
+   python3 -c 'import jax;assert jax.default_backend().lower() == "gpu"'
+
+   # TODO: keras/layers/merging/merging_test.py::MergingLayersTest::test_sparse_dot_2d Fatal Python error: Aborted
+   # TODO: FAILED keras/layers/preprocessing/feature_space_test.py::FeatureSpaceTest::test_saving
+   # TODO: keras/trainers/data_adapters/py_dataset_adapter_test.py::PyDatasetAdapterTest::test_basic_flow0 Fatal Python error: Aborted
+   # TODO: FAILED keras/distribution/distribution_lib_test.py
+   pytest keras --ignore keras/applications \
+               --ignore keras/layers/merging/merging_test.py \
+               --ignore keras/layers/preprocessing/feature_space_test.py \
+               --ignore keras/trainers/data_adapters/py_dataset_adapter_test.py \
+               --ignore keras/distribution/distribution_lib_test.py \
+               --cov=keras
 fi
 
 # TODO: Add test for PyTorch
 if [ "$KERAS_BACKEND" == "torch" ]
 then
    echo "PyTorch backend detected."
+   pip install -r requirements-torch-cuda.txt --progress-bar off
+   pip uninstall -y keras keras-nightly
+   python3 -c 'import torch;print(torch.__version__);print(torch.cuda.is_available())'
+   # Raise error if GPU is not detected.
+   python3 -c 'import torch;assert torch.cuda.is_available()'
+
+   # TODO: Fix the failing Torch GPU CI tests.
+   # TODO: nn_test failures are on correctness tests.
+   pytest keras --ignore keras/applications \
+               --ignore keras/layers/preprocessing/feature_space_test.py \
+               --ignore keras/layers/reshaping/flatten_test.py \
+               --ignore keras/ops/nn_test.py \
+               --cov=keras
 fi
