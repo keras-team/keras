@@ -1,5 +1,7 @@
 import io
 
+from packaging.version import parse
+
 from keras.api_export import keras_export
 from keras.layers import Layer
 from keras.ops import convert_to_numpy
@@ -145,3 +147,12 @@ class TorchModuleWrapper(Layer):
             buffer = io.BytesIO(config["module"])
             config["module"] = torch.load(buffer)
         return cls(**config)
+
+
+def no_grad(orig_func):
+    import torch
+
+    if parse(torch.__version__) >= parse("2.1.0"):
+        return torch.no_grad(orig_func)
+    else:
+        return orig_func
