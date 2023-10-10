@@ -197,6 +197,53 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             [14.402393, 10.991339, 8.388159],
             atol=6.1051628e-1,
         )
+    
+    @parameterized.named_parameters(
+        [
+            ("eager", True, False, False),
+            ("graph_fn", False, False, False),
+            ("jit", False, True, False),
+            ("steps_per_epoch_eager", True, False, True),
+            ("steps_per_epoch_graph_fn", False, False, True),
+            ("steps_per_epoch_jit", False, True, True),
+        ]
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_fit_with_val_split(self, run_eagerly, 
+                                jit_compile, use_steps_per_epoch):
+        if not run_eagerly and not jit_compile and use_steps_per_epoch:
+            if backend.backend() == "tensorflow":
+                self.skipTest(
+                    "TODO: Graph mode without XLA in TF backend leads to "
+                    "unexpected logs, need further checks."
+                )
+
+        model = ExampleModel(units=3)
+        epochs = 3
+        batch_size = 20
+        steps_per_epoch = 7
+        dataset_size = batch_size * (steps_per_epoch - 2)
+        x = np.ones((dataset_size, 4))
+        y = np.zeros((dataset_size, 3))
+
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            run_eagerly=run_eagerly,
+            jit_compile=jit_compile,
+        )
+        history = model.fit(
+            x,
+            y,
+            batch_size=batch_size,
+            steps_per_epoch=steps_per_epoch if use_steps_per_epoch else None,
+            epochs=epochs,
+            validation_split=0.2,
+        )
+        history = history.history
+        self.assertIn("loss", history)
+        self.assertIn("val_loss", history)
 
     @parameterized.named_parameters(
         [
