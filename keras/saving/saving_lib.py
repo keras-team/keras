@@ -378,7 +378,9 @@ def _load_state(
                 child_obj,
                 weights_store,
                 assets_store,
-                inner_path=file_utils.join(inner_path, child_attr),
+                inner_path=file_utils.join(inner_path, child_attr).replace(
+                    "\\", "/"
+                ),
                 skip_mismatch=skip_mismatch,
                 visited_trackables=visited_trackables,
             )
@@ -387,7 +389,9 @@ def _load_state(
                 child_obj,
                 weights_store,
                 assets_store,
-                inner_path=file_utils.join(inner_path, child_attr),
+                inner_path=file_utils.join(inner_path, child_attr).replace(
+                    "\\", "/"
+                ),
                 skip_mismatch=skip_mismatch,
                 visited_trackables=visited_trackables,
             )
@@ -415,7 +419,7 @@ def _save_container_state(
                 trackable,
                 weights_store,
                 assets_store,
-                inner_path=file_utils.join(inner_path, name),
+                inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
                 visited_trackables=visited_trackables,
             )
 
@@ -444,7 +448,7 @@ def _load_container_state(
                 trackable,
                 weights_store,
                 assets_store,
-                inner_path=file_utils.join(inner_path, name),
+                inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
                 skip_mismatch=skip_mismatch,
                 visited_trackables=visited_trackables,
             )
@@ -469,7 +473,9 @@ class DiskIOStore:
             self.tmp_dir = get_temp_dir()
             if self.mode == "r":
                 self.archive.extractall(path=self.tmp_dir)
-            self.working_dir = file_utils.join(self.tmp_dir, self.root_path)
+            self.working_dir = file_utils.join(
+                self.tmp_dir, self.root_path
+            ).replace("\\", "/")
             if self.mode == "w":
                 file_utils.makedirs(self.working_dir)
         else:
@@ -477,13 +483,15 @@ class DiskIOStore:
                 self.working_dir = root_path
             else:
                 self.tmp_dir = get_temp_dir()
-                self.working_dir = file_utils.join(self.tmp_dir, self.root_path)
+                self.working_dir = file_utils.join(
+                    self.tmp_dir, self.root_path
+                ).replace("\\", "/")
                 file_utils.makedirs(self.working_dir)
 
     def make(self, path):
         if not path:
             return self.working_dir
-        path = file_utils.join(self.working_dir, path)
+        path = file_utils.join(self.working_dir, path).replace("\\", "/")
         if not file_utils.exists(path):
             file_utils.makedirs(path)
         return path
@@ -491,7 +499,7 @@ class DiskIOStore:
     def get(self, path):
         if not path:
             return self.working_dir
-        path = file_utils.join(self.working_dir, path)
+        path = file_utils.join(self.working_dir, path).replace("\\", "/")
         if file_utils.exists(path):
             return path
         return None
