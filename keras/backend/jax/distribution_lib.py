@@ -78,10 +78,9 @@ def distribute_tensor(tensor, layout):
         # Need to only distribute the value to local addressible devices, and
         # repack them back into global format.
         mapping = layout.addressable_devices_indices_map(tensor.shape)
-        local_values = [
-            jax.device_put(tensor[index], device=d)
-            for d, index in mapping.items()
-        ]
+        local_values = jax.device_put(
+            [tensor[i] for i in mapping.values()], list(mapping.keys())
+        )
         global_value = jax.make_array_from_single_device_arrays(
             tensor.shape, layout, local_values
         )
