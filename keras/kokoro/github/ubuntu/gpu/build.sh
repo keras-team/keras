@@ -70,6 +70,5 @@ then
    # TODO: Fix the failing Torch GPU CI tests.
    pytest keras --ignore keras/applications \
                --ignore keras/layers/preprocessing/feature_space_test.py \
-               --ignore keras/layers/reshaping/flatten_test.py \
                --cov=keras
 fi

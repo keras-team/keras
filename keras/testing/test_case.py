@@ -311,9 +311,15 @@ class TestCase(unittest.TestCase):
             if input_sparse:
                 import tensorflow as tf
 
-                dataset = tf.data.Dataset.from_tensors(
-                    (input_data, output_data)
-                )
+                if backend.backend() == "torch":
+                    # Bring output Torch tensors to CPU before using `tf.data`
+                    dataset = tf.data.Dataset.from_tensors(
+                        (input_data, backend.convert_to_numpy(output_data))
+                    )
+                else:
+                    dataset = tf.data.Dataset.from_tensors(
+                        (input_data, output_data)
+                    )
                 model.compile(optimizer="sgd", loss="mse", jit_compile=False)
                 model.fit(dataset, verbose=0)
             else:
