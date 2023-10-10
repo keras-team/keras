@@ -58,32 +58,32 @@ def distribute_tensor(tensor, layout):
     jitted function.
 
     Args:
-        value: `jax.Array` that need to be distributed.
+        tensor: `jax.Array` that need to be distributed.
         layout: `TensorLayout` for the distribution information, or a
             `jax.sharding.Sharding` instance.
 
     Returns:
         Distributed value.
     """
-    if not isinstance(tensor_layout, jax.sharding.Sharding):
-        tensor_layout = _to_jax_layout(tensor_layout)
+    if not isinstance(layout, jax.sharding.Sharding):
+        layout = _to_jax_layout(layout)
     # TODO(scottzhu): This might not be a cheap check, we should consider
     # have some proper JAX API for doing this check.
     if jax_utils.is_in_jax_tracing_scope():
         return jax.lax.with_sharding_constraint(tensor, layout)
 
-    if tensor_layout.is_fully_addressable:
-        return jax.device_put(value, tensor_layout)
+    if layout.is_fully_addressable:
+        return jax.device_put(tensor, layout)
     else:
         # Need to only distribute the value to local addressible devices, and
         # repack them back into global format.
-        mapping = tensor_layout.addressable_devices_indices_map(value.shape)
+        mapping = layout.addressable_devices_indices_map(tensor.shape)
         local_values = [
-            jax.device_put(value[index], device=d)
+            jax.device_put(tensor[index], device=d)
             for d, index in mapping.items()
         ]
         global_value = jax.make_array_from_single_device_arrays(
-            value.shape, tensor_layout, local_values
+            tensor.shape, layout, local_values
         )
         return global_value
 
