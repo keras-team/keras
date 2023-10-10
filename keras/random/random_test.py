@@ -233,3 +233,9 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertFalse(np.all(x == ops.convert_to_numpy(y)))
         self.assertAllClose(np.sum(x, axis=1), ops.sum(y, axis=1))
         self.assertNotAllClose(np.sum(x, axis=0), ops.sum(y, axis=0))
+
+    def test_randint_dtype_validation(self):
+        with self.assertRaisesRegex(
+            ValueError, "`keras.random.randint` requires an integer `dtype`."
+        ):
+            random.randint((3, 4), minval=0, maxval=10, dtype="float64")
