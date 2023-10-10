@@ -2,7 +2,6 @@
 
 import functools
 import os
-from unittest import mock
 
 import jax
 import numpy as np

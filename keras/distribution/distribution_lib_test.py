@@ -3,11 +3,9 @@
 from unittest import mock
 
 import numpy as np
-import pytest
 
 from keras import backend
 from keras import testing
-from keras.backend import distribution_lib as backend_dlib
 from keras.distribution import distribution_lib
 
 
