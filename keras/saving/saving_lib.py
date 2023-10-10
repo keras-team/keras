@@ -245,8 +245,12 @@ def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
         zipfile_to_save.write(system_path, zip_path)
     else:
         for file_name in file_utils.listdir(system_path):
-            system_file_path = file_utils.join(system_path, file_name)
-            zip_file_path = file_utils.join(zip_path, file_name)
+            system_file_path = file_utils.join(system_path, file_name).replace(
+                "\\", "/"
+            )
+            zip_file_path = file_utils.join(zip_path, file_name).replace(
+                "\\", "/"
+            )
             _write_to_zip_recursively(
                 zipfile_to_save, system_file_path, zip_file_path
             )
@@ -308,7 +312,9 @@ def _save_state(
                 child_obj,
                 weights_store,
                 assets_store,
-                inner_path=file_utils.join(inner_path, child_attr),
+                inner_path=file_utils.join(inner_path, child_attr).replace(
+                    "\\", "/"
+                ),
                 visited_trackables=visited_trackables,
             )
         elif isinstance(child_obj, (list, dict, tuple, set)):
@@ -316,7 +322,9 @@ def _save_state(
                 child_obj,
                 weights_store,
                 assets_store,
-                inner_path=file_utils.join(inner_path, child_attr),
+                inner_path=file_utils.join(inner_path, child_attr).replace(
+                    "\\", "/"
+                ),
                 visited_trackables=visited_trackables,
             )
 
