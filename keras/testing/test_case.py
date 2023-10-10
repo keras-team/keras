@@ -309,8 +309,19 @@ class TestCase(unittest.TestCase):
             model = TestModel(layer)
 
             if input_sparse:
+                import tensorflow as tf
+
+                if backend.backend() == "torch":
+                    # Bring output Torch tensors to CPU before using `tf.data`
+                    dataset = tf.data.Dataset.from_tensors(
+                        (input_data, backend.convert_to_numpy(output_data))
+                    )
+                else:
+                    dataset = tf.data.Dataset.from_tensors(
+                        (input_data, output_data)
+                    )
                 model.compile(optimizer="sgd", loss="mse", jit_compile=False)
-                model.fit(input_data, output_data, verbose=0)
+                model.fit(dataset, verbose=0)
             else:
                 input_data = tree.map_structure(
                     lambda x: backend.convert_to_numpy(x), input_data
