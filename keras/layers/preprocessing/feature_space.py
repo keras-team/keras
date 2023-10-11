@@ -735,6 +735,8 @@ class FeatureSpace(Layer):
         if rebatched:
             if self.output_mode == "concat":
                 assert merged_data.shape[0] == 1
+                if backend.backend() != "tensorflow":
+                    merged_data = backend.convert_to_numpy(merged_data)
                 merged_data = tf.squeeze(merged_data, axis=0)
             else:
                 for name, x in merged_data.items():
