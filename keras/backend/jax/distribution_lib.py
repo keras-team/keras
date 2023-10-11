@@ -95,17 +95,21 @@ def initialize(job_addresses, num_processes, process_id):
         # Do a sanity check to make sure the number of addresses also match
         # the num_processes.
         if num_processes is not None and num_processes != len(job_addresses):
-            raise ValueError(f"The provided job_addresses {job_addresses} has "
-                             f"{len(job_addresses)} jobs, but num_processes is "
-                             f"{num_processes}")
+            raise ValueError(
+                f"The provided job_addresses {job_addresses} has "
+                f"{len(job_addresses)} jobs, but num_processes is "
+                f"{num_processes}"
+            )
         corrdinator_address = job_addresses[0]
     else:
         corrdinator_address = job_addresses
 
     jax.distributed.initialize(
         corrdinator_address=corrdinator_address,
-        num_processes=num_processes, 
-        process_id=process_id)
+        num_processes=num_processes,
+        process_id=process_id,
+    )
+
 
 def _to_jax_device(device_id):
     device_type, index = device_id.split(":")

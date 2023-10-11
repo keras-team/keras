@@ -8,6 +8,7 @@ will be implemented in the future (via tf.dtensor API).
 
 import collections
 import contextlib
+import os
 import re
 import warnings
 
@@ -43,12 +44,12 @@ def list_devices(device_type=None):
 @keras_export("keras.distribute.initialize")
 def initialize(job_addresses=None, num_processes=None, proceed_id=None):
     """Initialize the distribution system for multi-host/process setting.
-    
+
     Calling `initialize` will prepare the backend for execution on multi-host
     GPU or TPUs. It should be called before any computations.
 
     Note that the parameters can also be injected via enviornment variables,
-    which can be better controlled by the launch script at startup time. 
+    which can be better controlled by the launch script at startup time.
     For certain backend that also rely on the enviornment variables to
     configure, Keras will properly forward them.
 
@@ -60,14 +61,14 @@ def initialize(job_addresses=None, num_processes=None, proceed_id=None):
         with the TPU enviornment variables. You can also config this value via
         enviornment variable `KERAS_DISTRIBUTE_JOB_ADDRESSES`.
       num_processes: int. The number of worker/processes that will form the
-        whole computation cluster. For certain runtime like cloud TPU, this 
-        value can be `None`, and the backend will figure it out with the TPU 
-        enviornment variables. You can also configure this value via enviornment 
+        whole computation cluster. For certain runtime like cloud TPU, this
+        value can be `None`, and the backend will figure it out with the TPU
+        enviornment variables. You can also configure this value via enviornment
         variable `KERAS_DISTRIBUTE_NUM_PROCESSES`.
       process_id: int. The ID number of the current worker/process. The value
         should be ranged from `0` to `num_processes - 1`. `0` will indicate
         the current worker/process is the master/coordinate job. You can also
-        configure this value via enviornment variable 
+        configure this value via enviornment variable
         `KERAS_DISTRIBUTE_PROCESS_ID`.
 
     Example:
