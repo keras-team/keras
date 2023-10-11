@@ -1858,3 +1858,44 @@ def binary_focal_crossentropy(
         focal_bce = weight * focal_bce
 
     return ops.mean(focal_bce, axis=axis)
+
+@keras_export(
+    [
+        "keras.metrics.npairs_loss",
+        "keras.losses.npairs_loss",
+    ]
+)
+def npairs_loss(y_true, y_pred):
+  """Computes the npairs loss between `y_true` and `y_pred`.
+
+    Npairs loss expects paired data where a pair is composed of samples from
+    the same labels and each pairs in the minibatch have different labels.
+    The loss takes each row of the pair-wise similarity matrix, `y_pred`,
+    as logits and the remapped multi-class labels, `y_true`, as labels.
+
+
+    See:
+    http://www.nec-labs.com/uploads/images/Department-Images/MediaAnalytics/papers/nips16_npairmetriclearning.pdf
+
+    Args:
+      y_true: Ground truth values, of shape `[batch_size]` of multi-class
+        labels.
+      y_pred: Predicted values of shape `[batch_size, batch_size]` of
+        similarity matrix between embedding matrices.
+
+    Returns:
+      npairs_loss: float scalar.
+    """
+
+  y_pred = ops.cast(y_pred, 'float32')
+  y_true = ops.cast(y_true, y_pred.dtype)
+
+  # Expand to [batch_size, 1]
+  y_true = ops.expand_dims(y_true, -1)
+  y_true = ops.cast(ops.equal(y_true, ops.transpose(y_true)), y_pred.dtype)
+  y_true /= ops.sum(y_true, axis=1, keepdims=True)
+  y_true = ops.squeeze(y_true, axis=1)
+
+  loss = ops.categorical_crossentropy(y_true, y_pred)
+
+  return ops.mean(loss)
