@@ -95,7 +95,7 @@ learning_rate = 0.001
 batch_size = 265
 hidden_units = 512
 projection_units = 128
-num_epochs = 1
+num_epochs = 50
 dropout_rate = 0.5
 temperature = 0.05
 
