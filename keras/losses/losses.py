@@ -4,8 +4,8 @@ from keras import backend
 from keras import ops
 from keras.api_export import keras_export
 from keras.losses.loss import Loss
-from keras.losses.loss import squeeze_to_same_rank
 from keras.losses.loss import reduce_values
+from keras.losses.loss import squeeze_to_same_rank
 from keras.saving import serialization_lib
 from keras.utils.numerical_utils import normalize
 
@@ -1860,6 +1860,7 @@ def binary_focal_crossentropy(
 
     return ops.mean(focal_bce, axis=axis)
 
+
 @keras_export(
     [
         "keras.metrics.npairs_loss",
@@ -1867,7 +1868,7 @@ def binary_focal_crossentropy(
     ]
 )
 def npairs_loss(y_true, y_pred):
-  """Computes the npairs loss between `y_true` and `y_pred`.
+    """Computes the npairs loss between `y_true` and `y_pred`.
 
     Npairs loss expects paired data where a pair is composed of samples from
     the same labels and each pairs in the minibatch have different labels.
@@ -1888,12 +1889,12 @@ def npairs_loss(y_true, y_pred):
       npairs_loss: float scalar.
     """
 
-  y_pred = ops.cast(y_pred, 'float32')
-  y_true = ops.cast(y_true, y_pred.dtype)
-  y_true = ops.expand_dims(y_true, -1)
-  y_true = ops.cast(ops.equal(y_true, ops.transpose(y_true)), y_pred.dtype)
-  y_true /= reduce_values(y_true)
-  y_true = squeeze_to_same_rank(y_true, y_pred)
-  loss = ops.categorical_crossentropy(y_true, y_pred)
+    y_pred = ops.cast(y_pred, "float32")
+    y_true = ops.cast(y_true, y_pred.dtype)
+    y_true = ops.expand_dims(y_true, -1)
+    y_true = ops.cast(ops.equal(y_true, ops.transpose(y_true)), y_pred.dtype)
+    y_true /= reduce_values(y_true)
+    y_true = squeeze_to_same_rank(y_true, y_pred)
+    loss = ops.categorical_crossentropy(y_true, y_pred)
 
-  return ops.mean(loss)
+    return ops.mean(loss)
