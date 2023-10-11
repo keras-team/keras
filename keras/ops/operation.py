@@ -67,7 +67,7 @@ class Operation:
         try:
             return backend.compute_output_spec(self.call, *args, **kwargs)
         except Exception as e:
-            if type(e) is TypeError:
+            if isinstance(e, TypeError):
                 raise e
             else:
                 new_e = RuntimeError(
