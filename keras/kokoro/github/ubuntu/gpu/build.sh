@@ -47,12 +47,10 @@ then
    python3 -c 'import jax;assert jax.default_backend().lower() == "gpu"'
 
    # TODO: keras/layers/merging/merging_test.py::MergingLayersTest::test_sparse_dot_2d Fatal Python error: Aborted
-   # TODO: FAILED keras/layers/preprocessing/feature_space_test.py::FeatureSpaceTest::test_saving
    # TODO: keras/trainers/data_adapters/py_dataset_adapter_test.py::PyDatasetAdapterTest::test_basic_flow0 Fatal Python error: Aborted
    # keras/backend/jax/distribution_lib_test.py is configured for CPU test for now.
    pytest keras --ignore keras/applications \
                --ignore keras/layers/merging/merging_test.py \
-               --ignore keras/layers/preprocessing/feature_space_test.py \
                --ignore keras/trainers/data_adapters/py_dataset_adapter_test.py \
                --ignore keras/backend/jax/distribution_lib_test.py \
                --cov=keras
@@ -67,8 +65,6 @@ then
    # Raise error if GPU is not detected.
    python3 -c 'import torch;assert torch.cuda.is_available()'
 
-   # TODO: Fix the failing Torch GPU CI tests.
    pytest keras --ignore keras/applications \
-               --ignore keras/layers/preprocessing/feature_space_test.py \
                --cov=keras
 fi
