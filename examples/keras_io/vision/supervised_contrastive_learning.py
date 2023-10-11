@@ -20,23 +20,18 @@ Learning is performed in two phases:
 that representations of images in the same class will be more similar compared to
 representations of images in different classes.
 2. Training a classifier on top of the frozen encoder.
-
-Note that this example requires [TensorFlow Addons](https://www.tensorflow.org/addons),
-which you can install using the following command:
-
-```python
-pip install tensorflow-addons
-```
-
+"""
+"""
 ## Setup
 """
 
-import tensorflow as tf
-import tensorflow_addons as tfa
-import numpy as np
-from tensorflow import keras
-from tensorflow.keras import layers
-
+import keras
+from keras import ops
+from keras import layers
+from keras.applications.resnet_v2 import ResNet50V2
+from keras.losses.loss import squeeze_to_same_rank
+import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
 """
 ## Prepare the data
 """
@@ -76,7 +71,7 @@ feature vector.
 
 
 def create_encoder():
-    resnet = keras.applications.ResNet50V2(
+    resnet = ResNet50V2(
         include_top=False, weights=None, input_shape=input_shape, pooling="avg"
     )
 
@@ -127,6 +122,42 @@ def create_classifier(encoder, trainable=True):
 
 
 """
+## Define npairs loss function
+"""
+
+def npairs_loss(y_true, y_pred):
+    """Computes the npairs loss between `y_true` and `y_pred`.
+
+    Npairs loss expects paired data where a pair is composed of samples from
+    the same labels and each pairs in the minibatch have different labels.
+    The loss takes each row of the pair-wise similarity matrix, `y_pred`,
+    as logits and the remapped multi-class labels, `y_true`, as labels.
+
+
+    See:
+    http://www.nec-labs.com/uploads/images/Department-Images/MediaAnalytics/papers/nips16_npairmetriclearning.pdf
+
+    Args:
+      y_true: Ground truth values, of shape `[batch_size]` of multi-class
+        labels.
+      y_pred: Predicted values of shape `[batch_size, batch_size]` of
+        similarity matrix between embedding matrices.
+
+    Returns:
+      npairs_loss: float scalar.
+    """
+    y_pred = ops.cast(y_pred, "float32")
+    y_true = ops.cast(y_true, y_pred.dtype)
+    y_true = ops.expand_dims(y_true, -1)
+    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true = ops.cast(ops.equal(y_true, ops.transpose(y_true)), y_pred.dtype)
+    y_true /= ops.sum(y_true, 1, keepdims=True)
+    loss = ops.categorical_crossentropy(y_true, y_pred, from_logits=True)
+
+    return ops.mean(loss)
+
+
+"""
 ## Experiment 1: Train the baseline classification model
 
 In this experiment, a baseline classifier is trained as usual, i.e., the
@@ -166,15 +197,15 @@ class SupervisedContrastiveLoss(keras.losses.Loss):
 
     def __call__(self, labels, feature_vectors, sample_weight=None):
         # Normalize feature vectors
-        feature_vectors_normalized = tf.math.l2_normalize(feature_vectors, axis=1)
+        feature_vectors_normalized = keras.utils.normalize(feature_vectors, axis=1, order=2)
         # Compute logits
-        logits = tf.divide(
-            tf.matmul(
-                feature_vectors_normalized, tf.transpose(feature_vectors_normalized)
+        logits = ops.divide(
+            ops.matmul(
+                feature_vectors_normalized, ops.transpose(feature_vectors_normalized)
             ),
             self.temperature,
         )
-        return tfa.losses.npairs_loss(tf.squeeze(labels), logits)
+        return npairs_loss(ops.squeeze(labels), logits)
 
 
 def add_projection_head(encoder):
@@ -232,6 +263,4 @@ In addition, large batch sizes and multi-layer projection heads
 improve its effectiveness. See the [Supervised Contrastive Learning](https://arxiv.org/abs/2004.11362)
 paper for more details.
 
-You can use the trained model hosted on [Hugging Face Hub](https://huggingface.co/keras-io/supervised-contrastive-learning-cifar10)
-and try the demo on [Hugging Face Spaces](https://huggingface.co/spaces/keras-io/supervised-contrastive-learning).
 """
