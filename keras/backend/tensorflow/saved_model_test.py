@@ -246,3 +246,43 @@ class SavedModelTest(testing.TestCase):
             rtol=1e-4,
             atol=1e-4,
         )
+
+    def test_fixed_signature_string_dtype(self):
+        @object_registration.register_keras_serializable(package="my_package")
+        class Adder(models.Model):
+            @tf.function(input_signature=[tf.TensorSpec(shape=[], dtype=tf.string)])
+            def concat(self, x):
+                return x + x
+
+        model = Adder()
+        path = os.path.join(self.get_temp_dir(), "my_keras_model")
+        tf.saved_model.save(model, path)
+        restored_model = tf.saved_model.load(path)
+        self.assertEqual(model.concat("hello"), restored_model.concat("hello"))
+
+    def test_non_fixed_signature_string_dtype(self):
+        @object_registration.register_keras_serializable(package="my_package")
+        class Adder(models.Model):
+            @tf.function
+            def concat(self, x):
+                return x + x
+
+        model = Adder()
+
+        no_fn_path = os.path.join(self.get_temp_dir(), "my_keras_model_no_fn")
+        tf.saved_model.save(model, no_fn_path)
+        restored_model = tf.saved_model.load(no_fn_path)
+        with self.assertRaisesRegex(ValueError, "zero restored functions"):
+            _ = restored_model.concat("hello")
+
+        path = os.path.join(self.get_temp_dir(), "my_keras_model")
+        tf.saved_model.save(
+            model,
+            path,
+            signatures=model.concat.get_concrete_function(
+                tf.TensorSpec(shape=[], dtype=tf.string, name="string_input")
+            )
+        )
+        restored_model = tf.saved_model.load(path)
+        self.assertEqual(model.concat("hello"), restored_model.concat("hello"))
+
