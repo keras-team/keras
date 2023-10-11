@@ -1365,11 +1365,15 @@ class NpairsLossTest(testing.TestCase):
     def test_unweighted(self):
         y_true = np.array([0, 1, 2, 3], dtype=np.int64)
         # features of anchors
-        f = np.array([[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]],
-                        dtype=np.float32)
+        f = np.array(
+            [[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]],
+            dtype=np.float32,
+        )
         # features of positive samples
-        fp = np.array([[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]],
-                        dtype=np.float32)
+        fp = np.array(
+            [[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]],
+            dtype=np.float32,
+        )
         # similarity matrix
         y_pred = np.matmul(f, fp.T)
         loss = npairs_loss(y_true, y_pred)
