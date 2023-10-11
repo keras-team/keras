@@ -1359,3 +1359,31 @@ class CategoricalFocalCrossentropyTest(testing.TestCase):
 
         expected_value = 0.06685
         self.assertAlmostEqual(loss, expected_value, 3)
+
+
+class NpairsLossTest(testing.TestCase):
+    def test_unweighted(self):
+        y_true = np.array([0, 1, 2, 3], dtype=np.int64)
+        # features of anchors
+        f = np.array(
+            [[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]],
+            dtype=np.float32,
+        )
+        # features of positive samples
+        fp = np.array(
+            [[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]],
+            dtype=np.float32,
+        )
+        # similarity matrix
+        y_pred = np.matmul(f, fp.T)
+        loss = npairs_loss(y_true, y_pred)
+
+        # Loss = 1/4 * \sum_i log(1 + \sum_{j != i} exp(f_i*fp_j^T-f_i*f_i^T))
+        # Compute loss for i = 0, 1, 2, 3 without multiplier 1/4
+        # i = 0 => log(1 + sum([exp(-2), exp(-2), exp(-4)])) = 0.253846
+        # i = 1 => log(1 + sum([exp(-2), exp(-4), exp(-2)])) = 0.253846
+        # i = 2 => log(1 + sum([exp(-2), exp(-4), exp(-2)])) = 0.253846
+        # i = 3 => log(1 + sum([exp(-4), exp(-2), exp(-2)])) = 0.253846
+        # Loss = (0.253856 + 0.253856 + 0.253856 + 0.253856) / 4 = 0.253856
+
+        self.assertAllClose(loss, 0.253856, rtol=1e-06, atol=1e-06)

@@ -32,11 +32,12 @@ pip install tensorflow-addons
 """
 
 import tensorflow as tf
-import tensorflow_addons as tfa
-import numpy as np
-from tensorflow import keras
-from tensorflow.keras import layers
-
+import keras
+from keras import ops
+from keras import layers
+from keras.applications.resnet_v2 import ResNet50V2
+import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
 """
 ## Prepare the data
 """
@@ -76,7 +77,7 @@ feature vector.
 
 
 def create_encoder():
-    resnet = keras.applications.ResNet50V2(
+    resnet = ResNet50V2(
         include_top=False, weights=None, input_shape=input_shape, pooling="avg"
     )
 
@@ -94,7 +95,7 @@ learning_rate = 0.001
 batch_size = 265
 hidden_units = 512
 projection_units = 128
-num_epochs = 50
+num_epochs = 1
 dropout_rate = 0.5
 temperature = 0.05
 
@@ -138,10 +139,10 @@ encoder = create_encoder()
 classifier = create_classifier(encoder)
 classifier.summary()
 
-history = classifier.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=num_epochs)
+#history = classifier.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=num_epochs)
 
-accuracy = classifier.evaluate(x_test, y_test)[1]
-print(f"Test accuracy: {round(accuracy * 100, 2)}%")
+#accuracy = classifier.evaluate(x_test, y_test)[1]
+#print(f"Test accuracy: {round(accuracy * 100, 2)}%")
 
 
 """
@@ -168,13 +169,15 @@ class SupervisedContrastiveLoss(keras.losses.Loss):
         # Normalize feature vectors
         feature_vectors_normalized = tf.math.l2_normalize(feature_vectors, axis=1)
         # Compute logits
-        logits = tf.divide(
-            tf.matmul(
-                feature_vectors_normalized, tf.transpose(feature_vectors_normalized)
+        logits = ops.divide(
+            ops.matmul(
+                feature_vectors_normalized, ops.transpose(feature_vectors_normalized)
             ),
             self.temperature,
         )
-        return tfa.losses.npairs_loss(tf.squeeze(labels), logits)
+        x = ops.squeeze(labels)
+        print("labels and logits are", labels, logits, x.shape)
+        return npairs_loss(labels, logits)
 
 
 def add_projection_head(encoder):
