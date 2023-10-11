@@ -2,7 +2,6 @@ import numpy as np
 
 from keras import testing
 from keras.losses import losses
-from keras.losses.losses import npairs_loss
 
 
 class MeanSquaredErrorTest(testing.TestCase):

@@ -1858,4 +1858,3 @@ def binary_focal_crossentropy(
         focal_bce = weight * focal_bce
 
     return ops.mean(focal_bce, axis=axis)
-
