@@ -4,7 +4,6 @@ from keras import backend
 from keras import ops
 from keras.api_export import keras_export
 from keras.losses.loss import Loss
-from keras.losses.loss import reduce_values
 from keras.losses.loss import squeeze_to_same_rank
 from keras.saving import serialization_lib
 from keras.utils.numerical_utils import normalize
