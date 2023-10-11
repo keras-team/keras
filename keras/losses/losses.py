@@ -5,6 +5,7 @@ from keras import ops
 from keras.api_export import keras_export
 from keras.losses.loss import Loss
 from keras.losses.loss import squeeze_to_same_rank
+from keras.losses.loss import reduce_values
 from keras.saving import serialization_lib
 from keras.utils.numerical_utils import normalize
 
@@ -1889,13 +1890,10 @@ def npairs_loss(y_true, y_pred):
 
   y_pred = ops.cast(y_pred, 'float32')
   y_true = ops.cast(y_true, y_pred.dtype)
-
-  # Expand to [batch_size, 1]
   y_true = ops.expand_dims(y_true, -1)
   y_true = ops.cast(ops.equal(y_true, ops.transpose(y_true)), y_pred.dtype)
-  y_true /= ops.sum(y_true, axis=1, keepdims=True)
-  y_true = ops.squeeze(y_true, axis=1)
-
+  y_true /= reduce_values(y_true)
+  y_true = squeeze_to_same_rank(y_true, y_pred)
   loss = ops.categorical_crossentropy(y_true, y_pred)
 
   return ops.mean(loss)
