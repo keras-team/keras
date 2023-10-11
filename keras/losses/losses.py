@@ -1891,9 +1891,9 @@ def npairs_loss(y_true, y_pred):
     y_pred = ops.cast(y_pred, "float32")
     y_true = ops.cast(y_true, y_pred.dtype)
     y_true = ops.expand_dims(y_true, -1)
+    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
     y_true = ops.cast(ops.equal(y_true, ops.transpose(y_true)), y_pred.dtype)
     y_true /= ops.sum(y_true, 1, keepdims=True)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
     loss = ops.categorical_crossentropy(y_true, y_pred, from_logits=True)
 
     return ops.mean(loss)
