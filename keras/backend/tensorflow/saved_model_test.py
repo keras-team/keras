@@ -30,6 +30,21 @@ class CustomModelX(models.Model):
         return 1
 
 
+@object_registration.register_keras_serializable(package="my_package")
+class CustomSignatureModel(models.Model):
+    def __init__(self):
+        super(CustomSignatureModel, self).__init__()
+        self.v = tf.Variable(1.)
+
+    @tf.function
+    def __call__(self, x):
+        return x * self.v
+
+    @tf.function(input_signature=[tf.TensorSpec([], tf.float32)])
+    def mutate(self, new_v):
+        self.v.assign(new_v)
+
+
 @pytest.mark.skipif(
     backend.backend() != "tensorflow",
     reason="The SavedModel test can only run with TF backend.",
@@ -288,27 +303,14 @@ class SavedModelTest(testing.TestCase):
         self.assertEqual(model.concat("hello"), restored_model.concat("hello"))
 
     def test_fine_tuning(self):
-        @object_registration.register_keras_serializable(package="my_package")
-        class CustomModel(models.Model):
-            def __init__(self):
-                super(CustomModel, self).__init__()
-                self.v = tf.Variable(1.)
-
-            @tf.function
-            def __call__(self, x):
-                return x * self.v
-
-            @tf.function(input_signature=[tf.TensorSpec([], tf.float32)])
-            def mutate(self, new_v):
-                self.v.assign(new_v)
-
-        model = CustomModel()
+        model = CustomSignatureModel()
         model_no_signatures_path = os.path.join(self.get_temp_dir(), 'model_no_signatures')
         _ = model(tf.constant(0.))
 
         tf.saved_model.save(model, model_no_signatures_path)
         restored_model = tf.saved_model.load(model_no_signatures_path)
 
+        self.assertLen(list(restored_model.signatures.keys()), 0)
         self.assertEqual(restored_model(tf.constant(3.)).numpy(), 3)
         restored_model.mutate(tf.constant(2.))
         self.assertEqual(restored_model(tf.constant(3.)).numpy(), 6)
@@ -328,3 +330,23 @@ class SavedModelTest(testing.TestCase):
 
         self.assertAllClose(loss, 0.0, rtol=1e-2, atol=1e-2)
         self.assertAllClose(restored_model.v.numpy(), 5.0, rtol=1e-2, atol=1e-2)
+
+    def test_signatures_path(self):
+        model = CustomSignatureModel()
+        model_with_signature_path = os.path.join(self.get_temp_dir(), 'model_with_signature')
+        call = model.__call__.get_concrete_function(tf.TensorSpec(None, tf.float32))
+
+        tf.saved_model.save(model, model_with_signature_path, signatures=call)
+        restored_model = tf.saved_model.load(model_with_signature_path)
+        self.assertEqual(list(restored_model.signatures.keys()), ["serving_default"])
+
+    def test_multiple_signatures_dict_path(self):
+        model = CustomSignatureModel()
+        model_multiple_signatures_path = os.path.join(self.get_temp_dir(), 'model_with_multiple_signatures')
+        call = model.__call__.get_concrete_function(tf.TensorSpec(None, tf.float32))
+        signatures = {"serving_default": call,
+                    "array_input": model.__call__.get_concrete_function(tf.TensorSpec([None], tf.float32))}
+
+        tf.saved_model.save(model, model_multiple_signatures_path, signatures=signatures)
+        restored_model = tf.saved_model.load(model_multiple_signatures_path)
+        self.assertEqual(list(restored_model.signatures.keys()), ["serving_default", "array_input"])
