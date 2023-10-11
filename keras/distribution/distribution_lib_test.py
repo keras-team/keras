@@ -4,6 +4,7 @@ import os
 from unittest import mock
 
 import numpy as np
+import pytest
 
 from keras import backend
 from keras import testing
@@ -11,6 +12,10 @@ from keras.backend import distribution_lib as backend_dlib
 from keras.distribution import distribution_lib
 
 
+@pytest.mark.skipif(
+    backend.backend() != "jax",
+    reason="Only JAX has the backend to mock at the moment",
+)
 @mock.patch.object(
     backend_dlib,
     "initialize",
