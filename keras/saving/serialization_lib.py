@@ -706,16 +706,14 @@ def deserialize_keras_object(
         try:
             instance = cls.from_config(inner_config)
         except TypeError as e:
-            if "Unable to reconstruct instance" in str(e):
-                raise e
-            else:
-                raise TypeError(
-                    f"{cls} could not be deserialized properly. Please"
-                    " ensure that components that are Python object"
-                    " instances (layers, models, etc.) returned by"
-                    " `get_config()` are explicitly deserialized in the"
-                    " model's `from_config()` method."
-                ) from e
+            raise TypeError(
+                f"{cls} could not be deserialized properly. Please"
+                " ensure that components that are Python object"
+                " instances (layers, models, etc.) returned by"
+                " `get_config()` are explicitly deserialized in the"
+                " model's `from_config()` method."
+                f"\n\nconfig={config}.\n\nException encountered: {e}"
+            )
         build_config = config.get("build_config", None)
         if build_config and not instance.built:
             instance.build_from_config(build_config)
