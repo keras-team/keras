@@ -847,14 +847,6 @@ class Layer(BackendLayer, Operation):
                     "therefore destroy the mask information. Downstream "
                     "layers will not see the mask."
                 )
-        except TypeError as e:
-            raise TypeError(
-                f"{self} could not be deserialized properly. Please"
-                " ensure that components that are Python object"
-                " instances (layers, models, etc.) returned by"
-                " `get_config()` are explicitly deserialized in the"
-                " model's `from_config()` method."
-            ) from e
         finally:
             # Destroy call context if we created it
             self._maybe_reset_call_context()
