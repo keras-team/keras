@@ -81,6 +81,10 @@ class JaxDistributionLibTest(testing.TestCase):
         result = distribution_lib.distribute_tensor(inputs, target_layout)
         self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
 
+    def test_processes(self):
+        self.assertEqual(backend_dlib.process_id(), 0)
+        self.assertEqual(backend_dlib.num_processes(), 1)
+
     def test_to_jax_mesh(self):
         devices = [f"cpu:{i}" for i in range(8)]
         shape = (4, 2)

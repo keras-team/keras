@@ -111,6 +111,16 @@ def initialize(job_addresses, num_processes, process_id):
     )
 
 
+def num_processes():
+    """Return the number of processes for the current distribution setting."""
+    return jax.process_count()
+
+
+def process_id():
+    """Return the current process ID for the distribution setting."""
+    return jax.process_index()
+
+
 def _to_jax_device(device_id):
     device_type, index = device_id.split(":")
     index = int(index)

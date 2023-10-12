@@ -325,6 +325,18 @@ class Distribution:
     def device_mesh(self):
         return self._device_mesh
 
+    def distribute_dataset(self, tf_dataset):
+        """Create a distributed dataset instance from the original user dataset.
+
+        Args:
+            tf_dataset: the original global `tf.data.Dataset` instance.
+
+        Returns:
+            a sharded `tf.data.Dataset` instance, which will produce data for
+            the current local worker/process.
+        """
+        raise NotImplementedError()
+
 
 @keras_export("keras.distribution.DataParallel")
 class DataParallel(Distribution):
@@ -359,6 +371,9 @@ class DataParallel(Distribution):
             self._initialize_mesh_from_list_devices()
 
         self._batch_dim_name = self.device_mesh.axis_names[0]
+        self._num_process = distribution_lib.num_processes()
+        self._process_id = distribution_lib.process_id()
+        self._is_multi_process = self._num_process > 1
 
     def _initialize_with_device_mesh(self, device_mesh):
         if not isinstance(device_mesh, DeviceMesh):
@@ -405,6 +420,14 @@ class DataParallel(Distribution):
     def get_tensor_layout(self, path):
         # For data parallel training, the intermediate state is not changed.
         return None
+
+    def distribute_dataset(self, tf_dataset):
+        if self._is_multi_process:
+            # TODO(scottzhu): Might want to add some prefetch for better perf.
+            return tf_dataset.shard(
+                num_shards=self._num_process, index=self._process_id
+            )
+        return tf_dataset
 
 
 @keras_export("keras.distribution.ModelParallel")
