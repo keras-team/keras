@@ -29,9 +29,6 @@ import keras
 from keras import ops
 from keras import layers
 from keras.applications.resnet_v2 import ResNet50V2
-from keras.losses.loss import squeeze_to_same_rank
-import os
-os.environ["KERAS_BACKEND"] = "tensorflow"
 """
 ## Prepare the data
 """
@@ -148,8 +145,6 @@ def npairs_loss(y_true, y_pred):
     """
     y_pred = ops.cast(y_pred, "float32")
     y_true = ops.cast(y_true, y_pred.dtype)
-    y_true = ops.expand_dims(y_true, -1)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
     y_true = ops.cast(ops.equal(y_true, ops.transpose(y_true)), y_pred.dtype)
     y_true /= ops.sum(y_true, 1, keepdims=True)
     loss = ops.categorical_crossentropy(y_true, y_pred, from_logits=True)
