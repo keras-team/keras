@@ -2,6 +2,7 @@
 
 import functools
 import os
+from unittest import mock
 
 import jax
 import numpy as np
@@ -35,6 +36,26 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertEqual(len(distribution_lib.list_devices()), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
+
+    @mock.patch.object(jax.distributed, "initialize", return_value=None)
+    def test_initialize_with_all_job_addresses(self, mock_jax_initialze):
+        backend_dlib.initialize("10.0.0.1:1234,10.0.0.2:2345", 2, 0)
+        mock_jax_initialze.assert_called_once_with(
+            corrdinator_address="10.0.0.1:1234", num_processes=2, process_id=0
+        )
+
+    def test_initialize_validate_job_and_process(self):
+        with self.assertRaisesRegex(
+            ValueError, "has 2 jobs, but num_processes is 3"
+        ):
+            backend_dlib.initialize("10.0.0.1:1234,10.0.0.2:2345", 3, 0)
+
+    @mock.patch.object(jax.distributed, "initialize", return_value=None)
+    def test_initialize_with_coordinater_address(self, mock_jax_initialze):
+        backend_dlib.initialize("10.0.0.1:1234", 2, 0)
+        mock_jax_initialze.assert_called_once_with(
+            corrdinator_address="10.0.0.1:1234", num_processes=2, process_id=0
+        )
 
     def test_distribute_tensor(self):
         jax_mesh = jax.sharding.Mesh(

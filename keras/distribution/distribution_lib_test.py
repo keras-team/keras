@@ -1,12 +1,61 @@
 """Test for distribution_lib.py."""
 
+import os
 from unittest import mock
 
 import numpy as np
+import pytest
 
 from keras import backend
 from keras import testing
+from keras.backend import distribution_lib as backend_dlib
 from keras.distribution import distribution_lib
+
+
+@pytest.mark.skipif(
+    backend.backend() != "jax",
+    reason="Only JAX has the backend to mock at the moment",
+)
+@mock.patch.object(
+    backend_dlib,
+    "initialize",
+    return_value=None,
+)
+class MultiProcessInitializeTest(testing.TestCase):
+    def tearDown(self):
+        super().tearDown()
+        os.environ.clear()
+
+    def test_initialize_with_explicit_param(self, mock_backend_initialize):
+        job_addresses = "10.0.0.1:1234,10.0.0.2:2345"
+        num_processes = 2
+        current_process_id = 0
+
+        distribution_lib.initialize(
+            job_addresses, num_processes, current_process_id
+        )
+
+        mock_backend_initialize.assert_called_once_with(
+            job_addresses, num_processes, current_process_id
+        )
+
+    def test_initialize_with_env_vars(self, mock_backend_initialize):
+        job_addresses = "10.0.0.1:1234,10.0.0.2:2345"
+        num_processes = 2
+        current_process_id = 0
+        os.environ["KERAS_DISTRIBUTION_JOB_ADDRESSES"] = job_addresses
+        os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"] = str(num_processes)
+        os.environ["KERAS_DISTRIBUTION_PROCESS_ID"] = str(current_process_id)
+
+        distribution_lib.initialize()
+        mock_backend_initialize.assert_called_once_with(
+            job_addresses, num_processes, current_process_id
+        )
+
+    def test_init_with_nones(self, mock_backend_initialize):
+        # This is also valid case for Cloud TPU on JAX
+        distribution_lib.initialize()
+        mock_backend_initialize.assert_called_once_with(None, None, None)
 
 
 class DeviceMeshTest(testing.TestCase):

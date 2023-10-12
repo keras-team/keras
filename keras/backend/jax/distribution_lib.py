@@ -87,6 +87,30 @@ def distribute_tensor(tensor, layout):
         return global_value
 
 
+def initialize(job_addresses, num_processes, process_id):
+    if job_addresses and "," in job_addresses:
+        # When user provide all the job addresses, we will split and get the
+        # first one, which is the coordinator.
+        job_addresses = job_addresses.split(",")
+        # Do a sanity check to make sure the number of addresses also match
+        # the num_processes.
+        if num_processes is not None and num_processes != len(job_addresses):
+            raise ValueError(
+                f"The provided job_addresses {job_addresses} has "
+                f"{len(job_addresses)} jobs, but num_processes is "
+                f"{num_processes}"
+            )
+        corrdinator_address = job_addresses[0]
+    else:
+        corrdinator_address = job_addresses
+
+    jax.distributed.initialize(
+        corrdinator_address=corrdinator_address,
+        num_processes=num_processes,
+        process_id=process_id,
+    )
+
+
 def _to_jax_device(device_id):
     device_type, index = device_id.split(":")
     index = int(index)
