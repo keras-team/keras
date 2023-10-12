@@ -67,16 +67,19 @@ class Operation:
         try:
             return backend.compute_output_spec(self.call, *args, **kwargs)
         except Exception as e:
-            new_e = RuntimeError(
-                "Could not automatically infer the output shape / dtype of "
-                f"'{self.name}' (of type {self.__class__.__name__}). "
-                f"Either the `{self.__class__.__name__}.call()` method "
-                f"is incorrect, or you need to implement the "
-                f"`{self.__class__.__name__}.compute_output_spec() / "
-                "compute_output_shape()` method. "
-                f"Error encountered:\n\n{e}"
-            )
-            raise new_e.with_traceback(e.__traceback__) from None
+            if isinstance(e, TypeError):
+                raise e
+            else:
+                new_e = RuntimeError(
+                    "Could not automatically infer the output shape / dtype of "
+                    f"'{self.name}' (of type {self.__class__.__name__}). "
+                    f"Either the `{self.__class__.__name__}.call()` method "
+                    f"is incorrect, or you need to implement the "
+                    f"`{self.__class__.__name__}.compute_output_spec() / "
+                    "compute_output_shape()` method. "
+                    f"Error encountered:\n\n{e}"
+                )
+                raise new_e.with_traceback(e.__traceback__) from None
 
     def __new__(cls, *args, **kwargs):
         """We override __new__ to saving serializable constructor arguments.

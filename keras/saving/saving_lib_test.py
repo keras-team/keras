@@ -587,186 +587,133 @@ class SavingAPITest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "are not supported"):
             model.save(temp_filepath, invalid_arg="hello")
 
+    def test_safe_mode(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "unsafe_model.keras")
+        model = keras.Sequential(
+            [
+                keras.Input(shape=(3,)),
+                keras.layers.Lambda(lambda x: x * 2),
+            ]
+        )
+        model.save(temp_filepath)
+        with self.assertRaisesRegex(ValueError, "Deserializing it is unsafe"):
+            model = saving_lib.load_model(temp_filepath)
+        model = saving_lib.load_model(temp_filepath, safe_mode=False)
 
-# def test_safe_mode(self):
-#     temp_filepath = os.path.join(self.get_temp_dir(), "unsafe_model.keras")
-#     model = keras.Sequential(
-#         [
-#             keras.Input(shape=(3,)),
-#             keras.layers.Dense(2, activation=lambda x: x * 2),
-#         ]
-#     )
-#     model.save(temp_filepath)
-#     with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
-#         model = saving_lib.load_model(temp_filepath)
-#     model = saving_lib.load_model(temp_filepath, safe_mode=False)
+    def test_normalization_kpl(self):
+        # With adapt
+        temp_filepath = os.path.join(self.get_temp_dir(), "norm_model.keras")
+        model = keras.Sequential(
+            [
+                keras.Input(shape=(3,)),
+                keras.layers.Normalization(),
+            ]
+        )
+        data = np.random.random((3, 3))
+        model.layers[0].adapt(data)
+        ref_out = model(data)
+        model.save(temp_filepath)
+        model = saving_lib.load_model(temp_filepath)
+        out = model(data)
+        self.assertAllClose(ref_out, out, atol=1e-6)
 
-#     def test_normalization_kpl(self):
-#         # With adapt
-#         temp_filepath = os.path.join(self.get_temp_dir(), "norm_model.keras")
-#         model = keras.Sequential(
-#             [
-#                 keras.Input(shape=(3,)),
-#                 keras.layers.Normalization(),
-#             ]
-#         )
-#         data = np.random.random((3, 3))
-#         model.layers[0].adapt(data)
-#         ref_out = model(data)
-#         model.save(temp_filepath)
-#         model = saving_lib.load_model(temp_filepath)
-#         out = model(data)
-#         self.assertAllClose(ref_out, out, atol=1e-6)
-
-#         # Without adapt
-#         model = keras.Sequential(
-#             [
-#                 keras.Input(shape=(3,)),
-#                 keras.layers.Normalization(
-#                     mean=np.random.random((3,)),
-#                     variance=np.random.random((3,)),
-#                 ),
-#             ]
-#         )
-#         ref_out = model(data)
-#         model.save(temp_filepath)
-#         model = saving_lib.load_model(temp_filepath)
-#         out = model(data)
-#         self.assertAllClose(ref_out, out, atol=1e-6)
-
-
-# # This custom class lacks custom object registration.
-# class CustomRNN(keras.layers.Layer):
-#     def __init__(self, units):
-#         super(CustomRNN, self).__init__()
-#         self.units = units
-#         self.projection_1 = keras.layers.Dense(
-#             units=units, activation="tanh"
-#         )
-#         self.projection_2 = keras.layers.Dense(
-#             units=units, activation="tanh"
-#         )
-#         self.classifier = keras.layers.Dense(1)
-
-#     def call(self, inputs):
-#         outputs = []
-#         state = ops.zeros(shape=(inputs.shape[0], self.units))
-#         for t in range(inputs.shape[1]):
-#             x = inputs[:, t, :]
-#             h = self.projection_1(x)
-#             y = h + self.projection_2(state)
-#             state = y
-#             outputs.append(y)
-#         features = ops.stack(outputs, axis=1)
-#         return self.classifier(features)
+        # Without adapt
+        model = keras.Sequential(
+            [
+                keras.Input(shape=(3,)),
+                keras.layers.Normalization(
+                    mean=np.random.random((3,)),
+                    variance=np.random.random((3,)),
+                ),
+            ]
+        )
+        ref_out = model(data)
+        model.save(temp_filepath)
+        model = saving_lib.load_model(temp_filepath)
+        out = model(data)
+        self.assertAllClose(ref_out, out, atol=1e-6)
 
 
-# # This class is properly registered with a `get_config()` method.
-# # However, since it does not subclass keras.layers.Layer, it lacks
-# # `from_config()` for deserialization.
-# @keras.saving.register_keras_serializable()
-# class GrowthFactor:
-#     def __init__(self, factor):
-#         self.factor = factor
+# This class is properly registered with a `get_config()` method.
+# However, since it does not subclass keras.layers.Layer, it lacks
+# `from_config()` for deserialization.
+@keras.saving.register_keras_serializable()
+class GrowthFactor:
+    def __init__(self, factor):
+        self.factor = factor
 
-#     def __call__(self, inputs):
-#         return inputs * self.factor
+    def __call__(self, inputs):
+        return inputs * self.factor
 
-#     def get_config(self):
-#         return {"factor": self.factor}
-
-
-# @keras.saving.register_keras_serializable(package="Complex")
-# class FactorLayer(keras.layers.Layer):
-#     def __init__(self, factor):
-#         super().__init__()
-#         self.factor = factor
-
-#     def call(self, x):
-#         return x * self.factor
-
-#     def get_config(self):
-#         return {"factor": self.factor}
+    def get_config(self):
+        return {"factor": self.factor}
 
 
-# # This custom model does not explicitly deserialize the layers it includes
-# # in its `get_config`. Explicit deserialization in a `from_config` override
-# # or `__init__` is needed here, or an error will be thrown at loading time.
-# @keras.saving.register_keras_serializable(package="Complex")
-# class ComplexModel(keras.layers.Layer):
-#     def __init__(self, first_layer, second_layer=None, **kwargs):
-#         super().__init__(**kwargs)
-#         self.first_layer = first_layer
-#         if second_layer is not None:
-#             self.second_layer = second_layer
-#         else:
-#             self.second_layer = keras.layers.Dense(8)
+@keras.saving.register_keras_serializable(package="Complex")
+class FactorLayer(keras.layers.Layer):
+    def __init__(self, factor, **kwargs):
+        super().__init__(**kwargs)
+        self.factor = factor
 
-#     def get_config(self):
-#         config = super().get_config()
-#         config.update(
-#             {
-#                 "first_layer": self.first_layer,
-#                 "second_layer": self.second_layer,
-#             }
-#         )
-#         return config
+    def call(self, x):
+        return x * self.factor
 
-#     def call(self, inputs):
-#         return self.first_layer(self.second_layer(inputs))
+    def get_config(self):
+        return {"factor": self.factor}
 
 
-# class SavingBattleTest(testing.TestCase):
-#     def test_custom_model_without_registration_error(self):
-#         temp_filepath = os.path.join(
-#             self.get_temp_dir(), "my_custom_model.keras"
-#         )
-#         timesteps = 10
-#         input_dim = 5
-#         batch_size = 16
+# This custom model does not explicitly deserialize the layers it includes
+# in its `get_config`. Explicit deserialization in a `from_config` override
+# or `__init__` is needed here, or an error will be thrown at loading time.
+@keras.saving.register_keras_serializable(package="Complex")
+class ComplexModel(keras.layers.Layer):
+    def __init__(self, first_layer, second_layer=None, **kwargs):
+        super().__init__(**kwargs)
+        self.first_layer = first_layer
+        if second_layer is not None:
+            self.second_layer = second_layer
+        else:
+            self.second_layer = keras.layers.Dense(8)
 
-#         inputs = keras.Input(
-#             batch_shape=(batch_size, timesteps, input_dim)
-#         )
-#         x = keras.layers.Conv1D(32, 3)(inputs)
-#         outputs = CustomRNN(32)(x)
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "first_layer": self.first_layer,
+                "second_layer": self.second_layer,
+            }
+        )
+        return config
 
-#         model = keras.Model(inputs, outputs)
+    def call(self, inputs):
+        return self.first_layer(self.second_layer(inputs))
 
-#         with self.assertRaisesRegex(
-#             TypeError, "is a custom class, please register it"
-#         ):
-#             model.save(temp_filepath)
-#             _ = keras.models.load_model(temp_filepath)
 
-#     def test_custom_object_without_from_config(self):
-#         temp_filepath = os.path.join(
-#             self.get_temp_dir(), "custom_fn_model.keras"
-#         )
+class SavingBattleTest(testing.TestCase):
+    def test_custom_object_without_from_config(self):
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "custom_fn_model.keras"
+        )
 
-#         inputs = keras.Input(shape=(4, 4))
-#         outputs = keras.layers.Dense(
-#             1, activation=GrowthFactor(0.5)
-#         )(inputs)
-#         model = keras.Model(inputs, outputs)
+        inputs = keras.Input(shape=(4, 4))
+        outputs = keras.layers.Dense(1, activation=GrowthFactor(0.5))(inputs)
+        model = keras.Model(inputs, outputs)
 
-#         model.save(temp_filepath)
+        model.save(temp_filepath)
 
-#         with self.assertRaisesRegex(
-#             TypeError, "Unable to reconstruct an instance"
-#         ):
-#             _ = keras.models.load_model(temp_filepath)
+        with self.assertRaisesRegex(
+            TypeError, "Unable to reconstruct an instance"
+        ):
+            _ = saving_lib.load_model(temp_filepath)
 
-#     def test_complex_model_without_explicit_deserialization(self):
-#         temp_filepath = os.path.join(
-#             self.get_temp_dir(), "complex_model.keras"
-#         )
+    def test_complex_model_without_explicit_deserialization(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "complex_model.keras")
 
-#         inputs = keras.Input((32,))
-#         outputs = ComplexModel(first_layer=FactorLayer(0.5))(inputs)
-#         model = keras.Model(inputs, outputs)
+        inputs = keras.Input((32,))
+        outputs = ComplexModel(first_layer=FactorLayer(0.5))(inputs)
+        model = keras.Model(inputs, outputs)
 
-#         model.save(temp_filepath)
+        model.save(temp_filepath)
 
-#         with self.assertRaisesRegex(TypeError, "are explicitly deserialized"):
-#             _ = keras.models.load_model(temp_filepath)
+        with self.assertRaisesRegex(TypeError, "are explicitly deserialized"):
+            _ = saving_lib.load_model(temp_filepath)
