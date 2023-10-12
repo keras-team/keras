@@ -50,6 +50,13 @@ class JaxDistributionLibTest(testing.TestCase):
         ):
             backend_dlib.initialize("10.0.0.1:1234,10.0.0.2:2345", 3, 0)
 
+    @mock.patch.object(jax.distributed, "initialize", return_value=None)
+    def test_initialize_with_coordinater_address(self, mock_jax_initialze):
+        backend_dlib.initialize("10.0.0.1:1234", 2, 0)
+        mock_jax_initialze.assert_called_once_with(
+            corrdinator_address="10.0.0.1:1234", num_processes=2, process_id=0
+        )
+
     def test_distribute_tensor(self):
         jax_mesh = jax.sharding.Mesh(
             np.array(jax.devices()).reshape(2, 4), ("batch", "model")

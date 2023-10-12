@@ -43,9 +43,9 @@ class MultiProcessInitializeTest(testing.TestCase):
         job_addresses = "10.0.0.1:1234,10.0.0.2:2345"
         num_processes = 2
         current_process_id = 0
-        os.environ["KERAS_DISTRIBUTE_JOB_ADDRESSES"] = job_addresses
-        os.environ["KERAS_DISTRIBUTE_NUM_PROCESSES"] = str(num_processes)
-        os.environ["KERAS_DISTRIBUTE_PROCESS_ID"] = str(current_process_id)
+        os.environ["KERAS_DISTRIBUTION_JOB_ADDRESSES"] = job_addresses
+        os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"] = str(num_processes)
+        os.environ["KERAS_DISTRIBUTION_PROCESS_ID"] = str(current_process_id)
 
         distribution_lib.initialize()
         mock_backend_initialize.assert_called_once_with(

@@ -41,7 +41,7 @@ def list_devices(device_type=None):
     return distribution_lib.list_devices(device_type)
 
 
-@keras_export("keras.distribute.initialize")
+@keras_export("keras.distribution.initialize")
 def initialize(job_addresses=None, num_processes=None, proceed_id=None):
     """Initialize the distribution system for multi-host/process setting.
 
@@ -54,72 +54,80 @@ def initialize(job_addresses=None, num_processes=None, proceed_id=None):
     configure, Keras will properly forward them.
 
     Args:
-      job_addresses: string. Comma separated IP addresses for all the jobs that
-        will form the whole computation cluster. Note that for JAX backend, only
-        the address for job 0 (coodinator) is needed. For certain runtime like
-        cloud TPU, this value can be `None`, and the backend will figure it out
-        with the TPU enviornment variables. You can also config this value via
-        enviornment variable `KERAS_DISTRIBUTE_JOB_ADDRESSES`.
-      num_processes: int. The number of worker/processes that will form the
-        whole computation cluster. For certain runtime like cloud TPU, this
-        value can be `None`, and the backend will figure it out with the TPU
-        enviornment variables. You can also configure this value via enviornment
-        variable `KERAS_DISTRIBUTE_NUM_PROCESSES`.
-      process_id: int. The ID number of the current worker/process. The value
-        should be ranged from `0` to `num_processes - 1`. `0` will indicate
-        the current worker/process is the master/coordinate job. You can also
-        configure this value via enviornment variable
-        `KERAS_DISTRIBUTE_PROCESS_ID`.
+        job_addresses: string. Comma separated IP addresses for all the jobs
+            that will form the whole computation cluster. Note that for JAX
+            backend, only the address for job 0 (coodinator) is needed. For
+            certain runtime like cloud TPU, this value can be `None`, and the
+            backend will figure it out with the TPU enviornment variables. You
+            can also config this value via enviornment variable
+            `KERAS_DISTRIBUTION_JOB_ADDRESSES`.
+        num_processes: int. The number of worker/processes that will form the
+            whole computation cluster. For certain runtime like cloud TPU, this
+            value can be `None`, and the backend will figure it out with the TPU
+            enviornment variables. You can also configure this value via
+            enviornment variable `KERAS_DISTRIBUTION_NUM_PROCESSES`.
+        process_id: int. The ID number of the current worker/process. The value
+            should be ranged from `0` to `num_processes - 1`. `0` will indicate
+            the current worker/process is the master/coordinate job. You can
+            also configure this value via enviornment variable
+            `KERAS_DISTRIBUTION_PROCESS_ID`.
 
-    Example:
-      Suppose there are two GPU processes, and process 0 is running at
-      address `10.0.0.1:1234`, and process 1 is running at address
-      `10.0.0.2:2345`. To configure such cluster, you can run
+        Example:
+            Suppose there are two GPU processes, and process 0 is running at
+            address `10.0.0.1:1234`, and process 1 is running at address
+            `10.0.0.2:2345`. To configure such cluster, you can run
 
-      On process 0:
-      ```
-      keras.distribute.initialize(
-        job_addresses="10.0.0.1:1234,10.0.0.2:2345",
-        num_processes=2,
-        process_id=0)
-      ```
+        On process 0:
+        ```python
+        keras.distribute.initialize(
+            job_addresses="10.0.0.1:1234,10.0.0.2:2345",
+            num_processes=2,
+            process_id=0)
+        ```
 
-      On process 1:
-      ```
-      keras.distribute.initialize(
-        job_addresses="10.0.0.1:1234,10.0.0.2:2345",
-        num_processes=2,
-        process_id=1)
-      ```
+        On process 1:
+        ```python
+        keras.distribute.initialize(
+            job_addresses="10.0.0.1:1234,10.0.0.2:2345",
+            num_processes=2,
+            process_id=1)
+        ```
 
-      or via the enviornment variables:
-      On process 0:
-      ```
-      os.environ[
-          "KERAS_DISTRIBUTE_JOB_ADDRESSES"] = "10.0.0.1:1234,10.0.0.2:2345"
-      os.environ["KERAS_DISTRIBUTE_NUM_PROCESSES"] = "2
-      os.environ["KERAS_DISTRIBUTE_PROCESS_ID"] = "0"
-      keras.distribute.initialize()
-      ```
+        or via the enviornment variables:
+        On process 0:
+        ```python
+        os.environ[
+            "KERAS_DISTRIBUTION_JOB_ADDRESSES"] = "10.0.0.1:1234,10.0.0.2:2345"
+        os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"] = "2
+        os.environ["KERAS_DISTRIBUTION_PROCESS_ID"] = "0"
+        keras.distribute.initialize()
+        ```
 
-      On process 1:
-      ```
-      os.environ[
-          "KERAS_DISTRIBUTE_JOB_ADDRESSES"] = "10.0.0.1:1234,10.0.0.2:2345"
-      os.environ["KERAS_DISTRIBUTE_NUM_PROCESSES"] = "2
-      os.environ["KERAS_DISTRIBUTE_PROCESS_ID"] = "1"
-      keras.distribute.initialize()
-      ```
+        On process 1:
+        ```python
+        os.environ[
+            "KERAS_DISTRIBUTION_JOB_ADDRESSES"] = "10.0.0.1:1234,10.0.0.2:2345"
+        os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"] = "2
+        os.environ["KERAS_DISTRIBUTION_PROCESS_ID"] = "1"
+        keras.distribute.initialize()
+        ```
 
-      Also note that for JAX backend, the `job_addresses` can be further reduced
-      to just the master/coordinator address, which is `10.0.0.1:1234`.
+        Also note that for JAX backend, the `job_addresses` can be further
+        reduced to just the master/coordinator address, which is
+        `10.0.0.1:1234`.
     """
-    if job_addresses is None and "KERAS_DISTRIBUTE_JOB_ADDRESSES" in os.environ:
-        job_addresses = os.environ["KERAS_DISTRIBUTE_JOB_ADDRESSES"]
-    if num_processes is None and "KERAS_DISTRIBUTE_NUM_PROCESSES" in os.environ:
-        num_processes = int(os.environ["KERAS_DISTRIBUTE_NUM_PROCESSES"])
-    if proceed_id is None and "KERAS_DISTRIBUTE_PROCESS_ID" in os.environ:
-        proceed_id = int(os.environ["KERAS_DISTRIBUTE_PROCESS_ID"])
+    if (
+        job_addresses is None
+        and "KERAS_DISTRIBUTION_JOB_ADDRESSES" in os.environ
+    ):
+        job_addresses = os.environ["KERAS_DISTRIBUTION_JOB_ADDRESSES"]
+    if (
+        num_processes is None
+        and "KERAS_DISTRIBUTION_NUM_PROCESSES" in os.environ
+    ):
+        num_processes = int(os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"])
+    if proceed_id is None and "KERAS_DISTRIBUTION_PROCESS_ID" in os.environ:
+        proceed_id = int(os.environ["KERAS_DISTRIBUTION_PROCESS_ID"])
     distribution_lib.initialize(job_addresses, num_processes, proceed_id)
 
 
