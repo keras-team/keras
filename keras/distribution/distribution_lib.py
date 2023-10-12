@@ -95,7 +95,8 @@ def initialize(job_addresses=None, num_processes=None, proceed_id=None):
       or via the enviornment variables:
       On process 0:
       ```
-      os.environ["KERAS_DISTRIBUTE_JOB_ADDRESSES"] = "10.0.0.1:1234,10.0.0.2:2345"
+      os.environ[
+          "KERAS_DISTRIBUTE_JOB_ADDRESSES"] = "10.0.0.1:1234,10.0.0.2:2345"
       os.environ["KERAS_DISTRIBUTE_NUM_PROCESSES"] = "2
       os.environ["KERAS_DISTRIBUTE_PROCESS_ID"] = "0"
       keras.distribute.initialize()
@@ -103,7 +104,8 @@ def initialize(job_addresses=None, num_processes=None, proceed_id=None):
 
       On process 1:
       ```
-      os.environ["KERAS_DISTRIBUTE_JOB_ADDRESSES"] = "10.0.0.1:1234,10.0.0.2:2345"
+      os.environ[
+          "KERAS_DISTRIBUTE_JOB_ADDRESSES"] = "10.0.0.1:1234,10.0.0.2:2345"
       os.environ["KERAS_DISTRIBUTE_NUM_PROCESSES"] = "2
       os.environ["KERAS_DISTRIBUTE_PROCESS_ID"] = "1"
       keras.distribute.initialize()
