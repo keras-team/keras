@@ -113,7 +113,9 @@ def Input(
             is not known and may vary (e.g. sequence length).
         batch_size: Optional static batch size (integer).
         dtype: The data type expected by the input, as a string
-            (e.g. `"float32"`, `"int32"`...)
+            (e.g. `"float32"`, `"int32"`...),
+            (or) as a `tf.dtypes.DType` (e.g. `tf.float32`,`tf.float64` etc.),
+            (or) as a `torch.dtype` (e.g. `torch.float32`,`torch.float64` etc.).
         sparse: A boolean specifying whether the expected input will be sparse
             tensors. Note that, if `sparse` is `False`, sparse tensors can still
             be passed into the input - they will be densified with a default
