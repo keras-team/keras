@@ -133,7 +133,12 @@ class CategoryEncoding(TFDataLayer):
         return outputs
 
     def compute_output_shape(self, input_shape):
-        return tuple(input_shape + (self.num_tokens,))
+        if self.output_mode == "one_hot":
+            if input_shape[-1] != 1:
+                return tuple(input_shape + (self.num_tokens,))
+            else:
+                return tuple(input_shape[:-1] + (self.num_tokens,))
+        return tuple(input_shape[:-1] + (self.num_tokens,))
 
     def get_config(self):
         config = {
