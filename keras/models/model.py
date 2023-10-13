@@ -156,8 +156,11 @@ class Model(Trainer, Layer):
         else:
             Layer.__init__(self, *args, **kwargs)
 
-    def call(self, inputs, training=False):
-        raise NotImplementedError
+    def call(self, *args, **kwargs):
+        raise NotImplementedError(
+            f"Model {self.__class__.__name__} does not have a `call()` "
+            "method implemented."
+        )
 
     @property
     def layers(self):

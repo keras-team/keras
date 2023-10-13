@@ -853,7 +853,10 @@ class Layer(BackendLayer, Operation):
         return outputs
 
     def call(self, *args, **kwargs):
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"Layer {self.__class__.__name__} does not have a `call()` "
+            "method implemented."
+        )
 
     @traceback_utils.filter_traceback
     def stateless_call(
