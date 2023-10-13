@@ -14,6 +14,9 @@ import warnings
 
 import numpy as np
 
+# TF is used for dataset sharding.
+import tensorflow as tf
+
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend import distribution_lib
@@ -325,11 +328,12 @@ class Distribution:
     def device_mesh(self):
         return self._device_mesh
 
-    def distribute_dataset(self, tf_dataset):
+    def distribute_dataset(self, dataset):
         """Create a distributed dataset instance from the original user dataset.
 
         Args:
-            tf_dataset: the original global `tf.data.Dataset` instance.
+            dataset: the original global dataset instance. Only
+            `tf.data.Dataset` is supported at the moment.
 
         Returns:
             a sharded `tf.data.Dataset` instance, which will produce data for
@@ -421,13 +425,17 @@ class DataParallel(Distribution):
         # For data parallel training, the intermediate state is not changed.
         return None
 
-    def distribute_dataset(self, tf_dataset):
-        if self._is_multi_process:
-            # TODO(scottzhu): Might want to add some prefetch for better perf.
-            return tf_dataset.shard(
-                num_shards=self._num_process, index=self._process_id
+    def distribute_dataset(self, dataset):
+        if not isinstance(dataset, tf.data.Dataset):
+            raise ValueError(
+                "Only `tf.data.Dataset` is supported for "
+                f"sharding, got {type(dataset)}"
             )
-        return tf_dataset
+        if self._is_multi_process:
+            return dataset.shard(
+                num_shards=self._num_process, index=self._process_id
+            ).prefetch(tf.data.AUTOTUNE)
+        return dataset
 
 
 @keras_export("keras.distribution.ModelParallel")
