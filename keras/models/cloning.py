@@ -260,7 +260,8 @@ def _clone_functional_model(model, input_tensors=None, clone_function=None):
             )
     else:
         input_tensors = tree.map_structure(
-            lambda x: Input(x.shape, dtype=x.dtype, name=x.name), model.input
+            lambda x: Input(batch_shape=x.shape, dtype=x.dtype, name=x.name),
+            model.input,
         )
 
     def operation_fn(layer):
