@@ -15,6 +15,7 @@ python3 pip_build.py --install
 ```
 """
 import argparse
+import datetime
 import glob
 import os
 import pathlib
@@ -137,15 +138,31 @@ def create_legacy_directory():
     shutil.rmtree(os.path.join(package, "_legacy"))
 
 
-def export_version_string(__version__):
+def export_version_string(version, is_nightly=False, rc=None):
+    """Export Version and Package Name."""
+    package_name = package
+    if is_nightly:
+        date = datetime.datetime.now()
+        version += f".dev{date.strftime('%Y%m%d%H')}"
+        package_name = package + "-nightly"
+    elif rc:
+        version += rc
+
     # Make sure to export the __version__ string
     with open(os.path.join(package, "__init__.py")) as f:
         init_contents = f.read()
     with open(os.path.join(package, "__init__.py"), "w") as f:
-        f.write(init_contents + "\n\n" + f'__version__ = "{__version__}"\n')
+        f.write(init_contents + "\n\n" + f'__version__ = "{version}"\n')
+
+    # Insert {{PACKAGE}} and {{VERSION}} strings in setup.py
+    with open("setup.py") as f:
+        setup_contents = f.read()
+    with open("setup.py", "w") as f:
+        setup_contents = setup_contents.replace("{{PACKAGE}}", package_name)
+        f.write(setup_contents)
 
 
-def build_and_save_output(root_path, __version__):
+def build_and_save_output(root_path, __version__, is_nightly=False, rc=False):
     # Build the package
     os.system("python3 -m build")
 
@@ -167,7 +184,7 @@ def build_and_save_output(root_path, __version__):
     return whl_path
 
 
-def build(root_path):
+def build(root_path, is_nightly=False, rc=None):
     if os.path.exists(build_directory):
         raise ValueError(f"Directory already exists: {build_directory}")
 
@@ -178,7 +195,7 @@ def build(root_path):
         from keras.src.version import __version__  # noqa: E402
 
         export_version_string(__version__)
-        return build_and_save_output(root_path, __version__)
+        return build_and_save_output(root_path, __version__, is_nightly, rc)
     finally:
         # Clean up: remove the build directory (no longer needed)
         shutil.rmtree(build_directory)
@@ -188,6 +205,11 @@ def install_whl(whl_fpath):
     print(f"Installing wheel file: {whl_fpath}")
     os.system(f"pip3 install {whl_fpath} --force-reinstall --no-dependencies")
 
+def validate_rc(rc):
+    rc = rc.lower()
+    if rc[:2] != "rc" or not rc[3:].isdigit():
+        raise ValueError("--rc value {rc} should be of format rc[0-9]+.")
+    return rc
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -196,8 +218,18 @@ if __name__ == "__main__":
         action="store_true",
         help="Whether to install the generated wheel file.",
     )
+    parser.add_argument(
+        "--nightly",
+        action="store_true",
+        help="Whether to generate nightly wheel file.",
+    )
+    parser.add_argument(
+        "--rc",
+        type=validate_rc,
+        help="Specify `rc[0-9] when generating RC wheels.",
+    )
     args = parser.parse_args()
     root_path = pathlib.Path(__file__).parent.resolve()
-    whl_path = build(root_path)
+    whl_path = build(root_path, args.nightly, args.rc)
     if whl_path and args.install:
         install_whl(whl_path)
