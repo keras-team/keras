@@ -45,7 +45,7 @@ class GroupedQueryAttention(Layer):
         key: Optional key tensor of shape
             `(batch_dim, source_seq_len, feature_dim)`. If not given, will use
             `value` for both `key` and `value`, which is most common case.
-        mask: A boolean mask of shape
+        attention_mask : A boolean mask of shape
             `(batch_dim, target_seq_len, source_seq_len)`, that prevents
             attention to certain positions. The boolean mask specifies which
             query elements can attend to which key elements, where 1 indicates
@@ -129,7 +129,9 @@ class GroupedQueryAttention(Layer):
         self._value_dense.build(value_shape)
 
         self._output_dense = Dense(
-            self.feature_dim, use_bias=self.use_bias, name="attention_output",
+            self.feature_dim,
+            use_bias=self.use_bias,
+            name="attention_output",
             **self._get_common_kwargs_for_sublayer(),
         )
         output_dense_input_shape = list(
@@ -165,7 +167,7 @@ class GroupedQueryAttention(Layer):
         query,
         value,
         key=None,
-        mask=None,
+        attention_mask=None,
         return_attention_scores=False,
         training=None,
     ):
@@ -222,7 +224,9 @@ class GroupedQueryAttention(Layer):
             value, axes=(0, 2, 1, 3)
         )  # (batch_dim, query_heads, source_seq_len, head_dim)
 
-        output, scores = self._compute_attention(query, key, value, mask=mask)
+        output, scores = self._compute_attention(
+            query, key, value, attention_mask=attention_mask
+        )
 
         output = ops.transpose(
             output, axes=(0, 2, 1, 3)
@@ -239,7 +243,7 @@ class GroupedQueryAttention(Layer):
             return output, scores
         return output
 
-    def _compute_attention(self, query, key, value, mask=None):
+    def _compute_attention(self, query, key, value, attention_mask=None):
         query = ops.multiply(
             query,
             1.0 / ops.sqrt(ops.cast(self.head_dim, query.dtype)),
@@ -247,8 +251,8 @@ class GroupedQueryAttention(Layer):
         scores = ops.matmul(
             query, key
         )  # (batch_dim, query_heads, target_seq_len, source_seq_len)
-        if mask is not None:
-            scores = scores + mask
+        if attention_mask is not None:
+            scores = scores + attention_mask
         output = ops.matmul(
             scores, value
         )  # (batch_dim, query_heads, target_seq_len, head_dim)
