@@ -1,7 +1,13 @@
+from keras import constraints
+from keras import initializers
 from keras import ops
+from keras import regularizers
 from keras.api_export import keras_export
+from keras.layers.activations.softmax import Softmax
+from keras.layers.core.einsum_dense import EinsumDense
 from keras.layers.core.dense import Dense
 from keras.layers.layer import Layer
+from keras.layers.regularization.dropout import Dropout
 
 
 @keras_export("keras.layers.GroupQueryAttention")
@@ -67,6 +73,13 @@ class GroupedQueryAttention(Layer):
         num_query_heads,
         num_key_value_heads,
         use_bias=False,
+        kernel_initializer="glorot_uniform",
+        bias_initializer="zeros",
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -75,6 +88,13 @@ class GroupedQueryAttention(Layer):
         self.num_key_value_heads = num_key_value_heads
         self.num_repeats = num_query_heads // num_key_value_heads
         self.use_bias = use_bias
+        self.kernel_initializer = initializers.get(kernel_initializer)
+        self.bias_initializer = initializers.get(bias_initializer)
+        self.kernel_regularizer = regularizers.get(kernel_regularizer)
+        self.bias_regularizer = regularizers.get(bias_regularizer)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.kernel_constraint = constraints.get(kernel_constraint)
+        self.bias_constraint = constraints.get(bias_constraint)
 
     def build(
         self,
@@ -88,6 +108,7 @@ class GroupedQueryAttention(Layer):
             self.num_query_heads * self.head_dim,
             use_bias=self.use_bias,
             name="query",
+            **self._get_common_kwargs_for_sublayer(),
         )
         self._query_dense.build(query_shape)
 
@@ -95,6 +116,7 @@ class GroupedQueryAttention(Layer):
             self.num_key_value_heads * self.head_dim,
             use_bias=self.use_bias,
             name="key",
+            **self._get_common_kwargs_for_sublayer(),
         )
         self._key_dense.build(key_shape)
 
@@ -102,17 +124,41 @@ class GroupedQueryAttention(Layer):
             self.num_key_value_heads * self.head_dim,
             use_bias=self.use_bias,
             name="value",
+            **self._get_common_kwargs_for_sublayer(),
         )
         self._value_dense.build(value_shape)
 
         self._output_dense = Dense(
-            self.feature_dim, use_bias=self.use_bias, name="attention_output"
+            self.feature_dim, use_bias=self.use_bias, name="attention_output",
+            **self._get_common_kwargs_for_sublayer(),
         )
         output_dense_input_shape = list(
             self._query_dense.compute_output_shape(query_shape)
         )
         self._output_dense.build(output_dense_input_shape)
         self.built = True
+
+    def _get_common_kwargs_for_sublayer(self):
+        common_kwargs = dict(
+            kernel_regularizer=self.kernel_regularizer,
+            bias_regularizer=self.bias_regularizer,
+            activity_regularizer=self.activity_regularizer,
+            kernel_constraint=self.kernel_constraint,
+            bias_constraint=self.bias_constraint,
+            dtype=self.dtype_policy,
+        )
+        # Create new clone of kernel/bias initializer, so that we don't reuse
+        # the initializer instance, which could lead to same init value since
+        # initializer is stateless.
+        kernel_initializer = self.kernel_initializer.__class__.from_config(
+            self.kernel_initializer.get_config()
+        )
+        bias_initializer = self.bias_initializer.__class__.from_config(
+            self.bias_initializer.get_config()
+        )
+        common_kwargs["kernel_initializer"] = kernel_initializer
+        common_kwargs["bias_initializer"] = bias_initializer
+        return common_kwargs
 
     def call(
         self,
@@ -214,6 +260,19 @@ class GroupedQueryAttention(Layer):
             "num_query_heads": self.num_query_heads,
             "num_key_value_heads": self.num_key_value_heads,
             "use_bias": self.use_bias,
+            "kernel_initializer": initializers.serialize(
+                self.kernel_initializer
+            ),
+            "bias_initializer": initializers.serialize(self.bias_initializer),
+            "kernel_regularizer": regularizers.serialize(
+                self.kernel_regularizer
+            ),
+            "bias_regularizer": regularizers.serialize(self.bias_regularizer),
+            "activity_regularizer": regularizers.serialize(
+                self.activity_regularizer
+            ),
+            "kernel_constraint": constraints.serialize(self.kernel_constraint),
+            "bias_constraint": constraints.serialize(self.bias_constraint),
         }
         base_config = super().get_config()
         return {**base_config, **config}
