@@ -14,6 +14,9 @@ import warnings
 
 import numpy as np
 
+# TF is used for dataset sharding.
+import tensorflow as tf
+
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend import distribution_lib
@@ -325,6 +328,19 @@ class Distribution:
     def device_mesh(self):
         return self._device_mesh
 
+    def distribute_dataset(self, dataset):
+        """Create a distributed dataset instance from the original user dataset.
+
+        Args:
+            dataset: the original global dataset instance. Only
+            `tf.data.Dataset` is supported at the moment.
+
+        Returns:
+            a sharded `tf.data.Dataset` instance, which will produce data for
+            the current local worker/process.
+        """
+        raise NotImplementedError()
+
 
 @keras_export("keras.distribution.DataParallel")
 class DataParallel(Distribution):
@@ -359,6 +375,9 @@ class DataParallel(Distribution):
             self._initialize_mesh_from_list_devices()
 
         self._batch_dim_name = self.device_mesh.axis_names[0]
+        self._num_process = distribution_lib.num_processes()
+        self._process_id = distribution_lib.process_id()
+        self._is_multi_process = self._num_process > 1
 
     def _initialize_with_device_mesh(self, device_mesh):
         if not isinstance(device_mesh, DeviceMesh):
@@ -405,6 +424,18 @@ class DataParallel(Distribution):
     def get_tensor_layout(self, path):
         # For data parallel training, the intermediate state is not changed.
         return None
+
+    def distribute_dataset(self, dataset):
+        if not isinstance(dataset, tf.data.Dataset):
+            raise ValueError(
+                "Only `tf.data.Dataset` is supported for "
+                f"sharding, got {type(dataset)}"
+            )
+        if self._is_multi_process:
+            return dataset.shard(
+                num_shards=self._num_process, index=self._process_id
+            ).prefetch(tf.data.AUTOTUNE)
+        return dataset
 
 
 @keras_export("keras.distribution.ModelParallel")

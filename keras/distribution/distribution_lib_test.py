@@ -5,6 +5,7 @@ from unittest import mock
 
 import numpy as np
 import pytest
+import tensorflow as tf
 
 from keras import backend
 from keras import testing
@@ -162,6 +163,10 @@ class DistributionTest(testing.TestCase):
         self.assertIsNone(distribution_lib.distribution())
 
 
+@pytest.mark.skipif(
+    backend.backend() != "jax",
+    reason="Only JAX has the proper backend distribution lib",
+)
 class DataParallelDistributionTest(testing.TestCase):
     def setUp(self):
         super().setUp()
@@ -182,6 +187,10 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertEqual(len(device_mesh.devices), 8)
         self.assertEqual(device_mesh.axis_names, ["data"])
         self.assertEqual(distribution._batch_dim_name, "data")
+
+        self.assertFalse(distribution._is_multi_process)
+        self.assertEqual(distribution._process_id, 0)
+        self.assertEqual(distribution._num_process, 1)
 
     def test_create_with_devices(self):
         distribution = distribution_lib.DataParallel(devices=self.devices)
@@ -232,6 +241,15 @@ class DataParallelDistributionTest(testing.TestCase):
         path = "path/to/tensor"
         tensor_layout = distribution.get_tensor_layout(path)
         self.assertIsNone(tensor_layout)
+
+    def test_distribute_dataset(self):
+        # We can only verify the single worker/process case in OSS for now.
+        dataset = tf.data.Dataset.range(8)
+        distribution = distribution_lib.DataParallel(
+            device_mesh=self.device_mesh
+        )
+        distributed_dataset = distribution.distribute_dataset(dataset)
+        self.assertIs(dataset, distributed_dataset)
 
 
 class ModelParallelDistributionTest(testing.TestCase):
