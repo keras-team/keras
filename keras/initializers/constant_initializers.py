@@ -2,6 +2,7 @@ from keras import ops
 from keras.api_export import keras_export
 from keras.backend import standardize_dtype
 from keras.initializers.initializer import Initializer
+from keras.saving import serialization_lib
 
 
 @keras_export(["keras.initializers.Constant", "keras.initializers.constant"])
@@ -36,7 +37,12 @@ class Constant(Initializer):
         )
 
     def get_config(self):
-        return {"value": self.value}
+        return {"value": serialization_lib.serialize_keras_object(self.value)}
+
+    @classmethod
+    def from_config(cls, config):
+        value = serialization_lib.deserialize_keras_object(config["value"])
+        return cls(value)
 
 
 @keras_export(["keras.initializers.Zeros", "keras.initializers.zeros"])
