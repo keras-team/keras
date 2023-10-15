@@ -352,7 +352,7 @@ class GroupedQueryAttention(Layer):
         # Take the dot product between "query" and "key" to get the raw
         # attention scores.
         scores = ops.einsum(
-            self._dot_product_equation, key, query
+            self._dot_product_equation, query, key
         )  # (batch_dim, query_heads, target_seq_len, source_seq_len)
         scores = self._softmax(scores, mask=attention_mask)
         # This is actually dropping out entire tokens to attend to, which might
