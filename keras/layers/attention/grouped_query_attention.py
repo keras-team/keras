@@ -370,9 +370,7 @@ class GroupedQueryAttention(Layer):
             # (<batch_dims>, num_heads, <query_attention_dims,
             # key_attention_dims>)
             mask_expansion_axis = -1 * 2 - 1
-            for _ in range(
-                len(scores.shape) - len(attention_mask.shape)
-            ):
+            for _ in range(len(scores.shape) - len(attention_mask.shape)):
                 attention_mask = ops.expand_dims(
                     attention_mask, axis=mask_expansion_axis
                 )
