@@ -83,7 +83,7 @@ class GroupedQueryAttention(Layer):
         num_query_heads,
         num_key_value_heads,
         dropout=0.0,
-        use_bias=False,
+        use_bias=True,
         kernel_initializer="glorot_uniform",
         bias_initializer="zeros",
         kernel_regularizer=None,
