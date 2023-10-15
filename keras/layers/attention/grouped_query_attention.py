@@ -355,12 +355,28 @@ class GroupedQueryAttention(Layer):
         scores = ops.einsum(
             self._dot_product_equation, query, key
         )  # (batch_dim, query_heads, target_seq_len, source_seq_len)
-        scores = self._softmax(scores, mask=attention_mask)
+        scores = self._masked_softmax(scores, attention_mask=attention_mask)
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
         scores_dropout = self._dropout_layer(scores, training=training)
         output = ops.einsum(self._combine_equation, scores_dropout, value)
         return output, scores
+
+    def _masked_softmax(self, scores, attention_mask=None):
+        # Normalize the attention scores to probabilities.
+        # scores = [B, N, T, S]
+        if attention_mask is not None:
+            # The expand dim happens starting from the `num_heads` dimension,
+            # (<batch_dims>, num_heads, <query_attention_dims,
+            # key_attention_dims>)
+            mask_expansion_axis = -1 * 2 - 1
+            for _ in range(
+                len(scores.shape) - len(attention_mask.shape)
+            ):
+                attention_mask = ops.expand_dims(
+                    attention_mask, axis=mask_expansion_axis
+                )
+        return self._softmax(scores, mask=attention_mask)
 
     def compute_output_shape(
         self,
