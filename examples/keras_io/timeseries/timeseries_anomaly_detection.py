@@ -28,7 +28,7 @@ from matplotlib import pyplot as plt
 ## Load the data
 
 We will use the [Numenta Anomaly Benchmark(NAB)](
-https://www.kaggle.com/boltzmannbrain/nab) dataset. It provides artifical
+https://www.kaggle.com/boltzmannbrain/nab) dataset. It provides artificial
 timeseries data containing labeled anomalous periods of behavior. Data are
 ordered, timestamped, single-valued metrics.
 
