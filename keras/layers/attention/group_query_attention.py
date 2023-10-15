@@ -263,6 +263,7 @@ class GroupedQueryAttention(Layer):
         )  # (batch_dim, query_heads, target_seq_len, source_seq_len)
         if attention_mask is not None:
             scores = scores + attention_mask
+        scores = ops.softmax(scores, axis=-1)
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
         scores_dropout = self._dropout_layer(scores, training=training)
