@@ -138,13 +138,23 @@ def create_legacy_directory():
     shutil.rmtree(os.path.join(package, "_legacy"))
 
 
-def export_version_string(version, is_nightly=False, rc=None):
+def export_version_string(version, is_nightly=False, rc_index=None):
     """Export Version and Package Name."""
     package_name = package
+    rc = "rc" + str(rc_index)
     if is_nightly:
         date = datetime.datetime.now()
         version += f".dev{date.strftime('%Y%m%d%H')}"
         package_name = package + "-nightly"
+        # Update package name in setup.py
+        # Replaces `name="keras"` string in `setup.py` with `keras-nightly`
+        with open("setup.py") as f:
+            setup_contents = f.read()
+        with open("setup.py", "w") as f:
+            setup_contents = setup_contents.replace(
+                'name="keras"', f'name="{package_name}"'
+            )
+            f.write(setup_contents)
     elif rc:
         version += rc
 
@@ -154,17 +164,8 @@ def export_version_string(version, is_nightly=False, rc=None):
     with open(os.path.join(package, "__init__.py"), "w") as f:
         f.write(init_contents + "\n\n" + f'__version__ = "{version}"\n')
 
-    # Update package name in setup.py
-    with open("setup.py") as f:
-        setup_contents = f.read()
-    with open("setup.py", "w") as f:
-        setup_contents = setup_contents.replace(
-            'name="keras"', f'name="{package_name}"'
-        )
-        f.write(setup_contents)
 
-
-def build_and_save_output(root_path, __version__, is_nightly=False, rc=False):
+def build_and_save_output(root_path, __version__):
     # Build the package
     os.system("python3 -m build")
 
@@ -186,7 +187,7 @@ def build_and_save_output(root_path, __version__, is_nightly=False, rc=False):
     return whl_path
 
 
-def build(root_path, is_nightly=False, rc=None):
+def build(root_path, is_nightly=False, rc_index=None):
     if os.path.exists(build_directory):
         raise ValueError(f"Directory already exists: {build_directory}")
 
@@ -196,8 +197,8 @@ def build(root_path, is_nightly=False, rc=None):
         create_legacy_directory()
         from keras.src.version import __version__  # noqa: E402
 
-        export_version_string(__version__, is_nightly, rc)
-        return build_and_save_output(root_path, __version__, is_nightly, rc)
+        export_version_string(__version__, is_nightly, rc_index)
+        return build_and_save_output(root_path, __version__)
     finally:
         # Clean up: remove the build directory (no longer needed)
         shutil.rmtree(build_directory)
@@ -206,15 +207,6 @@ def build(root_path, is_nightly=False, rc=None):
 def install_whl(whl_fpath):
     print(f"Installing wheel file: {whl_fpath}")
     os.system(f"pip3 install {whl_fpath} --force-reinstall --no-dependencies")
-
-
-def validate_rc(rc):
-    rc = rc.lower()
-    if rc[:2] != "rc" or not rc[2:].isdigit():
-        raise argparse.ArgumentTypeError(
-            f"--rc value {rc} should be of format rc[0-9]+."
-        )
-    return rc
 
 
 if __name__ == "__main__":
@@ -231,8 +223,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--rc",
-        type=validate_rc,
-        help="Specify `rc[0-9] when generating RC wheels.",
+        type=int,
+        help="Specify `[0-9] when generating RC wheels.",
     )
     args = parser.parse_args()
     root_path = pathlib.Path(__file__).parent.resolve()
