@@ -49,10 +49,12 @@ then
    # TODO: keras/layers/merging/merging_test.py::MergingLayersTest::test_sparse_dot_2d Fatal Python error: Aborted
    # TODO: keras/trainers/data_adapters/py_dataset_adapter_test.py::PyDatasetAdapterTest::test_basic_flow0 Fatal Python error: Aborted
    # keras/backend/jax/distribution_lib_test.py is configured for CPU test for now.
+   # keras/initializers/constant_initializers_test.py::ConstantInitializersTest::test_constant_initializer Fatal Python error: Aborted
    pytest keras --ignore keras/applications \
                --ignore keras/layers/merging/merging_test.py \
                --ignore keras/trainers/data_adapters/py_dataset_adapter_test.py \
                --ignore keras/backend/jax/distribution_lib_test.py \
+               --ignore keras/initializers/constant_initializers_test.py \
                --cov=keras
 fi
 
