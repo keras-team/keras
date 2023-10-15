@@ -7,8 +7,8 @@ from keras.layers.activations.relu import ReLU
 from keras.layers.activations.softmax import Softmax
 from keras.layers.attention.additive_attention import AdditiveAttention
 from keras.layers.attention.attention import Attention
-from keras.layers.attention.multi_head_attention import MultiHeadAttention
 from keras.layers.attention.grouped_query_attention import GroupedQueryAttention
+from keras.layers.attention.multi_head_attention import MultiHeadAttention
 from keras.layers.convolutional.conv1d import Conv1D
 from keras.layers.convolutional.conv1d_transpose import Conv1DTranspose
 from keras.layers.convolutional.conv2d import Conv2D
