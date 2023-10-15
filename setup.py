@@ -29,7 +29,7 @@ else:
     VERSION = get_version("keras/__init__.py")
 
 setup(
-    name="{{PACKAGE}}",
+    name="keras",
     description="Multi-backend Keras.",
     long_description_content_type="text/markdown",
     long_description=README,

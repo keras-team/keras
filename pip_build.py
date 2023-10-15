@@ -154,11 +154,13 @@ def export_version_string(version, is_nightly=False, rc=None):
     with open(os.path.join(package, "__init__.py"), "w") as f:
         f.write(init_contents + "\n\n" + f'__version__ = "{version}"\n')
 
-    # Insert {{PACKAGE}} and {{VERSION}} strings in setup.py
+    # Update package name in setup.py
     with open("setup.py") as f:
         setup_contents = f.read()
     with open("setup.py", "w") as f:
-        setup_contents = setup_contents.replace("{{PACKAGE}}", package_name)
+        setup_contents = setup_contents.replace(
+            'name="keras"', f'name="{package_name}"'
+        )
         f.write(setup_contents)
 
 
@@ -205,11 +207,15 @@ def install_whl(whl_fpath):
     print(f"Installing wheel file: {whl_fpath}")
     os.system(f"pip3 install {whl_fpath} --force-reinstall --no-dependencies")
 
+
 def validate_rc(rc):
     rc = rc.lower()
     if rc[:2] != "rc" or not rc[2:].isdigit():
-        raise argparse.ArgumentTypeError(f"--rc value {rc} should be of format rc[0-9]+.")
+        raise argparse.ArgumentTypeError(
+            f"--rc value {rc} should be of format rc[0-9]+."
+        )
     return rc
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
