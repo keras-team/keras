@@ -20,14 +20,6 @@ jobs:
       PYTHON: ${{ matrix.python-version }}
       KERAS_BACKEND: ${{ matrix.backend }}
     steps:
-      - uses: actions/checkout@v3
-      - name: Check for changes in keras/applications
-        uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          filters: |
-            applications:
-              - 'keras/applications/**'
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -46,11 +38,6 @@ jobs:
         run: |
           pip install -r requirements.txt --progress-bar off --upgrade
           pip install -e "." --progress-bar off --upgrade
-      - name: Test applications with pytest
-        if: ${{ steps.filter.outputs.applications == 'true' }}
-        run: |
-          pytest keras/applications --cov=keras.applications
-
       - name: Test integrations
         if: ${{ matrix.backend != 'numpy'}}
         run: |
@@ -96,6 +83,7 @@ jobs:
   nightly:
     name: Build Wheel file and upload
     needs: [build, format]
+    runs-on: ubuntu-latest
     env:
       TWINE_USERNAME: __token__
       TWINE_PASSWORD: ${{ secrets.PYPI_NIGHTLY_API_TOKEN }}
@@ -109,7 +97,6 @@ jobs:
           python -m pip install --upgrade pip setuptools
           pip install twine
           pip install -r requirements.txt --progress-bar off --upgrade
-          pip install -e "." --progress-bar off --upgrade
       - name: Package and Upload
         run: |
           python pip_build.py --nightly
