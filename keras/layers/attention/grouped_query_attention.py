@@ -5,7 +5,6 @@ from keras import regularizers
 from keras.api_export import keras_export
 from keras.layers.activations.softmax import Softmax
 from keras.layers.core.einsum_dense import EinsumDense
-from keras.layers.core.dense import Dense
 from keras.layers.layer import Layer
 from keras.layers.regularization.dropout import Dropout
 
