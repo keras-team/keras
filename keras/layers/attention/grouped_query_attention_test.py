@@ -71,3 +71,17 @@ class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
             query_shape, value_shape, key_shape
         )
         self.assertEqual(output.shape, comp_output_shape)
+
+    @parameterized.named_parameters(
+        ("query_value_dim_mismatch", (2, 4, 8), (2, 2, 7), 2),
+        ("key_value_dim_mismatch", (2, 4, 8), (2, 2, 8), (2, 1, 7)),
+    )
+    def test_shape_mismatch_error(self, query_shape, value_shape, key_shape):
+        """Test dimension mismatches"""
+        layer = layers.GroupedQueryAttention(
+            num_query_heads=4,
+            num_key_value_heads=4,
+            head_dim=2,
+        )
+        with self.assertRaisesRegex(ValueError, r"must be equal"):
+            layer.compute_output_shape(query_shape, value_shape, key_shape)
