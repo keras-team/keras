@@ -104,26 +104,37 @@ class GroupedQueryAttention(Layer):
         value_shape,
         key_shape=None,
     ):
+        # Einsum variables:
+        # b = batch size
+        # q = query length
+        # k = key/value length
+        # m = model dim
+        # n = num heads
+        # h = head dim
         key_shape = value_shape if key_shape is None else key_shape
         self.feature_dim = query_shape[-1]
-        self._query_dense = Dense(
-            self.num_query_heads * self.head_dim,
-            use_bias=self.use_bias,
+        self._query_dense = EinsumDense(
+            "bqm,mnh->bqnh",
+            output_shape=(None, self.num_query_heads, self.head_dim),
+            bias_axes="nh" if self.use_bias else None,
             name="query",
             **self._get_common_kwargs_for_sublayer(),
         )
         self._query_dense.build(query_shape)
 
-        self._key_dense = Dense(
-            self.num_key_value_heads * self.head_dim,
-            use_bias=self.use_bias,
+        self._key_dense = EinsumDense(
+            "bkm,mnh->bknh",
+            output_shape=(None, self.num_key_value_heads, self.head_dim),
+            bias_axes="nh" if self.use_bias else None,
             name="key",
             **self._get_common_kwargs_for_sublayer(),
         )
         self._key_dense.build(key_shape)
-        self._value_dense = Dense(
-            self.num_key_value_heads * self.head_dim,
-            use_bias=self.use_bias,
+
+        self._value_dense = EinsumDense(
+            "bkm,mnh->bknh",
+            output_shape=(None, self.num_key_value_heads, self.head_dim),
+            bias_axes="nh" if self.use_bias else None,
             name="value",
             **self._get_common_kwargs_for_sublayer(),
         )
@@ -133,16 +144,20 @@ class GroupedQueryAttention(Layer):
         self._dropout_layer = Dropout(
             rate=self.dropout, dtype=self.dtype_policy
         )
-        self._output_dense = Dense(
-            self.feature_dim,
-            use_bias=self.use_bias,
+
+        self._dot_product_equation = "bqnh,bknh->bnqk"
+        self._combine_equation = "bnqk,bknh->bqnh"
+
+        self._output_dense = EinsumDense(
+            "bqnh,nhm->bqm",
+            output_shape=(None, self.feature_dim),
+            bias_axes="m" if self.use_bias else None,
             name="attention_output",
             **self._get_common_kwargs_for_sublayer(),
         )
-        output_dense_input_shape = list(
-            self._query_dense.compute_output_shape(query_shape)
+        self._output_dense.build(
+            (None, None, self.num_query_heads, self.head_dim)
         )
-        self._output_dense.build(output_dense_input_shape)
         self.built = True
 
     def _get_common_kwargs_for_sublayer(self):
@@ -193,39 +208,9 @@ class GroupedQueryAttention(Layer):
             use_causal_mask=use_causal_mask,
         )
 
-        batch_dim, target_seq_len, _ = ops.shape(
-            query
-        )  # (batch_dim, target_seq_len, feature_dim)
-        _, source_seq_len, _ = ops.shape(
-            value
-        )  # (batch_dim, source_seq_len, feature_dim)
-
         query = self._query_dense(query)
         key = self._key_dense(key)
         value = self._value_dense(value)
-
-        query = ops.reshape(
-            query,
-            (batch_dim, target_seq_len, self.num_query_heads, self.head_dim),
-        )  # (batch_dim, target_seq_len, query_heads, head_dim)
-        key = ops.reshape(
-            key,
-            (
-                batch_dim,
-                source_seq_len,
-                self.num_key_value_heads,
-                self.head_dim,
-            ),
-        )  # (batch_dim, source_seq_len, key_value_heads, head_dim)
-        value = ops.reshape(
-            value,
-            (
-                batch_dim,
-                source_seq_len,
-                self.num_key_value_heads,
-                self.head_dim,
-            ),
-        )  # (batch_dim, source_seq_len, key_value_heads, head_dim)
 
         key = ops.repeat(
             key, self.num_repeats, axis=2
@@ -233,16 +218,6 @@ class GroupedQueryAttention(Layer):
         value = ops.repeat(
             value, self.num_repeats, axis=2
         )  # (batch_dim, source_seq_len, query_heads, head_dim)
-
-        query = ops.transpose(
-            query, axes=(0, 2, 1, 3)
-        )  # (batch_dim, query_heads, target_seq_len, head_dim)
-        key = ops.transpose(
-            key, axes=(0, 2, 3, 1)
-        )  # (batch_dim, query_heads, head_dim, source_seq_len)
-        value = ops.transpose(
-            value, axes=(0, 2, 1, 3)
-        )  # (batch_dim, query_heads, source_seq_len, head_dim)
 
         output, scores = self._compute_attention(
             query,
@@ -252,13 +227,6 @@ class GroupedQueryAttention(Layer):
             training=training,
         )
 
-        output = ops.transpose(
-            output, axes=(0, 2, 1, 3)
-        )  # (batch_dim, target_seq_len, query_heads, head_dim)
-        output = ops.reshape(
-            output,
-            (batch_dim, target_seq_len, self.num_query_heads * self.head_dim),
-        )  # (batch_dim, target_seq_len, query_heads * head_dim)
         output = self._output_dense(
             output
         )  # (batch_dim, target_seq_len, feature_dim)
@@ -371,16 +339,16 @@ class GroupedQueryAttention(Layer):
             query,
             1.0 / ops.sqrt(ops.cast(self.head_dim, query.dtype)),
         )
-        scores = ops.matmul(
-            query, key
+        # Take the dot product between "query" and "key" to get the raw
+        # attention scores.
+        scores = ops.einsum(
+            self._dot_product_equation, key, query
         )  # (batch_dim, query_heads, target_seq_len, source_seq_len)
         scores = self._softmax(scores, mask=attention_mask)
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
         scores_dropout = self._dropout_layer(scores, training=training)
-        output = ops.matmul(
-            scores_dropout, value
-        )  # (batch_dim, query_heads, target_seq_len, head_dim)
+        output = ops.einsum(self._combine_equation, scores_dropout, value)
         return output, scores
 
     def compute_output_shape(
