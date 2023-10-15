@@ -32,7 +32,15 @@ class GroupedQueryAttention(Layer):
         head_dim: Size of each attention head.
         num_query_heads: Number of query attention heads.
         num_key_value_heads: Number of key and value attention heads.
+        dropout: Dropout probability.
         use_bias: Boolean, whether the dense layers use bias vectors/matrices.
+        kernel_initializer: Initializer for dense layer kernels.
+        bias_initializer: Initializer for dense layer biases.
+        kernel_regularizer: Regularizer for dense layer kernels.
+        bias_regularizer: Regularizer for dense layer biases.
+        activity_regularizer: Regularizer for dense layer activity.
+        kernel_constraint: Constraint for dense layer kernels.
+        bias_constraint: Constraint for dense layer kernels.
 
     Call arguments:
         query: Query tensor of shape `(batch_dim, target_seq_len, feature_dim)`,
@@ -57,6 +65,9 @@ class GroupedQueryAttention(Layer):
             training mode (adding dropout) or in inference mode (no dropout).
             Will go with either using the training mode of the parent
             layer/model or `False` (inference) if there is no parent layer.
+        use_causal_mask: A boolean to indicate whether to apply a causal mask to
+            prevent tokens from attending to future tokens (e.g., used in a
+            decoder Transformer).
 
     Returns:
         attention_output: Result of the computation, of shape
