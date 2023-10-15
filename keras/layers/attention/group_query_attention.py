@@ -72,6 +72,7 @@ class GroupedQueryAttention(Layer):
         head_dim,
         num_query_heads,
         num_key_value_heads,
+        dropout=0.0,
         use_bias=False,
         kernel_initializer="glorot_uniform",
         bias_initializer="zeros",
@@ -87,6 +88,7 @@ class GroupedQueryAttention(Layer):
         self.num_query_heads = num_query_heads
         self.num_key_value_heads = num_key_value_heads
         self.num_repeats = num_query_heads // num_key_value_heads
+        self.dropout = dropout
         self.use_bias = use_bias
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.bias_initializer = initializers.get(bias_initializer)
@@ -119,7 +121,6 @@ class GroupedQueryAttention(Layer):
             **self._get_common_kwargs_for_sublayer(),
         )
         self._key_dense.build(key_shape)
-
         self._value_dense = Dense(
             self.num_key_value_heads * self.head_dim,
             use_bias=self.use_bias,
@@ -128,6 +129,9 @@ class GroupedQueryAttention(Layer):
         )
         self._value_dense.build(value_shape)
 
+        self._dropout_layer = Dropout(
+            rate=self.dropout, dtype=self.dtype_policy
+        )
         self._output_dense = Dense(
             self.feature_dim,
             use_bias=self.use_bias,
@@ -225,7 +229,11 @@ class GroupedQueryAttention(Layer):
         )  # (batch_dim, query_heads, source_seq_len, head_dim)
 
         output, scores = self._compute_attention(
-            query, key, value, attention_mask=attention_mask
+            query,
+            key,
+            value,
+            attention_mask=attention_mask,
+            training=training,
         )
 
         output = ops.transpose(
@@ -243,7 +251,9 @@ class GroupedQueryAttention(Layer):
             return output, scores
         return output
 
-    def _compute_attention(self, query, key, value, attention_mask=None):
+    def _compute_attention(
+        self, query, key, value, attention_mask=None, training=None
+    ):
         query = ops.multiply(
             query,
             1.0 / ops.sqrt(ops.cast(self.head_dim, query.dtype)),
@@ -253,8 +263,11 @@ class GroupedQueryAttention(Layer):
         )  # (batch_dim, query_heads, target_seq_len, source_seq_len)
         if attention_mask is not None:
             scores = scores + attention_mask
+        # This is actually dropping out entire tokens to attend to, which might
+        # seem a bit unusual, but is taken from the original Transformer paper.
+        scores_dropout = self._dropout_layer(scores, training=training)
         output = ops.matmul(
-            scores, value
+            scores_dropout, value
         )  # (batch_dim, query_heads, target_seq_len, head_dim)
         return output, scores
 
@@ -264,6 +277,7 @@ class GroupedQueryAttention(Layer):
             "num_query_heads": self.num_query_heads,
             "num_key_value_heads": self.num_key_value_heads,
             "use_bias": self.use_bias,
+            "dropout": self.dropout,
             "kernel_initializer": initializers.serialize(
                 self.kernel_initializer
             ),
