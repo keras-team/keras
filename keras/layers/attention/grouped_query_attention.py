@@ -94,6 +94,7 @@ class GroupedQueryAttention(Layer):
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self.supports_masking = True
         self.head_dim = head_dim
         self.num_query_heads = num_query_heads
         self.num_key_value_heads = num_key_value_heads
