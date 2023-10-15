@@ -194,7 +194,7 @@ def build(root_path, is_nightly=False, rc=None):
         create_legacy_directory()
         from keras.src.version import __version__  # noqa: E402
 
-        export_version_string(__version__)
+        export_version_string(__version__, is_nightly, rc)
         return build_and_save_output(root_path, __version__, is_nightly, rc)
     finally:
         # Clean up: remove the build directory (no longer needed)
@@ -207,8 +207,8 @@ def install_whl(whl_fpath):
 
 def validate_rc(rc):
     rc = rc.lower()
-    if rc[:2] != "rc" or not rc[3:].isdigit():
-        raise ValueError("--rc value {rc} should be of format rc[0-9]+.")
+    if rc[:2] != "rc" or not rc[2:].isdigit():
+        raise argparse.ArgumentTypeError(f"--rc value {rc} should be of format rc[0-9]+.")
     return rc
 
 if __name__ == "__main__":
