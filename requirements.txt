@@ -2,8 +2,8 @@
 tf-nightly==2.15.0.dev20231009  # Pin a working nightly until rc0.
 
 # Torch.
-torch>=2.0.1
-torchvision>=0.15.1
+torch>=2.1.0
+torchvision>=0.16.0
 
 # Jax.
 jax[cpu]

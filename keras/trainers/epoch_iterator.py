@@ -122,7 +122,7 @@ class EpochIterator:
             if buffer:
                 yield step - len(buffer) + 1, buffer
             if not self._num_batches:
-                # Infer the number of batches returned by the data_adater.
+                # Infer the number of batches returned by the data_adapter.
                 # Assumed static.
                 self._num_batches = step + 1
         self.data_adapter.on_epoch_end()

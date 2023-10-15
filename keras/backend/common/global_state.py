@@ -77,3 +77,9 @@ def clear_session():
             from tensorflow.python.eager import context
 
             context.context().clear_kernel_cache()
+    elif backend.backend() == "torch":
+        import torch._dynamo as dynamo
+
+        # reset's torchdynamo's cache so that  cached guards, compiled fn, etc
+        # do not persist between clear_session() calls
+        dynamo.reset()

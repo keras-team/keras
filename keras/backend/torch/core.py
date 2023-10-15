@@ -149,6 +149,7 @@ def convert_to_tensor(x, dtype=None, sparse=False):
         return torch.as_tensor(x, dtype=torch.int32, device=get_device())
     if isinstance(x, float):
         return torch.as_tensor(x, dtype=torch.float32, device=get_device())
+
     # Convert to np in case of any array-like that is not list or tuple.
     if not isinstance(x, (list, tuple)):
         x = np.array(x)
@@ -180,7 +181,15 @@ def convert_to_numpy(x):
 
 
 def is_tensor(x):
-    return torch.is_tensor(x)
+    # Using the built-in `isinstance` is recommended by pytorch
+    # over using torch.is_tensor
+    # see: https://pytorch.org/docs/stable/generated/torch.is_tensor.html
+    #
+    # Also, `torch.is_tensor()` causes issues with dynamo caching when
+    # a torch.Tensor and numpy.ndarray of the same size, shape, and dtype
+    # is passed, if called on a Tensor first the second call with ndarray
+    # will return `True` and vice-versa.
+    return isinstance(x, torch.Tensor)
 
 
 def shape(x):
