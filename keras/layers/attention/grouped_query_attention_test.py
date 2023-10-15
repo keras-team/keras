@@ -4,7 +4,7 @@ import numpy as np
 from absl.testing import parameterized
 
 # from keras import backend
-# from keras import initializers
+from keras import initializers
 from keras import layers
 from keras import testing
 
@@ -85,3 +85,27 @@ class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
         )
         with self.assertRaisesRegex(ValueError, r"must be equal"):
             layer.compute_output_shape(query_shape, value_shape, key_shape)
+
+    def test_initializer(self):
+        # Test with a specified initializer.
+        layer = layers.GroupedQueryAttention(
+            num_query_heads=16,
+            num_key_value_heads=16,
+            head_dim=64,
+            kernel_initializer=initializers.TruncatedNormal(stddev=0.02),
+        )
+        layer.build((2, 4, 8), (2, 4, 8))
+
+        # Make sure the sub layers have different kernel init value.
+        self.assertNotAllClose(
+            layer._query_dense.kernel,
+            layer._key_dense.kernel,
+        )
+        self.assertNotAllClose(
+            layer._query_dense.kernel,
+            layer._value_dense.kernel,
+        )
+        self.assertNotAllClose(
+            layer._query_dense.kernel,
+            layer._output_dense.kernel,
+        )
