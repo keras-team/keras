@@ -441,6 +441,7 @@ def rnn(
     return last_output, outputs, new_states
 
 
+@tf.function
 def gru(
     inputs,
     initial_state,
@@ -801,6 +802,7 @@ def cudnn_ok(
     return args_supported and _is_gpu_available()
 
 
+@tf.function
 def lstm(
     inputs,
     initial_state_h,
@@ -853,6 +855,7 @@ def lstm(
         raise NotImplementedError
 
 
+@tf.function(autograph=False)
 def _cudnn_lstm(
     inputs,
     initial_state_h,
