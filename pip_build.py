@@ -140,23 +140,19 @@ def create_legacy_directory():
 
 def export_version_string(version, is_nightly=False, rc_index=None):
     """Export Version and Package Name."""
-    package_name = package
-    rc = "rc" + str(rc_index)
     if is_nightly:
         date = datetime.datetime.now()
         version += f".dev{date.strftime('%Y%m%d%H')}"
-        package_name = package + "-nightly"
-        # Update package name in setup.py
         # Replaces `name="keras"` string in `setup.py` with `keras-nightly`
         with open("setup.py") as f:
             setup_contents = f.read()
         with open("setup.py", "w") as f:
             setup_contents = setup_contents.replace(
-                'name="keras"', f'name="{package_name}"'
+                'name="keras"', 'name="keras-nightly"'
             )
             f.write(setup_contents)
-    elif rc:
-        version += rc
+    elif rc_index is not None:
+        version += "rc" + str(rc_index)
 
     # Make sure to export the __version__ string
     with open(os.path.join(package, "__init__.py")) as f:
