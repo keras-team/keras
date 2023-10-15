@@ -54,7 +54,6 @@ class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
     def test_compute_output_shape(self, query_dims, value_dims, key_dims):
         """Test computed shape is equal to the layer output's shape."""
         layer = layers.GroupedQueryAttention(
-            num_heads=2,
             num_query_heads=2,
             num_key_value_heads=2,
             head_dim=2,
