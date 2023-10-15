@@ -81,7 +81,7 @@ class GroupedQueryAttention(Layer):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.head_dim = head_dim
@@ -270,6 +270,31 @@ class GroupedQueryAttention(Layer):
             scores_dropout, value
         )  # (batch_dim, query_heads, target_seq_len, head_dim)
         return output, scores
+
+    def compute_output_shape(
+        self,
+        query_shape,
+        value_shape,
+        key_shape=None,
+    ):
+        if key_shape is None:
+            key_shape = value_shape
+
+        if query_shape[-1] != value_shape[-1]:
+            raise ValueError(
+                "The last dimension of `query_shape` and `value_shape` "
+                f"must be equal, but are {query_shape[-1]}, {value_shape[-1]}. "
+                "Received: query_shape={query_shape}, value_shape={value_shape}"
+            )
+
+        if value_shape[1:-1] != key_shape[1:-1]:
+            raise ValueError(
+                "All dimensions of `value` and `key`, except the last one, "
+                f"must be equal. Received: value_shape={value_shape} and "
+                f"key_shape={key_shape}"
+            )
+
+        return query_shape
 
     def get_config(self):
         config = {
