@@ -23,9 +23,8 @@ from which new pixel values are sampled to generate a new image
 """
 
 import numpy as np
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
+import keras
+from keras import layers
 from tqdm import tqdm
 
 """
@@ -142,9 +141,6 @@ pixel_cnn.fit(
 The PixelCNN cannot generate the full image at once. Instead, it must generate each pixel in
 order, append the last generated pixel to the current image, and feed the image back into the
 model to repeat the process.
-
-You can use the trained model hosted on [Hugging Face Hub](https://huggingface.co/keras-io/pixel-cnn-mnist)
-and try the demo on [Hugging Face Spaces](https://huggingface.co/spaces/keras-io/pixelcnn-mnist-image-generation).
 """
 
 from IPython.display import Image, display
@@ -163,8 +159,8 @@ for row in tqdm(range(rows)):
             probs = pixel_cnn.predict(pixels)[:, row, col, channel]
             # Use the probabilities to pick pixel values and append the values to the image
             # frame.
-            pixels[:, row, col, channel] = tf.math.ceil(
-                probs - tf.random.uniform(probs.shape)
+            pixels[:, row, col, channel] = keras.ops.ceil(
+                probs - keras.random.uniform(probs.shape)
             )
 
 
