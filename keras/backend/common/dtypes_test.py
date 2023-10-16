@@ -105,3 +105,21 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
             ValueError, "Invalid value for argument `dtype`. Expected one of"
         ):
             dtypes._respect_weak_type("invalid_dtype", True)
+
+    def test_cycle_detection_in_make_lattice_upper_bounds(self):
+        original_lattice_function = dtypes._type_promotion_lattice
+
+        def mock_lattice():
+            lattice = original_lattice_function()
+            lattice["int32"].append("float32")
+            lattice["float32"].append("int32")
+            return lattice
+
+        dtypes._type_promotion_lattice = mock_lattice
+
+        with self.assertRaisesRegex(
+            ValueError, "cycle detected in type promotion lattice for node"
+        ):
+            dtypes._make_lattice_upper_bounds()
+
+        dtypes._type_promotion_lattice = original_lattice_function
