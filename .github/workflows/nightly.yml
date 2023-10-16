@@ -86,9 +86,6 @@ jobs:
     name: Build Wheel file and upload
     needs: [build, format]
     runs-on: ubuntu-latest
-    env:
-      TWINE_USERNAME: __token__
-      TWINE_PASSWORD: ${{ secrets.PYPI_NIGHTLY_API_TOKEN }}
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
@@ -100,7 +97,12 @@ jobs:
           python -m pip install --upgrade pip setuptools
           pip install twine
           pip install -r requirements.txt --progress-bar off --upgrade
-      - name: Package and Upload
+      - name: Build wheel file
         run: |
           python pip_build.py --nightly
-          twine upload -r pypi-warehouse dist/*
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_NIGHTLY_API_TOKEN }}
+          packages-dir: dist/
+          verbose: true
