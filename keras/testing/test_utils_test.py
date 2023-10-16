@@ -1,4 +1,5 @@
 import numpy as np
+from absl.testing import parameterized
 
 from keras.testing import test_case
 from keras.testing import test_utils
@@ -238,3 +239,52 @@ class ClassDistributionTests(test_case.TestCase):
         )
         self.assertTrue(np.all(y_train == 0))
         self.assertTrue(np.all(y_test == 0))
+
+
+class NamedProductTest(parameterized.TestCase):
+    def test_test_cases(self):
+        all_tests = test_utils.named_product(
+            [
+                {"testcase_name": "negative", "x": -1},
+                {"testcase_name": "positive", "x": 1},
+                {"testcase_name": "zero", "x": 0},
+            ],
+            numeral_type=[float, int],
+        )
+        names = [test["testcase_name"] for test in all_tests]
+        self.assertListEqual(
+            names,
+            [
+                "negative_float",
+                "positive_float",
+                "zero_float",
+                "negative_int",
+                "positive_int",
+                "zero_int",
+            ],
+        )
+
+    def test_test_cases_no_product(self):
+        all_tests = test_utils.named_product(numeral_type=[float, int])
+        names = [test["testcase_name"] for test in all_tests]
+        self.assertListEqual(names, ["float", "int"])
+
+    @parameterized.named_parameters(
+        test_utils.named_product(
+            [
+                {"testcase_name": "negative", "x": -1},
+                {"testcase_name": "positive", "x": 1},
+                {"testcase_name": "zero", "x": 0},
+            ],
+            numeral_type=[float, int],
+        )
+    )
+    def test_via_decorator(self, x, numeral_type):
+        self.assertIn(x, (-1, 1, 0))
+        self.assertIn(numeral_type, (float, int))
+
+    @parameterized.named_parameters(
+        test_utils.named_product(numeral_type=[float, int])
+    )
+    def test_via_decorator_no_product(self, numeral_type):
+        self.assertIn(numeral_type, (float, int))
