@@ -66,5 +66,4 @@ def test_model_fit():
 
 
 if __name__ == "__main__":
-    keras.config.disable_traceback_filtering()
     test_model_fit()
