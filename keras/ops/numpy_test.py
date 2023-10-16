@@ -9,6 +9,7 @@ from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import numpy as knp
+from keras.testing.test_utils import named_product
 
 # TODO: remove reliance on this (or alternatively, turn it on by default).
 np_config.enable_numpy_behavior()
@@ -21,63 +22,63 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.add(x, y).shape, (2, 3))
 
     def test_subtract(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.subtract(x, y).shape, (2, 3))
 
     def test_multiply(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.multiply(x, y).shape, (2, 3))
 
     def test_matmul(self):
-        x = KerasTensor([None, 3, 4])
-        y = KerasTensor([3, None, 4, 5])
+        x = KerasTensor((None, 3, 4))
+        y = KerasTensor((3, None, 4, 5))
         self.assertEqual(knp.matmul(x, y).shape, (3, None, 3, 5))
 
     def test_power(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.power(x, y).shape, (2, 3))
 
     def test_divide(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.divide(x, y).shape, (2, 3))
 
     def test_true_divide(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.true_divide(x, y).shape, (2, 3))
 
     def test_append(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.append(x, y).shape, (None,))
 
     def test_arctan2(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.arctan2(x, y).shape, (2, 3))
 
     def test_cross(self):
-        x1 = KerasTensor([2, 3, 3])
-        x2 = KerasTensor([1, 3, 2])
-        y = KerasTensor([None, 1, 2])
+        x1 = KerasTensor((2, 3, 3))
+        x2 = KerasTensor((1, 3, 2))
+        y = KerasTensor((None, 1, 2))
         self.assertEqual(knp.cross(x1, y).shape, (2, 3, 3))
         self.assertEqual(knp.cross(x2, y).shape, (None, 3))
 
     def test_einsum(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([3, 4])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((3, 4))
         self.assertEqual(knp.einsum("ij,jk->ik", x, y).shape, (None, 4))
         self.assertEqual(knp.einsum("ij,jk->ikj", x, y).shape, (None, 4, 3))
         self.assertEqual(knp.einsum("ii", x).shape, ())
         self.assertEqual(knp.einsum(",ij", 5, x).shape, (None, 3))
 
-        x = KerasTensor([None, 3, 4])
-        y = KerasTensor([None, 4, 5])
-        z = KerasTensor([1, 1, 1, 9])
+        x = KerasTensor((None, 3, 4))
+        y = KerasTensor((None, 4, 5))
+        z = KerasTensor((1, 1, 1, 9))
         self.assertEqual(knp.einsum("ijk,jkl->li", x, y).shape, (5, None))
         self.assertEqual(knp.einsum("ijk,jkl->lij", x, y).shape, (5, None, 3))
         self.assertEqual(
@@ -95,112 +96,112 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         )
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([None, 3])
-            y = KerasTensor([3, 4])
+            x = KerasTensor((None, 3))
+            y = KerasTensor((3, 4))
             knp.einsum("ijk,jk->ik", x, y)
 
     def test_full_like(self):
-        x = KerasTensor([None, 3])
-        self.assertEqual(knp.full_like(x, KerasTensor([1, 3])).shape, (None, 3))
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.full_like(x, KerasTensor((1, 3))).shape, (None, 3))
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.full_like(x, 2).shape, (None, 3, 3))
 
     def test_greater(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.greater(x, y).shape, (2, 3))
 
     def test_greater_equal(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.greater_equal(x, y).shape, (2, 3))
 
     def test_isclose(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.isclose(x, y).shape, (2, 3))
 
     def test_less(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.less(x, y).shape, (2, 3))
 
     def test_less_equal(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.less_equal(x, y).shape, (2, 3))
 
     def test_linspace(self):
-        start = KerasTensor([None, 3, 4])
-        stop = KerasTensor([2, 3, 4])
+        start = KerasTensor((None, 3, 4))
+        stop = KerasTensor((2, 3, 4))
         self.assertEqual(
             knp.linspace(start, stop, 10, axis=1).shape, (2, 10, 3, 4)
         )
 
-        start = KerasTensor([None, 3])
+        start = KerasTensor((None, 3))
         stop = 2
         self.assertEqual(
             knp.linspace(start, stop, 10, axis=1).shape, (None, 10, 3)
         )
 
     def test_logical_and(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.logical_and(x, y).shape, (2, 3))
 
     def test_logical_or(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.logical_or(x, y).shape, (2, 3))
 
     def test_logspace(self):
-        start = KerasTensor([None, 3, 4])
-        stop = KerasTensor([2, 3, 4])
+        start = KerasTensor((None, 3, 4))
+        stop = KerasTensor((2, 3, 4))
         self.assertEqual(
             knp.logspace(start, stop, 10, axis=1).shape, (2, 10, 3, 4)
         )
 
-        start = KerasTensor([None, 3])
+        start = KerasTensor((None, 3))
         stop = 2
         self.assertEqual(
             knp.logspace(start, stop, 10, axis=1).shape, (None, 10, 3)
         )
 
     def test_maximum(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.maximum(x, y).shape, (2, 3))
 
     def test_minimum(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.minimum(x, y).shape, (2, 3))
 
     def test_mod(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.mod(x, y).shape, (2, 3))
 
     def test_not_equal(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.not_equal(x, y).shape, (2, 3))
 
     def test_outer(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([2, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
         self.assertEqual(knp.outer(x, y).shape, (None, None))
 
     def test_take(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.take(x, 1).shape, ())
         self.assertEqual(knp.take(x, [1, 2]).shape, (2,))
         self.assertEqual(
             knp.take(x, [[1, 2], [1, 2]], axis=1).shape, (None, 2, 2)
         )
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.take(x, 1, axis=1).shape, (None, 3))
         self.assertEqual(knp.take(x, [1, 2]).shape, (2,))
         self.assertEqual(
@@ -211,43 +212,43 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.take(x, 1, axis=-2).shape, (None, 3))
 
         # test with multi-dimensional indices
-        x = KerasTensor([None, 3, None, 5])
-        indices = KerasTensor([6, 7])
+        x = KerasTensor((None, 3, None, 5))
+        indices = KerasTensor((6, 7))
         self.assertEqual(knp.take(x, indices, axis=2).shape, (None, 3, 6, 7, 5))
 
     def test_take_along_axis(self):
-        x = KerasTensor([None, 3])
-        indices = KerasTensor([1, 3])
+        x = KerasTensor((None, 3))
+        indices = KerasTensor((1, 3))
         self.assertEqual(knp.take_along_axis(x, indices, axis=0).shape, (1, 3))
         self.assertEqual(
             knp.take_along_axis(x, indices, axis=1).shape, (None, 3)
         )
 
-        x = KerasTensor([None, 3, 3])
-        indices = KerasTensor([1, 3, None])
+        x = KerasTensor((None, 3, 3))
+        indices = KerasTensor((1, 3, None))
         self.assertEqual(
             knp.take_along_axis(x, indices, axis=1).shape, (None, 3, 3)
         )
 
     def test_tensordot(self):
-        x = KerasTensor([None, 3, 4])
-        y = KerasTensor([3, 4])
+        x = KerasTensor((None, 3, 4))
+        y = KerasTensor((3, 4))
         self.assertEqual(knp.tensordot(x, y, axes=1).shape, (None, 3, 4))
         self.assertEqual(knp.tensordot(x, y, axes=[[0, 1], [1, 0]]).shape, (4,))
 
     def test_vdot(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
         self.assertEqual(knp.vdot(x, y).shape, ())
 
-        x = KerasTensor([None, 3, 3])
-        y = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
+        y = KerasTensor((None, 3, 3))
         self.assertEqual(knp.vdot(x, y).shape, ())
 
     def test_where(self):
-        condition = KerasTensor([2, None, 1])
-        x = KerasTensor([None, 1])
-        y = KerasTensor([None, 3])
+        condition = KerasTensor((2, None, 1))
+        x = KerasTensor((None, 1))
+        y = KerasTensor((None, 3))
         self.assertEqual(knp.where(condition, x, y).shape, (2, None, 3))
         self.assertEqual(knp.where(condition).shape, (2, None, 1))
 
@@ -262,101 +263,101 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.logical_xor(x, y).shape, (2, 3))
 
     def test_shape_equal_basic_equality(self):
-        x = KerasTensor([3, 4]).shape
-        y = KerasTensor([3, 4]).shape
+        x = KerasTensor((3, 4)).shape
+        y = KerasTensor((3, 4)).shape
         self.assertTrue(knp.shape_equal(x, y))
-        y = KerasTensor([3, 5]).shape
+        y = KerasTensor((3, 5)).shape
         self.assertFalse(knp.shape_equal(x, y))
 
     def test_shape_equal_allow_none(self):
-        x = KerasTensor([3, 4, None]).shape
-        y = KerasTensor([3, 4, 5]).shape
+        x = KerasTensor((3, 4, None)).shape
+        y = KerasTensor((3, 4, 5)).shape
         self.assertTrue(knp.shape_equal(x, y, allow_none=True))
         self.assertFalse(knp.shape_equal(x, y, allow_none=False))
 
     def test_shape_equal_different_shape_lengths(self):
-        x = KerasTensor([3, 4]).shape
-        y = KerasTensor([3, 4, 5]).shape
+        x = KerasTensor((3, 4)).shape
+        y = KerasTensor((3, 4, 5)).shape
         self.assertFalse(knp.shape_equal(x, y))
 
     def test_shape_equal_ignore_axes(self):
-        x = KerasTensor([3, 4, 5]).shape
-        y = KerasTensor([3, 6, 5]).shape
+        x = KerasTensor((3, 4, 5)).shape
+        y = KerasTensor((3, 6, 5)).shape
         self.assertTrue(knp.shape_equal(x, y, axis=1))
-        y = KerasTensor([3, 6, 7]).shape
+        y = KerasTensor((3, 6, 7)).shape
         self.assertTrue(knp.shape_equal(x, y, axis=(1, 2)))
         self.assertFalse(knp.shape_equal(x, y, axis=1))
 
     def test_shape_equal_only_none(self):
-        x = KerasTensor([None, None]).shape
-        y = KerasTensor([5, 6]).shape
+        x = KerasTensor((None, None)).shape
+        y = KerasTensor((5, 6)).shape
         self.assertTrue(knp.shape_equal(x, y, allow_none=True))
 
     def test_shape_equal_axis_as_list(self):
-        x = KerasTensor([3, 4, 5]).shape
-        y = KerasTensor([3, 6, 5]).shape
+        x = KerasTensor((3, 4, 5)).shape
+        y = KerasTensor((3, 6, 5)).shape
         self.assertTrue(knp.shape_equal(x, y, axis=[1]))
 
     def test_shape_non_equal_with_negative_axis(self):
-        x = KerasTensor([3, 4, 5]).shape
-        y = KerasTensor([3, 4, 6]).shape
+        x = KerasTensor((3, 4, 5)).shape
+        y = KerasTensor((3, 4, 6)).shape
         self.assertFalse(knp.shape_equal(x, y, axis=-2))
 
     def test_shape_equal_with_negative_axis(self):
-        x = KerasTensor([3, 4, 5]).shape
-        y = KerasTensor([3, 4, 5]).shape
+        x = KerasTensor((3, 4, 5)).shape
+        y = KerasTensor((3, 4, 5)).shape
         self.assertTrue(knp.shape_equal(x, y, axis=-1))
 
     def test_shape_equal_zeros(self):
-        x = KerasTensor([0, 4]).shape
-        y = KerasTensor([0, 4]).shape
+        x = KerasTensor((0, 4)).shape
+        y = KerasTensor((0, 4)).shape
         self.assertTrue(knp.shape_equal(x, y))
-        y = KerasTensor([0, 5]).shape
+        y = KerasTensor((0, 5)).shape
         self.assertFalse(knp.shape_equal(x, y))
 
     def test_broadcast_shapes_conversion_to_list(self):
-        shape1 = KerasTensor([1, 2]).shape
-        shape2 = KerasTensor([3, 1]).shape
+        shape1 = KerasTensor((1, 2)).shape
+        shape2 = KerasTensor((3, 1)).shape
         expected_output = [3, 2]
         self.assertEqual(knp.broadcast_shapes(shape1, shape2), expected_output)
 
     def test_broadcast_shapes_shape1_longer_than_shape2(self):
-        shape1 = KerasTensor([5, 3, 2]).shape
-        shape2 = KerasTensor([1, 3]).shape
+        shape1 = KerasTensor((5, 3, 2)).shape
+        shape2 = KerasTensor((1, 3)).shape
         with self.assertRaisesRegex(ValueError, "Cannot broadcast shape"):
             knp.broadcast_shapes(shape1, shape2)
 
     def test_broadcast_shapes_shape2_longer_than_shape1(self):
-        shape1 = KerasTensor([5, 3]).shape
-        shape2 = KerasTensor([2, 5, 3]).shape
+        shape1 = KerasTensor((5, 3)).shape
+        shape2 = KerasTensor((2, 5, 3)).shape
         expected_output = [2, 5, 3]
         self.assertEqual(knp.broadcast_shapes(shape1, shape2), expected_output)
 
     def test_broadcast_shapes_broadcasting_shape1_is_1(self):
-        shape1 = KerasTensor([1, 3]).shape
-        shape2 = KerasTensor([5, 1]).shape
+        shape1 = KerasTensor((1, 3)).shape
+        shape2 = KerasTensor((5, 1)).shape
         expected_output = [5, 3]
         self.assertEqual(knp.broadcast_shapes(shape1, shape2), expected_output)
 
     def test_broadcast_shapes_broadcasting_shape1_is_none(self):
-        shape1 = KerasTensor([None, 3]).shape
-        shape2 = KerasTensor([5, 1]).shape
+        shape1 = KerasTensor((None, 3)).shape
+        shape2 = KerasTensor((5, 1)).shape
         expected_output = [5, 3]
         self.assertEqual(knp.broadcast_shapes(shape1, shape2), expected_output)
 
-        shape1 = KerasTensor([None, 3]).shape
-        shape2 = KerasTensor([5, 3]).shape
+        shape1 = KerasTensor((None, 3)).shape
+        shape2 = KerasTensor((5, 3)).shape
         expected_output = [5, 3]
         self.assertEqual(knp.broadcast_shapes(shape1, shape2), expected_output)
 
     def test_broadcast_shapes_broadcasting_shape2_conditions(self):
-        shape1 = KerasTensor([5, 3, 2]).shape
-        shape2 = KerasTensor([1, 3, 2]).shape
+        shape1 = KerasTensor((5, 3, 2)).shape
+        shape2 = KerasTensor((1, 3, 2)).shape
         expected_output = [5, 3, 2]
         self.assertEqual(knp.broadcast_shapes(shape1, shape2), expected_output)
 
-        shape1 = KerasTensor([5, 3, 2]).shape
-        shape2 = KerasTensor([1, None, 2]).shape
+        shape1 = KerasTensor((5, 3, 2)).shape
+        shape2 = KerasTensor((1, None, 2)).shape
         expected_output = [5, 3, 2]
         self.assertEqual(knp.broadcast_shapes(shape1, shape2), expected_output)
 
@@ -368,8 +369,8 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.add(x, y).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.add(x, y)
 
     def test_add_sparse(self):
@@ -392,16 +393,16 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertTrue(result.sparse)
 
     def test_subtract(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.subtract(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.subtract(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.subtract(x, y)
 
     def test_subtract_sparse(self):
@@ -424,16 +425,16 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertTrue(result.sparse)
 
     def test_multiply(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.multiply(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.multiply(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.multiply(x, y)
 
     def test_multiply_sparse(self):
@@ -456,13 +457,13 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertTrue(result.sparse)
 
     def test_matmul(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([3, 2])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((3, 2))
         self.assertEqual(knp.matmul(x, y).shape, (2, 2))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([3, 4])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((3, 4))
+            y = KerasTensor((2, 3, 4))
             knp.matmul(x, y)
 
     def test_matmul_sparse(self):
@@ -483,100 +484,100 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertTrue(result.sparse)
 
     def test_power(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.power(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.power(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.power(x, y)
 
     def test_divide(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.divide(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.divide(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.divide(x, y)
 
     def test_true_divide(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.true_divide(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.true_divide(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.true_divide(x, y)
 
     def test_append(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.append(x, y).shape, (12,))
 
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.append(x, y, axis=0).shape, (4, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.append(x, y, axis=2)
 
     def test_arctan2(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.arctan2(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.arctan2(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.arctan2(x, y)
 
     def test_cross(self):
-        x1 = KerasTensor([2, 3, 3])
-        x2 = KerasTensor([1, 3, 2])
-        y1 = KerasTensor([2, 3, 3])
-        y2 = KerasTensor([2, 3, 2])
+        x1 = KerasTensor((2, 3, 3))
+        x2 = KerasTensor((1, 3, 2))
+        y1 = KerasTensor((2, 3, 3))
+        y2 = KerasTensor((2, 3, 2))
         self.assertEqual(knp.cross(x1, y1).shape, (2, 3, 3))
         self.assertEqual(knp.cross(x2, y2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.cross(x, y)
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([4, 3, 3])
-            y = KerasTensor([2, 3, 3])
+            x = KerasTensor((4, 3, 3))
+            y = KerasTensor((2, 3, 3))
             knp.cross(x, y)
 
     def test_einsum(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([3, 4])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((3, 4))
         self.assertEqual(knp.einsum("ij,jk->ik", x, y).shape, (2, 4))
         self.assertEqual(knp.einsum("ij,jk->ikj", x, y).shape, (2, 4, 3))
         self.assertEqual(knp.einsum("ii", x).shape, ())
         self.assertEqual(knp.einsum(",ij", 5, x).shape, (2, 3))
 
-        x = KerasTensor([2, 3, 4])
-        y = KerasTensor([3, 4, 5])
-        z = KerasTensor([1, 1, 1, 9])
+        x = KerasTensor((2, 3, 4))
+        y = KerasTensor((3, 4, 5))
+        z = KerasTensor((1, 1, 1, 9))
         self.assertEqual(knp.einsum("ijk,jkl->li", x, y).shape, (5, 2))
         self.assertEqual(knp.einsum("ijk,jkl->lij", x, y).shape, (5, 2, 3))
         self.assertEqual(knp.einsum("...,...j->...j", x, y).shape, (2, 3, 4, 5))
@@ -593,136 +594,136 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         )
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((3, 4))
             knp.einsum("ijk,jk->ik", x, y)
 
     def test_full_like(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.full_like(x, 2).shape, (2, 3))
 
     def test_greater(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.greater(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.greater(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.greater(x, y)
 
     def test_greater_equal(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.greater_equal(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.greater_equal(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.greater_equal(x, y)
 
     def test_isclose(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.isclose(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.isclose(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.isclose(x, y)
 
     def test_less(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.less(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.less(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.less(x, y)
 
     def test_less_equal(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.less_equal(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.less_equal(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.less_equal(x, y)
 
     def test_linspace(self):
-        start = KerasTensor([2, 3, 4])
-        stop = KerasTensor([2, 3, 4])
+        start = KerasTensor((2, 3, 4))
+        stop = KerasTensor((2, 3, 4))
         self.assertEqual(knp.linspace(start, stop, 10).shape, (10, 2, 3, 4))
 
         with self.assertRaises(ValueError):
-            start = KerasTensor([2, 3])
-            stop = KerasTensor([2, 3, 4])
+            start = KerasTensor((2, 3))
+            stop = KerasTensor((2, 3, 4))
             knp.linspace(start, stop)
 
     def test_logical_and(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.logical_and(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.logical_and(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.logical_and(x, y)
 
     def test_logical_or(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.logical_or(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.logical_or(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.logical_or(x, y)
 
     def test_logspace(self):
-        start = KerasTensor([2, 3, 4])
-        stop = KerasTensor([2, 3, 4])
+        start = KerasTensor((2, 3, 4))
+        stop = KerasTensor((2, 3, 4))
         self.assertEqual(knp.logspace(start, stop, 10).shape, (10, 2, 3, 4))
 
         with self.assertRaises(ValueError):
-            start = KerasTensor([2, 3])
-            stop = KerasTensor([2, 3, 4])
+            start = KerasTensor((2, 3))
+            stop = KerasTensor((2, 3, 4))
             knp.logspace(start, stop)
 
     def test_maximum(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.maximum(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.maximum(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.maximum(x, y)
 
     def test_maximum_sparse(self):
@@ -745,16 +746,16 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertTrue(result.sparse)
 
     def test_minimum(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.minimum(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.minimum(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.minimum(x, y)
 
     def test_minimum_sparse(self):
@@ -777,68 +778,68 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertTrue(result.sparse)
 
     def test_mod(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.mod(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.mod(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.mod(x, y)
 
     def test_not_equal(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.not_equal(x, y).shape, (2, 3))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.not_equal(x, 2).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.not_equal(x, y)
 
     def test_outer(self):
-        x = KerasTensor([3])
-        y = KerasTensor([4])
+        x = KerasTensor((3,))
+        y = KerasTensor((4,))
         self.assertEqual(knp.outer(x, y).shape, (3, 4))
 
-        x = KerasTensor([2, 3])
-        y = KerasTensor([4, 5])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((4, 5))
         self.assertEqual(knp.outer(x, y).shape, (6, 20))
 
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.outer(x, 2).shape, (6, 1))
 
     def test_take(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.take(x, 1).shape, ())
         self.assertEqual(knp.take(x, [1, 2]).shape, (2,))
         self.assertEqual(knp.take(x, [[1, 2], [1, 2]], axis=1).shape, (2, 2, 2))
 
         # test with multi-dimensional indices
-        x = KerasTensor([2, 3, 4, 5])
-        indices = KerasTensor([6, 7])
+        x = KerasTensor((2, 3, 4, 5))
+        indices = KerasTensor((6, 7))
         self.assertEqual(knp.take(x, indices, axis=2).shape, (2, 3, 6, 7, 5))
 
     def test_take_along_axis(self):
-        x = KerasTensor([2, 3])
-        indices = KerasTensor([1, 3])
+        x = KerasTensor((2, 3))
+        indices = KerasTensor((1, 3))
         self.assertEqual(knp.take_along_axis(x, indices, axis=0).shape, (1, 3))
         self.assertEqual(knp.take_along_axis(x, indices, axis=1).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            indices = KerasTensor([1, 4])
+            x = KerasTensor((2, 3))
+            indices = KerasTensor((1, 4))
             knp.take_along_axis(x, indices, axis=0)
 
     def test_tensordot(self):
-        x = KerasTensor([2, 3, 3])
-        y = KerasTensor([3, 3, 4])
+        x = KerasTensor((2, 3, 3))
+        y = KerasTensor((3, 3, 4))
         self.assertEqual(knp.tensordot(x, y, axes=1).shape, (2, 3, 3, 4))
         self.assertEqual(knp.tensordot(x, y, axes=2).shape, (2, 4))
         self.assertEqual(
@@ -846,14 +847,14 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_vdot(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.vdot(x, y).shape, ())
 
     def test_where(self):
-        condition = KerasTensor([2, 3])
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        condition = KerasTensor((2, 3))
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.where(condition, x, y).shape, (2, 3))
         self.assertAllEqual(knp.where(condition).shape, (2, 3))
 
@@ -863,8 +864,8 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.floor_divide(x, y).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.floor_divide(x, y)
 
     def test_xor(self):
@@ -873,8 +874,8 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.logical_xor(x, y).shape, (2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
             knp.logical_xor(x, y)
 
     def test_digitize(self):
@@ -884,185 +885,185 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertTrue(knp.digitize(x, bins).dtype == "int32")
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            bins = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3))
+            bins = KerasTensor((2, 3, 4))
             knp.digitize(x, bins)
 
 
 class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_mean(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.mean(x).shape, ())
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.mean(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.mean(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
     def test_all(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.all(x).shape, ())
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.all(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.all(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
     def test_any(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.any(x).shape, ())
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.any(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.any(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
     def test_var(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.var(x).shape, ())
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.var(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.var(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
     def test_sum(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.sum(x).shape, ())
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.sum(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.sum(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
     def test_amax(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.amax(x).shape, ())
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.amax(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.amax(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
     def test_amin(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.amin(x).shape, ())
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.amin(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.amin(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
     def test_square(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.square(x).shape, (None, 3))
 
     def test_negative(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.negative(x).shape, (None, 3))
 
     def test_abs(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.abs(x).shape, (None, 3))
 
     def test_absolute(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.absolute(x).shape, (None, 3))
 
     def test_squeeze(self):
-        x = KerasTensor([None, 1])
+        x = KerasTensor((None, 1))
         self.assertEqual(knp.squeeze(x).shape, (None,))
         self.assertEqual(knp.squeeze(x, axis=1).shape, (None,))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([None, 1])
+            x = KerasTensor((None, 1))
             knp.squeeze(x, axis=0)
 
     def test_transpose(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.transpose(x).shape, (3, None))
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.transpose(x, (2, 0, 1)).shape, (3, None, 3))
 
     def test_arccos(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.arccos(x).shape, (None, 3))
 
     def test_arccosh(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.arccosh(x).shape, (None, 3))
 
     def test_arcsin(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.arcsin(x).shape, (None, 3))
 
     def test_arcsinh(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.arcsinh(x).shape, (None, 3))
 
     def test_arctan(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.arctan(x).shape, (None, 3))
 
     def test_arctanh(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.arctanh(x).shape, (None, 3))
 
     def test_argmax(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.argmax(x).shape, ())
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.argmax(x, axis=1).shape, (None, 3))
 
     def test_argmin(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.argmin(x).shape, ())
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.argmin(x, axis=1).shape, (None, 3))
 
     def test_argsort(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.argsort(x).shape, (None, 3))
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.argsort(x, axis=1).shape, (None, 3, 3))
 
     def test_array(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.array(x).shape, (None, 3))
 
     def test_average(self):
-        x = KerasTensor([None, 3])
-        weights = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
+        weights = KerasTensor((None, 3))
         self.assertEqual(knp.average(x, weights=weights).shape, ())
 
-        x = KerasTensor([None, 3])
-        weights = KerasTensor([3])
+        x = KerasTensor((None, 3))
+        weights = KerasTensor((3,))
         self.assertEqual(knp.average(x, axis=1, weights=weights).shape, (None,))
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.average(x, axis=1).shape, (None, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([None, 3, 3])
-            weights = KerasTensor([None, 4])
+            x = KerasTensor((None, 3, 3))
+            weights = KerasTensor((None, 4))
             knp.average(x, weights=weights)
 
     def test_broadcast_to(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.broadcast_to(x, (2, 3, 3)).shape, (2, 3, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([3, 3])
+            x = KerasTensor((3, 3))
             knp.broadcast_to(x, (2, 2, 3))
 
     def test_ceil(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.ceil(x).shape, (None, 3))
 
     def test_clip(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.clip(x, 1, 2).shape, (None, 3))
 
     def test_concatenate(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
         self.assertEqual(
             knp.concatenate(
                 [x, y],
@@ -1075,8 +1076,8 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             self.assertEqual(knp.concatenate([x, y], axis=None).shape, (None,))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([None, 3, 5])
-            y = KerasTensor([None, 4, 6])
+            x = KerasTensor((None, 3, 5))
+            y = KerasTensor((None, 4, 6))
             knp.concatenate([x, y], axis=1)
 
     def test_concatenate_sparse(self):
@@ -1099,96 +1100,96 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertTrue(result.sparse)
 
     def test_conjugate(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.conjugate(x).shape, (None, 3))
 
     def test_conj(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.conj(x).shape, (None, 3))
 
     def test_copy(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.copy(x).shape, (None, 3))
 
     def test_cos(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.cos(x).shape, (None, 3))
 
     def test_cosh(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.cosh(x).shape, (None, 3))
 
     def test_count_nonzero(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.count_nonzero(x).shape, ())
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.count_nonzero(x, axis=1).shape, (None, 3))
 
     def test_cumprod(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.cumprod(x).shape, (None,))
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.cumprod(x, axis=1).shape, (None, 3, 3))
 
     def test_cumsum(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.cumsum(x).shape, (None,))
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.cumsum(x, axis=1).shape, (None, 3, 3))
 
     def test_diag(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.diag(x).shape, (None,))
         self.assertEqual(knp.diag(x, k=3).shape, (None,))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3, 4))
             knp.diag(x)
 
     def test_diagonal(self):
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.diagonal(x).shape, (3, None))
 
     def test_dot(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([3, 2])
-        z = KerasTensor([None, None, 2])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((3, 2))
+        z = KerasTensor((None, None, 2))
         self.assertEqual(knp.dot(x, y).shape, (None, 2))
         self.assertEqual(knp.dot(x, 2).shape, (None, 3))
         self.assertEqual(knp.dot(x, z).shape, (None, None, 2))
 
-        x = KerasTensor([None])
-        y = KerasTensor([5])
+        x = KerasTensor((None,))
+        y = KerasTensor((5,))
         self.assertEqual(knp.dot(x, y).shape, ())
 
     def test_exp(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.exp(x).shape, (None, 3))
 
     def test_expand_dims(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.expand_dims(x, -1).shape, (None, 3, 1))
         self.assertEqual(knp.expand_dims(x, 0).shape, (1, None, 3))
         self.assertEqual(knp.expand_dims(x, 1).shape, (None, 1, 3))
         self.assertEqual(knp.expand_dims(x, -2).shape, (None, 1, 3))
 
     def test_expm1(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.expm1(x).shape, (None, 3))
 
     def test_flip(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.flip(x).shape, (None, 3))
 
     def test_floor(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.floor(x).shape, (None, 3))
 
     def test_get_item(self):
-        x = KerasTensor([None, 5, 16])
+        x = KerasTensor((None, 5, 16))
         # Simple slice.
         sliced = knp.get_item(x, 5)
         self.assertEqual(sliced.shape, (5, 16))
@@ -1210,61 +1211,61 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             sliced = knp.get_item(x, np.s_[:, :, :, :])
 
     def test_hstack(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
         self.assertEqual(knp.hstack([x, y]).shape, (None, 6))
 
-        x = KerasTensor([None, 3])
-        y = KerasTensor([None, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, None))
         self.assertEqual(knp.hstack([x, y]).shape, (None, None))
 
     def test_imag(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.imag(x).shape, (None, 3))
 
     def test_isfinite(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.isfinite(x).shape, (None, 3))
 
     def test_isinf(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.isinf(x).shape, (None, 3))
 
     def test_isnan(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.isnan(x).shape, (None, 3))
 
     def test_log(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.log(x).shape, (None, 3))
 
     def test_log10(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.log10(x).shape, (None, 3))
 
     def test_log1p(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.log1p(x).shape, (None, 3))
 
     def test_log2(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.log2(x).shape, (None, 3))
 
     def test_logaddexp(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.logaddexp(x, x).shape, (None, 3))
 
     def test_logical_not(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.logical_not(x).shape, (None, 3))
 
     def test_max(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.max(x).shape, ())
 
     def test_meshgrid(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
         self.assertEqual(knp.meshgrid(x, y)[0].shape, (None, None))
         self.assertEqual(knp.meshgrid(x, y)[1].shape, (None, None))
 
@@ -1272,7 +1273,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             knp.meshgrid(x, y, indexing="kk")
 
     def test_moveaxis(self):
-        x = KerasTensor([None, 3, 4, 5])
+        x = KerasTensor((None, 3, 4, 5))
         self.assertEqual(knp.moveaxis(x, 0, -1).shape, (3, 4, 5, None))
         self.assertEqual(knp.moveaxis(x, -1, 0).shape, (5, None, 3, 4))
         self.assertEqual(
@@ -1284,26 +1285,26 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         )
 
     def test_ndim(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.ndim(x).shape, (2,))
 
     def test_ones_like(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.ones_like(x).shape, (None, 3))
         self.assertEqual(knp.ones_like(x).dtype, x.dtype)
 
     def test_zeros_like(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.zeros_like(x).shape, (None, 3))
         self.assertEqual(knp.zeros_like(x).dtype, x.dtype)
 
     def test_pad(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.pad(x, 1).shape, (None, 5))
         self.assertEqual(knp.pad(x, (1, 2)).shape, (None, 6))
         self.assertEqual(knp.pad(x, ((1, 2), (3, 4))).shape, (None, 10))
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.pad(x, 1).shape, (None, 5, 5))
         self.assertEqual(knp.pad(x, (1, 2)).shape, (None, 6, 6))
         self.assertEqual(
@@ -1311,76 +1312,76 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         )
 
     def test_prod(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.prod(x).shape, ())
         self.assertEqual(knp.prod(x, axis=0).shape, (3,))
         self.assertEqual(knp.prod(x, axis=1, keepdims=True).shape, (None, 1))
 
     def test_ravel(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.ravel(x).shape, (None,))
 
     def test_real(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.real(x).shape, (None, 3))
 
     def test_reciprocal(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.reciprocal(x).shape, (None, 3))
 
     def test_repeat(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.repeat(x, 2).shape, (None,))
         self.assertEqual(knp.repeat(x, 3, axis=1).shape, (None, 9))
         self.assertEqual(knp.repeat(x, [1, 2], axis=0).shape, (3, 3))
         self.assertEqual(knp.repeat(x, 2, axis=0).shape, (None, 3))
 
     def test_reshape(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.reshape(x, (3, 2)).shape, (3, 2))
         self.assertEqual(knp.reshape(x, (3, -1)).shape, (3, None))
 
     def test_reshape_sparse(self):
-        x = KerasTensor([None, 3], sparse=True)
+        x = KerasTensor((None, 3), sparse=True)
         self.assertTrue(knp.reshape(x, (3, 2)).sparse)
         self.assertEqual(knp.reshape(x, (3, 2)).shape, (3, 2))
         self.assertTrue(knp.reshape(x, (3, -1)).sparse)
         self.assertEqual(knp.reshape(x, (3, -1)).shape, (3, None))
 
     def test_roll(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.roll(x, 1).shape, (None, 3))
         self.assertEqual(knp.roll(x, 1, axis=1).shape, (None, 3))
         self.assertEqual(knp.roll(x, 1, axis=0).shape, (None, 3))
 
     def test_round(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.round(x).shape, (None, 3))
 
     def test_sign(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.sign(x).shape, (None, 3))
 
     def test_sin(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.sin(x).shape, (None, 3))
 
     def test_sinh(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.sinh(x).shape, (None, 3))
 
     def test_size(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.size(x).shape, ())
 
     def test_sort(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.sort(x).shape, (None, 3))
         self.assertEqual(knp.sort(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.sort(x, axis=0).shape, (None, 3))
 
     def test_split(self):
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.split(x, 2)[0].shape, (None, 3, 3))
         self.assertEqual(knp.split(x, 3, axis=1)[0].shape, (None, 1, 3))
         self.assertEqual(len(knp.split(x, [1, 3], axis=1)), 3)
@@ -1389,118 +1390,118 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.split(x, [1, 3], axis=1)[2].shape, (None, 0, 3))
 
     def test_sqrt(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.sqrt(x).shape, (None, 3))
 
     def test_stack(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
         self.assertEqual(knp.stack([x, y]).shape, (2, None, 3))
         self.assertEqual(knp.stack([x, y], axis=-1).shape, (None, 3, 2))
 
     def test_std(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.std(x).shape, ())
 
-        x = KerasTensor([None, 3, 3])
+        x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.std(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.std(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
     def test_swapaxes(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.swapaxes(x, 0, 1).shape, (3, None))
 
     def test_tan(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.tan(x).shape, (None, 3))
 
     def test_tanh(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.tanh(x).shape, (None, 3))
 
     def test_tile(self):
-        x = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
         self.assertEqual(knp.tile(x, [2]).shape, (None, 6))
         self.assertEqual(knp.tile(x, [1, 2]).shape, (None, 6))
         self.assertEqual(knp.tile(x, [2, 1, 2]).shape, (2, None, 6))
 
     def test_trace(self):
-        x = KerasTensor([None, 3, None, 5])
+        x = KerasTensor((None, 3, None, 5))
         self.assertEqual(knp.trace(x).shape, (None, 5))
         self.assertEqual(knp.trace(x, axis1=2, axis2=3).shape, (None, 3))
 
     def test_tril(self):
-        x = KerasTensor([None, 3, None, 5])
+        x = KerasTensor((None, 3, None, 5))
         self.assertEqual(knp.tril(x).shape, (None, 3, None, 5))
         self.assertEqual(knp.tril(x, k=1).shape, (None, 3, None, 5))
         self.assertEqual(knp.tril(x, k=-1).shape, (None, 3, None, 5))
 
     def test_triu(self):
-        x = KerasTensor([None, 3, None, 5])
+        x = KerasTensor((None, 3, None, 5))
         self.assertEqual(knp.triu(x).shape, (None, 3, None, 5))
         self.assertEqual(knp.triu(x, k=1).shape, (None, 3, None, 5))
         self.assertEqual(knp.triu(x, k=-1).shape, (None, 3, None, 5))
 
     def test_vstack(self):
-        x = KerasTensor([None, 3])
-        y = KerasTensor([None, 3])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
         self.assertEqual(knp.vstack([x, y]).shape, (None, 3))
 
-        x = KerasTensor([None, 3])
-        y = KerasTensor([None, None])
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, None))
         self.assertEqual(knp.vstack([x, y]).shape, (None, 3))
 
 
 class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_mean(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.mean(x).shape, ())
 
     def test_all(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.all(x).shape, ())
 
     def test_any(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.any(x).shape, ())
 
     def test_var(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.var(x).shape, ())
 
     def test_sum(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.sum(x).shape, ())
 
     def test_amax(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.amax(x).shape, ())
 
     def test_amin(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.amin(x).shape, ())
 
     def test_square(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.square(x).shape, (2, 3))
 
     def test_negative(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.negative(x).shape, (2, 3))
 
     def test_abs(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.abs(x).shape, (2, 3))
 
     def test_absolute(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.absolute(x).shape, (2, 3))
 
     def test_squeeze(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.squeeze(x).shape, (2, 3))
 
-        x = KerasTensor([2, 1, 3])
+        x = KerasTensor((2, 1, 3))
         self.assertEqual(knp.squeeze(x).shape, (2, 3))
         self.assertEqual(knp.squeeze(x, axis=1).shape, (2, 3))
         self.assertEqual(knp.squeeze(x, axis=-2).shape, (2, 3))
@@ -1509,11 +1510,11 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             knp.squeeze(x, axis=0)
 
     def test_squeeze_sparse(self):
-        x = KerasTensor([2, 3], sparse=True)
+        x = KerasTensor((2, 3), sparse=True)
         self.assertTrue(knp.squeeze(x).sparse)
         self.assertEqual(knp.squeeze(x).shape, (2, 3))
 
-        x = KerasTensor([2, 1, 3], sparse=True)
+        x = KerasTensor((2, 1, 3), sparse=True)
         self.assertTrue(knp.squeeze(x).sparse)
         self.assertEqual(knp.squeeze(x).shape, (2, 3))
         self.assertTrue(knp.squeeze(x, axis=1).sparse)
@@ -1522,79 +1523,79 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.squeeze(x, axis=-2).shape, (2, 3))
 
     def test_transpose(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.transpose(x).shape, (3, 2))
 
     def test_transpose_sparse(self):
-        x = KerasTensor([2, 3], sparse=True)
+        x = KerasTensor((2, 3), sparse=True)
         result = knp.transpose(x)
         self.assertEqual(result.shape, (3, 2))
         self.assertTrue(result.sparse)
 
     def test_arccos(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.arccos(x).shape, (2, 3))
 
     def test_arccosh(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.arccosh(x).shape, (2, 3))
 
     def test_arcsin(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.arcsin(x).shape, (2, 3))
 
     def test_arcsinh(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.arcsinh(x).shape, (2, 3))
 
     def test_arctan(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.arctan(x).shape, (2, 3))
 
     def test_arctanh(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.arctanh(x).shape, (2, 3))
 
     def test_argmax(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.argmax(x).shape, ())
 
     def test_argmin(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.argmin(x).shape, ())
 
     def test_argsort(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.argsort(x).shape, (2, 3))
         self.assertEqual(knp.argsort(x, axis=None).shape, (6,))
 
     def test_array(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.array(x).shape, (2, 3))
 
     def test_average(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.average(x).shape, ())
 
     def test_broadcast_to(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.broadcast_to(x, (2, 2, 3)).shape, (2, 2, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([3, 3])
+            x = KerasTensor((3, 3))
             knp.broadcast_to(x, (2, 2, 3))
 
     def test_ceil(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.ceil(x).shape, (2, 3))
 
     def test_clip(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.clip(x, 1, 2).shape, (2, 3))
 
     def test_concatenate(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.concatenate([x, y]).shape, (4, 3))
         self.assertEqual(knp.concatenate([x, y], axis=1).shape, (2, 6))
 
@@ -1602,93 +1603,93 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             self.assertEqual(knp.concatenate([x, y], axis=None).shape, (None,))
 
     def test_conjugate(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.conjugate(x).shape, (2, 3))
 
     def test_conj(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.conj(x).shape, (2, 3))
 
     def test_copy(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.copy(x).shape, (2, 3))
 
     def test_cos(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.cos(x).shape, (2, 3))
 
     def test_cosh(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.cosh(x).shape, (2, 3))
 
     def test_count_nonzero(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.count_nonzero(x).shape, ())
 
     def test_cumprod(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.cumprod(x).shape, (6,))
 
     def test_cumsum(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.cumsum(x).shape, (6,))
 
     def test_diag(self):
-        x = KerasTensor([3])
+        x = KerasTensor((3,))
         self.assertEqual(knp.diag(x).shape, (3, 3))
         self.assertEqual(knp.diag(x, k=3).shape, (6, 6))
         self.assertEqual(knp.diag(x, k=-2).shape, (5, 5))
 
-        x = KerasTensor([3, 5])
+        x = KerasTensor((3, 5))
         self.assertEqual(knp.diag(x).shape, (3,))
         self.assertEqual(knp.diag(x, k=3).shape, (2,))
         self.assertEqual(knp.diag(x, k=-2).shape, (1,))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3, 4])
+            x = KerasTensor((2, 3, 4))
             knp.diag(x)
 
     def test_diagonal(self):
-        x = KerasTensor([3, 3])
+        x = KerasTensor((3, 3))
         self.assertEqual(knp.diagonal(x).shape, (3,))
         self.assertEqual(knp.diagonal(x, offset=1).shape, (2,))
 
-        x = KerasTensor([3, 5, 5])
+        x = KerasTensor((3, 5, 5))
         self.assertEqual(knp.diagonal(x).shape, (5, 3))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([3])
+            x = KerasTensor((3,))
             knp.diagonal(x)
 
     def test_dot(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([3, 2])
-        z = KerasTensor([4, 3, 2])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((3, 2))
+        z = KerasTensor((4, 3, 2))
         self.assertEqual(knp.dot(x, y).shape, (2, 2))
         self.assertEqual(knp.dot(x, 2).shape, (2, 3))
         self.assertEqual(knp.dot(x, z).shape, (2, 4, 2))
 
-        x = KerasTensor([5])
-        y = KerasTensor([5])
+        x = KerasTensor((5,))
+        y = KerasTensor((5,))
         self.assertEqual(knp.dot(x, y).shape, ())
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([2, 3])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3))
             knp.dot(x, y)
 
     def test_exp(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.exp(x).shape, (2, 3))
 
     def test_expand_dims(self):
-        x = KerasTensor([2, 3, 4])
+        x = KerasTensor((2, 3, 4))
         self.assertEqual(knp.expand_dims(x, 0).shape, (1, 2, 3, 4))
         self.assertEqual(knp.expand_dims(x, 1).shape, (2, 1, 3, 4))
         self.assertEqual(knp.expand_dims(x, -2).shape, (2, 3, 1, 4))
 
     def test_expand_dims_sparse(self):
-        x = KerasTensor([2, 3, 4], sparse=True)
+        x = KerasTensor((2, 3, 4), sparse=True)
         self.assertTrue(knp.expand_dims(x, 0).sparse)
         self.assertEqual(knp.expand_dims(x, 0).shape, (1, 2, 3, 4))
         self.assertTrue(knp.expand_dims(x, 1).sparse)
@@ -1697,22 +1698,22 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.expand_dims(x, -2).shape, (2, 3, 1, 4))
 
     def test_expm1(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.expm1(x).shape, (2, 3))
 
     def test_flip(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.flip(x).shape, (2, 3))
 
     def test_floor(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.floor(x).shape, (2, 3))
 
     def test_get_item(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.get_item(x, 1).shape, (3,))
 
-        x = KerasTensor([5, 3, 2])
+        x = KerasTensor((5, 3, 2))
         self.assertEqual(knp.get_item(x, 3).shape, (3, 2))
 
         x = KerasTensor(
@@ -1723,58 +1724,58 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.get_item(x, 0).shape, ())
 
     def test_hstack(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.hstack([x, y]).shape, (2, 6))
 
     def test_imag(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.imag(x).shape, (2, 3))
 
     def test_isfinite(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.isfinite(x).shape, (2, 3))
 
     def test_isinf(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.isinf(x).shape, (2, 3))
 
     def test_isnan(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.isnan(x).shape, (2, 3))
 
     def test_log(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.log(x).shape, (2, 3))
 
     def test_log10(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.log10(x).shape, (2, 3))
 
     def test_log1p(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.log1p(x).shape, (2, 3))
 
     def test_log2(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.log2(x).shape, (2, 3))
 
     def test_logaddexp(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.logaddexp(x, x).shape, (2, 3))
 
     def test_logical_not(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.logical_not(x).shape, (2, 3))
 
     def test_max(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.max(x).shape, ())
 
     def test_meshgrid(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3, 4])
-        z = KerasTensor([2, 3, 4, 5])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3, 4))
+        z = KerasTensor((2, 3, 4, 5))
         self.assertEqual(knp.meshgrid(x, y)[0].shape, (24, 6))
         self.assertEqual(knp.meshgrid(x, y)[1].shape, (24, 6))
         self.assertEqual(knp.meshgrid(x, y, indexing="ij")[0].shape, (6, 24))
@@ -1785,7 +1786,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             knp.meshgrid(x, y, indexing="kk")
 
     def test_moveaxis(self):
-        x = KerasTensor([2, 3, 4, 5])
+        x = KerasTensor((2, 3, 4, 5))
         self.assertEqual(knp.moveaxis(x, 0, -1).shape, (3, 4, 5, 2))
         self.assertEqual(knp.moveaxis(x, -1, 0).shape, (5, 2, 3, 4))
         self.assertEqual(knp.moveaxis(x, [0, 1], [-1, -2]).shape, (4, 5, 3, 2))
@@ -1793,62 +1794,62 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.moveaxis(x, [0, 1], [-2, -1]).shape, (4, 5, 2, 3))
 
     def test_ndim(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.ndim(x).shape, (2,))
 
     def test_ones_like(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.ones_like(x).shape, (2, 3))
         self.assertEqual(knp.ones_like(x).dtype, x.dtype)
 
     def test_zeros_like(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.zeros_like(x).shape, (2, 3))
         self.assertEqual(knp.zeros_like(x).dtype, x.dtype)
 
     def test_pad(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.pad(x, 1).shape, (4, 5))
         self.assertEqual(knp.pad(x, (1, 2)).shape, (5, 6))
         self.assertEqual(knp.pad(x, ((1, 2), (3, 4))).shape, (5, 10))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
+            x = KerasTensor((2, 3))
             knp.pad(x, ((1, 2), (3, 4), (5, 6)))
 
     def test_prod(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.prod(x).shape, ())
         self.assertEqual(knp.prod(x, axis=0).shape, (3,))
         self.assertEqual(knp.prod(x, axis=1).shape, (2,))
 
     def test_ravel(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.ravel(x).shape, (6,))
 
     def test_real(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.real(x).shape, (2, 3))
 
     def test_reciprocal(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.reciprocal(x).shape, (2, 3))
 
     def test_repeat(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.repeat(x, 2).shape, (12,))
         self.assertEqual(knp.repeat(x, 3, axis=1).shape, (2, 9))
         self.assertEqual(knp.repeat(x, [1, 2], axis=0).shape, (3, 3))
 
     def test_reshape(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.reshape(x, (3, 2)).shape, (3, 2))
         self.assertEqual(knp.reshape(x, (3, -1)).shape, (3, 2))
         self.assertEqual(knp.reshape(x, (6,)).shape, (6,))
         self.assertEqual(knp.reshape(x, (-1,)).shape, (6,))
 
     def test_reshape_sparse(self):
-        x = KerasTensor([2, 3], sparse=True)
+        x = KerasTensor((2, 3), sparse=True)
 
         result = knp.reshape(x, (3, 2))
         self.assertEqual(result.shape, (3, 2))
@@ -1867,39 +1868,39 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertTrue(result.sparse)
 
     def test_roll(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.roll(x, 1).shape, (2, 3))
         self.assertEqual(knp.roll(x, 1, axis=1).shape, (2, 3))
         self.assertEqual(knp.roll(x, 1, axis=0).shape, (2, 3))
 
     def test_round(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.round(x).shape, (2, 3))
 
     def test_sign(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.sign(x).shape, (2, 3))
 
     def test_sin(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.sin(x).shape, (2, 3))
 
     def test_sinh(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.sinh(x).shape, (2, 3))
 
     def test_size(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.size(x).shape, ())
 
     def test_sort(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.sort(x).shape, (2, 3))
         self.assertEqual(knp.sort(x, axis=1).shape, (2, 3))
         self.assertEqual(knp.sort(x, axis=0).shape, (2, 3))
 
     def test_split(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(len(knp.split(x, 2)), 2)
         self.assertEqual(knp.split(x, 2)[0].shape, (1, 3))
         self.assertEqual(knp.split(x, 3, axis=1)[0].shape, (2, 1))
@@ -1912,62 +1913,62 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             knp.split(x, 2, axis=1)
 
     def test_sqrt(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.sqrt(x).shape, (2, 3))
 
     def test_stack(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.stack([x, y]).shape, (2, 2, 3))
         self.assertEqual(knp.stack([x, y], axis=-1).shape, (2, 3, 2))
 
         with self.assertRaises(ValueError):
-            x = KerasTensor([2, 3])
-            y = KerasTensor([3, 3])
+            x = KerasTensor((2, 3))
+            y = KerasTensor((3, 3))
             knp.stack([x, y])
 
     def test_std(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.std(x).shape, ())
 
     def test_swapaxes(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.swapaxes(x, 0, 1).shape, (3, 2))
 
     def test_tan(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.tan(x).shape, (2, 3))
 
     def test_tanh(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.tanh(x).shape, (2, 3))
 
     def test_tile(self):
-        x = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
         self.assertEqual(knp.tile(x, [2]).shape, (2, 6))
         self.assertEqual(knp.tile(x, [1, 2]).shape, (2, 6))
         self.assertEqual(knp.tile(x, [2, 1, 2]).shape, (2, 2, 6))
 
     def test_trace(self):
-        x = KerasTensor([2, 3, 4, 5])
+        x = KerasTensor((2, 3, 4, 5))
         self.assertEqual(knp.trace(x).shape, (4, 5))
         self.assertEqual(knp.trace(x, axis1=2, axis2=3).shape, (2, 3))
 
     def test_tril(self):
-        x = KerasTensor([2, 3, 4, 5])
+        x = KerasTensor((2, 3, 4, 5))
         self.assertEqual(knp.tril(x).shape, (2, 3, 4, 5))
         self.assertEqual(knp.tril(x, k=1).shape, (2, 3, 4, 5))
         self.assertEqual(knp.tril(x, k=-1).shape, (2, 3, 4, 5))
 
     def test_triu(self):
-        x = KerasTensor([2, 3, 4, 5])
+        x = KerasTensor((2, 3, 4, 5))
         self.assertEqual(knp.triu(x).shape, (2, 3, 4, 5))
         self.assertEqual(knp.triu(x, k=1).shape, (2, 3, 4, 5))
         self.assertEqual(knp.triu(x, k=-1).shape, (2, 3, 4, 5))
 
     def test_vstack(self):
-        x = KerasTensor([2, 3])
-        y = KerasTensor([2, 3])
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
         self.assertEqual(knp.vstack([x, y]).shape, (4, 3))
 
 
@@ -2012,15 +2013,29 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Matmul()(x, y), np.matmul(x, y))
         self.assertAllClose(knp.Matmul()(x, z), np.matmul(x, z))
 
-    @parameterized.product(
-        (
-            {"x_shape": (5, 3), "y_shape": (3, 4)},
-            {"x_shape": (2, 5, 3), "y_shape": (2, 3, 4)},
-            {"x_shape": (2, 2, 5, 3), "y_shape": (2, 2, 3, 4)},
-        ),
-        dtype=["float16", "float32", "float64", "int32"],
-        x_sparse=[False, True],
-        y_sparse=[False, True],
+    @parameterized.named_parameters(
+        named_product(
+            (
+                {
+                    "testcase_name": "rank2",
+                    "x_shape": (5, 3),
+                    "y_shape": (3, 4),
+                },
+                {
+                    "testcase_name": "rank3",
+                    "x_shape": (2, 5, 3),
+                    "y_shape": (2, 3, 4),
+                },
+                {
+                    "testcase_name": "rank4",
+                    "x_shape": (2, 2, 5, 3),
+                    "y_shape": (2, 2, 3, 4),
+                },
+            ),
+            dtype=["float16", "float32", "float64", "int32"],
+            x_sparse=[False, True],
+            y_sparse=[False, True],
+        )
     )
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
@@ -2441,17 +2456,24 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             np.take(x, indices, axis=-2),
         )
 
-    @parameterized.product(
-        dtype=[
-            "float16",
-            "float32",
-            "float64",
-            "uint8",
-            "int8",
-            "int16",
-            "int32",
-        ],
-        axis=[None, 0, 1, -1],
+    @parameterized.named_parameters(
+        named_product(
+            [
+                {"testcase_name": "axis_none", "axis": None},
+                {"testcase_name": "axis_0", "axis": 0},
+                {"testcase_name": "axis_1", "axis": 1},
+                {"testcase_name": "axis_minus1", "axis": -1},
+            ],
+            dtype=[
+                "float16",
+                "float32",
+                "float64",
+                "uint8",
+                "int8",
+                "int16",
+                "int32",
+            ],
+        )
     )
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
@@ -3507,17 +3529,19 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.ones_like(x), np.ones_like(x))
         self.assertAllClose(knp.OnesLike()(x), np.ones_like(x))
 
-    @parameterized.product(
-        dtype=[
-            "float16",
-            "float32",
-            "float64",
-            "uint8",
-            "int8",
-            "int16",
-            "int32",
-        ],
-        mode=["constant", "reflect", "symmetric"],
+    @parameterized.named_parameters(
+        named_product(
+            dtype=[
+                "float16",
+                "float32",
+                "float64",
+                "uint8",
+                "int8",
+                "int16",
+                "int32",
+            ],
+            mode=["constant", "reflect", "symmetric"],
+        )
     )
     def test_pad(self, dtype, mode):
         # 2D
@@ -3913,7 +3937,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.jax_enable_x64.__exit__(None, None, None)
         return super().tearDown()
 
-    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
     def test_add(self, dtype1, dtype2):
         import jax.numpy as jnp
 
@@ -3930,7 +3956,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.add(x1_jax, x2_jax).dtype),
         )
 
-    @parameterized.parameters(INT_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=INT_DTYPES))
     def test_bincount(self, dtype):
         import jax.numpy as jnp
 
@@ -3994,7 +4020,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
 
     # TODO: test_einsum
 
-    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
     def test_subtract(self, dtype1, dtype2):
         import jax.numpy as jnp
 
@@ -4013,7 +4041,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             knp.Subtract().symbolic_call(x1, x2).dtype, expected_dtype
         )
 
-    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
     def test_matmul(self, dtype1, dtype2):
         import jax.numpy as jnp
 
@@ -4041,7 +4071,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             knp.Matmul().symbolic_call(x1, x2).dtype, expected_dtype
         )
 
-    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
     def test_multiply(self, dtype1, dtype2):
         import jax.numpy as jnp
 
@@ -4057,7 +4089,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             knp.Multiply().symbolic_call(x1, x2).dtype, expected_dtype
         )
 
-    @parameterized.product(dtype=ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_mean(self, dtype):
         import jax.numpy as jnp
 
@@ -4069,7 +4101,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(standardize_dtype(knp.mean(x).dtype), expected_dtype)
         self.assertEqual(knp.Mean().symbolic_call(x).dtype, expected_dtype)
 
-    @parameterized.product(dtype=ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_max(self, dtype):
         import jax.numpy as jnp
 
@@ -4079,7 +4111,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(standardize_dtype(knp.max(x).dtype), expected_dtype)
         self.assertEqual(knp.Max().symbolic_call(x).dtype, expected_dtype)
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_ones(self, dtype):
         import jax.numpy as jnp
 
@@ -4094,7 +4126,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.ones([2, 3], dtype=dtype).dtype),
         )
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_zeros(self, dtype):
         import jax.numpy as jnp
 
@@ -4109,7 +4141,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.zeros([2, 3], dtype=dtype).dtype),
         )
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_absolute(self, dtype):
         import jax.numpy as jnp
 
@@ -4124,7 +4156,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_argmax(self, dtype):
         import jax.numpy as jnp
 
@@ -4141,7 +4173,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_argmin(self, dtype):
         import jax.numpy as jnp
 
@@ -4158,7 +4190,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_argsort(self, dtype):
         import jax.numpy as jnp
 
@@ -4210,7 +4242,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.arange(start, stop, step, dtype).dtype),
         )
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_ceil(self, dtype):
         import jax.numpy as jnp
 
@@ -4237,7 +4269,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_clip(self, dtype):
         import jax.numpy as jnp
 
@@ -4258,7 +4290,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
-    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
     def test_dot(self, dtype1, dtype2):
         import jax.numpy as jnp
 
@@ -4287,7 +4321,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(knp.Dot().symbolic_call(x1, x2).dtype, expected_dtype)
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_empty(self, dtype):
         import jax.numpy as jnp
 
@@ -4302,7 +4336,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.empty([2, 3], dtype=dtype).dtype),
         )
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_identity(self, dtype):
         import jax.numpy as jnp
 
@@ -4323,7 +4357,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.identity(3, dtype=dtype).dtype),
         )
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_tri(self, dtype):
         import jax.numpy as jnp
 
@@ -4342,7 +4376,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.tri(3, dtype=dtype).dtype),
         )
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_sqrt(self, dtype):
         import jax.numpy as jnp
 
@@ -4364,7 +4398,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.sqrt(x1_jax).dtype),
         )
 
-    @parameterized.parameters(ALL_DTYPES)
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_eye(self, dtype):
         import jax.numpy as jnp
 

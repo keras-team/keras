@@ -6,6 +6,7 @@ from keras.backend.common import dtypes
 from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.backend.torch.core import to_torch_dtype
 from keras.testing import test_case
+from keras.testing.test_utils import named_product
 
 
 class DtypesTest(test_case.TestCase, parameterized.TestCase):
@@ -13,11 +14,13 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
 
     if backend.backend() == "torch":
         # TODO: torch doesn't support uint64.
-        ALL_DTYPES = [
-            str(to_torch_dtype(x)).split(".")[-1]
-            for x in ALLOWED_DTYPES
-            if x not in ["string", "uint64"]
-        ] + [None]
+        ALL_DTYPES = []
+        for x in ALLOWED_DTYPES:
+            if x not in ["string", "uint64"]:
+                x = str(to_torch_dtype(x)).split(".")[-1]
+                if x not in ALL_DTYPES:  # skip duplicates created by remapping
+                    ALL_DTYPES.append(x)
+        ALL_DTYPES += [None]
     else:
         ALL_DTYPES = [x for x in ALLOWED_DTYPES if x != "string"] + [None]
 
@@ -32,7 +35,9 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
         self.jax_enable_x64.__exit__(None, None, None)
         return super().tearDown()
 
-    @parameterized.product(dtype1=ALL_DTYPES, dtype2=[bool, int, float])
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=[bool, int, float])
+    )
     def test_result_type_with_python_scalar_types(self, dtype1, dtype2):
         import jax.numpy as jnp
 
@@ -40,7 +45,9 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
         expected = jnp.result_type(dtype1, dtype2).name
         self.assertEqual(out, expected)
 
-    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
     def test_result_type_with_tensor(self, dtype1, dtype2):
         import jax.numpy as jnp
 
