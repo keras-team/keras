@@ -1,6 +1,7 @@
 name: Nightly
 
 on:
+  workflow_dispatch: # To Generate wheels on demand outside of schedule.
   schedule:
     - cron: '0 3 * * *' # run at 3 AM UTC / 8 PM PDT
 
@@ -20,6 +21,7 @@ jobs:
       PYTHON: ${{ matrix.python-version }}
       KERAS_BACKEND: ${{ matrix.backend }}
     steps:
+      - uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -88,6 +90,7 @@ jobs:
       TWINE_USERNAME: __token__
       TWINE_PASSWORD: ${{ secrets.PYPI_NIGHTLY_API_TOKEN }}
     steps:
+      - uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
