@@ -279,7 +279,7 @@ display(Image(result_prefix + "_at_iteration_4000.png"))
 
 """
 **Example available on HuggingFace**
-Trained Model | Demo 
---- | --- 
+Trained Model | Demo
+--- | ---
 [![Generic badge](https://img.shields.io/badge/%F0%9F%A4%97%20Model-Neural%20style%20transfer-black.svg)](https://huggingface.co/keras-io/VGG19) | [![Generic badge](https://img.shields.io/badge/%F0%9F%A4%97%20Spaces-Neural%20style%20transfer-black.svg)](https://huggingface.co/spaces/keras-io/neural-style-transfer)
 """

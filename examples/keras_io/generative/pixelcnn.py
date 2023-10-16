@@ -25,6 +25,7 @@ from which new pixel values are sampled to generate a new image
 import numpy as np
 import keras
 from keras import layers
+from keras import ops
 from tqdm import tqdm
 
 """
@@ -62,7 +63,7 @@ class PixelConvLayer(layers.Layer):
         # Build the conv2d layer to initialize kernel variables
         self.conv.build(input_shape)
         # Use the initialized kernel to create the mask
-        kernel_shape = self.conv.kernel.get_shape()
+        kernel_shape = ops.shape(self.conv.kernel)
         self.mask = np.zeros(shape=kernel_shape)
         self.mask[: kernel_shape[0] // 2, ...] = 1.0
         self.mask[kernel_shape[0] // 2, : kernel_shape[1] // 2, ...] = 1.0
@@ -159,7 +160,7 @@ for row in tqdm(range(rows)):
             probs = pixel_cnn.predict(pixels)[:, row, col, channel]
             # Use the probabilities to pick pixel values and append the values to the image
             # frame.
-            pixels[:, row, col, channel] = keras.ops.ceil(
+            pixels[:, row, col, channel] = ops.ceil(
                 probs - keras.random.uniform(probs.shape)
             )
 
