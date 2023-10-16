@@ -108,10 +108,10 @@ def raise_unsupported_arg(arg_name, arg_description, input_type):
 def is_tf_dataset(x):
     if hasattr(x, "__class__"):
         for parent in x.__class__.__mro__:
-            if (
-                parent.__name__ == "DatasetV2"
-                and "tensorflow.python.types.data" in str(parent.__module__)
-            ):
+            if parent.__name__ in (
+                "DatasetV2",
+                "DistributedDataset",
+            ) and "tensorflow.python." in str(parent.__module__):
                 return True
     return False
 

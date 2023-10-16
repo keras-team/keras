@@ -10,7 +10,9 @@ class TFDatasetAdapter(DataAdapter):
     def __init__(self, dataset, class_weight=None):
         from keras.utils.module_utils import tensorflow as tf
 
-        if not isinstance(dataset, tf.data.Dataset):
+        if not isinstance(
+            dataset, (tf.data.Dataset, tf.distribute.DistributedDataset)
+        ):
             raise ValueError(
                 "Expected argument `dataset` to be a tf.data.Dataset. "
                 f"Received: {dataset}"
@@ -30,7 +32,13 @@ class TFDatasetAdapter(DataAdapter):
 
     @property
     def num_batches(self):
-        cardinality = int(self._dataset.cardinality())
+        cardinality = self._dataset.cardinality
+        if callable(cardinality):
+            # `dataset.cardinality` is normally expected to be a callable.
+            cardinality = int(self._dataset.cardinality())
+        else:
+            # However, in the case of `DistributedDataset`, it's a np.int64.
+            cardinality = int(cardinality)
         # Return None for Unknown and Infiite cardinality datasets
         if cardinality < 0:
             return None

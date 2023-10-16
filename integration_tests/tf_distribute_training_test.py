@@ -33,11 +33,12 @@ def test_model_fit():
 
     model.summary()
 
-    x = np.random.random((50000, 100))
-    y = np.random.random((50000, 16))
+    x = np.random.random((5000, 100))
+    y = np.random.random((5000, 16))
     batch_size = 32
-    epochs = 5
+    epochs = 2
 
+    # Fit from numpy arrays:
     with strategy.scope():
         model.compile(
             optimizer=optimizers.SGD(learning_rate=0.001, momentum=0.01),
@@ -54,6 +55,16 @@ def test_model_fit():
     print("History:")
     print(history.history)
 
+    # Fit again from distributed dataset:
+    with strategy.scope():
+        dataset = tf.data.Dataset.from_tensor_slices((x, y)).batch(batch_size)
+        dataset = strategy.experimental_distribute_dataset(dataset)
+        history = model.fit(dataset, epochs=epochs)
+
+    print("History:")
+    print(history.history)
+
 
 if __name__ == "__main__":
+    keras.config.disable_traceback_filtering()
     test_model_fit()
