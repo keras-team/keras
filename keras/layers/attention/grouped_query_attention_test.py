@@ -125,3 +125,38 @@ class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
         value = np.random.normal(size=(3, 3, 8))
         output = layer(query=masked_query, value=value)
         self.assertAllClose(masked_query._keras_mask, output._keras_mask)
+
+    @parameterized.named_parameters(("causal", True), ("not_causal", 0))
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
+    def test_masking(self, use_causal_mask):
+        """Test that the value and causal masks are taken into account."""
+        layer = layers.GroupedQueryAttention(
+            num_query_heads=2, num_key_value_heads=2, head_dim=2
+        )
+        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
+        value = np.array([[5, 4, 0], [3, 0, 0], [2, 1, 1]])
+        masked_value = layers.Embedding(6, 8, mask_zero=True)(value)
+        output = layer(
+            query=masked_query,
+            value=masked_value,
+            use_causal_mask=use_causal_mask,
+        )
+        mask = np.array(
+            [[[1, 1, 0]] * 3 + [[0, 0, 0]] * 2]
+            + [[[1, 0, 0]] * 5]
+            + [[[1, 1, 1]] + [[0, 0, 0]] * 4]
+        ).astype(bool)
+        if use_causal_mask:
+            mask = mask & np.array(
+                [[[1, 0, 0], [1, 1, 0]] + [[1, 1, 1]] * 3]
+            ).astype(bool)
+        del masked_query._keras_mask
+        del masked_value._keras_mask
+        output_with_manual_mask = layer(
+            query=masked_query, value=masked_value, attention_mask=mask
+        )
+        self.assertAllClose(output, output_with_manual_mask)
