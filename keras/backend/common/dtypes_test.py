@@ -100,12 +100,6 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
         ):
             dtypes._resolve_weak_type("int32", precision="invalid_precision")
 
-    def test_respect_weak_type_for_invalid_dtype(self):
-        with self.assertRaisesRegex(
-            ValueError, "Invalid value for argument `dtype`. Expected one of"
-        ):
-            dtypes._respect_weak_type("invalid_dtype", True)
-
     def test_cycle_detection_in_make_lattice_upper_bounds(self):
         original_lattice_function = dtypes._type_promotion_lattice
 
@@ -123,3 +117,9 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
             dtypes._make_lattice_upper_bounds()
 
         dtypes._type_promotion_lattice = original_lattice_function
+
+    def test_respect_weak_type_for_invalid_dtype(self):
+        with self.assertRaisesRegex(
+            ValueError, "Invalid value for argument `dtype`. Expected one of"
+        ):
+            dtypes._respect_weak_type("invalid_dtype", True)
