@@ -2,10 +2,10 @@ from absl.testing import parameterized
 
 from keras import backend
 from keras import ops
+from keras.backend.common import dtypes
 from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.backend.torch.core import to_torch_dtype
 from keras.testing import test_case
-from keras.backend.common import dtypes
 
 
 class DtypesTest(test_case.TestCase, parameterized.TestCase):
