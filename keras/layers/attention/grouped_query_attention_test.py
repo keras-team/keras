@@ -1,9 +1,9 @@
 import numpy as np
 
-# import pytest
+import pytest
 from absl.testing import parameterized
 
-# from keras import backend
+from keras import backend
 from keras import initializers
 from keras import layers
 from keras import testing
@@ -109,3 +109,19 @@ class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
             layer._query_dense.kernel,
             layer._output_dense.kernel,
         )
+
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
+    def test_query_mask_progagation(self):
+        """Test automatic propagation of the query's mask."""
+        layer = layers.GroupedQueryAttention(
+            num_query_heads=2, num_key_value_heads=2, head_dim=2
+        )
+        self.assertTrue(layer.supports_masking)
+        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
+        value = np.random.normal(size=(3, 3, 8))
+        output = layer(query=masked_query, value=value)
+        self.assertAllClose(masked_query._keras_mask, output._keras_mask)
