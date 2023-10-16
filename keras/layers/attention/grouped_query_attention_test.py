@@ -48,14 +48,25 @@ class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(
-        ("without_key_proj", (4, 8), (2, 8), None),
-        ("with_key_proj", (4, 8), (2, 8), (2, 3)),
+        ("without_key_proj_mha", (4, 8), (2, 8), None, 2, 2),
+        ("with_key_proj_mha", (4, 8), (2, 8), (2, 3), 2, 2),
+        ("without_key_proj_gqa", (4, 8), (2, 8), None, 4, 2),
+        ("with_key_proj_gqa", (4, 8), (2, 8), (2, 3), 4, 2),
+        ("without_key_value_proj_mqa", (4, 8), (2, 8), None, 4, 1),
+        ("with_key_value_proj_mqa", (4, 8), (2, 8), (2, 3), 4, 1),
     )
-    def test_compute_output_shape(self, query_dims, value_dims, key_dims):
+    def test_compute_output_shape(
+        self,
+        query_dims,
+        value_dims,
+        key_dims,
+        num_query_heads,
+        num_key_value_heads,
+    ):
         """Test computed shape is equal to the layer output's shape."""
         layer = layers.GroupedQueryAttention(
-            num_query_heads=2,
-            num_key_value_heads=2,
+            num_query_heads=num_query_heads,
+            num_key_value_heads=num_key_value_heads,
             head_dim=2,
         )
         batch_size = 7
