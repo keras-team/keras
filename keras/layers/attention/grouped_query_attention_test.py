@@ -160,3 +160,40 @@ class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
             query=masked_query, value=masked_value, attention_mask=mask
         )
         self.assertAllClose(output, output_with_manual_mask)
+
+    def test_correctness(self):
+        query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
+        key = np.array([[[0.0, 1.0], [1.0, 0.0]]])
+        value = np.array([[[1.0, 2.0], [3.0, 4.0]]])
+
+        # Setup layer.
+        num_heads = 2
+        key_dim = 2
+        layer = layers.MultiHeadAttention(
+            num_heads=num_heads,
+            key_dim=key_dim,
+        )
+        layer.build(query.shape, key.shape, value.shape)
+
+        # Set layer weights.
+        kernel = np.identity(key_dim)
+        # To get an identity kernel we need to add a head dim and repeat on it.
+        kernel = np.repeat(kernel[:, np.newaxis, :], num_heads, axis=1)
+        # Zeros for all biases.
+        bias = np.zeros((2, 2))
+        output_bias = np.zeros((2,))
+        layer.set_weights([kernel, bias] * 3 + [kernel, output_bias])
+
+        # Call layer and assert output.
+        output, scores = layer(
+            query=query,
+            value=value,
+            key=key,
+            return_attention_scores=True,
+        )
+        self.assertAllClose(output, [[[5.679, 5.679], [4.32, 4.32]]], atol=1e-3)
+        self.assertAllClose(
+            scores,
+            [[[[0.33, 0.67], [0.67, 0.33]], [[0.33, 0.67], [0.67, 0.33]]]],
+            atol=1e-3,
+        )
