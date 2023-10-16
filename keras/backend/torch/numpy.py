@@ -63,6 +63,9 @@ def mean(x, axis=None, keepdims=False):
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
+    elif isinstance(axis, int):
+        axis = (axis,)  # see [NB] below
+
     ori_dtype = standardize_dtype(x.dtype)
     # torch.mean only supports floating point inputs
     compute_dtype = dtypes.result_type(x.dtype, "float32")
@@ -70,8 +73,22 @@ def mean(x, axis=None, keepdims=False):
         result_dtype = compute_dtype
     else:
         result_dtype = ori_dtype
+
+    # [NB] the python torch op torch.mean() is generated into
+    # `torch._C._VariableFunctions.pyi`, and the method
+    # signature is overloaded.
+    # Dynamo won't actually find the correct signature of
+    # `torch.mean()` if arguments are passed via kwargs
+    # So we have to pass the arguments via positional args
+    # EXCEPT for those that are forced as kwargs via the `*`
+    # delimiter in the overloaded method signatures.
+    # Additionally, we have to create a singleton-tuple
+    # when `axis` is an int to match the existing fn signature
     result = torch.mean(
-        x, axis=axis, keepdims=keepdims, dtype=to_torch_dtype(compute_dtype)
+        x,
+        axis,
+        keepdims,
+        dtype=to_torch_dtype(compute_dtype),
     )
     return cast(result, result_dtype)
 

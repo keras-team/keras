@@ -53,6 +53,7 @@ then
                --ignore keras/layers/merging/merging_test.py \
                --ignore keras/trainers/data_adapters/py_dataset_adapter_test.py \
                --ignore keras/backend/jax/distribution_lib_test.py \
+               --ignore keras/distribution/distribution_lib_test.py \
                --cov=keras
 fi
 

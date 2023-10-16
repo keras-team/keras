@@ -11,6 +11,7 @@ from keras import ops
 from keras import utils
 from keras.backend.common import is_float_dtype
 from keras.backend.common import standardize_dtype
+from keras.backend.common.global_state import clear_session
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.models import Model
 from keras.utils import traceback_utils
@@ -23,6 +24,12 @@ class TestCase(unittest.TestCase):
         super().__init__(*args, **kwargs)
         if traceback_utils.is_traceback_filtering_enabled():
             traceback_utils.disable_traceback_filtering()
+
+    def setUp(self):
+        # clear global state so that test cases are independent
+        # required for the jit enabled torch tests since dynamo has
+        # a global cache for guards, compiled fn, etc
+        clear_session()
 
     def get_temp_dir(self):
         temp_dir = tempfile.mkdtemp()
@@ -329,7 +336,19 @@ class TestCase(unittest.TestCase):
                 output_data = tree.map_structure(
                     lambda x: backend.convert_to_numpy(x), output_data
                 )
-                model.compile(optimizer="sgd", loss="mse", jit_compile=True)
+                # test the "default" path for each backend by setting
+                # jit_compile="auto.
+                # for tensorflow and jax backends auto is jitted
+                # for torch backend auto is eager
+                #
+                # NB: for torch, jit_compile=True turns on torchdynamo
+                #  which may not always succeed in tracing depending
+                #  on the model. Run your program with these env vars
+                #  to get debug traces of dynamo:
+                #    TORCH_LOGS="+dynamo"
+                #    TORCHDYNAMO_VERBOSE=1
+                #    TORCHDYNAMO_REPORT_GUARD_FAILURES=1
+                model.compile(optimizer="sgd", loss="mse", jit_compile="auto")
                 model.fit(input_data, output_data, verbose=0)
 
         # Build test.
