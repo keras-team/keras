@@ -8,6 +8,7 @@ from keras.backend import standardize_data_format
 from keras.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
+from keras.ops import numpy
 from keras.ops import operation_utils
 from keras.ops.operation import Operation
 from keras.ops.operation_utils import reduce_shape
@@ -508,9 +509,9 @@ def softmax(x, axis=-1):
             else:
                 new_shape.append(original_shape[i])
                 i += 1
-        x = x.reshape(new_shape)
+        x = numpy.reshape(x, new_shape)
         x = backend.nn.softmax(x, axis=-1)
-        x = x.reshape(original_shape)
+        x = numpy.reshape(x, original_shape)
         return x
     else:
         return backend.nn.softmax(x, axis=axis)
@@ -573,9 +574,9 @@ def log_softmax(x, axis=-1):
             else:
                 new_shape.append(original_shape[i])
                 i += 1
-        x = x.reshape(new_shape)
+        x = numpy.reshape(x, new_shape)
         x = backend.nn.log_softmax(x, axis=-1)
-        x = x.reshape(original_shape)
+        x = numpy.reshape(x, original_shape)
         return x
     else:
         return backend.nn.log_softmax(x, axis=axis)
