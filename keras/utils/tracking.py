@@ -68,10 +68,10 @@ class Tracker:
         if not is_tracking_enabled():
             return attr
 
-        for name, (is_attr_type, _) in self.config.items():
+        for store_name, (is_attr_type, _) in self.config.items():
             if is_attr_type(attr):
-                if id(attr) not in self.stored_ids[name]:
-                    self.add_to_store(name, attr)
+                if id(attr) not in self.stored_ids[store_name]:
+                    self.add_to_store(store_name, attr)
                 return attr
         if isinstance(attr, tuple):
             wrapped_attr = []
@@ -87,6 +87,12 @@ class Tracker:
         elif isinstance(attr, set):
             return TrackedSet(attr, self)
         return attr
+
+    def untrack(self, value):
+        for store_name in self.stored_ids.keys():
+            if id(value) in self.stored_ids[store_name]:
+                self.config[store_name][1].remove(value)
+                self.stored_ids[store_name].remove(id(value))
 
     def lock(self, msg):
         self.locked = True
@@ -121,6 +127,11 @@ class TrackedList(list):
         if self.tracker:
             values = [self.tracker.track(v) for v in values]
         super().extend(values)
+
+    def remove(self, value):
+        if self.tracker:
+            self.tracker.untrack(value)
+        super().remove(value)
 
 
 class TrackedDict(dict):
@@ -159,3 +170,8 @@ class TrackedSet(set):
         if self.tracker:
             values = [self.tracker.track(v) for v in values]
         super().update(values)
+
+    def remove(self, value):
+        if self.tracker:
+            self.tracker.untrack(value)
+        super().remove(value)
