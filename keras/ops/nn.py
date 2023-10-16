@@ -508,9 +508,9 @@ def softmax(x, axis=-1):
             else:
                 new_shape.append(original_shape[i])
                 i += 1
-        x = x.reshape(new_shape)
+        x = backend.numpy.reshape(x, new_shape)
         x = backend.nn.softmax(x, axis=-1)
-        x = x.reshape(original_shape)
+        x = backend.numpy.reshape(x, original_shape)
         return x
     else:
         return backend.nn.softmax(x, axis=axis)
@@ -573,9 +573,9 @@ def log_softmax(x, axis=-1):
             else:
                 new_shape.append(original_shape[i])
                 i += 1
-        x = x.reshape(new_shape)
+        x = backend.numpy.reshape(x, new_shape)
         x = backend.nn.log_softmax(x, axis=-1)
-        x = x.reshape(original_shape)
+        x = backend.numpy.reshape(x, original_shape)
         return x
     else:
         return backend.nn.log_softmax(x, axis=axis)
