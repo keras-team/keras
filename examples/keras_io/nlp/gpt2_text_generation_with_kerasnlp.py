@@ -27,7 +27,7 @@ GPT-2 model. Running this tutorial on CPU runtime will take hours.
 """
 ## Install KerasNLP, Choose Backend and Import Dependencies
 
-This examples uses [Keras Core](https://keras.io/keras_core/) to work in any of
+This examples uses [Keras 3.0](https://keras.io/keras_core/) to work in any of
 `"tensorflow"`, `"jax"` or `"torch"`. Support for Keras Core is baked into
 KerasNLP, simply change the `"KERAS_BACKEND"` environment variable to select
 the backend of your choice. We select the JAX backend below.
@@ -43,7 +43,7 @@ os.environ["KERAS_BACKEND"] = "jax"  # or "tensorflow" or "torch"
 
 import keras_nlp
 import tensorflow as tf
-import keras_core as keras
+import keras
 import time
 
 """
