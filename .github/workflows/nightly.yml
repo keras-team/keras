@@ -39,6 +39,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt --progress-bar off --upgrade
+          pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
       - name: Test integrations
         if: ${{ matrix.backend != 'numpy'}}
@@ -78,6 +79,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt --progress-bar off --upgrade
+          pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
       - name: Lint
         run: bash shell/lint.sh
@@ -97,6 +99,7 @@ jobs:
           python -m pip install --upgrade pip setuptools
           pip install twine
           pip install -r requirements.txt --progress-bar off --upgrade
+          pip uninstall -y keras keras-nightly
       - name: Build wheel file
         run: |
           python pip_build.py --nightly
