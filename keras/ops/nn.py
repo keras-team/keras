@@ -1212,7 +1212,7 @@ class OneHot(Operation):
         x_shape = list(getattr(x, "shape", []))
         if self.axis == -1:
             x_shape.append(self.num_classes)
-        elif self.axis >= 0 and self.axis < len(x_shape):
+        elif 0 <= self.axis < len(x_shape):
             x_shape.insert(self.axis, self.num_classes)
         else:
             raise ValueError(
@@ -1517,7 +1517,7 @@ class MultiHot(Operation):
         x_shape = list(getattr(inputs, "shape", []))
         if self.axis == -1:
             x_shape.append(self.num_tokens)
-        elif self.axis >= 0 and self.axis < len(x_shape):
+        elif 0 <= self.axis < len(x_shape):
             x_shape.insert(self.axis, self.num_tokens)
         else:
             raise ValueError(

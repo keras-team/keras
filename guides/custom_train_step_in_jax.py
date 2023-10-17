@@ -124,7 +124,7 @@ class CustomModel(keras.Model):
         )
 
         # Update metrics.
-        new_metrics_vars = []
+        new_metrics_vars, logs = [], []
         for metric in self.metrics:
             this_metric_vars = metrics_variables[
                 len(new_metrics_vars) : len(new_metrics_vars)
@@ -314,7 +314,7 @@ class CustomModel(keras.Model):
         loss = self.compute_loss(x, y, y_pred)
 
         # Update metrics.
-        new_metrics_vars = []
+        new_metrics_vars, logs = [], []
         for metric in self.metrics:
             this_metric_vars = metrics_variables[
                 len(new_metrics_vars) : len(new_metrics_vars)
