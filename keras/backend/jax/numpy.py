@@ -307,6 +307,7 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
+    dtype = dtype or config.floatx()
     return jnp.full(shape, fill_value, dtype=dtype)
 
 

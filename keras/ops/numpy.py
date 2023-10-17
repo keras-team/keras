@@ -2543,6 +2543,7 @@ class Full(Operation):
         return backend.numpy.full(shape, fill_value, dtype=dtype)
 
     def compute_output_spec(self, shape, fill_value, dtype=None):
+        dtype = dtype or backend.floatx()
         return KerasTensor(shape, dtype=dtype)
 
 
@@ -2673,7 +2674,7 @@ class Greater(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        return KerasTensor(output_shape, dtype="bool")
 
 
 @keras_export(["keras.ops.greater", "keras.ops.numpy.greater"])
@@ -2700,7 +2701,7 @@ class GreaterEqual(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        return KerasTensor(output_shape, dtype="bool")
 
 
 @keras_export(
@@ -2923,7 +2924,7 @@ class Less(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        return KerasTensor(output_shape, dtype="bool")
 
 
 @keras_export(["keras.ops.less", "keras.ops.numpy.less"])
@@ -2950,7 +2951,7 @@ class LessEqual(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        return KerasTensor(output_shape, dtype="bool")
 
 
 @keras_export(

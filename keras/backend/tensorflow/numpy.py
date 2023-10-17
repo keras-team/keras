@@ -544,6 +544,7 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
+    dtype = dtype or config.floatx()
     return tfnp.full(shape, fill_value, dtype=dtype)
 
 
@@ -552,10 +553,24 @@ def full_like(x, fill_value, dtype=None):
 
 
 def greater(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # TODO: currently, tfnp.greater doesn't support bfloat16
+    if standardize_dtype(x1.dtype) == "bfloat16":
+        x1 = tf.cast(x1, "float32")
+    if standardize_dtype(x2.dtype) == "bfloat16":
+        x2 = tf.cast(x2, "float32")
     return tfnp.greater(x1, x2)
 
 
 def greater_equal(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # TODO: currently, tfnp.greater_equal doesn't support bfloat16
+    if standardize_dtype(x1.dtype) == "bfloat16":
+        x1 = tf.cast(x1, "float32")
+    if standardize_dtype(x2.dtype) == "bfloat16":
+        x2 = tf.cast(x2, "float32")
     return tfnp.greater_equal(x1, x2)
 
 
@@ -589,10 +604,24 @@ def isnan(x):
 
 
 def less(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # TODO: currently, tfnp.less doesn't support bfloat16
+    if standardize_dtype(x1.dtype) == "bfloat16":
+        x1 = tf.cast(x1, "float32")
+    if standardize_dtype(x2.dtype) == "bfloat16":
+        x2 = tf.cast(x2, "float32")
     return tfnp.less(x1, x2)
 
 
 def less_equal(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # TODO: currently, tfnp.less_equal doesn't support bfloat16
+    if standardize_dtype(x1.dtype) == "bfloat16":
+        x1 = tf.cast(x1, "float32")
+    if standardize_dtype(x2.dtype) == "bfloat16":
+        x2 = tf.cast(x2, "float32")
     return tfnp.less_equal(x1, x2)
 
 
