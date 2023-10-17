@@ -505,7 +505,8 @@ def exp(x):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
 
-    # TODO: tfnp.exp doesn't support bfloat16
+    # TODO: When input dtype is bfloat16, the result dtype will become float64
+    # using tfnp.exp
     if ori_dtype == "bfloat16":
         return tf.exp(x)
 
@@ -521,6 +522,16 @@ def expand_dims(x, axis):
 
 
 def expm1(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+
+    # TODO: When input dtype is bfloat16, the result dtype will become float64
+    # using tfnp.expm1
+    if ori_dtype == "bfloat16":
+        return tf.math.expm1(x)
+
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = tf.cast(x, config.floatx())
     return tfnp.expm1(x)
 
 

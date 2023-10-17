@@ -319,6 +319,10 @@ def expand_dims(x, axis):
 
 
 def expm1(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = x.astype(config.floatx())
     return np.expm1(x)
 
 

@@ -2461,7 +2461,10 @@ class Expm1(Operation):
         return backend.numpy.expm1(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = backend.standardize_dtype(x.dtype)
+        if "int" in dtype or dtype == "bool":
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.expm1", "keras.ops.numpy.expm1"])
