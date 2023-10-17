@@ -279,6 +279,8 @@ def equal(x1, x2):
 
 
 def exp(x):
+    if standardize_dtype(x.dtype) == "int64":
+        x = cast(x, config.floatx())
     return jnp.exp(x)
 
 

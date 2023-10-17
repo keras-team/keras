@@ -2364,7 +2364,7 @@ class Equal(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        return KerasTensor(output_shape, dtype="bool")
 
 
 @keras_export(["keras.ops.equal", "keras.ops.numpy.equal"])
@@ -2388,7 +2388,10 @@ class Exp(Operation):
         return backend.numpy.exp(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = backend.standardize_dtype(x.dtype)
+        if "int" in dtype or dtype == "bool":
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.exp", "keras.ops.numpy.exp"])

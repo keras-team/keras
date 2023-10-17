@@ -4336,6 +4336,41 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.empty([2, 3], dtype=dtype).dtype),
         )
 
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
+    def test_equal(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.equal(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.equal(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Equal().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_exp(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.exp(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.exp(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Exp().symbolic_call(x).dtype), expected_dtype
+        )
+
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_identity(self, dtype):
         import jax.numpy as jnp

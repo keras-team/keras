@@ -491,10 +491,26 @@ def empty(shape, dtype=None):
 
 
 def equal(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # TODO: currently, tfnp.equal doesn't support bfloat16
+    if standardize_dtype(x1.dtype) == "bfloat16":
+        x1 = tf.cast(x1, "float32")
+    if standardize_dtype(x2.dtype) == "bfloat16":
+        x2 = tf.cast(x2, "float32")
     return tfnp.equal(x1, x2)
 
 
 def exp(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+
+    # TODO: tfnp.exp doesn't support bfloat16
+    if ori_dtype == "bfloat16":
+        return tf.exp(x)
+
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = tf.cast(x, config.floatx())
     return tfnp.exp(x)
 
 
