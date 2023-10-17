@@ -211,12 +211,12 @@ def scan(f, init, xs, length=None, reverse=False, unroll=1):
     carry = init
     ys = []
     if reverse:
-        xs.reverse()
+        xs = np.flip(xs)
     for x in xs:
         carry, y = f(carry, x)
         ys.append(y)
     if reverse:
-        ys.reverse()
+        ys = np.flip(ys)
     return carry, np.stack(ys)
 
 

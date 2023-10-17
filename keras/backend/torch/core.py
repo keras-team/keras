@@ -340,14 +340,15 @@ def scan(f, init, xs, length=None, reverse=False, unroll=1):
         xs = [None] * length
     carry = init
     ys = []
+    xs = torch.tensor(xs)
     if reverse:
-        xs.reverse()
+      xs = torch.flip(xs,[-1])
     for x in xs:
         carry, y = f(carry, x)
         ys.append(y)
     if reverse:
         ys.reverse()
-    return carry, np.stack(ys)
+    return carry, np.array(ys)
 
 
 def while_loop(

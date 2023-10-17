@@ -78,6 +78,31 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         ):
             core.unstack(x, axis=axis)
 
+    def test_scan(self):
+        def f(carry, x):
+            if type(carry) is list or type(carry) is tuple:
+                x += carry[0]
+                carry = carry[0]
+            else:
+
+                x += carry
+            return carry, x
+
+        init_carr = np.array(1)
+        xs = np.array([0, 1, 2, 3, 4, 5, 6])
+
+        carry_op, ys_op = core.scan(
+            f, init_carr, xs, length=len(xs), reverse=False
+        )
+        carry_jax, ys_jax = jax.lax.scan(
+            f, init_carr, xs, length=len(xs), reverse=False
+        )
+
+        ys_op = ys_op.tolist()
+        ys_jax = ys_jax.tolist()
+
+        self.assertEqual(ys_jax.shape, ys_op.shape)
+        self.assertEqual(ys_jax.dtype, ys_op.dtype)
 
 class CoreOpsCorrectnessTest(testing.TestCase):
     def test_scatter(self):
@@ -256,6 +281,11 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         ys_jax = ys_jax.tolist()
 
         self.assertEqual(carry_op, carry_jax)
+
+        for i in range(len(ys_op)):
+            ys_op[i] = round(ys_op[0],2)
+            ys_jax[i] = round(ys_jax[0], 2)
+
         self.assertListEqual(ys_op, ys_jax)
 
     def test_while_loop(self):

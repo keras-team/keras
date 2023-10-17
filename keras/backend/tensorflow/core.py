@@ -199,18 +199,15 @@ def scan(f, init, xs, length=None, reverse=False, unroll=1):
     if xs is None:
         xs = [None] * length
     if reverse:
-        np.flip(xs)
+        tf.reverse(xs,[0])
 
-    init = (init, np.array(0, dtype=init.dtype))
+    init = (init, tf.zeros_like(0,dtype=init.dtype))
 
     carry, ys = tf.scan(f, xs, initializer=init)
 
-    ys = ys.numpy()
-    carry = carry.numpy()
-    if reverse:
-        np.flip(ys)
-
-    return carry[0], ys
+    if carry[0].dtype is tf.float64:
+        return tf.cast(carry[0],dtype=tf.float32), ys.numpy()
+    return carry[0], ys.numpy()
 
 
 def while_loop(
