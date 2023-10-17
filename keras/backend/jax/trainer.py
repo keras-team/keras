@@ -412,6 +412,7 @@ class JAXTrainer(base_trainer.Trainer):
 
         self.make_train_function()
         self.stop_training = False
+        training_logs = {}
         callbacks.on_train_begin()
 
         for epoch in range(initial_epoch, epochs):

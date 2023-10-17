@@ -65,6 +65,5 @@ class RandomRotationTest(testing.TestCase, parameterized.TestCase):
                 [4, 3, 2, 1, 0],
             ]
         ).reshape((5, 5, 1))
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertAllClose(expected_output, output)

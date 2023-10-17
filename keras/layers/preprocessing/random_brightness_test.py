@@ -56,5 +56,5 @@ class RandomBrightnessTest(testing.TestCase):
         layer = layers.RandomBrightness(factor=0.5, seed=1337)
         input_data = np.random.random((2, 8, 8, 3))
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
-        for output in ds.take(1):
-            output.numpy()
+        output = next(iter(ds)).numpy()
+        self.assertAllClose(output, input_data)

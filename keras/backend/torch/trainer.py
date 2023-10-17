@@ -280,6 +280,7 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         self.stop_training = False
+        training_logs = {}
         self.make_train_function()
         callbacks.on_train_begin()
 

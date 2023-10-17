@@ -60,8 +60,7 @@ class HashingTest(testing.TestCase, parameterized.TestCase):
         layer = layers.Hashing(num_bins=3)
         inp = [["A"], ["B"], ["C"], ["D"], ["E"]]
         ds = tf.data.Dataset.from_tensor_slices(inp).batch(5).map(layer)
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertAllClose(output, np.array([[1], [0], [1], [1], [2]]))
 
     @parameterized.named_parameters(
@@ -306,6 +305,8 @@ class HashingTest(testing.TestCase, parameterized.TestCase):
             symbolic_sample_shape = ()
         elif input_array.ndim == 2:
             symbolic_sample_shape = (None,)
+        else:
+            raise TypeError("Unknown `symbolic_sample_shape`")
         inputs = layers.Input(shape=symbolic_sample_shape, dtype="int32")
         layer = layers.Hashing(num_bins=3, output_mode="count")
         outputs = layer(inputs)

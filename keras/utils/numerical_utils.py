@@ -143,6 +143,8 @@ def encode_categorical_inputs(
             bincounts = backend_module.numpy.where(
                 backend_module.numpy.any(one_hot_input, axis=-2), 1, 0
             )
+        else:
+            raise NotImplementedError(output_mode)
     else:
         bincounts = backend_module.numpy.bincount(
             inputs,

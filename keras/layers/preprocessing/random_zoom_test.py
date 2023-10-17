@@ -106,8 +106,7 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
                 [0, 0, 0, 0, 0],
             ]
         ).reshape((1, 5, 5, 1))
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertAllClose(expected_output, output)
 
     def test_dynamic_shape(self):

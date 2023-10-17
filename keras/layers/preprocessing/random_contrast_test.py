@@ -43,5 +43,4 @@ class RandomContrastTest(testing.TestCase):
         layer = layers.RandomContrast(factor=0.5, seed=1337)
         input_data = np.random.random((2, 8, 8, 3))
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
-        for output in ds.take(1):
-            output.numpy()
+        next(iter(ds)).numpy()

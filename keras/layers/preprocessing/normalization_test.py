@@ -65,6 +65,8 @@ class NormalizationTest(testing.TestCase, parameterized.TestCase):
             data = backend.convert_to_tensor(x)
         elif input_type == "tf.data":
             data = tf_data.Dataset.from_tensor_slices(x).batch(8)
+        else:
+            raise NotImplementedError(input_type)
 
         layer = layers.Normalization()
         layer.adapt(data)

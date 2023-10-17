@@ -3,6 +3,7 @@
 import datetime
 import io
 import json
+import os.path
 import tempfile
 import warnings
 import zipfile
@@ -224,6 +225,10 @@ def load_weights_only(model, filepath, skip_mismatch=False):
         weights_store = H5IOStore(
             _VARS_FNAME + ".h5", archive=archive, mode="r"
         )
+    else:
+        raise NotImplementedError(
+            (lambda full_ext: full_ext[1] if full_ext[1] else filepath)(
+                os.path.splitext(filepath)[1]))
 
     _load_state(
         model,
