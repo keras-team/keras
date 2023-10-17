@@ -2364,7 +2364,7 @@ class Equal(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        return KerasTensor(output_shape, dtype="bool")
 
 
 @keras_export(["keras.ops.equal", "keras.ops.numpy.equal"])
@@ -2388,7 +2388,10 @@ class Exp(Operation):
         return backend.numpy.exp(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = backend.standardize_dtype(x.dtype)
+        if "int" in dtype or dtype == "bool":
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.exp", "keras.ops.numpy.exp"])
@@ -2458,7 +2461,10 @@ class Expm1(Operation):
         return backend.numpy.expm1(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = backend.standardize_dtype(x.dtype)
+        if "int" in dtype or dtype == "bool":
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.expm1", "keras.ops.numpy.expm1"])
@@ -2537,6 +2543,7 @@ class Full(Operation):
         return backend.numpy.full(shape, fill_value, dtype=dtype)
 
     def compute_output_spec(self, shape, fill_value, dtype=None):
+        dtype = dtype or backend.floatx()
         return KerasTensor(shape, dtype=dtype)
 
 
@@ -2667,7 +2674,7 @@ class Greater(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        return KerasTensor(output_shape, dtype="bool")
 
 
 @keras_export(["keras.ops.greater", "keras.ops.numpy.greater"])
@@ -2694,7 +2701,7 @@ class GreaterEqual(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        return KerasTensor(output_shape, dtype="bool")
 
 
 @keras_export(
@@ -2917,7 +2924,7 @@ class Less(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        return KerasTensor(output_shape, dtype="bool")
 
 
 @keras_export(["keras.ops.less", "keras.ops.numpy.less"])
@@ -2944,7 +2951,7 @@ class LessEqual(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        return KerasTensor(output_shape, dtype="bool")
 
 
 @keras_export(

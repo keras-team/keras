@@ -279,6 +279,10 @@ def equal(x1, x2):
 
 
 def exp(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = cast(x, config.floatx())
     return jnp.exp(x)
 
 
@@ -287,6 +291,10 @@ def expand_dims(x, axis):
 
 
 def expm1(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = cast(x, config.floatx())
     return jnp.expm1(x)
 
 
@@ -299,6 +307,7 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
+    dtype = dtype or config.floatx()
     return jnp.full(shape, fill_value, dtype=dtype)
 
 
