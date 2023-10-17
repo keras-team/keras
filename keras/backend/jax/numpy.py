@@ -279,7 +279,9 @@ def equal(x1, x2):
 
 
 def exp(x):
-    if standardize_dtype(x.dtype) == "int64":
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
         x = cast(x, config.floatx())
     return jnp.exp(x)
 
