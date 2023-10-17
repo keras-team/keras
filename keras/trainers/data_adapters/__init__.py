@@ -87,12 +87,13 @@ def get_data_adapter(
                 "Argument `class_weight` is not supported for Python "
                 f"generator inputs. Received: class_weight={class_weight}"
             )
-        if shuffle:
-            raise ValueError(
-                "Argument `shuffle` is not supported for Python generator "
-                f"inputs. Received: shuffle={shuffle}"
-            )
         return GeneratorDataAdapter(x)
+        # TODO: should we warn or not?
+        # warnings.warn(
+        #     "`shuffle=True` was passed, but will be ignored since the "
+        #     "data `x` was provided as a generator. The generator "
+        #     "is expected to yield already-shuffled data."
+        # )
     else:
         raise ValueError(f"Unrecognized data type: x={x} (of type {type(x)})")
 
