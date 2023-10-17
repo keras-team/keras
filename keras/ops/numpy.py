@@ -3583,6 +3583,7 @@ def meshgrid(*x, indexing="xy"):
 
 class Min(Operation):
     def __init__(self, axis=None, keepdims=False, initial=None):
+        super().__init__()
         if isinstance(axis, int):
             self.axis = [axis]
         else:
