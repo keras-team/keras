@@ -37,14 +37,14 @@ the backend of your choice. We select the JAX backend below.
 pip install git+https://github.com/keras-team/keras-nlp.git -q
 """
 
-import os
-
-os.environ["KERAS_BACKEND"] = "jax"  # or "tensorflow" or "torch"
-
 import keras_nlp
 import tensorflow as tf
+import json
 import keras
+import os
+import tensorflow_datasets as tfds
 import time
+
 
 """
 ## Introduction to Generative Large Language Models (LLMs)
@@ -182,8 +182,6 @@ style, short or long, strict or casual. In this tutorial, we will use reddit
 dataset for example.
 """
 
-import tensorflow_datasets as tfds
-
 reddit_ds = tfds.load("reddit_tifu", split="train", as_supervised=True)
 
 """
@@ -312,14 +310,11 @@ git clone https://github.com/chinese-poetry/chinese-poetry.git
 Load text from the json file. We only use《全唐诗》for demo purposes.
 """
 
-import os
-import json
-
 poem_collection = []
 for file in os.listdir("chinese-poetry/全唐诗"):
     if ".json" not in file or "poet" not in file:
         continue
-    full_filename = "%s/%s" % ("chinese-poetry/全唐诗", file)
+    full_filename = f"{'chinese-poetry/全唐诗'}/{file}"
     with open(full_filename, "r") as f:
         content = json.load(f)
         poem_collection.extend(content)
