@@ -851,6 +851,8 @@ def repeat(x, repeats, axis=None):
 
 
 def reshape(x, new_shape):
+    if not isinstance(new_shape, (list, tuple)):
+        new_shape = (new_shape,)
     x = convert_to_tensor(x)
     return torch.reshape(x, new_shape)
 

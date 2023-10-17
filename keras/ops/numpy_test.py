@@ -3631,6 +3631,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.reshape(x, [3, 2]), np.reshape(x, [3, 2]))
         self.assertAllClose(knp.Reshape([3, 2])(x), np.reshape(x, [3, 2]))
+        self.assertAllClose(knp.Reshape(-1)(x), np.reshape(x, -1))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
