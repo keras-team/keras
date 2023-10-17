@@ -27,26 +27,17 @@ from keras.backend.config import set_epsilon
 from keras.backend.config import set_floatx
 from keras.backend.config import set_image_data_format
 from keras.backend.config import standardize_data_format
-from keras.utils.io_utils import print_msg
 
 # Import backend functions.
 if backend() == "tensorflow":
-    print_msg("Using TensorFlow backend")
     from keras.backend.tensorflow import *  # noqa: F403
 elif backend() == "jax":
-    print_msg("Using JAX backend.")
     from keras.backend.jax import *  # noqa: F403
 elif backend() == "torch":
-    print_msg("Using PyTorch backend.")
     from keras.backend.torch import *  # noqa: F403
 
     distribution_lib = None
 elif backend() == "numpy":
-    print_msg(
-        "Using NumPy backend.\nThe NumPy backend does not support "
-        "training. It should only be used for inference, evaluation, "
-        "and debugging."
-    )
     from keras.backend.numpy import *  # noqa: F403
 
     distribution_lib = None
