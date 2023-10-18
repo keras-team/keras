@@ -139,26 +139,26 @@ def create_legacy_directory():
 
 
 def export_version_string(version, is_nightly=False, rc_index=None):
-    """Export Version and Package Name."""
-    if is_nightly:
-        date = datetime.datetime.now()
-        version += f".dev{date.strftime('%Y%m%d%H')}"
-        # Replaces `name="keras"` string in `setup.py` with `keras-nightly`
-        with open("setup.py") as f:
-            setup_contents = f.read()
-        with open("setup.py", "w") as f:
-            setup_contents = setup_contents.replace(
-                'name="keras"', 'name="keras-nightly"'
-            )
-            f.write(setup_contents)
-    elif rc_index is not None:
-        version += "rc" + str(rc_index)
+  """Export Version and Package Name."""
+  if is_nightly:
+    date = datetime.datetime.now()
+    version += f".dev{date.strftime('%Y%m%d%H')}"
+    # Replaces `name="keras"` string in `setup.py` with `keras-nightly`
+    with open("setup.py") as f:
+      setup_contents = f.read()
+    with open("setup.py", "w") as f:
+      setup_contents = setup_contents.replace(
+          "name='keras'", "name='keras-nightly'"
+      )
+      f.write(setup_contents)
+  elif rc_index is not None:
+    version += f"rc{rc_index}"
 
-    # Make sure to export the __version__ string
-    with open(os.path.join(package, "__init__.py")) as f:
-        init_contents = f.read()
-    with open(os.path.join(package, "__init__.py"), "w") as f:
-        f.write(init_contents + "\n\n" + f'__version__ = "{version}"\n')
+  # Make sure to export the __version__ string
+  with open(os.path.join(package, "__init__.py")) as f:
+    init_contents = f.read()
+  with open(os.path.join(package, "__init__.py"), "w") as f:
+    f.write(f"{init_contents}\n\n__version__ = '{version}'\n")
 
 
 def build_and_save_output(root_path, __version__):
