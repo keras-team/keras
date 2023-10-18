@@ -540,7 +540,7 @@ def update_confusion_matrix_variables(
 
     if sample_weight is not None:
         sample_weight = ops.broadcast_to(
-            ops.cast(sample_weight, dtype=y_pred.dtype), y_pred.shape
+            ops.cast(sample_weight, dtype=y_pred.dtype), ops.shape(y_pred)
         )
         weights_tiled = ops.tile(
             ops.reshape(sample_weight, thresh_tiles), data_tiles
