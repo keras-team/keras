@@ -31,6 +31,10 @@ class KerasVariable:
         self._shape = None
         self._initializer = None
         self._trainable = trainable
+        if isinstance(initializer, str):
+            from keras import initializers
+
+            initializer = initializers.get(initializer)
         if callable(initializer):
             if shape is None:
                 raise ValueError(

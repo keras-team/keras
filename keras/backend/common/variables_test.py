@@ -36,6 +36,11 @@ class VariableInitializationTest(test_case.TestCase):
         v = backend.Variable(initializer=np.ones((2, 2)))
         self.assertAllClose(v.value, np.ones((2, 2)))
 
+    def test_variable_initialization_with_strings(self):
+        """Test variable init with non-callable initializer."""
+        v = backend.Variable(initializer="ones", shape=(2, 2))
+        self.assertAllClose(v.value, np.ones((2, 2)))
+
     def test_variable_initialization_with_non_trainable(self):
         """Test variable initialization with non-trainable flag."""
         v = backend.Variable(initializer=np.ones((2, 2)), trainable=False)
