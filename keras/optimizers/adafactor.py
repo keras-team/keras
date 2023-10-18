@@ -104,7 +104,7 @@ class Adafactor(optimizer.Optimizer):
                         backend.Variable(0, name=var.name, trainable=False)
                     )
             else:
-                # Always factor the last 2 dimenstions.
+                # Always factor the last 2 dimensions.
                 r_shape = var.shape[:-1]
                 c_shape = var.shape[:-2] + var.shape[-1]
                 self._r.append(
