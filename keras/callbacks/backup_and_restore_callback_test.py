@@ -167,3 +167,15 @@ class BackupAndRestoreCallbackTest(testing.TestCase):
             verbose=0,
         )
         self.assertFalse(file_utils.exists(backup_dir))
+
+    def test_backup_dir_empty_error(self):
+        with self.assertRaisesRegex(
+            ValueError, expected_regex="Empty `backup_dir` argument passed"
+        ):
+            callbacks.BackupAndRestore(backup_dir="", save_freq="epoch")
+
+    def test_backup_dir_none_error(self):
+        with self.assertRaisesRegex(
+            ValueError, expected_regex="Empty `backup_dir` argument passed"
+        ):
+            callbacks.BackupAndRestore(backup_dir=None, save_freq="epoch")
