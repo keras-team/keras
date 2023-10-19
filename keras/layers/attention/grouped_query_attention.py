@@ -74,7 +74,8 @@ class GroupedQueryAttention(Layer):
             `(batch_dim, target_seq_len, feature_dim)`, where `target_seq_len`
             is for target sequence length and `feature_dim` is the query input
             last dim.
-        attention_scores: (Optional) attention coefficients.
+        attention_scores: (Optional) attention coefficients of shape
+            `(batch_dim, num_query_heads, target_seq_len, source_seq_len)`.
     """
 
     def __init__(
