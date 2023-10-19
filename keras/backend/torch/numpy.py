@@ -819,8 +819,23 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
-    return torch.quantile(
-        x, q, dim=axis, keepdim=keepdims, interpolation=method
+
+    ori_dtype = standardize_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    if ori_dtype == "int64":
+        result_dtype = config.floatx()
+    else:
+        result_dtype = dtypes.result_type(x.dtype, float)
+
+    x = cast(x, compute_dtype)
+
+    # q must be same dtype as x
+    if x.dtype != q.dtype:
+        q = cast(q, x.dtype)
+
+    return cast(
+        torch.quantile(x, q, dim=axis, keepdim=keepdims, interpolation=method),
+        result_dtype,
     )
 
 

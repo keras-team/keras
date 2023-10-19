@@ -512,7 +512,19 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+    x = convert_to_tensor(x)
+
+    ori_dtype = standardize_dtype(x.dtype)
+    # np.quantile doesn't support bool
+    if ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    if ori_dtype == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    return np.quantile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
 
 
 def ravel(x):

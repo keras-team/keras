@@ -503,7 +503,9 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        x = cast(x, config.floatx())
     return jnp.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
 
