@@ -47,6 +47,11 @@ class Variable(KerasVariable):
 
 
 def convert_to_tensor(x, dtype=None, sparse=False):
+    if isinstance(x, (jnp.ndarray, jax.Array)):
+        # Skip the conversion early if the instance is already a JAX array.abs
+        # This is important in the multi-process context since jax.array(x) for
+        # an existing distributed jax array will raise error.
+        return x
     if sparse:
         raise ValueError("`sparse=True` is not supported with jax backend")
     if dtype is not None:

@@ -7,7 +7,7 @@ from keras.trainers.data_adapters.data_adapter import DataAdapter
 class TFDatasetAdapter(DataAdapter):
     """Adapter that handles `tf.data.Dataset`."""
 
-    def __init__(self, dataset, class_weight=None):
+    def __init__(self, dataset, class_weight=None, distribution=None):
         from keras.utils.module_utils import tensorflow as tf
 
         if not isinstance(
@@ -21,6 +21,8 @@ class TFDatasetAdapter(DataAdapter):
             dataset = dataset.map(
                 make_class_weight_map_fn(class_weight)
             ).prefetch(tf.data.AUTOTUNE)
+        if distribution is not None:
+            dataset = distribution.distribute_dataset(dataset)
         self._dataset = dataset
 
     def get_numpy_iterator(self):

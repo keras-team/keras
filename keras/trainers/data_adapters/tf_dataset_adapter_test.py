@@ -1,3 +1,5 @@
+from unittest import mock
+
 import numpy as np
 import tensorflow as tf
 
@@ -200,3 +202,53 @@ class TestTFDatasetAdapter(testing.TestCase):
             "`class_weight` is only supported for Models with a single output.",
         ):
             class_weights_map_fn(x, (y1, y2))
+
+    def test_distribute_dataset(self):
+        x = tf.random.normal((34, 4))
+        y = tf.random.normal((34, 2))
+        base_ds = tf.data.Dataset.from_tensor_slices((x, y)).batch(16)
+
+        data_distribution = mock.Mock()
+        # Mimic that there are 2 worker, and each of the worker will get batch
+        # size of 8
+        data_distribution.distribute_dataset = mock.MagicMock(
+            return_value=base_ds.rebatch(8).shard(2, index=0)
+        )
+
+        adapter = tf_dataset_adapter.TFDatasetAdapter(
+            base_ds, distribution=data_distribution
+        )
+
+        self.assertEqual(adapter.num_batches, None)
+        self.assertEqual(adapter.batch_size, None)
+        self.assertEqual(adapter.has_partial_batch, None)
+        self.assertEqual(adapter.partial_batch_size, None)
+
+        gen = adapter.get_numpy_iterator()
+        for i, batch in enumerate(gen):
+            self.assertEqual(len(batch), 2)
+            bx, by = batch
+            self.assertIsInstance(bx, np.ndarray)
+            self.assertIsInstance(by, np.ndarray)
+            self.assertEqual(bx.dtype, by.dtype)
+            self.assertEqual(bx.dtype, "float32")
+            if i < 2:
+                self.assertEqual(bx.shape, (8, 4))
+                self.assertEqual(by.shape, (8, 2))
+            else:
+                self.assertEqual(bx.shape, (2, 4))
+                self.assertEqual(by.shape, (2, 2))
+        ds = adapter.get_tf_dataset()
+        for i, batch in enumerate(ds):
+            self.assertEqual(len(batch), 2)
+            bx, by = batch
+            self.assertIsInstance(bx, tf.Tensor)
+            self.assertIsInstance(by, tf.Tensor)
+            self.assertEqual(bx.dtype, by.dtype)
+            self.assertEqual(bx.dtype, "float32")
+            if i < 2:
+                self.assertEqual(tuple(bx.shape), (8, 4))
+                self.assertEqual(tuple(by.shape), (8, 2))
+            else:
+                self.assertEqual(tuple(bx.shape), (2, 4))
+                self.assertEqual(tuple(by.shape), (2, 2))
