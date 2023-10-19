@@ -126,32 +126,33 @@ class GroupedQueryAttention(Layer):
         # q = query length
         # k = key/value length
         # m = model dim
-        # n = num heads
+        # u = num query heads
+        # v = num key/value heads
         # h = head dim
         key_shape = value_shape if key_shape is None else key_shape
         self.feature_dim = query_shape[-1]
         self._query_dense = EinsumDense(
-            "bqm,mnh->bqnh",
+            "bqm,muh->bquh",
             output_shape=(None, self.num_query_heads, self.head_dim),
-            bias_axes="nh" if self.use_bias else None,
+            bias_axes="uh" if self.use_bias else None,
             name="query",
             **self._get_common_kwargs_for_sublayer(),
         )
         self._query_dense.build(query_shape)
 
         self._key_dense = EinsumDense(
-            "bkm,mnh->bknh",
+            "bkm,mvh->bkvh",
             output_shape=(None, self.num_key_value_heads, self.head_dim),
-            bias_axes="nh" if self.use_bias else None,
+            bias_axes="vh" if self.use_bias else None,
             name="key",
             **self._get_common_kwargs_for_sublayer(),
         )
         self._key_dense.build(key_shape)
 
         self._value_dense = EinsumDense(
-            "bkm,mnh->bknh",
+            "bkm,mvh->bkvh",
             output_shape=(None, self.num_key_value_heads, self.head_dim),
-            bias_axes="nh" if self.use_bias else None,
+            bias_axes="vh" if self.use_bias else None,
             name="value",
             **self._get_common_kwargs_for_sublayer(),
         )
@@ -162,11 +163,11 @@ class GroupedQueryAttention(Layer):
             rate=self.dropout, dtype=self.dtype_policy
         )
 
-        self._dot_product_equation = "bqnh,bknh->bnqk"
-        self._combine_equation = "bnqk,bknh->bqnh"
+        self._dot_product_equation = "bquh,bkuh->buqk"
+        self._combine_equation = "buqk,bkuh->bquh"
 
         self._output_dense = EinsumDense(
-            "bqnh,nhm->bqm",
+            "bquh,uhm->bqm",
             output_shape=(None, self.feature_dim),
             bias_axes="m" if self.use_bias else None,
             name="attention_output",
