@@ -510,6 +510,11 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return np.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def quantile(x, q, axis=None, method="linear", keepdims=False):
+    axis = tuple(axis) if isinstance(axis, list) else axis
+    return np.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def ravel(x):
     return np.ravel(x)
 

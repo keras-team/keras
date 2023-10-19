@@ -783,6 +783,10 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return tfnp.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def quantile(x, q, axis=None, method="linear", keepdims=False):
+    raise NotImplementedError
+
+
 def ravel(x):
     return tfnp.ravel(x)
 

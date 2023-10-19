@@ -816,6 +816,14 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return x
 
 
+def quantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    return torch.quantile(
+        x, q, dim=axis, keepdim=keepdims, interpolation=method
+    )
+
+
 def ravel(x):
     x = convert_to_tensor(x)
     return torch.ravel(x)

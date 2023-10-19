@@ -98,6 +98,7 @@ pad
 percentile
 power
 prod
+quantile
 ravel
 real
 reciprocal
@@ -4063,6 +4064,41 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     if any_symbolic_tensors((x,)):
         return Prod(axis=axis, keepdims=keepdims, dtype=dtype).symbolic_call(x)
     return backend.numpy.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
+
+
+class Quantile(Operation):
+    def __init__(self, axis=None, method="linear", keepdims=False):
+        super().__init__()
+        if isinstance(axis, int):
+            axis = [axis]
+        self.axis = axis
+        self.method = method
+        self.keepdims = keepdims
+
+    def call(self, x, q):
+        return backend.numpy.quantile(
+            x, q, axis=self.axis, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x, q):
+        output_shape = reduce_shape(
+            x.shape, axis=self.axis, keepdims=self.keepdims
+        )
+        if len(q.shape) > 0:
+            output_shape = (q.shape[0],) + output_shape
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.quantile", "keras.ops.numpy.quantile"])
+def quantile(x, q, axis=None, method="linear", keepdims=False):
+    """TODO: add docstring"""
+    if any_symbolic_tensors((x, q)):
+        return Quantile(
+            axis=axis, method=method, keepdims=keepdims
+        ).symbolic_call(x, q)
+    return backend.numpy.quantile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    )
 
 
 class Ravel(Operation):

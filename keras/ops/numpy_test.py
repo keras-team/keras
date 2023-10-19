@@ -193,6 +193,22 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.outer(x, y).shape, (None, None))
 
+    def test_quantile(self):
+        x = KerasTensor((None, 3))
+
+        # q as scalar
+        q = KerasTensor(())
+        self.assertEqual(knp.quantile(x, q).shape, ())
+
+        # q as 1D tensor
+        q = KerasTensor((2,))
+        self.assertEqual(knp.quantile(x, q).shape, (2,))
+        self.assertEqual(knp.quantile(x, q, axis=1).shape, (2, None))
+        self.assertEqual(
+            knp.quantile(x, q, axis=1, keepdims=True).shape,
+            (2, None, 1),
+        )
+
     def test_take(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.take(x, 1).shape, ())
@@ -814,6 +830,22 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
 
         x = KerasTensor((2, 3))
         self.assertEqual(knp.outer(x, 2).shape, (6, 1))
+
+    def test_quantile(self):
+        x = KerasTensor((3, 3))
+
+        # q as scalar
+        q = KerasTensor(())
+        self.assertEqual(knp.quantile(x, q).shape, ())
+
+        # q as 1D tensor
+        q = KerasTensor((2,))
+        self.assertEqual(knp.quantile(x, q).shape, (2,))
+        self.assertEqual(knp.quantile(x, q, axis=1).shape, (2, 3))
+        self.assertEqual(
+            knp.quantile(x, q, axis=1, keepdims=True).shape,
+            (2, 3, 1),
+        )
 
     def test_take(self):
         x = KerasTensor((2, 3))
@@ -2429,6 +2461,35 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         y = np.ones([2, 3, 4, 5, 6])
         self.assertAllClose(knp.outer(x, y), np.outer(x, y))
         self.assertAllClose(knp.Outer()(x, y), np.outer(x, y))
+
+    def test_quantile(self):
+        x = np.arange(9).reshape([3, 3]).astype("float32")
+
+        # q as scalar
+        q = np.array(0.5, dtype="float32")
+        self.assertAllClose(knp.quantile(x, q), np.quantile(x, q))
+
+        # q as 1D tensor
+        q = np.array([0.5, 1.0], dtype="float32")
+        self.assertAllClose(knp.quantile(x, q), np.quantile(x, q))
+        self.assertAllClose(
+            knp.quantile(x, q, axis=1), np.quantile(x, q, axis=1)
+        )
+        self.assertAllClose(
+            knp.quantile(x, q, axis=1, keepdims=True),
+            np.quantile(x, q, axis=1, keepdims=True),
+        )
+
+        # test all supported methods
+        for method in ["linear", "lower", "higher", "midpoint", "nearest"]:
+            self.assertAllClose(
+                knp.quantile(x, q, method=method),
+                np.quantile(x, q, method=method),
+            )
+            self.assertAllClose(
+                knp.quantile(x, q, axis=1, method=method),
+                np.quantile(x, q, axis=1, method=method),
+            )
 
     def test_take(self):
         x = np.arange(24).reshape([1, 2, 3, 4])

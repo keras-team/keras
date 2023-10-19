@@ -502,6 +502,11 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return jnp.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def quantile(x, q, axis=None, method="linear", keepdims=False):
+    axis = tuple(axis) if isinstance(axis, list) else axis
+    return jnp.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def ravel(x):
     return jnp.ravel(x)
 
