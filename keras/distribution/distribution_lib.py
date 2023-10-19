@@ -14,13 +14,11 @@ import warnings
 
 import numpy as np
 
-# TF is used for dataset sharding.
-import tensorflow as tf
-
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend import distribution_lib
 from keras.backend.common import global_state
+from keras.utils.module_utils import tensorflow as tf
 
 DEFAULT_BATCH_DIM_NAME = "batch"
 GLOBAL_ATTRIBUTE_NAME = "distribution"
