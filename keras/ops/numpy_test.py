@@ -2504,6 +2504,7 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         )
 
         # test all supported methods
+        q = np.array([0.501, 1.0], dtype="float32")
         for method in ["linear", "lower", "higher", "midpoint", "nearest"]:
             self.assertAllClose(
                 knp.quantile(x, q, method=method),
