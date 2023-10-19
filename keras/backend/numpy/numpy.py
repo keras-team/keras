@@ -452,6 +452,11 @@ def maximum(x1, x2):
     return np.maximum(x1, x2)
 
 
+def median(x, axis=None, keepdims=False):
+    dtype = dtypes.result_type(x.dtype, float)
+    return np.median(x, axis=axis, keepdims=keepdims).astype(dtype)
+
+
 def meshgrid(*x, indexing="xy"):
     return np.meshgrid(*x, indexing=indexing)
 

@@ -695,6 +695,10 @@ def maximum(x1, x2):
     return tfnp.maximum(x1, x2)
 
 
+def median(x, axis=None, keepdims=False):
+    return quantile(x, 0.5, axis=axis, keepdims=keepdims)
+
+
 def meshgrid(*x, indexing="xy"):
     return tfnp.meshgrid(*x, indexing=indexing)
 

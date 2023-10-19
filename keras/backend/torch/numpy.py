@@ -684,6 +684,10 @@ def maximum(x1, x2):
     return torch.maximum(x1, x2)
 
 
+def median(x, axis=None, keepdims=False):
+    return quantile(x, 0.5, axis=axis, keepdims=keepdims)
+
+
 def meshgrid(*x, indexing="xy"):
     x = [convert_to_tensor(sc_tensor) for sc_tensor in x]
     return torch.meshgrid(x, indexing=indexing)
@@ -817,6 +821,9 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
+    if isinstance(axis, int):
+        axis = [axis]
+
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
 
@@ -833,10 +840,31 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
     if x.dtype != q.dtype:
         q = cast(q, x.dtype)
 
-    return cast(
-        torch.quantile(x, q, dim=axis, keepdim=keepdims, interpolation=method),
-        result_dtype,
-    )
+    # support multiple axes
+    if axis is None:
+        y = reshape(x, [-1])
+    else:
+        # transpose
+        axis = np.array(axis, "int32")
+        axis = np.where(axis < 0, axis + x.ndim, axis)
+        other_dims = sorted(set(range(x.ndim)).difference(axis))
+        perm = other_dims + list(axis)
+        x_permed = torch.permute(x, dims=perm)
+        # reshape
+        x_shape = list(x.shape)
+        other_shape = [x_shape[i] for i in other_dims]
+        end_shape = [np.prod([x_shape[i] for i in axis])]
+        full_shape = other_shape + end_shape
+        y = reshape(x_permed, full_shape)
+
+    y = torch.quantile(y, q, dim=-1, interpolation=method)
+
+    if keepdims:
+        for i in sorted(axis):
+            i = i + 1 if q.ndim > 0 else i
+            y = expand_dims(y, axis=i)
+
+    return cast(y, result_dtype)
 
 
 def ravel(x):

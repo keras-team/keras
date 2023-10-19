@@ -3513,6 +3513,48 @@ def maximum(x1, x2):
     return backend.numpy.maximum(x1, x2)
 
 
+class Median(Operation):
+    def __init__(self, axis=None, keepdims=False):
+        super().__init__()
+        if isinstance(axis, int):
+            axis = [axis]
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.median(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        output_shape = reduce_shape(
+            x.shape, axis=self.axis, keepdims=self.keepdims
+        )
+        if backend.standardize_dtype(x.dtype) == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(x.dtype, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.median", "keras.ops.numpy.median"])
+def median(x, axis=None, keepdims=False):
+    """Compute the median along the specified axis.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the medians are computed. Defaults to
+            `axis=None` which is to compute the median(s) along a flattened
+            version of the array.
+        keepdims: If this is set to `True`, the axes which are reduce
+            are left in the result as dimensions with size one.
+
+    Returns:
+        The output tensor.
+    """
+    if any_symbolic_tensors((x,)):
+        return Median(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.median(x, axis=axis, keepdims=keepdims)
+
+
 class Meshgrid(Operation):
     def __init__(self, indexing="xy"):
         super().__init__()

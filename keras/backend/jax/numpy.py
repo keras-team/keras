@@ -440,6 +440,15 @@ def maximum(x1, x2):
     return jnp.maximum(x1, x2)
 
 
+def median(x, axis=None, keepdims=False):
+    # axis of jnp.median must be hashable
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    if standardize_dtype(x.dtype) == "int64":
+        x = cast(x, config.floatx())
+    return jnp.median(x, axis=axis, keepdims=keepdims)
+
+
 def meshgrid(*x, indexing="xy"):
     return jnp.meshgrid(*x, indexing=indexing)
 
