@@ -18,7 +18,6 @@ from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend import distribution_lib
 from keras.backend.common import global_state
-from keras.utils.module_utils import tensorflow as tf
 
 DEFAULT_BATCH_DIM_NAME = "batch"
 GLOBAL_ATTRIBUTE_NAME = "distribution"
@@ -424,6 +423,8 @@ class DataParallel(Distribution):
         return None
 
     def distribute_dataset(self, dataset):
+        from keras.utils.module_utils import tensorflow as tf
+
         if not isinstance(dataset, tf.data.Dataset):
             raise ValueError(
                 "Only `tf.data.Dataset` is supported for "
