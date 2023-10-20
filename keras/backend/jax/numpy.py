@@ -446,7 +446,14 @@ def median(x, axis=None, keepdims=False):
         axis = tuple(axis)
     if standardize_dtype(x.dtype) == "int64":
         x = cast(x, config.floatx())
-    return jnp.median(x, axis=axis, keepdims=keepdims)
+
+    result = jnp.median(x, axis=axis, keepdims=keepdims)
+
+    # TODO: jnp.median failed to keepdims when axis is None
+    if keepdims is True and axis is None:
+        for _ in range(x.ndim - 1):
+            result = jnp.expand_dims(result, axis=-1)
+    return result
 
 
 def meshgrid(*x, indexing="xy"):
@@ -513,9 +520,17 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
     if standardize_dtype(x.dtype) == "int64":
         x = cast(x, config.floatx())
-    return jnp.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+    result = jnp.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+    # TODO: jnp.quantile failed to keepdims when axis is None
+    if keepdims is True and axis is None:
+        for _ in range(x.ndim - 1):
+            result = jnp.expand_dims(result, axis=-1)
+    return result
 
 
 def ravel(x):

@@ -1,9 +1,9 @@
 import builtins
+import collections
 import functools
 import math
 import warnings
 
-import numpy as np
 import tensorflow as tf
 from tensorflow.experimental import numpy as tfnp
 from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
@@ -801,9 +801,7 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
         x_ndims = tf.TensorShape(x.shape).rank
 
         # _make_static_axis_non_negative_list
-        _axis = np.array(axis, dtype="int32")
-        _rank = np.array(x_ndims, dtype="int32")
-        axis = np.where(_axis < 0, _axis + _rank, _axis)
+        axis = list(map(lambda x: x if x >= 0 else x + x_ndims, axis))
 
         # _move_dims_to_flat_end
         other_dims = sorted(set(range(x_ndims)).difference(axis))
@@ -812,7 +810,7 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
         if tf.TensorShape(x.shape).is_fully_defined():
             x_shape = tf.TensorShape(x.shape).as_list()
             other_shape = [x_shape[i] for i in other_dims]
-            end_shape = [np.prod([x_shape[i] for i in axis])]
+            end_shape = [math.prod([x_shape[i] for i in axis])]
             full_shape = other_shape + end_shape
         else:
             other_shape = tf.gather(tf.shape(x), tf.cast(other_dims, tf.int64))
@@ -871,14 +869,13 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
         nan_batch_members = tf.reshape(
             nan_batch_members, shape=right_rank_matched_shape
         )
-        nan = np.array(np.nan, standardize_dtype(gathered_y.dtype))
-        gathered_y = tf.where(nan_batch_members, nan, gathered_y)
+        gathered_y = tf.where(nan_batch_members, float("NaN"), gathered_y)
 
     # Expand dimensions if requested
     if keepdims:
         if axis is None:
-            ones_vec = tf.ones(shape=[tf.rank(x) + tf.rank(q)], dtype=tf.int32)
-            gathered_y *= tf.ones(ones_vec, dtype=x.dtype)
+            ones_vec = tf.ones(shape=[tf.rank(x) + tf.rank(q)], dtype="int32")
+            gathered_y *= tf.ones(ones_vec, dtype=gathered_y.dtype)
         else:
             for i in sorted(axis):
                 gathered_y = tf.expand_dims(gathered_y, axis=i)
@@ -888,12 +885,14 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
     ndims = tf.TensorShape(gathered_y.shape).rank
     if ndims < 2:
         return gathered_y
-    shift_value_static = np.sign(shift_value_static) * (
-        abs(shift_value_static) % ndims
+    shift_value_static = int(
+        math.copysign(1, shift_value_static)
+        * (builtins.abs(shift_value_static) % ndims)
     )
     if shift_value_static == 0:
         return gathered_y
-    perm = np.roll(np.arange(ndims), shift_value_static)
+    perm = collections.deque(range(ndims))
+    perm.rotate(shift_value_static)
     return tf.transpose(a=gathered_y, perm=perm)
 
 

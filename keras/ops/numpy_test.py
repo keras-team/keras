@@ -2486,10 +2486,16 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         # q as scalar
         q = np.array(0.5, dtype="float32")
         self.assertAllClose(knp.quantile(x, q), np.quantile(x, q))
+        self.assertAllClose(
+            knp.quantile(x, q, keepdims=True), np.quantile(x, q, keepdims=True)
+        )
 
         # q as 1D tensor
         q = np.array([0.5, 1.0], dtype="float32")
         self.assertAllClose(knp.quantile(x, q), np.quantile(x, q))
+        self.assertAllClose(
+            knp.quantile(x, q, keepdims=True), np.quantile(x, q, keepdims=True)
+        )
         self.assertAllClose(
             knp.quantile(x, q, axis=1), np.quantile(x, q, axis=1)
         )
@@ -3544,6 +3550,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_median(self):
         x = np.array([[1, 2, 3], [3, 2, 1]]).astype("float32")
         self.assertAllClose(knp.median(x), np.median(x))
+        self.assertAllClose(
+            knp.median(x, keepdims=True), np.median(x, keepdims=True)
+        )
         self.assertAllClose(knp.median(x, axis=1), np.median(x, axis=1))
         self.assertAllClose(knp.median(x, axis=(1,)), np.median(x, axis=(1,)))
         self.assertAllClose(
@@ -4616,8 +4625,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_median(self, dtype):
         import jax.numpy as jnp
 
-        x = knp.ones((3,), dtype=dtype)
-        x_jax = jnp.ones((3,), dtype=dtype)
+        x = knp.ones((3, 3), dtype=dtype)
+        x_jax = jnp.ones((3, 3), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.median(x_jax).dtype)
         if dtype == "int64":
             expected_dtype = backend.floatx()
@@ -4625,6 +4634,13 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(standardize_dtype(knp.median(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Median().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.median(x, axis=1).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Median(axis=1).symbolic_call(x).dtype),
             expected_dtype,
         )
 

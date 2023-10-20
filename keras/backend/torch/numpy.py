@@ -685,6 +685,14 @@ def maximum(x1, x2):
 
 
 def median(x, axis=None, keepdims=False):
+    # use torch.median if possible
+    if axis is None and keepdims is False:
+        x = convert_to_tensor(x)
+        compute_dtype = dtypes.result_type(x.dtype, "float32")
+        result_dtype = dtypes.result_type(x.dtype, float)
+        x = cast(x, compute_dtype)
+        return cast(torch.median(x), result_dtype)
+
     return quantile(x, 0.5, axis=axis, keepdims=keepdims)
 
 
@@ -827,15 +835,10 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
 
-    ori_dtype = standardize_dtype(x.dtype)
     compute_dtype = dtypes.result_type(x.dtype, "float32")
-    if ori_dtype == "int64":
-        result_dtype = config.floatx()
-    else:
-        result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.result_type(x.dtype, float)
 
     x = cast(x, compute_dtype)
-
     # q must be same dtype as x
     if x.dtype != q.dtype:
         q = cast(q, x.dtype)
@@ -860,9 +863,13 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
     y = torch.quantile(y, q, dim=-1, interpolation=method)
 
     if keepdims:
-        for i in sorted(axis):
-            i = i + 1 if q.ndim > 0 else i
-            y = expand_dims(y, axis=i)
+        if axis is None:
+            for _ in range(x.ndim):
+                y = expand_dims(y, axis=-1)
+        else:
+            for i in sorted(axis):
+                i = i + 1 if q.ndim > 0 else i
+                y = expand_dims(y, axis=i)
 
     return cast(y, result_dtype)
 
