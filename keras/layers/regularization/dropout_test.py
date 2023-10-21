@@ -42,3 +42,19 @@ class DropoutTest(testing.TestCase):
         layer = layers.Dropout(0.5, noise_shape=(20, 1, 10))
         outputs = layer(inputs, training=True)
         self.assertAllClose(outputs[:, 0, :], outputs[:, 1, :])
+
+    def test_dropout_negative_rate(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid value received for argument `rate`. "
+            "Expected a float value between 0 and 1.",
+        ):
+            _ = layers.Dropout(rate=-0.5)
+
+    def test_dropout_rate_greater_than_one(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid value received for argument `rate`. "
+            "Expected a float value between 0 and 1.",
+        ):
+            _ = layers.Dropout(rate=1.5)
