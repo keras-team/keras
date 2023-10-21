@@ -3,6 +3,7 @@ import warnings
 import numpy as np
 import torch
 import tree
+from packaging.version import parse
 
 from keras import backend
 from keras import callbacks as callbacks_module
@@ -24,6 +25,20 @@ class TorchTrainer(base_trainer.Trainer):
         self.train_function = None
         self.test_function = None
         self.predict_function = None
+
+    def _should_torch_compile(self):
+        # require torch>=2.1.0 to enable dynamo since it
+        # includes many improvements/fixes to torch.compile()
+        # TODO eventually we want to get rid of this when
+        # torch is upgraded to >=2.1 (from 2.0.1) in g3
+        if self.jit_compile and parse(torch.__version__) < parse("2.1.0"):
+            warnings.warn(
+                "Please upgrade to torch>=2.1.0 for `jit_compile=True` "
+                "to take effect. Using `jit_compile=False`"
+            )
+            self.jit_compile = False
+
+        return self.jit_compile
 
     def train_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
@@ -101,7 +116,7 @@ class TorchTrainer(base_trainer.Trainer):
             data = data[0]
             return self.train_step(data)
 
-        if self.jit_compile:
+        if self._should_torch_compile():
             self.train_function = torch.compile(one_step_on_data)
         else:
             self.train_function = one_step_on_data
@@ -122,7 +137,7 @@ class TorchTrainer(base_trainer.Trainer):
             with torch.no_grad():
                 return self.test_step(data)
 
-        if self.jit_compile:
+        if self._should_torch_compile():
             self.test_function = torch.compile(one_step_on_data)
         else:
             self.test_function = one_step_on_data
@@ -143,7 +158,7 @@ class TorchTrainer(base_trainer.Trainer):
             with torch.no_grad():
                 return self.predict_step(data)
 
-        if self.jit_compile:
+        if self._should_torch_compile():
             self.predict_function = torch.compile(one_step_on_data)
         else:
             self.predict_function = one_step_on_data

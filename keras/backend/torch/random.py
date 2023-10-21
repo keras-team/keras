@@ -1,4 +1,5 @@
 import torch
+import torch._dynamo as dynamo
 import torch.nn.functional as tnn
 
 from keras.backend.config import floatx
@@ -12,7 +13,7 @@ from keras.random.seed_generator import make_default_seed
 
 # torch.Generator not supported with dynamo
 # see: https://github.com/pytorch/pytorch/issues/88576
-@torch.compiler.disable()
+@dynamo.disable()
 def torch_seed_generator(seed):
     first_seed, second_seed = draw_seed(seed)
     device = get_device()
