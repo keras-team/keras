@@ -182,7 +182,7 @@ def build_and_save_output(root_path, __version__):
     if whl_path:
         print(f"Build successful. Wheel file available at {whl_path}")
     else:
-        print(f"Build failed.")
+        print("Build failed.")
     return whl_path
 
 
