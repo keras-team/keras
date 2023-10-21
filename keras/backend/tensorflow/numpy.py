@@ -798,7 +798,7 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
     if axis is None:
         y = tf.reshape(x, [-1])
     else:
-        x_ndims = tf.TensorShape(x.shape).rank
+        x_ndims = len(x.shape)
 
         # _make_static_axis_non_negative_list
         axis = list(map(lambda x: x if x >= 0 else x + x_ndims, axis))
@@ -807,8 +807,8 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
         other_dims = sorted(set(range(x_ndims)).difference(axis))
         perm = other_dims + list(axis)
         x_permed = tf.transpose(a=x, perm=perm)
-        if tf.TensorShape(x.shape).is_fully_defined():
-            x_shape = tf.TensorShape(x.shape).as_list()
+        if None not in x.shape:
+            x_shape = list(x.shape)
             other_shape = [x_shape[i] for i in other_dims]
             end_shape = [math.prod([x_shape[i] for i in axis])]
             full_shape = other_shape + end_shape

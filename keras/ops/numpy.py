@@ -4150,13 +4150,13 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
         method: A string specifies the method to use for estimating the
             quantile. Available methods are `"linear"`, `"lower"`, `"higher"`,
             `"midpoint"`, and `"nearest"`. Defaults to `"linear"`.
-            If the desired quantile lies between two data points i < j:
-            - `"linear"`: i + (j - i) * fraction, where fraction is the
-                fractional part of the index surrounded by i and j.
-            - `"lower"`: i.
-            - `"higher"`: j.
-            - `"midpoint"`: (i + j) / 2
-            - `"nearest"`: i or j, whichever is nearest.
+            If the desired quantile lies between two data points `i < j`:
+            - `"linear"`: `i + (j - i) * fraction`, where fraction is the
+                fractional part of the index surrounded by `i` and `j`.
+            - `"lower"`: `i`.
+            - `"higher"`: `j`.
+            - `"midpoint"`: `(i + j) / 2`
+            - `"nearest"`: `i` or `j`, whichever is nearest.
         keepdims: If this is set to `True`, the axes which are reduce
             are left in the result as dimensions with size one.
 
