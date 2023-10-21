@@ -819,9 +819,11 @@ class LayerTest(testing.TestCase):
             def __init__(self):
                 super().__init__()
                 self.w1 = self.add_weight()
-                self.w2 = self.add_weight(dtype="int32")
-                self.w3 = self.add_weight(dtype="bool")
-                self.w4 = self.add_weight(dtype="int32", shape=(2, 2))
+                self.w2 = self.add_weight(dtype="int32", trainable=False)
+                self.w3 = self.add_weight(dtype="bool", trainable=False)
+                self.w4 = self.add_weight(
+                    dtype="int32", shape=(2, 2), trainable=False
+                )
                 self.w5 = self.add_weight(initializer="ones", shape=(2, 2))
 
         layer = MyLayer()
