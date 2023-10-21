@@ -179,7 +179,10 @@ def build_and_save_output(root_path, __version__):
     for fname in os.listdir(dist_directory):
         if __version__ in fname and fname.endswith(".whl"):
             whl_path = os.path.abspath(os.path.join(dist_directory, fname))
-    print(f"Build successful. Wheel file available at {whl_path}")
+    if whl_path:
+        print(f"Build successful. Wheel file available at {whl_path}")
+    else:
+        print(f"Build failed.")
     return whl_path
 
 
