@@ -1,6 +1,6 @@
+import builtins
 import math
 
-import numpy as np
 import torch
 
 from keras.backend import KerasTensor
@@ -1206,7 +1206,7 @@ def eye(N, M=None, k=None, dtype=None):
     k = 0 if k is None else k
     if k == 0:
         return torch.eye(N, M, dtype=dtype, device=get_device())
-    diag_length = np.maximum(N, M)
+    diag_length = builtins.max(N, M)
     diag = torch.ones(diag_length, dtype=dtype, device=get_device())
     return torch.diag(diag, diagonal=k)[:N, :M]
 
