@@ -440,6 +440,22 @@ def maximum(x1, x2):
     return jnp.maximum(x1, x2)
 
 
+def median(x, axis=None, keepdims=False):
+    # axis of jnp.median must be hashable
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    if standardize_dtype(x.dtype) == "int64":
+        x = cast(x, config.floatx())
+
+    result = jnp.median(x, axis=axis, keepdims=keepdims)
+
+    # TODO: jnp.median failed to keepdims when axis is None
+    if keepdims is True and axis is None:
+        for _ in range(x.ndim - 1):
+            result = jnp.expand_dims(result, axis=-1)
+    return result
+
+
 def meshgrid(*x, indexing="xy"):
     return jnp.meshgrid(*x, indexing=indexing)
 
@@ -500,6 +516,21 @@ def pad(x, pad_width, mode="constant"):
 
 def prod(x, axis=None, keepdims=False, dtype=None):
     return jnp.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
+
+
+def quantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    if standardize_dtype(x.dtype) == "int64":
+        x = cast(x, config.floatx())
+
+    result = jnp.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+    # TODO: jnp.quantile failed to keepdims when axis is None
+    if keepdims is True and axis is None:
+        for _ in range(x.ndim - 1):
+            result = jnp.expand_dims(result, axis=-1)
+    return result
 
 
 def ravel(x):
