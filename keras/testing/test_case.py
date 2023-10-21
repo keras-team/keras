@@ -22,14 +22,14 @@ class TestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if traceback_utils.is_traceback_filtering_enabled():
-            traceback_utils.disable_traceback_filtering()
 
     def setUp(self):
         # clear global state so that test cases are independent
         # required for the jit enabled torch tests since dynamo has
         # a global cache for guards, compiled fn, etc
         clear_session()
+        if traceback_utils.is_traceback_filtering_enabled():
+            traceback_utils.disable_traceback_filtering()
 
     def get_temp_dir(self):
         temp_dir = tempfile.mkdtemp()
