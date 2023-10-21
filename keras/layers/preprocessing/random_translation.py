@@ -185,14 +185,14 @@ class RandomTranslation(TFDataLayer):
             shape=[batch_size, 1],
             seed=seed_generator,
         )
-        height_translate = height_translate * height
+        height_translate = self.backend.numpy.multiply(height_translate, height)
         width_translate = self.backend.random.uniform(
             minval=self.width_lower,
             maxval=self.width_upper,
             shape=[batch_size, 1],
             seed=seed_generator,
         )
-        width_translate = width_translate * width
+        width_translate = self.backend.numpy.multiply(width_translate, width)
         translations = self.backend.cast(
             self.backend.numpy.concatenate(
                 [width_translate, height_translate], axis=1

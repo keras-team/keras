@@ -813,3 +813,35 @@ class LayerTest(testing.TestCase):
 
         layer = MyLayer()
         self.assertEqual(len(layer.weights), 1)
+
+    def test_add_weight_defaults(self):
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w1 = self.add_weight()
+                self.w2 = self.add_weight(dtype="int32")
+                self.w3 = self.add_weight(dtype="bool")
+                self.w4 = self.add_weight(dtype="int32", shape=(2, 2))
+                self.w5 = self.add_weight(initializer="ones", shape=(2, 2))
+
+        layer = MyLayer()
+        self.assertEqual(layer.w1.shape, ())
+        self.assertEqual(layer.w1.dtype, "float32")
+
+        self.assertEqual(layer.w2.shape, ())
+        self.assertEqual(layer.w2.dtype, "int32")
+        self.assertAllClose(backend.convert_to_numpy(layer.w2), 0)
+
+        self.assertEqual(layer.w3.shape, ())
+        self.assertEqual(layer.w3.dtype, "bool")
+        self.assertAllClose(backend.convert_to_numpy(layer.w3), False)
+
+        self.assertEqual(layer.w4.shape, (2, 2))
+        self.assertEqual(layer.w4.dtype, "int32")
+        self.assertAllClose(
+            backend.convert_to_numpy(layer.w4), np.zeros((2, 2))
+        )
+
+        self.assertEqual(layer.w5.shape, (2, 2))
+        self.assertEqual(layer.w5.dtype, "float32")
+        self.assertAllClose(backend.convert_to_numpy(layer.w5), np.ones((2, 2)))
