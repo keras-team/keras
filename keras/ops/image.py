@@ -568,7 +568,6 @@ def _pad_image(
     right_padding,
     target_height,
     target_width,
-    check_dims,
 ):
     image = backend.convert_to_tensor(image)
     is_batch = True
@@ -609,15 +608,14 @@ def _pad_image(
     if bottom_padding is None:
         bottom_padding = target_height - top_padding - height
 
-    if check_dims:
-        if not top_padding >= 0:
-            raise ValueError("top_padding must be >= 0")
-        if not left_padding >= 0:
-            raise ValueError("left_padding must be >= 0")
-        if not right_padding >= 0:
-            raise ValueError("width must be <= target - offset")
-        if not bottom_padding >= 0:
-            raise ValueError("height must be <= target - offset")
+    if not top_padding >= 0:
+        raise ValueError("top_padding must be >= 0")
+    if not left_padding >= 0:
+        raise ValueError("left_padding must be >= 0")
+    if not right_padding >= 0:
+        raise ValueError("width must be <= target - offset")
+    if not bottom_padding >= 0:
+        raise ValueError("height must be <= target - offset")
 
     paddings = backend.numpy.reshape(
         backend.numpy.stack(
@@ -657,7 +655,6 @@ def pad_image(
     target_width,
     bottom_padding=None,
     right_padding=None,
-    check_dims=True,
 ):
     """Pad `image` with zeros to the specified `height` and `width`.
 
@@ -670,11 +667,6 @@ def pad_image(
         right_padding: Number of columns of zeros to add on the right.
         target_height: Height of output image.
         target_width: Width of output image.
-        check_dims: If True, assert that dimensions are non-negative and in
-            range. In multi-GPU distributed settings, assertions can cause
-            program slowdown. Setting this parameter to `False` avoids this,
-            resulting in faster speed in some situations, with the tradeoff
-            being that some error checking is not happening.
 
     Returns:
         If `image` was 4-D, a 4-D float Tensor of shape
@@ -706,7 +698,6 @@ def pad_image(
             right_padding,
             target_height,
             target_width,
-            check_dims,
         ).symbolic_call(image)
 
     return _pad_image(
@@ -717,5 +708,4 @@ def pad_image(
         right_padding,
         target_height,
         target_width,
-        check_dims,
     )
