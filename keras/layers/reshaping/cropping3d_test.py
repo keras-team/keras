@@ -162,3 +162,31 @@ class Cropping3DTest(testing.TestCase, parameterized.TestCase):
             layers.Cropping3D(cropping=((1, 2), (3, 4), (5, -6)))
         with self.assertRaises(ValueError):
             layers.Cropping3D(cropping=((1, 2), (3, 4), "5"))
+
+    @parameterized.product(
+        (
+            {"cropping": ((8, 1), (1, 1), (1, 1))},
+            {"cropping": ((1, 1), (10, 1), (1, 1))},
+            {"cropping": ((1, 1), (1, 1), (14, 1))},
+        ),
+        (
+            {"data_format": "channels_first"},
+            {"data_format": "channels_last"},
+        ),
+    )
+    def test_cropping_3d_with_excessive_cropping(self, cropping, data_format):
+        if data_format == "channels_first":
+            shape = (3, 5, 7, 9, 13)
+            input_layer = layers.Input(batch_shape=shape)
+        else:
+            shape = (3, 7, 9, 13, 5)
+            input_layer = layers.Input(batch_shape=shape)
+
+        expected_error_msg = (
+            "Values in `cropping` argument should be greater than the"
+        )
+
+        with self.assertRaisesRegex(ValueError, expected_error_msg):
+            layers.Cropping3D(cropping=cropping, data_format=data_format)(
+                input_layer
+            )
