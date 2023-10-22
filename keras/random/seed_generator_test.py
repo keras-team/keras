@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras import backend
 from keras import ops
@@ -61,10 +62,10 @@ class SeedGeneratorTest(testing.TestCase):
         ):
             seed_generator.SeedGenerator(invalid_arg="unexpected_value")
 
+    @pytest.mark.skipif(
+        backend.backend() != "jax", reason="This test requires the JAX backend"
+    )
     def test_jax_tracing_with_global_seed_generator(self):
-        if backend.backend() != "jax":
-            self.skipTest("This test requires the JAX backend.")
-
         import jax
 
         @jax.jit
@@ -73,6 +74,6 @@ class SeedGeneratorTest(testing.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "When tracing a JAX function, you should only use seeded random ops",
+            "When tracing a JAX function, you should only use seeded random",
         ):
             traced_function()
