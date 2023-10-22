@@ -60,3 +60,19 @@ class SeedGeneratorTest(testing.TestCase):
             ValueError, "Unrecognized keyword arguments"
         ):
             seed_generator.SeedGenerator(invalid_arg="unexpected_value")
+
+    def test_jax_tracing_with_global_seed_generator(self):
+        if backend.backend() != "jax":
+            self.skipTest("This test requires the JAX backend.")
+
+        import jax
+
+        @jax.jit
+        def traced_function():
+            return seed_generator.global_seed_generator().next()
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "When tracing a JAX function, you should only use seeded random ops",
+        ):
+            traced_function()
