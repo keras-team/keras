@@ -506,15 +506,15 @@ def map_coordinates(
 class PadImage(Operation):
     def __init__(
         self,
-        offset_height,
-        offset_width,
+        top_padding,
+        left_padding,
         target_height,
         target_width,
         check_dims=True,
     ):
         super().__init__()
-        self.offset_height = offset_height
-        self.offset_width = offset_width
+        self.top_padding = top_padding
+        self.left_padding = left_padding
         self.target_height = target_height
         self.target_width = target_width
         self.check_dims = check_dims
@@ -522,8 +522,8 @@ class PadImage(Operation):
     def call(self, image):
         return _pad_image(
             image,
-            self.offset_height,
-            self.offset_width,
+            self.top_padding,
+            self.left_padding,
             self.target_height,
             self.target_width,
             self.check_dims,
@@ -545,7 +545,7 @@ class PadImage(Operation):
 
 
 def _pad_image(
-    image, offset_height, offset_width, target_height, target_width, check_dims
+    image, top_padding, left_padding, target_height, target_width, check_dims
 ):
     image = backend.convert_to_tensor(image)
     is_batch = True
@@ -559,14 +559,14 @@ def _pad_image(
         )
 
     batch, height, width, depth = image.shape
-    after_padding_width = target_width - offset_width - width
-    after_padding_height = target_height - offset_height - height
+    after_padding_width = target_width - left_padding - width
+    after_padding_height = target_height - top_padding - height
 
     if check_dims:
-        if not offset_height >= 0:
-            raise ValueError("offset_height must be >= 0")
-        if not offset_width >= 0:
-            raise ValueError("offset_width must be >= 0")
+        if not top_padding >= 0:
+            raise ValueError("top_padding must be >= 0")
+        if not left_padding >= 0:
+            raise ValueError("left_padding must be >= 0")
         if not after_padding_width >= 0:
             raise ValueError("width must be <= target - offset")
         if not after_padding_height >= 0:
@@ -577,9 +577,9 @@ def _pad_image(
             [
                 0,
                 0,
-                offset_height,
+                top_padding,
                 after_padding_height,
-                offset_width,
+                left_padding,
                 after_padding_width,
                 0,
                 0,
@@ -600,8 +600,8 @@ def _pad_image(
 @keras_export("keras.ops.image.pad_image")
 def pad_image(
     image,
-    offset_height,
-    offset_width,
+    top_padding,
+    left_padding,
     target_height,
     target_width,
     check_dims=True,
@@ -611,8 +611,8 @@ def pad_image(
     Args:
         image: 4-D Tensor of shape `[batch, height, width, channels]` or 3-D
             Tensor of shape `[height, width, channels]`.
-        offset_height: Number of rows of zeros to add on top.
-        offset_width: Number of columns of zeros to add on the left.
+        top_padding: Number of rows of zeros to add on top.
+        left_padding: Number of columns of zeros to add on the left.
         target_height: Height of output image.
         target_width: Width of output image.
         check_dims: If True, assert that dimensions are non-negative and in
@@ -643,13 +643,13 @@ def pad_image(
 
     if any_symbolic_tensors((image,)):
         return PadImage(
-            offset_height, offset_width, target_height, target_width, check_dims
+            top_padding, left_padding, target_height, target_width, check_dims
         ).symbolic_call(image)
 
     return _pad_image(
         image,
-        offset_height,
-        offset_width,
+        top_padding,
+        left_padding,
         target_height,
         target_width,
         check_dims,
