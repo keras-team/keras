@@ -54,3 +54,9 @@ class SeedGeneratorTest(testing.TestCase):
             ValueError, "Argument `seed` must be either an integer"
         ):
             seed_generator.draw_seed("invalid_seed")
+
+    def test_seed_generator_unexpected_kwargs(self):
+        with self.assertRaisesRegex(
+            ValueError, "Unrecognized keyword arguments"
+        ):
+            seed_generator.SeedGenerator(invalid_arg="unexpected_value")
