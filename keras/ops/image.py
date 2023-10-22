@@ -1,3 +1,5 @@
+import warnings
+
 from keras import backend
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
@@ -507,14 +509,18 @@ class PadImage(Operation):
     def __init__(
         self,
         top_padding,
+        bottom_padding,
         left_padding,
+        right_padding,
         target_height,
         target_width,
         check_dims=True,
     ):
         super().__init__()
         self.top_padding = top_padding
+        self.bottom_padding = bottom_padding
         self.left_padding = left_padding
+        self.right_padding = right_padding
         self.target_height = target_height
         self.target_width = target_width
         self.check_dims = check_dims
@@ -523,13 +529,23 @@ class PadImage(Operation):
         return _pad_image(
             image,
             self.top_padding,
+            self.bottom_padding,
             self.left_padding,
+            self.right_padding,
             self.target_height,
             self.target_width,
             self.check_dims,
         )
 
     def compute_output_spec(self, image):
+        if self.target_height is None:
+            self.target_height = (
+                self.top_padding + image.shape[1] + self.bottom_padding
+            )
+        if self.target_width is None:
+            self.target_width = (
+                self.left_padding + image.shape[2] + self.right_padding
+            )
         out_shape = (
             image.shape[0],
             self.target_height,
@@ -545,7 +561,14 @@ class PadImage(Operation):
 
 
 def _pad_image(
-    image, top_padding, left_padding, target_height, target_width, check_dims
+    image,
+    top_padding,
+    bottom_padding,
+    left_padding,
+    right_padding,
+    target_height,
+    target_width,
+    check_dims,
 ):
     image = backend.convert_to_tensor(image)
     is_batch = True
@@ -559,17 +582,41 @@ def _pad_image(
         )
 
     batch, height, width, depth = image.shape
-    after_padding_width = target_width - left_padding - width
-    after_padding_height = target_height - top_padding - height
+
+    if right_padding is None and target_width is None:
+        raise ValueError("right_padding and target_width both cannot be None.")
+    if right_padding is not None and target_width is not None:
+        right_padding = None
+        warnings.warn(
+            "Both right_padding and target_width were provided. "
+            "Setting right_padding to None. target_width will be "
+            "used for calculating right_padding."
+        )
+    if right_padding is None:
+        right_padding = target_width - left_padding - width
+
+    if bottom_padding is None and target_height is None:
+        raise ValueError(
+            "bottom_padding and target_height both cannot " "be None."
+        )
+    if bottom_padding is not None and target_height is not None:
+        bottom_padding = None
+        warnings.warn(
+            "Both bottom_padding and target_height were provided. "
+            "Setting bottom_padding to None. target_height will be "
+            "used for calculating bottom_padding."
+        )
+    if bottom_padding is None:
+        bottom_padding = target_height - top_padding - height
 
     if check_dims:
         if not top_padding >= 0:
             raise ValueError("top_padding must be >= 0")
         if not left_padding >= 0:
             raise ValueError("left_padding must be >= 0")
-        if not after_padding_width >= 0:
+        if not right_padding >= 0:
             raise ValueError("width must be <= target - offset")
-        if not after_padding_height >= 0:
+        if not bottom_padding >= 0:
             raise ValueError("height must be <= target - offset")
 
     paddings = backend.numpy.reshape(
@@ -578,9 +625,9 @@ def _pad_image(
                 0,
                 0,
                 top_padding,
-                after_padding_height,
+                bottom_padding,
                 left_padding,
-                after_padding_width,
+                right_padding,
                 0,
                 0,
             ]
@@ -589,6 +636,10 @@ def _pad_image(
     )
     padded = backend.numpy.pad(image, paddings)
 
+    if target_height is None:
+        target_height = top_padding + height + bottom_padding
+    if target_width is None:
+        target_width = left_padding + width + right_padding
     padded_shape = [batch, target_height, target_width, depth]
     padded = backend.numpy.reshape(padded, padded_shape)
 
@@ -604,6 +655,8 @@ def pad_image(
     left_padding,
     target_height,
     target_width,
+    bottom_padding=None,
+    right_padding=None,
     check_dims=True,
 ):
     """Pad `image` with zeros to the specified `height` and `width`.
@@ -612,7 +665,9 @@ def pad_image(
         image: 4-D Tensor of shape `[batch, height, width, channels]` or 3-D
             Tensor of shape `[height, width, channels]`.
         top_padding: Number of rows of zeros to add on top.
+        bottom_padding: Number of rows of zeros to add at the bottom.
         left_padding: Number of columns of zeros to add on the left.
+        right_padding: Number of columns of zeros to add on the right.
         target_height: Height of output image.
         target_width: Width of output image.
         check_dims: If True, assert that dimensions are non-negative and in
@@ -630,26 +685,36 @@ def pad_image(
     Example:
 
     >>> image = np.random.random((15, 25, 3))
-    >>> padded_image = keras.ops.image.pad_image(image, 2, 3, 20, 30)
+    >>> padded_image = keras.ops.image.pad_image(
+    ...     image, 2, 3, target_height=20, target_width=30
+    ... )
     >>> padded_image.shape
     (20, 30, 3)
 
     >>> batch_images = np.random.random((2, 15, 25, 3))
     >>> padded_batch = keras.ops.image.pad_image(
-    ...     batch_images, 2, 3, 20, 30
+    ...     batch_images, 2, 3, target_height=20, target_width=30
     ... )
     >>> padded_batch.shape
     (2, 20, 30, 3)"""
 
     if any_symbolic_tensors((image,)):
         return PadImage(
-            top_padding, left_padding, target_height, target_width, check_dims
+            top_padding,
+            bottom_padding,
+            left_padding,
+            right_padding,
+            target_height,
+            target_width,
+            check_dims,
         ).symbolic_call(image)
 
     return _pad_image(
         image,
         top_padding,
+        bottom_padding,
         left_padding,
+        right_padding,
         target_height,
         target_width,
         check_dims,
