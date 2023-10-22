@@ -503,7 +503,7 @@ def map_coordinates(
     )
 
 
-class PadToBoundingBox(Operation):
+class PadImage(Operation):
     def __init__(
         self,
         offset_height,
@@ -520,7 +520,7 @@ class PadToBoundingBox(Operation):
         self.check_dims = check_dims
 
     def call(self, image):
-        return _pad_to_bounding_box(
+        return _pad_image(
             image,
             self.offset_height,
             self.offset_width,
@@ -544,7 +544,7 @@ class PadToBoundingBox(Operation):
         )
 
 
-def _pad_to_bounding_box(
+def _pad_image(
     image, offset_height, offset_width, target_height, target_width, check_dims
 ):
     image = backend.convert_to_tensor(image)
@@ -597,8 +597,8 @@ def _pad_to_bounding_box(
     return padded
 
 
-@keras_export("keras.ops.image.pad_to_bounding_box")
-def pad_to_bounding_box(
+@keras_export("keras.ops.image.pad_image")
+def pad_image(
     image,
     offset_height,
     offset_width,
@@ -630,23 +630,23 @@ def pad_to_bounding_box(
     Example:
 
     >>> image = np.random.random((15, 25, 3))
-    >>> padded_image = keras.ops.image.pad_to_bounding_box(image, 2, 3, 20, 30)
+    >>> padded_image = keras.ops.image.pad_image(image, 2, 3, 20, 30)
     >>> padded_image.shape
     (20, 30, 3)
 
     >>> batch_images = np.random.random((2, 15, 25, 3))
-    >>> padded_batch = keras.ops.image.pad_to_bounding_box(
+    >>> padded_batch = keras.ops.image.pad_image(
     ...     batch_images, 2, 3, 20, 30
     ... )
     >>> padded_batch.shape
     (2, 20, 30, 3)"""
 
     if any_symbolic_tensors((image,)):
-        return PadToBoundingBox(
+        return PadImage(
             offset_height, offset_width, target_height, target_width, check_dims
         ).symbolic_call(image)
 
-    return _pad_to_bounding_box(
+    return _pad_image(
         image,
         offset_height,
         offset_width,
