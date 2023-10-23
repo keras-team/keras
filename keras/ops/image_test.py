@@ -42,6 +42,11 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.map_coordinates(input, coordinates, 0)
         self.assertEqual(out.shape, coordinates.shape[1:])
 
+    def test_pad_image(self):
+        x = KerasTensor([None, 15, 25, 3])
+        out = kimage.pad_image(x, 2, 3, target_height=20, target_width=30)
+        self.assertEqual(out.shape, (None, 20, 30, 3))
+
 
 class ImageOpsStaticShapeTest(testing.TestCase):
     def test_resize(self):
