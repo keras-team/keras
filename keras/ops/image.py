@@ -505,7 +505,7 @@ def map_coordinates(
     )
 
 
-class PadImage(Operation):
+class PadImages(Operation):
     def __init__(
         self,
         top_padding,
@@ -524,7 +524,7 @@ class PadImage(Operation):
         self.target_width = target_width
 
     def call(self, image):
-        return _pad_image(
+        return _pad_images(
             image,
             self.top_padding,
             self.bottom_padding,
@@ -561,7 +561,7 @@ class PadImage(Operation):
         )
 
 
-def _pad_image(
+def _pad_images(
     image,
     top_padding,
     bottom_padding,
@@ -647,8 +647,8 @@ def _pad_image(
     return padded
 
 
-@keras_export("keras.ops.image.pad_image")
-def pad_image(
+@keras_export("keras.ops.image.pad_images")
+def pad_images(
     image,
     top_padding,
     left_padding,
@@ -678,14 +678,14 @@ def pad_image(
     Example:
 
     >>> image = np.random.random((15, 25, 3))
-    >>> padded_image = keras.ops.image.pad_image(
+    >>> padded_image = keras.ops.image.pad_images(
     ...     image, 2, 3, target_height=20, target_width=30
     ... )
     >>> padded_image.shape
     (20, 30, 3)
 
     >>> batch_images = np.random.random((2, 15, 25, 3))
-    >>> padded_batch = keras.ops.image.pad_image(
+    >>> padded_batch = keras.ops.image.pad_images(
     ...     batch_images, 2, 3, target_height=20, target_width=30
     ... )
     >>> padded_batch.shape
@@ -701,7 +701,7 @@ def pad_image(
             target_width,
         ).symbolic_call(image)
 
-    return _pad_image(
+    return _pad_images(
         image,
         top_padding,
         bottom_padding,
