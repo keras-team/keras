@@ -74,6 +74,17 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         out = kimage.map_coordinates(input, coordinates, 0)
         self.assertEqual(out.shape, coordinates.shape[1:])
 
+    def test_pad_image(self):
+        x = KerasTensor([15, 25, 3])
+        out = kimage.pad_image(x, 2, 3, target_height=20, target_width=30)
+        self.assertEqual(out.shape, (20, 30, 3))
+
+        x_batch = KerasTensor([2, 15, 25, 3])
+        out_batch = kimage.pad_image(
+            x_batch, 2, 3, target_height=20, target_width=30
+        )
+        self.assertEqual(out_batch.shape, (2, 20, 30, 3))
+
 
 AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
     "nearest": 0,
