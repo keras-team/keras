@@ -1,5 +1,3 @@
-import warnings
-
 from keras import backend
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
@@ -580,37 +578,31 @@ def _pad_images(
         images = backend.numpy.expand_dims(images, 0)
     elif len(images_shape) != 4:
         raise ValueError(
-            f"'images' (shape {images_shape}) must have"
+            f"'images' (shape {images_shape}) must have "
             "either 3 or 4 dimensions."
         )
 
     batch, height, width, depth = images.shape
 
-    if right_padding is None and target_width is None:
-        raise ValueError("right_padding and target_width both cannot be None.")
-    if right_padding is not None and target_width is not None:
-        right_padding = None
-        warnings.warn(
-            "Both right_padding and target_width were provided. "
-            "Setting right_padding to None. target_width will be "
-            "used for calculating right_padding."
-        )
-    if right_padding is None:
-        right_padding = target_width - left_padding - width
-
-    if bottom_padding is None and target_height is None:
+    if [top_padding, bottom_padding, target_height].count(None) > 1:
         raise ValueError(
-            "bottom_padding and target_height both cannot " "be None."
+            "Must specify exactly two of "
+            "top_padding, bottom_padding, target_height"
         )
-    if bottom_padding is not None and target_height is not None:
-        bottom_padding = None
-        warnings.warn(
-            "Both bottom_padding and target_height were provided. "
-            "Setting bottom_padding to None. target_height will be "
-            "used for calculating bottom_padding."
+    if [left_padding, right_padding, target_width].count(None) > 1:
+        raise ValueError(
+            "Must specify exactly two of "
+            "left_padding, right_padding, target_width"
         )
+
+    if top_padding is None:
+        top_padding = target_height - bottom_padding - height
     if bottom_padding is None:
         bottom_padding = target_height - top_padding - height
+    if left_padding is None:
+        left_padding = target_width - right_padding - width
+    if right_padding is None:
+        right_padding = target_width - left_padding - width
 
     if not top_padding >= 0:
         raise ValueError("top_padding must be >= 0")
@@ -653,10 +645,10 @@ def _pad_images(
 @keras_export("keras.ops.image.pad_images")
 def pad_images(
     images,
-    top_padding,
-    left_padding,
-    target_height,
-    target_width,
+    top_padding=None,
+    left_padding=None,
+    target_height=None,
+    target_width=None,
     bottom_padding=None,
     right_padding=None,
 ):
