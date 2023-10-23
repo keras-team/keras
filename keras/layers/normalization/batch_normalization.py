@@ -68,10 +68,10 @@ class BatchNormalization(Layer):
         gamma_regularizer: Optional regularizer for the gamma weight.
         beta_constraint: Optional constraint for the beta weight.
         gamma_constraint: Optional constraint for the gamma weight.
-        synchronized: If True, synchronizes the global batch statistics (mean and
-        variance) for the layer across all devices at each training step in a
-        distributed training strategy. If False, each replica uses its own
-        local batch statistics.
+        synchronized: If `True`, synchronizes the global batch statistics (mean and
+            variance) for the layer across all devices at each training step in a
+            distributed training strategy. If `False`, each replica uses its own
+            local batch statistics.
         **kwargs: Base layer keyword arguments (e.g. `name` and `dtype`).
 
     Call arguments:
@@ -136,8 +136,10 @@ class BatchNormalization(Layer):
         super().__init__(**kwargs)
         self.axis = int(axis)
 
+        if synchronized and backend.backend() != "tensorflow":
+            raise ValueError("Argument synchronized=True is only supported with the TensorFlow backend.")
+
         self.synchronized = synchronized
-        # TODO: Set fused=False if synchronized is True
 
         self.momentum = float(momentum)
         self.epsilon = float(epsilon)
@@ -205,18 +207,13 @@ class BatchNormalization(Layer):
             return ops.moments(
                 inputs, axes=self._reduction_axes, keepdims=True
             )
-        else:
-            return self.calulate_sync_mean_and_var(inputs)
-
-
-    def calulate_sync_mean_and_var(self, inputs):
 
         axes = self._reduction_axes
         y = inputs
 
         if backend() == "tensorflow":
             
-            from backend.tensorflow.distribution_lib import tf
+            from keras.utils.module_utils import tensorflow as tf
             replica_ctx = tf.distribute.get_replica_context()
 
             if replica_ctx:
