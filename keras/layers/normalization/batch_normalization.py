@@ -201,7 +201,7 @@ class BatchNormalization(Layer):
         return input_shape
     
 
-    def calculate_mean_and_var(self, inputs):
+    def _calculate_mean_and_var(self, inputs):
 
         if not self.synchronized:
             return ops.moments(
@@ -264,7 +264,7 @@ class BatchNormalization(Layer):
         broadcast_shape = [1] * len(inputs.shape)
         broadcast_shape[self.axis] = inputs.shape[self.axis]
         if training and self.trainable:
-            mean, variance = self.calculate_mean_and_var(inputs)
+            mean, variance = self._calculate_mean_and_var(inputs)
             moving_mean = ops.cast(self.moving_mean, inputs.dtype)
             moving_variance = ops.cast(self.moving_variance, inputs.dtype)
             self.moving_mean.assign(
