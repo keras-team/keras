@@ -651,6 +651,49 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertEqual(out.shape, (3, 4))
 
     @pytest.mark.requires_trainable_backend
+    def test_for_eval_epoch_iterator(self):
+        model = ExampleModel(units=3)
+        model.compile(
+            optimizer="adam", loss="mse", metrics=["mean_absolute_error"]
+        )
+        x = np.ones((16, 4))
+        y = np.zeros((16, 3))
+        x_test = np.ones((16, 4))
+        y_test = np.zeros((16, 3))
+        model.fit(
+            x,
+            y,
+            batch_size=4,
+            validation_data=(x_test, y_test),
+        )
+        assert getattr(model, "_eval_epoch_iterator", None) is None
+
+        # Try model.fit with reshaped validation_data
+        # This will throw an exception which is intended
+        try:
+            model.fit(
+                x,
+                y,
+                batch_size=4,
+                validation_data=(
+                    x_test.reshape((-1, 16, 4)),
+                    y_test.reshape((-1, 16, 3)),
+                ),
+            )
+        except:
+            pass
+
+        # Try model.fit with correct validation_data this should work.
+        # After successful training `_eval_epoch_iterator` should be None
+        model.fit(
+            x,
+            y,
+            batch_size=4,
+            validation_data=(x_test, y_test),
+        )
+        assert getattr(model, "_eval_epoch_iterator", None) is None
+
+    @pytest.mark.requires_trainable_backend
     def test_callback_methods_keys(self):
         class CustomCallback(Callback):
             def on_train_begin(self, logs=None):

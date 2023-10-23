@@ -265,6 +265,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
     ):
         self._assert_compile_called("fit")
         # TODO: respect compiled trainable state
+        self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported
             # for TF/numpy/jax arrays.
