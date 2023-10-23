@@ -539,12 +539,16 @@ class PadImage(Operation):
 
     def compute_output_spec(self, image):
         if self.target_height is None:
+            height_axis = 0 if len(image.shape) == 3 else 1
             self.target_height = (
-                self.top_padding + image.shape[1] + self.bottom_padding
+                self.top_padding
+                + image.shape[height_axis]
+                + self.bottom_padding
             )
         if self.target_width is None:
+            width_axis = 0 if len(image.shape) == 3 else 2
             self.target_width = (
-                self.left_padding + image.shape[2] + self.right_padding
+                self.left_padding + image.shape[width_axis] + self.right_padding
             )
         out_shape = (
             image.shape[0],
