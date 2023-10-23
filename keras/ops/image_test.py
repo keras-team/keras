@@ -433,3 +433,50 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         expected = _fixed_map_coordinates(input, coordinates, order, fill_mode)
 
         self.assertAllClose(output, expected)
+
+    @parameterized.expand(
+        [
+            (0, 0, 3, 3, None, None),
+            (1, 0, 4, 3, None, None),
+            (0, 1, 3, 4, None, None),
+            (0, 0, 4, 3, None, None),
+            (0, 0, 3, 4, None, None),
+            (0, 0, None, None, 0, 1),
+            (0, 0, None, None, 1, 0),
+            (1, 2, None, None, 3, 4),
+        ]
+    )
+    def test_pad_image(
+        self,
+        top_padding,
+        left_padding,
+        target_height,
+        target_width,
+        bottom_padding,
+        right_padding,
+    ):
+        image = np.random.uniform(size=(3, 3, 1))
+        padded_image = kimage.pad_image(
+            image,
+            top_padding,
+            left_padding,
+            target_height,
+            target_width,
+            bottom_padding,
+            right_padding,
+        )
+        if target_height is None:
+            target_height = image.shape[0] + top_padding + bottom_padding
+        if target_width is None:
+            target_width = image.shape[1] + left_padding + right_padding
+        ref_padded_image = tf.image.pad_to_bounding_box(
+            image, top_padding, left_padding, target_height, target_width
+        )
+        self.assertEqual(
+            tuple(padded_image.shape), tuple(ref_padded_image.shape)
+        )
+        self.assertAllClose(
+            padded_image.numpy(),
+            backend.convert_to_numpy(ref_padded_image),
+            atol=1e-5,
+        )
