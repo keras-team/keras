@@ -239,3 +239,10 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
             ValueError, "`keras.random.randint` requires an integer `dtype`."
         ):
             random.randint((3, 4), minval=0, maxval=10, dtype="float64")
+
+    def test_uniform_dtype_validation(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "`keras.random.uniform` requires a floating point `dtype`.",
+        ):
+            random.uniform((3, 4), minval=0, maxval=10, dtype="int64")

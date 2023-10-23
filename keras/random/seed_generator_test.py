@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras import backend
 from keras import ops
@@ -54,3 +55,25 @@ class SeedGeneratorTest(testing.TestCase):
             ValueError, "Argument `seed` must be either an integer"
         ):
             seed_generator.draw_seed("invalid_seed")
+
+    def test_seed_generator_unexpected_kwargs(self):
+        with self.assertRaisesRegex(
+            ValueError, "Unrecognized keyword arguments"
+        ):
+            seed_generator.SeedGenerator(invalid_arg="unexpected_value")
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax", reason="This test requires the JAX backend"
+    )
+    def test_jax_tracing_with_global_seed_generator(self):
+        import jax
+
+        @jax.jit
+        def traced_function():
+            return seed_generator.global_seed_generator().next()
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "When tracing a JAX function, you should only use seeded random",
+        ):
+            traced_function()
