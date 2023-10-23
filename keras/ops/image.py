@@ -660,7 +660,7 @@ def pad_images(
     """Pad `image` with zeros to the specified `height` and `width`.
 
     Args:
-        image: 4-D Tensor of shape `(batch, height, width, channels)` or 3-D
+        image: 4D Tensor of shape `(batch, height, width, channels)` or 3D
             Tensor of shape `(height, width, channels)`.
         top_padding: Number of rows of zeros to add on top.
         bottom_padding: Number of rows of zeros to add at the bottom.
@@ -670,9 +670,9 @@ def pad_images(
         target_width: Width of output image.
 
     Returns:
-        If `image` was 4-D, a 4-D float Tensor of shape
+        If `image` was 4D, a 4D float Tensor of shape
             `(batch, target_height, target_width, channels)`
-        If `image` was 3-D, a 3-D float Tensor of shape
+        If `image` was 3D, a 3D float Tensor of shape
             `(target_height, target_width, channels)`
 
     Example:
