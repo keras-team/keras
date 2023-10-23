@@ -514,7 +514,6 @@ class PadImage(Operation):
         right_padding,
         target_height,
         target_width,
-        check_dims=True,
     ):
         super().__init__()
         self.top_padding = top_padding
@@ -523,7 +522,6 @@ class PadImage(Operation):
         self.right_padding = right_padding
         self.target_height = target_height
         self.target_width = target_width
-        self.check_dims = check_dims
 
     def call(self, image):
         return _pad_image(
@@ -534,7 +532,6 @@ class PadImage(Operation):
             self.right_padding,
             self.target_height,
             self.target_width,
-            self.check_dims,
         )
 
     def compute_output_spec(self, image):
