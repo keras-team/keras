@@ -522,7 +522,11 @@ def binary_crossentropy(target, output, from_logits=False):
     return -bce
 
 
-def moments(x, axes, keepdims=False):
+def moments(x, axes, keepdims=False, synchronized=False):
+    if synchronized:
+        raise NotImplementedError(
+            "Argument synchronized=True is not supported with NumPy."
+        )
     axes = tuple(axes) if isinstance(axes, list) else axes
     # The dynamic range of float16 is too limited for statistics. As a
     # workaround, we simply perform the operations on float32 and convert back

@@ -649,7 +649,55 @@ def binary_crossentropy(target, output, from_logits=False):
     return -bce
 
 
-def moments(x, axes, keepdims=False):
+def moments(x, axes, keepdims=False, synchronized=False):
+    if synchronized:
+        return _compute_moments_sync(x, axes, keepdims)
+    else:
+        return _compute_moments(x, axes, keepdims)
+
+
+def _compute_moments_sync(x, axes, keepdims):
+    # The dynamic range of fp16 is too limited to support the collection
+    # of sufficient statistics. As a workaround we simply perform the
+    # operations on 32-bit floats before converting the mean and
+    # variance back to fp16
+    y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
+    replica_ctx = tf.distribute.get_replica_context()
+    if not replica_ctx:
+        return _compute_moments(x, axes, keepdims)
+
+    local_count = tf.ones_like(y, name="count")
+
+    local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
+    local_squared_sum = tf.reduce_sum(tf.square(y), axis=axes, keepdims=True)
+    local_count = tf.reduce_sum(local_count, axis=axes, keepdims=True)
+
+    # TODO(b/163099951): batch the all-reduces once we sort out the
+    # ordering issue for NCCL. We don't have a mechanism to launch
+    # NCCL in the same order in each replica nowadays, so we limit
+    # NCCL to batch all-reduces.
+    y_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_sum)
+    y_squared_sum = replica_ctx.all_reduce(
+        tf.distribute.ReduceOp.SUM, local_squared_sum
+    )
+    count_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_count)
+
+    mean = y_sum / count_sum
+    y_squared_mean = y_squared_sum / count_sum
+    # var = E(x^2) - E(x)^2
+    variance = y_squared_mean - tf.square(mean)
+    if not keepdims:
+        mean = tf.squeeze(mean, axes)
+        variance = tf.squeeze(variance, axes)
+    if x.dtype == tf.float16:
+        return (
+            tf.cast(mean, tf.float16),
+            tf.cast(variance, tf.float16),
+        )
+    return mean, variance
+
+
+def _compute_moments(x, axes, keepdims):
     # The dynamic range of float16 is too limited for statistics. As a
     # workaround, we simply perform the operations on float32 and convert back
     # to float16

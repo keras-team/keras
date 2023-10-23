@@ -619,7 +619,11 @@ def binary_crossentropy(target, output, from_logits=False):
         return tnn.binary_cross_entropy(output, target, reduction="none")
 
 
-def moments(x, axes, keepdims=False):
+def moments(x, axes, keepdims=False, synchronized=False):
+    if synchronized:
+        raise NotImplementedError(
+            "Argument synchronized=True is not supported with PyTorch."
+        )
     x = convert_to_tensor(x)
     # The dynamic range of float16 is too limited for statistics. As a
     # workaround, we simply perform the operations on float32 and convert back
