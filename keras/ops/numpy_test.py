@@ -193,6 +193,22 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.outer(x, y).shape, (None, None))
 
+    def test_quantile(self):
+        x = KerasTensor((None, 3))
+
+        # q as scalar
+        q = KerasTensor(())
+        self.assertEqual(knp.quantile(x, q).shape, ())
+
+        # q as 1D tensor
+        q = KerasTensor((2,))
+        self.assertEqual(knp.quantile(x, q).shape, (2,))
+        self.assertEqual(knp.quantile(x, q, axis=1).shape, (2, None))
+        self.assertEqual(
+            knp.quantile(x, q, axis=1, keepdims=True).shape,
+            (2, None, 1),
+        )
+
     def test_take(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.take(x, 1).shape, ())
@@ -815,6 +831,22 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.outer(x, 2).shape, (6, 1))
 
+    def test_quantile(self):
+        x = KerasTensor((3, 3))
+
+        # q as scalar
+        q = KerasTensor(())
+        self.assertEqual(knp.quantile(x, q).shape, ())
+
+        # q as 1D tensor
+        q = KerasTensor((2,))
+        self.assertEqual(knp.quantile(x, q).shape, (2,))
+        self.assertEqual(knp.quantile(x, q, axis=1).shape, (2, 3))
+        self.assertEqual(
+            knp.quantile(x, q, axis=1, keepdims=True).shape,
+            (2, 3, 1),
+        )
+
     def test_take(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.take(x, 1).shape, ())
@@ -1262,6 +1294,16 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_max(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.max(x).shape, ())
+
+    def test_median(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.median(x).shape, ())
+
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(knp.median(x, axis=1).shape, (None, 3))
+        self.assertEqual(
+            knp.median(x, axis=1, keepdims=True).shape, (None, 1, 3)
+        )
 
     def test_meshgrid(self):
         x = KerasTensor((None, 3))
@@ -1771,6 +1813,14 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_max(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.max(x).shape, ())
+
+    def test_median(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.median(x).shape, ())
+
+        x = KerasTensor((2, 3, 3))
+        self.assertEqual(knp.median(x, axis=1).shape, (2, 3))
+        self.assertEqual(knp.median(x, axis=1, keepdims=True).shape, (2, 1, 3))
 
     def test_meshgrid(self):
         x = KerasTensor((2, 3))
@@ -2429,6 +2479,47 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         y = np.ones([2, 3, 4, 5, 6])
         self.assertAllClose(knp.outer(x, y), np.outer(x, y))
         self.assertAllClose(knp.Outer()(x, y), np.outer(x, y))
+
+    def test_quantile(self):
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+
+        # q as scalar
+        q = np.array(0.5, dtype="float32")
+        self.assertAllClose(knp.quantile(x, q), np.quantile(x, q))
+        self.assertAllClose(
+            knp.quantile(x, q, keepdims=True), np.quantile(x, q, keepdims=True)
+        )
+
+        # q as 1D tensor
+        q = np.array([0.5, 1.0], dtype="float32")
+        self.assertAllClose(knp.quantile(x, q), np.quantile(x, q))
+        self.assertAllClose(
+            knp.quantile(x, q, keepdims=True), np.quantile(x, q, keepdims=True)
+        )
+        self.assertAllClose(
+            knp.quantile(x, q, axis=1), np.quantile(x, q, axis=1)
+        )
+        self.assertAllClose(
+            knp.quantile(x, q, axis=1, keepdims=True),
+            np.quantile(x, q, axis=1, keepdims=True),
+        )
+
+        # multiple axes
+        self.assertAllClose(
+            knp.quantile(x, q, axis=(1, 2)), np.quantile(x, q, axis=(1, 2))
+        )
+
+        # test all supported methods
+        q = np.array([0.501, 1.0], dtype="float32")
+        for method in ["linear", "lower", "higher", "midpoint", "nearest"]:
+            self.assertAllClose(
+                knp.quantile(x, q, method=method),
+                np.quantile(x, q, method=method),
+            )
+            self.assertAllClose(
+                knp.quantile(x, q, axis=1, method=method),
+                np.quantile(x, q, axis=1, method=method),
+            )
 
     def test_take(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
@@ -3454,6 +3545,26 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             knp.min(x, initial=1, keepdims=True),
             np.min(x, initial=1, keepdims=True),
+        )
+
+    def test_median(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]]).astype("float32")
+        self.assertAllClose(knp.median(x), np.median(x))
+        self.assertAllClose(
+            knp.median(x, keepdims=True), np.median(x, keepdims=True)
+        )
+        self.assertAllClose(knp.median(x, axis=1), np.median(x, axis=1))
+        self.assertAllClose(knp.median(x, axis=(1,)), np.median(x, axis=(1,)))
+        self.assertAllClose(
+            knp.median(x, axis=1, keepdims=True),
+            np.median(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(knp.Median()(x), np.median(x))
+        self.assertAllClose(knp.Median(axis=1)(x), np.median(x, axis=1))
+        self.assertAllClose(
+            knp.Median(axis=1, keepdims=True)(x),
+            np.median(x, axis=1, keepdims=True),
         )
 
     def test_meshgrid(self):
@@ -4507,6 +4618,48 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.LessEqual().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_median(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((3, 3), dtype=dtype)
+        x_jax = jnp.ones((3, 3), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.median(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.median(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Median().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.median(x, axis=1).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Median(axis=1).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_quantile(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((3,), dtype=dtype)
+        x_jax = jnp.ones((3,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.quantile(x_jax, 0.5).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(
+            standardize_dtype(knp.quantile(x, 0.5).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Quantile().symbolic_call(x, 0.5).dtype),
             expected_dtype,
         )
 

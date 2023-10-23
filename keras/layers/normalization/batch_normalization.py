@@ -1,3 +1,4 @@
+from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import ops
@@ -67,6 +68,11 @@ class BatchNormalization(Layer):
         gamma_regularizer: Optional regularizer for the gamma weight.
         beta_constraint: Optional constraint for the beta weight.
         gamma_constraint: Optional constraint for the gamma weight.
+        synchronized: Only applicable with the TensorFlow backend.
+            If `True`, synchronizes the global batch statistics (mean and
+            variance) for the layer across all devices at each training step
+            in a distributed training strategy.
+            If `False`, each replica uses its own local batch statistics.
         **kwargs: Base layer keyword arguments (e.g. `name` and `dtype`).
 
     Call arguments:
@@ -125,10 +131,19 @@ class BatchNormalization(Layer):
         gamma_regularizer=None,
         beta_constraint=None,
         gamma_constraint=None,
+        synchronized=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.axis = int(axis)
+
+        if synchronized and backend.backend() != "tensorflow":
+            raise ValueError(
+                "Argument synchronized=True is only supported "
+                "with the TensorFlow backend."
+            )
+        self.synchronized = synchronized
+
         self.momentum = float(momentum)
         self.epsilon = float(epsilon)
         self.center = center
@@ -199,7 +214,10 @@ class BatchNormalization(Layer):
         broadcast_shape[self.axis] = inputs.shape[self.axis]
         if training and self.trainable:
             mean, variance = ops.moments(
-                inputs, axes=self._reduction_axes, keepdims=True
+                inputs,
+                axes=self._reduction_axes,
+                keepdims=True,
+                synchronized=self.synchronized,
             )
             moving_mean = ops.cast(self.moving_mean, inputs.dtype)
             moving_variance = ops.cast(self.moving_variance, inputs.dtype)
@@ -264,5 +282,6 @@ class BatchNormalization(Layer):
             "gamma_regularizer": regularizers.serialize(self.gamma_regularizer),
             "beta_constraint": constraints.serialize(self.beta_constraint),
             "gamma_constraint": constraints.serialize(self.gamma_constraint),
+            "synchronized": self.synchronized,
         }
         return {**base_config, **config}

@@ -424,7 +424,7 @@ class DataParallel(Distribution):
         return None
 
     def distribute_dataset(self, dataset):
-        import tensorflow as tf
+        from keras.utils.module_utils import tensorflow as tf
         from tensorflow.python.data.experimental.ops import (
             distribute as tf_data_distribute,
         )

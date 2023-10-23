@@ -1570,13 +1570,19 @@ def multi_hot(inputs, num_tokens, axis=-1, dtype=None):
 
 
 class Moments(Operation):
-    def __init__(self, axes, keepdims=False, name=None):
+    def __init__(self, axes, keepdims=False, synchronized=False, name=None):
         super().__init__(name)
         self.axes = axes
         self.keepdims = keepdims
+        self.synchronized = synchronized
 
     def call(self, x):
-        return backend.nn.moments(x, axes=self.axes, keepdims=self.keepdims)
+        return backend.nn.moments(
+            x,
+            axes=self.axes,
+            keepdims=self.keepdims,
+            synchronized=self.synchronized,
+        )
 
     def compute_output_spec(self, x):
         return (
@@ -1597,7 +1603,7 @@ class Moments(Operation):
         "keras.ops.nn.moments",
     ]
 )
-def moments(x, axes, keepdims=False):
+def moments(x, axes, keepdims=False, synchronized=False):
     """Calculates the mean and variance of `x`.
 
     The mean and variance are calculated by aggregating the contents of `x`
@@ -1609,6 +1615,11 @@ def moments(x, axes, keepdims=False):
         axes: A list of axes which to compute mean and variance.
         keepdims: If this is set to `True`, the axes which are reduced are left
             in the result as dimensions with size one.
+        synchronized: Only applicable with the TensorFlow backend.
+            If `True`, synchronizes the global batch statistics (mean and
+            variance) across all devices at each training step in a
+            distributed training strategy. If `False`, each replica uses its own
+            local batch statistics.
 
     Returns:
         A tuple containing two tensors - mean and variance.
@@ -1621,6 +1632,8 @@ def moments(x, axes, keepdims=False):
 
     """
     if any_symbolic_tensors((x,)):
-        return Moments(axes, keepdims).symbolic_call(x)
+        return Moments(axes, keepdims, synchronized=synchronized).symbolic_call(
+            x
+        )
 
-    return backend.nn.moments(x, axes, keepdims)
+    return backend.nn.moments(x, axes, keepdims, synchronized=synchronized)
