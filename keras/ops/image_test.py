@@ -476,7 +476,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             tuple(padded_image.shape), tuple(ref_padded_image.shape)
         )
         self.assertAllClose(
-            padded_image.numpy(),
-            backend.convert_to_numpy(ref_padded_image),
+            ref_padded_image.numpy(),
+            backend.convert_to_numpy(padded_image),
             atol=1e-5,
         )
