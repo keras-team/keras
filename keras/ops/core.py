@@ -213,7 +213,7 @@ def slice_update(inputs, start_indices, updates):
 
 
 @keras_export("keras.ops.scan")
-def scan(f, init, xs, length=None, reverse=False, unroll=1):
+def scan(f, init, xs, length=None, reverse=False):
     """Scan a function over leading array axes while carrying along state.
 
     At a high level, this operation does
@@ -248,8 +248,8 @@ def scan(f, init, xs, length=None, reverse=False, unroll=1):
         A scanned array and a carry element.
     """
     if any_symbolic_tensors((init, xs)):
-        return SliceUpdate().symbolic_call(f, init, xs, length, reverse, unroll)
-    return backend.core.scan(f, init, xs, length, reverse, unroll)
+        return SliceUpdate().symbolic_call(f, init, xs, length, reverse)
+    return backend.core.scan(f, init, xs, length, reverse)
 
 
 class WhileLoop(Operation):

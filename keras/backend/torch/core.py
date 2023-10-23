@@ -335,14 +335,14 @@ def slice_update(inputs, start_indices, updates):
     return outputs
 
 
-def scan(f, init, xs, length=None, reverse=False, unroll=1):
+def scan(f, init, xs, length=None, reverse=False):
     if xs is None:
         xs = [None] * length
     carry = init
     ys = []
     xs = torch.tensor(xs)
     if reverse:
-      xs = torch.flip(xs,[-1])
+        xs = torch.flip(xs, [-1])
     for x in xs:
         carry, y = f(carry, x)
         ys.append(y)
