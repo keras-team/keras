@@ -31,8 +31,8 @@ def get_data_adapter(
         x
     ):
         raise ValueError(
-            "Only `tf.data.Dataset` is supported for multi worker "
-            f"distribution, received input types is {type(x)}"
+            "When using multi-worker distribution, the data must be provided "
+            f"as a `tf.data.Dataset` instance. Received: type(x)={type(x)}."
         )
 
     if array_data_adapter.can_convert_arrays((x, y, sample_weight)):

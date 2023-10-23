@@ -8,6 +8,16 @@ class TFDatasetAdapter(DataAdapter):
     """Adapter that handles `tf.data.Dataset`."""
 
     def __init__(self, dataset, class_weight=None, distribution=None):
+        """Iniitialize the TFDatasetAdapter.
+
+        Args:
+            dataset: The input `tf.data.Dataset` instance.
+            class_weight: A map where the keys are integer class ids and values
+                are the class weights, e.g. `{0: 0.2, 1: 0.6, 2: 0.3}`.
+            distribution: A `keras.distribution.Distribution` instance. Used to
+                shard the input dataset into per worker/process dataset
+                instance.
+        """
         from keras.utils.module_utils import tensorflow as tf
 
         if not isinstance(

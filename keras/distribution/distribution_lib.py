@@ -424,10 +424,11 @@ class DataParallel(Distribution):
         return None
 
     def distribute_dataset(self, dataset):
-        from keras.utils.module_utils import tensorflow as tf
         from tensorflow.python.data.experimental.ops import (
             distribute as tf_data_distribute,
         )
+
+        from keras.utils.module_utils import tensorflow as tf
 
         if not isinstance(dataset, tf.data.Dataset):
             raise ValueError(
@@ -440,7 +441,7 @@ class DataParallel(Distribution):
                 raise ValueError(
                     "The batch size of the input dataset is "
                     "unknown. Please config the batch size for "
-                    "the input dataset"
+                    "the input dataset, e.g via `dataset.batch(batch_size)`"
                 )
             per_worker_batch_size = tf_data_distribute.batch_sizes_for_worker(
                 global_batch_size=batch_size,

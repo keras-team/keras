@@ -115,7 +115,8 @@ def distribute_data_input(inputs, layout):
     Args:
         inputs: `jax.Array` that is already sharded to a local process size.
         layout: `TensorLayout` for the distribution information, or a
-        `jax.sharding.Sharding` instance.
+            `jax.sharding.Sharding` instance.
+
     Returns:
         Distributed inputs thats been properly put to local devices.
     """
