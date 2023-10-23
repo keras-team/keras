@@ -523,9 +523,9 @@ class PadImages(Operation):
         self.target_height = target_height
         self.target_width = target_width
 
-    def call(self, image):
+    def call(self, images):
         return _pad_images(
-            image,
+            images,
             self.top_padding,
             self.bottom_padding,
             self.left_padding,
@@ -534,35 +534,37 @@ class PadImages(Operation):
             self.target_width,
         )
 
-    def compute_output_spec(self, image):
+    def compute_output_spec(self, images):
         if self.target_height is None:
-            height_axis = 0 if len(image.shape) == 3 else 1
+            height_axis = 0 if len(images.shape) == 3 else 1
             self.target_height = (
                 self.top_padding
-                + image.shape[height_axis]
+                + images.shape[height_axis]
                 + self.bottom_padding
             )
         if self.target_width is None:
-            width_axis = 0 if len(image.shape) == 3 else 2
+            width_axis = 0 if len(images.shape) == 3 else 2
             self.target_width = (
-                self.left_padding + image.shape[width_axis] + self.right_padding
+                self.left_padding
+                + images.shape[width_axis]
+                + self.right_padding
             )
         out_shape = (
-            image.shape[0],
+            images.shape[0],
             self.target_height,
             self.target_width,
-            image.shape[-1],
+            images.shape[-1],
         )
-        if len(image.shape) == 3:
+        if len(images.shape) == 3:
             out_shape = out_shape[1:]
         return KerasTensor(
             shape=out_shape,
-            dtype=image.dtype,
+            dtype=images.dtype,
         )
 
 
 def _pad_images(
-    image,
+    images,
     top_padding,
     bottom_padding,
     left_padding,
@@ -570,18 +572,19 @@ def _pad_images(
     target_height,
     target_width,
 ):
-    image = backend.convert_to_tensor(image)
+    images = backend.convert_to_tensor(images)
     is_batch = True
-    image_shape = image.shape
-    if len(image_shape) == 3:
+    images_shape = images.shape
+    if len(images_shape) == 3:
         is_batch = False
-        image = backend.numpy.expand_dims(image, 0)
-    elif len(image_shape) != 4:
+        images = backend.numpy.expand_dims(images, 0)
+    elif len(images_shape) != 4:
         raise ValueError(
-            f"'image' (shape {image_shape}) must have either 3 or 4 dimensions."
+            f"'images' (shape {images_shape}) must have"
+            "either 3 or 4 dimensions."
         )
 
-    batch, height, width, depth = image.shape
+    batch, height, width, depth = images.shape
 
     if right_padding is None and target_width is None:
         raise ValueError("right_padding and target_width both cannot be None.")
@@ -633,7 +636,7 @@ def _pad_images(
         ),
         [4, 2],
     )
-    padded = backend.numpy.pad(image, paddings)
+    padded = backend.numpy.pad(images, paddings)
 
     if target_height is None:
         target_height = top_padding + height + bottom_padding
@@ -649,7 +652,7 @@ def _pad_images(
 
 @keras_export("keras.ops.image.pad_images")
 def pad_images(
-    image,
+    images,
     top_padding,
     left_padding,
     target_height,
@@ -657,31 +660,31 @@ def pad_images(
     bottom_padding=None,
     right_padding=None,
 ):
-    """Pad `image` with zeros to the specified `height` and `width`.
+    """Pad `images` with zeros to the specified `height` and `width`.
 
     Args:
-        image: 4D Tensor of shape `(batch, height, width, channels)` or 3D
+        images: 4D Tensor of shape `(batch, height, width, channels)` or 3D
             Tensor of shape `(height, width, channels)`.
         top_padding: Number of rows of zeros to add on top.
         bottom_padding: Number of rows of zeros to add at the bottom.
         left_padding: Number of columns of zeros to add on the left.
         right_padding: Number of columns of zeros to add on the right.
-        target_height: Height of output image.
-        target_width: Width of output image.
+        target_height: Height of output images.
+        target_width: Width of output images.
 
     Returns:
-        If `image` was 4D, a 4D float Tensor of shape
+        If `images` were 4D, a 4D float Tensor of shape
             `(batch, target_height, target_width, channels)`
-        If `image` was 3D, a 3D float Tensor of shape
+        If `images` were 3D, a 3D float Tensor of shape
             `(target_height, target_width, channels)`
 
     Example:
 
-    >>> image = np.random.random((15, 25, 3))
-    >>> padded_image = keras.ops.image.pad_images(
-    ...     image, 2, 3, target_height=20, target_width=30
+    >>> images = np.random.random((15, 25, 3))
+    >>> padded_images = keras.ops.image.pad_images(
+    ...     images, 2, 3, target_height=20, target_width=30
     ... )
-    >>> padded_image.shape
+    >>> padded_images.shape
     (20, 30, 3)
 
     >>> batch_images = np.random.random((2, 15, 25, 3))
@@ -691,7 +694,7 @@ def pad_images(
     >>> padded_batch.shape
     (2, 20, 30, 3)"""
 
-    if any_symbolic_tensors((image,)):
+    if any_symbolic_tensors((images,)):
         return PadImages(
             top_padding,
             bottom_padding,
@@ -699,10 +702,10 @@ def pad_images(
             right_padding,
             target_height,
             target_width,
-        ).symbolic_call(image)
+        ).symbolic_call(images)
 
     return _pad_images(
-        image,
+        images,
         top_padding,
         bottom_padding,
         left_padding,
