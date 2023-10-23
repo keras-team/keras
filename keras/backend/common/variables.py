@@ -183,7 +183,7 @@ class KerasVariable:
         # Numpy require this method to return as array like object. In the case
         # of scalar, it will fail the type checking from numpy. We need to
         # return a 0d array via numpy.
-        return np.asarray(self.value, dtype)
+        return np.asarray(self.value.__array__(dtype))
 
     def __bool__(self):
         raise TypeError("A Keras Variable cannot be used as a boolean.")
