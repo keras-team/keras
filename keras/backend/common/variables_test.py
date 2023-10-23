@@ -217,10 +217,11 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
     )
     def test_variable_numpy_scalar(self):
         from keras.utils.module_utils import tensorflow as tf
+
         strategy = tf.distribute.MirroredStrategy(["cpu:0", "cpu:1"])
         with strategy.scope():
             v = backend.Variable(initializer=0.0)
-        
+
         np_value = backend.convert_to_numpy(v)
         self.assertIsInstance(np_value, np.ndarray)
         self.assertAllClose(np_value, 0.0)
