@@ -692,7 +692,7 @@ def pad_images(
     (2, 20, 30, 3)"""
 
     if any_symbolic_tensors((image,)):
-        return PadImage(
+        return PadImages(
             top_padding,
             bottom_padding,
             left_padding,
