@@ -434,7 +434,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         self.assertAllClose(output, expected)
 
-    @parameterized.expand(
+    @parameterized.parameters(
         [
             (0, 0, 3, 3, None, None),
             (1, 0, 4, 3, None, None),
