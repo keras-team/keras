@@ -1,4 +1,5 @@
 from keras import backend
+from keras import ops
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend import any_symbolic_tensors
@@ -533,27 +534,28 @@ class PadImages(Operation):
         )
 
     def compute_output_spec(self, images):
+        images_shape = ops.shape(images)
         if self.target_height is None:
-            height_axis = 0 if len(images.shape) == 3 else 1
+            height_axis = 0 if len(images_shape) == 3 else 1
             self.target_height = (
                 self.top_padding
-                + images.shape[height_axis]
+                + images_shape[height_axis]
                 + self.bottom_padding
             )
         if self.target_width is None:
-            width_axis = 0 if len(images.shape) == 3 else 2
+            width_axis = 0 if len(images_shape) == 3 else 2
             self.target_width = (
                 self.left_padding
-                + images.shape[width_axis]
+                + images_shape[width_axis]
                 + self.right_padding
             )
         out_shape = (
-            images.shape[0],
+            images_shape[0],
             self.target_height,
             self.target_width,
-            images.shape[-1],
+            images_shape[-1],
         )
-        if len(images.shape) == 3:
+        if len(images_shape) == 3:
             out_shape = out_shape[1:]
         return KerasTensor(
             shape=out_shape,
@@ -572,17 +574,18 @@ def _pad_images(
 ):
     images = backend.convert_to_tensor(images)
     is_batch = True
-    images_shape = images.shape
+    images_shape = ops.shape(images)
     if len(images_shape) == 3:
         is_batch = False
         images = backend.numpy.expand_dims(images, 0)
     elif len(images_shape) != 4:
         raise ValueError(
-            f"'images' (shape {images_shape}) must have "
-            f"either 3 or 4 dimensions. Received: images.shape={images.shape}"
+            f"Invalid shape for argument `images`: "
+            "it must have rank 3 or 4. "
+            f"Received: images.shape={images_shape}"
         )
 
-    batch, height, width, depth = images.shape
+    batch, height, width, depth = ops.shape(images)
 
     if [top_padding, bottom_padding, target_height].count(None) != 1:
         raise ValueError(
