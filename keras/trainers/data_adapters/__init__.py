@@ -1,5 +1,6 @@
 import types
 
+from keras.distribution import distribution_lib
 from keras.trainers.data_adapters import array_data_adapter
 from keras.trainers.data_adapters import py_dataset_adapter
 from keras.trainers.data_adapters.array_data_adapter import ArrayDataAdapter
@@ -22,6 +23,18 @@ def get_data_adapter(
     shuffle=False,
     class_weight=None,
 ):
+    # Check for multi-process/worker distribution. Since only tf.dataset
+    # is supported at the moment, we will raise error if the inputs fail
+    # the type check
+    distribution = distribution_lib.distribution()
+    if getattr(distribution, "_is_multi_process", False) and not is_tf_dataset(
+        x
+    ):
+        raise ValueError(
+            "When using multi-worker distribution, the data must be provided "
+            f"as a `tf.data.Dataset` instance. Received: type(x)={type(x)}."
+        )
+
     if array_data_adapter.can_convert_arrays((x, y, sample_weight)):
         return ArrayDataAdapter(
             x,
@@ -40,7 +53,9 @@ def get_data_adapter(
             raise_unsupported_arg(
                 "sample_weights", "the sample weights", "tf.data.Dataset"
             )
-        return TFDatasetAdapter(x, class_weight=class_weight)
+        return TFDatasetAdapter(
+            x, class_weight=class_weight, distribution=distribution
+        )
         # TODO: should we warn or not?
         # warnings.warn(
         #     "`shuffle=True` was passed, but will be ignored since the "

@@ -467,7 +467,11 @@ class JAXTrainer(base_trainer.Trainer):
             self.jax_state_sync()
 
             # Override with model metrics instead of last step logs
-            epoch_logs = self.get_metrics_result()
+            # The jax spmd_mode is need for multi-process context, since the
+            # metrics values are replicated, and we don't want to do a all
+            # gather, and only need the local copy of the value.
+            with jax.spmd_mode("allow_all"):
+                epoch_logs = self.get_metrics_result()
 
             # Run validation.
             if validation_data and self._should_eval(epoch, validation_freq):
@@ -616,7 +620,11 @@ class JAXTrainer(base_trainer.Trainer):
         # Reattach state back to model.
         self.jax_state_sync()
 
-        logs = self.get_metrics_result()
+        # The jax spmd_mode is need for multi-process context, since the
+        # metrics values are replicated, and we don't want to do a all
+        # gather, and only need the local copy of the value.
+        with jax.spmd_mode("allow_all"):
+            logs = self.get_metrics_result()
         callbacks.on_test_end(logs)
         self._jax_state = None
         if return_dict:
@@ -847,7 +855,7 @@ class JAXTrainer(base_trainer.Trainer):
 
             def distribute_single_value(d):
                 layout = distribution.get_data_layout(d.shape)
-                return jax_distribution_lib.distribute_tensor(d, layout)
+                return jax_distribution_lib.distribute_data_input(d, layout)
 
             return jax.tree_util.tree_map(distribute_single_value, data)
         else:

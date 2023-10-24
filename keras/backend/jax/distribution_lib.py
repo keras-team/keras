@@ -48,7 +48,25 @@ def distribute_variable(value, layout):
     """
     if not isinstance(layout, jax.sharding.Sharding):
         layout = _to_jax_layout(layout)
-    return jax.device_put(value, layout)
+    if isinstance(
+        value, (jax.Array, jax.numpy.ndarray)
+    ) and value.sharding.is_equivalent_to(layout, ndim=len(value.shape)):
+        # Skip the relayout if the value is already having the proper sharding
+        return value
+
+    if layout.is_fully_addressable:
+        return jax.device_put(value, layout)
+    else:
+        # Need to only distribute the value to local addressible devices, and
+        # repack them back into global format.
+        mapping = layout.addressable_devices_indices_map(value.shape)
+        local_values = jax.device_put(
+            [value[i] for i in mapping.values()], list(mapping.keys())
+        )
+        global_value = jax.make_array_from_single_device_arrays(
+            value.shape, layout, local_values
+        )
+        return global_value
 
 
 def distribute_tensor(tensor, layout):
@@ -87,6 +105,55 @@ def distribute_tensor(tensor, layout):
         return global_value
 
 
+def distribute_data_input(inputs, layout):
+    """Distribute the input data with the corresponding layout.
+
+    Note that the inputs here is a local worker batch, which has already
+    been sharded to 1/N of the global batch size (N being the number of
+    workers/processes).
+
+    Args:
+        inputs: `jax.Array` that is already sharded to a local process size.
+        layout: `TensorLayout` for the distribution information, or a
+            `jax.sharding.Sharding` instance.
+
+    Returns:
+        Distributed inputs thats been properly put to local devices.
+    """
+    if not isinstance(layout, jax.sharding.Sharding):
+        layout = _to_jax_layout(layout)
+    if layout.is_fully_addressable:
+        return jax.device_put(inputs, layout)
+
+    # TODO(scottzhu): Add support for data+model parallel.
+    # We assume the data are batch parallel only for now.
+    per_process_batch_size = inputs.shape[0]
+    num_local_replia = jax.local_device_count()
+    per_replica_batch_size = per_process_batch_size // num_local_replia
+
+    if per_process_batch_size % per_replica_batch_size != 0:
+        raise ValueError(
+            f"The local batch size {per_process_batch_size} is not"
+            "divisible by the number of local replica "
+            f"{num_local_replia}"
+        )
+    global_batch_size = per_process_batch_size * jax.process_count()
+    global_shape = (global_batch_size,) + inputs.shape[1:]
+    per_replica_batches = np.split(inputs, num_local_replia, axis=0)
+
+    global_batch_array = jax.make_array_from_single_device_arrays(
+        global_shape,
+        layout,
+        arrays=[
+            jax.device_put(batch, device)
+            for batch, device in zip(
+                per_replica_batches, layout.addressable_devices
+            )
+        ],
+    )
+    return global_batch_array
+
+
 def initialize(job_addresses, num_processes, process_id):
     if job_addresses and "," in job_addresses:
         # When user provide all the job addresses, we will split and get the
@@ -122,6 +189,8 @@ def process_id():
 
 
 def _to_jax_device(device_id):
+    if isinstance(device_id, jax.Device):
+        return device_id
     device_type, index = device_id.split(":")
     index = int(index)
     devices = jax.devices(backend=device_type)

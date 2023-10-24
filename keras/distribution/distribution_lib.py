@@ -372,6 +372,7 @@ class DataParallel(Distribution):
             self._initialize_mesh_from_list_devices()
 
         self._batch_dim_name = self.device_mesh.axis_names[0]
+        # Those following attributes might get convert to public methods.
         self._num_process = distribution_lib.num_processes()
         self._process_id = distribution_lib.process_id()
         self._is_multi_process = self._num_process > 1
@@ -423,6 +424,10 @@ class DataParallel(Distribution):
         return None
 
     def distribute_dataset(self, dataset):
+        from tensorflow.python.data.experimental.ops import (
+            distribute as tf_data_distribute,
+        )
+
         from keras.utils.module_utils import tensorflow as tf
 
         if not isinstance(dataset, tf.data.Dataset):
@@ -431,9 +436,27 @@ class DataParallel(Distribution):
                 f"sharding, got {type(dataset)}"
             )
         if self._is_multi_process:
-            return dataset.shard(
-                num_shards=self._num_process, index=self._process_id
-            ).prefetch(tf.data.AUTOTUNE)
+            batch_size = tf_data_distribute.compute_batch_size(dataset)
+            if batch_size.numpy() < 0:
+                raise ValueError(
+                    "The batch size of the input dataset is "
+                    "unknown. Please config the batch size for "
+                    "the input dataset, e.g via `dataset.batch(batch_size)`"
+                )
+            per_worker_batch_size = tf_data_distribute.batch_sizes_for_worker(
+                global_batch_size=batch_size,
+                num_workers=self._num_process,
+                num_replicas_per_worker=1,  # We hard code this for now.
+                worker_index=self._process_id,
+            )
+            distributed_dataset = dataset.rebatch(per_worker_batch_size)
+            distributed_dataset = tf_data_distribute._AutoShardDataset(
+                distributed_dataset,
+                num_workers=self._num_process,
+                index=self._process_id,
+                num_replicas=self._num_process,
+            )
+            return distributed_dataset.prefetch(tf.data.AUTOTUNE)
         return dataset
 
 

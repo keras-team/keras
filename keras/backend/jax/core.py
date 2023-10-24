@@ -51,6 +51,12 @@ def convert_to_tensor(x, dtype=None, sparse=False):
         raise ValueError("`sparse=True` is not supported with jax backend")
     if dtype is not None:
         dtype = standardize_dtype(dtype)
+    if isinstance(x, (jnp.ndarray, jax.Array)) and dtype == x.dtype:
+        # Skip the conversion early if the instance is already a JAX array.
+        # This is important in the multi-process context since jax.array(x) for
+        # an existing distributed jax array will raise error.
+        return x
+
     if isinstance(x, Variable):
         if dtype and dtype != x.dtype:
             return x.value.astype(dtype)
