@@ -584,12 +584,12 @@ def _pad_images(
 
     batch, height, width, depth = images.shape
 
-    if [top_padding, bottom_padding, target_height].count(None) > 1:
+    if [top_padding, bottom_padding, target_height].count(None) != 1:
         raise ValueError(
             "Must specify exactly two of "
             "top_padding, bottom_padding, target_height"
         )
-    if [left_padding, right_padding, target_width].count(None) > 1:
+    if [left_padding, right_padding, target_width].count(None) != 1:
         raise ValueError(
             "Must specify exactly two of "
             "left_padding, right_padding, target_width"
