@@ -43,11 +43,11 @@ class LeakyReLU(Layer):
                 "Use `negative_slope` instead."
             )
         super().__init__(**kwargs)
-        if negative_slope is None:
+        if negative_slope is None or negative_slope < 0:
             raise ValueError(
                 "The negative_slope value of a Leaky ReLU layer "
-                "cannot be None. Expected a float. Received: "
-                f"negative_slope={negative_slope}"
+                "cannot be None or negative value. Expected a float."
+                f" Received: negative_slope={negative_slope}"
             )
         self.supports_masking = True
         self.negative_slope = negative_slope
