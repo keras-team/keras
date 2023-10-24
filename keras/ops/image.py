@@ -587,12 +587,18 @@ def _pad_images(
     if [top_padding, bottom_padding, target_height].count(None) != 1:
         raise ValueError(
             "Must specify exactly two of "
-            "top_padding, bottom_padding, target_height"
+            "top_padding, bottom_padding, target_height. "
+            f"Received: top_padding={top_padding}, "
+            f"bottom_padding={bottom_padding}, "
+            f"target_height={target_height}"
         )
     if [left_padding, right_padding, target_width].count(None) != 1:
         raise ValueError(
             "Must specify exactly two of "
-            "left_padding, right_padding, target_width"
+            "left_padding, right_padding, target_width. "
+            f"Received: left_padding={left_padding}, "
+            f"right_padding={right_padding}, "
+            f"target_width={target_width}"
         )
 
     if top_padding is None:
