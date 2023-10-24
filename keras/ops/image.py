@@ -579,7 +579,7 @@ def _pad_images(
     elif len(images_shape) != 4:
         raise ValueError(
             f"'images' (shape {images_shape}) must have "
-            "either 3 or 4 dimensions."
+            f"either 3 or 4 dimensions. Received: images.shape={images.shape}"
         )
 
     batch, height, width, depth = images.shape
