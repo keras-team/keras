@@ -604,14 +604,14 @@ def _pad_images(
     if right_padding is None:
         right_padding = target_width - left_padding - width
 
-    if not top_padding >= 0:
+    if top_padding < 0:
         raise ValueError("top_padding must be >= 0")
-    if not left_padding >= 0:
+    if left_padding < 0:
         raise ValueError("left_padding must be >= 0")
-    if not right_padding >= 0:
-        raise ValueError("width must be <= target - offset")
-    if not bottom_padding >= 0:
-        raise ValueError("height must be <= target - offset")
+    if right_padding < 0:
+        raise ValueError("right_padding must be >= 0")
+    if bottom_padding < 0:
+        raise ValueError("bottom_padding must be >= 0")
 
     paddings = backend.numpy.reshape(
         backend.numpy.stack(
