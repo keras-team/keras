@@ -387,6 +387,9 @@ def argmin(x, axis=None):
 
 
 def argsort(x, axis=-1):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "bool":
+        x = tf.cast(x, "uint8")
     return tf.cast(tfnp.argsort(x, axis=axis), dtype="int32")
 
 

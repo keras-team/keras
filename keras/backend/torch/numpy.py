@@ -35,21 +35,33 @@ def einsum(subscripts, *operands, **kwargs):
 def subtract(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    # TODO: torch doesn't support bool substraction
+    # TODO: torch.subtract doesn't support bool
     if standardize_dtype(x1.dtype) == "bool":
-        x1 = cast(x1, standardize_dtype(x2.dtype))
+        x1 = cast(x1, x2.dtype)
     if standardize_dtype(x2.dtype) == "bool":
-        x2 = cast(x2, standardize_dtype(x1.dtype))
+        x2 = cast(x2, x1.dtype)
     return torch.subtract(x1, x2)
 
 
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    x1 = cast(x1, dtype)
-    x2 = cast(x2, dtype)
-    return torch.matmul(x1, x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    compute_dtype = result_dtype
+
+    # TODO: torch.matmul doesn't support bool
+    if compute_dtype == "bool":
+        compute_dtype = config.floatx()
+    # TODO: torch.matmul doesn't support float16 with cpu
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
+    # TODO: torch.matmul doesn't support integer types with cuda
+    if get_device() == "cuda" and "int" in compute_dtype:
+        compute_dtype = config.floatx()
+
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+    return cast(torch.matmul(x1, x2), result_dtype)
 
 
 def multiply(x1, x2):
@@ -259,16 +271,31 @@ def arctanh(x):
 
 def argmax(x, axis=None):
     x = convert_to_tensor(x)
+
+    # TODO: torch.argmax doesn't support bool
+    if standardize_dtype(x.dtype) == "bool":
+        x = cast(x, "uint8")
+
     return cast(torch.argmax(x, dim=axis), dtype="int32")
 
 
 def argmin(x, axis=None):
     x = convert_to_tensor(x)
+
+    # TODO: torch.argmin doesn't support bool
+    if standardize_dtype(x.dtype) == "bool":
+        x = cast(x, "uint8")
+
     return cast(torch.argmin(x, dim=axis), dtype="int32")
 
 
 def argsort(x, axis=-1):
     x = convert_to_tensor(x)
+
+    # TODO: torch.argsort doesn't support bool
+    if standardize_dtype(x.dtype) == "bool":
+        x = cast(x, "uint8")
+
     if axis is None:
         axis = -1
         x = x.reshape(-1)
@@ -333,10 +360,19 @@ def broadcast_to(x, shape):
 
 def ceil(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
+    ori_dtype = standardize_dtype(x.dtype)
+
+    # TODO: torch.ceil doesn't support bool
+    if ori_dtype == "bool":
+        x = cast(x, "uint8")
+    # TODO: torch.ceil doesn't support float16 with cpu
+    elif get_device() == "cpu" and ori_dtype == "float16":
+        x = cast(x, config.floatx())
+
+    if ori_dtype == "int64":
         dtype = config.floatx()
     else:
-        dtype = dtypes.result_type(x.dtype, float)
+        dtype = dtypes.result_type(ori_dtype, float)
     return cast(torch.ceil(x), dtype=dtype)
 
 
@@ -344,9 +380,13 @@ def clip(x, x_min, x_max):
     x = convert_to_tensor(x)
     x_min = convert_to_tensor(x_min)
     x_max = convert_to_tensor(x_max)
-    dtype = standardize_dtype(x.dtype)
-    if dtype == "bool":
-        dtype = "int64"
+    ori_dtype = standardize_dtype(x.dtype)
+
+    # TODO: torch.clip doesn't support float16 with cpu
+    if get_device() == "cpu" and ori_dtype == "float16":
+        x = cast(x, "float32")
+
+    dtype = "int64" if ori_dtype == "bool" else ori_dtype
     return cast(torch.clip(x, min=x_min, max=x_max), dtype=dtype)
 
 
@@ -442,11 +482,18 @@ def dot(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
     result_dtype = dtypes.result_type(x.dtype, y.dtype)
-    x = cast(x, result_dtype)
-    y = cast(y, result_dtype)
+    # GPU only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
+
+    # TODO: torch.matmul doesn't support float16 with cpu
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
+
+    x = cast(x, compute_dtype)
+    y = cast(y, compute_dtype)
     if x.ndim == 0 or y.ndim == 0:
-        return torch.multiply(x, y)
-    return torch.matmul(x, y)
+        return cast(torch.multiply(x, y), result_dtype)
+    return cast(torch.matmul(x, y), result_dtype)
 
 
 def empty(shape, dtype=None):
@@ -528,6 +575,13 @@ def hstack(xs):
 
 def identity(n, dtype=None):
     dtype = to_torch_dtype(dtype or config.floatx())
+
+    # TODO: torch.eye doesn't support bfloat16 with cpu
+    if get_device() == "cpu" and dtype == torch.bfloat16:
+        return cast(
+            torch.eye(n, dtype=to_torch_dtype("float32"), device=get_device()),
+            dtype,
+        )
     return torch.eye(n, dtype=dtype, device=get_device())
 
 
@@ -1205,6 +1259,14 @@ def eye(N, M=None, k=None, dtype=None):
     M = N if M is None else M
     k = 0 if k is None else k
     if k == 0:
+        # TODO: torch.eye doesn't support bfloat16 with cpu
+        if get_device() == "cpu" and dtype == torch.bfloat16:
+            return cast(
+                torch.eye(
+                    N, M, dtype=to_torch_dtype("float32"), device=get_device()
+                ),
+                dtype,
+            )
         return torch.eye(N, M, dtype=dtype, device=get_device())
     diag_length = builtins.max(N, M)
     diag = torch.ones(diag_length, dtype=dtype, device=get_device())
