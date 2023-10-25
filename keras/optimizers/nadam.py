@@ -101,13 +101,14 @@ class Nadam(optimizer.Optimizer):
 
     def _internal_apply_gradients(self, grads_and_vars):
         dtype = self._u_product.dtype
-        self._u_product.assign(
+        self.assign(
+            self._u_product,
             self._u_product
             * self.beta_1
             * (
                 1.0
                 - 0.5 * ops.power(0.96, ops.cast(self.iterations + 1, dtype))
-            )
+            ),
         )
         super()._internal_apply_gradients(grads_and_vars)
 
@@ -132,15 +133,23 @@ class Nadam(optimizer.Optimizer):
         m = self._momentums[self._get_variable_index(variable)]
         v = self._velocities[self._get_variable_index(variable)]
 
-        m.assign(m + (gradient - m) * (1 - beta_1))
-        v.assign(v + (ops.square(gradient) - v) * (1 - beta_2))
-        m_hat = u_t_1 * m / (1 - u_product_t_1) + (1 - u_t) * gradient / (
-            1 - u_product_t
+        self.assign_add(
+            m, ops.multiply(ops.subtract(gradient, m), (1 - beta_1))
         )
-        v_hat = v / (1 - beta_2_power)
+        self.assign_add(
+            v, ops.multiply(ops.subtract(ops.square(gradient), v), (1 - beta_2))
+        )
+        m_hat = ops.add(
+            ops.divide(ops.multiply(u_t_1, m), 1 - u_product_t_1),
+            ops.divide(ops.multiply(1 - u_t, gradient), 1 - u_product_t),
+        )
+        v_hat = ops.divide(v, (1 - beta_2_power))
 
-        variable.assign(
-            variable - (m_hat * lr) / (ops.sqrt(v_hat) + self.epsilon)
+        self.assign_sub(
+            variable,
+            ops.divide(
+                ops.multiply(m_hat, lr), ops.add(ops.sqrt(v_hat), self.epsilon)
+            ),
         )
 
     def get_config(self):

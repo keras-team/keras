@@ -103,15 +103,25 @@ class SGD(optimizer.Optimizer):
 
         if m is not None:
             momentum = ops.cast(self.momentum, variable.dtype)
-            m.assign(-gradient * learning_rate + m * momentum)
+            self.assign(
+                m,
+                ops.subtract(
+                    ops.multiply(m, momentum),
+                    ops.multiply(gradient, learning_rate),
+                ),
+            )
             if self.nesterov:
-                variable.assign(
-                    variable - gradient * learning_rate + m * momentum
+                self.assign_add(
+                    variable,
+                    ops.subtract(
+                        ops.multiply(m, momentum),
+                        ops.multiply(gradient, learning_rate),
+                    ),
                 )
             else:
-                variable.assign(variable + m)
+                self.assign_add(variable, m)
         else:
-            variable.assign(variable - gradient * learning_rate)
+            self.assign_sub(variable, ops.multiply(gradient, learning_rate))
 
     def get_config(self):
         config = super().get_config()
