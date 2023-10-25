@@ -4141,7 +4141,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         import jax.numpy as jnp
 
         if dtype1 == "bool" and dtype2 == "bool":
-            self.skipTest("subtract does not support bool substraction")
+            self.skipTest("subtract does not support bool")
 
         x1 = knp.ones((1,), dtype=dtype1)
         x2 = knp.ones((1,), dtype=dtype2)
