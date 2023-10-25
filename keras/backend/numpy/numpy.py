@@ -452,6 +452,11 @@ def maximum(x1, x2):
     return np.maximum(x1, x2)
 
 
+def median(x, axis=None, keepdims=False):
+    dtype = dtypes.result_type(x.dtype, float)
+    return np.median(x, axis=axis, keepdims=keepdims).astype(dtype)
+
+
 def meshgrid(*x, indexing="xy"):
     return np.meshgrid(*x, indexing=indexing)
 
@@ -508,6 +513,23 @@ def pad(x, pad_width, mode="constant"):
 def prod(x, axis=None, keepdims=False, dtype=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
     return np.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
+
+
+def quantile(x, q, axis=None, method="linear", keepdims=False):
+    axis = tuple(axis) if isinstance(axis, list) else axis
+    x = convert_to_tensor(x)
+
+    ori_dtype = standardize_dtype(x.dtype)
+    # np.quantile doesn't support bool
+    if ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    if ori_dtype == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    return np.quantile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
 
 
 def ravel(x):

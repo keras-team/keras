@@ -67,7 +67,7 @@ In Colab, you can do:
 import os
 os.environ["KERAS_BACKEND"] = "jax"
 
-import keras
+import keras_core as keras
 ```
 
 **Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after 

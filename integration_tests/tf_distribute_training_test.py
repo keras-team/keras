@@ -7,6 +7,7 @@ from keras import losses
 from keras import metrics
 from keras import models
 from keras import optimizers
+from keras.callbacks import LearningRateScheduler
 
 
 def test_model_fit():
@@ -31,6 +32,8 @@ def test_model_fit():
         outputs = layers.Dense(16)(x)
         model = models.Model(inputs, outputs)
 
+    callbacks = [LearningRateScheduler(lambda _: 0.1)]
+
     model.summary()
 
     x = np.random.random((5000, 100))
@@ -49,7 +52,12 @@ def test_model_fit():
             jit_compile=False,
         )
         history = model.fit(
-            x, y, batch_size=batch_size, epochs=epochs, validation_split=0.2
+            x,
+            y,
+            batch_size=batch_size,
+            epochs=epochs,
+            validation_split=0.2,
+            callbacks=callbacks,
         )
 
     print("History:")
@@ -59,7 +67,7 @@ def test_model_fit():
     with strategy.scope():
         dataset = tf.data.Dataset.from_tensor_slices((x, y)).batch(batch_size)
         dataset = strategy.experimental_distribute_dataset(dataset)
-        history = model.fit(dataset, epochs=epochs)
+        history = model.fit(dataset, epochs=epochs, callbacks=callbacks)
 
     print("History:")
     print(history.history)

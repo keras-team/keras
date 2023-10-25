@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn.functional as tnn
+import tree
 
 from keras.backend import standardize_data_format
 from keras.backend import standardize_dtype
@@ -337,7 +338,9 @@ def conv(
         inputs = _transpose_spatial_inputs(inputs)
     # Transpose kernel from keras format to torch format.
     kernel = _transpose_conv_kernel(kernel)
-    if padding == "same":
+    if padding == "same" and any(d != 1 for d in tree.flatten(strides)):
+        # Torch does not support this case in conv2d().
+        # Manually pad the tensor.
         inputs = _apply_same_padding(
             inputs,
             kernel.shape[2:],
@@ -345,6 +348,7 @@ def conv(
             operation_type="conv",
             dilation_rate=dilation_rate,
         )
+        padding = 0
     channels = inputs.shape[1]
     kernel_in_channels = kernel.shape[1]
     if channels % kernel_in_channels > 0:
@@ -361,6 +365,7 @@ def conv(
             stride=strides,
             dilation=dilation_rate,
             groups=groups,
+            padding=padding,
         )
     elif num_spatial_dims == 2:
         outputs = tnn.conv2d(
@@ -369,6 +374,7 @@ def conv(
             stride=strides,
             dilation=dilation_rate,
             groups=groups,
+            padding=padding,
         )
     elif num_spatial_dims == 3:
         outputs = tnn.conv3d(
@@ -377,6 +383,7 @@ def conv(
             stride=strides,
             dilation=dilation_rate,
             groups=groups,
+            padding=padding,
         )
     else:
         raise ValueError(
@@ -612,7 +619,11 @@ def binary_crossentropy(target, output, from_logits=False):
         return tnn.binary_cross_entropy(output, target, reduction="none")
 
 
-def moments(x, axes, keepdims=False):
+def moments(x, axes, keepdims=False, synchronized=False):
+    if synchronized:
+        raise NotImplementedError(
+            "Argument synchronized=True is not supported with PyTorch."
+        )
     x = convert_to_tensor(x)
     # The dynamic range of float16 is too limited for statistics. As a
     # workaround, we simply perform the operations on float32 and convert back

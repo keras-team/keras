@@ -98,6 +98,7 @@ pad
 percentile
 power
 prod
+quantile
 ravel
 real
 reciprocal
@@ -260,7 +261,8 @@ class Absolute(Operation):
         return backend.numpy.absolute(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.absolute", "keras.ops.numpy.absolute"])
@@ -308,8 +310,8 @@ class Add(Operation):
             getattr(x1, "dtype", type(x1)),
             getattr(x2, "dtype", type(x2)),
         )
-        x1_sparse = getattr(x1, "sparse", True)
-        x2_sparse = getattr(x2, "sparse", True)
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
         output_sparse = x1_sparse and x2_sparse
         return KerasTensor(
             output_shape, dtype=output_dtype, sparse=output_sparse
@@ -794,7 +796,8 @@ class Arcsin(Operation):
         return backend.numpy.arcsin(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.arcsin", "keras.ops.numpy.arcsin"])
@@ -823,7 +826,8 @@ class Arcsinh(Operation):
         return backend.numpy.arcsinh(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.arcsinh", "keras.ops.numpy.arcsinh"])
@@ -851,7 +855,8 @@ class Arctan(Operation):
         return backend.numpy.arctan(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.arctan", "keras.ops.numpy.arctan"])
@@ -935,7 +940,8 @@ class Arctanh(Operation):
         return backend.numpy.arctanh(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.arctanh", "keras.ops.numpy.arctanh"])
@@ -1348,7 +1354,8 @@ class Ceil(Operation):
             dtype = backend.floatx()
         else:
             dtype = dtypes.result_type(x.dtype, float)
-        return KerasTensor(x.shape, dtype=dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.ceil", "keras.ops.numpy.ceil"])
@@ -1433,8 +1440,7 @@ class Concatenate(Operation):
                 total_size_on_axis = None
             else:
                 total_size_on_axis += x.shape[self.axis]
-            if not x.sparse:
-                all_sparse = False
+            all_sparse = all_sparse and getattr(x, "sparse", False)
         output_shape = list(first_shape)
         output_shape[self.axis] = total_size_on_axis
         return KerasTensor(output_shape, dtype=x.dtype, sparse=all_sparse)
@@ -1466,7 +1472,8 @@ class Conjugate(Operation):
         return backend.numpy.conjugate(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.conjugate", "keras.ops.numpy.conjugate"])
@@ -1504,7 +1511,8 @@ class Copy(Operation):
         return backend.numpy.copy(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.copy", "keras.ops.numpy.copy"])
@@ -2430,7 +2438,8 @@ class ExpandDims(Operation):
         else:
             axis = self.axis
         output_shape = x_shape[:axis] + [1] + x_shape[axis:]
-        return KerasTensor(output_shape, dtype=x.dtype, sparse=x.sparse)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(
@@ -2465,7 +2474,8 @@ class Expm1(Operation):
         dtype = backend.standardize_dtype(x.dtype)
         if "int" in dtype or dtype == "bool":
             dtype = backend.floatx()
-        return KerasTensor(x.shape, dtype=dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.expm1", "keras.ops.numpy.expm1"])
@@ -2519,7 +2529,8 @@ class Floor(Operation):
         return backend.numpy.floor(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.floor", "keras.ops.numpy.floor"])
@@ -2799,7 +2810,8 @@ class Imag(Operation):
         return backend.numpy.imag(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.imag", "keras.ops.numpy.imag"])
@@ -3121,7 +3133,8 @@ class Log1p(Operation):
         return backend.numpy.log1p(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.log1p", "keras.ops.numpy.log1p"])
@@ -3491,8 +3504,8 @@ class Maximum(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        x1_sparse = getattr(x1, "sparse", True)
-        x2_sparse = getattr(x2, "sparse", True)
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
         output_sparse = x1_sparse and x2_sparse
         return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
 
@@ -3511,6 +3524,48 @@ def maximum(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Maximum().symbolic_call(x1, x2)
     return backend.numpy.maximum(x1, x2)
+
+
+class Median(Operation):
+    def __init__(self, axis=None, keepdims=False):
+        super().__init__()
+        if isinstance(axis, int):
+            axis = [axis]
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.median(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        output_shape = reduce_shape(
+            x.shape, axis=self.axis, keepdims=self.keepdims
+        )
+        if backend.standardize_dtype(x.dtype) == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(x.dtype, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.median", "keras.ops.numpy.median"])
+def median(x, axis=None, keepdims=False):
+    """Compute the median along the specified axis.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the medians are computed. Defaults to
+            `axis=None` which is to compute the median(s) along a flattened
+            version of the array.
+        keepdims: If this is set to `True`, the axes which are reduce
+            are left in the result as dimensions with size one.
+
+    Returns:
+        The output tensor.
+    """
+    if any_symbolic_tensors((x,)):
+        return Median(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.median(x, axis=axis, keepdims=keepdims)
 
 
 class Meshgrid(Operation):
@@ -3634,8 +3689,8 @@ class Minimum(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        x1_sparse = getattr(x1, "sparse", True)
-        x2_sparse = getattr(x2, "sparse", True)
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
         output_sparse = x1_sparse and x2_sparse
         return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
 
@@ -3664,7 +3719,10 @@ class Mod(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
+        output_sparse = x1_sparse and not x2_sparse
+        return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
 
 
 @keras_export(["keras.ops.mod", "keras.ops.numpy.mod"])
@@ -4066,6 +4124,73 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return backend.numpy.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+class Quantile(Operation):
+    def __init__(self, axis=None, method="linear", keepdims=False):
+        super().__init__()
+        if isinstance(axis, int):
+            axis = [axis]
+        self.axis = axis
+        self.method = method
+        self.keepdims = keepdims
+
+    def call(self, x, q):
+        return backend.numpy.quantile(
+            x, q, axis=self.axis, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x, q):
+        output_shape = reduce_shape(
+            x.shape, axis=self.axis, keepdims=self.keepdims
+        )
+        if hasattr(q, "shape"):
+            if len(q.shape) > 0:
+                output_shape = (q.shape[0],) + output_shape
+        if backend.standardize_dtype(x.dtype) == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(x.dtype, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.quantile", "keras.ops.numpy.quantile"])
+def quantile(x, q, axis=None, method="linear", keepdims=False):
+    """Compute the q-th quantile(s) of the data along the specified axis.
+
+    Args:
+        x: Input tensor.
+        q: Probability or sequence of probabilities for the quantiles to
+            compute. Values must be between 0 and 1 inclusive.
+        axis: Axis or axes along which the quantiles are computed. Defaults to
+            `axis=None` which is to compute the quantile(s) along a flattened
+            version of the array.
+        method: A string specifies the method to use for estimating the
+            quantile. Available methods are `"linear"`, `"lower"`, `"higher"`,
+            `"midpoint"`, and `"nearest"`. Defaults to `"linear"`.
+            If the desired quantile lies between two data points `i < j`:
+            - `"linear"`: `i + (j - i) * fraction`, where fraction is the
+                fractional part of the index surrounded by `i` and `j`.
+            - `"lower"`: `i`.
+            - `"higher"`: `j`.
+            - `"midpoint"`: `(i + j) / 2`
+            - `"nearest"`: `i` or `j`, whichever is nearest.
+        keepdims: If this is set to `True`, the axes which are reduce
+            are left in the result as dimensions with size one.
+
+    Returns:
+        The quantile(s). If `q` is a single probability and `axis=None`, then
+        the result is a scalar. If multiple probabilies levels are given, first
+        axis of the result corresponds to the quantiles. The other axes are the
+        axes that remain after the reduction of `x`.
+    """
+    if any_symbolic_tensors((x, q)):
+        return Quantile(
+            axis=axis, method=method, keepdims=keepdims
+        ).symbolic_call(x, q)
+    return backend.numpy.quantile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    )
+
+
 class Ravel(Operation):
     def call(self, x):
         return backend.numpy.ravel(x)
@@ -4102,7 +4227,8 @@ class Real(Operation):
         return backend.numpy.real(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.real", "keras.ops.numpy.real"])
@@ -4214,7 +4340,8 @@ class Reshape(Operation):
         output_shape = operation_utils.compute_reshape_output_shape(
             x.shape, self.new_shape, "new_shape"
         )
-        return KerasTensor(output_shape, dtype=x.dtype, sparse=x.sparse)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.reshape", "keras.ops.numpy.reshape"])
@@ -4278,7 +4405,8 @@ class Round(Operation):
         return backend.numpy.round(x, self.decimals)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.round", "keras.ops.numpy.round"])
@@ -4302,7 +4430,8 @@ class Sign(Operation):
         return backend.numpy.sign(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype="int32")
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype="int32", sparse=sparse)
 
 
 @keras_export(["keras.ops.sign", "keras.ops.numpy.sign"])
@@ -4325,7 +4454,8 @@ class Sin(Operation):
         return backend.numpy.sin(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.sin", "keras.ops.numpy.sin"])
@@ -4348,7 +4478,8 @@ class Sinh(Operation):
         return backend.numpy.sinh(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.sinh", "keras.ops.numpy.sinh"])
@@ -4714,7 +4845,8 @@ class Tan(Operation):
         return backend.numpy.tan(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.tan", "keras.ops.numpy.tan"])
@@ -4737,7 +4869,8 @@ class Tanh(Operation):
         return backend.numpy.tanh(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.tanh", "keras.ops.numpy.tanh"])
@@ -5130,8 +5263,8 @@ class Subtract(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        x1_sparse = getattr(x1, "sparse", True)
-        x2_sparse = getattr(x2, "sparse", True)
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
         output_sparse = x1_sparse and x2_sparse
         dtype = dtypes.result_type(
             getattr(x1, "dtype", type(x1)),
@@ -5198,7 +5331,10 @@ class Divide(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
+        output_sparse = x1_sparse and not x2_sparse
+        return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
 
 
 @keras_export(["keras.ops.divide", "keras.ops.numpy.divide"])
@@ -5227,7 +5363,10 @@ class TrueDivide(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
+        output_sparse = x1_sparse and not x2_sparse
+        return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
 
 
 @keras_export(
@@ -5275,7 +5414,8 @@ class Negative(Operation):
         return backend.numpy.negative(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.negative", "keras.ops.numpy.negative"])
@@ -5298,7 +5438,8 @@ class Square(Operation):
         return backend.numpy.square(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.square", "keras.ops.numpy.square"])
@@ -5327,7 +5468,8 @@ class Sqrt(Operation):
             if backend.standardize_dtype(x.dtype) == "int64"
             else dtypes.result_type(x.dtype, float)
         )
-        return KerasTensor(x.shape, dtype=dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.sqrt", "keras.ops.numpy.sqrt"])
@@ -5356,9 +5498,10 @@ class Squeeze(Operation):
 
     def compute_output_spec(self, x):
         input_shape = list(x.shape)
+        sparse = getattr(x, "sparse", False)
         if self.axis is None:
             output_shape = list(filter((1).__ne__, input_shape))
-            return KerasTensor(output_shape, dtype=x.dtype, sparse=x.sparse)
+            return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
         else:
             if input_shape[self.axis] != 1:
                 raise ValueError(
@@ -5366,7 +5509,7 @@ class Squeeze(Operation):
                     "is not 1."
                 )
             del input_shape[self.axis]
-            return KerasTensor(input_shape, dtype=x.dtype, sparse=x.sparse)
+            return KerasTensor(input_shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.squeeze", "keras.ops.numpy.squeeze"])
@@ -5396,8 +5539,9 @@ class Transpose(Operation):
 
     def compute_output_spec(self, x):
         x_shape = x.shape
+        sparse = getattr(x, "sparse", False)
         if self.axes is None:
-            return KerasTensor(x_shape[::-1], dtype=x.dtype, sparse=x.sparse)
+            return KerasTensor(x_shape[::-1], dtype=x.dtype, sparse=sparse)
 
         if len(self.axes) != len(x_shape):
             raise ValueError(
@@ -5407,7 +5551,7 @@ class Transpose(Operation):
         output_shape = []
         for ax in self.axes:
             output_shape.append(x_shape[ax])
-        return KerasTensor(output_shape, dtype=x.dtype, sparse=x.sparse)
+        return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.transpose", "keras.ops.numpy.transpose"])
@@ -5627,7 +5771,10 @@ class FloorDivide(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
+        output_sparse = x1_sparse and not x2_sparse
+        return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
 
 
 @keras_export(["keras.ops.floor_divide", "keras.ops.numpy.floor_divide"])

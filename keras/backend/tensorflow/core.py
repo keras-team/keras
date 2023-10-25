@@ -94,6 +94,8 @@ def convert_to_tensor(x, dtype=None, sparse=True):
 def convert_to_numpy(x):
     if isinstance(x, tf.SparseTensor):
         x = tf.sparse.to_dense(x)
+    elif isinstance(x, tf.IndexedSlices):
+        x = tf.convert_to_tensor(x)
     return np.array(x)
 
 

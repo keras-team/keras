@@ -1433,3 +1433,68 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         expected_variance = np.finfo(np.float16).max
         self.assertAllClose(mean, expected_mean, atol=1e-5, rtol=1e-5)
         self.assertAllClose(variance, expected_variance, atol=1e-5, rtol=1e-5)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="synchronized=True only implemented for TF backend",
+    )
+    def test_moments_sync(self):
+        # Test batch statistics for 4D moments (batch, height, width, channels)
+        x = np.random.uniform(size=(2, 28, 28, 3)).astype(np.float32)
+        mean, variance = knn.moments(x, axes=[0], synchronized=True)
+        self.assertAllClose(mean, np.mean(x, axis=0), atol=1e-5, rtol=1e-5)
+        self.assertAllClose(variance, np.var(x, axis=0), atol=1e-5, rtol=1e-5)
+
+        # Test global statistics for 4D moments (batch, height, width, channels)
+        x = np.random.uniform(size=(2, 28, 28, 3)).astype(np.float32)
+        mean, variance = knn.moments(x, axes=[0, 1, 2], synchronized=True)
+        expected_mean = np.mean(x, axis=(0, 1, 2))
+        expected_variance = np.var(x, axis=(0, 1, 2))
+        self.assertAllClose(mean, expected_mean, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(variance, expected_variance, atol=1e-5, rtol=1e-5)
+
+        # Test keepdims
+        x = np.random.uniform(size=(2, 28, 28, 3)).astype(np.float32)
+        mean, variance = knn.moments(
+            x, axes=[0, 1, 2], keepdims=True, synchronized=True
+        )
+        expected_mean = np.mean(x, axis=(0, 1, 2), keepdims=True)
+        expected_variance = np.var(x, axis=(0, 1, 2), keepdims=True)
+        self.assertAllClose(mean, expected_mean, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(variance, expected_variance, atol=1e-5, rtol=1e-5)
+
+    @parameterized.product(dtype=["float16", "float32"])
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="synchronized=True only implemented for TF backend",
+    )
+    def test_moments_sync_with_distribution_strategy(self, dtype):
+        from keras.utils.module_utils import tensorflow as tf
+
+        # Config 2 CPUs for testing.
+        logical_cpus = tf.config.list_logical_devices("CPU")
+        if len(logical_cpus) == 1:
+            from tensorflow.python.eager import context
+
+            context._reset_context()
+            tf.config.set_logical_device_configuration(
+                tf.config.list_physical_devices("CPU")[0],
+                [
+                    tf.config.LogicalDeviceConfiguration(),
+                    tf.config.LogicalDeviceConfiguration(),
+                ],
+            )
+
+        @tf.function()
+        def test_on_moments(inputs):
+            return knn.moments(
+                inputs, axes=-1, keepdims=True, synchronized=True
+            )
+
+        # Test output of moments.
+        inputs = tf.constant([5.0, 9.0, 1.0, 3.0], dtype=dtype)
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
+        with strategy.scope():
+            mean, variance = strategy.run(test_on_moments, args=(inputs,))
+            self.assertEqual(mean.values[0], 4.5)
+            self.assertEqual(variance.values[0], 8.75)

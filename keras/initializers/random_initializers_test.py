@@ -156,3 +156,34 @@ class InitializersTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             initializers.get("typo")
+
+    def test_variance_scaling_invalid_scale(self):
+        seed = 1234
+
+        with self.assertRaisesRegex(
+            ValueError, "Argument `scale` must be positive float."
+        ):
+            initializers.VarianceScaling(scale=-1.0, seed=seed, mode="fan_in")
+
+    def test_variance_scaling_invalid_mode(self):
+        scale = 2.0
+        seed = 1234
+
+        with self.assertRaisesRegex(ValueError, "Invalid `mode` argument:"):
+            initializers.VarianceScaling(
+                scale=scale, seed=seed, mode="invalid_mode"
+            )
+
+    def test_variance_scaling_invalid_distribution(self):
+        scale = 2.0
+        seed = 1234
+
+        with self.assertRaisesRegex(
+            ValueError, "Invalid `distribution` argument:"
+        ):
+            initializers.VarianceScaling(
+                scale=scale,
+                seed=seed,
+                mode="fan_in",
+                distribution="invalid_dist",
+            )

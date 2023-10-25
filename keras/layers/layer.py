@@ -445,8 +445,8 @@ class Layer(BackendLayer, Operation):
 
     def add_weight(
         self,
-        shape,
-        initializer,
+        shape=None,
+        initializer=None,
         dtype=None,
         trainable=True,
         regularizer=None,
@@ -458,12 +458,19 @@ class Layer(BackendLayer, Operation):
         Args:
             shape: Shape tuple for the variable.
                 Must be fully-defined (no `None` entries).
+                Defaults to `()` (scalar) if unspecified.
             initializer: Initializer object to use to
                 populate the initial variable value,
                 or string name of a built-in initializer
-                (e.g. `"random_normal"`).
+                (e.g. `"random_normal"`). If unspecified,
+                defaults to `"glorot_uniform"`
+                for floating-point variables and to `"zeros"`
+                for all other types (e.g. int, bool).
             dtype: Dtype of the variable to create,
-                e.g. `"float32"`.
+                e.g. `"float32"`. If unspecified,
+                defaults to the layer's
+                variable dtype (which itself defaults to
+                `"float32"` if unspecified).
             trainable: Boolean, whether the variable should
                 be trainable via backprop or whether its
                 updates are managed manually.
@@ -474,12 +481,23 @@ class Layer(BackendLayer, Operation):
                 for debugging purposes.
         """
         self._check_super_called()
+        if shape is None:
+            shape = ()
+        if dtype is not None:
+            dtype = backend.standardize_dtype(dtype)
+        else:
+            dtype = self.variable_dtype
+        if initializer is None:
+            if "float" in dtype:
+                initializer = "glorot_uniform"
+            else:
+                initializer = "zeros"
         initializer = initializers.get(initializer)
         with backend.name_scope(self.name, caller=self):
             variable = backend.Variable(
                 initializer=initializer,
                 shape=shape,
-                dtype=dtype or self.variable_dtype,
+                dtype=dtype,
                 trainable=trainable,
                 name=name,
             )

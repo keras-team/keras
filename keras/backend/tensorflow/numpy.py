@@ -1,8 +1,9 @@
 import builtins
-import functools
+import collections
 import math
 import warnings
 
+import numpy as np
 import tensorflow as tf
 from tensorflow.experimental import numpy as tfnp
 from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
@@ -10,17 +11,17 @@ from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
 from keras.backend import config
 from keras.backend import standardize_dtype
 from keras.backend.common import dtypes
+from keras.backend.tensorflow import sparse
 from keras.backend.tensorflow.core import convert_to_tensor
 
 
+@sparse.elementwise_binary_union(tf.sparse.add)
 def add(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    if isinstance(x1, tf.SparseTensor) or isinstance(x2, tf.SparseTensor):
-        return tf.sparse.add(x1, x2)
     return tfnp.add(x1, x2)
 
 
@@ -73,17 +74,13 @@ def einsum(subscripts, *operands, **kwargs):
     return tfnp.einsum(subscripts, *operands, **kwargs)
 
 
+@sparse.elementwise_binary_union(sparse.sparse_subtract)
 def subtract(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    if isinstance(x1, tf.SparseTensor) or isinstance(x2, tf.SparseTensor):
-        if isinstance(x2, tf.SparseTensor):
-            return tf.sparse.add(x1, tf.sparse.map_values(tf.negative, x2))
-        else:
-            return tf.sparse.add(x1, tf.negative(x2))
     return tfnp.subtract(x1, x2)
 
 
@@ -178,50 +175,79 @@ def matmul(x1, x2):
     return tf.cast(result, result_dtype)
 
 
+@sparse.elementwise_binary_intersection
 def multiply(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    if isinstance(x1, tf.SparseTensor):
-        if isinstance(x2, tf.SparseTensor):
-            ones_like_int8 = functools.partial(tf.ones_like, dtype=tf.int8)
-            zeros_like_int8 = functools.partial(tf.zeros_like, dtype=tf.int8)
-
-            # compute the intersection of indices in the form of a sparse tensor
-            # containing ones as values
-            ones1 = tf.sparse.map_values(ones_like_int8, x1)
-            ones2 = tf.sparse.map_values(ones_like_int8, x2)
-            # tf.sets.intersection ignores the last dimension when comparing,
-            # so we need to add a dummy extra dimension and then remove it
-            intersection = tf.sparse.reshape(
-                tf.sets.intersection(
-                    tf.sparse.expand_dims(ones1, axis=-1),
-                    tf.sparse.expand_dims(ones2, axis=-1),
-                ),
-                x1.dense_shape,
-            )
-
-            # compute the masks to remove indices in x1 and x2 that are not part
-            # of the intersection, then trim x1 and x2
-            zeros1 = tf.sparse.map_values(zeros_like_int8, x1)
-            zeros2 = tf.sparse.map_values(zeros_like_int8, x2)
-            mask1 = tf.sparse.add(zeros1, intersection)
-            mask2 = tf.sparse.add(zeros2, intersection)
-            x1_trimmed = tf.sparse.retain(x1, tf.cast(mask1.values, tf.bool))
-            x2_trimmed = tf.sparse.retain(x2, tf.cast(mask2.values, tf.bool))
-
-            # now it is an element-wise multiplication on the values
-            return tf.sparse.map_values(tf.multiply, x1_trimmed, x2_trimmed)
-        else:
-            return x1 * x2
-    elif isinstance(x2, tf.SparseTensor):
-        return x2 * x1
     return tfnp.multiply(x1, x2)
 
 
 def mean(x, axis=None, keepdims=False):
+    if isinstance(x, tf.IndexedSlices):
+        if axis is None:
+            # Reduce against all axes, result is a single value and dense.
+            # The denominator has to account for `dense_shape`.
+            sum = tf.reduce_sum(x.values, keepdims=keepdims)
+            return sum / tf.cast(tf.reduce_prod(x.dense_shape), dtype=sum.dtype)
+
+        if isinstance(axis, int):
+            axis = [axis]
+        elif not axis:
+            # Empty axis tuple, this is a no-op
+            return x
+
+        dense_shape = tf.convert_to_tensor(x.dense_shape)
+        rank = tf.shape(dense_shape)[0]
+        # Normalize axis: convert negative values and sort
+        axis = [rank + a if a < 0 else a for a in axis]
+        axis.sort()
+
+        if axis == [0]:
+            # Reduce against `axis=0` only, result is dense.
+            # The denominator has to account for `dense_shape[0]`.
+            sum = tf.reduce_sum(x.values, axis=0, keepdims=keepdims)
+            return sum / tf.cast(dense_shape[0], dtype=sum.dtype)
+        elif axis[0] == 0:
+            # Reduce against axis 0 and other axes, result is dense.
+            # We do `axis=0` separately first. The denominator has to account
+            # for `dense_shape[0]`.
+            # We use `keepdims=True` in `reduce_sum`` so that we can leave the
+            # 0 in axis and do `reduce_mean` with `keepdims` to apply it for all
+            # axes.
+            sum = tf.reduce_sum(x.values, axis=0, keepdims=True)
+            axis_0_mean = sum / tf.cast(dense_shape[0], dtype=sum.dtype)
+            return tf.reduce_mean(axis_0_mean, axis=axis, keepdims=keepdims)
+        elif keepdims:
+            # With `keepdims=True`, result is an `IndexedSlices` with the same
+            # indices since axis 0 is not touched. The only thing to do is to
+            # correct `dense_shape` to account for dimensions that became 1.
+            new_values = tf.reduce_mean(x.values, axis=axis, keepdims=True)
+            new_dense_shape = tf.concat(
+                [dense_shape[0:1], new_values.shape[1:]], axis=0
+            )
+            return tf.IndexedSlices(new_values, x.indices, new_dense_shape)
+        elif rank == len(axis) + 1:
+            # `keepdims=False` and reducing against all axes exept 0, result is
+            # a 1D tensor, which cannot be `IndexedSlices`. We have to scatter
+            # the computed means to construct the correct dense tensor.
+            return tf.scatter_nd(
+                tf.expand_dims(x.indices, axis=1),
+                tf.reduce_mean(x.values, axis=axis),
+                [dense_shape[0]],
+            )
+        else:
+            # `keepdims=False`, not reducing against axis 0 and there is at
+            # least one other axis we are not reducing against. We simply need
+            # to fix `dense_shape` to remove dimensions that were reduced.
+            gather_indices = [i for i in range(rank) if i not in axis]
+            return tf.IndexedSlices(
+                tf.reduce_mean(x.values, axis=axis),
+                x.indices,
+                tf.gather(x.dense_shape, gather_indices, axis=0),
+            )
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
     compute_dtype = dtypes.result_type(x.dtype, "float32")
@@ -266,6 +292,7 @@ def zeros(shape, dtype=None):
     return tf.zeros(shape, dtype=dtype)
 
 
+@sparse.elementwise_unary
 def absolute(x):
     # uintx and bool are always non-negative
     dtype = standardize_dtype(x.dtype)
@@ -274,8 +301,9 @@ def absolute(x):
     return tfnp.absolute(x)
 
 
+@sparse.elementwise_unary
 def abs(x):
-    return absolute(x)
+    return tfnp.absolute(x)
 
 
 def all(x, axis=None, keepdims=False):
@@ -316,22 +344,27 @@ def arange(start, stop=None, step=1, dtype=None):
     return tf.range(start, stop, delta=step, dtype=dtype)
 
 
+@sparse.densifying_unary(0.5 * tfnp.pi)
 def arccos(x):
     return tfnp.arccos(x)
 
 
+@sparse.densifying_unary(np.nan)
 def arccosh(x):
     return tfnp.arccosh(x)
 
 
+@sparse.elementwise_unary
 def arcsin(x):
     return tfnp.arcsin(x)
 
 
+@sparse.elementwise_unary
 def arcsinh(x):
     return tfnp.arcsinh(x)
 
 
+@sparse.elementwise_unary
 def arctan(x):
     return tfnp.arctan(x)
 
@@ -340,6 +373,7 @@ def arctan2(x1, x2):
     return tfnp.arctan2(x1, x2)
 
 
+@sparse.elementwise_unary
 def arctanh(x):
     return tfnp.arctanh(x)
 
@@ -353,6 +387,9 @@ def argmin(x, axis=None):
 
 
 def argsort(x, axis=-1):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "bool":
+        x = tf.cast(x, "uint8")
     return tf.cast(tfnp.argsort(x, axis=axis), dtype="int32")
 
 
@@ -373,6 +410,7 @@ def broadcast_to(x, shape):
     return tfnp.broadcast_to(x, shape)
 
 
+@sparse.elementwise_unary
 def ceil(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
@@ -402,22 +440,27 @@ def concatenate(xs, axis=0):
     return tfnp.concatenate(xs, axis=axis)
 
 
+@sparse.elementwise_unary
 def conjugate(x):
     return tfnp.conjugate(x)
 
 
+@sparse.elementwise_unary
 def conj(x):
-    return conjugate(x)
+    return tfnp.conjugate(x)
 
 
+@sparse.elementwise_unary
 def copy(x):
     return tfnp.copy(x)
 
 
+@sparse.densifying_unary(1)
 def cos(x):
     return tfnp.cos(x)
 
 
+@sparse.densifying_unary(1)
 def cosh(x):
     return tfnp.cosh(x)
 
@@ -501,6 +544,7 @@ def equal(x1, x2):
     return tfnp.equal(x1, x2)
 
 
+@sparse.densifying_unary(1)
 def exp(x):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
@@ -521,6 +565,7 @@ def expand_dims(x, axis):
     return tfnp.expand_dims(x, axis)
 
 
+@sparse.elementwise_unary
 def expm1(x):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
@@ -539,6 +584,7 @@ def flip(x, axis=None):
     return tfnp.flip(x, axis=axis)
 
 
+@sparse.elementwise_unary
 def floor(x):
     return tfnp.floor(x)
 
@@ -583,6 +629,7 @@ def identity(n, dtype=None):
     return tfnp.identity(n, dtype=dtype)
 
 
+@sparse.elementwise_unary
 def imag(x):
     return tfnp.imag(x)
 
@@ -639,18 +686,22 @@ def linspace(
     )
 
 
+@sparse.densifying_unary(-tfnp.inf)
 def log(x):
     return tfnp.log(x)
 
 
+@sparse.densifying_unary(-tfnp.inf)
 def log10(x):
     return tfnp.log10(x)
 
 
+@sparse.elementwise_unary
 def log1p(x):
     return tfnp.log1p(x)
 
 
+@sparse.densifying_unary(-tfnp.inf)
 def log2(x):
     return tfnp.log2(x)
 
@@ -683,15 +734,13 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     )
 
 
+@sparse.elementwise_binary_union(tf.sparse.maximum, densify_mixed=True)
 def maximum(x1, x2):
-    if isinstance(x1, tf.SparseTensor):
-        if isinstance(x2, tf.SparseTensor):
-            return tf.sparse.maximum(x1, x2)
-        else:
-            x1 = tf.sparse.to_dense(x1)
-    elif isinstance(x2, tf.SparseTensor):
-        x2 = tf.sparse.to_dense(x2)
     return tfnp.maximum(x1, x2)
+
+
+def median(x, axis=None, keepdims=False):
+    return quantile(x, 0.5, axis=axis, keepdims=keepdims)
 
 
 def meshgrid(*x, indexing="xy"):
@@ -719,17 +768,12 @@ def min(x, axis=None, keepdims=False, initial=None):
     return tfnp.min(x, axis=axis, keepdims=keepdims)
 
 
+@sparse.elementwise_binary_union(tf.sparse.minimum, densify_mixed=True)
 def minimum(x1, x2):
-    if isinstance(x1, tf.SparseTensor):
-        if isinstance(x2, tf.SparseTensor):
-            return tf.sparse.minimum(x1, x2)
-        else:
-            x1 = tf.sparse.to_dense(x1)
-    elif isinstance(x2, tf.SparseTensor):
-        x2 = tf.sparse.to_dense(x2)
     return tfnp.minimum(x1, x2)
 
 
+@sparse.elementwise_division
 def mod(x1, x2):
     return tfnp.mod(x1, x2)
 
@@ -783,14 +827,135 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return tfnp.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def _quantile(x, q, axis=None, method="linear", keepdims=False):
+    # ref: tfp.stats.percentile
+    # float64 is needed here and below, else we get the wrong index if the array
+    # is huge along axis.
+    q = tf.cast(q, "float64")
+
+    # Move `axis` dims of `x` to the rightmost, call it `y`.
+    if axis is None:
+        y = tf.reshape(x, [-1])
+    else:
+        x_ndims = len(x.shape)
+
+        # _make_static_axis_non_negative_list
+        axis = list(map(lambda x: x if x >= 0 else x + x_ndims, axis))
+
+        # _move_dims_to_flat_end
+        other_dims = sorted(set(range(x_ndims)).difference(axis))
+        perm = other_dims + list(axis)
+        x_permed = tf.transpose(a=x, perm=perm)
+        if None not in x.shape:
+            x_shape = list(x.shape)
+            other_shape = [x_shape[i] for i in other_dims]
+            end_shape = [math.prod([x_shape[i] for i in axis])]
+            full_shape = other_shape + end_shape
+        else:
+            other_shape = tf.gather(tf.shape(x), tf.cast(other_dims, tf.int64))
+            full_shape = tf.concat([other_shape, [-1]], axis=0)
+        y = tf.reshape(x_permed, shape=full_shape)
+
+    # Sort (in ascending order) everything which allows multiple calls to sort
+    # only once (under the hood) and use CSE.
+    sorted_y = tf.sort(y, axis=-1, direction="ASCENDING")
+
+    d = tf.cast(tf.shape(y)[-1], "float64")
+
+    def _get_indices(method):
+        """Get values of y at the indices implied by method."""
+        if method == "lower":
+            indices = tf.math.floor((d - 1) * q)
+        elif method == "higher":
+            indices = tf.math.ceil((d - 1) * q)
+        elif method == "nearest":
+            indices = tf.round((d - 1) * q)
+        # d - 1 will be distinct from d in int32, but not necessarily double.
+        # So clip to avoid out of bounds errors.
+        return tf.clip_by_value(
+            tf.cast(indices, "int32"), 0, tf.shape(y)[-1] - 1
+        )
+
+    if method in ["nearest", "lower", "higher"]:
+        gathered_y = tf.gather(sorted_y, _get_indices(method), axis=-1)
+    elif method == "midpoint":
+        gathered_y = 0.5 * (
+            tf.gather(sorted_y, _get_indices("lower"), axis=-1)
+            + tf.gather(sorted_y, _get_indices("higher"), axis=-1)
+        )
+    elif method == "linear":
+        larger_y_idx = _get_indices("higher")
+        exact_idx = (d - 1) * q
+        # preserve_gradients
+        smaller_y_idx = tf.maximum(larger_y_idx - 1, 0)
+        larger_y_idx = tf.minimum(smaller_y_idx + 1, tf.shape(y)[-1] - 1)
+        fraction = tf.cast(larger_y_idx, tf.float64) - exact_idx
+        fraction = tf.cast(fraction, y.dtype)
+        gathered_y = (
+            tf.gather(sorted_y, larger_y_idx, axis=-1) * (1 - fraction)
+            + tf.gather(sorted_y, smaller_y_idx, axis=-1) * fraction
+        )
+
+    # Propagate NaNs
+    if x.dtype in (tf.bfloat16, tf.float16, tf.float32, tf.float64):
+        # Apparently tf.is_nan doesn't like other dtypes
+        nan_batch_members = tf.reduce_any(tf.math.is_nan(x), axis=axis)
+        right_rank_matched_shape = tf.pad(
+            tf.shape(nan_batch_members),
+            paddings=[[0, tf.rank(q)]],
+            constant_values=1,
+        )
+        nan_batch_members = tf.reshape(
+            nan_batch_members, shape=right_rank_matched_shape
+        )
+        gathered_y = tf.where(nan_batch_members, float("NaN"), gathered_y)
+
+    # Expand dimensions if requested
+    if keepdims:
+        if axis is None:
+            ones_vec = tf.ones(shape=[tf.rank(x) + tf.rank(q)], dtype="int32")
+            gathered_y *= tf.ones(ones_vec, dtype=gathered_y.dtype)
+        else:
+            for i in sorted(axis):
+                gathered_y = tf.expand_dims(gathered_y, axis=i)
+
+    # rotate_transpose
+    shift_value_static = tf.get_static_value(tf.rank(q))
+    ndims = tf.TensorShape(gathered_y.shape).rank
+    if ndims < 2:
+        return gathered_y
+    shift_value_static = int(
+        math.copysign(1, shift_value_static)
+        * (builtins.abs(shift_value_static) % ndims)
+    )
+    if shift_value_static == 0:
+        return gathered_y
+    perm = collections.deque(range(ndims))
+    perm.rotate(shift_value_static)
+    return tf.transpose(a=gathered_y, perm=perm)
+
+
+def quantile(x, q, axis=None, method="linear", keepdims=False):
+    if isinstance(axis, int):
+        axis = [axis]
+
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    compute_dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, compute_dtype)
+    return _quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def ravel(x):
     return tfnp.ravel(x)
 
 
+@sparse.elementwise_unary
 def real(x):
     return tfnp.real(x)
 
 
+@sparse.densifying_unary(tfnp.inf)
 def reciprocal(x):
     return tfnp.reciprocal(x)
 
@@ -811,14 +976,17 @@ def roll(x, shift, axis=None):
     return tfnp.roll(x, shift, axis=axis)
 
 
+@sparse.elementwise_unary
 def sign(x):
     return tfnp.sign(x)
 
 
+@sparse.elementwise_unary
 def sin(x):
     return tfnp.sin(x)
 
 
+@sparse.elementwise_unary
 def sinh(x):
     return tfnp.sinh(x)
 
@@ -877,10 +1045,12 @@ def take_along_axis(x, indices, axis=None):
     return tfnp.take_along_axis(x, indices, axis=axis)
 
 
+@sparse.elementwise_unary
 def tan(x):
     return tfnp.tan(x)
 
 
+@sparse.elementwise_unary
 def tanh(x):
     return tfnp.tanh(x)
 
@@ -889,6 +1059,7 @@ def tensordot(x1, x2, axes=2):
     return tfnp.tensordot(x1, x2, axes=axes)
 
 
+@sparse.elementwise_unary
 def round(x, decimals=0):
     return tfnp.round(x, decimals=decimals)
 
@@ -941,10 +1112,12 @@ def where(condition, x1, x2):
     return tfnp.where(condition, x1, x2)
 
 
+@sparse.elementwise_division
 def divide(x1, x2):
     return tfnp.divide(x1, x2)
 
 
+@sparse.elementwise_division
 def true_divide(x1, x2):
     return tfnp.true_divide(x1, x2)
 
@@ -953,14 +1126,17 @@ def power(x1, x2):
     return tfnp.power(x1, x2)
 
 
+@sparse.elementwise_unary
 def negative(x):
     return tfnp.negative(x)
 
 
+@sparse.elementwise_unary
 def square(x):
     return tfnp.square(x)
 
 
+@sparse.elementwise_unary
 def sqrt(x):
     x = convert_to_tensor(x)
     # upcast to float64 for int64 which matches JAX's behavior
@@ -1016,6 +1192,7 @@ def eye(N, M=None, k=0, dtype=None):
     return tfnp.eye(N, M=M, k=k, dtype=dtype)
 
 
+@sparse.elementwise_division
 def floor_divide(x1, x2):
     return tfnp.floor_divide(x1, x2)
 

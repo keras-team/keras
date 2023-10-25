@@ -36,6 +36,11 @@ class VariableInitializationTest(test_case.TestCase):
         v = backend.Variable(initializer=np.ones((2, 2)))
         self.assertAllClose(v.value, np.ones((2, 2)))
 
+    def test_variable_initialization_with_strings(self):
+        """Test variable init with non-callable initializer."""
+        v = backend.Variable(initializer="ones", shape=(2, 2))
+        self.assertAllClose(v.value, np.ones((2, 2)))
+
     def test_variable_initialization_with_non_trainable(self):
         """Test variable initialization with non-trainable flag."""
         v = backend.Variable(initializer=np.ones((2, 2)), trainable=False)
@@ -205,6 +210,21 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
         v = backend.Variable(initializer=np.array([1, 2, 3]))
         self.assertIsInstance(v.numpy(), np.ndarray)
         self.assertAllClose(v.numpy(), np.array([1, 2, 3]))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tf",
+        reason="Tests for MirroredVariable under tf backend",
+    )
+    def test_variable_numpy_scalar(self):
+        from keras.utils.module_utils import tensorflow as tf
+
+        strategy = tf.distribute.MirroredStrategy(["cpu:0", "cpu:1"])
+        with strategy.scope():
+            v = backend.Variable(initializer=0.0)
+
+        np_value = backend.convert_to_numpy(v)
+        self.assertIsInstance(np_value, np.ndarray)
+        self.assertAllClose(np_value, 0.0)
 
     def test_variable_value(self):
         """Test retrieving the value of a variable."""

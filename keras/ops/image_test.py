@@ -42,6 +42,15 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.map_coordinates(input, coordinates, 0)
         self.assertEqual(out.shape, coordinates.shape[1:])
 
+    def test_pad_images(self):
+        x = KerasTensor([None, 15, 25, 3])
+        out = kimage.pad_images(x, 2, 3, target_height=20, target_width=30)
+        self.assertEqual(out.shape, (None, 20, 30, 3))
+
+        x = KerasTensor([None, None, 3])
+        out = kimage.pad_images(x, 2, 3, target_height=20, target_width=30)
+        self.assertEqual(out.shape, (20, 30, 3))
+
 
 class ImageOpsStaticShapeTest(testing.TestCase):
     def test_resize(self):
@@ -68,6 +77,17 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         coordinates = KerasTensor([3, 15, 15, 3])
         out = kimage.map_coordinates(input, coordinates, 0)
         self.assertEqual(out.shape, coordinates.shape[1:])
+
+    def test_pad_images(self):
+        x = KerasTensor([15, 25, 3])
+        out = kimage.pad_images(x, 2, 3, target_height=20, target_width=30)
+        self.assertEqual(out.shape, (20, 30, 3))
+
+        x_batch = KerasTensor([2, 15, 25, 3])
+        out_batch = kimage.pad_images(
+            x_batch, 2, 3, target_height=20, target_width=30
+        )
+        self.assertEqual(out_batch.shape, (2, 20, 30, 3))
 
 
 AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
@@ -413,3 +433,50 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         expected = _fixed_map_coordinates(input, coordinates, order, fill_mode)
 
         self.assertAllClose(output, expected)
+
+    @parameterized.parameters(
+        [
+            (0, 0, 3, 3, None, None),
+            (1, 0, 4, 3, None, None),
+            (0, 1, 3, 4, None, None),
+            (0, 0, 4, 3, None, None),
+            (0, 0, 3, 4, None, None),
+            (0, 0, None, None, 0, 1),
+            (0, 0, None, None, 1, 0),
+            (1, 2, None, None, 3, 4),
+        ]
+    )
+    def test_pad_images(
+        self,
+        top_padding,
+        left_padding,
+        target_height,
+        target_width,
+        bottom_padding,
+        right_padding,
+    ):
+        image = np.random.uniform(size=(3, 3, 1))
+        padded_image = kimage.pad_images(
+            image,
+            top_padding,
+            left_padding,
+            target_height,
+            target_width,
+            bottom_padding,
+            right_padding,
+        )
+        if target_height is None:
+            target_height = image.shape[0] + top_padding + bottom_padding
+        if target_width is None:
+            target_width = image.shape[1] + left_padding + right_padding
+        ref_padded_image = tf.image.pad_to_bounding_box(
+            image, top_padding, left_padding, target_height, target_width
+        )
+        self.assertEqual(
+            tuple(padded_image.shape), tuple(ref_padded_image.shape)
+        )
+        self.assertAllClose(
+            ref_padded_image.numpy(),
+            backend.convert_to_numpy(padded_image),
+            atol=1e-5,
+        )

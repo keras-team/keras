@@ -81,6 +81,42 @@ class JaxDistributionLibTest(testing.TestCase):
         result = distribution_lib.distribute_tensor(inputs, target_layout)
         self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
 
+    def test_distribute_variable(self):
+        # This test only verify the single worker/process behavior.
+        # The multi-process test lives in g3.
+        jax_mesh = jax.sharding.Mesh(
+            np.array(jax.devices()).reshape(2, 4), ("batch", "model")
+        )
+
+        variable = jax.numpy.array(np.random.normal(size=(16, 8)))
+        target_layout = jax.sharding.NamedSharding(
+            jax_mesh, jax.sharding.PartitionSpec("model", None)
+        )
+
+        result = backend_dlib.distribute_variable(variable, target_layout)
+        # Note that the returned tensor has a different sharding implementation
+        # which is GSPMDSharding, but it should be equivalent as the target
+        # layout specified.
+        self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
+
+    def test_distribute_input_data(self):
+        # This test only verify the single worker/process behavior.
+        # The multi-process test lives in g3.
+        jax_mesh = jax.sharding.Mesh(
+            np.array(jax.devices()).reshape(2, 4), ("batch", "model")
+        )
+
+        input_data = jax.numpy.array(np.random.normal(size=(16, 8)))
+        target_layout = jax.sharding.NamedSharding(
+            jax_mesh, jax.sharding.PartitionSpec("batch", None)
+        )
+
+        result = backend_dlib.distribute_variable(input_data, target_layout)
+        # Note that the returned tensor has a different sharding implementation
+        # which is GSPMDSharding, but it should be equivalent as the target
+        # layout specified.
+        self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
+
     def test_processes(self):
         self.assertEqual(backend_dlib.process_id(), 0)
         self.assertEqual(backend_dlib.num_processes(), 1)

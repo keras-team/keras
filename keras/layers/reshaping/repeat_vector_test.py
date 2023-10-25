@@ -29,3 +29,19 @@ class FlattenTest(testing.TestCase):
         input_layer = layers.Input(batch_shape=(2, None))
         repeated = layers.RepeatVector(n=3)(input_layer)
         self.assertEqual(repeated.shape, (2, 3, None))
+
+    def test_repeat_vector_with_invalid_n(self):
+        with self.assertRaisesRegex(
+            TypeError, "Expected an integer value for `n`"
+        ):
+            layers.RepeatVector(n="3")
+
+        with self.assertRaisesRegex(
+            TypeError, "Expected an integer value for `n`"
+        ):
+            layers.RepeatVector(n=3.5)
+
+        with self.assertRaisesRegex(
+            TypeError, "Expected an integer value for `n`"
+        ):
+            layers.RepeatVector(n=[3])

@@ -4,7 +4,6 @@ from keras import backend
 from keras import ops
 from keras.backend.common import dtypes
 from keras.backend.common.variables import ALLOWED_DTYPES
-from keras.backend.torch.core import to_torch_dtype
 from keras.testing import test_case
 from keras.testing.test_utils import named_product
 
@@ -13,6 +12,8 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     if backend.backend() == "torch":
+        from keras.backend.torch.core import to_torch_dtype
+
         # TODO: torch doesn't support uint64.
         ALL_DTYPES = []
         for x in ALLOWED_DTYPES:
