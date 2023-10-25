@@ -4,6 +4,7 @@ import tree
 
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
+from keras.backend.config import backend
 from keras.ops.operation import Operation
 from keras.utils.nest import pack_sequence_as
 
@@ -46,10 +47,21 @@ class Function(Operation):
     def __init__(self, inputs, outputs, name=None):
         super().__init__(name=name)
 
+        if backend() == "tensorflow":
+            # Temporary work around for
+            # https://github.com/keras-team/keras/issues/931
+            # This stop tensorflow from wrapping tf.function output in a
+            # _DictWrapper object.
+            _self_setattr_tracking = getattr(
+                self, "_self_setattr_tracking", True
+            )
+            self._self_setattr_tracking = False
         self._inputs_struct = tree.map_structure(lambda x: x, inputs)
         self._outputs_struct = tree.map_structure(lambda x: x, outputs)
         self._inputs = tree.flatten(inputs)
         self._outputs = tree.flatten(outputs)
+        if backend() == "tensorflow":
+            self._self_setattr_tracking = _self_setattr_tracking
 
         (nodes, nodes_by_depth, operations, operations_by_depth) = map_graph(
             self._inputs, self._outputs
