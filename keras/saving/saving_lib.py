@@ -228,7 +228,9 @@ def load_weights_only(model, filepath, skip_mismatch=False):
     else:
         raise NotImplementedError(
             (lambda full_ext: full_ext[1] if full_ext[1] else filepath)(
-                os.path.splitext(filepath)[1]))
+                os.path.splitext(filepath)[1]
+            )
+        )
 
     _load_state(
         model,

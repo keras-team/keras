@@ -1146,11 +1146,12 @@ class Average(Operation):
                     dtype=x.dtype,
                 )
             elif self.axis is not None and shape_equal(
-                    [x.shape[self.axis]], weights.shape, allow_none=True):
-                    return KerasTensor(
-                        reduce_shape(x.shape, axis=[self.axis]),
-                        dtype=x.dtype,
-                    )
+                [x.shape[self.axis]], weights.shape, allow_none=True
+            ):
+                return KerasTensor(
+                    reduce_shape(x.shape, axis=[self.axis]),
+                    dtype=x.dtype,
+                )
 
         if weights is None:
             return KerasTensor(
