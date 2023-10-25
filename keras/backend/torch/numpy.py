@@ -52,10 +52,10 @@ def matmul(x1, x2):
     # TODO: torch.matmul doesn't support bool
     if compute_dtype == "bool":
         compute_dtype = config.floatx()
-    # TODO: torch.matmul doesn't support float16 when using cpu
+    # TODO: torch.matmul doesn't support float16 with cpu
     if get_device() == "cpu" and compute_dtype == "float16":
         compute_dtype = "float32"
-    # TODO: torch.matmul doesn't support integer types when using cuda
+    # TODO: torch.matmul doesn't support integer types with cuda
     if get_device() == "cuda" and "int" in compute_dtype:
         compute_dtype = config.floatx()
 
@@ -365,7 +365,7 @@ def ceil(x):
     # TODO: torch.ceil doesn't support bool
     if ori_dtype == "bool":
         x = cast(x, "uint8")
-    # TODO: torch.ceil doesn't support float16 when using cpu
+    # TODO: torch.ceil doesn't support float16 with cpu
     elif get_device() == "cpu" and ori_dtype == "float16":
         x = cast(x, config.floatx())
 
@@ -382,7 +382,7 @@ def clip(x, x_min, x_max):
     x_max = convert_to_tensor(x_max)
     ori_dtype = standardize_dtype(x.dtype)
 
-    # TODO: torch.clip doesn't support float16 when using cpu
+    # TODO: torch.clip doesn't support float16 with cpu
     if get_device() == "cpu" and ori_dtype == "float16":
         x = cast(x, "float32")
 
@@ -485,7 +485,7 @@ def dot(x, y):
     # GPU only supports float types
     compute_dtype = dtypes.result_type(result_dtype, float)
 
-    # TODO: torch.matmul doesn't support float16 when using cpu
+    # TODO: torch.matmul doesn't support float16 with cpu
     if get_device() == "cpu" and compute_dtype == "float16":
         compute_dtype = "float32"
 
@@ -576,7 +576,7 @@ def hstack(xs):
 def identity(n, dtype=None):
     dtype = to_torch_dtype(dtype or config.floatx())
 
-    # TODO: torch.eye doesn't support bfloat16 when using cpu
+    # TODO: torch.eye doesn't support bfloat16 with cpu
     if get_device() == "cpu" and dtype == torch.bfloat16:
         return cast(
             torch.eye(n, dtype=to_torch_dtype("float32"), device=get_device()),
@@ -1259,7 +1259,7 @@ def eye(N, M=None, k=None, dtype=None):
     M = N if M is None else M
     k = 0 if k is None else k
     if k == 0:
-        # TODO: torch.eye doesn't support bfloat16 when using cpu
+        # TODO: torch.eye doesn't support bfloat16 with cpu
         if get_device() == "cpu" and dtype == torch.bfloat16:
             return cast(
                 torch.eye(
