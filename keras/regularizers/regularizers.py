@@ -346,7 +346,7 @@ def validate_float_arg(value, name):
         or value < 0
     ):
         raise ValueError(
-            f"Invalid value for argument {name}: expected a non-negative float. "
+            f"Invalid value for argument {name}: expected a non-negative float."
             f"Received: {name}={value}"
         )
     return float(value)
