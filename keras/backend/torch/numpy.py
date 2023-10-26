@@ -694,9 +694,16 @@ def logaddexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
-    x1 = cast(x1, dtype)
-    x2 = cast(x2, dtype)
-    return torch.logaddexp(x1, x2)
+
+    # TODO: torch.logaddexp doesn't support float16 with cpu
+    if get_device() == "cpu" and dtype == "float16":
+        x1 = cast(x1, "float32")
+        x2 = cast(x2, "float32")
+        return cast(torch.logaddexp(x1, x2), dtype)
+    else:
+        x1 = cast(x1, dtype)
+        x2 = cast(x2, dtype)
+        return torch.logaddexp(x1, x2)
 
 
 def logical_and(x1, x2):
