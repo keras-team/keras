@@ -4911,6 +4911,32 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
+    def test_logaddexp(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((3, 3), dtype=dtype1)
+        x2 = knp.ones((3, 3), dtype=dtype2)
+        x1_jax = jnp.ones((3, 3), dtype=dtype1)
+        x2_jax = jnp.ones((3, 3), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.logaddexp(x1_jax, x2_jax).dtype)
+        # jnp.logaddexp will promote "int64" and "uint32" to "float64"
+        # force the promotion to `backend.floatx()`
+        if dtype1 is not None and "float" not in dtype1:
+            if dtype2 is not None and "float" not in dtype2:
+                if "int64" in (dtype1, dtype2) or "uint32" in (dtype1, dtype2):
+                    expected_dtype = backend.floatx()
+
+        self.assertEqual(
+            standardize_dtype(knp.logaddexp(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Logaddexp().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
         named_product(
             start_and_stop=[
                 [0, 10],
@@ -5007,6 +5033,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x1 = knp.ones((1,), dtype=dtype)
         x1_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.sqrt(x1_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
 
         self.assertEqual(standardize_dtype(knp.sqrt(x1).dtype), expected_dtype)
         self.assertEqual(

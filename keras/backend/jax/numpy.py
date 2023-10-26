@@ -415,6 +415,9 @@ def log2(x):
 def logaddexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
     return jnp.logaddexp(x1, x2)
 
 
@@ -693,6 +696,9 @@ def square(x):
 
 
 def sqrt(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        x = cast(x, config.floatx())
     return jnp.sqrt(x)
 
 

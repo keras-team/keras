@@ -3209,7 +3209,12 @@ class Logaddexp(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+            float,
+        )
+        return KerasTensor(output_shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.logaddexp", "keras.ops.numpy.logaddexp"])
@@ -5492,7 +5497,7 @@ class Sqrt(Operation):
 
     def compute_output_spec(self, x):
         dtype = (
-            "float64"
+            backend.floatx()
             if backend.standardize_dtype(x.dtype) == "int64"
             else dtypes.result_type(x.dtype, float)
         )

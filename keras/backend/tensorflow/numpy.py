@@ -702,7 +702,7 @@ def log(x):
         else dtypes.result_type(x.dtype, float)
     )
     x = tf.cast(x, dtype)
-    # TODO: tfnp.log doesn't support bfloat16
+    # TODO: tfnp.log incorrectly promote bfloat16 to float64
     return tf.cast(tfnp.log(x), dtype)
 
 
@@ -715,7 +715,7 @@ def log10(x):
         else dtypes.result_type(x.dtype, float)
     )
     x = tf.cast(x, dtype)
-    # TODO: tfnp.log10 doesn't support bfloat16
+    # TODO: tfnp.log10 incorrectly promote bfloat16 to float64
     return tf.cast(tfnp.log10(x), dtype)
 
 
@@ -728,7 +728,7 @@ def log1p(x):
         else dtypes.result_type(x.dtype, float)
     )
     x = tf.cast(x, dtype)
-    # TODO: tfnp.log1p doesn't support bfloat16
+    # TODO: tfnp.log1p incorrectly promote bfloat16 to float64
     return tf.cast(tfnp.log1p(x), dtype)
 
 
@@ -741,12 +741,18 @@ def log2(x):
         else dtypes.result_type(x.dtype, float)
     )
     x = tf.cast(x, dtype)
-    # TODO: tfnp.log10 doesn't support bfloat16
+    # TODO: tfnp.log10 incorrectly promote bfloat16 to float64
     return tf.cast(tfnp.log2(x), dtype)
 
 
 def logaddexp(x1, x2):
-    return tfnp.logaddexp(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    # TODO: tfnp.logaddexp incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.logaddexp(x1, x2), dtype)
 
 
 def logical_and(x1, x2):
@@ -1189,14 +1195,13 @@ def sqrt(x):
     x = convert_to_tensor(x)
     # upcast to float64 for int64 which matches JAX's behavior
     dtype = (
-        "float64"
+        config.floatx()
         if standardize_dtype(x.dtype) == "int64"
         else dtypes.result_type(x.dtype, float)
     )
     x = tf.cast(x, dtype)
-    # TODO: Use tfnp.sqrt. Currently, tfnp.sqrt will aggressively upcast to
-    # float64 if the input is bfloat16. This behavior mismatches with JAX.
-    return tf.sqrt(x)
+    # TODO: tfnp.sqrt incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.sqrt(x), dtype)
 
 
 def squeeze(x, axis=None):
