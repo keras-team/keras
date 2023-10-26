@@ -44,7 +44,6 @@ def test_model_fit():
     # Fit from numpy arrays:
     with strategy.scope():
         model.compile(
-            # optimizer=optimizers.SGD(learning_rate=0.001, momentum=0.01),
             optimizer=optimizers.LossScaleOptimizer(
                 optimizers.SGD(learning_rate=0.001, momentum=0.01)
             ),

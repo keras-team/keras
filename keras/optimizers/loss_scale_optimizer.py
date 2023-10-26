@@ -89,59 +89,70 @@ class LossScaleOptimizer(optimizer.Optimizer):
                 "must be built (i.e. its variables must have been created). "
                 "You can build it via `optimizer.build(trainable_variables)`."
             )
+        finite = self.check_finite(grads)
+        return ops.cond(
+            finite,
+            lambda: self._stateless_handle_finite_grads(
+                optimizer_variables, grads, trainable_variables
+            ),
+            lambda: self._stateless_handle_non_finite_grads(
+                optimizer_variables, trainable_variables
+            ),
+        )
 
-        def handle_finite_grads():
-            def upscale():
-                mapping = list(zip(self.variables, optimizer_variables))
-                with backend.StatelessScope(state_mapping=mapping) as scope:
-                    self.step_counter.assign(0)
-                    self.dynamic_scale.assign(self.dynamic_scale * 2.0)
-                return [scope.get_current_value(v) for v in self._variables]
-
-            def increment():
-                mapping = list(zip(self.variables, optimizer_variables))
-                with backend.StatelessScope(state_mapping=mapping) as scope:
-                    self.step_counter.assign_add(1)
-                return [scope.get_current_value(v) for v in self._variables]
-
-            mapping = list(zip(self.variables, optimizer_variables))
-            with backend.StatelessScope(state_mapping=mapping):
-                # Potentially upscale loss and reset counter.
-                own_variables = ops.cond(
-                    ops.equal(self.step_counter, self.dynamic_growth_steps - 1),
-                    upscale,
-                    increment,
-                )
-
-                # Unscale gradients.
-                scale = self.dynamic_scale
-                unscaled_grads = [
-                    g if g is None else ops.divide(g, scale) for g in grads
-                ]
-                (
-                    new_trainable_variables,
-                    new_inner_variables,
-                ) = self.inner_optimizer.stateless_apply(
-                    self.inner_optimizer.variables,
-                    unscaled_grads,
-                    trainable_variables,
-                )
-
-            new_optimizer_variables = own_variables + new_inner_variables
-            return new_trainable_variables, new_optimizer_variables
-
-        def handle_non_finite_grads():
+    def _stateless_handle_finite_grads(
+        self, optimizer_variables, grads, trainable_variables
+    ):
+        def upscale():
             mapping = list(zip(self.variables, optimizer_variables))
             with backend.StatelessScope(state_mapping=mapping) as scope:
                 self.step_counter.assign(0)
-                self.dynamic_scale.assign(self.dynamic_scale / 2.0)
-            new_optimizer_variables = []
-            for v in self.variables:
-                new_optimizer_variables.append(scope.get_current_value(v))
-            return trainable_variables, new_optimizer_variables
+                self.dynamic_scale.assign(self.dynamic_scale * 2.0)
+            return [scope.get_current_value(v) for v in self._variables]
 
-        finite = self.check_finite(grads)
-        return ops.cond(finite, handle_finite_grads, handle_non_finite_grads)
+        def increment():
+            mapping = list(zip(self.variables, optimizer_variables))
+            with backend.StatelessScope(state_mapping=mapping) as scope:
+                self.step_counter.assign_add(1)
+            return [scope.get_current_value(v) for v in self._variables]
+
+        mapping = list(zip(self.variables, optimizer_variables))
+        with backend.StatelessScope(state_mapping=mapping):
+            # Potentially upscale loss and reset counter.
+            own_variables = ops.cond(
+                ops.equal(self.step_counter, self.dynamic_growth_steps - 1),
+                upscale,
+                increment,
+            )
+
+            # Unscale gradients.
+            scale = self.dynamic_scale
+            unscaled_grads = [
+                g if g is None else ops.divide(g, scale) for g in grads
+            ]
+            (
+                new_trainable_variables,
+                new_inner_variables,
+            ) = self.inner_optimizer.stateless_apply(
+                self.inner_optimizer.variables,
+                unscaled_grads,
+                trainable_variables,
+            )
+
+        new_optimizer_variables = own_variables + new_inner_variables
+        return new_trainable_variables, new_optimizer_variables
+
+    def _stateless_handle_non_finite_grads(
+        self, optimizer_variables, trainable_variables
+    ):
+        mapping = list(zip(self.variables, optimizer_variables))
+        with backend.StatelessScope(state_mapping=mapping) as scope:
+            self.step_counter.assign(0)
+            self.dynamic_scale.assign(self.dynamic_scale / 2.0)
+        new_optimizer_variables = []
+        for v in self.variables:
+            new_optimizer_variables.append(scope.get_current_value(v))
+        return trainable_variables, new_optimizer_variables
 
     def apply(self, grads, trainable_variables=None):
         # Optionally build optimizer.
@@ -155,7 +166,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
         else:
             self._common_apply(grads, trainable_variables)
 
-    def handle_finite_grads(self, grads, trainable_variables):
+    def _stateful_handle_finite_grads(self, grads, trainable_variables):
         scale = self.dynamic_scale
         # Unscale gradients.
         unscaled_grads = [
@@ -179,7 +190,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
             increment,
         )
 
-    def handle_non_finite_grads(self):
+    def _stateful_handle_non_finite_grads(self):
         # If any inf or nan in grads, downscale loss and reset counter.
         self.step_counter.assign(0)
         self.dynamic_scale.assign(self.dynamic_scale / 2.0)
@@ -188,8 +199,10 @@ class LossScaleOptimizer(optimizer.Optimizer):
         finite = self.check_finite(grads)
         ops.cond(
             finite,
-            lambda: self.handle_finite_grads(grads, trainable_variables),
-            self.handle_non_finite_grads,
+            lambda: self._stateful_handle_finite_grads(
+                grads, trainable_variables
+            ),
+            self._stateful_handle_non_finite_grads,
         )
 
     def _tf_apply(self, grads, trainable_variables=None):
@@ -218,7 +231,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
 
                 def apply_fn():
                     distribution.extended.call_for_each_replica(
-                        self.handle_finite_grads,
+                        self._stateful_handle_finite_grads,
                         args=(grads, trainable_variables),
                     )
 
@@ -226,7 +239,9 @@ class LossScaleOptimizer(optimizer.Optimizer):
                 # DistributionStrategy does not support having a cond in a
                 # replica context with a branch that calls `merge_call`, and
                 # self._optimizer.apply_gradients calls `merge_call`.
-                ops.cond(finite, apply_fn, self.handle_non_finite_grads)
+                ops.cond(
+                    finite, apply_fn, self._stateful_handle_non_finite_grads
+                )
 
             tf.distribute.get_replica_context().merge_call(
                 _handle_cross_replica, args=(grads, trainable_variables)
