@@ -1146,39 +1146,38 @@ class Average(Operation):
 
     def compute_output_spec(self, x, weights=None):
         if weights is not None:
-            if shape_equal(x.shape, weights.shape, allow_none=True):
+            shape_match = shape_equal(x.shape, weights.shape, allow_none=True)
+            if self.axis is not None:
+                shape_match_on_axis = shape_equal(
+                    [x.shape[self.axis]], weights.shape, allow_none=True
+                )
+        if self.axis is None:
+            if weights is None or shape_match:
                 return KerasTensor(
-                    reduce_shape(x.shape, axis=[self.axis]),
+                    [],
                     dtype=x.dtype,
                 )
-            elif self.axis is not None and shape_equal(
-                [x.shape[self.axis]], weights.shape, allow_none=True
-            ):
-                return KerasTensor(
-                    reduce_shape(x.shape, axis=[self.axis]),
-                    dtype=x.dtype,
+            else:
+                raise ValueError(
+                    "`weights` must have the same shape as `x` when "
+                    f"`axis=None`, but received `weights.shape={weights.shape}`"
+                    f" and `x.shape={x.shape}`."
                 )
 
-        if weights is None:
+        if weights is None or shape_match_on_axis or shape_match:
             return KerasTensor(
-                [],
+                reduce_shape(x.shape, axis=[self.axis]),
                 dtype=x.dtype,
             )
-        elif self.axis is None:
+        else:
+            # `weights` can either be a 1D array of length `x.shape[axis]` or
+            # of the same shape as `x`.
             raise ValueError(
-                "`weights` must have the same shape as `x` when "
-                f"`axis=None`, but received `weights.shape={weights.shape}`"
-                f" and `x.shape={x.shape}`."
+                "`weights` must have the same size as `x` at "
+                f"`axis={self.axis}` but received "
+                f"`weights.shape={weights.shape}` while x.shape at "
+                f"`{self.axis}` is `{x.shape[self.axis]}`."
             )
-
-        # `weights` can either be a 1D array of length `x.shape[axis]` or
-        # of the same shape as `x`.
-        raise ValueError(
-            "`weights` must have the same size as `x` at "
-            f"`axis={self.axis}` but received "
-            f"`weights.shape={weights.shape}` while x.shape at "
-            f"`{self.axis}` is `{x.shape[self.axis]}`."
-        )
 
 
 @keras_export(["keras.ops.average", "keras.ops.numpy.average"])
