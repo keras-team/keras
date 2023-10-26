@@ -675,6 +675,13 @@ def less_equal(x1, x2):
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return tfnp.linspace(
         start,
         stop,
@@ -688,22 +695,54 @@ def linspace(
 
 @sparse.densifying_unary(-tfnp.inf)
 def log(x):
-    return tfnp.log(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.log doesn't support bfloat16
+    return tf.cast(tfnp.log(x), dtype)
 
 
 @sparse.densifying_unary(-tfnp.inf)
 def log10(x):
-    return tfnp.log10(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.log10 doesn't support bfloat16
+    return tf.cast(tfnp.log10(x), dtype)
 
 
 @sparse.elementwise_unary
 def log1p(x):
-    return tfnp.log1p(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.log1p doesn't support bfloat16
+    return tf.cast(tfnp.log1p(x), dtype)
 
 
 @sparse.densifying_unary(-tfnp.inf)
 def log2(x):
-    return tfnp.log2(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.log10 doesn't support bfloat16
+    return tf.cast(tfnp.log2(x), dtype)
 
 
 def logaddexp(x1, x2):
@@ -723,6 +762,15 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    start = tf.cast(start, dtype)
+    stop = tf.cast(stop, dtype)
     return tfnp.logspace(
         start,
         stop,

@@ -393,6 +393,13 @@ def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return np.linspace(
         start,
         stop,
@@ -405,18 +412,46 @@ def linspace(
 
 
 def log(x):
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = x.astype(dtype)
     return np.log(x)
 
 
 def log10(x):
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = x.astype(dtype)
     return np.log10(x)
 
 
 def log1p(x):
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = x.astype(dtype)
     return np.log1p(x)
 
 
 def log2(x):
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = x.astype(dtype)
     return np.log2(x)
 
 
@@ -437,6 +472,13 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return np.logspace(
         start,
         stop,

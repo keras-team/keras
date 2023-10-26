@@ -635,12 +635,20 @@ def linspace(
             "torch.linspace does not support an `axis` argument. "
             f"Received axis={axis}"
         )
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = to_torch_dtype(dtype)
+
     if endpoint is False:
         stop = stop - ((stop - start) / num)
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
-        start, stop = convert_to_tensor(start), convert_to_tensor(stop)
-        stop = cast(stop, dtype) if endpoint is False and dtype else stop
+        start = convert_to_tensor(start, dtype=dtype)
+        stop = convert_to_tensor(stop, dtype=dtype)
         steps = torch.arange(num, dtype=dtype, device=get_device()) / (num - 1)
 
         # reshape `steps` to allow for broadcasting
@@ -655,6 +663,7 @@ def linspace(
             end=stop,
             steps=num,
             dtype=dtype,
+            device=get_device(),
         )
     if retstep is True:
         return (linspace, num)
@@ -709,12 +718,20 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             "torch.logspace does not support an `axis` argument. "
             f"Received axis={axis}"
         )
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = to_torch_dtype(dtype)
+
     if endpoint is False:
         stop = stop - ((stop - start) / num)
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
-        start, stop = convert_to_tensor(start), convert_to_tensor(stop)
-        stop = cast(stop, dtype) if endpoint is False and dtype else stop
+        start = convert_to_tensor(start, dtype=dtype)
+        stop = convert_to_tensor(stop, dtype=dtype)
         steps = torch.arange(num, dtype=dtype, device=get_device()) / (num - 1)
 
         # reshape `steps` to allow for broadcasting
@@ -725,12 +742,20 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         linspace = start[None] + steps * (stop - start)[None]
         logspace = base**linspace
     else:
-        logspace = torch.logspace(
-            start=start,
-            end=stop,
-            steps=num,
-            base=base,
-            dtype=dtype,
+        compute_dtype = dtype
+        # TODO: torch.logspace doesn't support float16 with cpu
+        if get_device() == "cpu" and dtype == torch.float16:
+            compute_dtype = torch.float32
+        logspace = cast(
+            torch.logspace(
+                start=start,
+                end=stop,
+                steps=num,
+                base=base,
+                dtype=compute_dtype,
+                device=get_device(),
+            ),
+            dtype,
         )
     return logspace
 
