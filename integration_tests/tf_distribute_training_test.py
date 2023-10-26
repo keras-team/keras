@@ -44,7 +44,9 @@ def test_model_fit():
     # Fit from numpy arrays:
     with strategy.scope():
         model.compile(
-            optimizer=optimizers.SGD(learning_rate=0.001, momentum=0.01),
+            optimizer=optimizers.LossScaleOptimizer(
+                optimizers.SGD(learning_rate=0.001, momentum=0.01)
+            ),
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
             # TODO(scottzhu): Find out where is the variable
