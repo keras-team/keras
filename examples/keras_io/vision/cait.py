@@ -49,11 +49,8 @@ from urllib.request import urlopen
 import matplotlib.pyplot as plt
 import numpy as np
 import PIL
-# import tensorflow as tf
 import keras
-# from tensorflow import keras
 from keras import layers
-# from tensorflow.keras import layers
 
 """
 ## The LayerScale layer
