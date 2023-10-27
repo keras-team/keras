@@ -675,6 +675,13 @@ def less_equal(x1, x2):
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return tfnp.linspace(
         start,
         stop,
@@ -688,26 +695,64 @@ def linspace(
 
 @sparse.densifying_unary(-tfnp.inf)
 def log(x):
-    return tfnp.log(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.log incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.log(x), dtype)
 
 
 @sparse.densifying_unary(-tfnp.inf)
 def log10(x):
-    return tfnp.log10(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.log10 incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.log10(x), dtype)
 
 
 @sparse.elementwise_unary
 def log1p(x):
-    return tfnp.log1p(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.log1p incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.log1p(x), dtype)
 
 
 @sparse.densifying_unary(-tfnp.inf)
 def log2(x):
-    return tfnp.log2(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.log10 incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.log2(x), dtype)
 
 
 def logaddexp(x1, x2):
-    return tfnp.logaddexp(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    # TODO: tfnp.logaddexp incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.logaddexp(x1, x2), dtype)
 
 
 def logical_and(x1, x2):
@@ -723,6 +768,15 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    start = tf.cast(start, dtype)
+    stop = tf.cast(stop, dtype)
     return tfnp.logspace(
         start,
         stop,
@@ -1141,14 +1195,13 @@ def sqrt(x):
     x = convert_to_tensor(x)
     # upcast to float64 for int64 which matches JAX's behavior
     dtype = (
-        "float64"
+        config.floatx()
         if standardize_dtype(x.dtype) == "int64"
         else dtypes.result_type(x.dtype, float)
     )
     x = tf.cast(x, dtype)
-    # TODO: Use tfnp.sqrt. Currently, tfnp.sqrt will aggressively upcast to
-    # float64 if the input is bfloat16. This behavior mismatches with JAX.
-    return tf.sqrt(x)
+    # TODO: tfnp.sqrt incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.sqrt(x), dtype)
 
 
 def squeeze(x, axis=None):
