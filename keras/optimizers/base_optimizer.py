@@ -154,7 +154,7 @@ class BaseOptimizer:
     def add_variable(
         self,
         shape,
-        initializer,
+        initializer="zeros",
         dtype=None,
         name=None,
     ):
@@ -197,6 +197,48 @@ class BaseOptimizer:
                     "When working with a new set of variables, you should "
                     "recreate a new optimizer instance."
                 )
+
+    def assign(self, variable, value):
+        """Assign a value to a variable.
+
+        This should be used in optimizers instead of `variable.assign(value)` to
+        support backend specific optimizations.
+        Note that the variable can be a model variable or an optimizer variable;
+        it can be a backend native variable or a Keras variable.
+
+        Args:
+            variable: The variable to update.
+            value: The value to add to the variable.
+        """
+        variable.assign(value)
+
+    def assign_add(self, variable, value):
+        """Add a value to a variable.
+
+        This should be used in optimizers instead of
+        `variable.assign_add(value)` to support backend specific optimizations.
+        Note that the variable can be a model variable or an optimizer variable;
+        it can be a backend native variable or a Keras variable.
+
+        Args:
+            variable: The variable to update.
+            value: The value to add to the variable.
+        """
+        variable.assign_add(value)
+
+    def assign_sub(self, variable, value):
+        """Subtract a value from a variable.
+
+        This should be used in optimizers instead of
+        `variable.assign_sub(value)` to support backend specific optimizations.
+        Note that the variable can be a model variable or an optimizer variable;
+        it can be a backend native variable or a Keras variable.
+
+        Args:
+            variable: The variable to update.
+            value: The value to add to the variable.
+        """
+        variable.assign_sub(value)
 
     def update_step(self, gradient, variable, learning_rate):
         raise NotImplementedError

@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from keras import backend
+from keras.backend.common import KerasVariable
 from keras.optimizers import base_optimizer
 
 
@@ -39,6 +40,24 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
             "(as it is incompatible with tf.distribute)."
         )
 
+    def assign_add(self, variable, value):
+        if isinstance(variable, KerasVariable):
+            variable = variable.value
+        value = tf.cast(value, variable.dtype)
+        if isinstance(value, tf.IndexedSlices):
+            variable.scatter_add(value)
+        else:
+            variable.assign_add(value)
+
+    def assign_sub(self, variable, value):
+        if isinstance(variable, KerasVariable):
+            variable = variable.value
+        value = tf.cast(value, variable.dtype)
+        if isinstance(value, tf.IndexedSlices):
+            variable.scatter_sub(value)
+        else:
+            variable.assign_sub(value)
+
     def _var_key(self, variable):
         if isinstance(variable, backend.Variable):
             variable = variable.value  # Convert to tf.Variable
@@ -63,7 +82,7 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
                 if self._use_weight_decay(variable):
                     lr = tf.cast(self.learning_rate, variable.dtype)
                     wd = tf.cast(self.weight_decay, variable.dtype)
-                    variable.assign(variable - variable * wd * lr)
+                    variable.assign_sub(variable * wd * lr)
 
             for variable in variables:
                 if isinstance(variable, backend.Variable):
@@ -99,7 +118,6 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
 
         def apply_grad_to_update_var(var, grad):
             learning_rate = self._get_current_learning_rate()
-            grad = tf.convert_to_tensor(grad)
             return self.update_step(grad, var, learning_rate)
 
         for grad, var in grads_and_vars:
@@ -123,7 +141,7 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
                     ),
                     false_fn=lambda: None,
                 )
-        self.iterations.assign(self.iterations + 1)
+        self.iterations.assign_add(1)
 
     def _overwrite_model_variables_with_average_value(self, var_list):
         """Overwrite model variables with their moving average values.

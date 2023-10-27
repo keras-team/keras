@@ -3028,7 +3028,12 @@ class Linspace(Operation):
                 + output_shape[self.axis + 1 :]
             )
 
-        dtype = self.dtype if self.dtype is not None else start.dtype
+        dtype = (
+            self.dtype
+            if self.dtype is not None
+            else getattr(start, "dtype", type(start))
+        )
+        dtype = backend.result_type(dtype, float)
         if self.retstep:
             return (KerasTensor(output_shape, dtype=dtype), None)
         return KerasTensor(output_shape, dtype=dtype)
@@ -3086,7 +3091,12 @@ class Log(Operation):
         return backend.numpy.log(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = (
+            backend.floatx()
+            if backend.standardize_dtype(x.dtype) == "int64"
+            else dtypes.result_type(x.dtype, float)
+        )
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.log", "keras.ops.numpy.log"])
@@ -3109,7 +3119,12 @@ class Log10(Operation):
         return backend.numpy.log10(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = (
+            backend.floatx()
+            if backend.standardize_dtype(x.dtype) == "int64"
+            else dtypes.result_type(x.dtype, float)
+        )
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.log10", "keras.ops.numpy.log10"])
@@ -3132,8 +3147,13 @@ class Log1p(Operation):
         return backend.numpy.log1p(x)
 
     def compute_output_spec(self, x):
+        dtype = (
+            backend.floatx()
+            if backend.standardize_dtype(x.dtype) == "int64"
+            else dtypes.result_type(x.dtype, float)
+        )
         sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.log1p", "keras.ops.numpy.log1p"])
@@ -3158,7 +3178,12 @@ class Log2(Operation):
         return backend.numpy.log2(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = (
+            backend.floatx()
+            if backend.standardize_dtype(x.dtype) == "int64"
+            else dtypes.result_type(x.dtype, float)
+        )
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.log2", "keras.ops.numpy.log2"])
@@ -3184,7 +3209,12 @@ class Logaddexp(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+            float,
+        )
+        return KerasTensor(output_shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.logaddexp", "keras.ops.numpy.logaddexp"])
@@ -3342,8 +3372,12 @@ class Logspace(Operation):
                 + [self.num]
                 + output_shape[self.axis + 1 :]
             )
-
-        dtype = self.dtype if self.dtype is not None else start.dtype
+        dtype = (
+            self.dtype
+            if self.dtype is not None
+            else getattr(start, "dtype", type(start))
+        )
+        dtype = backend.result_type(dtype, float)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -5463,7 +5497,7 @@ class Sqrt(Operation):
 
     def compute_output_spec(self, x):
         dtype = (
-            "float64"
+            backend.floatx()
             if backend.standardize_dtype(x.dtype) == "int64"
             else dtypes.result_type(x.dtype, float)
         )
