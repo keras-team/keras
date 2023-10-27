@@ -147,35 +147,43 @@ class Adafactor(optimizer.Optimizer):
 
         rho_t = ops.minimum(lr, 1 / ops.sqrt(local_step))
         alpha_t = ops.maximum(epsilon_2, self._rms(variable)) * rho_t
-        regulated_grad_square = ops.square(gradient) + self.epsilon_1
+        regulated_grad_square = ops.add(ops.square(gradient), self.epsilon_1)
         beta_2_t = 1 - ops.power(local_step, self.beta_2_decay)
 
         if len(variable.shape) >= 2:
             # `r` deletes the last dimension of gradient, so it is of shape
             # `gradient.shape[:-1]`.
-            r.assign(
+            self.assign(
+                r,
                 beta_2_t * r
-                + (1 - beta_2_t) * ops.mean(regulated_grad_square, axis=-1)
+                + (1 - beta_2_t) * ops.mean(regulated_grad_square, axis=-1),
             )
             # `c` deletes the second last dimension of gradient, so it is of
             # shape `gradient.shape[:-2] + gradient.shape[-1]`.
-            c.assign(
+            self.assign(
+                c,
                 beta_2_t * c
-                + (1 - beta_2_t) * ops.mean(regulated_grad_square, axis=-2)
+                + (1 - beta_2_t) * ops.mean(regulated_grad_square, axis=-2),
             )
-            v.assign(
+            self.assign(
+                v,
                 ops.expand_dims(
                     r / ops.mean(r, axis=-1, keepdims=True), axis=-1
                 )
-                * ops.expand_dims(c, -2)
+                * ops.expand_dims(c, -2),
             )
         else:
-            v.assign(beta_2_t * v + (1 - beta_2_t) * regulated_grad_square)
+            self.assign(
+                v, beta_2_t * v + (1 - beta_2_t) * regulated_grad_square
+            )
 
         # `convert_to_tensor` unifies the handling of sparse and dense grads.
-        u_t = gradient / ops.sqrt(v)
-        u_t_hat = u_t / ops.maximum(one, (self._rms(u_t) / self.clip_threshold))
-        variable.assign(variable - alpha_t * u_t_hat)
+        u_t = ops.divide(gradient, ops.sqrt(v))
+        u_t_hat = ops.divide(
+            u_t,
+            ops.maximum(one, ops.divide(self._rms(u_t), self.clip_threshold)),
+        )
+        self.assign_sub(variable, ops.multiply(alpha_t, u_t_hat))
 
     def get_config(self):
         config = super().get_config()
