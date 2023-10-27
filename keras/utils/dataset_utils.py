@@ -596,6 +596,12 @@ def index_directory(
     if labels is None:
         io_utils.print_msg(f"Found {len(filenames)} files.")
     else:
+        #So that it works with a label list and 'categorical'
+        #Otherwise class_names contains one entry which is the parent directory...
+        #...not actual class_names from the list.
+        
+        class_names,idx,count = tf.unique_with_counts(labels)
+        
         io_utils.print_msg(
             f"Found {len(filenames)} files belonging "
             f"to {len(class_names)} classes."
