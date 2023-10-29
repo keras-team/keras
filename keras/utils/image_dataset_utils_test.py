@@ -63,7 +63,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             i += 1
         return temp_dir
 
-    def test_image_dataset_from_directory_standalone(self):
+    def test_image_dataset_from_directory_no_labels(self):
         # Test retrieving images without labels from a directory and its
         # subdirs.
 
@@ -76,6 +76,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory, batch_size=5, image_size=(18, 18), labels=None
         )
+        self.assertEqual(dataset.class_names, None)
         batch = next(iter(dataset))
         # We return plain images
         self.assertEqual(batch.shape, (5, 18, 18, 3))

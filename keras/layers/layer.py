@@ -1025,7 +1025,10 @@ class Layer(BackendLayer, Operation):
 
     @utils.default
     def compute_output_shape(self, *args, **kwargs):
-        return NotImplementedError
+        raise NotImplementedError(
+            f"Layer {self.__class__.__name__} should implement "
+            "`def compute_output_shape(self, input_shape)`."
+        )
 
     def add_loss(self, loss):
         """Can be called inside of the `call()` method to add a scalar loss.
