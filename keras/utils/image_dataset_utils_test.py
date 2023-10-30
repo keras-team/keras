@@ -254,12 +254,13 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         self.assertEqual(batch[0].shape, (2, 18, 18, 3))
 
     def test_image_dataset_from_directory_manual_labels(self):
-        directory = self._prepare_directory(num_classes=2, count=2)
+        directory = self._prepare_directory(num_classes=1, count=4)
+        #num_classes == num directories created. Num classes is defined by "labels" list passed
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory,
             batch_size=8,
             image_size=(18, 18),
-            labels=[0, 1],
+            labels=[0, 1, 0, 1],
             shuffle=False,
         )
         batch = next(iter(dataset))
