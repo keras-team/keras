@@ -4969,6 +4969,106 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
+    def test_logical_and(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.logical_and(x1_jax, x2_jax).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.logical_and(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.LogicalAnd().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_logical_not(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.logical_not(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.logical_not(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.LogicalNot().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
+    def test_logical_or(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.logical_or(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.logical_or(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.LogicalOr().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
+    def test_logical_xor(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.logical_xor(x1_jax, x2_jax).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.logical_xor(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.LogicalXor().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
+    def test_maximum(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.maximum(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.maximum(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Maximum().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_median(self, dtype):
         import jax.numpy as jnp
@@ -4989,6 +5089,59 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Median(axis=1).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    # TODO: test_meshgrid
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_min(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.min(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.min(x).dtype), expected_dtype)
+        self.assertEqual(knp.Min().symbolic_call(x).dtype, expected_dtype)
+
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
+    def test_minimum(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.minimum(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.minimum(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Minimum().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
+    def test_mod(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.mod(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.mod(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Mod().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 

@@ -790,6 +790,11 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 @sparse.elementwise_binary_union(tf.sparse.maximum, densify_mixed=True)
 def maximum(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.maximum(x1, x2)
 
 
@@ -824,11 +829,23 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 @sparse.elementwise_binary_union(tf.sparse.minimum, densify_mixed=True)
 def minimum(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.minimum(x1, x2)
 
 
 @sparse.elementwise_division
 def mod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.mod(x1, x2)
 
 

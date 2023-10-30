@@ -492,7 +492,15 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 
 def maximum(x1, x2):
-    return np.maximum(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: np.maximum doesn't support dtype=bfloat16, so we need to cast it
+    # first
+    if dtype == "bfloat16":
+        x1 = x1.astype(dtype)
+        x2 = x2.astype(dtype)
+    return np.maximum(x1, x2, dtype=dtype)
 
 
 def median(x, axis=None, keepdims=False):
@@ -510,10 +518,25 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
-    return np.minimum(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: np.minimum doesn't support dtype=bfloat16, so we need to cast it
+    # first
+    if dtype == "bfloat16":
+        x1 = x1.astype(dtype)
+        x2 = x2.astype(dtype)
+    return np.minimum(x1, x2, dtype=dtype)
 
 
 def mod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.mod(x1, x2)
 
 
