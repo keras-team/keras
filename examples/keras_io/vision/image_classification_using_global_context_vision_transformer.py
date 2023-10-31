@@ -1163,8 +1163,8 @@ CLASSES = [
 ]  # don't change the order
 
 # Other constants
-MEAN = tf.constant([0.485 * 255, 0.456 * 255, 0.406 * 255])  # imagenet mean
-STD = tf.constant([0.229 * 255, 0.224 * 255, 0.225 * 255])  # imagenet std
+MEAN = np.array([0.485 * 255, 0.456 * 255, 0.406 * 255], dtype="float32")  # imagenet mean
+STD = np.array([0.229 * 255, 0.224 * 255, 0.225 * 255], dtype="float32")  # imagenet std
 AUTO = tf.data.AUTOTUNE
 
 """
