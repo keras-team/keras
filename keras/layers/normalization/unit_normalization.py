@@ -45,7 +45,9 @@ class UnitNormalization(Layer):
         x = ops.cast(inputs, self.compute_dtype)
 
         square_sum = ops.sum(ops.square(x), axis=self.axis, keepdims=True)
-        x_inv_norm = ops.rsqrt(ops.maximum(square_sum, 1e-12))
+        x_inv_norm = ops.rsqrt(
+            ops.maximum(square_sum, ops.cast(1e-12, self.compute_dtype))
+        )
         return ops.multiply(x, x_inv_norm)
 
     def compute_output_shape(self, input_shape):
