@@ -1147,7 +1147,7 @@ consists `104` classes.
 """
 
 # Model
-IMAGE_SIZE = [224, 224]
+IMAGE_SIZE = (224, 224)
 
 # Hyper Params
 BATCH_SIZE = 32
