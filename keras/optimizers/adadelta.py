@@ -95,16 +95,28 @@ class Adadelta(optimizer.Optimizer):
         ]
 
         def rms(x):
-            return ops.sqrt(x + self.epsilon)
+            return ops.sqrt(ops.add(x, self.epsilon))
 
-        accumulated_grad.assign(
-            rho * accumulated_grad + (1 - rho) * grad * grad
+        self.assign(
+            accumulated_grad,
+            ops.add(
+                rho * accumulated_grad, ops.multiply(1 - rho, ops.square(grad))
+            ),
         )
-        delta_var = -rms(accumulated_delta_var) * grad / rms(accumulated_grad)
-        accumulated_delta_var.assign(
-            rho * accumulated_delta_var + (1 - rho) * delta_var * delta_var
+        delta_var = ops.negative(
+            ops.divide(
+                ops.multiply(rms(accumulated_delta_var), grad),
+                rms(accumulated_grad),
+            )
         )
-        variable.assign(variable + lr * delta_var)
+        self.assign(
+            accumulated_delta_var,
+            ops.add(
+                ops.multiply(rho, accumulated_delta_var),
+                ops.multiply(1 - rho, ops.square(delta_var)),
+            ),
+        )
+        self.assign_add(variable, ops.multiply(lr, delta_var))
 
     def get_config(self):
         config = super().get_config()

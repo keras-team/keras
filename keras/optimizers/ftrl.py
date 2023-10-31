@@ -187,27 +187,42 @@ class Ftrl(optimizer.Optimizer):
         l2_reg = self.l2_regularization_strength
         l2_reg = l2_reg + self.beta / (2.0 * lr)
 
-        # Ftrl optimizer has the same implementation for sparse and dense
-        # gradients update.
-        grad_to_use = (
-            gradient + 2 * self.l2_shrinkage_regularization_strength * variable
+        grad_to_use = ops.add(
+            gradient,
+            ops.multiply(
+                2 * self.l2_shrinkage_regularization_strength, variable
+            ),
         )
-        new_accum = accum + ops.power(gradient, 2)
-        linear.assign(
-            linear
-            + grad_to_use
-            - (ops.power(new_accum, -lr_power) - ops.power(accum, -lr_power))
-            / lr
-            * variable
+        new_accum = ops.add(accum, ops.square(gradient))
+        self.assign_add(
+            linear,
+            ops.subtract(
+                grad_to_use,
+                ops.multiply(
+                    ops.divide(
+                        ops.subtract(
+                            ops.power(new_accum, -lr_power),
+                            ops.power(accum, -lr_power),
+                        ),
+                        lr,
+                    ),
+                    variable,
+                ),
+            ),
         )
-        quadratic = ops.power(new_accum, (-lr_power)) / lr + 2 * l2_reg
+        quadratic = ops.add(
+            ops.divide(ops.power(new_accum, (-lr_power)), lr), 2 * l2_reg
+        )
         linear_clipped = ops.clip(
             linear,
             -self.l1_regularization_strength,
             self.l1_regularization_strength,
         )
-        variable.assign((linear_clipped - linear) / quadratic)
-        accum.assign(new_accum)
+        self.assign(
+            variable,
+            ops.divide(ops.subtract(linear_clipped, linear), quadratic),
+        )
+        self.assign(accum, new_accum)
 
     def get_config(self):
         config = super().get_config()
