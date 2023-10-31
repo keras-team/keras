@@ -2,7 +2,7 @@
 Title: Metric learning for image similarity search
 Author: [Mat Kelcey](https://twitter.com/mat_kelcey)
 Date created: 2020/06/05
-Last modified: 2023/10/27
+Last modified: 2020/06/09
 Description: Example of using similarity metric learning on CIFAR-10 images.
 Accelerator: GPU
 """
@@ -32,6 +32,7 @@ import tensorflow as tf
 from collections import defaultdict
 from PIL import Image
 from sklearn.metrics import ConfusionMatrixDisplay
+import os
 import keras
 from keras import layers
 
@@ -43,6 +44,14 @@ For this example we will be using the
 """
 
 from keras.datasets import cifar10
+
+"""
+## Backend for the new keras
+
+Set Keras backend
+you can choose from jax, tensorflow, pytorch 
+"""
+os.environ["KERAS_BACKEND"] = "tensorflow"
 
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
@@ -117,7 +126,6 @@ CIFAR-10 this is 10.
 """
 
 num_classes = 10
-
 
 
 class AnchorPositivePairs(keras.utils.Sequence):
@@ -225,8 +233,7 @@ model.compile(
     loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
 )
 
-# history = model.fit(AnchorPositivePairs(num_batches=1000), epochs=20)
-history = model.fit(AnchorPositivePairs(num_batches=1000), epochs=1)
+history = model.fit(AnchorPositivePairs(num_batches=1000), epochs=20)
 
 plt.plot(history.history["loss"])
 plt.show()
@@ -313,11 +320,3 @@ labels = [
 disp = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix, display_labels=labels)
 disp.plot(include_values=True, cmap="viridis", ax=None, xticks_rotation="vertical")
 plt.show()
-
-"""
-Example available on HuggingFace.
-
-| Trained Model | Demo |
-| :--: | :--: |
-| [![Generic badge](https://img.shields.io/badge/🤗%20Model-Cifar10%20Metric%20Learning-black.svg)](https://huggingface.co/keras-io/cifar10_metric_learning) | [![Generic badge](https://img.shields.io/badge/🤗%20Spaces-Metric%20Learning%20for%20Image%20Similarity%20Search-black.svg)](https://huggingface.co/spaces/keras-io/metric-learning-image-similarity-search) |
-"""
