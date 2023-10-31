@@ -85,9 +85,13 @@ class Adagrad(optimizer.Optimizer):
 
         accumulator = self._accumulators[self._get_variable_index(variable)]
 
-        accumulator.assign(accumulator + gradient * gradient)
-        variable.assign(
-            variable - (lr * gradient / ops.sqrt(accumulator + self.epsilon))
+        self.assign_add(accumulator, ops.square(gradient))
+        self.assign_sub(
+            variable,
+            ops.divide(
+                ops.multiply(lr, gradient),
+                ops.sqrt(ops.add(accumulator, self.epsilon)),
+            ),
         )
 
     def get_config(self):

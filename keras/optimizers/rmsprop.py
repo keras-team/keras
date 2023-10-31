@@ -127,18 +127,35 @@ class RMSprop(optimizer.Optimizer):
 
         rho = self.rho
 
-        velocity.assign(rho * velocity + (1 - rho) * ops.square(gradient))
+        self.assign(
+            velocity,
+            ops.add(
+                ops.multiply(rho, velocity),
+                ops.multiply(1 - rho, ops.square(gradient)),
+            ),
+        )
         if self.centered:
-            average_grad.assign(rho * average_grad + (1 - rho) * gradient)
+            self.assign(
+                average_grad,
+                ops.add(
+                    ops.multiply(rho, average_grad),
+                    ops.multiply(1 - rho, gradient),
+                ),
+            )
             denominator = velocity - ops.square(average_grad) + self.epsilon
         else:
-            denominator = velocity + self.epsilon
-        increment = lr * gradient / ops.sqrt(denominator)
+            denominator = ops.add(velocity, self.epsilon)
+        increment = ops.divide(
+            ops.multiply(lr, gradient), ops.sqrt(denominator)
+        )
         if self.momentum > 0:
-            momentum.assign(self.momentum * momentum + increment)
-            variable.assign(variable - momentum)
+            self.assign(
+                momentum,
+                ops.add(ops.multiply(self.momentum, momentum), increment),
+            )
+            self.assign_sub(variable, momentum)
         else:
-            variable.assign(variable - increment)
+            self.assign_sub(variable, increment)
 
     def get_config(self):
         config = super().get_config()

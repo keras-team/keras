@@ -4263,6 +4263,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
     ] + [None]
     INT_DTYPES = [x for x in ALLOWED_DTYPES if "int" in x and x != "uint64"]
+    FLOAT_DTYPES = [x for x in ALLOWED_DTYPES if "float" in x]
 
     if backend.backend() == "torch":
         # TODO: torch doesn't support uint16, uint32 and uint64
@@ -4812,6 +4813,162 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(
+        named_product(
+            start_and_stop=[
+                [0, 10],
+                [0.5, 10.5],
+                [np.array([0, 1], "int32"), np.array([10, 20], "int32")],
+                [np.array([0, 1], "float32"), np.array([10, 20], "float32")],
+            ],
+            num=[0, 1, 5],
+            dtype=FLOAT_DTYPES + [None],
+        )
+    )
+    def test_linspace(self, start_and_stop, num, dtype):
+        import jax.numpy as jnp
+
+        start, stop = start_and_stop
+        expected_dtype = standardize_dtype(
+            jnp.linspace(start, stop, num, dtype=dtype).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(
+                knp.linspace(start, stop, num, dtype=dtype).dtype
+            ),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Linspace(num, dtype=dtype).symbolic_call(start, stop).dtype
+            ),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_log(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((3, 3), dtype=dtype)
+        x_jax = jnp.ones((3, 3), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.log(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.log(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Log().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_log10(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((3, 3), dtype=dtype)
+        x_jax = jnp.ones((3, 3), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.log10(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.log10(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Log10().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_log1p(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((3, 3), dtype=dtype)
+        x_jax = jnp.ones((3, 3), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.log1p(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.log1p(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Log1p().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_log2(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((3, 3), dtype=dtype)
+        x_jax = jnp.ones((3, 3), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.log2(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.log2(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Log2().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
+    def test_logaddexp(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((3, 3), dtype=dtype1)
+        x2 = knp.ones((3, 3), dtype=dtype2)
+        x1_jax = jnp.ones((3, 3), dtype=dtype1)
+        x2_jax = jnp.ones((3, 3), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.logaddexp(x1_jax, x2_jax).dtype)
+        # jnp.logaddexp will promote "int64" and "uint32" to "float64"
+        # force the promotion to `backend.floatx()`
+        if dtype1 is not None and "float" not in dtype1:
+            if dtype2 is not None and "float" not in dtype2:
+                if "int64" in (dtype1, dtype2) or "uint32" in (dtype1, dtype2):
+                    expected_dtype = backend.floatx()
+
+        self.assertEqual(
+            standardize_dtype(knp.logaddexp(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Logaddexp().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(
+            start_and_stop=[
+                [0, 10],
+                [0.5, 10.5],
+                [np.array([0, 1], "int32"), np.array([10, 20], "int32")],
+                [np.array([0, 1], "float32"), np.array([10, 20], "float32")],
+            ],
+            num=[0, 1, 5],
+            dtype=FLOAT_DTYPES + [None],
+        )
+    )
+    def test_logspace(self, start_and_stop, num, dtype):
+        import jax.numpy as jnp
+
+        start, stop = start_and_stop
+        expected_dtype = standardize_dtype(
+            jnp.logspace(start, stop, num, dtype=dtype).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(
+                knp.logspace(start, stop, num, dtype=dtype).dtype
+            ),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Logspace(num, dtype=dtype).symbolic_call(start, stop).dtype
+            ),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_median(self, dtype):
         import jax.numpy as jnp
@@ -4876,6 +5033,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x1 = knp.ones((1,), dtype=dtype)
         x1_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.sqrt(x1_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
 
         self.assertEqual(standardize_dtype(knp.sqrt(x1).dtype), expected_dtype)
         self.assertEqual(
