@@ -165,25 +165,25 @@ def abs(x):
 def all(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
-        return torch.all(x)
+        return cast(torch.all(x), "bool")
     if not isinstance(axis, (list, tuple)):
         axis = (axis,)
     for a in axis:
         # `torch.all` does not handle multiple axes.
         x = torch.all(x, dim=a, keepdim=keepdims)
-    return x
+    return cast(x, "bool")
 
 
 def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
-        return torch.any(x)
+        return cast(torch.any(x), "bool")
     if not isinstance(axis, (list, tuple)):
         axis = (axis,)
     for a in axis:
         # `torch.any` does not handle multiple axes.
         x = torch.any(x, dim=a, keepdim=keepdims)
-    return x
+    return cast(x, "bool")
 
 
 def amax(x, axis=None, keepdims=False):
