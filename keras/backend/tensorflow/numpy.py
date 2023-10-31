@@ -854,14 +854,24 @@ def moveaxis(x, source, destination):
 
 
 def nan_to_num(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+
+    # tf.bool doesn't support max and min
+    if dtype == "bool":
+        x = tf.where(tfnp.isnan(x), tf.constant(False, x.dtype), x)
+        x = tf.where(tfnp.isinf(x) & (x > 0), tf.constant(True, x.dtype), x)
+        x = tf.where(tfnp.isinf(x) & (x < 0), tf.constant(False, x.dtype), x)
+        return x
+
     # Replace NaN with 0
-    x = tf.where(tf.math.is_nan(x), 0, x)
+    x = tf.where(tfnp.isnan(x), tf.constant(0, x.dtype), x)
 
     # Replace positive infinitiy with dtype.max
-    x = tf.where(tf.math.is_inf(x) & (x > 0), x.dtype.max, x)
+    x = tf.where(tfnp.isinf(x) & (x > 0), tf.constant(x.dtype.max, x.dtype), x)
 
     # Replace negative infinity with dtype.min
-    x = tf.where(tf.math.is_inf(x) & (x < 0), x.dtype.min, x)
+    x = tf.where(tfnp.isinf(x) & (x < 0), tf.constant(x.dtype.min, x.dtype), x)
 
     return x
 
@@ -875,6 +885,11 @@ def nonzero(x):
 
 
 def not_equal(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.not_equal(x1, x2)
 
 

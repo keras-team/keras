@@ -5146,6 +5146,44 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_nan_to_num(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.nan_to_num(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.nan_to_num(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.NanToNum().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    # TODO: test_non_zero
+
+    @parameterized.named_parameters(
+        named_product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    )
+    def test_not_equal(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.not_equal(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.not_equal(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.NotEqual().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_quantile(self, dtype):
         import jax.numpy as jnp
 
