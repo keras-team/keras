@@ -486,16 +486,12 @@ window-tokens have shape $(1, 4, 4, 3)$). Yes, you are right we can't directly c
 them hence we resize image-tokens to fit window-tokens with `Global Token
 Gen./FeatExtract` **CNN** module. The following table should give you a clear comparison,
 
-| Model             | Query Tokens  | Key-Value Tokens   | Attention Type         |
-Attention Coverage    |
-| -----------       | -----------   | -----------        | ----------------------
-|---------------------- |
-| ViT               | image         | image              | self-attention         |
-global |
-| SwinTransformer   | window        | window             | self-attention         | local
-|
-| **GCViT**         | **resized-image** | **window**     | **image-window attention** |
-**global** |
+| Model            | Query Tokens    | Key-Value Tokens  | Attention Type            | Attention Coverage |
+|------------------|-----------------|-------------------|---------------------------|--------------------|
+| ViT              | image           | image             | self-attention            | global             |
+| SwinTransformer  | window          | window            | self-attention            | local              |
+| **GCViT**        | **resized-image** | **window**     | **image-window attention** | **global**        |
+
 
 """
 
