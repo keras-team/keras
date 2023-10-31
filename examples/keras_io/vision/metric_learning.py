@@ -48,8 +48,7 @@ from keras.datasets import cifar10
 """
 ## Backend for the new keras
 
-Set Keras backend
-you can choose from jax, tensorflow, pytorch 
+Set Keras backend to tensorflow. 
 """
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
