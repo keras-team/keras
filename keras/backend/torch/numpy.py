@@ -165,25 +165,25 @@ def abs(x):
 def all(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
-        return torch.all(x)
+        return cast(torch.all(x), "bool")
     if not isinstance(axis, (list, tuple)):
         axis = (axis,)
     for a in axis:
         # `torch.all` does not handle multiple axes.
         x = torch.all(x, dim=a, keepdim=keepdims)
-    return x
+    return cast(x, "bool")
 
 
 def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
-        return torch.any(x)
+        return cast(torch.any(x), "bool")
     if not isinstance(axis, (list, tuple)):
         axis = (axis,)
     for a in axis:
         # `torch.any` does not handle multiple axes.
         x = torch.any(x, dim=a, keepdim=keepdims)
-    return x
+    return cast(x, "bool")
 
 
 def amax(x, axis=None, keepdims=False):
@@ -853,7 +853,12 @@ def minimum(x1, x2):
 
 
 def mod(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        x1 = cast(x1, "int32")
+        x2 = cast(x2, "int32")
     return torch.remainder(x1, x2)
 
 
