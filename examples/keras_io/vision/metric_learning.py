@@ -23,7 +23,10 @@ For a more detailed overview of metric learning see:
 
 """
 ## Setup
+
+Set Keras backend to tensorflow. 
 """
+os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import random
 import matplotlib.pyplot as plt
@@ -45,12 +48,6 @@ For this example we will be using the
 
 from keras.datasets import cifar10
 
-"""
-## Backend for the new keras
-
-Set Keras backend to tensorflow. 
-"""
-os.environ["KERAS_BACKEND"] = "tensorflow"
 
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
