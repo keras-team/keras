@@ -14,17 +14,9 @@ pip install --upgrade keras_core
 pip install --upgrade keras_cv
 """
 
-import os
-
-os.environ["KERAS_BACKEND"] = "jax"
-
 import keras
 from keras_cv.layers import DropPath
 from keras import ops
-
-import jax
-
-key = jax.random.PRNGKey(0)  # random seed
 
 import tensorflow as tf  # only for dataloader
 import tensorflow_datasets as tfds  # for flower dataset
@@ -1110,7 +1102,7 @@ ckpt_link = "https://github.com/awsaf49/gcvit-tf/releases/download/v1.1.5/gcvitx
 
 # Build Model
 model = GCViT(**config)
-inp = jax.random.uniform(key, shape=(1, 224, 224, 3))
+inp = ops.array(np.random.uniform(size=(1, 224, 224, 3)))
 out = model(inp)
 
 # Load Weights
@@ -1220,7 +1212,7 @@ val_dataset = make_dataset(val_dataset, False)
 
 # Re-Build Model
 model = GCViT(**config, num_classes=104)
-inp = jax.random.uniform(key, shape=(1, 224, 224, 3))
+inp = ops.array(np.random.uniform(size=(1, 224, 224, 3)))
 out = model(inp)
 
 # Load Weights
