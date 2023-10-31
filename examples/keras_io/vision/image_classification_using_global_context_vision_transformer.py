@@ -233,7 +233,7 @@ class ReduceSize(keras.layers.Layer):
         return x
 
 
-class Mlp(keras.layers.Layer):
+class MLP(keras.layers.Layer):
     """
     Multi-Layer Perceptron (MLP) block
     """
@@ -732,7 +732,7 @@ class Block(keras.layers.Layer):
         self.norm2 = keras.layers.LayerNormalization(
             axis=-1, epsilon=1e-05, name="norm2"
         )
-        self.mlp = Mlp(
+        self.mlp = MLP(
             hidden_features=int(C * self.mlp_ratio),
             dropout=self.drop,
             act_layer=self.act_layer,
