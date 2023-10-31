@@ -21,6 +21,7 @@ from keras import ops
 import tensorflow as tf  # only for dataloader
 import tensorflow_datasets as tfds  # for flower dataset
 
+from skimage.data import chelsea
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -1115,8 +1116,6 @@ model.summary((224, 224, 3))
 """
 ## Sanity check for Pre-Trained Weights
 """
-
-from skimage.data import chelsea
 
 img = keras.applications.imagenet_utils.preprocess_input(
     chelsea(), mode="torch"
