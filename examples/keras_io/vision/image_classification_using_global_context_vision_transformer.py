@@ -141,14 +141,13 @@ dimension.
 class SE(keras.layers.Layer):
     """
     Squeeze and excitation block
+
+    Args:
+        oup: output features dimension, if `None` use same dim as input.
+        expansion: expansion ratio.
     """
 
     def __init__(self, oup=None, expansion=0.25, **kwargs):
-        """
-        Args:
-            oup: output features dimension, if `None` use same dim as input.
-            expansion: expansion ratio.
-        """
         super().__init__(**kwargs)
         self.expansion = expansion
         self.oup = oup
@@ -176,13 +175,12 @@ class ReduceSize(keras.layers.Layer):
     """
     Down-sampling block based on: "Hatamizadeh et al.,
     Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+
+    Args:
+        keep_dim: if False spatial dim is reduced and channel dim is increased
     """
 
     def __init__(self, keep_dim=False, **kwargs):
-        """
-        Args:
-            keep_dim: if False spatial dim is reduced and channel dim is increased
-        """
         super().__init__(**kwargs)
         self.keep_dim = keep_dim
 
@@ -237,6 +235,12 @@ class ReduceSize(keras.layers.Layer):
 class MLP(keras.layers.Layer):
     """
     Multi-Layer Perceptron (MLP) block
+
+    Args:
+        hidden_features: hidden features dimension.
+        out_features: output features dimension.
+        act_layer: activation function.
+        dropout: dropout rate.
     """
 
     def __init__(
@@ -247,13 +251,6 @@ class MLP(keras.layers.Layer):
         dropout=0.0,
         **kwargs,
     ):
-        """
-        Args:
-            hidden_features: hidden features dimension.
-            out_features: output features dimension.
-            act_layer: activation function.
-            dropout: dropout rate.
-        """
         super().__init__(**kwargs)
         self.hidden_features = hidden_features
         self.out_features = out_features
@@ -305,13 +302,12 @@ class PatchEmbed(keras.layers.Layer):
     """
     Patch embedding block based on: "Hatamizadeh et al.,
     Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+
+    Args:
+        embed_dim: feature size dimension.
     """
 
     def __init__(self, embed_dim, **kwargs):
-        """
-        Args:
-            embed_dim: feature size dimension.
-        """
         super().__init__(**kwargs)
         self.embed_dim = embed_dim
 
@@ -366,13 +362,12 @@ class FeatExtract(keras.layers.Layer):
     """
     Feature extraction block based on: "Hatamizadeh et al.,
     Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+
+    Args:
+        keep_dim: bool argument for maintaining the resolution.
     """
 
     def __init__(self, keep_dim=False, **kwargs):
-        """
-        Args:
-            keep_dim: bool argument for maintaining the resolution.
-        """
         super().__init__(**kwargs)
         self.keep_dim = keep_dim
 
@@ -417,16 +412,15 @@ class GlobalQueryGen(keras.layers.Layer):
     """
     Global query generator based on: "Hatamizadeh et al.,
     Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+
+    Args:
+        keep_dims: to keep the dimension of FeatExtract layer.
+        For instance, repeating log(56/7) = 3 blocks, with input
+        window dimension 56 and output window dimension 7 at down-sampling
+        ratio 2. Please check Fig.5 of GC ViT paper for details.
     """
 
     def __init__(self, keep_dims=False, **kwargs):
-        """
-        Args:
-            keep_dims: to keep the dimension of FeatExtract layer.
-            For instance, repeating log(56/7) = 3 blocks, with input
-            window dimension 56 and output window dimension 7 at down-sampling
-            ratio 2. Please check Fig.5 of GC ViT paper for details.
-        """
         super().__init__(**kwargs)
         self.keep_dims = keep_dims
 
@@ -501,6 +495,15 @@ class WindowAttention(keras.layers.Layer):
     Local window attention based on: "Liu et al.,
     Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
     <https://arxiv.org/abs/2103.14030>"
+
+    Args:
+        window_size: window size.
+        num_heads: number of attention head.
+        global_query: if the input contains global_query
+        qkv_bias: bool argument for query, key, value learnable bias.
+        qk_scale: bool argument to scaling query, key.
+        attn_dropout: attention dropout rate.
+        proj_dropout: output dropout rate.
     """
 
     def __init__(
@@ -514,16 +517,6 @@ class WindowAttention(keras.layers.Layer):
         proj_dropout=0.0,
         **kwargs,
     ):
-        """
-        Args:
-            num_heads: number of attention head.
-            window_size: window size.
-            global_query: if the input contains global_query
-            qkv_bias: bool argument for query, key, value learnable bias.
-            qk_scale: bool argument to scaling query, key.
-            attn_dropout: attention dropout rate.
-            proj_dropout: output dropout rate.
-        """
         super().__init__(**kwargs)
         window_size = (window_size, window_size)
         self.window_size = window_size
@@ -665,6 +658,19 @@ class Block(keras.layers.Layer):
     """
     GCViT block based on: "Hatamizadeh et al.,
     Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+
+    Args:
+        window_size: window size.
+        num_heads: number of attention head.
+        global_query: apply global window attention
+        mlp_ratio: MLP ratio.
+        qkv_bias: bool argument for query, key, value learnable bias.
+        qk_scale: bool argument to scaling query, key.
+        drop: dropout rate.
+        attn_drop: attention dropout rate.
+        path_drop: drop path rate.
+        act_layer: activation function.
+        layer_scale: layer scaling coefficient.
     """
 
     def __init__(
@@ -682,20 +688,6 @@ class Block(keras.layers.Layer):
         layer_scale=None,
         **kwargs,
     ):
-        """
-        Args:
-            num_heads: number of attention head.
-            window_size: window size.
-            global_query: apply global window attention
-            mlp_ratio: MLP ratio.
-            qkv_bias: bool argument for query, key, value learnable bias.
-            qk_scale: bool argument to scaling query, key.
-            drop: dropout rate.
-            attn_drop: attention dropout rate.
-            path_drop: drop path rate.
-            act_layer: activation function.
-            layer_scale: layer scaling coefficient.
-        """
         super().__init__(**kwargs)
         self.window_size = window_size
         self.num_heads = num_heads
@@ -856,6 +848,20 @@ class Level(keras.layers.Layer):
     """
     GCViT level based on: "Hatamizadeh et al.,
     Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+
+    Args:
+        depth: number of layers in each stage.
+        num_heads: number of heads in each stage.
+        window_size: window size in each stage.
+        keep_dims: dims to keep in FeatExtract. 
+        downsample: bool argument for down-sampling.
+        mlp_ratio: MLP ratio.
+        qkv_bias: bool argument for query, key, value learnable bias.
+        qk_scale: bool argument to scaling query, key.
+        drop: dropout rate.
+        attn_drop: attention dropout rate.
+        path_drop: drop path rate.
+        layer_scale: layer scaling coefficient.
     """
 
     def __init__(
@@ -874,22 +880,6 @@ class Level(keras.layers.Layer):
         layer_scale=None,
         **kwargs,
     ):
-        """
-        Args:
-            depth: number of layers in each stage.
-            input_resolution: input image resolution.
-            window_size: window size in each stage.
-            downsample: bool argument for down-sampling.
-            mlp_ratio: MLP ratio.
-            num_heads: number of heads in each stage.
-            qkv_bias: bool argument for query, key, value learnable bias.
-            qk_scale: bool argument to scaling query, key.
-            drop: dropout rate.
-            attn_drop: attention dropout rate.
-            drop_path: drop path rate.
-            norm_layer: normalization layer.
-            layer_scale: layer scaling coefficient.
-        """
         super().__init__(**kwargs)
         self.depth = depth
         self.num_heads = num_heads
@@ -972,8 +962,23 @@ pooling $\rightarrow$ classify
 
 class GCViT(keras.Model):
     """
-    GCViT based on: "Hatamizadeh et al.,
+    GCViT based on: "Hatamizadeh et al., 
     Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+
+    Args:
+        window_size: window size in each stage.
+        embed_dim: feature size dimension.
+        depths: number of layers in each stage. 
+        num_heads: number of heads in each stage.
+        drop_rate: dropout rate.
+        mlp_ratio: MLP ratio. 
+        qkv_bias: bool argument for query, key, value learnable bias.
+        qk_scale: bool argument to scaling query, key.
+        attn_drop: attention dropout rate.
+        path_drop: drop path rate.
+        layer_scale: layer scaling coefficient.
+        num_classes: number of classes.
+        head_act: activation function for head.
     """
 
     def __init__(
@@ -993,21 +998,6 @@ class GCViT(keras.Model):
         head_act="softmax",
         **kwargs,
     ):
-        """
-        Args:
-            embed_dim: feature size dimension.
-            depths: number of layers in each stage.
-            window_size: window size in each stage.
-            mlp_ratio: MLP ratio.
-            num_heads: number of heads in each stage.
-            path_drop: drop path rate.
-            num_classes: number of classes.
-            qkv_bias: bool argument for query, key, value learnable bias.
-            qk_scale: bool argument to scaling query, key.
-            drop_rate: dropout rate.
-            attn_drop: attention dropout rate.
-            layer_scale: layer scaling coefficient.
-        """
         super().__init__(**kwargs)
         self.window_size = window_size
         self.embed_dim = embed_dim
