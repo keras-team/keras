@@ -18,9 +18,9 @@ import os
 
 os.environ["KERAS_BACKEND"] = "jax"
 
-import keras_core as keras
+import keras
 from keras_cv.layers import DropPath
-from keras_core import ops
+from keras import ops
 
 import jax
 
