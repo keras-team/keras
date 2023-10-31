@@ -153,12 +153,15 @@ def _apply_same_padding(
                 spatial_shape[i], kernel_size[i], strides[i], dilation_rate[i]
             )
             mode = "constant"
-        padding = padding_size + padding
+        padding = (padding_size,) + padding
 
     if all([left == right for left, right in padding]):
         return inputs, [left for left, _ in padding]
 
-    return tnn.pad(inputs, padding, mode=mode), 0
+    flattened_padding = tuple(
+        value for left_and_right in padding for value in left_and_right
+    )
+    return tnn.pad(inputs, pad=flattened_padding, mode=mode), 0
 
 
 def _transpose_spatial_inputs(inputs):
