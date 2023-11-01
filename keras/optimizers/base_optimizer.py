@@ -154,7 +154,7 @@ class BaseOptimizer:
     def add_variable(
         self,
         shape,
-        initializer,
+        initializer="zeros",
         dtype=None,
         name=None,
     ):
@@ -197,6 +197,48 @@ class BaseOptimizer:
                     "When working with a new set of variables, you should "
                     "recreate a new optimizer instance."
                 )
+
+    def assign(self, variable, value):
+        """Assign a value to a variable.
+
+        This should be used in optimizers instead of `variable.assign(value)` to
+        support backend specific optimizations.
+        Note that the variable can be a model variable or an optimizer variable;
+        it can be a backend native variable or a Keras variable.
+
+        Args:
+            variable: The variable to update.
+            value: The value to add to the variable.
+        """
+        variable.assign(value)
+
+    def assign_add(self, variable, value):
+        """Add a value to a variable.
+
+        This should be used in optimizers instead of
+        `variable.assign_add(value)` to support backend specific optimizations.
+        Note that the variable can be a model variable or an optimizer variable;
+        it can be a backend native variable or a Keras variable.
+
+        Args:
+            variable: The variable to update.
+            value: The value to add to the variable.
+        """
+        variable.assign_add(value)
+
+    def assign_sub(self, variable, value):
+        """Subtract a value from a variable.
+
+        This should be used in optimizers instead of
+        `variable.assign_sub(value)` to support backend specific optimizations.
+        Note that the variable can be a model variable or an optimizer variable;
+        it can be a backend native variable or a Keras variable.
+
+        Args:
+            variable: The variable to update.
+            value: The value to add to the variable.
+        """
+        variable.assign_sub(value)
 
     def update_step(self, gradient, variable, learning_rate):
         raise NotImplementedError
@@ -656,24 +698,24 @@ class BaseOptimizer:
 base_optimizer_keyword_args = """name: String. The name to use
           for momentum accumulator weights created by
           the optimizer.
-      weight_decay: Float, defaults to None. If set, weight decay is applied.
-      clipnorm: Float. If set, the gradient of each weight is individually
+        weight_decay: Float, defaults to None. If set, weight decay is applied.
+        clipnorm: Float. If set, the gradient of each weight is individually
           clipped so that its norm is no higher than this value.
-      clipvalue: Float. If set, the gradient of each weight is clipped to be no
-          higher than this value.
-      global_clipnorm: Float. If set, the gradient of all weights is clipped so
-          that their global norm is no higher than this value.
-      use_ema: Boolean, defaults to False. If True, exponential moving average
+        clipvalue: Float. If set, the gradient of each weight is clipped to be
+          no higher than this value.
+        global_clipnorm: Float. If set, the gradient of all weights is clipped
+          so that their global norm is no higher than this value.
+        use_ema: Boolean, defaults to False. If True, exponential moving average
           (EMA) is applied. EMA consists of computing an exponential moving
           average of the weights of the model (as the weight values change after
           each training batch), and periodically overwriting the weights with
           their moving average.
-      ema_momentum: Float, defaults to 0.99. Only used if `use_ema=True`.
+        ema_momentum: Float, defaults to 0.99. Only used if `use_ema=True`.
           This is the momentum to use when computing
           the EMA of the model's weights:
           `new_average = ema_momentum * old_average + (1 - ema_momentum) *
           current_variable_value`.
-      ema_overwrite_frequency: Int or None, defaults to None. Only used if
+        ema_overwrite_frequency: Int or None, defaults to None. Only used if
           `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations,
           we overwrite the model variable by its moving average.
           If None, the optimizer
@@ -684,7 +726,7 @@ base_optimizer_keyword_args = """name: String. The name to use
           variables in-place). When using the built-in `fit()` training loop,
           this happens automatically after the last epoch,
           and you don't need to do anything.
-      loss_scale_factor: Float or `None`. If a float, the scale factor will
+        loss_scale_factor: Float or `None`. If a float, the scale factor will
           be multiplied the loss before computing gradients, and the inverse of
           the scale factor will be multiplied by the gradients before updating
           variables. Useful for preventing underflow during mixed precision

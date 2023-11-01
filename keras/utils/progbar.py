@@ -119,12 +119,13 @@ class Progbar:
                 numdigits = int(math.log10(self.target)) + 1
                 bar = ("%" + str(numdigits) + "d/%d") % (current, self.target)
                 bar = f"\x1b[1m{bar}\x1b[0m "
+                special_char_len += 8
                 prog = float(current) / self.target
                 prog_width = int(self.width * prog)
 
                 if prog_width > 0:
                     bar += "\33[32m" + "━" * prog_width + "\x1b[0m"
-                    special_char_len += 17
+                    special_char_len += 9
                 bar += "\33[37m" + "━" * (self.width - prog_width) + "\x1b[0m"
                 special_char_len += 9
 

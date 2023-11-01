@@ -393,6 +393,13 @@ def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return np.linspace(
         start,
         stop,
@@ -405,22 +412,51 @@ def linspace(
 
 
 def log(x):
-    return np.log(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    return np.log(x, dtype=dtype)
 
 
 def log10(x):
-    return np.log10(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    return np.log10(x, dtype=dtype)
 
 
 def log1p(x):
-    return np.log1p(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    return np.log1p(x, dtype=dtype)
 
 
 def log2(x):
-    return np.log2(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    return np.log2(x, dtype=dtype)
 
 
 def logaddexp(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.logaddexp(x1, x2)
 
 
@@ -437,6 +473,13 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return np.logspace(
         start,
         stop,
@@ -449,7 +492,15 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 
 def maximum(x1, x2):
-    return np.maximum(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: np.maximum doesn't support dtype=bfloat16, so we need to cast it
+    # first
+    if dtype == "bfloat16":
+        x1 = x1.astype(dtype)
+        x2 = x2.astype(dtype)
+    return np.maximum(x1, x2, dtype=dtype)
 
 
 def median(x, axis=None, keepdims=False):
@@ -467,10 +518,25 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
-    return np.minimum(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: np.minimum doesn't support dtype=bfloat16, so we need to cast it
+    # first
+    if dtype == "bfloat16":
+        x1 = x1.astype(dtype)
+        x2 = x2.astype(dtype)
+    return np.minimum(x1, x2, dtype=dtype)
 
 
 def mod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.mod(x1, x2)
 
 
@@ -685,7 +751,7 @@ def sqrt(x):
     x = convert_to_tensor(x)
     # upcast to float64 for int64 which matches JAX's behavior
     dtype = (
-        "float64"
+        config.floatx()
         if standardize_dtype(x.dtype) == "int64"
         else dtypes.result_type(x.dtype, float)
     )

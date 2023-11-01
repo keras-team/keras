@@ -165,25 +165,25 @@ def abs(x):
 def all(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
-        return torch.all(x)
+        return cast(torch.all(x), "bool")
     if not isinstance(axis, (list, tuple)):
         axis = (axis,)
     for a in axis:
         # `torch.all` does not handle multiple axes.
         x = torch.all(x, dim=a, keepdim=keepdims)
-    return x
+    return cast(x, "bool")
 
 
 def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
-        return torch.any(x)
+        return cast(torch.any(x), "bool")
     if not isinstance(axis, (list, tuple)):
         axis = (axis,)
     for a in axis:
         # `torch.any` does not handle multiple axes.
         x = torch.any(x, dim=a, keepdim=keepdims)
-    return x
+    return cast(x, "bool")
 
 
 def amax(x, axis=None, keepdims=False):
@@ -635,12 +635,20 @@ def linspace(
             "torch.linspace does not support an `axis` argument. "
             f"Received axis={axis}"
         )
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = to_torch_dtype(dtype)
+
     if endpoint is False:
         stop = stop - ((stop - start) / num)
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
-        start, stop = convert_to_tensor(start), convert_to_tensor(stop)
-        stop = cast(stop, dtype) if endpoint is False and dtype else stop
+        start = convert_to_tensor(start, dtype=dtype)
+        stop = convert_to_tensor(stop, dtype=dtype)
         steps = torch.arange(num, dtype=dtype, device=get_device()) / (num - 1)
 
         # reshape `steps` to allow for broadcasting
@@ -655,6 +663,7 @@ def linspace(
             end=stop,
             steps=num,
             dtype=dtype,
+            device=get_device(),
         )
     if retstep is True:
         return (linspace, num)
@@ -682,10 +691,19 @@ def log2(x):
 
 
 def logaddexp(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    x1 = cast(x1, "float32") if x1.dtype in TORCH_INT_TYPES else x1
-    x2 = cast(x2, "float32") if x2.dtype in TORCH_INT_TYPES else x2
-    return torch.logaddexp(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+
+    # TODO: torch.logaddexp doesn't support float16 with cpu
+    if get_device() == "cpu" and dtype == "float16":
+        x1 = cast(x1, "float32")
+        x2 = cast(x2, "float32")
+        return cast(torch.logaddexp(x1, x2), dtype)
+    else:
+        x1 = cast(x1, dtype)
+        x2 = cast(x2, dtype)
+        return torch.logaddexp(x1, x2)
 
 
 def logical_and(x1, x2):
@@ -709,12 +727,20 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             "torch.logspace does not support an `axis` argument. "
             f"Received axis={axis}"
         )
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = to_torch_dtype(dtype)
+
     if endpoint is False:
         stop = stop - ((stop - start) / num)
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
-        start, stop = convert_to_tensor(start), convert_to_tensor(stop)
-        stop = cast(stop, dtype) if endpoint is False and dtype else stop
+        start = convert_to_tensor(start, dtype=dtype)
+        stop = convert_to_tensor(stop, dtype=dtype)
         steps = torch.arange(num, dtype=dtype, device=get_device()) / (num - 1)
 
         # reshape `steps` to allow for broadcasting
@@ -725,12 +751,20 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         linspace = start[None] + steps * (stop - start)[None]
         logspace = base**linspace
     else:
-        logspace = torch.logspace(
-            start=start,
-            end=stop,
-            steps=num,
-            base=base,
-            dtype=dtype,
+        compute_dtype = dtype
+        # TODO: torch.logspace doesn't support float16 with cpu
+        if get_device() == "cpu" and dtype == torch.float16:
+            compute_dtype = torch.float32
+        logspace = cast(
+            torch.logspace(
+                start=start,
+                end=stop,
+                steps=num,
+                base=base,
+                dtype=compute_dtype,
+                device=get_device(),
+            ),
+            dtype,
         )
     return logspace
 
@@ -819,7 +853,12 @@ def minimum(x1, x2):
 
 
 def mod(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        x1 = cast(x1, "int32")
+        x2 = cast(x2, "int32")
     return torch.remainder(x1, x2)
 
 
@@ -1211,9 +1250,8 @@ def square(x):
 
 def sqrt(x):
     x = convert_to_tensor(x)
-    # upcast to float64 for int64 which matches JAX's behavior
     if x.dtype == torch.int64:
-        x = cast(x, "float64")
+        x = cast(x, config.floatx())
     return torch.sqrt(x)
 
 

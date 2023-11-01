@@ -125,13 +125,25 @@ class Adam(optimizer.Optimizer):
 
         alpha = lr * ops.sqrt(1 - beta_2_power) / (1 - beta_1_power)
 
-        m.assign(m + (gradient - m) * (1 - self.beta_1))
-        v.assign(v + (ops.square(gradient) - v) * (1 - self.beta_2))
+        self.assign_add(
+            m, ops.multiply(ops.subtract(gradient, m), 1 - self.beta_1)
+        )
+        self.assign_add(
+            v,
+            ops.multiply(
+                ops.subtract(ops.square(gradient), v), 1 - self.beta_2
+            ),
+        )
         if self.amsgrad:
             v_hat = self._velocity_hats[self._get_variable_index(variable)]
-            v_hat.assign(ops.maximum(v_hat, v))
+            self.assign(v_hat, ops.maximum(v_hat, v))
             v = v_hat
-        variable.assign(variable - (m * alpha) / (ops.sqrt(v) + self.epsilon))
+        self.assign_sub(
+            variable,
+            ops.divide(
+                ops.multiply(m, alpha), ops.add(ops.sqrt(v), self.epsilon)
+            ),
+        )
 
     def get_config(self):
         config = super().get_config()
