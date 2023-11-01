@@ -260,8 +260,16 @@ def arctan(x):
 
 
 def arctan2(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return torch.arctan2(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    compute_dtype = result_dtype
+    # TODO: torch.arctan2 doesn't support float16 with cpu
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+    return cast(torch.arctan2(x1, x2), result_dtype)
 
 
 def arctanh(x):
