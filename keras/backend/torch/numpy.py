@@ -260,8 +260,16 @@ def arctan(x):
 
 
 def arctan2(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return torch.arctan2(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    compute_dtype = result_dtype
+    # TODO: torch.arctan2 doesn't support float16 with cpu
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+    return cast(torch.arctan2(x1, x2), result_dtype)
 
 
 def arctanh(x):
@@ -1287,9 +1295,14 @@ def sum(x, axis=None, keepdims=False):
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
+    dtype = standardize_dtype(x.dtype)
+    # follow jax's rule
+    # TODO: torch doesn't support uint32
+    if dtype in ("bool", "uint8", "int8", "int16"):
+        dtype = "int32"
     if axis is not None:
-        return torch.sum(x, axis=axis, keepdim=keepdims)
-    return torch.sum(x)
+        return cast(torch.sum(x, axis=axis, keepdim=keepdims), dtype)
+    return cast(torch.sum(x), dtype)
 
 
 def eye(N, M=None, k=None, dtype=None):

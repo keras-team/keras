@@ -346,36 +346,83 @@ def arange(start, stop=None, step=1, dtype=None):
 
 @sparse.densifying_unary(0.5 * tfnp.pi)
 def arccos(x):
-    return tfnp.arccos(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.arccos incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.arccos(x), dtype)
 
 
 @sparse.densifying_unary(np.nan)
 def arccosh(x):
-    return tfnp.arccosh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.arccosh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.arccosh(x), dtype)
 
 
 @sparse.elementwise_unary
 def arcsin(x):
-    return tfnp.arcsin(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.arcsin incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.arcsin(x), dtype)
 
 
 @sparse.elementwise_unary
 def arcsinh(x):
-    return tfnp.arcsinh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.arcsinh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.arcsinh(x), dtype)
 
 
 @sparse.elementwise_unary
 def arctan(x):
-    return tfnp.arctan(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.arctan incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.arctan(x), dtype)
 
 
 def arctan2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.arctan2(x1, x2)
 
 
 @sparse.elementwise_unary
 def arctanh(x):
-    return tfnp.arctanh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.arctanh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.arctanh(x), dtype)
 
 
 def argmax(x, axis=None):
@@ -457,12 +504,26 @@ def copy(x):
 
 @sparse.densifying_unary(1)
 def cos(x):
-    return tfnp.cos(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.cos incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.cos(x), dtype)
 
 
 @sparse.densifying_unary(1)
 def cosh(x):
-    return tfnp.cosh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.cosh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.cosh(x), dtype)
 
 
 def count_nonzero(x, axis=None):
@@ -1069,12 +1130,26 @@ def sign(x):
 
 @sparse.elementwise_unary
 def sin(x):
-    return tfnp.sin(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.sin incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.sin(x), dtype)
 
 
 @sparse.elementwise_unary
 def sinh(x):
-    return tfnp.sinh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.sinh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.sinh(x), dtype)
 
 
 def size(x):
@@ -1133,12 +1208,26 @@ def take_along_axis(x, indices, axis=None):
 
 @sparse.elementwise_unary
 def tan(x):
-    return tfnp.tan(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.sinh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.tan(x), dtype)
 
 
 @sparse.elementwise_unary
 def tanh(x):
-    return tfnp.tanh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.sinh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.tanh(x), dtype)
 
 
 def tensordot(x1, x2, axes=2):
@@ -1200,6 +1289,11 @@ def where(condition, x1, x2):
 
 @sparse.elementwise_division
 def divide(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.divide(x1, x2)
 
 
@@ -1269,7 +1363,14 @@ def var(x, axis=None, keepdims=False):
 
 
 def sum(x, axis=None, keepdims=False):
-    return tfnp.sum(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    # follow jax's rule
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    return tf.cast(tfnp.sum(x, axis=axis, keepdims=keepdims), dtype)
 
 
 def eye(N, M=None, k=0, dtype=None):
