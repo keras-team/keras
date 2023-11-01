@@ -36,8 +36,15 @@ class TFDatasetAdapter(DataAdapter):
         self._dataset = dataset
 
     def get_numpy_iterator(self):
+        from keras.utils.module_utils import tensorflow as tf
+
+        def convert_to_numpy(x):
+            if isinstance(x, tf.SparseTensor):
+                x = tf.sparse.to_dense(x)
+            return x.numpy()
+
         for batch in self._dataset:
-            yield tree.map_structure(lambda x: x.numpy(), batch)
+            yield tree.map_structure(convert_to_numpy, batch)
 
     def get_tf_dataset(self):
         return self._dataset

@@ -1,5 +1,6 @@
 import itertools
 
+import numpy as np
 import tree
 
 from keras.trainers.data_adapters.data_adapter import DataAdapter
@@ -38,7 +39,12 @@ class GeneratorDataAdapter(DataAdapter):
                 )
             shape = list(shape)
             shape[0] = None  # The batch size is not guaranteed to be static.
-            return tf.TensorSpec(shape=shape, dtype=x.dtype.name)
+            if isinstance(x, tf.RaggedTensor):
+                return tf.RaggedTensorSpec(shape=shape, dtype=x.dtype.name)
+            if isinstance(x, tf.SparseTensor) or is_scipy_sparse(x):
+                return tf.SparseTensorSpec(shape=shape, dtype=x.dtype.name)
+            else:
+                return tf.TensorSpec(shape=shape, dtype=x.dtype.name)
 
         self._output_signature = tree.map_structure(get_tensor_spec, data)
 
@@ -49,10 +55,20 @@ class GeneratorDataAdapter(DataAdapter):
     def get_tf_dataset(self):
         from keras.utils.module_utils import tensorflow as tf
 
+        def convert_to_tf(batch):
+            if is_scipy_sparse(batch):
+                batch = scipy_sparse_to_tf_sparse(batch)
+            return batch
+
+        def get_tf_iterator():
+            for batch in self.generator:
+                batch = tree.map_structure(convert_to_tf, batch)
+                yield batch
+
         if self._output_signature is None:
             self._set_tf_output_signature()
         ds = tf.data.Dataset.from_generator(
-            self.get_numpy_iterator,
+            get_tf_iterator,
             output_signature=self._output_signature,
         )
         ds = ds.prefetch(tf.data.AUTOTUNE)
@@ -70,3 +86,21 @@ class GeneratorDataAdapter(DataAdapter):
 def peek_and_restore(generator):
     element = next(generator)
     return element, itertools.chain([element], generator)
+
+
+def is_scipy_sparse(x):
+    return x.__class__.__module__.startswith("scipy.sparse") and hasattr(
+        x, "tocoo"
+    )
+
+
+def scipy_sparse_to_tf_sparse(x):
+    from keras.utils.module_utils import tensorflow as tf
+
+    sparse_coo = x.tocoo()
+    row, col = sparse_coo.row, sparse_coo.col
+    data, shape = sparse_coo.data, sparse_coo.shape
+    indices = np.concatenate(
+        (np.expand_dims(row, axis=1), np.expand_dims(col, axis=1)), axis=1
+    )
+    return tf.SparseTensor(indices, data, shape)
