@@ -47,7 +47,7 @@ def np_conv1d_transpose(
         strides,
         padding,
         output_padding,
-        data_format,
+        "channels_last",
         dilation_rate,
     )
     jax_padding = compute_conv_transpose_padding_args_for_jax(
@@ -770,7 +770,12 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 "`output_padding` greater than `strides` is not supported"
             )
 
-        input = np.ones(shape=(1, 3, 1))
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (1, 3, 1)
+        else:
+            input_shape = (1, 1, 3)
+
+        input = np.ones(shape=input_shape)
         kernel_weights = np.arange(1, kernel_size + 1).reshape(
             (kernel_size, 1, 1)
         )
@@ -783,7 +788,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
             strides=strides,
             padding=padding,
             output_padding=output_padding,
-            data_format="channels_last",
+            data_format=backend.config.image_data_format(),
             dilation_rate=1,
         )
 
@@ -796,7 +801,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
             output_padding=output_padding,
             dilation_rate=1,
         )
-        kc_layer.build(input_shape=(1, 3, 1))
+        kc_layer.build(input_shape=input_shape)
         kc_layer.kernel.assign(kernel_weights)
 
         # Special cases for Torch
@@ -845,7 +850,13 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_shape_inference_static_unknown_shape(
         self, kernel_size, strides, padding, output_padding
     ):
-        x = layers.Input(shape=(None, None, 3))
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (None, None, 3)
+            output_tensor_shape = (None, None, None, 2)
+        else:
+            input_shape = (3, None, None)
+            output_tensor_shape = (None, 2, None, None)
+        x = layers.Input(shape=input_shape)
         x = layers.Conv2DTranspose(
             filters=2,
             kernel_size=kernel_size,
@@ -854,4 +865,4 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
             output_padding=output_padding,
             dilation_rate=1,
         )(x)
-        self.assertEqual(x.shape, (None, None, None, 2))
+        self.assertEqual(x.shape, output_tensor_shape)
