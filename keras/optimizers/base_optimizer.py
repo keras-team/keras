@@ -659,10 +659,10 @@ base_optimizer_keyword_args = """name: String. The name to use
         weight_decay: Float, defaults to None. If set, weight decay is applied.
         clipnorm: Float. If set, the gradient of each weight is individually
           clipped so that its norm is no higher than this value.
-        clipvalue: Float. If set, the gradient of each weight is clipped to be no
-          higher than this value.
-        global_clipnorm: Float. If set, the gradient of all weights is clipped so
-          that their global norm is no higher than this value.
+        clipvalue: Float. If set, the gradient of each weight is clipped to be
+          no higher than this value.
+        global_clipnorm: Float. If set, the gradient of all weights is clipped
+          so that their global norm is no higher than this value.
         use_ema: Boolean, defaults to False. If True, exponential moving average
           (EMA) is applied. EMA consists of computing an exponential moving
           average of the weights of the model (as the weight values change after
