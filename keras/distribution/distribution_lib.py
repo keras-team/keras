@@ -577,19 +577,6 @@ class ModelParallel(Distribution):
                 "Only `tf.data.Dataset` is supported for "
                 f"sharding, got {type(dataset)}"
             )
-
-    def distribute_dataset(self, dataset):
-        from tensorflow.python.data.experimental.ops import (
-            distribute as tf_data_distribute,
-        )
-
-        from keras.utils.module_utils import tensorflow as tf
-
-        if not isinstance(dataset, tf.data.Dataset):
-            raise ValueError(
-                "Only `tf.data.Dataset` is supported for "
-                f"sharding, got {type(dataset)}"
-            )
         if not self._is_multi_process:
             return dataset
 

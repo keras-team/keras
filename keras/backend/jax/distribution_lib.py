@@ -125,7 +125,8 @@ def distribute_data_input(inputs, layout):
     if layout.is_fully_addressable:
         return jax.device_put(inputs, layout)
 
-    # We only support 2D mesh at the moment
+    # TODO(scottzhu): Add support for data+model parallel.
+    # We assume the data are batch parallel only for now.
     per_process_batch_size = inputs.shape[0]
     num_local_replia = jax.local_device_count()
     per_replica_batch_size = per_process_batch_size // num_local_replia
