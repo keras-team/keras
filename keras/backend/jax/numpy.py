@@ -674,10 +674,20 @@ def take_along_axis(x, indices, axis=None):
 
 
 def tan(x):
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
     return jnp.tan(x)
 
 
 def tanh(x):
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
     return jnp.tanh(x)
 
 

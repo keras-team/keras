@@ -4394,6 +4394,38 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             knp.Subtract().symbolic_call(x1, x2).dtype, expected_dtype
         )
 
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_tan(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.tan(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.tan(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Tan().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_tanh(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.tanh(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.tanh(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Tanh().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )

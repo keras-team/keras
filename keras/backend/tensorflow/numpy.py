@@ -1208,12 +1208,26 @@ def take_along_axis(x, indices, axis=None):
 
 @sparse.elementwise_unary
 def tan(x):
-    return tfnp.tan(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.sinh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.tan(x), dtype)
 
 
 @sparse.elementwise_unary
 def tanh(x):
-    return tfnp.tanh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.sinh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.tanh(x), dtype)
 
 
 def tensordot(x1, x2, axes=2):
