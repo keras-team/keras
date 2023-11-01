@@ -252,6 +252,10 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertIs(dataset, distributed_dataset)
 
 
+@pytest.mark.skipif(
+    backend.backend() != "jax",
+    reason="Only JAX has the proper backend distribution lib",
+)
 class ModelParallelDistributionTest(testing.TestCase):
     def setUp(self):
         super().setUp()
@@ -313,6 +317,15 @@ class ModelParallelDistributionTest(testing.TestCase):
 
         layout = distribution.get_tensor_layout("/model/layer/other_tensor")
         self.assertIsNone(layout)
+
+    def test_distribute_dataset(self):
+        # We can only verify the single worker/process case in OSS for now.
+        dataset = tf.data.Dataset.range(8)
+        distribution = distribution = distribution_lib.ModelParallel(
+            self.device_mesh, {}, batch_dim_name="data"
+        )
+        distributed_dataset = distribution.distribute_dataset(dataset)
+        self.assertIs(dataset, distributed_dataset)
 
 
 class LayoutMapTest(testing.TestCase):
