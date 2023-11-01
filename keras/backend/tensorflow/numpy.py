@@ -1130,12 +1130,26 @@ def sign(x):
 
 @sparse.elementwise_unary
 def sin(x):
-    return tfnp.sin(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.sin incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.sin(x), dtype)
 
 
 @sparse.elementwise_unary
 def sinh(x):
-    return tfnp.sinh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.sinh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.sinh(x), dtype)
 
 
 def size(x):
