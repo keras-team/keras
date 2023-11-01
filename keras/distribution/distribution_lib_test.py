@@ -252,6 +252,10 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertIs(dataset, distributed_dataset)
 
 
+@pytest.mark.skipif(
+    backend.backend() != "jax",
+    reason="Only JAX has the proper backend distribution lib",
+)
 class ModelParallelDistributionTest(testing.TestCase):
     def setUp(self):
         super().setUp()
