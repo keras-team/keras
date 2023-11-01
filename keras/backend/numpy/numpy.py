@@ -805,6 +805,11 @@ def where(condition, x1, x2):
 
 
 def divide(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.divide(x1, x2)
 
 
@@ -852,7 +857,13 @@ def var(x, axis=None, keepdims=False):
 
 def sum(x, axis=None, keepdims=False):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.sum(x, axis=axis, keepdims=keepdims)
+    dtype = standardize_dtype(x.dtype)
+    # follow jax's rule
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    return np.sum(x, axis=axis, keepdims=keepdims).astype(dtype)
 
 
 def eye(N, M=None, k=0, dtype=None):

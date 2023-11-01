@@ -1289,6 +1289,11 @@ def where(condition, x1, x2):
 
 @sparse.elementwise_division
 def divide(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.divide(x1, x2)
 
 
@@ -1358,7 +1363,13 @@ def var(x, axis=None, keepdims=False):
 
 
 def sum(x, axis=None, keepdims=False):
-    return tfnp.sum(x, axis=axis, keepdims=keepdims)
+    dtype = standardize_dtype(x.dtype)
+    # follow jax's rule
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    return tf.cast(tfnp.sum(x, axis=axis, keepdims=keepdims), dtype)
 
 
 def eye(N, M=None, k=0, dtype=None):

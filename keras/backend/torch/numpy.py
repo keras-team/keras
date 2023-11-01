@@ -1287,9 +1287,14 @@ def sum(x, axis=None, keepdims=False):
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
+    dtype = standardize_dtype(x.dtype)
+    # follow jax's rule
+    # TODO: torch doesn't support uint32
+    if dtype in ("bool", "uint8", "int8", "int16"):
+        dtype = "int32"
     if axis is not None:
-        return torch.sum(x, axis=axis, keepdim=keepdims)
-    return torch.sum(x)
+        return cast(torch.sum(x, axis=axis, keepdim=keepdims), dtype)
+    return cast(torch.sum(x), dtype)
 
 
 def eye(N, M=None, k=None, dtype=None):

@@ -5451,10 +5451,17 @@ class Divide(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", backend.floatx()),
+            getattr(x2, "dtype", backend.floatx()),
+            float,
+        )
         x1_sparse = getattr(x1, "sparse", False)
         x2_sparse = getattr(x2, "sparse", False)
         output_sparse = x1_sparse and not x2_sparse
-        return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
+        return KerasTensor(
+            output_shape, dtype=output_dtype, sparse=output_sparse
+        )
 
 
 @keras_export(["keras.ops.divide", "keras.ops.numpy.divide"])
@@ -5783,9 +5790,18 @@ class Sum(Operation):
         return backend.numpy.sum(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
+        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+        # follow jax's rule
+        if dtype in ("bool", "int8", "int16"):
+            dtype = "int32"
+        elif dtype in ("uint8", "uint16"):
+            dtype = "uint32"
+        # TODO: torch doesn't support uint32
+        if backend.backend() == "torch" and dtype == "uint32":
+            dtype = "int32"
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
+            dtype=dtype,
         )
 
 
