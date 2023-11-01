@@ -48,10 +48,7 @@ def test_model_fit():
                 optimizers.SGD(learning_rate=0.001, momentum=0.01)
             ),
             loss=losses.MeanSquaredError(),
-            metrics=[metrics.MeanSquaredError()],
-            # TODO(scottzhu): Find out where is the variable
-            #  that is not created eagerly and break the usage of XLA.
-            jit_compile=False,
+            metrics=[metrics.MeanSquaredError()]
         )
         history = model.fit(
             x,
