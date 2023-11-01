@@ -136,6 +136,9 @@ class Trainer:
             self.optimizer = LossScaleOptimizer(
                 self.optimizer, name="loss_scale_optimizer"
             )
+        if self.optimizer is not None:
+            # Create optimizer variables.
+            self.optimizer.build(self.trainable_variables)
         if hasattr(self, "output_names"):
             output_names = self.output_names
         else:
