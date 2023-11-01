@@ -26,6 +26,7 @@ For a more detailed overview of metric learning see:
 
 Set Keras backend to tensorflow. 
 """
+import os
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import random
@@ -35,7 +36,6 @@ import tensorflow as tf
 from collections import defaultdict
 from PIL import Image
 from sklearn.metrics import ConfusionMatrixDisplay
-import os
 import keras
 from keras import layers
 
