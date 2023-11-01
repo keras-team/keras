@@ -116,30 +116,71 @@ def arange(start, stop=None, step=None, dtype=None):
 
 
 def arccos(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.arccos(x)
 
 
 def arccosh(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.arccosh(x)
 
 
 def arcsin(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.arcsin(x)
 
 
 def arcsinh(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.arcsinh(x)
 
 
 def arctan(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.arctan(x)
 
 
 def arctan2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.arctan2(x1, x2)
 
 
 def arctanh(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.arctanh(x)
 
 

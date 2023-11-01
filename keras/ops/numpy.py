@@ -737,7 +737,12 @@ class Arccos(Operation):
         return backend.numpy.arccos(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.arccos", "keras.ops.numpy.arccos"])
@@ -768,7 +773,12 @@ class Arccosh(Operation):
         return backend.numpy.arccosh(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.arccosh", "keras.ops.numpy.arccosh"])
@@ -796,8 +806,13 @@ class Arcsin(Operation):
         return backend.numpy.arcsin(x)
 
     def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
         sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.arcsin", "keras.ops.numpy.arcsin"])
@@ -826,8 +841,13 @@ class Arcsinh(Operation):
         return backend.numpy.arcsinh(x)
 
     def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
         sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.arcsinh", "keras.ops.numpy.arcsinh"])
@@ -855,8 +875,13 @@ class Arctan(Operation):
         return backend.numpy.arctan(x)
 
     def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
         sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.arctan", "keras.ops.numpy.arctan"])
@@ -888,7 +913,14 @@ class Arctan2(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         outputs_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(outputs_shape, dtype=x1.dtype)
+        x1_dtype = backend.standardize_dtype(
+            getattr(x1, "dtype", backend.floatx())
+        )
+        x2_dtype = backend.standardize_dtype(
+            getattr(x2, "dtype", backend.floatx())
+        )
+        dtype = dtypes.result_type(x1_dtype, x2_dtype, float)
+        return KerasTensor(outputs_shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.arctan2", "keras.ops.numpy.arctan2"])
@@ -940,8 +972,13 @@ class Arctanh(Operation):
         return backend.numpy.arctanh(x)
 
     def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
         sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.arctanh", "keras.ops.numpy.arctanh"])

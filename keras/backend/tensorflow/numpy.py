@@ -346,36 +346,83 @@ def arange(start, stop=None, step=1, dtype=None):
 
 @sparse.densifying_unary(0.5 * tfnp.pi)
 def arccos(x):
-    return tfnp.arccos(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.arccos incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.arccos(x), dtype)
 
 
 @sparse.densifying_unary(np.nan)
 def arccosh(x):
-    return tfnp.arccosh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.arccosh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.arccosh(x), dtype)
 
 
 @sparse.elementwise_unary
 def arcsin(x):
-    return tfnp.arcsin(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.arcsin incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.arcsin(x), dtype)
 
 
 @sparse.elementwise_unary
 def arcsinh(x):
-    return tfnp.arcsinh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.arcsinh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.arcsinh(x), dtype)
 
 
 @sparse.elementwise_unary
 def arctan(x):
-    return tfnp.arctan(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.arctan incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.arctan(x), dtype)
 
 
 def arctan2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.arctan2(x1, x2)
 
 
 @sparse.elementwise_unary
 def arctanh(x):
-    return tfnp.arctanh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.arctanh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.arctanh(x), dtype)
 
 
 def argmax(x, axis=None):
