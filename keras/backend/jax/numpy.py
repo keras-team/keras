@@ -137,7 +137,8 @@ def arccos(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return cast(jnp.arccos(x), dtype)
+    x = cast(x, dtype)
+    return jnp.arccos(x)
 
 
 def arccosh(x):
@@ -145,7 +146,8 @@ def arccosh(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return cast(jnp.arccosh(x), dtype)
+    x = cast(x, dtype)
+    return jnp.arccosh(x)
 
 
 def arcsin(x):
@@ -153,7 +155,8 @@ def arcsin(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return cast(jnp.arcsin(x), dtype)
+    x = cast(x, dtype)
+    return jnp.arcsin(x)
 
 
 def arcsinh(x):
@@ -161,7 +164,8 @@ def arcsinh(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return cast(jnp.arcsinh(x), dtype)
+    x = cast(x, dtype)
+    return jnp.arcsinh(x)
 
 
 def arctan(x):
@@ -169,7 +173,8 @@ def arctan(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return cast(jnp.arctan(x), dtype)
+    x = cast(x, dtype)
+    return jnp.arctan(x)
 
 
 def arctan2(x1, x2):
@@ -186,7 +191,8 @@ def arctanh(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return cast(jnp.arctanh(x), dtype)
+    x = cast(x, dtype)
+    return jnp.arctanh(x)
 
 
 def argmax(x, axis=None):
@@ -243,10 +249,20 @@ def copy(x):
 
 
 def cos(x):
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
     return jnp.cos(x)
 
 
 def cosh(x):
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
     return jnp.cosh(x)
 
 

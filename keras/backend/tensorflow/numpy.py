@@ -504,12 +504,26 @@ def copy(x):
 
 @sparse.densifying_unary(1)
 def cos(x):
-    return tfnp.cos(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.cos incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.cos(x), dtype)
 
 
 @sparse.densifying_unary(1)
 def cosh(x):
-    return tfnp.cosh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.cosh incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.cosh(x), dtype)
 
 
 def count_nonzero(x, axis=None):

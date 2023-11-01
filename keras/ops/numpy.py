@@ -1571,7 +1571,12 @@ class Cos(Operation):
         return backend.numpy.cos(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.cos", "keras.ops.numpy.cos"])
@@ -1594,7 +1599,12 @@ class Cosh(Operation):
         return backend.numpy.cosh(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.cosh", "keras.ops.numpy.cosh"])
