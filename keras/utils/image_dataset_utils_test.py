@@ -255,17 +255,46 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         self.assertEqual(batch[0].shape, (2, 18, 18, 3))
 
     def test_image_dataset_from_directory_manual_labels(self):
-        directory = self._prepare_directory(num_classes=2, count=2)
+        # Case: wrong number of labels
+        directory = self._prepare_directory(num_classes=1, count=4)
+        with self.assertRaisesRegex(ValueError, "match the number of files"):
+            image_dataset_utils.image_dataset_from_directory(
+                directory,
+                batch_size=8,
+                image_size=(18, 18),
+                labels=[0, 1, 0],
+                shuffle=False,
+            )
+
+        # Case: single directory
+        directory = self._prepare_directory(num_classes=1, count=4)
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory,
             batch_size=8,
             image_size=(18, 18),
-            labels=[0, 1],
+            labels=[0, 1, 0, 1],
             shuffle=False,
         )
+        self.assertEqual(dataset.class_names, ["0", "1"])
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertAllClose(batch[1], [0, 1])
+        self.assertEqual(batch[0].shape, (4, 18, 18, 3))
+        self.assertAllClose(batch[1], [0, 1, 0, 1])
+
+        # Case: multiple directories
+        directory = self._prepare_directory(num_classes=3, count=6)
+        dataset = image_dataset_utils.image_dataset_from_directory(
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            labels=[0, 1, 0, 1, 1, 1],
+            shuffle=False,
+        )
+        self.assertEqual(dataset.class_names, ["0", "1"])
+        batch = next(iter(dataset))
+        self.assertLen(batch, 2)
+        self.assertEqual(batch[0].shape, (6, 18, 18, 3))
+        self.assertAllClose(batch[1], [0, 1, 0, 1, 1, 1])
 
     def test_image_dataset_from_directory_follow_links(self):
         directory = self._prepare_directory(

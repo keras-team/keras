@@ -609,7 +609,7 @@ def index_directory(
                 f"{len(labels)} while we found {len(filenames)} files "
                 f"in directory {directory}."
             )
-        class_names = sorted(set(labels))
+        class_names = [str(label) for label in sorted(set(labels))]
 
     if labels is None:
         io_utils.print_msg(f"Found {len(filenames)} files.")
