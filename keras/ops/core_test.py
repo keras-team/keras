@@ -387,3 +387,18 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertEqual("float16", y.dtype)
         self.assertEqual(x.shape, y.shape)
         self.assertTrue(hasattr(y, "_keras_history"))
+
+    def test_vectorized_map(self):
+        def fn(x):
+            return x + 1
+
+        output = ops.vectorized_map(fn, ops.zeros((2, 3), dtype="float32"))
+        self.assertAllClose(backend.convert_to_numpy(output), np.ones((2, 3)))
+
+        def fn(x):
+            return ops.stack([x, x])
+
+        output = ops.vectorized_map(fn, ops.zeros((2, 3), dtype="float32"))
+        self.assertAllClose(
+            backend.convert_to_numpy(output), np.zeros((2, 2, 3))
+        )
