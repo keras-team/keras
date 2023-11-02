@@ -698,7 +698,7 @@ class BaseOptimizer:
 base_optimizer_keyword_args = """name: String. The name to use
           for momentum accumulator weights created by
           the optimizer.
-        weight_decay: Float, defaults to None. If set, weight decay is applied.
+        weight_decay: Float. If set, weight decay is applied.
         clipnorm: Float. If set, the gradient of each weight is individually
           clipped so that its norm is no higher than this value.
         clipvalue: Float. If set, the gradient of each weight is clipped to be
