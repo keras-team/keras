@@ -402,3 +402,13 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             backend.convert_to_numpy(output), np.zeros((2, 2, 3))
         )
+
+        # Case: multiple args
+        def fn(elems):
+            x, y = elems
+            return x + y
+
+        output = ops.vectorized_map(fn, [ops.ones((2, 3)), ops.ones((2, 3))])
+        self.assertAllClose(
+            backend.convert_to_numpy(output), 2 * np.ones((2, 3))
+        )
