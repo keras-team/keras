@@ -61,11 +61,15 @@ def cond(pred, true_fn, false_fn):
     return false_fn()
 
 
-def vectorized_map(function, x):
-    output_store = []
-    for element in x:
-        output_store.append(function(element))
-    return np.stack(output_store)
+def vectorized_map(function, elements):
+    if not isinstance(elements, (list, tuple)):
+        return np.stack([function(x) for x in elements])
+    else:
+        batch_size = elements[0].shape[0]
+        output_store = []
+        for index in range(batch_size):
+            output_store.append(function([x[index] for x in elements]))
+        return np.stack(output_store)
 
 
 # Shape / dtype inference util
