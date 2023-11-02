@@ -137,7 +137,7 @@ def distribute_data_input(inputs, layout):
         if per_process_batch_size % per_replica_batch_size != 0:
             raise ValueError(
                 f"The local batch size {per_process_batch_size} is not"
-                "divisible by the number of local replica "
+                "divisible by the number of local replicas "
                 f"{num_split}"
             )
         global_batch_size = per_process_batch_size * jax.process_count()
