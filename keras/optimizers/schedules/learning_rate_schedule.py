@@ -153,6 +153,9 @@ class ExponentialDecay(LearningRateSchedule):
         self.staircase = staircase
         self.name = name
 
+        if self.decay_steps <= 0:
+            raise ValueError("Argument `decay_steps` must be > 0.")
+
     def __call__(self, step):
         with ops.name_scope(self.name):
             initial_learning_rate = ops.convert_to_tensor(
@@ -396,6 +399,9 @@ class PolynomialDecay(LearningRateSchedule):
         self.cycle = cycle
         self.name = name
 
+        if self.decay_steps <= 0:
+            raise ValueError("Argument `decay_steps` must be > 0.")
+
     def __call__(self, step):
         with ops.name_scope(self.name):
             initial_learning_rate = ops.convert_to_tensor(
@@ -523,6 +529,9 @@ class InverseTimeDecay(LearningRateSchedule):
         self.decay_rate = decay_rate
         self.staircase = staircase
         self.name = name
+
+        if self.decay_steps <= 0:
+            raise ValueError("Argument `decay_steps` must be > 0.")
 
     def __call__(self, step):
         with ops.name_scope(self.name):
@@ -666,6 +675,9 @@ class CosineDecay(LearningRateSchedule):
         self.warmup_steps = warmup_steps
         self.warmup_target = warmup_target
 
+        if self.decay_steps <= 0:
+            raise ValueError("Argument `decay_steps` must be > 0.")
+
     def _decay_function(self, step, decay_steps, decay_from_lr, dtype):
         with ops.name_scope(self.name):
             completed_fraction = step / decay_steps
@@ -807,6 +819,9 @@ class CosineDecayRestarts(LearningRateSchedule):
         self._m_mul = m_mul
         self.alpha = alpha
         self.name = name
+
+        if self.first_decay_steps <= 0:
+            raise ValueError("Argument `first_decay_steps` must be > 0.")
 
     def __call__(self, step):
         with ops.name_scope(self.name):
