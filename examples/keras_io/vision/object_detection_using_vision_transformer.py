@@ -43,7 +43,7 @@ os.environ["KERAS_BACKEND"] = "jax"  # @param ["tensorflow", "jax", "torch"]
 
 
 import numpy as np
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 import matplotlib.pyplot as plt

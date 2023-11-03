@@ -34,7 +34,7 @@ wget https://raw.githubusercontent.com/sighsmile/conlleval/master/conlleval.py
 
 import os
 import numpy as np
-import keras as keras
+import keras
 from keras import layers
 from datasets import load_dataset
 from collections import Counter

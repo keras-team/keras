@@ -29,7 +29,7 @@ TensorFlow NumPy requires TensorFlow 2.5 or later.
 
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
-import keras as keras
+import keras
 from keras import layers
 
 """

@@ -62,7 +62,7 @@ You can replace your classification RNN layers with this one: the
 inputs are fully compatible!
 """
 
-import keras as keras
+import keras
 from keras import layers
 
 """

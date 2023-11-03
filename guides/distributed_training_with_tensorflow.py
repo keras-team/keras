@@ -42,7 +42,7 @@ import os
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import tensorflow as tf
-import keras as keras
+import keras
 
 """
 ## Single-host, multi-device synchronous training

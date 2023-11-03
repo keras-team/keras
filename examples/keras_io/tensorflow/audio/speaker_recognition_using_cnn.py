@@ -47,7 +47,7 @@ import shutil
 import numpy as np
 
 import tensorflow as tf
-import keras as keras
+import keras
 
 from pathlib import Path
 from IPython.display import display, Audio

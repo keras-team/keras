@@ -33,7 +33,7 @@ and 9 categorical features.
 ## Setup
 """
 
-import keras as keras
+import keras
 from keras import layers
 from keras.layers import StringLookup
 from keras import ops

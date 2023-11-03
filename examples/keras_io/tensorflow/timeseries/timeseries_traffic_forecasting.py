@@ -47,7 +47,7 @@ import typing
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
-import keras as keras
+import keras
 from keras import layers
 from keras.utils import timeseries_dataset_from_array
 

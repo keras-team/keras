@@ -48,7 +48,7 @@ where `rx, ry` are randomly drawn from a uniform distribution with upper bound.
 
 import numpy as np
 import pandas as pd
-import keras as keras
+import keras
 import matplotlib.pyplot as plt
 
 from keras import layers

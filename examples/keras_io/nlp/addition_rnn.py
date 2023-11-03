@@ -46,7 +46,7 @@ Five digits (reversed):
 ## Setup
 """
 
-import keras as keras
+import keras
 from keras import layers
 import numpy as np
 

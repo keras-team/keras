@@ -52,7 +52,7 @@ import keras_nlp
 import pathlib
 import random
 
-import keras as keras
+import keras
 from keras import ops
 
 import tensorflow.data as tf_data

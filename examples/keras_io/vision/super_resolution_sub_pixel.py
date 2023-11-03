@@ -26,7 +26,7 @@ dataset,
 ## Setup
 """
 
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 from keras.utils import load_img

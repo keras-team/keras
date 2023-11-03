@@ -40,7 +40,7 @@ code snippets from another example,
 """
 
 from keras import layers
-import keras as keras
+import keras
 
 import matplotlib.pyplot as plt
 import numpy as np

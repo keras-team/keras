@@ -29,7 +29,7 @@ Let's dive in.
 """
 
 import numpy as np
-import keras as keras
+import keras
 from keras import ops
 from keras import layers
 

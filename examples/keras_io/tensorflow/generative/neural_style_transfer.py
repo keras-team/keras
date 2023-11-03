@@ -40,7 +40,7 @@ keeping the generated image close enough to the original one.
 
 import numpy as np
 import tensorflow as tf
-import keras as keras
+import keras
 from keras.applications import vgg19
 
 base_image_path = keras.utils.get_file(

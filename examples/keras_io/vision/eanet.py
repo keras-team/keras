@@ -25,7 +25,7 @@ implicitly considers the correlations between all samples.
 ## Setup
 """
 
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 
