@@ -370,7 +370,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             ValueError, "`class_names` passed did not match"
         ):
             _ = image_dataset_utils.image_dataset_from_directory(
-                directory, class_names=["class_0", "class_2"]
+                directory, class_names=["class_0", "wrong_class"]
             )
 
         with self.assertRaisesRegex(ValueError, "there must be exactly 2"):
