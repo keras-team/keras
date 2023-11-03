@@ -546,7 +546,7 @@ def index_directory(
                         subdir = subdir[:-1]
                     subdirs.append(subdir)
         if class_names is not None:
-            if set(class_names).issubset(set(subdirs)):
+            if not set(class_names).issubset(set(subdirs)):
                 raise ValueError(
                     "The `class_names` passed did not match the "
                     "names of the subdirectories of the target directory. "
