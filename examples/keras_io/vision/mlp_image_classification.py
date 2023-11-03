@@ -29,7 +29,7 @@ main building blocks.
 """
 
 import numpy as np
-import keras as keras
+import keras
 from keras import layers
 
 """

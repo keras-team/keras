@@ -37,7 +37,7 @@ processing, speech, and so on.
 """
 
 import numpy as np
-import keras as keras
+import keras
 import matplotlib.pyplot as plt
 
 from keras import layers

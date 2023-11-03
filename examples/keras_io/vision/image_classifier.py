@@ -42,7 +42,7 @@ os.environ["KERAS_BACKEND"] = "jax"
 import json
 import math
 import keras_cv
-import keras as keras
+import keras
 from keras import ops
 from keras import losses
 from keras import optimizers

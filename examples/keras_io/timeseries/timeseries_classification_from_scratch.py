@@ -19,7 +19,7 @@ CSV timeseries files on disk. We demonstrate the workflow on the FordA dataset f
 ## Setup
 
 """
-import keras as keras
+import keras
 import numpy as np
 import matplotlib.pyplot as plt
 

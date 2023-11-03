@@ -58,7 +58,7 @@ from scipy import ndimage
 from IPython.display import Image, display
 
 import tensorflow as tf
-import keras as keras
+import keras
 from keras import layers
 from keras.applications import xception
 

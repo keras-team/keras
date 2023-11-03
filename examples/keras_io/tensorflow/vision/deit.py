@@ -49,7 +49,7 @@ os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import tensorflow as tf
 import tensorflow_datasets as tfds
-import keras as keras
+import keras
 from keras import layers
 
 tfds.disable_progress_bar()

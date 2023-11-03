@@ -29,7 +29,7 @@ import os
 os.environ["KERAS_BACKEND"] = "jax"  # or "tensorflow" or "torch"
 
 import keras_nlp
-import keras as keras
+import keras
 import tensorflow as tf
 
 import numpy as np

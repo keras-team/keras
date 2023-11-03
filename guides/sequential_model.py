@@ -11,7 +11,7 @@ Accelerator: GPU
 
 """
 
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 

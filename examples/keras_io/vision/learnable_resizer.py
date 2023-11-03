@@ -40,7 +40,7 @@ using the [DenseNet-121](https://arxiv.org/abs/1608.06993) architecture.
 """
 
 from keras import layers
-import keras as keras
+import keras
 from keras import ops
 
 from tensorflow import data as tf_data

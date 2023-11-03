@@ -65,7 +65,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import json
 import numpy as np
-import keras as keras
+import keras
 from keras import layers
 import tensorflow as tf
 from sklearn import preprocessing, model_selection

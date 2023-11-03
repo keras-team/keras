@@ -54,7 +54,7 @@ by TensorFlow.
 """
 
 import numpy as np
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 from tqdm import tqdm

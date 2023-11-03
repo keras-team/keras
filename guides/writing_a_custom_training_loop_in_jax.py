@@ -19,7 +19,7 @@ import jax
 
 # We import TF so we can use tf.data.
 import tensorflow as tf
-import keras as keras
+import keras
 import numpy as np
 
 """

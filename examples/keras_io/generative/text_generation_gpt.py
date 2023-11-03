@@ -41,7 +41,7 @@ import os
 os.environ["KERAS_BACKEND"] = "jax"
 
 import keras_nlp
-import keras as keras
+import keras
 
 import tensorflow.data as tf_data
 import tensorflow.strings as tf_strings

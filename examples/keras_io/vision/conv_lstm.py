@@ -25,7 +25,7 @@ of predicting what video frames come next given a series of past frames.
 import numpy as np
 import matplotlib.pyplot as plt
 
-import keras as keras
+import keras
 from keras import layers
 
 import io

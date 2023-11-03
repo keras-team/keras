@@ -32,7 +32,7 @@ This dataset can be used for the "human part segmentation" task.
 """
 
 
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 
