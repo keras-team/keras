@@ -154,7 +154,10 @@ class ExponentialDecay(LearningRateSchedule):
         self.name = name
 
         if self.decay_steps <= 0:
-            raise ValueError("Argument `decay_steps` must be > 0.")
+            raise ValueError(
+                "Argument `decay_steps` must be > 0. "
+                f"Recieved : decay_steps = {self.decay_steps}. "
+            )
 
     def __call__(self, step):
         with ops.name_scope(self.name):
@@ -400,7 +403,10 @@ class PolynomialDecay(LearningRateSchedule):
         self.name = name
 
         if self.decay_steps <= 0:
-            raise ValueError("Argument `decay_steps` must be > 0.")
+            raise ValueError(
+                "Argument `decay_steps` must be > 0. "
+                f"Recieved : decay_steps = {self.decay_steps}. "
+            )
 
     def __call__(self, step):
         with ops.name_scope(self.name):
@@ -531,7 +537,10 @@ class InverseTimeDecay(LearningRateSchedule):
         self.name = name
 
         if self.decay_steps <= 0:
-            raise ValueError("Argument `decay_steps` must be > 0.")
+            raise ValueError(
+                "Argument `decay_steps` must be > 0. "
+                f"Recieved : decay_steps = {self.decay_steps}. "
+            )
 
     def __call__(self, step):
         with ops.name_scope(self.name):
@@ -676,7 +685,10 @@ class CosineDecay(LearningRateSchedule):
         self.warmup_target = warmup_target
 
         if self.decay_steps <= 0:
-            raise ValueError("Argument `decay_steps` must be > 0.")
+            raise ValueError(
+                "Argument `decay_steps` must be > 0. "
+                f"Recieved : decay_steps = {self.decay_steps}. "
+            )
 
     def _decay_function(self, step, decay_steps, decay_from_lr, dtype):
         with ops.name_scope(self.name):
@@ -821,7 +833,10 @@ class CosineDecayRestarts(LearningRateSchedule):
         self.name = name
 
         if self.first_decay_steps <= 0:
-            raise ValueError("Argument `first_decay_steps` must be > 0.")
+            raise ValueError(
+                "Argument `first_decay_steps` must be > 0. "
+                f"Recieved : decay_steps = {self.first_decay_steps}. "
+            )
 
     def __call__(self, step):
         with ops.name_scope(self.name):
