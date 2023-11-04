@@ -575,11 +575,4 @@ the regularization techniques are necessary.
 bag sizes are fixed here.
 - In order not to rely on the random initial weights of a single model, averaging ensemble
 methods should be considered.
-
-Example available on HuggingFace.
-
-| Trained Model | Demo |
-| :--: | :--: |
-| [![Generic badge](https://img.shields.io/badge/🤗%20Model-Attention%20MIL-black.svg)](https://huggingface.co/keras-io/attention_mil) | [![Generic badge](https://img.shields.io/badge/🤗%20Spaces-Attention%20MIL-black.svg)](https://huggingface.co/spaces/keras-io/Attention_based_Deep_Multiple_Instance_Learning) |
-
 """
