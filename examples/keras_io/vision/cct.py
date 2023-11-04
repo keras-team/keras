@@ -30,10 +30,7 @@ If you are unfamiliar with the concept of self-attention or Transformers, you ca
 from  François Chollet's book *Deep Learning with Python*. This example uses
 code snippets from another example,
 [Image classification with Vision Transformer](https://keras.io/examples/vision/image_classification_with_vision_transformer/).
-
-
 """
-
 
 """
 ## Imports
