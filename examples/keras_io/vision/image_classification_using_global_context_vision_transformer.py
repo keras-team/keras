@@ -213,11 +213,9 @@ class ReduceSize(keras.layers.Layer):
             name="reduction",
         )
         self.norm1 = keras.layers.LayerNormalization(
-            axis=-1, epsilon=1e-05, name="norm1"
+            -1, 1e-05, name="norm1"
         )  # eps like PyTorch
-        self.norm2 = keras.layers.LayerNormalization(
-            axis=-1, epsilon=1e-05, name="norm2"
-        )
+        self.norm2 = keras.layers.LayerNormalization(-1, 1e-05, name="norm2")
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
@@ -313,9 +311,7 @@ class PatchEmbed(keras.layers.Layer):
 
     def build(self, input_shape):
         self.pad = keras.layers.ZeroPadding2D(1, name="pad")
-        self.proj = keras.layers.Conv2D(
-            self.embed_dim, kernel_size=3, strides=2, name="proj"
-        )
+        self.proj = keras.layers.Conv2D(self.embed_dim, 3, 2, name="proj")
         self.conv_down = ReduceSize(keep_dim=True, name="conv_down")
         super().build(input_shape)
 
@@ -376,24 +372,13 @@ class FeatExtract(keras.layers.Layer):
         self.pad1 = keras.layers.ZeroPadding2D(1, name="pad1")
         self.pad2 = keras.layers.ZeroPadding2D(1, name="pad2")
         self.conv = [
-            keras.layers.DepthwiseConv2D(
-                kernel_size=3, strides=1, padding="valid", use_bias=False, name="conv_0"
-            ),
+            keras.layers.DepthwiseConv2D(3, 1, use_bias=False, name="conv_0"),
             keras.layers.Activation("gelu", name="conv_1"),
             SE(name="conv_2"),
-            keras.layers.Conv2D(
-                embed_dim,
-                kernel_size=1,
-                strides=1,
-                padding="valid",
-                use_bias=False,
-                name="conv_3",
-            ),
+            keras.layers.Conv2D(embed_dim, 1, 1, use_bias=False, name="conv_3"),
         ]
         if not self.keep_dim:
-            self.pool = keras.layers.MaxPool2D(
-                pool_size=3, strides=2, padding="valid", name="pool"
-            )
+            self.pool = keras.layers.MaxPool2D(3, 2, name="pool")
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
@@ -401,10 +386,9 @@ class FeatExtract(keras.layers.Layer):
         xr = self.pad1(x)
         for layer in self.conv:
             xr = layer(xr)
-        x = x + xr  # if pad had weights it would've thrown error with .save_weights()
+        x = x + xr
         if not self.keep_dim:
-            x = self.pad2(x)
-            x = self.pool(x)
+            x = self.pool(self.pad2(x))
         return x
 
 
@@ -613,12 +597,9 @@ class WindowAttention(keras.layers.Layer):
         attn = self.softmax(attn)
         attn = self.attn_drop(attn)
 
-        x = ops.transpose(
-            (attn @ v), axes=[0, 2, 1, 3]
-        )  # B_, num_tokens, num_heads, channels_per_head
+        x = ops.transpose((attn @ v), axes=[0, 2, 1, 3])
         x = ops.reshape(x, new_shape=[B_, N, C])
-        x = self.proj(x)
-        x = self.proj_drop(x)
+        x = self.proj_drop(self.proj(x))
         return x
 
 
@@ -703,9 +684,7 @@ class Block(keras.layers.Layer):
 
     def build(self, input_shape):
         B, H, W, C = input_shape[0]
-        self.norm1 = keras.layers.LayerNormalization(
-            axis=-1, epsilon=1e-05, name="norm1"
-        )
+        self.norm1 = keras.layers.LayerNormalization(-1, 1e-05, name="norm1")
         self.attn = WindowAttention(
             window_size=self.window_size,
             num_heads=self.num_heads,
@@ -718,9 +697,7 @@ class Block(keras.layers.Layer):
         )
         self.drop_path1 = DropPath(self.path_drop)
         self.drop_path2 = DropPath(self.path_drop)
-        self.norm2 = keras.layers.LayerNormalization(
-            axis=-1, epsilon=1e-05, name="norm2"
-        )
+        self.norm2 = keras.layers.LayerNormalization(-1, 1e-05, name="norm2")
         self.mlp = MLP(
             hidden_features=int(C * self.mlp_ratio),
             dropout=self.drop,
@@ -732,14 +709,12 @@ class Block(keras.layers.Layer):
                 name="gamma1",
                 shape=[C],
                 initializer=keras.initializers.Constant(self.layer_scale),
-                trainable=True,
                 dtype=self.dtype,
             )
             self.gamma2 = self.add_weight(
                 name="gamma2",
                 shape=[C],
                 initializer=keras.initializers.Constant(self.layer_scale),
-                trainable=True,
                 dtype=self.dtype,
             )
         else:
@@ -758,9 +733,7 @@ class Block(keras.layers.Layer):
         # create windows and concat them in batch axis
         x = self.window_partition(x, self.window_size)  # (B_, win_h, win_w, C)
         # flatten patch
-        x = ops.reshape(
-            x, new_shape=[-1, self.window_size * self.window_size, C]
-        )  # (B_, N, C) => (batch*num_win, num_token, feature)
+        x = ops.reshape(x, new_shape=[-1, self.window_size * self.window_size, C])
         # attention
         if self.global_query:
             x = self.attn([x, q_global])
@@ -853,7 +826,7 @@ class Level(keras.layers.Layer):
         depth: number of layers in each stage.
         num_heads: number of heads in each stage.
         window_size: window size in each stage.
-        keep_dims: dims to keep in FeatExtract. 
+        keep_dims: dims to keep in FeatExtract.
         downsample: bool argument for down-sampling.
         mlp_ratio: MLP ratio.
         qkv_bias: bool argument for query, key, value learnable bias.
@@ -941,7 +914,7 @@ embeddings which means output of this module will be $(batch,
 \frac{height}{window\_size}, \frac{width}{window\_size}, embed\_dim)$ instead of $(batch,
 \frac{height \times width}{window\_size^2}, embed\_dim)$.
 2. Then it applies `Dropout` module which randomly sets input units to 0.
-3. It passes these embeddings to series of `Level` modules which we are calling `level` 
+3. It passes these embeddings to series of `Level` modules which we are calling `level`
 where,
     1. Global token is generated
     1. Both local & global attention is applied
@@ -962,16 +935,16 @@ pooling $\rightarrow$ classify
 
 class GCViT(keras.Model):
     """
-    GCViT based on: "Hatamizadeh et al., 
+    GCViT based on: "Hatamizadeh et al.,
     Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
 
     Args:
         window_size: window size in each stage.
         embed_dim: feature size dimension.
-        depths: number of layers in each stage. 
+        depths: number of layers in each stage.
         num_heads: number of heads in each stage.
         drop_rate: dropout rate.
-        mlp_ratio: MLP ratio. 
+        mlp_ratio: MLP ratio.
         qkv_bias: bool argument for query, key, value learnable bias.
         qk_scale: bool argument to scaling query, key.
         attn_drop: attention dropout rate.
@@ -1016,12 +989,7 @@ class GCViT(keras.Model):
         self.patch_embed = PatchEmbed(embed_dim=embed_dim, name="patch_embed")
         self.pos_drop = keras.layers.Dropout(drop_rate, name="pos_drop")
         path_drops = np.linspace(0.0, path_drop, sum(depths))
-        keep_dims = [
-            (False, False, False),
-            (False, False),
-            (True,),
-            (True,),
-        ]
+        keep_dims = [(0, 0, 0), (0, 0), (1,), (1,)]
         self.levels = []
         for i in range(len(depths)):
             path_drop = path_drops[sum(depths[:i]) : sum(depths[: i + 1])].tolist()
@@ -1148,8 +1116,8 @@ CLASSES = [
 ]  # don't change the order
 
 # Other constants
-MEAN = np.array([0.485 * 255, 0.456 * 255, 0.406 * 255], dtype="float32")  # imagenet mean
-STD = np.array([0.229 * 255, 0.224 * 255, 0.225 * 255], dtype="float32")  # imagenet std
+MEAN = 255 * np.array([0.485, 0.456, 0.406], dtype="float32")  # imagenet mean
+STD = 255 * np.array([0.229, 0.224, 0.225], dtype="float32")  # imagenet std
 AUTO = tf.data.AUTOTUNE
 
 """
@@ -1170,11 +1138,7 @@ def make_dataset(dataset: tf.data.Dataset, train: bool, image_size: int = IMAGE_
     if train:
         dataset = dataset.shuffle(BATCH_SIZE * 10)
 
-    return (
-        dataset.map(preprocess, AUTO)
-        .batch(BATCH_SIZE, drop_remainder=True)
-        .prefetch(AUTO)
-    )
+    return dataset.map(preprocess, AUTO).batch(BATCH_SIZE).prefetch(AUTO)
 
 
 """
