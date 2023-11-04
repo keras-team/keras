@@ -122,7 +122,7 @@ def np_conv2d_transpose(
         strides,
         padding,
         output_padding,
-        data_format,
+        "channels_last",
         dilation_rate,
     )
     jax_padding = compute_conv_transpose_padding_args_for_jax(
