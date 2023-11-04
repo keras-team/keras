@@ -10,7 +10,7 @@ Description: Implementation and fine-tuning of Global Context Vision Transformer
 """
 
 """shell
-pip install --upgrade keras_core
+pip install --upgrade keras
 pip install --upgrade keras_cv
 """
 
