@@ -1,11 +1,11 @@
 """
 Title: Compact Convolutional Transformers
 Author: [Sayak Paul](https://twitter.com/RisingSayak)
-Converted to Keras 3 by: [Muhammad Anas Raza](https://anasrz.com), [Guillaume Baquiast](https://www.linkedin.com/in/guillaume-baquiast-478965ba/)
 Date created: 2021/06/30
 Last modified: 2023/08/07
 Description: Compact Convolutional Transformers for efficient image classification.
 Accelerator: GPU
+Converted to Keras 3 by: [Muhammad Anas Raza](https://anasrz.com), [Guillaume Baquiast](https://www.linkedin.com/in/guillaume-baquiast-478965ba/)
 """
 """
 As discussed in the [Vision Transformers (ViT)](https://arxiv.org/abs/2010.11929) paper,
