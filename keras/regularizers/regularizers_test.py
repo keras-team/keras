@@ -80,7 +80,7 @@ class RegularizersTest(testing.TestCase):
 
     def test_orthogonal_regularizer_input_rank_validation(self):
         with self.assertRaises(ValueError) as context:
-            value = np.random.random((4, 4, 4))  # Incorrect rank
+            value = np.random.random((4, 4, 4))
             x = backend.Variable(value)
             regularizers.OrthogonalRegularizer(factor=0.1)(x)
 
@@ -114,19 +114,29 @@ class ValidateFloatArgTest(testing.TestCase):
         self.assertEqual(validate_float_arg(1.0, "test"), 1.0)
 
     def test_validate_float_with_invalid_types(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg("not_a_number", "test")
 
     def test_validate_float_with_nan(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg(float("nan"), "test")
 
     def test_validate_float_with_inf(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg(float("inf"), "test")
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg(-float("inf"), "test")
 
     def test_validate_float_with_negative_number(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg(-1, "test")
