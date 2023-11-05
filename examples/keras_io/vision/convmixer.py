@@ -37,10 +37,6 @@ the CIFAR-10 dataset.
 ## Imports
 """
 
-import os
-
-os.environ["KERAS_BACKEND"] = "jax"
-
 import keras
 from keras import layers
 
