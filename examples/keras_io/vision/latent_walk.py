@@ -99,7 +99,9 @@ interpolation_steps = 5
 encoding_1 = ops.squeeze(model.encode_text(prompt_1))
 encoding_2 = ops.squeeze(model.encode_text(prompt_2))
 
-interpolated_encodings = ops.linspace(encoding_1, encoding_2, interpolation_steps)
+interpolated_encodings = ops.linspace(
+    encoding_1, encoding_2, interpolation_steps
+)
 
 # Show the size of the latent manifold
 print(f"Encoding shape: {encoding_1.shape}")
@@ -174,7 +176,9 @@ interpolation_steps = 150
 batch_size = 3
 batches = interpolation_steps // batch_size
 
-interpolated_encodings = ops.linspace(encoding_1, encoding_2, interpolation_steps)
+interpolated_encodings = ops.linspace(
+    encoding_1, encoding_2, interpolation_steps
+)
 batched_encodings = ops.split(interpolated_encodings, batches)
 
 images = []
@@ -274,7 +278,9 @@ the `diffusion_noise` parameter:
 
 images = []
 for batch in range(batches):
-    images.append(model.generate_image(batched_encodings[batch], batch_size=batch_size))
+    images.append(
+        model.generate_image(batched_encodings[batch], batch_size=batch_size)
+    )
 
 images = np.concatenate(images)
 plot_grid(images, "4-way-interpolation-varying-noise.jpg", interpolation_steps)

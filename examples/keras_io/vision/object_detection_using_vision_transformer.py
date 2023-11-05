@@ -77,10 +77,14 @@ shutil.unpack_archive("/datasets/caltech-101/Annotations.tar", "/")
 
 # list of paths to images and annotations
 image_paths = [
-    f for f in os.listdir(path_images) if os.path.isfile(os.path.join(path_images, f))
+    f
+    for f in os.listdir(path_images)
+    if os.path.isfile(os.path.join(path_images, f))
 ]
 annot_paths = [
-    f for f in os.listdir(path_annot) if os.path.isfile(os.path.join(path_annot, f))
+    f
+    for f in os.listdir(path_annot)
+    if os.path.isfile(os.path.join(path_annot, f))
 ]
 
 image_paths.sort()
@@ -195,7 +199,9 @@ plt.axis("off")
 patches = Patches(patch_size)(np.expand_dims(x_train[0], axis=0))
 print(f"Image size: {image_size} X {image_size}")
 print(f"Patch size: {patch_size} X {patch_size}")
-print(f"{patches.shape[1]} patches per image \n{patches.shape[-1]} elements per patch")
+print(
+    f"{patches.shape[1]} patches per image \n{patches.shape[-1]} elements per patch"
+)
 
 
 n = int(np.sqrt(patches.shape[1]))
@@ -301,7 +307,9 @@ def create_vit_object_detector(
     representation = layers.Flatten()(representation)
     representation = layers.Dropout(0.3)(representation)
     # Add MLP.
-    features = mlp(representation, hidden_units=mlp_head_units, dropout_rate=0.3)
+    features = mlp(
+        representation, hidden_units=mlp_head_units, dropout_rate=0.3
+    )
 
     bounding_box = layers.Dense(4)(
         features
@@ -317,7 +325,6 @@ def create_vit_object_detector(
 
 
 def run_experiment(model, learning_rate, weight_decay, batch_size, num_epochs):
-
     optimizer = keras.optimizers.AdamW(
         learning_rate=learning_rate, weight_decay=weight_decay
     )
@@ -408,6 +415,7 @@ import matplotlib.patches as patches
 # Saves the model in current path
 vit_object_detector.save("vit_object_detector.keras")
 
+
 # To calculate IoU (intersection over union, given two bounding boxes)
 def bounding_box_intersection_over_union(box_predicted, box_truth):
     # get (x, y) coordinates of intersection of bounding boxes
@@ -487,7 +495,9 @@ for input_image in x_test[:10]:
 
     top_left_x, top_left_y = int(y_test[i][0] * w), int(y_test[i][1] * h)
 
-    bottom_right_x, bottom_right_y = int(y_test[i][2] * w), int(y_test[i][3] * h)
+    bottom_right_x, bottom_right_y = int(y_test[i][2] * w), int(
+        y_test[i][3] * h
+    )
 
     box_truth = top_left_x, top_left_y, bottom_right_x, bottom_right_y
 

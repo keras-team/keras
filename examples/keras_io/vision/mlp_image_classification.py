@@ -175,9 +175,11 @@ class Patches(layers.Layer):
         out = keras.ops.reshape(patches, (batch_size, num_patches, patch_dim))
         return out
 
+
 """
 ## Implement position embedding as a layer
 """
+
 
 class PositionEmbedding(keras.layers.Layer):
     def __init__(
@@ -221,7 +223,9 @@ class PositionEmbedding(keras.layers.Layer):
         sequence_length = shape[-2]
         # trim to match the length of the input sequence, which might be less
         # than the sequence_length of the layer.
-        position_embeddings = keras.ops.convert_to_tensor(self.position_embeddings)
+        position_embeddings = keras.ops.convert_to_tensor(
+            self.position_embeddings
+        )
         position_embeddings = keras.ops.slice(
             position_embeddings,
             (start_index, 0),
@@ -231,6 +235,7 @@ class PositionEmbedding(keras.layers.Layer):
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
 
 """
 ## The MLP-Mixer model
@@ -342,9 +347,7 @@ in the Transformer block with a parameter-free 2D Fourier transformation layer:
 
 
 class FNetLayer(layers.Layer):
-    def __init__(
-        self, embedding_dim, dropout_rate, *args, **kwargs
-    ):
+    def __init__(self, embedding_dim, dropout_rate, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.ffn = keras.Sequential(
@@ -383,10 +386,7 @@ takes around 8 seconds per epoch.
 """
 
 fnet_blocks = keras.Sequential(
-    [
-        FNetLayer(embedding_dim, dropout_rate)
-        for _ in range(num_blocks)
-    ]
+    [FNetLayer(embedding_dim, dropout_rate) for _ in range(num_blocks)]
 )
 learning_rate = 0.001
 fnet_classifier = build_classifier(fnet_blocks, positional_encoding=True)

@@ -89,7 +89,7 @@ auto = tf.data.AUTOTUNE
 
 augmentation_layers = [
     keras.layers.RandomCrop(image_size, image_size),
-    keras.layers.RandomFlip("horizontal")
+    keras.layers.RandomFlip("horizontal"),
 ]
 
 
@@ -159,7 +159,12 @@ def conv_mixer_block(x, filters: int, kernel_size: int):
 
 
 def get_conv_mixer_256_8(
-    image_size=32, filters=256, depth=8, kernel_size=5, patch_size=2, num_classes=10
+    image_size=32,
+    filters=256,
+    depth=8,
+    kernel_size=5,
+    patch_size=2,
+    num_classes=10,
 ):
     """ConvMixer-256/8: https://openreview.net/pdf?id=TVHS5Y4dNvM.
     The hyperparameter values are taken from the paper.

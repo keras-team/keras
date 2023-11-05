@@ -1,11 +1,11 @@
 """
 Title: Multiclass semantic segmentation using DeepLabV3+
 Author: [Soumik Rakshit](http://github.com/soumik12345)
-Converted to Keras 3: [Muhammad Anas Raza](https://anasrz.com)
 Date created: 2021/08/31
 Last modified: 2023/07/19
 Description: Implement DeepLabV3+ architecture for Multi-class Semantic Segmentation.
 Accelerator: GPU
+Converted to Keras 3: [Muhammad Anas Raza](https://anasrz.com)
 """
 """
 ## Introduction
@@ -36,11 +36,13 @@ import keras
 from keras import layers
 from keras import ops
 
-import cv2
 import numpy as np
 from glob import glob
+import cv2
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
+
+# For data preprocessing
 from tensorflow import image as tf_image
 from tensorflow import data as tf_data
 from tensorflow import io as tf_io
@@ -330,6 +332,7 @@ plot_predictions(train_images[:4], colormap, model=model)
 
 """
 ### Inference on Validation Images
+
 You can use the trained model hosted on [Hugging Face Hub](https://huggingface.co/keras-io/deeplabv3p-resnet50)
 and try the demo on [Hugging Face Spaces](https://huggingface.co/spaces/keras-io/Human-Part-Segmentation).
 """
