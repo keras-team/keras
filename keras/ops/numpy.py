@@ -140,6 +140,7 @@ zeros_like
 
 
 """
+import builtins
 import re
 
 import numpy as np
@@ -152,9 +153,6 @@ from keras.backend.common import dtypes
 from keras.ops import operation_utils
 from keras.ops.operation import Operation
 from keras.ops.operation_utils import reduce_shape
-
-# save reference to built in max operation before redefinition
-_max = max  # pylint:disable=used-before-assignment
 
 
 def broadcast_shapes(shape1, shape2):
@@ -2035,7 +2033,7 @@ class Diff(Operation):
         shape = list(a.shape)
         size = shape[self.axis]
         if size is not None:
-            shape[self.axis] = _max(size - self.n, 0)
+            shape[self.axis] = builtins.max(size - self.n, 0)
         return KerasTensor(shape, dtype=a.dtype)
 
 
