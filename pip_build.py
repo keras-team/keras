@@ -434,6 +434,9 @@ def test_wheel(wheel_path, expected_version, requirements_path):
         "virtualenv kenv\n"
         f"source {os.path.join('kenv', 'bin', 'activate')}\n"
         f"pip3 install -r {requirements_path}\n"
+        "pip3 uninstall -y tensorflow tf-nightly\n"
+        'pip3 install "${TENSORFLOW_VERSION:-tf-nightly}"\n'
+        "pip3 uninstall -y keras keras-nightly\n"
         f"pip3 install {wheel_path} --force-reinstall\n"
         f"python3 -c 'import keras;{checks};print(keras.__version__)'\n"
         f"python3 -c 'import tensorflow as tf;tf.compat.v1.layers.Dense'\n"
