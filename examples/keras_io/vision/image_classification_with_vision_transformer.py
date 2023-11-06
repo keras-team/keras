@@ -112,7 +112,7 @@ class Patches(layers.Layer):
         self.patch_size = patch_size
 
     def call(self, images):
-        input_shape = ops.backend.shape(images)
+        input_shape = ops.shape(images)
         batch_size = input_shape[0]
         height = input_shape[1]
         width = input_shape[2]
