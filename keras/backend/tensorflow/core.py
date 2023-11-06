@@ -9,6 +9,7 @@ from keras.backend.common import global_state
 from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.name_scope import name_scope as base_name_scope
+from keras.backend.common.stateless_scope import in_stateless_scope
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.utils.naming import auto_name
 
