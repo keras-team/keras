@@ -369,7 +369,7 @@ class TextVectorization(Layer):
     @property
     def variable_dtype(self):
         return "string"
-    
+
     def build(self, input_shape=None):
         pass
 
