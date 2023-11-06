@@ -562,6 +562,10 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     )
 
 
+def diff(a, n=1, axis=-1):
+    return tfnp.diff(a, n=n, axis=axis)
+
+
 def digitize(x, bins):
     bins = list(bins)
     if isinstance(x, tf.RaggedTensor):
