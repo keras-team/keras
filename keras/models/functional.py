@@ -247,13 +247,13 @@ class Functional(Function, Model):
         return tree.flatten(inputs)
 
     def _convert_inputs_to_tensors(self, flat_inputs):
-        flat_dtypes = [x.dtype for x in self._inputs]
         converted = []
-        for x, dtype in zip(flat_inputs, flat_dtypes):
-            if backend.is_tensor(x):
-                converted.append(backend.cast(x, dtype=dtype))
-            else:
-                converted.append(backend.convert_to_tensor(x, dtype=dtype))
+        for x, input in zip(flat_inputs, self._inputs):
+            converted.append(
+                backend.convert_to_tensor(
+                    x, dtype=input.dtype, sparse=input.sparse
+                )
+            )
         return converted
 
     def _adjust_input_rank(self, flat_inputs):
