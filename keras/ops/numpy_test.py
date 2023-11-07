@@ -1092,6 +1092,16 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.diagonal(x).shape, (3, None))
 
+    def test_diff(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.diff(x).shape, (None, 2))
+        self.assertEqual(knp.diff(x, n=2).shape, (None, 1))
+        self.assertEqual(knp.diff(x, n=3).shape, (None, 0))
+        self.assertEqual(knp.diff(x, n=4).shape, (None, 0))
+
+        self.assertEqual(knp.diff(x, axis=0).shape, (None, 3))
+        self.assertEqual(knp.diff(x, n=2, axis=0).shape, (None, 3))
+
     def test_dot(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((3, 2))
@@ -1609,6 +1619,17 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             x = KerasTensor((3,))
             knp.diagonal(x)
+
+    def test_diff(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.diff(x).shape, (2, 2))
+        self.assertEqual(knp.diff(x, n=2).shape, (2, 1))
+        self.assertEqual(knp.diff(x, n=3).shape, (2, 0))
+        self.assertEqual(knp.diff(x, n=4).shape, (2, 0))
+
+        self.assertEqual(knp.diff(x, axis=0).shape, (1, 3))
+        self.assertEqual(knp.diff(x, n=2, axis=0).shape, (0, 3))
+        self.assertEqual(knp.diff(x, n=3, axis=0).shape, (0, 3))
 
     def test_dot(self):
         x = KerasTensor((2, 3))
@@ -3229,6 +3250,18 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             knp.diagonal(x, offset=-1, axis1=2, axis2=3),
             np.diagonal(x, offset=-1, axis1=2, axis2=3),
         )
+
+    def test_diff(self):
+        x = np.array([1, 2, 4, 7, 0])
+        self.assertAllClose(knp.diff(x), np.diff(x))
+        self.assertAllClose(knp.diff(x, n=2), np.diff(x, n=2))
+        self.assertAllClose(knp.diff(x, n=3), np.diff(x, n=3))
+
+        x = np.array([[1, 3, 6, 10], [0, 5, 6, 8]])
+        self.assertAllClose(knp.diff(x), np.diff(x))
+        self.assertAllClose(knp.diff(x, axis=0), np.diff(x, axis=0))
+        self.assertAllClose(knp.diff(x, n=2, axis=0), np.diff(x, n=2, axis=0))
+        self.assertAllClose(knp.diff(x, n=2, axis=1), np.diff(x, n=2, axis=1))
 
     def test_dot(self):
         x = np.arange(24).reshape([2, 3, 4]).astype("float32")

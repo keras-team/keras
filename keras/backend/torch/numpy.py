@@ -480,6 +480,11 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     )
 
 
+def diff(a, n=1, axis=-1):
+    a = convert_to_tensor(a)
+    return torch.diff(a, n=n, dim=axis)
+
+
 def digitize(x, bins):
     x = convert_to_tensor(x)
     bins = convert_to_tensor(bins)

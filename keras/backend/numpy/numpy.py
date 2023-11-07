@@ -336,6 +336,10 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     )
 
 
+def diff(a, n=1, axis=-1):
+    return np.diff(a, n=n, axis=axis)
+
+
 def digitize(x, bins):
     return np.digitize(x, bins).astype(np.int32)
 
