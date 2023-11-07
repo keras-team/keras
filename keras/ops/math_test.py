@@ -873,8 +873,8 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(expected_output, output_from_edge_erf_op, atol=1e-4)
 
     def test_solve(self):
-        x1 = np.array([[1, 2], [4, 5]], dtype='float32')
-        x2 = np.array([[2, 4], [8, 10]], dtype='float32')
+        x1 = np.array([[1, 2], [4, 5]], dtype="float32")
+        x2 = np.array([[2, 4], [8, 10]], dtype="float32")
         output = kmath.solve(x1, x2)
-        expected_result = np.array([[2, 0], [0, 2]], dtype='float32')
+        expected_result = np.array([[2, 0], [0, 2]], dtype="float32")
         self.assertAllClose(output, expected_result)
