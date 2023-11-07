@@ -413,3 +413,9 @@ def rsqrt(x):
 def erf(x):
     x = convert_to_tensor(x)
     return torch.erf(x)
+
+
+def solve(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.linalg.solve(x1, x2)

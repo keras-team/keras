@@ -958,3 +958,22 @@ def erf(x):
         return Erf().symbolic_call(x)
     x = backend.convert_to_tensor(x)
     return backend.math.erf(x)
+
+
+class Solve(Operation):
+    def call(self, x1, x2):
+        x1 = backend.convert_to_tensor(x1)
+        x2 = backend.convert_to_tensor(x2)
+        return backend.math.solve(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        return KerasTensor(shape=x1.shape, dtype=x1.dtype)
+
+
+@keras_export("keras.ops.solve")
+def solve(x1, x2):
+    if any_symbolic_tensors((x1, x2)):
+        return Solve().symbolic_call(x1, x2)
+    x1 = backend.convert_to_tensor(x1)
+    x2 = backend.convert_to_tensor(x2)
+    return backend.math.solve(x1, x2)

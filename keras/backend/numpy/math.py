@@ -306,3 +306,9 @@ def rsqrt(x):
 
 def erf(x):
     return np.array(scipy.special.erf(x))
+
+
+def solve(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return np.linalg.solve(x1, x2)

@@ -252,3 +252,9 @@ def rsqrt(x):
 
 def erf(x):
     return jax.lax.erf(x)
+
+
+def solve(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.linalg.solve(x1, x2)
