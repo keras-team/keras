@@ -10,6 +10,7 @@ from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.name_scope import name_scope as base_name_scope
 from keras.backend.common.stateless_scope import StatelessScope
+from keras.backend.common.stateless_scope import in_stateless_scope
 from keras.utils.naming import auto_name
 
 SUPPORTS_SPARSE_TENSORS = True
@@ -30,6 +31,21 @@ class Variable(
         self._value = tf.Variable(
             value, dtype=self._dtype, trainable=self.trainable, name=self.name
         )
+
+    def _deferred_initialize(self):
+        if self._value is not None:
+            raise ValueError(f"Variable {self.path} is already initialized.")
+
+        if in_stateless_scope():
+            raise ValueError(
+                "You are attempting to initialize a variable "
+                "while in a stateless scope. This is disallowed. "
+                "Make sure that all variables are initialized "
+                "before you start using your layer/model objects."
+            )
+        with tf.init_scope():
+            value = self._initializer(self._shape, dtype=self._dtype)
+            self._initialize(value)
 
     def _direct_assign(self, value):
         self._value.assign(tf.cast(value, self._value.dtype))
