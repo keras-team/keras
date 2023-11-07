@@ -697,12 +697,12 @@ def get_training_or_validation_split(samples, labels, validation_split, subset):
             f"Using {len(samples) - num_val_samples} " f"files for training."
         )
         samples = samples[:-num_val_samples]
-        if labels:
+        if labels is not None:
             labels = labels[:-num_val_samples]
     elif subset == "validation":
         io_utils.print_msg(f"Using {num_val_samples} files for validation.")
         samples = samples[-num_val_samples:]
-        if labels:
+        if labels is not None:
             labels = labels[-num_val_samples:]
     else:
         raise ValueError(
