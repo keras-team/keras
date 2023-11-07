@@ -972,6 +972,22 @@ class Solve(Operation):
 
 @keras_export("keras.ops.solve")
 def solve(x1, x2):
+    """Solves for X in AX=B equation.
+
+    Args:
+        x1: Input tensor.
+        x2: Input tensor.
+
+    Returns:
+        A tensor with the same shape and dtype as x1 and x2.
+
+    Example:
+
+    >>> x1 = np.array([[1, 2], [4, 5]], dtype="float32")
+    >>> x2 = np.array([[2, 4], [8, 10]], dtype="float32")
+    >>> keras.ops.solve(x1, x2)
+    array([[2, 0], [0, 2]], dtype="float32")
+    """
     if any_symbolic_tensors((x1, x2)):
         return Solve().symbolic_call(x1, x2)
     x1 = backend.convert_to_tensor(x1)
