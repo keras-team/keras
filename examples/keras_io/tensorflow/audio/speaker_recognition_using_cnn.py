@@ -1,11 +1,11 @@
 """
 Title: Speaker Recognition
 Author: [Fadi Badine](https://twitter.com/fadibadine)
-Converted to Keras 3 by: [Fadi Badine](https://twitter.com/fadibadine)
 Date created: 14/06/2020
 Last modified: 19/07/2023
 Description: Classify speakers using Fast Fourier Transform (FFT) and a 1D Convnet.
 Accelerator: GPU
+Converted to Keras 3 by: [Fadi Badine](https://twitter.com/fadibadine)
 """
 """
 ## Introduction
