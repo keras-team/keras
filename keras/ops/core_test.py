@@ -316,11 +316,10 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         x_default = ops.convert_to_tensor(x)
         self.assertIsInstance(x_default, tf.SparseTensor)
         self.assertAllClose(x, x_default)
-        # Note that ops.convert_to_tensor does not expose the 'sparse' arg
-        x_sparse = backend.convert_to_tensor(x, sparse=True)
+        x_sparse = ops.convert_to_tensor(x, sparse=True)
         self.assertIsInstance(x_sparse, tf.SparseTensor)
         self.assertAllClose(x, x_sparse)
-        x_dense = backend.convert_to_tensor(x, sparse=False)
+        x_dense = ops.convert_to_tensor(x, sparse=False)
         self.assertNotIsInstance(x_dense, tf.SparseTensor)
         self.assertAllClose(x, x_dense)
 
