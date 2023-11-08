@@ -189,7 +189,8 @@ for subdir in os.listdir(DATASET_NOISE_PATH):
             for filepath in os.listdir(subdir_path)
             if filepath.endswith(".wav")
         ]
-
+if not noise_paths:
+    raise RuntimeError(f"Could not find any files at {DATASET_NOISE_PATH}")
 print(
     "Found {} files belonging to {} directories".format(
         len(noise_paths), len(os.listdir(DATASET_NOISE_PATH))
