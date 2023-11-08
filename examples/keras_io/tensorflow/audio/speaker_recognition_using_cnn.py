@@ -52,10 +52,16 @@ import keras
 from pathlib import Path
 from IPython.display import display, Audio
 
-# Get the data from https://www.kaggle.com/kongaevans/speaker-recognition-dataset/download
-# and save it to the 'Downloads' folder in your HOME directory
+# Get the data from https://www.kaggle.com/kongaevans/speaker-recognition-dataset/
+# and save it to ~/speaker-recognition-dataset.zip
+# then unzip it to ~/16000_pcm_speeches
+"""shell
+kaggle datasets download -d kongaevans/speaker-recognition-dataset
+unzip ~/speaker-recognition-dataset.zip -qq
+"""
+
 DATASET_ROOT = os.path.join(
-    os.path.expanduser("~"), "Downloads/16000_pcm_speeches"
+    os.path.expanduser("~"), "16000_pcm_speeches"
 )
 
 # The folders in which we will put the audio samples and the noise samples
