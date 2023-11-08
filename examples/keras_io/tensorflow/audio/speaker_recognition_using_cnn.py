@@ -141,14 +141,6 @@ main_directory/
 ```
 """
 
-# If folder `audio`, does not exist, create it, otherwise do nothing
-if os.path.exists(DATASET_AUDIO_PATH) is False:
-    os.makedirs(DATASET_AUDIO_PATH)
-
-# If folder `noise`, does not exist, create it, otherwise do nothing
-if os.path.exists(DATASET_NOISE_PATH) is False:
-    os.makedirs(DATASET_NOISE_PATH)
-
 for folder in os.listdir(DATASET_ROOT):
     if os.path.isdir(os.path.join(DATASET_ROOT, folder)):
         if folder in [AUDIO_SUBFOLDER, NOISE_SUBFOLDER]:
