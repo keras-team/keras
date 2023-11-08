@@ -156,7 +156,7 @@ class ExponentialDecay(LearningRateSchedule):
         if self.decay_steps <= 0:
             raise ValueError(
                 "Argument `decay_steps` must be > 0. "
-                f"Received : decay_steps = {self.decay_steps}. "
+                f"Received: decay_steps={self.decay_steps}"
             )
 
     def __call__(self, step):
@@ -405,7 +405,7 @@ class PolynomialDecay(LearningRateSchedule):
         if self.decay_steps <= 0:
             raise ValueError(
                 "Argument `decay_steps` must be > 0. "
-                f"Received : decay_steps = {self.decay_steps}. "
+                f"Received: decay_steps={self.decay_steps}"
             )
 
     def __call__(self, step):
@@ -539,7 +539,7 @@ class InverseTimeDecay(LearningRateSchedule):
         if self.decay_steps <= 0:
             raise ValueError(
                 "Argument `decay_steps` must be > 0. "
-                f"Received : decay_steps = {self.decay_steps}. "
+                f"Received: decay_steps={self.decay_steps}"
             )
 
     def __call__(self, step):
@@ -687,7 +687,7 @@ class CosineDecay(LearningRateSchedule):
         if self.decay_steps <= 0:
             raise ValueError(
                 "Argument `decay_steps` must be > 0. "
-                f"Received : decay_steps = {self.decay_steps}. "
+                f"Received: decay_steps={self.decay_steps}"
             )
 
     def _decay_function(self, step, decay_steps, decay_from_lr, dtype):
@@ -835,7 +835,7 @@ class CosineDecayRestarts(LearningRateSchedule):
         if self.first_decay_steps <= 0:
             raise ValueError(
                 "Argument `first_decay_steps` must be > 0. "
-                f"Received : first_decay_steps = {self.first_decay_steps}. "
+                f"Received: first_decay_steps={self.first_decay_steps}"
             )
 
     def __call__(self, step):
