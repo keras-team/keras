@@ -243,3 +243,9 @@ def rsqrt(x):
 
 def erf(x):
     return tf.math.erf(x)
+
+
+def solve(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return tf.linalg.solve(x1, x2)
