@@ -109,7 +109,7 @@ def indexed_slices_union_indices_and_values(x1, x2_indices, x2_values=None):
         )
         to_union_indices = tf.gather(indices_indices, union_indices)
         values_with_leading_zeros = tf.concat(
-            [tf.zeros((1,) + x1.dense_shape[1:], values.dtype), values], axis=0
+            [tf.zeros((1,) + values.shape[1:], values.dtype), values], axis=0
         )
         return tf.gather(values_with_leading_zeros, to_union_indices)
 
