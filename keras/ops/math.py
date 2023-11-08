@@ -961,35 +961,35 @@ def erf(x):
 
 
 class Solve(Operation):
-    def call(self, x1, x2):
-        x1 = backend.convert_to_tensor(x1)
-        x2 = backend.convert_to_tensor(x2)
-        return backend.math.solve(x1, x2)
+    def call(self, a, b):
+        a = backend.convert_to_tensor(a)
+        b = backend.convert_to_tensor(b)
+        return backend.math.solve(a, b)
 
-    def compute_output_spec(self, x1, x2):
-        return KerasTensor(shape=x1.shape, dtype=x1.dtype)
+    def compute_output_spec(self, a, b):
+        return KerasTensor(shape=a.shape, dtype=a.dtype)
 
 
 @keras_export("keras.ops.solve")
-def solve(x1, x2):
-    """Solves for X in AX=B equation.
+def solve(a, b):
+    """Solves for `x` in the equation `a * x = b`.
 
     Args:
-        x1: Input tensor.
-        x2: Input tensor.
+        a: Input tensor.
+        b: Input tensor.
 
     Returns:
-        A tensor with the same shape and dtype as x1 and x2.
+        A tensor with the same shape and dtype as `a`.
 
     Example:
 
-    >>> x1 = np.array([[1, 2], [4, 5]], dtype="float32")
-    >>> x2 = np.array([[2, 4], [8, 10]], dtype="float32")
+    >>> a = np.array([[1, 2], [4, 5]], dtype="float32")
+    >>> b = np.array([[2, 4], [8, 10]], dtype="float32")
     >>> keras.ops.solve(x1, x2)
     array([[2, 0], [0, 2]], dtype="float32")
     """
-    if any_symbolic_tensors((x1, x2)):
-        return Solve().symbolic_call(x1, x2)
-    x1 = backend.convert_to_tensor(x1)
-    x2 = backend.convert_to_tensor(x2)
-    return backend.math.solve(x1, x2)
+    if any_symbolic_tensors((a, b)):
+        return Solve().symbolic_call(a, b)
+    a = backend.convert_to_tensor(a)
+    b = backend.convert_to_tensor(b)
+    return backend.math.solve(a, b)

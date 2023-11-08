@@ -254,7 +254,7 @@ def erf(x):
     return jax.lax.erf(x)
 
 
-def solve(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    return jnp.linalg.solve(x1, x2)
+def solve(a, b):
+    a = convert_to_tensor(a)
+    b = convert_to_tensor(b)
+    return jnp.linalg.solve(a, b)
