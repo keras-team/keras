@@ -32,7 +32,7 @@ Note:
 - This example should be run with TensorFlow 2.3 or higher, or `tf-nightly`.
 - The noise samples in the dataset need to be resampled to a sampling rate of 16000 Hz
 before using the code in this example. In order to do this, you will need to have
-installed `ffmpg`.
+installed `ffmpeg`.
 """
 
 """
@@ -188,7 +188,8 @@ print(
 )
 
 """
-Resample all noise samples to 16000 Hz
+Resample all noise samples to 16000 Hz.
+Note that this requires `ffmpeg`.
 """
 
 command = (

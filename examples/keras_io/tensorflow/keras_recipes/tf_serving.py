@@ -4,7 +4,7 @@ Author: [Dimitre Oliveira](https://www.linkedin.com/in/dimitre-oliveira-7a1a0113
 Date created: 2023/01/02
 Last modified: 2023/01/02
 Description: How to serve TensorFlow models with TensorFlow Serving.
-Accelerator: NONE
+Accelerator: None
 """
 
 """
@@ -55,6 +55,9 @@ TensorFlow.
 """
 
 import os
+
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import json
 import shutil
 import requests
@@ -540,6 +543,7 @@ print(f"Predicted class: {grpc_outputs}")
 ```
 
 outputs:
+
 ```
 gRPC output shape: (1, 1)
 Predicted class: [[b'banana']]
