@@ -57,7 +57,7 @@ from IPython.display import display, Audio
 # then unzip it to ./16000_pcm_speeches
 """shell
 kaggle datasets download -d kongaevans/speaker-recognition-dataset
-unzip speaker-recognition-dataset.zip -qq
+unzip -qq speaker-recognition-dataset.zip
 """
 
 DATASET_ROOT = "16000_pcm_speeches"
