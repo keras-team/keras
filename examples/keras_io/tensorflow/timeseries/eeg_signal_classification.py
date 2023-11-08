@@ -127,7 +127,6 @@ def convert_string_data_to_values(value_string):
 eeg["raw_values"] = eeg["raw_values"].apply(convert_string_data_to_values)
 
 eeg = eeg.loc[eeg["signal_quality"] < QUALITY_THRESHOLD]
-print(eeg.shape)
 eeg.head()
 
 """
