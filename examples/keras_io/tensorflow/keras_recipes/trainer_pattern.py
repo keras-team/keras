@@ -24,6 +24,10 @@ by putting the custom training step in the Trainer class definition.
 ## Setup
 """
 
+import os
+
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import tensorflow as tf
 import keras
 
