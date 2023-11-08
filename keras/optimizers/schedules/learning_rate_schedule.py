@@ -674,7 +674,7 @@ class CosineDecay(LearningRateSchedule):
         self.warmup_steps = warmup_steps
         self.warmup_target = warmup_target
 
-        if self.warmup_target and warmup_target >= self.initial_learning_rate:
+        if self.warmup_target and warmup_target <= self.initial_learning_rate:
             raise ValueError(
                 "When `warmup_target` is provided, it should be "
                 "less than `initial_learning_rate`. "
