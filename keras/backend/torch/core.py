@@ -346,9 +346,14 @@ def scan(f, init, xs, length=None, reverse=False):
     for x in xs:
         carry, y = f(carry, x)
         ys.append(y)
-    if reverse:
-        ys.reverse()
-    return carry, np.array(ys)
+
+    ys = np.array(ys)
+    if ys.dtype == np.int64:
+        ys = ys.astype(np.int32)
+
+    if ys.dtype == np.float64:
+        ys = ys.astype(np.float32)
+    return carry, ys
 
 
 def while_loop(

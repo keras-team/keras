@@ -195,14 +195,24 @@ def slice_update(inputs, start_indices, updates):
 
 
 def scan(f, init, xs, length=None, reverse=False):
-
     if xs is None:
         xs = [None] * length
     if reverse:
         tf.reverse(xs, [0])
-
-    init = (init, tf.zeros_like(0, dtype=init.dtype))
-
+    if (
+        isinstance(init, float)
+        or isinstance(init, np.floating)
+        or any(isinstance(x, float) for x in xs)
+        or isinstance(xs, np.floating)
+    ):
+        init = (
+            tf.cast(init, dtype=tf.float32),
+            tf.zeros_like(0, dtype=tf.float32),
+        )
+        xs = tf.cast(xs, tf.float32)
+    else:
+        init = (init, tf.zeros_like(0, dtype=tf.int32))
+        xs = tf.cast(xs, tf.int32)
     carry, ys = tf.scan(f, xs, initializer=init)
 
     if carry[0].dtype is tf.float64:

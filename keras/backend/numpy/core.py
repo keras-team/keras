@@ -205,7 +205,6 @@ def while_loop(
 
 
 def scan(f, init, xs, length=None, reverse=False):
-
     if xs is None:
         xs = [None] * length
     carry = init
@@ -215,9 +214,16 @@ def scan(f, init, xs, length=None, reverse=False):
     for x in xs:
         carry, y = f(carry, x)
         ys.append(y)
+    ys = np.array(ys)
     if reverse:
         ys = np.flip(ys)
-    return carry, np.stack(ys)
+
+    if isinstance(ys, np.integer):
+        ys = ys.astype(np.int32)
+
+    if isinstance(ys, np.floating):
+        ys = ys.astype(np.float32)
+    return carry, ys
 
 
 def fori_loop(lower, upper, body_fun, init_val):

@@ -84,7 +84,6 @@ class CoreOpsStaticShapeTest(testing.TestCase):
                 x += carry[0]
                 carry = carry[0]
             else:
-
                 x += carry
             return carry, x
 
@@ -98,8 +97,8 @@ class CoreOpsStaticShapeTest(testing.TestCase):
             f, init_carr, xs, length=len(xs), reverse=False
         )
 
-        ys_op = ys_op.tolist()
-        ys_jax = ys_jax.tolist()
+        ys_op = ys_op
+        ys_jax = ys_jax
 
         self.assertEqual(ys_jax.shape, ys_op.shape)
         self.assertEqual(ys_jax.dtype, ys_op.dtype)
@@ -248,8 +247,16 @@ class CoreOpsCorrectnessTest(testing.TestCase):
                 x += carry[0]
                 carry = carry[0]
             else:
-
+                if (
+                    isinstance(x, np.floating)
+                    or isinstance(carry, np.floating)
+                    or isinstance(x, float)
+                    or isinstance(carry, float)
+                ):
+                    x = float(x)  # x.astype(np.float32)
+                    carry = float(carry)  # carry.astype(np.float32)
                 x += carry
+
             return carry, x
 
         test_cases = [
@@ -258,7 +265,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             (np.array([123, 423, 3, 78, 43, 13]), 1.1),
             (np.array([-1, -2, -3, -4, -5, -6]), -2),
             (np.array([0, 0, 0, 0, 0, 0, 0]), 0),
-            (np.array([1.1, 2, 3, 4, 5, 6, 7]), 1),
+            (np.array([1.1, 2, 3, 4, 5, 6, 7]), 9),
         ]
         for test_case in test_cases:
             test_input_arr = test_case[0]
@@ -281,7 +288,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
             ys_op = ys_op.tolist()
             ys_jax = ys_jax.tolist()
-
             self.assertEqual(carry_op, carry_jax)
             self.assertAllClose(ys_op, ys_jax)
 
