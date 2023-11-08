@@ -70,10 +70,21 @@ class Variable(
         return self.value._shared_name
 
     def _serialize_to_tensors(self):
-        return self.value._serialize_to_tensors()
+        try:
+            return self.value._serialize_to_tensors()
+        except NotImplementedError:
+            return {"VARIABLE_VALUE": self.value}
 
     def _restore_from_tensors(self, restored_tensors):
-        return self.value._restore_from_tensors(restored_tensors)
+        try:
+            return self.value._restore_from_tensors(restored_tensors)
+        except NotImplementedError:
+            self.assign(restored_tensors["VARIABLE_VALUE"])
+            return self.value
+
+    def _copy_trackable_to_cpu(self, object_map):
+        self.value._copy_trackable_to_cpu(object_map)
+        object_map[self] = tf.Variable(object_map[self.value])
 
     def _export_to_saved_model_graph(
         self, object_map, tensor_map, options, **kwargs
