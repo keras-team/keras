@@ -396,6 +396,14 @@ class PolynomialDecay(LearningRateSchedule):
         self.cycle = cycle
         self.name = name
 
+        if self.end_learning_rate >= self.initial_learning_rate:
+            raise ValueError(
+                "`end_learning_rate` should be less than "
+                "`initial_learning_rate`. "
+                f"Received end_learning_rate = {end_learning_rate}, "
+                f"initial_learning_rate = {initial_learning_rate}. "
+            )
+
     def __call__(self, step):
         with ops.name_scope(self.name):
             initial_learning_rate = ops.convert_to_tensor(
@@ -665,6 +673,14 @@ class CosineDecay(LearningRateSchedule):
         self.name = name
         self.warmup_steps = warmup_steps
         self.warmup_target = warmup_target
+
+        if self.warmup_target and warmup_target >= self.initial_learning_rate:
+            raise ValueError(
+                "When `warmup_target` is provided, it should be "
+                "less than `initial_learning_rate`. "
+                f"Received warmup_target = {self.warmup_target}, "
+                f"initial_learning_rate = {self.initial_learning_rate}. "
+            )
 
     def _decay_function(self, step, decay_steps, decay_from_lr, dtype):
         with ops.name_scope(self.name):
