@@ -24,20 +24,16 @@ Let's run through a few examples.
 
 """
 ## Setup
-TensorFlow NumPy requires TensorFlow 2.5 or later.
 """
+
+import os
+
+os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
 import keras
 from keras import layers
-
-"""
-Optionally, you can call `tnp.experimental_enable_numpy_behavior()` to enable type promotion in TensorFlow.
-This allows TNP to more closely follow the NumPy standard.
-"""
-
-tnp.experimental_enable_numpy_behavior()
 
 """
 To test our models we will use the Boston housing prices regression dataset.
@@ -50,10 +46,10 @@ input_dim = x_train.shape[1]
 
 
 def evaluate_model(model: keras.Model):
-    [loss, percent_error] = model.evaluate(x_test, y_test, verbose=0)
+    loss, percent_error = model.evaluate(x_test, y_test, verbose=0)
     print("Mean absolute percent error before training: ", percent_error)
     model.fit(x_train, y_train, epochs=200, verbose=0)
-    [loss, percent_error] = model.evaluate(x_test, y_test, verbose=0)
+    loss, percent_error = model.evaluate(x_test, y_test, verbose=0)
     print("Mean absolute percent error after training:", percent_error)
 
 
@@ -138,7 +134,7 @@ model.compile(
 evaluate_model(model)
 
 """
-Great!  Our model seems to be effectively learning to solve the problem at hand.
+Great! Our model seems to be effectively learning to solve the problem at hand.
 
 We can also write our own custom loss function using TNP.
 """
