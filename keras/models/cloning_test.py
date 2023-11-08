@@ -116,5 +116,8 @@ class CloneModelTest(testing.TestCase, parameterized.TestCase):
         tree.assert_same_structure(model.input, inputs)
         tree.assert_same_structure(model.output, outputs)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            "`input_tensors` must have the same structure as model.input",
+        ):
             model = clone_model(model0, input_tensors=(x, y))

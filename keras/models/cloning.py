@@ -265,6 +265,8 @@ def _clone_functional_model(model, input_tensors=None, clone_function=None):
         except TypeError as e:
             raise ValueError(
                 "`input_tensors` must have the same structure as model.input"
+                f"\nReference structure: {model.input}"
+                f"\nReceived structure: {input_tensors}"
             ) from e
     else:
         input_tensors = tree.map_structure(
