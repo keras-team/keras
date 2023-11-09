@@ -411,3 +411,11 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             backend.convert_to_numpy(output), 2 * np.ones((2, 3))
         )
+
+    def test_is_tensor(self):
+        x = ops.array([1, 2, 3])
+        self.assertTrue(ops.is_tensor(x))
+        self.assertFalse(ops.is_tensor([1, 2, 3]))
+        if backend.backend() != "numpy":
+            x = np.array([1, 2, 3])
+            self.assertFalse(ops.is_tensor(x))

@@ -629,3 +629,8 @@ def vectorized_map(function, elements):
     a single list of tensor arguments.
     """
     return backend.core.vectorized_map(function, elements)
+
+
+@keras_export("keras.ops.is_tensor")
+def is_tensor(x):
+    return backend.is_tensor(x)
