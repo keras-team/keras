@@ -37,9 +37,6 @@ This example requires KerasNLP. You can install it via the following command:
 """
 
 import os
-
-os.environ["KERAS_BACKEND"] = "jax"
-
 import keras_nlp
 import keras
 
