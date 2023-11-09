@@ -311,10 +311,7 @@ def argsort(x, axis=-1):
 
 
 def array(x, dtype=None):
-    dtype = to_torch_dtype(dtype)
-    if isinstance(x, torch.Tensor):
-        return x
-    return torch.tensor(x, dtype=dtype, device=get_device())
+    return convert_to_tensor(x, dtype=dtype)
 
 
 def average(x, axis=None, weights=None):

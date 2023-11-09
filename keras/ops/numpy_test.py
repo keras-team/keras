@@ -1,3 +1,4 @@
+import contextlib
 import itertools
 
 import numpy as np
@@ -4759,6 +4760,41 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(knp.Arctanh().symbolic_call(x).dtype),
             expected_dtype,
         )
+
+    @parameterized.parameters(
+        (bool(0), "bool"),
+        (int(0), "int32"),
+        (float(0), backend.floatx()),
+        ([False, True, False], "bool"),
+        ([1, 2, 3], "int32"),
+        ([1.0, 2.0, 3.0], backend.floatx()),
+        ([1, 2.0, 3], backend.floatx()),
+        ([[False], [True], [False]], "bool"),
+        ([[1], [2], [3]], "int32"),
+        ([[1], [2.0], [3]], backend.floatx()),
+        *[
+            (np.array(0, dtype=dtype), dtype)
+            for dtype in ALL_DTYPES
+            if dtype is not None
+        ],
+    )
+    def test_array(self, x, expected_dtype):
+        # We have to disable x64 for jax backend since jnp.array doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
+        # the expected dtype from 64 bit to 32 bit.
+        if backend.backend() == "jax":
+            import jax.experimental
+
+            jax_disable_x64 = jax.experimental.disable_x64()
+            expected_dtype = expected_dtype.replace("64", "32")
+        else:
+            jax_disable_x64 = contextlib.nullcontext()
+
+        with jax_disable_x64:
+            self.assertEqual(
+                standardize_dtype(knp.array(x).dtype), expected_dtype
+            )
+        # TODO: support the assertion of knp.Array
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_ceil(self, dtype):

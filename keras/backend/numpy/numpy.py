@@ -200,7 +200,7 @@ def argsort(x, axis=-1):
 
 
 def array(x, dtype=None):
-    return np.array(x, dtype=dtype)
+    return convert_to_tensor(x, dtype=dtype)
 
 
 def average(x, axis=None, weights=None):
