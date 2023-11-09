@@ -218,11 +218,17 @@ def scan(f, init, xs, length=None, reverse=False):
     if reverse:
         ys = np.flip(ys)
 
-    if isinstance(ys, np.integer):
-        ys = ys.astype(np.int32)
+    if len(ys) > 0:
+        if isinstance(ys[0], np.integer):
+            ys = ys.astype(np.int32)
 
+        if isinstance(ys[0], np.floating):
+            ys = ys.astype(np.float32)
+    if isinstance(ys, np.integer):
+        carry = carry.astype(np.int32)
     if isinstance(ys, np.floating):
-        ys = ys.astype(np.float32)
+        carry = carry.astype(np.float32)
+
     return carry, ys
 
 

@@ -211,7 +211,7 @@ def scan(f, init, xs, length=None, reverse=False):
         )
         xs = tf.cast(xs, tf.float32)
     else:
-        init = (init, tf.zeros_like(0, dtype=tf.int32))
+        init = (tf.cast(init, dtype=tf.int32), tf.zeros_like(0, dtype=tf.int32))
         xs = tf.cast(xs, tf.int32)
     carry, ys = tf.scan(f, xs, initializer=init)
 
