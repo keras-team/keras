@@ -1,11 +1,11 @@
 """
 Title: Image Super-Resolution using an Efficient Sub-Pixel CNN
 Author: [Xingyu Long](https://github.com/xingyu-long)
-Converted to Keras 3 by: [Md Awsfalur Rahman](https://awsaf49.github.io)
 Date created: 2020/07/28
 Last modified: 2020/08/27
 Description: Implementing Super-Resolution using Efficient sub-pixel model on BSDS500.
 Accelerator: GPU
+Converted to Keras 3 by: [Md Awsfalur Rahman](https://awsaf49.github.io)
 """
 """
 ## Introduction
@@ -35,6 +35,7 @@ from keras.utils import img_to_array
 from keras.preprocessing import image_dataset_from_directory
 import tensorflow as tf  #  only for data preprocessing
 
+import os
 import math
 import numpy as np
 
@@ -48,8 +49,7 @@ from IPython.display import display
 We use the built-in `keras.utils.get_file` utility to retrieve the dataset.
 """
 
-dataset_url =
-"http://www.eecs.berkeley.edu/Research/Projects/CS/vision/grouping/BSR/BSR_bsds500.tgz"
+dataset_url = "http://www.eecs.berkeley.edu/Research/Projects/CS/vision/grouping/BSR/BSR_bsds500.tgz"
 data_dir = keras.utils.get_file(origin=dataset_url, fname="BSR", untar=True)
 root_dir = os.path.join(data_dir, "BSDS500/data")
 

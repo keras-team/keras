@@ -419,6 +419,12 @@ class MathOpsStaticShapeTest(testing.TestCase):
         )
         self.assertEqual(output.shape, ref.shape)
 
+    def test_solve(self):
+        x1 = KerasTensor((2, 2), dtype="float32")
+        x2 = KerasTensor((2, 2), dtype="float32")
+        outputs = kmath.solve(x1, x2)
+        self.assertEqual(outputs.shape, (2, 2))
+
 
 class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     @pytest.mark.skipif(
@@ -865,3 +871,10 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         expected_output = scipy.special.erf(edge_values)
         output_from_edge_erf_op = kmath.erf(edge_values)
         self.assertAllClose(expected_output, output_from_edge_erf_op, atol=1e-4)
+
+    def test_solve(self):
+        x1 = np.array([[1, 2], [4, 5]], dtype="float32")
+        x2 = np.array([[2, 4], [8, 10]], dtype="float32")
+        output = kmath.solve(x1, x2)
+        expected_result = np.array([[2, 0], [0, 2]], dtype="float32")
+        self.assertAllClose(output, expected_result)

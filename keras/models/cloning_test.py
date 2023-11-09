@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import tree
 from absl.testing import parameterized
 
 from keras import layers
@@ -97,3 +98,26 @@ class CloneModelTest(testing.TestCase, parameterized.TestCase):
         model = get_mlp_functional_model(shared_layers=True)
         new_model = clone_model(model)
         self.assertLen(new_model.layers, 4)
+
+    def test_structured_io_cloning(self):
+        x = layers.Input((3,))
+        y = layers.Input((3,))
+        z1 = x + y
+        z2 = layers.Dense(5)(z1)
+        inputs = dict(x=x, y=y)
+        outputs = dict(z1=z1, z2=z2)
+        model0 = models.Model(inputs, outputs)
+
+        model = clone_model(model0)
+        tree.assert_same_structure(model.input, inputs)
+        tree.assert_same_structure(model.output, outputs)
+
+        model = clone_model(model0, input_tensors=inputs)
+        tree.assert_same_structure(model.input, inputs)
+        tree.assert_same_structure(model.output, outputs)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`input_tensors` must have the same structure as model.input",
+        ):
+            model = clone_model(model0, input_tensors=(x, y))

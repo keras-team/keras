@@ -1,3 +1,5 @@
+from unittest import mock
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -89,6 +91,25 @@ class TrainingTestingLayer(Trainer, layers.Layer):
         if training:
             return x
         return x * 0
+
+
+def tf_sparse_generator():
+    import tensorflow as tf
+
+    for i in range(4):
+        x = tf.random.uniform((2, 4), dtype="float32")
+        x = tf.sparse.from_dense(tf.nn.dropout(x, 0.25))
+        y = tf.random.uniform((2, 3), dtype="float32")
+        yield x, y
+
+
+def scipy_sparse_generator():
+    import scipy
+
+    for i in range(4):
+        x = scipy.sparse.random(2, 4, density=0.25, dtype="float32")
+        y = np.random.rand(2, 3).astype("float32")
+        yield x, y
 
 
 class TestTrainer(testing.TestCase, parameterized.TestCase):
@@ -260,6 +281,50 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(
         [
+            ("eager_tf_sparse", True, False),
+            ("graph_fn_tf_sparse", False, False),
+            ("eager_scipy_sparse", True, False),
+            ("graph_fn_scipy_sparse", False, False),
+        ]
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_fit_sparse(self, run_eagerly, use_scipy_sparse):
+        model = ExampleModel(units=3)
+        optimizer = optimizers.Adagrad()
+        model.compile(
+            optimizer=optimizer,
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            run_eagerly=run_eagerly,
+            jit_compile=False,
+        )
+        dataset = (
+            scipy_sparse_generator()
+            if use_scipy_sparse
+            else tf_sparse_generator()
+        )
+
+        sparse_variable_updates = False
+
+        def mock_optimizer_assign(variable, value):
+            nonlocal sparse_variable_updates
+            if value.__class__.__name__ == "IndexedSlices":
+                sparse_variable_updates = True
+
+        with mock.patch.object(
+            optimizer, "assign_sub", autospec=True
+        ) as optimizer_assign_sub:
+            optimizer_assign_sub.side_effect = mock_optimizer_assign
+            model.fit(dataset)
+
+        # Verify tensors did not get densified along the way.
+        self.assertTrue(sparse_variable_updates)
+
+    @parameterized.named_parameters(
+        [
             ("eager", True, False),
             ("graph_fn", False, False),
             ("jit", False, True),
@@ -285,6 +350,34 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertIn("loss", output)
         self.assertIn("mean_squared_error", output)
         self.assertAllClose(output["mean_squared_error"], 16.0)
+
+    @parameterized.named_parameters(
+        [
+            ("eager_tf_sparse", True, False),
+            ("graph_fn_tf_sparse", False, False),
+            ("eager_scipy_sparse", True, False),
+            ("graph_fn_scipy_sparse", False, False),
+        ]
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_evaluate_sparse(self, run_eagerly, use_scipy_sparse):
+        model = ExampleModel(units=3)
+        model.compile(
+            optimizer=optimizers.Adagrad(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            run_eagerly=run_eagerly,
+            jit_compile=False,
+        )
+        dataset = (
+            scipy_sparse_generator()
+            if use_scipy_sparse
+            else tf_sparse_generator()
+        )
+        model.evaluate(dataset)
 
     @parameterized.named_parameters(
         [
@@ -327,6 +420,34 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertEqual(len(outputs), 2)
         self.assertAllClose(outputs["y_one"], 4 * np.ones((100, 3)))
         self.assertAllClose(outputs["y_two"], 4 * np.ones((100, 3)))
+
+    @parameterized.named_parameters(
+        [
+            ("eager_tf_sparse", True, False),
+            ("graph_fn_tf_sparse", False, False),
+            ("eager_scipy_sparse", True, False),
+            ("graph_fn_scipy_sparse", False, False),
+        ]
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_predict_sparse(self, run_eagerly, use_scipy_sparse):
+        model = ExampleModel(units=3)
+        model.compile(
+            optimizer=optimizers.Adagrad(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            run_eagerly=run_eagerly,
+            jit_compile=False,
+        )
+        dataset = (
+            scipy_sparse_generator()
+            if use_scipy_sparse
+            else tf_sparse_generator()
+        )
+        model.predict(dataset)
 
     @pytest.mark.skipif(
         backend.backend() != "jax",

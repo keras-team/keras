@@ -24,7 +24,7 @@ class GroupNormalization(Layer):
     Relation to Instance Normalization:
     If the number of groups is set to the input dimension (number of groups is
     equal to number of channels), then this operation becomes identical to
-    Instance Normalization.
+    Instance Normalization. You can achieve this via `groups=-1`.
 
     Args:
         groups: Integer, the number of groups for Group Normalization. Can be in

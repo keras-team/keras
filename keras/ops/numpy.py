@@ -140,6 +140,7 @@ zeros_like
 
 
 """
+import builtins
 import re
 
 import numpy as np
@@ -2017,6 +2018,58 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         axis1=axis1,
         axis2=axis2,
     )
+
+
+class Diff(Operation):
+    def __init__(self, n=1, axis=-1):
+        super().__init__()
+        self.n = n
+        self.axis = axis
+
+    def call(self, a):
+        return backend.numpy.diff(a, n=self.n, axis=self.axis)
+
+    def compute_output_spec(self, a):
+        shape = list(a.shape)
+        size = shape[self.axis]
+        if size is not None:
+            shape[self.axis] = builtins.max(size - self.n, 0)
+        return KerasTensor(shape, dtype=a.dtype)
+
+
+@keras_export(["keras.ops.diff", "keras.ops.numpy.diff"])
+def diff(a, n=1, axis=-1):
+    """Calculate the n-th discrete difference along the given axis.
+
+    The first difference is given by `out[i] = a[i+1] - a[i]` along
+    the given axis, higher differences are calculated by using `diff`
+    recursively.
+
+    Args:
+        a: Input tensor.
+        n: The number of times values are differenced. Defaults to `1`.
+        axis: Axis to compute discrete difference(s) along.
+            Defaults to `-1`.(last axis).
+
+    Returns:
+        Tensor of diagonals.
+
+    Examples:
+    >>> from keras import ops
+    >>> x = ops.convert_to_tensor([1, 2, 4, 7, 0])
+    >>> ops.diff(x)
+    array([ 1,  2,  3, -7])
+    >>> ops.diff(x, n=2)
+    array([  1,   1, -10])
+
+    >>> x = ops.convert_to_tensor([[1, 3, 6, 10], [0, 5, 6, 8]])
+    >>> ops.diff(x)
+    array([[2, 3, 4],
+           [5, 1, 2]])
+    >>> ops.diff(x, axis=0)
+    array([[-1,  2,  0, -2]])
+    """
+    return Diff(n=n, axis=axis)(a)
 
 
 class Digitize(Operation):
