@@ -4600,8 +4600,12 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_argmax(self, dtype):
         import jax.numpy as jnp
 
-        x = knp.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
-        x_jax = jnp.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
+        if dtype == "bool":
+            value = [[True, False, True], [False, True, False]]
+        else:
+            value = [[1, 2, 3], [3, 2, 1]]
+        x = knp.array(value, dtype=dtype)
+        x_jax = jnp.array(value, dtype=dtype)
         expected_dtype = standardize_dtype(jnp.argmax(x_jax).dtype)
 
         self.assertEqual(standardize_dtype(knp.argmax(x).dtype), expected_dtype)
@@ -4614,8 +4618,12 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_argmin(self, dtype):
         import jax.numpy as jnp
 
-        x = knp.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
-        x_jax = jnp.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
+        if dtype == "bool":
+            value = [[True, False, True], [False, True, False]]
+        else:
+            value = [[1, 2, 3], [3, 2, 1]]
+        x = knp.array(value, dtype=dtype)
+        x_jax = jnp.array(value, dtype=dtype)
         expected_dtype = standardize_dtype(jnp.argmin(x_jax).dtype)
 
         self.assertEqual(standardize_dtype(knp.argmin(x).dtype), expected_dtype)
@@ -4628,8 +4636,12 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_argsort(self, dtype):
         import jax.numpy as jnp
 
-        x = knp.array([[1, 2, 3], [4, 5, 6]], dtype=dtype)
-        x_jax = jnp.array([[1, 2, 3], [4, 5, 6]], dtype=dtype)
+        if dtype == "bool":
+            value = [[True, False, True], [False, True, False]]
+        else:
+            value = [[1, 2, 3], [4, 5, 6]]
+        x = knp.array(value, dtype=dtype)
+        x_jax = jnp.array(value, dtype=dtype)
         expected_dtype = standardize_dtype(jnp.argsort(x_jax).dtype)
 
         self.assertEqual(
@@ -4835,8 +4847,14 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
 
         if dtype is None:
             dtype = backend.floatx()
-        x = knp.array([[1.2, 2.1, 2.5], [2.4, 11.9, 5.5]], dtype=dtype)
-        x_jax = jnp.array([[1.2, 2.1, 2.5], [2.4, 11.9, 5.5]], dtype=dtype)
+        if dtype == "bool":
+            value = [[True, False, True], [True, False, True]]
+        elif "int" in dtype:
+            value = [[1, 2, 2], [2, 11, 5]]
+        else:
+            value = [[1.2, 2.1, 2.5], [2.4, 11.9, 5.5]]
+        x = knp.array(value, dtype=dtype)
+        x_jax = jnp.array(value, dtype=dtype)
         expected_dtype = standardize_dtype(jnp.ceil(x_jax).dtype)
         if dtype == "int64":
             expected_dtype = backend.floatx()
