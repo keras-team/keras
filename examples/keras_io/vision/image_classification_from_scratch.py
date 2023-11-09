@@ -23,6 +23,7 @@ we use Keras image preprocessing layers for image standardization and data augme
 """
 
 import os
+import numpy as np
 import keras
 from keras import layers
 from tensorflow import data as tf_data
@@ -107,7 +108,7 @@ plt.figure(figsize=(10, 10))
 for images, labels in train_ds.take(1):
     for i in range(9):
         ax = plt.subplot(3, 3, i + 1)
-        plt.imshow(images[i].numpy().astype("uint8"))
+        plt.imshow(np.array(images[i]).astype("uint8"))
         plt.title(int(labels[i]))
         plt.axis("off")
 
@@ -139,7 +140,7 @@ for images, _ in train_ds.take(1):
     for i in range(9):
         augmented_images = data_augmentation(images)
         ax = plt.subplot(3, 3, i + 1)
-        plt.imshow(augmented_images[0].numpy().astype("uint8"))
+        plt.imshow(np.array(augmented_images[0]).astype("uint8"))
         plt.axis("off")
 
 
