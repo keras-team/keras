@@ -631,6 +631,7 @@ def vectorized_map(function, elements):
     """
     return backend.core.vectorized_map(function, elements)
 
+
 @keras_export("keras.ops.is_tensor")
 def is_tensor(x):
     """Check whether the given object is a tensor.
@@ -645,4 +646,3 @@ def is_tensor(x):
         True if x is a tensor, otherwise False.
     """
     return backend.core.is_tensor(x)
-
