@@ -250,9 +250,7 @@ class Functional(Function, Model):
         converted = []
         for x, input in zip(flat_inputs, self._inputs):
             converted.append(
-                backend.convert_to_tensor(
-                    x, dtype=input.dtype, sparse=input.sparse
-                )
+                ops.convert_to_tensor(x, dtype=input.dtype, sparse=input.sparse)
             )
         return converted
 
