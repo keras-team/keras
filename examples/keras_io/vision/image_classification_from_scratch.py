@@ -123,9 +123,8 @@ overfitting.
 """
 
 data_augmentation_layers = [
-    layers.RandomFlip(),
-    layers.RandomRotation(0.15),
-    layers.RandomZoom(0.15),
+    layers.RandomFlip("horizontal"),
+    layers.RandomRotation(0.1),
 ]
 
 def data_augmentation(images):
