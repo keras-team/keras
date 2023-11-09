@@ -147,14 +147,15 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         # Return it directly instead of pass it to the rest of the logic in the
         # function.
         return x.value
-    if isinstance(x, bool):
-        return torch.as_tensor(x, dtype=torch.bool, device=get_device())
-    elif isinstance(x, int):
-        return torch.as_tensor(x, dtype=torch.int32, device=get_device())
-    elif isinstance(x, float):
-        return torch.as_tensor(
-            x, dtype=to_torch_dtype(floatx()), device=get_device()
-        )
+    if dtype is None:
+        if isinstance(x, bool):
+            return torch.as_tensor(x, dtype=torch.bool, device=get_device())
+        elif isinstance(x, int):
+            return torch.as_tensor(x, dtype=torch.int32, device=get_device())
+        elif isinstance(x, float):
+            return torch.as_tensor(
+                x, dtype=to_torch_dtype(floatx()), device=get_device()
+            )
 
     # Convert to np in case of any array-like that is not list or tuple.
     if not isinstance(x, (list, tuple)):
