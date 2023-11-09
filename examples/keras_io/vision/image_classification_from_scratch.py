@@ -122,13 +122,17 @@ helps expose the model to different aspects of the training data while slowing d
 overfitting.
 """
 
-data_augmentation = keras.Sequential(
-    [
-        layers.RandomFlip(),
-        layers.RandomRotation(0.15),
-        layers.RandomZoom(0.15),
-    ]
-)
+data_augmentation_layers = [
+    layers.RandomFlip(),
+    layers.RandomRotation(0.15),
+    layers.RandomZoom(0.15),
+]
+
+def data_augmentation(images):
+    for layer in data_augmentation_layers:
+        images = layer(images)
+    return images
+
 
 """
 Let's visualize what the augmented samples look like, by applying `data_augmentation`
