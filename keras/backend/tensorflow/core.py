@@ -99,14 +99,8 @@ class Variable(
         return self.value._write_object_proto(proto, options)
 
 
-def convert_to_tensor(x, dtype=None, sparse=True):
-    """Convert to a TensorFlow tensor.
-
-    `sparse=True` means that `tf.SparseTensor`s are returned as-is, which is the
-    default with the TensorFlow backend. An explicit `sparse=False` densifies
-    `tf.SparseTensor`s.
-    """
-    if isinstance(x, tf.SparseTensor) and not sparse:
+def convert_to_tensor(x, dtype=None, sparse=None):
+    if isinstance(x, tf.SparseTensor) and sparse is not None and not sparse:
         x = tf.sparse.to_dense(x)
     if dtype is not None:
         dtype = standardize_dtype(dtype)
