@@ -10,6 +10,7 @@ cast
 convert_to_tensor
 convert_to_numpy
 cond
+is_tensor
 """
 
 import numpy as np
@@ -629,3 +630,19 @@ def vectorized_map(function, elements):
     a single list of tensor arguments.
     """
     return backend.core.vectorized_map(function, elements)
+
+@keras_export("keras.ops.is_tensor")
+def is_tensor(x):
+    """Check whether the given object is a tensor.
+
+    Note: This checks for backend specific tensors so passing a tensorflow
+    tensor would return False if your backend is pytorch or jax.
+
+    Args:
+        x: A variable.
+
+    Returns:
+        True if x is a tensor, otherwise False.
+    """
+    return backend.core.is_tensor(x)
+
