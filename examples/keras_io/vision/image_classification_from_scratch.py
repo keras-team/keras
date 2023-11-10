@@ -291,7 +291,7 @@ callbacks = [
     keras.callbacks.ModelCheckpoint("save_at_{epoch}.keras"),
 ]
 model.compile(
-    optimizer=keras.optimizers.Adam(1e-3),
+    optimizer=keras.optimizers.Adam(3e-4),
     loss="binary_crossentropy",
     metrics=["accuracy"],
 )
