@@ -292,7 +292,7 @@ callbacks = [
 model.compile(
     optimizer=keras.optimizers.Adam(1e-3),
     loss=keras.losses.BinaryCrossentropy(from_logits=True),
-    metrics=[keras.Metrics.BinaryAccuracy(name="acc")],
+    metrics=[keras.metrics.BinaryAccuracy(name="acc")],
 )
 model.fit(
     train_ds,
