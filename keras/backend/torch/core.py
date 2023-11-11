@@ -8,8 +8,10 @@ import tree
 from keras.backend.common import KerasVariable
 from keras.backend.common import global_state
 from keras.backend.common import standardize_dtype
+from keras.backend.common.dtypes import result_type
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
+from keras.backend.config import floatx
 from keras.utils.nest import pack_sequence_as
 
 SUPPORTS_SPARSE_TENSORS = False
@@ -145,10 +147,15 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         # Return it directly instead of pass it to the rest of the logic in the
         # function.
         return x.value
-    if isinstance(x, int):
-        return torch.as_tensor(x, dtype=torch.int32, device=get_device())
-    if isinstance(x, float):
-        return torch.as_tensor(x, dtype=torch.float32, device=get_device())
+    if dtype is None:
+        if isinstance(x, bool):
+            return torch.as_tensor(x, dtype=torch.bool, device=get_device())
+        elif isinstance(x, int):
+            return torch.as_tensor(x, dtype=torch.int32, device=get_device())
+        elif isinstance(x, float):
+            return torch.as_tensor(
+                x, dtype=to_torch_dtype(floatx()), device=get_device()
+            )
 
     # Convert to np in case of any array-like that is not list or tuple.
     if not isinstance(x, (list, tuple)):
@@ -160,7 +167,15 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         if x.dtype == np.uint32:
             # Torch backend does not support uint32.
             x = x.astype(np.int64)
+        if standardize_dtype(x.dtype) == "bfloat16":
+            # Torch backend does not support converting bfloat16 ndarray.
+            x = x.astype(np.float32)
+            dtype = "bfloat16"
         dtype = dtype or x.dtype
+    if dtype is None:
+        dtype = result_type(
+            *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
+        )
     dtype = to_torch_dtype(dtype)
     return torch.as_tensor(x, dtype=dtype, device=get_device())
 

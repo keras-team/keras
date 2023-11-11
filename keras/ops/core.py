@@ -10,6 +10,7 @@ cast
 convert_to_tensor
 convert_to_numpy
 cond
+is_tensor
 """
 
 import numpy as np
@@ -402,7 +403,7 @@ def unstack(x, num=None, axis=0):
 def shape(x):
     """Gets the shape of the tensor input.
 
-    Note: On the tensorflow backend, when `x` is a `tf.Tensor` with dynamic
+    Note: On the TensorFlow backend, when `x` is a `tf.Tensor` with dynamic
     shape, dimensions which are dynamic in the context of a compiled function
     will have a `tf.Tensor` value instead of a static integer value.
 
@@ -629,3 +630,19 @@ def vectorized_map(function, elements):
     a single list of tensor arguments.
     """
     return backend.core.vectorized_map(function, elements)
+
+
+@keras_export("keras.ops.is_tensor")
+def is_tensor(x):
+    """Check whether the given object is a tensor.
+
+    Note: This checks for backend specific tensors so passing a TensorFlow
+    tensor would return `False` if your backend is PyTorch or JAX.
+
+    Args:
+        x: A variable.
+
+    Returns:
+        `True` if `x` is a tensor, otherwise `False`.
+    """
+    return backend.core.is_tensor(x)

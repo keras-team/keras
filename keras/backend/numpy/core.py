@@ -3,6 +3,7 @@ import tree
 
 from keras.backend.common import KerasVariable
 from keras.backend.common import standardize_dtype
+from keras.backend.common.dtypes import result_type
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.utils.nest import pack_sequence_as
@@ -34,6 +35,10 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         if dtype and dtype != x.dtype:
             return x.value.astype(dtype)
         return x.value
+    if dtype is None:
+        dtype = result_type(
+            *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
+        )
     return np.array(x, dtype=dtype)
 
 
