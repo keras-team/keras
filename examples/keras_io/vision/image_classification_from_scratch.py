@@ -271,7 +271,7 @@ def make_model(input_shape, num_classes):
     else:
         units = num_classes
 
-    x = layers.Dropout(0.5)(x)
+    x = layers.Dropout(0.25)(x)
     # We specify activation=None so as to return logits
     outputs = layers.Dense(units, activation=None)(x)
     return keras.Model(inputs, outputs)
@@ -290,7 +290,7 @@ callbacks = [
     keras.callbacks.ModelCheckpoint("save_at_{epoch}.keras"),
 ]
 model.compile(
-    optimizer=keras.optimizers.RMSprop(1e-3),
+    optimizer=keras.optimizers.Adam(3e-4),
     loss=keras.losses.BinaryCrossentropy(from_logits=True),
     metrics=[keras.metrics.BinaryAccuracy(name="acc")],
 )
