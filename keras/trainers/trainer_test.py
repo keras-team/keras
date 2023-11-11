@@ -530,6 +530,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             loss="mse",
             optimizer="adam",
             steps_per_execution=3,
+            jit_compile=True,  # TODO: fails in eager?
         )
         step_count = StepCount()
         model.fit(x=x, y=y, batch_size=16, callbacks=[step_count], verbose=0)

@@ -4,6 +4,7 @@ on:
   push:
     branches: [ master ]
   pull_request:
+  workflow_call:
   release:
     types: [created]
 

@@ -3,6 +3,9 @@ import pytest
 from absl.testing import parameterized
 
 from keras import backend
+from keras import layers
+from keras import losses
+from keras import models
 from keras import testing
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.layers.convolutional.conv_test import np_conv1d
@@ -1607,3 +1610,20 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(mean.values[0], 4.5)
             self.assertEqual(variance.values[0], 8.75)
             self.assertEqual(variance.values[0], 8.75)
+
+
+class TestLogitRecovery(testing.TestCase):
+    def test_logit_recovery_binary_crossentropy(self):
+        layer = layers.Dense(
+            4, activation="sigmoid", use_bias=False, kernel_initializer="ones"
+        )
+        loss = losses.BinaryCrossentropy()
+        x = np.array([[1.4, 1.6, 0.8]])
+        y = np.array([[0.2, 0.6, 0.1, 0.3]])
+        loss_value = loss(y, layer(x))
+        self.assertAllClose(loss_value, 2.682124)
+
+        model = models.Sequential([layer])
+        model.compile(loss="binary_crossentropy", optimizer="sgd")
+        out = model.evaluate(x, y)
+        self.assertAllClose(out, 2.682124)

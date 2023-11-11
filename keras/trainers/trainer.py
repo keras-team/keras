@@ -157,7 +157,7 @@ class Trainer:
             if run_eagerly:
                 jit_compile = False
             else:
-                jit_compile = resolve_auto_jit_compile(self)
+                jit_compile = self._resolve_auto_jit_compile()
         if jit_compile and run_eagerly:
             jit_compile = False
             warnings.warn(
@@ -192,11 +192,7 @@ class Trainer:
     def jit_compile(self):
         if self._jit_compile is None:
             # Value was never set. Resolve it now.
-            # torch always runs in eager unless jit_compile is explicitly set
-            jit_compile = (
-                model_supports_jit(self) and backend.backend() != "torch"
-            )
-            self._jit_compile = jit_compile
+            self._jit_compile = self._resolve_auto_jit_compile()
         return self._jit_compile
 
     @jit_compile.setter
@@ -209,6 +205,23 @@ class Trainer:
             self._jit_compile = False
         else:
             self._jit_compile = value
+
+    def _resolve_auto_jit_compile(self):
+        if backend.backend() == "torch":
+            # jit_compile = "auto" with the pytorch backend defaults to eager
+            return False
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            devices = tf.config.list_physical_devices()
+            if not list(filter(lambda x: x.device_type != "CPU", devices)):
+                # Disable XLA on CPU-only machines.
+                return False
+
+        if model_supports_jit(self):
+            return True
+        return False
 
     @property
     def run_eagerly(self):
@@ -866,23 +879,15 @@ class Trainer:
             raise ValueError(msg)
 
 
-def resolve_auto_jit_compile(model):
-    if backend.backend() == "torch":
-        # jit_compile = "auto" with the pytorch backend defaults to eager
-        return False
-
-    if model_supports_jit(model):
-        return True
-    return False
-
-
 def model_supports_jit(model):
+    # XLA not supported with TF on MacOS GPU
     if platform.system() == "Darwin" and "arm" in platform.processor().lower():
         if backend.backend() == "tensorflow":
             from keras.utils.module_utils import tensorflow as tf
 
             if tf.config.list_physical_devices("GPU"):
                 return False
+    # XLA not supported by some layers
     if all(x.supports_jit for x in model._flatten_layers()):
         return True
     return False

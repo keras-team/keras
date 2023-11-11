@@ -78,15 +78,15 @@ def get_metric(identifier, y_true, y_pred):
                 name=str(identifier)
             )
 
-    if not isinstance(metric_obj, metrics_module.Metric):
-        metric_obj = metrics_module.MeanMetricWrapper(metric_obj)
-
     if isinstance(identifier, str):
         metric_name = identifier
     else:
         metric_name = get_object_name(metric_obj)
-    metric_obj.name = metric_name
 
+    if not isinstance(metric_obj, metrics_module.Metric):
+        metric_obj = metrics_module.MeanMetricWrapper(metric_obj)
+
+    metric_obj.name = metric_name
     return metric_obj
 
 

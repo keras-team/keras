@@ -776,10 +776,6 @@ LayoutMap.get.__doc__ = LayoutMap.__getitem__.__doc__
 def distribute_tensor(tensor, layout):
     """Change the layout of a Tensor value in the jit function execution.
 
-    Note that this might not work outside of the jitted function for certain
-    backend. To change the layout of a value eagerly, please use
-    `backend.distribution_lib.distribute_value`.
-
     Args:
         tensor: a Tensor to change the layout.
         layout: `TensorLayout` to be applied on the value.
