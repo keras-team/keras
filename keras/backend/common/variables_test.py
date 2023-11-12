@@ -5,6 +5,7 @@ import pytest
 
 from keras import backend
 from keras import initializers
+from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.backend.common.variables import AutocastScope
 from keras.backend.common.variables import KerasVariable
 from keras.backend.common.variables import shape_equal
@@ -139,6 +140,26 @@ class VariablePropertiesTest(test_case.TestCase):
 
         with AutocastScope("float16"):
             self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
+
+    def test_standardize_dtype(self):
+        """Tests standardize_dtype for all ALLOWED_DTYPES except string."""
+        dtypes = [dtype for dtype in ALLOWED_DTYPES if dtype != "string"]
+        if backend.backend() == "torch":
+            dtypes = [
+                dtype
+                for dtype in dtypes
+                if dtype not in ("uint16", "uint32", "uint64")
+            ]
+        elif backend.backend() == "jax":
+            import jax
+
+            if not jax.config.x64_enabled:
+                dtypes = [dtype for dtype in dtypes if "64" not in dtype]
+
+        for dtype in dtypes:
+            x = backend.convert_to_tensor(np.zeros(()), dtype)
+            actual = standardize_dtype(x.dtype)
+            self.assertEqual(actual, dtype)
 
     def test_standardize_dtype_with_torch_dtype(self):
         """Tests dtype standardization with PyTorch dtypes."""
