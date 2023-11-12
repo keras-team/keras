@@ -433,6 +433,8 @@ class CosineSimilarityTest(testing.TestCase):
         )
         self.assertEqual(cosine_obj.name, "cosine_loss")
         self.assertEqual(cosine_obj.reduction, "sum")
+        config = cosine_obj.get_config()
+        self.assertEqual(config, {"name": "cosine_loss", "reduction": "sum"})
 
     def test_unweighted(self):
         self.setup()
@@ -517,6 +519,8 @@ class HuberLossTest(testing.TestCase):
         h_obj = losses.Huber(reduction="sum", name="huber")
         self.assertEqual(h_obj.name, "huber")
         self.assertEqual(h_obj.reduction, "sum")
+        config = h_obj.get_config()
+        self.assertEqual(config, {"name": "huber", "reduction": "sum"})
 
     def test_all_correct(self):
         self.setup()
@@ -615,6 +619,8 @@ class LogCoshTest(testing.TestCase):
         logcosh_obj = losses.LogCosh(reduction="sum", name="logcosh_loss")
         self.assertEqual(logcosh_obj.name, "logcosh_loss")
         self.assertEqual(logcosh_obj.reduction, "sum")
+        config = logcosh_obj.get_config()
+        self.assertEqual(config, {"name": "logcosh_loss", "reduction": "sum"})
 
     def test_unweighted(self):
         self.setup()
