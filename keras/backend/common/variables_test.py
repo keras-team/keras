@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras import backend
 from keras import initializers
@@ -79,7 +80,7 @@ class VariableInitializationTest(test_case.TestCase):
             KerasVariable(initializer=lambda: np.ones((2, 2)))
 
 
-class VariablePropertiesTest(test_case.TestCase):
+class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
     """Tests for KerasVariable._deferred_initialize
     KerasVariable._maybe_autocast"""
 
@@ -141,25 +142,29 @@ class VariablePropertiesTest(test_case.TestCase):
         with AutocastScope("float16"):
             self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
 
-    def test_standardize_dtype(self):
+    @parameterized.parameters(
+        *((dtype for dtype in ALLOWED_DTYPES if dtype != "string"))
+    )
+    def test_standardize_dtype(self, dtype):
         """Tests standardize_dtype for all ALLOWED_DTYPES except string."""
-        dtypes = [dtype for dtype in ALLOWED_DTYPES if dtype != "string"]
-        if backend.backend() == "torch":
-            dtypes = [
-                dtype
-                for dtype in dtypes
-                if dtype not in ("uint16", "uint32", "uint64")
-            ]
-        elif backend.backend() == "jax":
+        if backend.backend() == "torch" and dtype in (
+            "uint16",
+            "uint32",
+            "uint64",
+        ):
+            self.skipTest(f"torch backend does not support dtype {dtype}")
+
+        if backend.backend() == "jax":
             import jax
 
-            if not jax.config.x64_enabled:
-                dtypes = [dtype for dtype in dtypes if "64" not in dtype]
+            if not jax.config.x64_enabled and "64" in dtype:
+                self.skipTest(
+                    f"jax backend does not support {dtype} without x64 enabled"
+                )
 
-        for dtype in dtypes:
-            x = backend.convert_to_tensor(np.zeros(()), dtype)
-            actual = standardize_dtype(x.dtype)
-            self.assertEqual(actual, dtype)
+        x = backend.convert_to_tensor(np.zeros(()), dtype)
+        actual = standardize_dtype(x.dtype)
+        self.assertEqual(actual, dtype)
 
     def test_standardize_dtype_with_torch_dtype(self):
         """Tests dtype standardization with PyTorch dtypes."""
