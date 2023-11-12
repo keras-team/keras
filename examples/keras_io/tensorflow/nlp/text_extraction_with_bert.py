@@ -2,7 +2,7 @@
 Title: Text Extraction with BERT
 Author: [Apoorv Nandan](https://twitter.com/NandanApoorv)
 Date created: 2020/05/23
-Last modified: 2020/05/23
+Last modified: 2023/11/12 (conversion to Keras 3 by @Ben-ad)
 Description: Fine tune pretrained BERT from HuggingFace Transformers on SQuAD.
 Accelerator: TPU
 """
