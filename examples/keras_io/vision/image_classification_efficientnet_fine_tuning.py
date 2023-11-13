@@ -321,7 +321,7 @@ and we fine-tune it on our own dataset.
 
 def build_model(num_classes):
     inputs = layers.Input(shape=(IMG_SIZE, IMG_SIZE, 3))
-    model = EfficientNetB0(include_top=False, input_tensor=x, weights="imagenet")
+    model = EfficientNetB0(include_top=False, input_tensor=inputs, weights="imagenet")
 
     # Freeze the pretrained weights
     model.trainable = False
