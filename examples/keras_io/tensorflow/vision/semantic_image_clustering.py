@@ -194,21 +194,21 @@ class RepresentationLearner(keras.Model):
         return [self.loss_tracker]
 
     def compute_contrastive_loss(self, feature_vectors, batch_size):
-        num_augmentations = tf.shape(feature_vectors)[0] // batch_size
+        num_augmentations = keras.ops.shape(feature_vectors)[0] // batch_size
         if self.l2_normalize:
-            feature_vectors = tf.math.l2_normalize(feature_vectors, -1)
+            feature_vectors = keras.utils.normalize(feature_vectors)
         # The logits shape is [num_augmentations * batch_size, num_augmentations * batch_size].
         logits = (
-            tf.linalg.matmul(feature_vectors, feature_vectors, transpose_b=True)
+            keras.ops.matmul(feature_vectors, keras.ops.transpose(feature_vectors))
             / self.temperature
         )
         # Apply log-max trick for numerical stability.
-        logits_max = tf.math.reduce_max(logits, axis=1)
+        logits_max = keras.ops.max(logits, axis=1)
         logits = logits - logits_max
         # The shape of targets is [num_augmentations * batch_size, num_augmentations * batch_size].
         # targets is a matrix consits of num_augmentations submatrices of shape [batch_size * batch_size].
         # Each [batch_size * batch_size] submatrix is an identity matrix (diagonal entries are ones).
-        targets = tf.tile(tf.eye(batch_size), [num_augmentations, num_augmentations])
+        targets = keras.ops.tile(tf.eye(batch_size), [num_augmentations, num_augmentations])
         # Compute cross entropy loss
         return keras.losses.categorical_crossentropy(
             y_true=targets, y_pred=logits, from_logits=True
@@ -228,7 +228,7 @@ class RepresentationLearner(keras.Model):
         return self.projector(features)
 
     def train_step(self, inputs):
-        batch_size = tf.shape(inputs)[0]
+        batch_size = keras.ops.shape(inputs)[0]
         # Run the forward pass and compute the contrastive loss
         with tf.GradientTape() as tape:
             feature_vectors = self(inputs, training=True)
@@ -244,7 +244,7 @@ class RepresentationLearner(keras.Model):
         return {m.name: m.result() for m in self.metrics}
 
     def test_step(self, inputs):
-        batch_size = tf.shape(inputs)[0]
+        batch_size = keras.ops.shape(inputs)[0]
         feature_vectors = self(inputs, training=False)
         loss = self.compute_contrastive_loss(feature_vectors, batch_size)
         self.loss_tracker.update_state(loss)
@@ -298,7 +298,7 @@ batch_size = 500
 # Get the feature vector representations of the images.
 feature_vectors = encoder.predict(x_data, batch_size=batch_size, verbose=1)
 # Normalize the feature vectores.
-feature_vectors = tf.math.l2_normalize(feature_vectors, -1)
+feature_vectors = keras.utils.normalize(feature_vectors)
 
 """
 ### Find the *k* nearest neighbours for each embedding
@@ -311,9 +311,9 @@ for batch_idx in tqdm(range(num_batches)):
     end_idx = start_idx + batch_size
     current_batch = feature_vectors[start_idx:end_idx]
     # Compute the dot similarity.
-    similarities = tf.linalg.matmul(current_batch, feature_vectors, transpose_b=True)
+    similarities = keras.ops.matmul(current_batch, keras.ops.transpose(feature_vectors))
     # Get the indices of most similar vectors.
-    _, indices = tf.math.top_k(similarities, k=k_neighbours + 1, sorted=True)
+    _, indices = keras.ops.top_k(similarities, k=k_neighbours + 1, sorted=True)
     # Add the indices to the neighbours.
     neighbours.append(indices[..., 1:])
 
@@ -360,12 +360,12 @@ class ClustersConsistencyLoss(keras.losses.Loss):
 
     def __call__(self, target, similarity, sample_weight=None):
         # Set targets to be ones.
-        target = tf.ones_like(similarity)
+        target = keras.ops.ones_like(similarity)
         # Compute cross entropy loss.
         loss = keras.losses.binary_crossentropy(
             y_true=target, y_pred=similarity, from_logits=True
         )
-        return tf.math.reduce_mean(loss)
+        return keras.ops.mean(loss)
 
 
 """
@@ -383,17 +383,17 @@ class ClustersEntropyLoss(keras.losses.Loss):
 
     def __call__(self, target, cluster_probabilities, sample_weight=None):
         # Ideal entropy = log(num_clusters).
-        num_clusters = tf.cast(tf.shape(cluster_probabilities)[-1], tf.dtypes.float32)
-        target = tf.math.log(num_clusters)
+        num_clusters = keras.ops.cast(keras.ops.shape(cluster_probabilities)[-1], "float32")
+        target = keras.ops.log(num_clusters)
         # Compute the overall clusters distribution.
-        cluster_probabilities = tf.math.reduce_mean(cluster_probabilities, axis=0)
+        cluster_probabilities = keras.ops.mean(cluster_probabilities, axis=0)
         # Replacing zero probabilities - if any - with a very small value.
-        cluster_probabilities = tf.clip_by_value(
-            cluster_probabilities, clip_value_min=1e-8, clip_value_max=1.0
+        cluster_probabilities = keras.ops.clip(
+            cluster_probabilities, 1e-8, 1.0
         )
         # Compute the entropy over the clusters.
-        entropy = -tf.math.reduce_sum(
-            cluster_probabilities * tf.math.log(cluster_probabilities)
+        entropy = -keras.ops.sum(
+            cluster_probabilities * keras.ops.log(cluster_probabilities)
         )
         # Compute the difference between the target and the actual.
         loss = target - entropy
@@ -441,22 +441,22 @@ def create_clustering_learner(clustering_model):
         shape=tuple([k_neighbours]) + input_shape, name="neighbours"
     )
     # Changes neighbours shape to [batch_size * k_neighbours, width, height, channels]
-    neighbours_reshaped = tf.reshape(neighbours, shape=tuple([-1]) + input_shape)
+    neighbours_reshaped = keras.ops.reshape(neighbours, shape=tuple([-1]) + input_shape)
     # anchor_clustering shape: [batch_size, num_clusters]
     anchor_clustering = clustering_model(anchor)
     # neighbours_clustering shape: [batch_size * k_neighbours, num_clusters]
     neighbours_clustering = clustering_model(neighbours_reshaped)
     # Convert neighbours_clustering shape to [batch_size, k_neighbours, num_clusters]
-    neighbours_clustering = tf.reshape(
+    neighbours_clustering = keras.ops.reshape(
         neighbours_clustering,
-        shape=(-1, k_neighbours, tf.shape(neighbours_clustering)[-1]),
+        shape=(-1, k_neighbours, keras.ops.shape(neighbours_clustering)[-1]),
     )
     # similarity shape: [batch_size, 1, k_neighbours]
-    similarity = tf.linalg.einsum(
-        "bij,bkj->bik", tf.expand_dims(anchor_clustering, axis=1), neighbours_clustering
+    similarity = keras.ops.einsum(
+        "bij,bkj->bik", keras.ops.expand_dims(anchor_clustering, axis=1), neighbours_clustering
     )
     # similarity shape:  [batch_size, k_neighbours]
-    similarity = layers.Lambda(lambda x: tf.squeeze(x, axis=1), name="similarity")(
+    similarity = layers.Lambda(lambda x: keras.ops.squeeze(x, axis=1), name="similarity")(
         similarity
     )
     # Create the model.
@@ -514,11 +514,11 @@ plt.show()
 # Get the cluster probability distribution of the input images.
 clustering_probs = clustering_model.predict(x_data, batch_size=batch_size, verbose=1)
 # Get the cluster of the highest probability.
-cluster_assignments = tf.math.argmax(clustering_probs, axis=-1).numpy()
+cluster_assignments = keras.ops.argmax(clustering_probs, axis=-1).numpy()
 # Store the clustering confidence.
 # Images with the highest clustering confidence are considered the 'prototypes'
 # of the clusters.
-cluster_confidence = tf.math.reduce_max(clustering_probs, axis=-1).numpy()
+cluster_confidence = keras.ops.max(clustering_probs, axis=-1).numpy()
 
 """
 Let's compute the cluster sizes
