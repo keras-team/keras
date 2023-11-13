@@ -105,6 +105,11 @@ def convert_to_tensor(x, dtype=None, sparse=None):
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if not tf.is_tensor(x):
+        if dtype == "bool":
+            # TensorFlow boolean conversion is stricter than other backends.
+            # It does not allow ints. We convert without dtype and cast instead.
+            x = tf.convert_to_tensor(x)
+            return tf.cast(x, dtype)
         return tf.convert_to_tensor(x, dtype=dtype)
     elif dtype is not None:
         return tf.cast(x, dtype=dtype)

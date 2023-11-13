@@ -2936,6 +2936,17 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertTrue(backend.is_tensor(knp.array(x)))
         self.assertTrue(backend.is_tensor(knp.Array()(x)))
 
+        # Check dtype convertion.
+        x = [[1, 0, 1], [1, 1, 0]]
+        output = knp.array(x, dtype="int32")
+        self.assertEqual(standardize_dtype(output.dtype), "int32")
+        x = [[1, 0, 1], [1, 1, 0]]
+        output = knp.array(x, dtype="float32")
+        self.assertEqual(standardize_dtype(output.dtype), "float32")
+        x = [[1, 0, 1], [1, 1, 0]]
+        output = knp.array(x, dtype="bool")
+        self.assertEqual(standardize_dtype(output.dtype), "bool")
+
     def test_average(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         weights = np.ones([2, 3])
