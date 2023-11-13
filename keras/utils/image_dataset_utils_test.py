@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 
+from keras import backend
 from keras import testing
 from keras.utils import image_dataset_utils
 from keras.utils import image_utils
@@ -19,6 +20,8 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
                 img = np.random.randint(0, 256, size=(height, width, 4))
             else:
                 img = np.random.randint(0, 256, size=(height, width, 3))
+            if backend.config.image_data_format() == "channels_first":
+                img = np.transpose(img, (2, 0, 1))
             img = image_utils.array_to_img(img)
             imgs.append(img)
         return imgs
@@ -76,10 +79,14 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory, batch_size=5, image_size=(18, 18), labels=None
         )
+        if backend.config.image_data_format() == "channels_last":
+            output_shape = [5, 18, 18, 3]
+        else:
+            output_shape = [5, 3, 18, 18]
         self.assertEqual(dataset.class_names, None)
         batch = next(iter(dataset))
         # We return plain images
-        self.assertEqual(batch.shape, (5, 18, 18, 3))
+        self.assertEqual(batch.shape, output_shape)
         self.assertEqual(batch.dtype.name, "float32")
         # Count samples
         batch_count = 0
@@ -95,9 +102,13 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory, batch_size=8, image_size=(18, 18), label_mode="int"
         )
+        if backend.config.image_data_format() == "channels_last":
+            output_shape = [8, 18, 18, 3]
+        else:
+            output_shape = [8, 3, 18, 18]
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 18, 18, 3))
+        self.assertEqual(batch[0].shape, output_shape)
         self.assertEqual(batch[0].dtype.name, "float32")
         self.assertEqual(batch[1].shape, (8,))
         self.assertEqual(batch[1].dtype.name, "int32")
@@ -107,7 +118,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 18, 18, 3))
+        self.assertEqual(batch[0].shape, output_shape)
         self.assertEqual(batch[0].dtype.name, "float32")
         self.assertEqual(batch[1].shape, (8, 1))
         self.assertEqual(batch[1].dtype.name, "float32")
@@ -120,7 +131,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 18, 18, 3))
+        self.assertEqual(batch[0].shape, output_shape)
         self.assertEqual(batch[0].dtype.name, "float32")
         self.assertEqual(batch[1].shape, (8, 2))
         self.assertEqual(batch[1].dtype.name, "float32")
@@ -131,11 +142,15 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             directory, batch_size=8, image_size=(18, 18), label_mode="int"
         )
         test_case = self
+        if backend.config.image_data_format() == "channels_last":
+            output_shape = [None, 18, 18, 3]
+        else:
+            output_shape = [None, 3, 18, 18]
 
         @tf.function
         def symbolic_fn(ds):
             for x, _ in ds.take(1):
-                test_case.assertListEqual(x.shape.as_list(), [None, 18, 18, 3])
+                test_case.assertListEqual(x.shape.as_list(), output_shape)
 
         symbolic_fn(dataset)
 
@@ -155,8 +170,12 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory, batch_size=8, image_size=(18, 18), label_mode=None
         )
+        if backend.config.image_data_format() == "channels_last":
+            output_shape = [8, 18, 18, 3]
+        else:
+            output_shape = [8, 3, 18, 18]
         batch = next(iter(dataset))
-        self.assertEqual(batch.shape, (8, 18, 18, 3))
+        self.assertEqual(batch.shape, output_shape)
 
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory, batch_size=8, image_size=(18, 18), label_mode=None
@@ -172,7 +191,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 18, 18, 3))
+        self.assertEqual(batch[0].shape, output_shape)
         self.assertEqual(batch[0].dtype.name, "float32")
         self.assertEqual(batch[1].shape, (8,))
         self.assertEqual(batch[1].dtype.name, "int32")
@@ -185,7 +204,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 18, 18, 3))
+        self.assertEqual(batch[0].shape, (output_shape))
         self.assertEqual(batch[0].dtype.name, "float32")
         self.assertEqual(batch[1].shape, (8, 4))
         self.assertEqual(batch[1].dtype.name, "float32")
@@ -195,9 +214,13 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory, batch_size=8, image_size=(18, 18), color_mode="rgba"
         )
+        if backend.config.image_data_format() == "channels_last":
+            output_shape = [8, 18, 18, 4]
+        else:
+            output_shape = [8, 4, 18, 18]
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 18, 18, 4))
+        self.assertEqual(batch[0].shape, output_shape)
         self.assertEqual(batch[0].dtype.name, "float32")
 
         directory = self._prepare_directory(
@@ -206,9 +229,13 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory, batch_size=8, image_size=(18, 18), color_mode="grayscale"
         )
+        if backend.config.image_data_format() == "channels_last":
+            output_shape = [8, 18, 18, 1]
+        else:
+            output_shape = [8, 1, 18, 18]
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 18, 18, 1))
+        self.assertEqual(batch[0].shape, output_shape)
         self.assertEqual(batch[0].dtype.name, "float32")
 
     def test_image_dataset_from_directory_validation_split(self):
@@ -223,7 +250,13 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 18, 18, 3))
+        if backend.config.image_data_format() == "channels_last":
+            train_output_shape = [8, 18, 18, 3]
+            val_output_shape = [2, 18, 18, 3]
+        else:
+            train_output_shape = [8, 3, 18, 18]
+            val_output_shape = [2, 3, 18, 18]
+        self.assertEqual(batch[0].shape, train_output_shape)
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory,
             batch_size=10,
@@ -234,7 +267,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (2, 18, 18, 3))
+        self.assertEqual(batch[0].shape, val_output_shape)
 
         (
             train_dataset,
@@ -249,10 +282,10 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(train_dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 18, 18, 3))
+        self.assertEqual(batch[0].shape, train_output_shape)
         batch = next(iter(val_dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (2, 18, 18, 3))
+        self.assertEqual(batch[0].shape, val_output_shape)
 
     def test_image_dataset_from_directory_manual_labels(self):
         # Case: wrong number of labels
@@ -275,10 +308,14 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             labels=[0, 1, 0, 1],
             shuffle=False,
         )
+        if backend.config.image_data_format() == "channels_last":
+            output_shape = [18, 18, 3]
+        else:
+            output_shape = [3, 18, 18]
         self.assertEqual(dataset.class_names, ["0", "1"])
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (4, 18, 18, 3))
+        self.assertEqual(batch[0].shape, [4] + output_shape)
         self.assertAllClose(batch[1], [0, 1, 0, 1])
 
         # Case: multiple directories
@@ -293,7 +330,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         self.assertEqual(dataset.class_names, ["0", "1"])
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (6, 18, 18, 3))
+        self.assertEqual(batch[0].shape, [6] + output_shape)
         self.assertAllClose(batch[1], [0, 1, 0, 1, 1, 1])
 
     def test_image_dataset_from_directory_follow_links(self):
@@ -325,9 +362,13 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             image_size=(18, 18),
             crop_to_aspect_ratio=True,
         )
+        if backend.config.image_data_format() == "channels_last":
+            output_shape = [5, 18, 18, 3]
+        else:
+            output_shape = [5, 3, 18, 18]
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (5, 18, 18, 3))
+        self.assertEqual(batch[0].shape, output_shape)
 
     def test_image_dataset_from_directory_errors(self):
         directory = self._prepare_directory(num_classes=3, count=5)
