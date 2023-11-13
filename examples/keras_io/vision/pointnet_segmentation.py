@@ -505,9 +505,8 @@ training_step_size = total_training_examples // BATCH_SIZE
 total_training_steps = training_step_size * EPOCHS
 print(f"Total training steps: {total_training_steps}.")
 
-lr_schedule = keras.optimizers.schedules.PiecewiseConstantDecay(
-    boundaries=[training_step_size * 15, training_step_size * 15],
-    values=[INITIAL_LR, INITIAL_LR * 0.5, INITIAL_LR * 0.25],
+lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+    initial_learning_rate=0.001, decay_steps=total_training_steps * 15, decay_rate=0.5, staircase=True
 )
 
 steps = range(total_training_steps)
