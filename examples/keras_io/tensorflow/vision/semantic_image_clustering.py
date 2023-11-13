@@ -273,7 +273,7 @@ representation_learner.compile(
 history = representation_learner.fit(
     x=x_data,
     batch_size=512,
-    epochs=1,  # for better results, increase the number of epochs to 500.
+    epochs=50,  # for better results, increase the number of epochs to 500.
 )
 
 
@@ -483,7 +483,7 @@ clustering_learner = create_clustering_learner(clustering_model)
 losses = [ClustersConsistencyLoss(), ClustersEntropyLoss(entropy_loss_weight=5)]
 # Create the model inputs and labels.
 inputs = {"anchors": x_data, "neighbours": tf.gather(x_data, neighbours)}
-labels = tf.ones(shape=(x_data.shape[0]))
+labels = np.ones(shape=(x_data.shape[0]))
 # Compile the model.
 clustering_learner.compile(
     optimizer=keras.optimizers.AdamW(learning_rate=0.0005, weight_decay=0.0001),
@@ -528,12 +528,13 @@ clusters = defaultdict(list)
 for idx, c in enumerate(cluster_assignments):
     clusters[c].append((idx, cluster_confidence[idx]))
 
+non_empty_clusters = defaultdict(list)
+for c in clusters.keys():
+    if clusters[c]:
+        non_empty_clusters[c] = clusters[c]
+
 for c in range(num_clusters):
     print("cluster", c, ":", len(clusters[c]))
-
-"""
-Notice that the clusters have roughly balanced sizes.
-"""
 
 """
 ### Visualize cluster images
@@ -544,12 +545,12 @@ Display the *prototypes*—instances with the highest clustering confidence—of
 num_images = 8
 plt.figure(figsize=(15, 15))
 position = 1
-for c in range(num_clusters):
-    cluster_instances = sorted(clusters[c], key=lambda kv: kv[1], reverse=True)
+for c in non_empty_clusters.keys():
+    cluster_instances = sorted(non_empty_clusters[c], key=lambda kv: kv[1], reverse=True)
 
     for j in range(num_images):
         image_idx = cluster_instances[j][0]
-        plt.subplot(num_clusters, num_images, position)
+        plt.subplot(len(non_empty_clusters), num_images, position)
         plt.imshow(x_data[image_idx].astype("uint8"))
         plt.title(classes[y_data[image_idx][0]])
         plt.axis("off")
