@@ -364,13 +364,13 @@ perceptron block.
 
 def conv_block(x, filters, name):
     x = layers.Conv1D(filters, kernel_size=1, padding="valid", name=f"{name}_conv")(x)
-    x = layers.BatchNormalization(momentum=0.9, name=f"{name}_batch_norm")(x)
+    x = layers.BatchNormalization(name=f"{name}_batch_norm")(x)
     return layers.Activation("relu", name=f"{name}_relu")(x)
 
 
 def mlp_block(x, filters, name):
     x = layers.Dense(filters, name=f"{name}_dense")(x)
-    x = layers.BatchNormalization(momentum=0.9, name=f"{name}_batch_norm")(x)
+    x = layers.BatchNormalization(name=f"{name}_batch_norm")(x)
     return layers.Activation("relu", name=f"{name}_relu")(x)
 
 
@@ -501,12 +501,13 @@ For the training the authors recommend using a learning rate schedule that decay
 initial learning rate by half every 20 epochs. In this example, we use 5 epochs.
 """
 
-training_step_size = total_training_examples // BATCH_SIZE
-total_training_steps = training_step_size * EPOCHS
+steps_per_epoch = total_training_examples // BATCH_SIZE
+total_training_steps = steps_per_epoch * EPOCHS
+print(f"Steps per epoch: {steps_per_epoch}.")
 print(f"Total training steps: {total_training_steps}.")
 
 lr_schedule = keras.optimizers.schedules.ExponentialDecay(
-    initial_learning_rate=0.003, decay_steps=training_step_size * 5, decay_rate=0.5, staircase=True
+    initial_learning_rate=0.003, decay_steps=steps_per_epoch * 5, decay_rate=0.5, staircase=True
 )
 
 steps = range(total_training_steps)
