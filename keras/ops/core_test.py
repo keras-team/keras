@@ -299,6 +299,13 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllEqual(x, (1, 1))
         self.assertIsInstance(x, np.ndarray)
 
+        # Empty lists should give an empty array with the default float type.
+        x = ops.convert_to_tensor([])
+        x = ops.convert_to_numpy(x)
+        self.assertAllEqual(x, [])
+        self.assertIsInstance(x, np.ndarray)
+        self.assertEqual(x.dtype.name, "float32")
+
         # Partially converted.
         x = ops.convert_to_tensor((1, ops.array(2), 3))
         self.assertAllEqual(x, (1, 2, 3))
