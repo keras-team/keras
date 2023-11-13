@@ -267,6 +267,7 @@ lr_scheduler = keras.optimizers.schedules.CosineDecay(
 # Compile the model.
 representation_learner.compile(
     optimizer=keras.optimizers.AdamW(learning_rate=lr_scheduler, weight_decay=0.0001),
+    jit_compile=False,
 )
 # Fit the model.
 history = representation_learner.fit(
@@ -487,6 +488,7 @@ labels = tf.ones(shape=(x_data.shape[0]))
 clustering_learner.compile(
     optimizer=keras.optimizers.AdamW(learning_rate=0.0005, weight_decay=0.0001),
     loss=losses,
+    jit_compile=False,
 )
 
 # Begin training the model.
