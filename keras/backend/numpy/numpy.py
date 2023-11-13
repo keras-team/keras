@@ -260,13 +260,13 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 def cumprod(x, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    dtype = dtypes.result_type(x.dtype)
+    dtype = standardize_dtype(x.dtype)
     return np.cumprod(x, axis=axis, dtype=dtype)
 
 
 def cumsum(x, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    dtype = dtypes.result_type(x.dtype)
+    dtype = standardize_dtype(x.dtype)
     return np.cumsum(x, axis=axis, dtype=dtype)
 
 

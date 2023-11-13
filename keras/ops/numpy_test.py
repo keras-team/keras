@@ -4733,3 +4733,26 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             ),
             standardize_dtype(jnp.eye(3, 4, 1, dtype=dtype).dtype),
         )
+
+
+class NumpyOutputDtypesTest(testing.TestCase, parameterized.TestCase):
+    """Test the dtypes of numpy outputs to match with inputs dtype"""
+
+    INT_DTYPES = [x for x in ALLOWED_DTYPES if "int" in x]
+
+    @parameterized.named_parameters(named_product(dtype=INT_DTYPES))
+    def test_cumsum_with_int(self, dtype):
+        x = np.array([1, 1, 2, 3, 2, 4, 4, 5], dtype=dtype)
+        output = knp.cumsum(x)
+        self.assertEqual(
+            standardize_dtype(output.dtype), standardize_dtype(x.dtype)
+        )
+
+    @parameterized.named_parameters(named_product(dtype=INT_DTYPES))
+    def test_cumprod_with_int(self, dtype):
+        x = np.array([1, 1, 2, 3, 2, 4, 4, 5], dtype=dtype)
+
+        output = knp.cumprod(x)
+        self.assertEqual(
+            standardize_dtype(output.dtype), standardize_dtype(x.dtype)
+        )
