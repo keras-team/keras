@@ -106,9 +106,9 @@ class ModelCheckpoint(Callback):
             `"min"`, etc. In `"auto"` mode, the mode is set to `"max"` if the
             quantities monitored are `"acc"` or start with `"fmeasure"` and are
             set to `"min"` for the rest of the quantities.
-        save_weights_only: if True, then only the model's weights will be saved
-            (`model.save_weights(filepath)`), else the full model is saved
-            (`model.save(filepath)`).
+        save_weights_only: if `True`, then only the model's weights will be
+            saved (`model.save_weights(filepath)`), else the full model is
+            saved (`model.save(filepath)`).
         save_freq: `"epoch"` or integer. When using `"epoch"`, the callback
             saves the model after each epoch. When using integer, the callback
             saves the model at end of this many batches. If the `Model` is
@@ -176,6 +176,22 @@ class ModelCheckpoint(Callback):
                 f"Unrecognized save_freq: {self.save_freq}. "
                 "Expected save_freq are 'epoch' or integer values"
             )
+
+        if save_weights_only:
+            if not self.filepath.endswith(".weights.h5"):
+                raise ValueError(
+                    "When using `save_weights_only=True` in `ModelCheckpoint`"
+                    ", the filepath provided must end in `.weights.h5` "
+                    "(Keras weights format). Received: "
+                    f"filepath={self.filepath}"
+                )
+        else:
+            if not self.filepath.endswith(".keras"):
+                raise ValueError(
+                    "The filepath provided must end in `.keras` "
+                    "(Keras model format). Received: "
+                    f"filepath={self.filepath}"
+                )
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
