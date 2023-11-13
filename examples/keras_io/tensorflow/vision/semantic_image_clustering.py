@@ -441,7 +441,7 @@ def create_clustering_learner(clustering_model):
         shape=tuple([k_neighbours]) + input_shape, name="neighbours"
     )
     # Changes neighbours shape to [batch_size * k_neighbours, width, height, channels]
-    neighbours_reshaped = keras.ops.reshape(neighbours, shape=tuple([-1]) + input_shape)
+    neighbours_reshaped = keras.ops.reshape(neighbours, tuple([-1]) + input_shape)
     # anchor_clustering shape: [batch_size, num_clusters]
     anchor_clustering = clustering_model(anchor)
     # neighbours_clustering shape: [batch_size * k_neighbours, num_clusters]
@@ -449,7 +449,7 @@ def create_clustering_learner(clustering_model):
     # Convert neighbours_clustering shape to [batch_size, k_neighbours, num_clusters]
     neighbours_clustering = keras.ops.reshape(
         neighbours_clustering,
-        shape=(-1, k_neighbours, keras.ops.shape(neighbours_clustering)[-1]),
+        (-1, k_neighbours, keras.ops.shape(neighbours_clustering)[-1]),
     )
     # similarity shape: [batch_size, 1, k_neighbours]
     similarity = keras.ops.einsum(
