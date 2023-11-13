@@ -224,9 +224,9 @@ def create_model():
     encoder = TFBertModel.from_pretrained("bert-base-uncased")
 
     ## QA Model
-    input_ids = layers.Input(shape=(max_len,), dtype=tf.int32)
-    token_type_ids = layers.Input(shape=(max_len,), dtype=tf.int32)
-    attention_mask = layers.Input(shape=(max_len,), dtype=tf.int32)
+    input_ids = layers.Input(shape=(max_len,), dtype='int32')
+    token_type_ids = layers.Input(shape=(max_len,), dtype='int32')
+    attention_mask = layers.Input(shape=(max_len,), dtype='int32')
     embedding = encoder(
         input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask
     )[0]
