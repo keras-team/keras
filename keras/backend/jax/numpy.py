@@ -110,11 +110,7 @@ def amin(x, axis=None, keepdims=False):
     return jnp.amin(x, axis=axis, keepdims=keepdims)
 
 
-def append(
-    x1,
-    x2,
-    axis=None,
-):
+def append(x1, x2, axis=None):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jnp.append(x1, x2, axis=axis)
@@ -212,6 +208,15 @@ def array(x, dtype=None):
 
 
 def average(x, axis=None, weights=None):
+    x = convert_to_tensor(x)
+    dtypes_to_resolve = [x.dtype, float]
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+    dtype = dtypes.result_type(*dtypes_to_resolve)
+    x = cast(x, dtype)
+    if weights is not None:
+        weights = cast(weights, dtype)
     return jnp.average(x, weights=weights, axis=axis)
 
 

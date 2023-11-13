@@ -322,11 +322,12 @@ def amin(x, axis=None, keepdims=False):
     return tfnp.amin(x, axis=axis, keepdims=keepdims)
 
 
-def append(
-    x1,
-    x2,
-    axis=None,
-):
+def append(x1, x2, axis=None):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.append(x1, x2, axis=axis)
 
 
@@ -445,12 +446,22 @@ def array(x, dtype=None):
 
 
 def average(x, axis=None, weights=None):
+    x = convert_to_tensor(x)
     if not isinstance(axis, (list, tuple)):
         axis = (axis,)
+    dtypes_to_resolve = [x.dtype, float]
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+    dtype = dtypes.result_type(*dtypes_to_resolve)
+    x = tf.cast(x, dtype)
+    if weights is not None:
+        weights = tf.cast(weights, dtype)
     for a in axis:
         # `tfnp.average` does not handle multiple axes.
         x = tfnp.average(x, weights=weights, axis=a)
-    return x
+    # TODO: tfnp.average incorrectly promote bfloat16 to float64
+    return tf.cast(x, dtype)
 
 
 def broadcast_to(x, shape):
@@ -484,6 +495,10 @@ def concatenate(xs, axis=0):
                 tf.sparse.to_dense(x) if isinstance(x, tf.SparseTensor) else x
                 for x in xs
             ]
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tf.nest.map_structure(lambda x: tf.cast(x, dtype), xs)
     return tfnp.concatenate(xs, axis=axis)
 
 
