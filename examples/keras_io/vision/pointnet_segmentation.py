@@ -263,7 +263,7 @@ def load_data(point_cloud_batch, label_cloud_batch):
 
 def augment(point_cloud_batch, label_cloud_batch):
     noise = tf.random.uniform(
-        tf.shape(label_cloud_batch), -0.005, 0.005, dtype=tf.float64
+        tf.shape(label_cloud_batch), -0.001, 0.001, dtype=tf.float64
     )
     point_cloud_batch += noise[:, :, :3]
     return point_cloud_batch, label_cloud_batch
@@ -364,13 +364,13 @@ perceptron block.
 
 def conv_block(x, filters, name):
     x = layers.Conv1D(filters, kernel_size=1, padding="valid", name=f"{name}_conv")(x)
-    x = layers.BatchNormalization(momentum=0.0, name=f"{name}_batch_norm")(x)
+    x = layers.BatchNormalization(momentum=0.9, name=f"{name}_batch_norm")(x)
     return layers.Activation("relu", name=f"{name}_relu")(x)
 
 
 def mlp_block(x, filters, name):
     x = layers.Dense(filters, name=f"{name}_dense")(x)
-    x = layers.BatchNormalization(momentum=0.0, name=f"{name}_batch_norm")(x)
+    x = layers.BatchNormalization(momentum=0.9, name=f"{name}_batch_norm")(x)
     return layers.Activation("relu", name=f"{name}_relu")(x)
 
 
