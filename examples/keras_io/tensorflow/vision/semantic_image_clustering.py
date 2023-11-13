@@ -199,7 +199,7 @@ class RepresentationLearner(keras.Model):
             feature_vectors = keras.utils.normalize(feature_vectors)
         # The logits shape is [num_augmentations * batch_size, num_augmentations * batch_size].
         logits = (
-            keras.ops.matmul(feature_vectors, keras.ops.transpose(feature_vectors))
+            tf.linalg.matmul(feature_vectors, feature_vectors, transpose_b=True)
             / self.temperature
         )
         # Apply log-max trick for numerical stability.
@@ -273,7 +273,7 @@ representation_learner.compile(
 history = representation_learner.fit(
     x=x_data,
     batch_size=512,
-    epochs=50,  # for better results, increase the number of epochs to 500.
+    epochs=1,  # for better results, increase the number of epochs to 500.
 )
 
 
@@ -311,7 +311,7 @@ for batch_idx in tqdm(range(num_batches)):
     end_idx = start_idx + batch_size
     current_batch = feature_vectors[start_idx:end_idx]
     # Compute the dot similarity.
-    similarities = keras.ops.matmul(current_batch, keras.ops.transpose(feature_vectors))
+    similarities = tf.linalg.matmul(current_batch, feature_vectors, transpose_b=True)
     # Get the indices of most similar vectors.
     _, indices = keras.ops.top_k(similarities, k=k_neighbours + 1, sorted=True)
     # Add the indices to the neighbours.
