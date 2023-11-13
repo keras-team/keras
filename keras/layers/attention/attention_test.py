@@ -99,3 +99,14 @@ class AttentionTest(testing.TestCase):
 
         with self.assertRaisesRegex(ValueError, "length 2 or 3"):
             layer([tensor, tensor], mask=[tensor])
+
+    def test_attention_with_dropout(self):
+        layer = layers.Attention(dropout=0.2)
+        query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
+        value = np.array([[[1.0, 1.0], [1.0, 1.0]]])
+        output, scores = layer(
+            [query, value],
+            return_attention_scores=True,
+        )
+        self.assertAllClose(output, [[[1.0, 1.0], [1.0, 1.0]]])
+        self.assertAllClose(scores, [[[0.5, 0.5], [0.5, 0.5]]])
