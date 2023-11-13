@@ -506,7 +506,7 @@ total_training_steps = training_step_size * EPOCHS
 print(f"Total training steps: {total_training_steps}.")
 
 lr_schedule = keras.optimizers.schedules.ExponentialDecay(
-    initial_learning_rate=0.003, decay_steps=total_training_steps * 5, decay_rate=0.5, staircase=True
+    initial_learning_rate=0.003, decay_steps=training_step_size * 5, decay_rate=0.5, staircase=True
 )
 
 steps = range(total_training_steps)
