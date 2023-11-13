@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-import keras as keras
+import keras
 from keras import testing
 from keras.applications import imagenet_utils as utils
 from keras.mixed_precision import set_dtype_policy

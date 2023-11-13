@@ -10,6 +10,7 @@ from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.name_scope import name_scope as base_name_scope
 from keras.backend.common.stateless_scope import StatelessScope
+from keras.backend.common.stateless_scope import in_stateless_scope
 from keras.utils.naming import auto_name
 
 SUPPORTS_SPARSE_TENSORS = True
@@ -30,6 +31,21 @@ class Variable(
         self._value = tf.Variable(
             value, dtype=self._dtype, trainable=self.trainable, name=self.name
         )
+
+    def _deferred_initialize(self):
+        if self._value is not None:
+            raise ValueError(f"Variable {self.path} is already initialized.")
+
+        if in_stateless_scope():
+            raise ValueError(
+                "You are attempting to initialize a variable "
+                "while in a stateless scope. This is disallowed. "
+                "Make sure that all variables are initialized "
+                "before you start using your layer/model objects."
+            )
+        with tf.init_scope():
+            value = self._initializer(self._shape, dtype=self._dtype)
+            self._initialize(value)
 
     def _direct_assign(self, value):
         self._value.assign(tf.cast(value, self._value.dtype))
@@ -54,10 +70,21 @@ class Variable(
         return self.value._shared_name
 
     def _serialize_to_tensors(self):
-        return self.value._serialize_to_tensors()
+        try:
+            return self.value._serialize_to_tensors()
+        except NotImplementedError:
+            return {"VARIABLE_VALUE": self.value}
 
     def _restore_from_tensors(self, restored_tensors):
-        return self.value._restore_from_tensors(restored_tensors)
+        try:
+            return self.value._restore_from_tensors(restored_tensors)
+        except NotImplementedError:
+            self.assign(restored_tensors["VARIABLE_VALUE"])
+            return self.value
+
+    def _copy_trackable_to_cpu(self, object_map):
+        self.value._copy_trackable_to_cpu(object_map)
+        object_map[self] = tf.Variable(object_map[self.value])
 
     def _export_to_saved_model_graph(
         self, object_map, tensor_map, options, **kwargs
@@ -72,14 +99,8 @@ class Variable(
         return self.value._write_object_proto(proto, options)
 
 
-def convert_to_tensor(x, dtype=None, sparse=True):
-    """Convert to a TensorFlow tensor.
-
-    `sparse=True` means that `tf.SparseTensor`s are returned as-is, which is the
-    default with the TensorFlow backend. An explicit `sparse=False` densifies
-    `tf.SparseTensor`s.
-    """
-    if isinstance(x, tf.SparseTensor) and not sparse:
+def convert_to_tensor(x, dtype=None, sparse=None):
+    if isinstance(x, tf.SparseTensor) and sparse is not None and not sparse:
         x = tf.sparse.to_dense(x)
     if dtype is not None:
         dtype = standardize_dtype(dtype)

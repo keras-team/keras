@@ -546,7 +546,7 @@ def index_directory(
                         subdir = subdir[:-1]
                     subdirs.append(subdir)
         if class_names is not None:
-            if set(class_names).issubset(set(subdirs)):
+            if not set(class_names).issubset(set(subdirs)):
                 raise ValueError(
                     "The `class_names` passed did not match the "
                     "names of the subdirectories of the target directory. "
@@ -609,7 +609,7 @@ def index_directory(
                 f"{len(labels)} while we found {len(filenames)} files "
                 f"in directory {directory}."
             )
-        class_names = sorted(set(labels))
+        class_names = [str(label) for label in sorted(set(labels))]
 
     if labels is None:
         io_utils.print_msg(f"Found {len(filenames)} files.")
@@ -697,11 +697,13 @@ def get_training_or_validation_split(samples, labels, validation_split, subset):
             f"Using {len(samples) - num_val_samples} " f"files for training."
         )
         samples = samples[:-num_val_samples]
-        labels = labels[:-num_val_samples]
+        if labels is not None:
+            labels = labels[:-num_val_samples]
     elif subset == "validation":
         io_utils.print_msg(f"Using {num_val_samples} files for validation.")
         samples = samples[-num_val_samples:]
-        labels = labels[-num_val_samples:]
+        if labels is not None:
+            labels = labels[-num_val_samples:]
     else:
         raise ValueError(
             '`subset` must be either "training" '

@@ -162,7 +162,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         )
 
         # Copy from remote to temporary local directory
-        file_utils.copy(filepath, local_path, overwrite=True)
+        file_utils.copy(filepath, local_path)
 
         # Switch filepath to local zipfile for loading model
         if zipfile.is_zipfile(local_path):

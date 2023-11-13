@@ -84,7 +84,7 @@ import nltk
 import random
 import logging
 
-import keras as keras
+import keras
 
 nltk.download("punkt")
 # Set random seed

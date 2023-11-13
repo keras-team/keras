@@ -958,3 +958,38 @@ def erf(x):
         return Erf().symbolic_call(x)
     x = backend.convert_to_tensor(x)
     return backend.math.erf(x)
+
+
+class Solve(Operation):
+    def call(self, a, b):
+        a = backend.convert_to_tensor(a)
+        b = backend.convert_to_tensor(b)
+        return backend.math.solve(a, b)
+
+    def compute_output_spec(self, a, b):
+        return KerasTensor(shape=a.shape, dtype=a.dtype)
+
+
+@keras_export("keras.ops.solve")
+def solve(a, b):
+    """Solves for `x` in the equation `a * x = b`.
+
+    Args:
+        a: Input tensor.
+        b: Input tensor.
+
+    Returns:
+        A tensor with the same shape and dtype as `a`.
+
+    Example:
+
+    >>> a = np.array([[1, 2], [4, 5]], dtype="float32")
+    >>> b = np.array([[2, 4], [8, 10]], dtype="float32")
+    >>> keras.ops.solve(x1, x2)
+    array([[2, 0], [0, 2]], dtype="float32")
+    """
+    if any_symbolic_tensors((a, b)):
+        return Solve().symbolic_call(a, b)
+    a = backend.convert_to_tensor(a)
+    b = backend.convert_to_tensor(b)
+    return backend.math.solve(a, b)

@@ -20,7 +20,7 @@ autoencoder model to detect anomalies in timeseries data.
 
 import numpy as np
 import pandas as pd
-import keras as keras
+import keras
 from keras import layers
 from matplotlib import pyplot as plt
 

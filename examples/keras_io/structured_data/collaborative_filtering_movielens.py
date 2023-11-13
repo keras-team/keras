@@ -37,7 +37,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from zipfile import ZipFile
 
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 

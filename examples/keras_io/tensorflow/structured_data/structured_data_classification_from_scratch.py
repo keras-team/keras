@@ -51,7 +51,7 @@ Target | Diagnosis of heart disease (1 = true; 0 = false) | Target
 
 import tensorflow as tf
 import pandas as pd
-import keras as keras
+import keras
 from keras import layers
 
 """

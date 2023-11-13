@@ -47,7 +47,7 @@ from glob import glob
 from PIL import Image, ImageOps
 import matplotlib.pyplot as plt
 
-import keras as keras
+import keras
 from keras import layers
 
 import tensorflow as tf

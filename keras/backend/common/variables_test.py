@@ -2,9 +2,11 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras import backend
 from keras import initializers
+from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.backend.common.variables import AutocastScope
 from keras.backend.common.variables import KerasVariable
 from keras.backend.common.variables import shape_equal
@@ -78,7 +80,7 @@ class VariableInitializationTest(test_case.TestCase):
             KerasVariable(initializer=lambda: np.ones((2, 2)))
 
 
-class VariablePropertiesTest(test_case.TestCase):
+class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
     """Tests for KerasVariable._deferred_initialize
     KerasVariable._maybe_autocast"""
 
@@ -139,6 +141,30 @@ class VariablePropertiesTest(test_case.TestCase):
 
         with AutocastScope("float16"):
             self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
+
+    @parameterized.parameters(
+        *((dtype for dtype in ALLOWED_DTYPES if dtype != "string"))
+    )
+    def test_standardize_dtype(self, dtype):
+        """Tests standardize_dtype for all ALLOWED_DTYPES except string."""
+        if backend.backend() == "torch" and dtype in (
+            "uint16",
+            "uint32",
+            "uint64",
+        ):
+            self.skipTest(f"torch backend does not support dtype {dtype}")
+
+        if backend.backend() == "jax":
+            import jax
+
+            if not jax.config.x64_enabled and "64" in dtype:
+                self.skipTest(
+                    f"jax backend does not support {dtype} without x64 enabled"
+                )
+
+        x = backend.convert_to_tensor(np.zeros(()), dtype)
+        actual = standardize_dtype(x.dtype)
+        self.assertEqual(actual, dtype)
 
     def test_standardize_dtype_with_torch_dtype(self):
         """Tests dtype standardization with PyTorch dtypes."""

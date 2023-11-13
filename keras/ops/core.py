@@ -10,6 +10,7 @@ cast
 convert_to_tensor
 convert_to_numpy
 cond
+is_tensor
 """
 
 import numpy as np
@@ -402,7 +403,7 @@ def unstack(x, num=None, axis=0):
 def shape(x):
     """Gets the shape of the tensor input.
 
-    Note: On the tensorflow backend, when `x` is a `tf.Tensor` with dynamic
+    Note: On the TensorFlow backend, when `x` is a `tf.Tensor` with dynamic
     shape, dimensions which are dynamic in the context of a compiled function
     will have a `tf.Tensor` value instead of a static integer value.
 
@@ -461,12 +462,15 @@ def cast(x, dtype):
 
 
 @keras_export("keras.ops.convert_to_tensor")
-def convert_to_tensor(x, dtype=None):
+def convert_to_tensor(x, dtype=None, sparse=None):
     """Convert a NumPy array to a tensor.
 
     Args:
         x: A NumPy array.
         dtype: The target type.
+        sparse: Whether to keep sparse tensors. `False` will cause sparse
+            tensors to be densified. The default value of `None` means that
+            sparse tensors are kept only if the backend supports them.
 
     Returns:
         A tensor of the specified `dtype`.
@@ -476,7 +480,7 @@ def convert_to_tensor(x, dtype=None):
     >>> x = np.array([1, 2, 3])
     >>> y = keras.ops.convert_to_tensor(x)
     """
-    return backend.convert_to_tensor(x, dtype=dtype)
+    return backend.convert_to_tensor(x, dtype=dtype, sparse=sparse)
 
 
 @keras_export("keras.ops.convert_to_numpy")
@@ -592,3 +596,53 @@ def cond(pred, true_fn, false_fn):
         The output of either `true_fn` or `false_fn` depending on pred.
     """
     return Cond()(pred, true_fn, false_fn)
+
+
+# TODO: also create an Op subclass VectorizedMap.
+@keras_export("keras.ops.vectorized_map")
+def vectorized_map(function, elements):
+    """Parallel map of `function` on axis 0 of tensor(s) `elements`.
+
+    Schematically, `vectorized_map` implements the following,
+    in the case of a single tensor input `elements`:
+
+    ```python
+    def vectorized_map(function, elements)
+        outputs = []
+        for e in elements:
+            outputs.append(function(e))
+        return stack(outputs)
+    ```
+
+    In the case of an iterable of tensors `elements`,
+    it implements the following:
+
+    ```python
+    def vectorized_map(function, elements)
+        batch_size = elements[0].shape[0]
+        outputs = []
+        for index in range(batch_size):
+            outputs.append(function([e[index] for e in elements]))
+        return np.stack(outputs)
+    ```
+
+    In this case, `function` is expected to take as input
+    a single list of tensor arguments.
+    """
+    return backend.core.vectorized_map(function, elements)
+
+
+@keras_export("keras.ops.is_tensor")
+def is_tensor(x):
+    """Check whether the given object is a tensor.
+
+    Note: This checks for backend specific tensors so passing a TensorFlow
+    tensor would return `False` if your backend is PyTorch or JAX.
+
+    Args:
+        x: A variable.
+
+    Returns:
+        `True` if `x` is a tensor, otherwise `False`.
+    """
+    return backend.core.is_tensor(x)

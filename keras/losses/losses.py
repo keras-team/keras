@@ -182,6 +182,9 @@ class CosineSimilarity(LossFunctionWrapper):
             cosine_similarity, reduction=reduction, name=name, axis=axis
         )
 
+    def get_config(self):
+        return Loss.get_config(self)
+
 
 @keras_export("keras.losses.Huber")
 class Huber(LossFunctionWrapper):
@@ -217,6 +220,9 @@ class Huber(LossFunctionWrapper):
     ):
         super().__init__(huber, name=name, reduction=reduction, delta=delta)
 
+    def get_config(self):
+        return Loss.get_config(self)
+
 
 @keras_export("keras.losses.LogCosh")
 class LogCosh(LossFunctionWrapper):
@@ -239,6 +245,9 @@ class LogCosh(LossFunctionWrapper):
 
     def __init__(self, reduction="sum_over_batch_size", name="log_cosh"):
         super().__init__(log_cosh, name=name, reduction=reduction)
+
+    def get_config(self):
+        return Loss.get_config(self)
 
 
 @keras_export("keras.losses.Hinge")

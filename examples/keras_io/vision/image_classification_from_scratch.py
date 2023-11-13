@@ -2,7 +2,7 @@
 Title: Image classification from scratch
 Author: [fchollet](https://twitter.com/fchollet)
 Date created: 2020/04/27
-Last modified: 2022/11/10
+Last modified: 2023/11/09
 Description: Training an image classifier from scratch on the Kaggle Cats vs Dogs dataset.
 Accelerator: GPU
 """
@@ -12,7 +12,7 @@ Accelerator: GPU
 This example shows how to do image classification from scratch, starting from JPEG
 image files on disk, without leveraging pre-trained weights or a pre-made Keras
 Application model. We demonstrate the workflow on the Kaggle Cats vs Dogs binary
- classification dataset.
+classification dataset.
 
 We use the `image_dataset_from_directory` utility to generate the datasets, and
 we use Keras image preprocessing layers for image standardization and data augmentation.
@@ -22,11 +22,11 @@ we use Keras image preprocessing layers for image standardization and data augme
 ## Setup
 """
 
-import tensorflow as tf
+import os
+import numpy as np
 import keras
 from keras import layers
-import os
-from pathlib import Path
+from tensorflow import data as tf_data
 import matplotlib.pyplot as plt
 
 """
@@ -37,18 +37,23 @@ import matplotlib.pyplot as plt
 First, let's download the 786M ZIP archive of the raw data:
 """
 
-fpath = keras.utils.get_file(
-    origin="https://download.microsoft.com/download/3/E/1/3E1C3F21-ECDB-4869-8368-6DEBA77B919F/kagglecatsanddogs_5340.zip"
-)
-dirpath = Path(fpath).parent.absolute()
-os.system(f"unzip -q {fpath} -d {dirpath}")
+"""shell
+curl -O https://download.microsoft.com/download/3/E/1/3E1C3F21-ECDB-4869-8368-6DEBA77B919F/kagglecatsanddogs_5340.zip
+"""
+
+"""shell
+unzip -q kagglecatsanddogs_5340.zip
+ls
+"""
 
 """
 Now we have a `PetImages` folder which contain two subfolders, `Cat` and `Dog`. Each
 subfolder contains image files for each category.
 """
 
-os.system(f"ls {dirpath}/PetImages/")
+"""shell
+ls PetImages
+"""
 
 """
 ### Filter out corrupted images
@@ -58,16 +63,14 @@ occurence. Let's filter out badly-encoded images that do not feature the string 
 in their header.
 """
 
-import os
-
 num_skipped = 0
 for folder_name in ("Cat", "Dog"):
-    folder_path = os.path.join(dirpath, "PetImages", folder_name)
+    folder_path = os.path.join("PetImages", folder_name)
     for fname in os.listdir(folder_path):
         fpath = os.path.join(folder_path, fname)
         try:
             fobj = open(fpath, "rb")
-            is_jfif = tf.compat.as_bytes("JFIF") in fobj.peek(10)
+            is_jfif = b"JFIF" in fobj.peek(10)
         finally:
             fobj.close()
 
@@ -76,7 +79,7 @@ for folder_name in ("Cat", "Dog"):
             # Delete corrupted image
             os.remove(fpath)
 
-print(f"Deleted {num_skipped} images")
+print(f"Deleted {num_skipped} images.")
 
 """
 ## Generate a `Dataset`
@@ -86,7 +89,7 @@ image_size = (180, 180)
 batch_size = 128
 
 train_ds, val_ds = keras.utils.image_dataset_from_directory(
-    os.path.join(dirpath, "PetImages"),
+    "PetImages",
     validation_split=0.2,
     subset="both",
     seed=1337,
@@ -97,15 +100,15 @@ train_ds, val_ds = keras.utils.image_dataset_from_directory(
 """
 ## Visualize the data
 
-Here are the first 9 images in the training dataset. As you can see, label 1 is "dog"
-and label 0 is "cat".
+Here are the first 9 images in the training dataset.
 """
+
 
 plt.figure(figsize=(10, 10))
 for images, labels in train_ds.take(1):
     for i in range(9):
         ax = plt.subplot(3, 3, i + 1)
-        plt.imshow(images[i].numpy().astype("uint8"))
+        plt.imshow(np.array(images[i]).astype("uint8"))
         plt.title(int(labels[i]))
         plt.axis("off")
 
@@ -119,16 +122,20 @@ helps expose the model to different aspects of the training data while slowing d
 overfitting.
 """
 
-data_augmentation = keras.Sequential(
-    [
-        layers.RandomFlip("horizontal"),
-        layers.RandomRotation(0.1),
-    ]
-)
+data_augmentation_layers = [
+    layers.RandomFlip("horizontal"),
+    layers.RandomRotation(0.1),
+]
+
+def data_augmentation(images):
+    for layer in data_augmentation_layers:
+        images = layer(images)
+    return images
+
 
 """
 Let's visualize what the augmented samples look like, by applying `data_augmentation`
-repeatedly to the first image in the dataset:
+repeatedly to the first few images in the dataset:
 """
 
 plt.figure(figsize=(10, 10))
@@ -136,8 +143,9 @@ for images, _ in train_ds.take(1):
     for i in range(9):
         augmented_images = data_augmentation(images)
         ax = plt.subplot(3, 3, i + 1)
-        plt.imshow(augmented_images[0].numpy().astype("uint8"))
+        plt.imshow(np.array(augmented_images[0]).astype("uint8"))
         plt.axis("off")
+
 
 """
 ## Standardizing the data
@@ -199,15 +207,14 @@ and let's make sure to use buffered prefetching so we can yield data from disk w
 having I/O becoming blocking:
 """
 
-print("Make datasets")
 # Apply `data_augmentation` to the training images.
 train_ds = train_ds.map(
     lambda img, label: (data_augmentation(img), label),
-    num_parallel_calls=tf.data.AUTOTUNE,
+    num_parallel_calls=tf_data.AUTOTUNE,
 )
 # Prefetching samples in GPU memory helps maximize GPU utilization.
-train_ds = train_ds.prefetch(tf.data.AUTOTUNE)
-val_ds = val_ds.prefetch(tf.data.AUTOTUNE)
+train_ds = train_ds.prefetch(tf_data.AUTOTUNE)
+val_ds = val_ds.prefetch(tf_data.AUTOTUNE)
 
 """
 ## Build a model
@@ -260,14 +267,13 @@ def make_model(input_shape, num_classes):
 
     x = layers.GlobalAveragePooling2D()(x)
     if num_classes == 2:
-        activation = "sigmoid"
         units = 1
     else:
-        activation = "softmax"
         units = num_classes
 
-    x = layers.Dropout(0.5)(x)
-    outputs = layers.Dense(units, activation=activation)(x)
+    x = layers.Dropout(0.25)(x)
+    # We specify activation=None so as to return logits
+    outputs = layers.Dense(units, activation=None)(x)
     return keras.Model(inputs, outputs)
 
 
@@ -283,11 +289,10 @@ epochs = 25
 callbacks = [
     keras.callbacks.ModelCheckpoint("save_at_{epoch}.keras"),
 ]
-
 model.compile(
-    optimizer=keras.optimizers.Adam(1e-3),
-    loss="binary_crossentropy",
-    metrics=["accuracy"],
+    optimizer=keras.optimizers.Adam(3e-4),
+    loss=keras.losses.BinaryCrossentropy(from_logits=True),
+    metrics=[keras.metrics.BinaryAccuracy(name="acc")],
 )
 model.fit(
     train_ds,
@@ -307,12 +312,12 @@ We get to >90% validation accuracy after training for 25 epochs on the full data
 Note that data augmentation and dropout are inactive at inference time.
 """
 
-img = keras.utils.load_img(
-    f"{dirpath}/PetImages/Cat/6779.jpg", target_size=image_size
-)
+img = keras.utils.load_img("PetImages/Cat/6779.jpg", target_size=image_size)
+plt.imshow(img)
+
 img_array = keras.utils.img_to_array(img)
-img_array = tf.expand_dims(img_array, 0)  # Create batch axis
+img_array = keras.ops.expand_dims(img_array, 0)  # Create batch axis
 
 predictions = model.predict(img_array)
-score = float(predictions[0])
+score = float(keras.ops.sigmoid(predictions[0]))
 print(f"This image is {100 * (1 - score):.2f}% cat and {100 * score:.2f}% dog.")

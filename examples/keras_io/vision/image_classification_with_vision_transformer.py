@@ -27,7 +27,7 @@ import os
 
 os.environ["KERAS_BACKEND"] = "jax"  # @param ["tensorflow", "jax", "torch"]
 
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 
@@ -112,7 +112,7 @@ class Patches(layers.Layer):
         self.patch_size = patch_size
 
     def call(self, images):
-        input_shape = ops.backend.shape(images)
+        input_shape = ops.shape(images)
         batch_size = input_shape[0]
         height = input_shape[1]
         width = input_shape[2]
@@ -276,7 +276,7 @@ def run_experiment(model):
         ],
     )
 
-    checkpoint_filepath = "/tmp/checkpoint"
+    checkpoint_filepath = "/tmp/checkpoint.weights.h5"
     checkpoint_callback = keras.callbacks.ModelCheckpoint(
         checkpoint_filepath,
         monitor="val_accuracy",

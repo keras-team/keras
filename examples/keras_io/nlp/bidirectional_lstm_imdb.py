@@ -11,7 +11,7 @@ Accelerator: GPU
 """
 
 import numpy as np
-import keras as keras
+import keras
 from keras import layers
 
 max_features = 20000  # Only consider the top 20k words

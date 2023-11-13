@@ -1,5 +1,8 @@
+import contextlib
+
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras import backend
 from keras import layers
@@ -9,6 +12,7 @@ from keras import ops
 from keras import optimizers
 from keras import testing
 from keras.backend.common.keras_tensor import KerasTensor
+from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import core
 
 
@@ -316,11 +320,10 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         x_default = ops.convert_to_tensor(x)
         self.assertIsInstance(x_default, tf.SparseTensor)
         self.assertAllClose(x, x_default)
-        # Note that ops.convert_to_tensor does not expose the 'sparse' arg
-        x_sparse = backend.convert_to_tensor(x, sparse=True)
+        x_sparse = ops.convert_to_tensor(x, sparse=True)
         self.assertIsInstance(x_sparse, tf.SparseTensor)
         self.assertAllClose(x, x_sparse)
-        x_dense = backend.convert_to_tensor(x, sparse=False)
+        x_dense = ops.convert_to_tensor(x, sparse=False)
         self.assertNotIsInstance(x_dense, tf.SparseTensor)
         self.assertAllClose(x, x_dense)
 
@@ -387,3 +390,86 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertEqual("float16", y.dtype)
         self.assertEqual(x.shape, y.shape)
         self.assertTrue(hasattr(y, "_keras_history"))
+
+    def test_vectorized_map(self):
+        def fn(x):
+            return x + 1
+
+        output = ops.vectorized_map(fn, ops.zeros((2, 3), dtype="float32"))
+        self.assertAllClose(backend.convert_to_numpy(output), np.ones((2, 3)))
+
+        def fn(x):
+            return ops.stack([x, x])
+
+        output = ops.vectorized_map(fn, ops.zeros((2, 3), dtype="float32"))
+        self.assertAllClose(
+            backend.convert_to_numpy(output), np.zeros((2, 2, 3))
+        )
+
+        # Case: multiple args
+        def fn(elems):
+            x, y = elems
+            return x + y
+
+        output = ops.vectorized_map(fn, [ops.ones((2, 3)), ops.ones((2, 3))])
+        self.assertAllClose(
+            backend.convert_to_numpy(output), 2 * np.ones((2, 3))
+        )
+
+
+class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
+    # TODO: Using uint64 will lead to weak type promotion (`float`),
+    # resulting in different behavior between JAX and Keras. Currently, we
+    # are skipping the test for uint64
+    ALL_DTYPES = [
+        x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
+    ] + [None]
+
+    if backend.backend() == "torch":
+        # TODO: torch doesn't support uint16, uint32 and uint64
+        ALL_DTYPES = [
+            x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
+        ]
+
+    @parameterized.parameters(
+        (bool(0), "bool"),
+        (int(0), "int32"),
+        (float(0), backend.floatx()),
+        ([False, True, False], "bool"),
+        ([1, 2, 3], "int32"),
+        ([1.0, 2.0, 3.0], backend.floatx()),
+        ([1, 2.0, 3], backend.floatx()),
+        ([[False], [True], [False]], "bool"),
+        ([[1], [2], [3]], "int32"),
+        ([[1], [2.0], [3]], backend.floatx()),
+        *[
+            (np.array(0, dtype=dtype), dtype)
+            for dtype in ALL_DTYPES
+            if dtype is not None
+        ],
+    )
+    def test_convert_to_tensor(self, x, expected_dtype):
+        # We have to disable x64 for jax backend since jnp.array doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
+        # the expected dtype from 64 bit to 32 bit.
+        if backend.backend() == "jax":
+            import jax.experimental
+
+            jax_disable_x64 = jax.experimental.disable_x64()
+            expected_dtype = expected_dtype.replace("64", "32")
+        else:
+            jax_disable_x64 = contextlib.nullcontext()
+
+        with jax_disable_x64:
+            self.assertEqual(
+                backend.standardize_dtype(ops.convert_to_tensor(x).dtype),
+                expected_dtype,
+            )
+
+    def test_is_tensor(self):
+        np_x = np.array([[1, 2, 3], [3, 2, 1]])
+        x = backend.convert_to_tensor(np_x)
+        if backend.backend() != "numpy":
+            self.assertFalse(ops.is_tensor(np_x))
+        self.assertTrue(ops.is_tensor(x))
+        self.assertFalse(ops.is_tensor([1, 2, 3]))

@@ -439,7 +439,8 @@ def _get_logits(output, from_logits, op_type, fn_name):
         from_logits_ = True
 
     from_expected_op_type = (
-        not isinstance(output, (tf.__internal__.EagerTensor, tf.Variable))
+        hasattr(output, "op")
+        and not isinstance(output, (tf.__internal__.EagerTensor, tf.Variable))
         and output.op.type == op_type
     ) and not has_keras_logits
 
@@ -564,6 +565,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         raise ValueError(
             f"Only axis=-1 is currently supported. Received: axis={axis}"
         )
+    output, from_logits = _get_logits(
+        output, from_logits, "Softmax", "sparse_categorical_crossentropy"
+    )
 
     target = tf.convert_to_tensor(target)
     target = tf.cast(target, dtype="int64")
@@ -591,9 +595,6 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
 
-    output, from_logits = _get_logits(
-        output, from_logits, "Softmax", "sparse_categorical_crossentropy"
-    )
     if not from_logits:
         output = tf.clip_by_value(output, epsilon(), 1 - epsilon())
         output = tf.math.log(output)
@@ -637,6 +638,7 @@ def binary_crossentropy(target, output, from_logits=False):
     output, from_logits = _get_logits(
         output, from_logits, "Sigmoid", "binary_crossentropy"
     )
+
     if from_logits:
         return tf.nn.sigmoid_cross_entropy_with_logits(
             labels=target, logits=output

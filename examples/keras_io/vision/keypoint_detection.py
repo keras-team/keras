@@ -58,7 +58,7 @@ unzip -qq ~/stanfordextra_v12.zip
 ## Imports
 """
 from keras import layers
-import keras as keras
+import keras
 
 from imgaug.augmentables.kps import KeypointsOnImage
 from imgaug.augmentables.kps import Keypoint

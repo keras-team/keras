@@ -14,7 +14,7 @@ This example requires TensorFlow 2.3 or higher.
 
 import pandas as pd
 import matplotlib.pyplot as plt
-import keras as keras
+import keras
 
 """
 ## Climate Data Time-Series

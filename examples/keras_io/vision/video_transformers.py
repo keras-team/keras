@@ -47,7 +47,7 @@ import os
 
 os.environ["KERAS_BACKEND"] = "jax"  # @param ["tensorflow", "jax", "torch"]
 
-import keras as keras
+import keras
 from keras import layers
 from keras.applications.densenet import DenseNet121
 

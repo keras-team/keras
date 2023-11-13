@@ -470,7 +470,7 @@ def listdir(path):
 def copy(src, dst):
     if is_remote_path(src) or is_remote_path(dst):
         if gfile.available:
-            return gfile.copy(src, dst)
+            return gfile.copy(src, dst, overwrite=True)
         else:
             _raise_if_no_gfile(f"src={src} dst={dst}")
     return shutil.copy(src, dst)

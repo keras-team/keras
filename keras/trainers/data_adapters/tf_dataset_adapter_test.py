@@ -252,3 +252,30 @@ class TestTFDatasetAdapter(testing.TestCase):
             else:
                 self.assertEqual(tuple(bx.shape), (2, 4))
                 self.assertEqual(tuple(by.shape), (2, 2))
+
+    def test_tf_sparse_tensors(self):
+        x = tf.SparseTensor(
+            indices=[[0, 0], [1, 2]], values=[1.0, 2.0], dense_shape=(2, 4)
+        )
+        y = tf.SparseTensor(
+            indices=[[0, 0], [1, 1]], values=[3.0, 4.0], dense_shape=(2, 2)
+        )
+        base_ds = tf.data.Dataset.from_tensors((x, y))
+        adapter = tf_dataset_adapter.TFDatasetAdapter(base_ds)
+
+        gen = adapter.get_numpy_iterator()
+        for batch in gen:
+            self.assertEqual(len(batch), 2)
+            bx, by = batch
+            self.assertIsInstance(bx, np.ndarray)
+            self.assertIsInstance(by, np.ndarray)
+            self.assertEqual(bx.shape, (2, 4))
+            self.assertEqual(by.shape, (2, 2))
+        ds = adapter.get_tf_dataset()
+        for batch in ds:
+            self.assertEqual(len(batch), 2)
+            bx, by = batch
+            self.assertIsInstance(bx, tf.SparseTensor)
+            self.assertIsInstance(by, tf.SparseTensor)
+            self.assertEqual(bx.shape, (2, 4))
+            self.assertEqual(by.shape, (2, 2))

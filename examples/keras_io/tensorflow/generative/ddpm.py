@@ -90,7 +90,7 @@ import matplotlib.pyplot as plt
 
 # Requires TensorFlow >=2.11 for the GroupNormalization layer.
 import tensorflow as tf
-import keras as keras
+import keras
 from keras import layers
 import tensorflow_datasets as tfds
 
