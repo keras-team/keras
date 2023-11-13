@@ -313,7 +313,9 @@ def cosh(x):
 
 def count_nonzero(x, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.count_nonzero(x, axis=axis)
+    # np.count_nonzero will return python int when axis=None, so we need
+    # to convert_to_tensor
+    return convert_to_tensor(np.count_nonzero(x, axis=axis)).astype("int32")
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):

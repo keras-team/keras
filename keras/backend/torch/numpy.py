@@ -433,7 +433,7 @@ def count_nonzero(x, axis=None):
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return cast(torch.ne(x, 0), "int32")
-    return torch.count_nonzero(x, dim=axis).T
+    return cast(torch.count_nonzero(x, dim=axis).T, "int32")
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=-1):

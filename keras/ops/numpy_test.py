@@ -5013,6 +5013,19 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_count_nonzero(self, dtype):
+        x = knp.ones((1,), dtype=dtype)
+        expected_dtype = "int32"
+
+        self.assertEqual(
+            standardize_dtype(knp.count_nonzero(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.CountNonzero().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
