@@ -3891,6 +3891,9 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Arange()(3, 7, 2), np.arange(3, 7, 2))
 
         self.assertEqual(standardize_dtype(knp.arange(3).dtype), "int32")
+        with pytest.warns(None) as record:
+            knp.arange(3, dtype="int")
+        self.assertEqual(len(record), 0)
 
     def test_full(self):
         self.assertAllClose(knp.full([2, 3], 0), np.full([2, 3], 0))

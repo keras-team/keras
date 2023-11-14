@@ -341,6 +341,7 @@ def arange(start, stop=None, step=1, dtype=None):
         if stop is not None:
             dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
         dtype = dtypes.result_type(*dtypes_to_resolve)
+    dtype = standardize_dtype(dtype)
     return tf.range(start, stop, delta=step, dtype=dtype)
 
 
