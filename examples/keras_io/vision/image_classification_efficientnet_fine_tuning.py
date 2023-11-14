@@ -281,7 +281,7 @@ model.compile(
 model.summary()
 
 epochs = 40  # @param {type: "slider", min:10, max:100}
-hist = model.fit(ds_train, epochs=epochs, validation_data=ds_test, verbose=2)
+hist = model.fit(ds_train, epochs=epochs, validation_data=ds_test)
 
 
 """
@@ -321,7 +321,7 @@ and we fine-tune it on our own dataset.
 
 def build_model(num_classes):
     inputs = layers.Input(shape=(IMG_SIZE, IMG_SIZE, 3))
-    model = EfficientNetB0(include_top=False, input_tensor=x, weights="imagenet")
+    model = EfficientNetB0(include_top=False, input_tensor=inputs, weights="imagenet")
 
     # Freeze the pretrained weights
     model.trainable = False
@@ -358,7 +358,7 @@ applied, the validation accuracy may only reach ~60%.
 model = build_model(num_classes=NUM_CLASSES)
 
 epochs = 25  # @param {type: "slider", min:8, max:80}
-hist = model.fit(ds_train, epochs=epochs, validation_data=ds_test, verbose=2)
+hist = model.fit(ds_train, epochs=epochs, validation_data=ds_test)
 plot_hist(hist)
 
 """
@@ -402,7 +402,7 @@ def unfreeze_model(model):
 unfreeze_model(model)
 
 epochs = 10  # @param {type: "slider", min:8, max:50}
-hist = model.fit(ds_train, epochs=epochs, validation_data=ds_test, verbose=2)
+hist = model.fit(ds_train, epochs=epochs, validation_data=ds_test)
 plot_hist(hist)
 
 """

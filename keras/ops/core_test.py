@@ -11,6 +11,7 @@ from keras import models
 from keras import ops
 from keras import optimizers
 from keras import testing
+from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import core
@@ -299,9 +300,27 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllEqual(x, (1, 1))
         self.assertIsInstance(x, np.ndarray)
 
+        # Empty lists should give an empty array with the default float type.
+        x = ops.convert_to_tensor([])
+        x = ops.convert_to_numpy(x)
+        self.assertAllEqual(x, [])
+        self.assertIsInstance(x, np.ndarray)
+        self.assertEqual(x.dtype.name, "float32")
+
         # Partially converted.
         x = ops.convert_to_tensor((1, ops.array(2), 3))
         self.assertAllEqual(x, (1, 2, 3))
+
+        # Check dtype convertion.
+        x = [[1, 0, 1], [1, 1, 0]]
+        output = ops.convert_to_tensor(x, dtype="int32")
+        self.assertEqual(standardize_dtype(output.dtype), "int32")
+        x = [[1, 0, 1], [1, 1, 0]]
+        output = ops.convert_to_tensor(x, dtype="float32")
+        self.assertEqual(standardize_dtype(output.dtype), "float32")
+        x = [[1, 0, 1], [1, 1, 0]]
+        output = ops.convert_to_tensor(x, dtype="bool")
+        self.assertEqual(standardize_dtype(output.dtype), "bool")
 
         with self.assertRaises(ValueError):
             ops.convert_to_numpy(KerasTensor((2,)))
