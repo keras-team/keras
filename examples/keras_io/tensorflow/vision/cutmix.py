@@ -1,11 +1,11 @@
 """
 Title: CutMix data augmentation for image classification
 Author: [Sayan Nath](https://twitter.com/sayannath2350)
-Converted to Keras 3 By: [Piyush Thakur](https://github.com/cosmo3769)
 Date created: 2021/06/08
-Last modified: 2023/07/24
+Last modified: 2023/11/14
 Description: Data augmentation with CutMix for image classification on CIFAR-10.
 Accelerator: GPU
+Converted to Keras 3 By: [Piyush Thakur](https://github.com/cosmo3769)
 """
 
 """
@@ -47,7 +47,6 @@ where `rx, ry` are randomly drawn from a uniform distribution with upper bound.
 """
 
 import numpy as np
-import pandas as pd
 import keras
 import matplotlib.pyplot as plt
 
@@ -147,7 +146,10 @@ test_ds = (
 """
 ## Define the CutMix data augmentation function
 
-The CutMix function takes two `image` and `label` pairs to perform the augmentation. It samples `λ(l)` from the [Beta distribution](https://en.wikipedia.org/wiki/Beta_distribution) and returns a bounding box from `get_box` function. We then crop the second image (`image2`) and pad this image in the final padded image at the same location.
+The CutMix function takes two `image` and `label` pairs to perform the augmentation.
+It samples `λ(l)` from the [Beta distribution](https://en.wikipedia.org/wiki/Beta_distribution)
+and returns a bounding box from `get_box` function. We then crop the second image (`image2`)
+and pad this image in the final padded image at the same location.
 """
 
 
