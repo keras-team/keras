@@ -175,7 +175,7 @@ class Attention(Layer):
                 weights,
                 self.dropout,
                 noise_shape=None,
-                seed=self.seed_generator,
+                seed=None,
             )
         return ops.matmul(weights, value), weights
 
