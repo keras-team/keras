@@ -5090,6 +5090,38 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_diff(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.diff(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.diff(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Diff().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_digitize(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        bins = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        x_bins = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.digitize(x_jax, x_bins).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.digitize(x, bins).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Digitize().symbolic_call(x, bins).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )

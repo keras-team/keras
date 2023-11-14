@@ -588,19 +588,35 @@ def diff(a, n=1, axis=-1):
 
 
 def digitize(x, bins):
+    x = convert_to_tensor(x)
     bins = list(bins)
+
+    # bins must be float type
+    bins = tf.nest.map_structure(lambda x: float(x), bins)
+
+    # TODO: tf.raw_ops.Bucketize doesn't support bool, bfloat16, float16, int8
+    # int16, uint8, uint16, uint32
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype in ("bool", "int8", "int16", "uint8", "uint16"):
+        x = tf.cast(x, "int32")
+    elif ori_dtype == "uint32":
+        x = tf.cast(x, "int64")
+    elif ori_dtype in ("bfloat16", "float16"):
+        x = tf.cast(x, "float32")
+
     if isinstance(x, tf.RaggedTensor):
-        return tf.ragged.map_flat_values(
+        out = tf.ragged.map_flat_values(
             lambda y: tf.raw_ops.Bucketize(input=y, boundaries=bins), x
         )
     elif isinstance(x, tf.SparseTensor):
-        return tf.SparseTensor(
+        out = tf.SparseTensor(
             indices=tf.identity(x.indices),
             values=tf.raw_ops.Bucketize(input=x.values, boundaries=bins),
             dense_shape=tf.identity(x.dense_shape),
         )
-    x = convert_to_tensor(x)
-    return tf.raw_ops.Bucketize(input=x, boundaries=bins)
+    else:
+        out = tf.raw_ops.Bucketize(input=x, boundaries=bins)
+    return out
 
 
 def dot(x, y):

@@ -497,6 +497,8 @@ def diff(a, n=1, axis=-1):
 def digitize(x, bins):
     x = convert_to_tensor(x)
     bins = convert_to_tensor(bins)
+    if standardize_dtype(x.dtype) == "bool":
+        x = cast(x, "uint8")
     return cast(torch.bucketize(x, bins, right=True), "int32")
 
 
