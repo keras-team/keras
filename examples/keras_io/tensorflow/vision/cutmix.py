@@ -105,7 +105,7 @@ IMG_SIZE = 32
 def preprocess_image(image, label):
     image = tf_image.resize(image, (IMG_SIZE, IMG_SIZE))
     image = tf_image.convert_image_dtype(image, "float32") / 255.0
-    label = keras.backend.cast(label, dtype="float32")
+    label = keras.ops.cast(label, dtype="float32")
     return image, label
 
 
@@ -163,15 +163,15 @@ def get_box(lambda_value):
     cut_rat = keras.ops.sqrt(1.0 - lambda_value)
 
     cut_w = IMG_SIZE * cut_rat  # rw
-    cut_w = keras.backend.cast(cut_w, "int32")
+    cut_w = keras.ops.cast(cut_w, "int32")
 
     cut_h = IMG_SIZE * cut_rat  # rh
-    cut_h = keras.backend.cast(cut_h, "int32")
+    cut_h = keras.ops.cast(cut_h, "int32")
 
     cut_x = keras.random.random.uniform((1,), minval=0, maxval=IMG_SIZE)  # rx
-    cut_x = keras.backend.cast(cut_x, "int32")
+    cut_x = keras.ops.cast(cut_x, "int32")
     cut_y = keras.random.random.uniform((1,), minval=0, maxval=IMG_SIZE)  # ry
-    cut_y = keras.backend.cast(cut_y, "int32")
+    cut_y = keras.ops.cast(cut_y, "int32")
 
     boundaryx1 = clip_by_value(cut_x[0] - cut_w // 2, 0, IMG_SIZE)
     boundaryy1 = clip_by_value(cut_y[0] - cut_h // 2, 0, IMG_SIZE)
@@ -229,7 +229,7 @@ def cutmix(train_ds_one, train_ds_two):
 
     # Adjust Lambda in accordance to the pixel ration
     lambda_value = 1 - (target_w * target_h) / (IMG_SIZE * IMG_SIZE)
-    lambda_value = keras.backend.cast(lambda_value, "float32")
+    lambda_value = keras.ops.cast(lambda_value, "float32")
 
     # Combine the labels of both images
     label = lambda_value * label1 + (1 - lambda_value) * label2
