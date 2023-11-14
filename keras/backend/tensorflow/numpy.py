@@ -605,18 +605,16 @@ def digitize(x, bins):
         x = tf.cast(x, "float32")
 
     if isinstance(x, tf.RaggedTensor):
-        out = tf.ragged.map_flat_values(
+        return tf.ragged.map_flat_values(
             lambda y: tf.raw_ops.Bucketize(input=y, boundaries=bins), x
         )
     elif isinstance(x, tf.SparseTensor):
-        out = tf.SparseTensor(
+        return tf.SparseTensor(
             indices=tf.identity(x.indices),
             values=tf.raw_ops.Bucketize(input=x.values, boundaries=bins),
             dense_shape=tf.identity(x.dense_shape),
         )
-    else:
-        out = tf.raw_ops.Bucketize(input=x, boundaries=bins)
-    return out
+    return tf.raw_ops.Bucketize(input=x, boundaries=bins)
 
 
 def dot(x, y):
