@@ -92,3 +92,10 @@ def shuffle(x, axis=0, seed=None):
     seed = draw_seed(seed)
     rng = np.random.default_rng(seed)
     return rng.permuted(x, axis=axis)
+
+
+def gamma(shape, alpha, dtype=None, seed=None):
+    dtype = dtype or floatx()
+    seed = draw_seed(seed)
+    rng = np.random.default_rng(seed)
+    return rng.gamma(alpha, scale=1.0, size=shape).astype(dtype)

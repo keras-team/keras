@@ -189,3 +189,13 @@ def shuffle(x, axis=0, seed=None):
         *[1 for _ in range(axis + 1)], *(x.shape[axis + 1 :])
     )
     return x.gather(axis, row_perm)
+
+
+def gamma(shape, alpha, dtype=None, seed=None):
+    dtype = dtype or floatx()
+    dtype = to_torch_dtype(dtype)
+    alpha = torch.ones(shape) * torch.tensor(alpha)
+    beta = torch.ones(shape)
+    # TODO: seed / generator not supported
+    gamma_distribution = torch.distributions.gamma.Gamma(alpha, beta)
+    return gamma_distribution.sample().type(dtype)
