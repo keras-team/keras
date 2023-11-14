@@ -56,7 +56,7 @@ from keras import layers
 from tensorflow import clip_by_value
 from tensorflow import data as tf_data
 from tensorflow import image as tf_image
-from tensorflow.random import gamma as tf_random_gamma
+from tensorflow import random as tf_random
 
 keras.utils.set_random_seed(42)
 
@@ -154,8 +154,8 @@ and pad this image in the final padded image at the same location.
 
 
 def sample_beta_distribution(size, concentration_0=0.2, concentration_1=0.2):
-    gamma_1_sample = tf_random_gamma(shape=[size], alpha=concentration_1)
-    gamma_2_sample = tf_random_gamma(shape=[size], alpha=concentration_0)
+    gamma_1_sample = tf_random.gamma(shape=[size], alpha=concentration_1)
+    gamma_2_sample = tf_random.gamma(shape=[size], alpha=concentration_0)
     return gamma_1_sample / (gamma_1_sample + gamma_2_sample)
 
 
@@ -168,9 +168,9 @@ def get_box(lambda_value):
     cut_h = IMG_SIZE * cut_rat  # rh
     cut_h = keras.ops.cast(cut_h, "int32")
 
-    cut_x = keras.random.random.uniform((1,), minval=0, maxval=IMG_SIZE)  # rx
+    cut_x = keras.random.uniform((1,), minval=0, maxval=IMG_SIZE)  # rx
     cut_x = keras.ops.cast(cut_x, "int32")
-    cut_y = keras.random.random.uniform((1,), minval=0, maxval=IMG_SIZE)  # ry
+    cut_y = keras.random.uniform((1,), minval=0, maxval=IMG_SIZE)  # ry
     cut_y = keras.ops.cast(cut_y, "int32")
 
     boundaryx1 = clip_by_value(cut_x[0] - cut_w // 2, 0, IMG_SIZE)
