@@ -1724,7 +1724,9 @@ class Cross(Operation):
         output_shape = (
             output_shape[: self.axisc] + value_size + output_shape[self.axisc :]
         )
-        return KerasTensor(output_shape, dtype=x1.dtype)
+
+        dtype = dtypes.result_type(x1.dtype, x2.dtype)
+        return KerasTensor(output_shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.cross", "keras.ops.numpy.cross"])

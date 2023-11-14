@@ -5043,6 +5043,56 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
+    def test_cross(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1, 1, 3), dtype=dtype1)
+        x2 = knp.ones((1, 1, 3), dtype=dtype2)
+        x1_jax = jnp.ones((1, 1, 3), dtype=dtype1)
+        x2_jax = jnp.ones((1, 1, 3), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.cross(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.cross(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            knp.Cross().symbolic_call(x1, x2).dtype, expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_diag(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.diag(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.diag(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Diag().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_diagonal(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1, 1, 1), dtype=dtype)
+        x_jax = jnp.ones((1, 1, 1), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.diagonal(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.diagonal(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Diagonal().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
     def test_divide(self, dtypes):
         import jax.numpy as jnp
 
