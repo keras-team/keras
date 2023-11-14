@@ -196,6 +196,10 @@ def gamma(shape, alpha, dtype=None, seed=None):
     dtype = to_torch_dtype(dtype)
     alpha = torch.ones(shape) * torch.tensor(alpha)
     beta = torch.ones(shape)
-    # TODO: seed / generator not supported
+    prev_rng_state = torch.random.get_rng_state()
+    first_seed, second_seed = draw_seed(seed)
+    torch.manual_seed(first_seed + second_seed)
     gamma_distribution = torch.distributions.gamma.Gamma(alpha, beta)
-    return gamma_distribution.sample().type(dtype)
+    sample = gamma_distribution.sample().type(dtype)
+    torch.random.set_rng_state(prev_rng_state)
+    return sample
