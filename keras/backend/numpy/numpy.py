@@ -1,4 +1,5 @@
 import numpy as np
+import tree
 
 from keras.backend import config
 from keras.backend import standardize_dtype
@@ -16,7 +17,17 @@ def add(x1, x2):
 
 
 def einsum(subscripts, *operands, **kwargs):
-    return np.einsum(subscripts, *operands, **kwargs)
+    operands = tree.map_structure(convert_to_tensor, operands)
+    dtypes_to_resolve = []
+    for x in operands:
+        dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
+    result_dtype = dtypes.result_type(*dtypes_to_resolve)
+    compute_dtype = result_dtype
+    # TODO: np.einsum doesn't support bfloat16
+    if compute_dtype == "bfloat16":
+        compute_dtype = "float32"
+    operands = tree.map_structure(lambda x: x.astype(compute_dtype), operands)
+    return np.einsum(subscripts, *operands, **kwargs).astype(result_dtype)
 
 
 def subtract(x1, x2):
@@ -389,6 +400,13 @@ def flip(x, axis=None):
 
 
 def floor(x):
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = x.astype(dtype)
     return np.floor(x)
 
 

@@ -71,7 +71,21 @@ def bincount(x, weights=None, minlength=0):
 
 
 def einsum(subscripts, *operands, **kwargs):
-    return tfnp.einsum(subscripts, *operands, **kwargs)
+    operands = tf.nest.map_structure(convert_to_tensor, operands)
+
+    dtypes_to_resolve = []
+    for x in operands:
+        dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
+    result_dtype = dtypes.result_type(*dtypes_to_resolve)
+    compute_dtype = result_dtype
+    # TODO: tfnp.einsum doesn't support integer dtype with gpu
+    if "int" in compute_dtype:
+        compute_dtype = config.floatx()
+
+    operands = tf.nest.map_structure(
+        lambda x: tf.cast(x, compute_dtype), operands
+    )
+    return tf.cast(tfnp.einsum(subscripts, *operands, **kwargs), result_dtype)
 
 
 @sparse.elementwise_binary_union(sparse.sparse_subtract)
@@ -652,7 +666,15 @@ def flip(x, axis=None):
 
 @sparse.elementwise_unary
 def floor(x):
-    return tfnp.floor(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    # TODO: tfnp.floor incorrectly promote bfloat16 to float64
+    return tf.cast(tfnp.floor(x), dtype)
 
 
 def full(shape, fill_value, dtype=None):
@@ -687,6 +709,12 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
+    xs = tf.nest.map_structure(convert_to_tensor, xs)
+    dtypes_to_resolve = []
+    for x in xs:
+        dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
+    dtype = dtypes.result_type(*dtypes_to_resolve)
+    xs = tf.nest.map_structure(lambda x: tf.cast(x, dtype), xs)
     return tfnp.hstack(xs)
 
 
