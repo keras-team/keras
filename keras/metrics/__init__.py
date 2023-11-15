@@ -179,9 +179,9 @@ def get(identifier):
     <class '...metrics.CategoricalCrossentropy'>
 
     Args:
-        identifier: A metric identifier. One of None or string name of a metric
-            function/class or metric configuration dictionary or a metric
-            function or a metric class instance
+        identifier: ```Optional[str]```. A metric identifier. One of `None` or
+            string name of a loss function/class or loss configuration dict
+            or a loss function or a metric class instance.
 
     Returns:
         A Keras metric as a `function`/ `Metric` class instance.

@@ -79,9 +79,11 @@ def MobileNetV2(
                 are used at each layer. Defaults to `1.0`.
         include_top: Boolean, whether to include the fully-connected layer
             at the top of the network. Defaults to `True`.
-        weights: One of `None` (random initialization), `"imagenet"`
-            (pre-training on ImageNet), or the path to the weights file
-            to be loaded. Defaults to `"imagenet"`.
+        weights: ```Optional[Union[Literal["imagenet"], str]]```.
+            - None: random initialization
+            - 'imagenet': (pre-training on ImageNet)
+            - str: path to the weights file to be loaded
+            Defaults to `"imagenet"`.
         input_tensor: Optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model. `input_tensor` is useful
             for sharing inputs between multiple different networks.

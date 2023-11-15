@@ -28,14 +28,12 @@ class ZeroPadding3D(Layer):
             - If tuple of 3 tuples of 2 ints: interpreted as
               `((left_dim1_pad, right_dim1_pad), (left_dim2_pad,
               right_dim2_pad), (left_dim3_pad, right_dim3_pad))`.
-        data_format: A string, one of `"channels_last"` (default) or
-            `"channels_first"`. The ordering of the dimensions in the inputs.
-            `"channels_last"` corresponds to inputs with shape
-            `(batch_size, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch_size, channels, spatial_dim1, spatial_dim2, spatial_dim3)`.
-            When unspecified, uses `image_data_format` value found in your Keras
-            config file at `~/.keras/keras.json` (if exists). Defaults to
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
             `"channels_last"`.
 
     Input shape:

@@ -22,15 +22,13 @@ class MaxPooling3D(BasePooling):
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input such that output has the same
             height/width dimension as the input.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape
-            `(batch, spatial_dim1, spatial_dim2, spatial_dim3, channels)` while
-            `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, spatial_dim1, spatial_dim2, spatial_dim3)`.
-            It defaults to the `image_data_format` value found in your Keras
-            config file at `~/.keras/keras.json`. If you never set it, then it
-            will be `"channels_last"`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
 
     Input shape:
     - If `data_format="channels_last"`:

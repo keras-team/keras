@@ -9,7 +9,7 @@ class ProgbarLogger(Callback):
     """Callback that prints metrics to stdout.
 
     Args:
-        count_mode: One of `"steps"` or `"samples"`.
+        count_mode: ```Literal["steps", "samples"]```.
             Whether the progress bar should
             count samples seen or steps (batches) seen.
 

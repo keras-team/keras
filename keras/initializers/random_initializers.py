@@ -220,9 +220,10 @@ class VarianceScaling(Initializer):
 
     Args:
         scale: Scaling factor (positive float).
-        mode: One of `"fan_in"`, `"fan_out"`, `"fan_avg"`.
-        distribution: Random distribution to use.
-            One of `"truncated_normal"`, `"untruncated_normal"`, or `"uniform"`.
+        mode: ```Literal["fan_in", "fan_out", "fan_avg"]```.
+        distribution: ```Literal["truncated_normal",
+              "untruncated_normal", "uniform"]```.
+              Random distribution to use.
         seed: A Python integer or instance of
             `keras.backend.SeedGenerator`.
             Used to make the behavior of the initializer

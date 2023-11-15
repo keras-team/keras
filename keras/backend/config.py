@@ -138,10 +138,16 @@ def image_data_format():
     ]
 )
 def set_image_data_format(data_format):
-    """Set the value of the image data format convention.
+    """Set the global value of the image data format convention.
 
     Args:
-        data_format: string. `'channels_first'` or `'channels_last'`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
 
     Examples:
 
@@ -264,8 +270,7 @@ def backend():
     """Publicly accessible method for determining the current backend.
 
     Returns:
-        String, the name of the backend Keras is currently using. One of
-            `"tensorflow"`, `"torch"`, or `"jax"`.
+        ```Literal["tensorflow", "torch", "jax"]```. Backend in use.
 
     Example:
 

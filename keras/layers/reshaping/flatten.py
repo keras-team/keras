@@ -16,13 +16,12 @@ class Flatten(Layer):
     flattening adds an extra channel dimension and output shape is `(batch, 1)`.
 
     Args:
-        data_format: A string, one of `"channels_last"` (default) or
-            `"channels_first"`. The ordering of the dimensions in the inputs.
-            `"channels_last"` corresponds to inputs with shape
-            `(batch, ..., channels)` while `"channels_first"` corresponds to
-            inputs with shape `(batch, channels, ...)`.
-            When unspecified, uses `image_data_format` value found in your Keras
-            config file at `~/.keras/keras.json` (if exists). Defaults to
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
             `"channels_last"`.
 
     Example:

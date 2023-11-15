@@ -4209,10 +4209,11 @@ def pad(x, pad_width, mode="constant"):
             each axis.
             `(pad,)` or `int` is a shortcut for `before = after = pad`
             width for all axes.
-        mode: One of `"constant"`, `"edge"`, `"linear_ramp"`,
-            `"maximum"`, `"mean"`, `"median"`, `"minimum"`,
-            `"reflect"`, `"symmetric"`, `"wrap"`, `"empty"`,
-            `"circular"`. Defaults to`"constant"`.
+        mode: ```Literal["constant", "edge", "linear_ramp",
+            "maximum", "mean", "median", "minimum",
+            "reflect", "symmetric", "wrap", "empty",
+            "circular"]```.
+            Defaults to`"constant"`.
 
     Note:
         Torch backend only supports modes `"constant"`, `"reflect"`,

@@ -52,14 +52,14 @@ PREPROCESS_INPUT_DOC = """
   """
 
 PREPROCESS_INPUT_MODE_DOC = """
-    mode: One of "caffe", "tf" or "torch".
-      - caffe: will convert the images from RGB to BGR,
+    mode: ```Literal["caffe", "tf", "torch"]```.
+      - `"caffe"`: will convert the images from RGB to BGR,
           then will zero-center each color channel with
           respect to the ImageNet dataset,
           without scaling.
-      - tf: will scale pixels between -1 and 1,
+      - `"tf"`: will scale pixels between `-1` and `1`,
           sample-wise.
-      - torch: will scale pixels between 0 and 1 and then
+      - `"torch"`: will scale pixels between `0` and `1` and then
           will normalize each channel with respect to the
           ImageNet dataset.
       Defaults to `"caffe"`.
@@ -163,15 +163,21 @@ def _preprocess_numpy_input(x, data_format, mode):
 
     Args:
       x: Input array, 3D or 4D.
-      data_format: Data format of the image array.
-      mode: One of "caffe", "tf" or "torch".
-        - caffe: will convert the images from RGB to BGR,
+      data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+        The ordering of the dimensions in the inputs.
+        - `"channels_last"`: input shape `(batch, time, ..., channels)`
+        - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+        When unspecified, uses `image_data_format` value found in your
+        Keras config file at `~/.keras/keras.json` (if exists) else
+        `"channels_last"`.
+      mode: ```Literal["caffe", "tf", "torch"]```.
+        - `"caffe"`: will convert the images from RGB to BGR,
             then will zero-center each color channel with
             respect to the ImageNet dataset,
             without scaling.
-        - tf: will scale pixels between -1 and 1,
+        - `"tf"`: will scale pixels between -1 and 1,
             sample-wise.
-        - torch: will scale pixels between 0 and 1 and then
+        - `"torch"`: will scale pixels between 0 and 1 and then
             will normalize each channel with respect to the
             ImageNet dataset.
 
@@ -236,15 +242,21 @@ def _preprocess_tensor_input(x, data_format, mode):
 
     Args:
       x: Input tensor, 3D or 4D.
-      data_format: Data format of the image tensor.
-      mode: One of "caffe", "tf" or "torch".
-        - caffe: will convert the images from RGB to BGR,
+      data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+        The ordering of the dimensions in the inputs.
+        - `"channels_last"`: input shape `(batch, time, ..., channels)`
+        - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+        When unspecified, uses `image_data_format` value found in your
+        Keras config file at `~/.keras/keras.json` (if exists) else
+        `"channels_last"`.
+      mode: ```Literal["caffe", "tf", "torch"]```.
+        - `"caffe"`: will convert the images from RGB to BGR,
             then will zero-center each color channel with
             respect to the ImageNet dataset,
             without scaling.
-        - tf: will scale pixels between -1 and 1,
+        - `"tf"`: will scale pixels between `-1` and `1`,
             sample-wise.
-        - torch: will scale pixels between 0 and 1 and then
+        - `"torch"`: will scale pixels between `0` and `1` and then
             will normalize each channel with respect to the
             ImageNet dataset.
 
@@ -305,11 +317,18 @@ def obtain_input_shape(
         or a user-provided shape to be validated.
       default_size: Default input width/height for the model.
       min_size: Minimum input width/height accepted by the model.
-      data_format: Image data format to use.
+      data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+        The ordering of the dimensions in the inputs.
+        - `"channels_last"`: input shape `(batch, time, ..., channels)`
+        - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+        When unspecified, uses `image_data_format` value found in your
+        Keras config file at `~/.keras/keras.json` (if exists) else
+        `"channels_last"`.
       require_flatten: Whether the model is expected to
         be linked to a classifier via a Flatten layer.
-      weights: One of `None` (random initialization)
-        or 'imagenet' (pre-training on ImageNet).
+      weights: ```Optional[Literal["imagenet"]]```.
+        - `None`: random initialization
+        - `"imagenet"`: (pre-training on ImageNet).
         If weights='imagenet' input channels must be equal to 3.
 
     Returns:

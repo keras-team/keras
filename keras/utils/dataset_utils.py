@@ -748,8 +748,8 @@ def check_validation_split_arg(validation_split, subset, shuffle, seed):
     Args:
         validation_split: float between 0 and 1, fraction of data to reserve for
             validation.
-        subset: One of `"training"`, `"validation"`, or `"both"`. Only used if
-            `validation_split` is set.
+        subset: ```Literal["training", "validation", "both"]```.
+            Subset of the data to return. Used if `validation_split` is set.
         shuffle: Whether to shuffle the data. Either `True` or `False`.
         seed: random seed for shuffling and transformations.
     """

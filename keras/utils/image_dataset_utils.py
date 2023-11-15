@@ -80,7 +80,7 @@ def image_dataset_from_directory(
             This is the explicit list of class names
             (must match names of subdirectories). Used to control the order
             of the classes (otherwise alphanumerical order is used).
-        color_mode: One of `"grayscale"`, `"rgb"`, `"rgba"`.
+        color_mode: ```Literal["grayscale", "rgb", "rgba"]```.
             Defaults to `"rgb"`. Whether the images will be converted to
             have 1, 3, or 4 channels.
         batch_size: Size of the batches of data. Defaults to 32.
@@ -95,9 +95,8 @@ def image_dataset_from_directory(
         seed: Optional random seed for shuffling and transformations.
         validation_split: Optional float between 0 and 1,
             fraction of data to reserve for validation.
-        subset: Subset of the data to return.
-            One of `"training"`, `"validation"`, or `"both"`.
-            Only used if `validation_split` is set.
+        subset: ```Literal["training", "validation", "both"]```.
+            Subset of the data to return. Used if `validation_split` is set.
             When `subset="both"`, the utility returns a tuple of two datasets
             (the training and validation datasets respectively).
         interpolation: String, the interpolation method used when
@@ -113,8 +112,13 @@ def image_dataset_from_directory(
             (of size `image_size`) that matches the target aspect ratio. By
             default (`crop_to_aspect_ratio=False`), aspect ratio may not be
             preserved.
-        data_format: If None uses keras.config.image_data_format()
-            otherwise either 'channel_last' or 'channel_first'.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
 
     Returns:
 

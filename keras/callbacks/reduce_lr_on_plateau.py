@@ -32,12 +32,14 @@ class ReduceLROnPlateau(Callback):
         patience: Integer. Number of epochs with no improvement after which
             learning rate will be reduced.
         verbose: Integer. 0: quiet, 1: update messages.
-        mode: String. One of `{'auto', 'min', 'max'}`. In `'min'` mode,
-            the learning rate will be reduced when the
-            quantity monitored has stopped decreasing; in `'max'` mode it will
-            be reduced when the quantity monitored has stopped increasing; in
-            `'auto'` mode, the direction is automatically inferred from the name
-            of the monitored quantity.
+        mode: ```Literal["auto", "min", "max"]```.
+            - `"min"`: training will stop when monitored quantity has
+              stopped decreasing
+            - `"max"`: mode it will stop when the quantity monitored has
+              stopped increasing
+            - `"auto"`: the direction is automatically inferred from the name
+              of the monitored quantity.
+            Defaults to `"auto"`.
         min_delta: Float. Threshold for measuring the new optimum, to only focus
             on significant changes.
         cooldown: Integer. Number of epochs to wait before resuming normal

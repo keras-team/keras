@@ -78,8 +78,9 @@ def NASNet(
                 paper are used at each layer.
         include_top: Whether to include the fully-connected
             layer at the top of the network.
-        weights: `None` (random initialization) or
-            `imagenet` (ImageNet weights)
+        weights: ```Optional[Union[Literal["imagenet"], str]]```.
+            - `None`: random initialization
+            - `"imagenet"`: (pre-training on ImageNet-1k)
         input_tensor: Optional Keras tensor (i.e. output of
             `layers.Input()`)
             to use as image input for the model.
@@ -348,9 +349,11 @@ def NASNetMobile(
             E.g. `(224, 224, 3)` would be one valid value.
         include_top: Whether to include the fully-connected
             layer at the top of the network.
-        weights: `None` (random initialization) or
-            `imagenet` (ImageNet weights). For loading `imagenet` weights,
-            `input_shape` should be (224, 224, 3)
+        weights: ```Optional[Union[Literal["imagenet"], str]]```.
+            - `None`: random initialization
+            - `"imagenet"`: (pre-training on ImageNet-1k). For
+               loading `imagenet` weights, `input_shape` should
+               be `(224, 224, 3)`.
         input_tensor: Optional Keras tensor (i.e. output of
             `layers.Input()`)
             to use as image input for the model.
@@ -439,9 +442,11 @@ def NASNetLarge(
             E.g. `(224, 224, 3)` would be one valid value.
         include_top: Whether to include the fully-connected
             layer at the top of the network.
-        weights: `None` (random initialization) or
-            `imagenet` (ImageNet weights).  For loading `imagenet` weights,
-            `input_shape` should be (331, 331, 3)
+        weights: ```Optional[Union[Literal["imagenet"], str]]```.
+            - `None`: random initialization
+            - `"imagenet"`: (pre-training on ImageNet). For
+               loading `imagenet` weights, `input_shape`
+               should be `(331, 331, 3)`.
         input_tensor: Optional Keras tensor (i.e. output of
             `layers.Input()`)
             to use as image input for the model.

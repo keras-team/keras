@@ -53,9 +53,10 @@ def VGG19(
     Args:
         include_top: whether to include the 3 fully-connected
             layers at the top of the network.
-        weights: one of `None` (random initialization),
-            `"imagenet"` (pre-training on ImageNet),
-            or the path to the weights file to be loaded.
+        weights: ```Optional[Union[Literal["imagenet"], str]]```.
+            - `None`: random initialization
+            - `"imagenet"`: (pre-training on ImageNet-1k)
+            - `str`: path to the weights file to be loaded
         input_tensor: optional Keras tensor
             (i.e. output of `layers.Input()`)
             to use as image input for the model.

@@ -51,10 +51,13 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
 
     Args:
         x: Input data, in any form that can be converted to a NumPy array.
-        data_format: Image data format, can be either `"channels_first"` or
-            `"channels_last"`. Defaults to `None`, in which case the global
-            setting `keras.backend.image_data_format()` is used (unless you
-            changed it, it defaults to `"channels_last"`).
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
         scale: Whether to rescale the image such that minimum and maximum values
             are 0 and 255 respectively. Defaults to `True`.
         dtype: Dtype to use. `None` means the global setting
@@ -127,10 +130,13 @@ def img_to_array(img, data_format=None, dtype=None):
 
     Args:
         img: Input PIL Image instance.
-        data_format: Image data format, can be either `"channels_first"` or
-            `"channels_last"`. Defaults to `None`, in which case the global
-            setting `keras.backend.image_data_format()` is used (unless you
-            changed it, it defaults to `"channels_last"`).
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
         dtype: Dtype to use. `None` means the global setting
             `keras.backend.floatx()` is used (unless you changed it, it
             defaults to `"float32"`).
@@ -166,7 +172,12 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
     Args:
         path: Path or file object.
         x: NumPy array.
-        data_format: Image data format, either `"channels_first"` or
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
             `"channels_last"`.
         file_format: Optional file format override. If omitted, the format to
             use is determined from the filename extension. If a file object was
@@ -205,8 +216,9 @@ def load_img(
 
     Args:
         path: Path to image file.
-        color_mode: One of `"grayscale"`, `"rgb"`, `"rgba"`. Default: `"rgb"`.
-            The desired image format.
+        color_mode: ```Literal["grayscale", "rgb", "rgba"]```.
+            The desired image format. Defaults to `"rgb"`.
+
         target_size: Either `None` (default to original size) or tuple of ints
             `(img_height, img_width)`.
         interpolation: Interpolation method used to resample the image if the
@@ -353,7 +365,13 @@ def smart_resize(
             Defaults to `'bilinear'`.
             Supports `bilinear`, `nearest`, `bicubic`,
             `lanczos3`, `lanczos5`.
-        data_format: `"channels_last"` or `"channels_first"`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
         backend_module: Backend module to use (if different from the default
             backend).
 

@@ -37,17 +37,13 @@ class UpSampling2D(Layer):
     Args:
         size: Int, or tuple of 2 integers.
             The upsampling factors for rows and columns.
-        data_format: A string,
-            one of `"channels_last"` (default) or `"channels_first"`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
             The ordering of the dimensions in the inputs.
-            `"channels_last"` corresponds to inputs with shape
-            `(batch_size, height, width, channels)` while `"channels_first"`
-            corresponds to inputs with shape
-            `(batch_size, channels, height, width)`.
-            When unspecified, uses
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json` (if exists) else `"channels_last"`.
-            Defaults to `"channels_last"`.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
         interpolation: A string, one of `"bicubic"`, `"bilinear"`, `"lanczos3"`,
             `"lanczos5"`, `"nearest"`.
 
@@ -133,9 +129,16 @@ class UpSampling2D(Layer):
             x: Tensor or variable to resize.
             height_factor: Positive integer.
             width_factor: Positive integer.
-            data_format: One of `"channels_first"`, `"channels_last"`.
-            interpolation: A string, one of `"bicubic"`, `"bilinear"`,
-            `"lanczos3"`, `"lanczos5"`, or `"nearest"`.
+            data_format: ```Optional[Literal["channels_last",
+               "channels_first"]]```.
+               The ordering of the dimensions in the inputs.
+               - `"channels_last"`: input shape `(batch, time, ..., channels)`
+               - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+               When unspecified, uses `image_data_format` value found in your
+               Keras config file at `~/.keras/keras.json` (if exists) else
+               `"channels_last"`.
+            interpolation: ```Literal["bicubic", "bilinear",
+              "lanczos3", "lanczos5", "nearest"]```.
 
         Returns:
             A tensor.

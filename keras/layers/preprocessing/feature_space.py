@@ -79,10 +79,11 @@ class FeatureSpace(Layer):
             or `{"my_feature": FeatureSpace.integer_categorical()}`.
             For a complete list of all supported types, see
             "Available feature types" paragraph below.
-        output_mode: One of `"concat"` or `"dict"`. In concat mode, all
-            features get concatenated together into a single vector.
-            In dict mode, the FeatureSpace returns a dict of individually
-            encoded features (with the same keys as the input dict keys).
+        output_mode: ```Literal["concat", "dict"]```.
+            - `"concat"`: all features get concatenated together into
+              a single vector.
+            - `"dict"`: the FeatureSpace returns a dict of individually
+              encoded features (with the same keys as the input dict keys).
         crosses: List of features to be crossed together, e.g.
             `crosses=[("feature_1", "feature_2")]`. The features will be
             "crossed" by hashing their combined value into

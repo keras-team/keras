@@ -164,9 +164,10 @@ tensors of pixels with values in the `[0-255]` range.
 Args:
     include_top: Whether to include the fully-connected
         layer at the top of the network. Defaults to `True`.
-    weights: One of `None` (random initialization),
-        `"imagenet"` (pre-training on ImageNet),
-        or the path to the weights file to be loaded.
+    weights: ```Optional[Union[Literal["imagenet"], str]]```.
+        - `None`: random initialization
+        - `"imagenet"`: (pre-training on ImageNet-1k)
+        - `str`: path to the weights file to be loaded
         Defaults to `"imagenet"`.
     input_tensor: Optional Keras tensor
         (i.e. output of `layers.Input()`)
@@ -236,9 +237,10 @@ def EfficientNet(
       model_name: string, model name.
       include_top: whether to include the fully-connected
           layer at the top of the network.
-      weights: one of `None` (random initialization),
-            'imagenet' (pre-training on ImageNet),
-            or the path to the weights file to be loaded.
+      weights: ```Optional[Union[Literal["imagenet"], str]]```.
+          - `None`: random initialization
+          - `"imagenet"`: (pre-training on ImageNet-1k)
+          - `str`: path to the weights file to be loaded
       input_tensor: optional Keras tensor
           (i.e. output of `layers.Input()`)
           to use as image input for the model.
@@ -834,9 +836,13 @@ def preprocess_input(x, data_format=None):
 
     Args:
         x: A floating point `numpy.array` or a tensor.
-        data_format: Optional data format of the image tensor/array. `None`
-            means the global setting `keras.backend.image_data_format()`
-            is used (unless you changed it, it uses `"channels_last"`).
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
             Defaults to `None`.
 
     Returns:

@@ -28,14 +28,12 @@ class Cropping2D(Layer):
               `(symmetric_height_crop, symmetric_width_crop)`.
             - If tuple of 2 tuples of 2 ints: interpreted as
               `((top_crop, bottom_crop), (left_crop, right_crop))`.
-        data_format: A string, one of `"channels_last"` (default) or
-            `"channels_first"`. The ordering of the dimensions in the inputs.
-            `"channels_last"` corresponds to inputs with shape
-            `(batch_size, height, width, channels)` while `"channels_first"`
-            corresponds to inputs with shape
-            `(batch_size, channels, height, width)`.
-            When unspecified, uses `image_data_format` value found in your Keras
-            config file at `~/.keras/keras.json` (if exists). Defaults to
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
             `"channels_last"`.
 
     Input shape:

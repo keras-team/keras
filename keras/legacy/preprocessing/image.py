@@ -227,9 +227,16 @@ class BatchFromFilesMixin:
                 to use for random transformations and normalization.
             target_size: tuple of integers, dimensions to resize input images
             to.
-            color_mode: One of `"rgb"`, `"rgba"`, `"grayscale"`.
+            color_mode: ```Literal["rgb", "rgba", "grayscale"]```.
                 Color mode to read images.
-            data_format: String, one of `channels_first`, `channels_last`.
+            data_format: ```Optional[Literal["channels_last",
+                "channels_first"]]```.
+                The ordering of the dimensions in the inputs.
+                - `"channels_last"`: shape `(batch, time, ..., channels)`.
+                - `"channels_first"`: shape `(batch, time, channels, ...)`.
+                When unspecified, uses `image_data_format` value found in your
+                Keras config file at `~/.keras/keras.json` (if exists) else
+                `"channels_last"`.
             save_to_dir: Optional directory where to save the pictures
                 being yielded, in a viewable format. This is useful
                 for visualizing the random transformations being

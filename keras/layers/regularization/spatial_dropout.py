@@ -82,12 +82,13 @@ class SpatialDropout2D(BaseSpatialDropout):
 
     Args:
         rate: Float between 0 and 1. Fraction of the input units to drop.
-        data_format: `"channels_first"` or `"channels_last"`.
-            In `"channels_first"` mode, the channels dimension (the depth)
-            is at index 1, in `"channels_last"` mode is it at index 3.
-            It defaults to the `image_data_format` value found in your
-            Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be `"channels_last"`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
 
     Call arguments:
         inputs: A 4D tensor.
@@ -144,12 +145,13 @@ class SpatialDropout3D(BaseSpatialDropout):
 
     Args:
         rate: Float between 0 and 1. Fraction of the input units to drop.
-        data_format: `"channels_first"` or `"channels_last"`.
-            In `"channels_first"` mode, the channels dimension (the depth)
-            is at index 1, in `"channels_last"` mode is it at index 4.
-            It defaults to the `image_data_format` value found in your
-            Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be `"channels_last"`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
 
     Call arguments:
         inputs: A 5D tensor.

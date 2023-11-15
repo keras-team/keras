@@ -292,9 +292,11 @@ def qr(x, mode="reduced"):
 
     Args:
         x: Input tensor.
-        mode: A string specifying the mode of the QR decomposition.
-            - 'reduced': Returns the reduced QR decomposition. (default)
-            - 'complete': Returns the complete QR decomposition.
+        mode: ```Literal["reduced", "complete"]```.
+            Mode of the QR decomposition:
+            - `"reduced"`: Returns the reduced QR decomposition.
+            - `"complete"`: Returns the complete QR decomposition.
+            Defaults to `"reduced"`.
 
     Returns:
         A tuple containing two tensors. The first tensor represents the

@@ -28,8 +28,9 @@ class Bidirectional(Wrapper):
             When `return_sequences` is `True`, the output of the masked
             timestep will be zero regardless of the layer's original
             `zero_output_for_mask` value.
-        merge_mode: Mode by which outputs of the forward and backward RNNs
-            will be combined. One of `{"sum", "mul", "concat", "ave", None}`.
+        merge_mode: ```Optional[Literal["sum", "mul", "concat", "ave"]]```.
+            Mode by which outputs of the forward and backward RNNs
+            will be combined.
             If `None`, the outputs will not be combined,
             they will be returned as a list. Defaults to `"concat"`.
         backward_layer: Optional `keras.layers.RNN`,

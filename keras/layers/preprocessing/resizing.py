@@ -40,13 +40,12 @@ class Resizing(TFDataLayer):
             largest possible window in the image (of size `(height, width)`)
             that matches the target aspect ratio. By default
             (`crop_to_aspect_ratio=False`), aspect ratio may not be preserved.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, width)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
             `"channels_last"`.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
     """

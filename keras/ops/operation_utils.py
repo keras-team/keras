@@ -22,11 +22,14 @@ def compute_pooling_output_shape(
             Defaults to `pool_size`.
         padding: Padding method. Available methods are `"valid"` or `"same"`.
             Defaults to `"valid"`.
-        data_format: String, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, weight)`. Defaults to `"channels_last"`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
+            Defaults to `"channels_last"`.
 
     Returns:
         Tuple of ints: The output shape of the pooling operation.
@@ -74,7 +77,7 @@ def compute_pooling_output_shape(
         output_spatial_shape = np.floor((spatial_shape - 1) / strides) + 1
     else:
         raise ValueError(
-            "`padding` must be either `'valid'` or `'same'`. Received "
+            "`padding` must be either `\"valid\"` or `\"same\"`. Received "
             f"{padding}."
         )
     output_spatial_shape = [int(i) for i in output_spatial_shape]

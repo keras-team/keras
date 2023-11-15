@@ -58,9 +58,10 @@ def InceptionV3(
         include_top: Boolean, whether to include the fully-connected
             layer at the top, as the last layer of the network.
             Defaults to `True`.
-        weights: One of `None` (random initialization),
-            `imagenet` (pre-training on ImageNet),
-            or the path to the weights file to be loaded.
+        weights: ```Optional[Literal["imagenet"]]```.
+            - None: random initialization
+            - 'imagenet': (pre-training on ImageNet).
+            If weights='imagenet' input channels must be equal to 3.
             Defaults to `"imagenet"`.
         input_tensor: Optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model. `input_tensor` is useful for

@@ -29,11 +29,14 @@ class EarlyStopping(Callback):
             be stopped. Defaults to `0`.
         verbose: Verbosity mode, 0 or 1. Mode 0 is silent, and mode 1 displays
             messages when the callback takes an action. Defaults to `0`.
-        mode: One of `{"auto", "min", "max"}`. In `min` mode, training will stop
-            when the quantity monitored has stopped decreasing; in `"max"` mode
-            it will stop when the quantity monitored has stopped increasing; in
-            `"auto"` mode, the direction is automatically inferred from the name
-            of the monitored quantity. Defaults to `"auto"`.
+        mode: ```Literal["auto", "min", "max"]```.
+            - `"min"`: training will stop when monitored quantity has
+              stopped decreasing
+            - `"max"`: mode it will stop when the quantity monitored has
+              stopped increasing
+            - `"auto"`: the direction is automatically inferred from the name
+              of the monitored quantity.
+            Defaults to `"auto"`.
         baseline: Baseline value for the monitored quantity. If not `None`,
             training will stop if the model doesn't show improvement over the
             baseline. Defaults to `None`.

@@ -719,8 +719,8 @@ def reduce_per_replica(values, strategy, reduction):
       values: Structure of `PerReplica` objects or `tf.Tensor`s. `tf.Tensor`s
         are returned as-is.
       strategy: `tf.distribute.Strategy` object.
-      reduction: One of `"auto"`, `"first"`, `"concat"`, or `"sum"`.
-        `"auto"` will select `"first"` when used under a TPUStrategy, or
+      reduction: ```Literal["auto", "first", "concat", "sum"]```.
+        - `"auto"`: will select `"first"` when used under a TPUStrategy, or
         `"sum"` otherwise.
 
     Returns:

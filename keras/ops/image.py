@@ -70,13 +70,12 @@ def resize(
             `"bilinear"`, and `"bicubic"`. Defaults to `"bilinear"`.
         antialias: Whether to use an antialiasing filter when downsampling an
             image. Defaults to `False`.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, weight)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
             `"channels_last"`.
 
     Returns:
@@ -198,13 +197,12 @@ def affine_transform(
                 The input is extended by the nearest pixel.
         fill_value: Value used for points outside the boundaries of the input if
             `fill_mode="constant"`. Defaults to `0`.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, weight)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
             `"channels_last"`.
 
     Returns:
@@ -333,13 +331,12 @@ def extract_patches(
             strides must be 1. NOTE: `strides > 1` is not supported in
             conjunction with `dilation_rate > 1`
         padding: The type of padding algorithm to use: `"same"` or `"valid"`.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, weight)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
             `"channels_last"`.
 
     Returns:

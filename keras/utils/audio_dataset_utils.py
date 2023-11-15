@@ -86,8 +86,8 @@ def audio_dataset_from_directory(
         seed: Optional random seed for shuffling and transformations.
         validation_split: Optional float between 0 and 1, fraction of data to
             reserve for validation.
-        subset: Subset of the data to return. One of `"training"`,
-            `"validation"` or `"both"`. Only used if `validation_split` is set.
+        subset: ```Literal["training", "validation", "both"]```.
+            Subset of the data to return. Used if `validation_split` is set.
         follow_links: Whether to visits subdirectories pointed to by symlinks.
             Defaults to `False`.
 

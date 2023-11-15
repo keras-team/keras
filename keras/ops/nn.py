@@ -645,12 +645,13 @@ def max_pool(
             padding is applied, and `"same"` results in padding evenly to the
             left/right or up/down of the input such that output has the
             same height/width dimension as the input when `strides=1`.
-        data_format: A string, either `"channels_last"` or `"channels_first"`.
-            `data_format` determines the ordering of the dimensions in the
-            inputs. If `data_format="channels_last"`, `inputs` is of shape
-            `(batch_size, ..., channels)` while if
-            `data_format="channels_first"`, `inputs` is of shape
-            `(batch_size, channels, ...)`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
 
     Returns:
         A tensor of rank N+2, the result of the max pooling operation.
@@ -736,12 +737,13 @@ def average_pool(
             padding is applied, and `"same"` results in padding evenly to the
             left/right or up/down of the input such that output has the
             same height/width dimension as the input when `strides=1`.
-        data_format: A string, either `"channels_last"` or `"channels_first"`.
-            `data_format` determines the ordering of the dimensions in the
-            inputs. If `data_format="channels_last"`, `inputs` is of shape
-            `(batch_size, ..., channels)` while if
-            `data_format="channels_first"`, `inputs` is of shape
-            `(batch_size, channels, ...)`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
 
     Returns:
         A tensor of rank N+2, the result of the average pooling operation.
@@ -828,12 +830,13 @@ def conv(
             padding is applied, and `"same"` results in padding evenly to the
             left/right or up/down of the input such that output has the
             same height/width dimension as the input when `strides=1`.
-        data_format: A string, either `"channels_last"` or `"channels_first"`.
-            `data_format` determines the ordering of the dimensions in the
-            inputs. If `data_format="channels_last"`, `inputs` is of shape
-            `(batch_size, ..., channels)` while if
-            `data_format="channels_first"`, `inputs` is of shape
-            `(batch_size, channels, ...)`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
         dilation_rate: int or int tuple/list of `len(inputs_spatial_shape)`,
             specifying the dilation rate to use for dilated convolution. If
             `dilation_rate` is int, then every spatial dimension shares
@@ -926,12 +929,13 @@ def depthwise_conv(
             padding is applied, and `"same"` results in padding evenly to the
             left/right or up/down of the input such that output has the
             same height/width dimension as the input when `strides=1`.
-        data_format: A string, either `"channels_last"` or `"channels_first"`.
-            `data_format` determines the ordering of the dimensions in the
-            inputs. If `data_format="channels_last"`, `inputs` is of shape
-            `(batch_size, ..., channels)` while if
-            `data_format="channels_first"`, `inputs` is of shape
-            `(batch_size, channels, ...)`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
         dilation_rate: int or int tuple/list of `len(inputs_spatial_shape)`,
             specifying the dilation rate to use for dilated convolution. If
             `dilation_rate` is int, then every spatial dimension shares
@@ -1040,12 +1044,13 @@ def separable_conv(
             padding is applied, and `"same"` results in padding evenly to the
             left/right or up/down of the input such that output has the
             same height/width dimension as the input when `strides=1`.
-        data_format: A string, either `"channels_last"` or `"channels_first"`.
-            `data_format` determines the ordering of the dimensions in the
-            inputs. If `data_format="channels_last"`, `inputs` is of shape
-            `(batch_size, ..., channels)` while if
-            `data_format="channels_first"`, `inputs` is of shape
-            `(batch_size, channels, ...)`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
         dilation_rate: int or int tuple/list of `len(inputs_spatial_shape)`,
             specifying the dilation rate to use for dilated convolution. If
             `dilation_rate` is int, then every spatial dimension shares
@@ -1165,12 +1170,13 @@ def conv_transpose(
             along a given dimension must be lower than the stride along that
             same dimension. If set to `None` (default), the output shape is
             inferred.
-        data_format: A string, either `"channels_last"` or `"channels_first"`.
-            `data_format` determines the ordering of the dimensions in the
-            inputs. If `data_format="channels_last"`, `inputs` is of shape
-            `(batch_size, ..., channels)` while if
-            `data_format="channels_first"`, `inputs` is of shape
-            `(batch_size, channels, ...)`.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
         dilation_rate: int or int tuple/list of `len(inputs_spatial_shape)`,
             specifying the dilation rate to use for dilated convolution. If
             `dilation_rate` is int, then every spatial dimension shares

@@ -26,15 +26,18 @@ class ConvLSTMCell(Layer, DropoutRNNCell):
         strides: An integer or tuple/list of n integers, specifying the strides
             of the convolution. Specifying any stride value != 1
             is incompatible with specifying any `dilation_rate` value != 1.
-        padding: One of `"valid"` or `"same"` (case-insensitive).
-            `"valid"` means no padding. `"same"` results in padding evenly
-            to the left/right or up/down of the input such that output
-            has the same height/width dimension as the input.
-        data_format: A string, one of `channels_last` (default) or
-            `channels_first`. When unspecified, uses
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json` (if exists) else 'channels_last'.
-            Defaults to `'channels_last'`.
+        padding: ```Literal["valid", "same"]```. (case-insensitive).
+            - `"valid"`: no padding.
+            - `"same"`: pads evenly to the left/right or up/down of the input
+              such that output has the same height/width dimension as the input.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
+            Defaults to `"channels_last"`.
         dilation_rate: An integer or tuple/list of n integers, specifying the
             dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -391,21 +394,18 @@ class ConvLSTM(RNN):
             specifying the strides of the convolution.
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
-        padding: One of `"valid"` or `"same"` (case-insensitive).
-            `"valid"` means no padding. `"same"` results in padding evenly to
-            the left/right or up/down of the input such that output has the same
-            height/width dimension as the input.
-        data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+        padding: ```Literal["valid", "same"]```. (case-insensitive).
+            - `"valid"`: no padding.
+            - `"same"`: pads evenly to the left/right or up/down of the input
+              such that output has the same height/width dimension as the input.
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
-            `(batch, time, ..., channels)`
-            while `channels_first` corresponds to
-            inputs with shape `(batch, time, channels, ...)`.
-            When unspecified, uses
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json` (if exists) else 'channels_last'.
-            Defaults to `'channels_last'`.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
+            `"channels_last"`.
+            Defaults to `"channels_last"`.
         dilation_rate: An integer or tuple/list of n integers, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is

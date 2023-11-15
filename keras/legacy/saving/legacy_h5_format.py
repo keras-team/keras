@@ -77,9 +77,9 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):
     """Loads a model saved via `save_model_to_hdf5`.
 
     Args:
-        filepath: One of the following:
-            - String, path to the saved model
-            - `h5py.File` object from which to load the model
+        filepath: ```Union[str, h5py.File]```.
+            - `str`: path to the saved model
+            - `h5py.File`: object from which to load the model
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.

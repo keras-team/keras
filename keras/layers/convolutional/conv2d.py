@@ -24,14 +24,12 @@ class Conv2D(BaseConv):
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input such that output has the same
             height/width dimension as the input.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape
-            `(batch_size, channels, height, width)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch_size, channels, height, width)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
+        data_format: ```Optional[Literal["channels_last", "channels_first"]]```.
+            The ordering of the dimensions in the inputs.
+            - `"channels_last"`: input shape `(batch, time, ..., channels)`
+            - `"channels_first"`: input shape `(batch, time, channels, ...)`.
+            When unspecified, uses `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json` (if exists) else
             `"channels_last"`.
         dilation_rate: int or tuple/list of 2 integers, specifying the dilation
             rate to use for dilated convolution.

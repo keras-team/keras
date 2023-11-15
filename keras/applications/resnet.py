@@ -70,9 +70,11 @@ def ResNet(
         model_name: Name of the model.
         include_top: Whether to include the fully-connected
             layer at the top of the network.
-        weights: One of `None` (random initialization),
-            `"imagenet"` (pre-training on ImageNet),
-            or the path to the weights file to be loaded.
+        weights: ```Optional[Union[Literal["imagenet"], str]]```.
+            - None: random initialization
+            - 'imagenet': (pre-training on ImageNet)
+            - str: path to the weights file to be loaded
+            Defaults to `"imagenet"`.
         input_tensor: Optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
         input_shape: Optional shape tuple, only to be specified
@@ -545,9 +547,10 @@ respect to the ImageNet dataset, without scaling.
 Args:
     include_top: whether to include the fully-connected
         layer at the top of the network.
-    weights: one of `None` (random initialization),
-        `"imagenet"` (pre-training on ImageNet), or the path to the weights
-        file to be loaded.
+    weights: ```Optional[Union[Literal["imagenet"], str]]```.
+        - `None`: random initialization
+        - `"imagenet"`: (pre-training on ImageNet-1k)
+        - `str`: path to the weights file to be loaded
     input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
         to use as image input for the model.
     input_shape: optional shape tuple, only to be specified if `include_top`
