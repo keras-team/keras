@@ -729,6 +729,13 @@ def imag(x):
 
 
 def isclose(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # TODO: tfnp.isclose lack support of bfloat16 dtype promotion
+    if standardize_dtype(x1.dtype) == "bfloat16":
+        x1 = tf.cast(x1, "float32")
+    if standardize_dtype(x2.dtype) == "bfloat16":
+        x2 = tf.cast(x2, "float32")
     return tfnp.isclose(x1, x2)
 
 
@@ -737,7 +744,9 @@ def isfinite(x):
 
 
 def isinf(x):
-    return tfnp.isinf(x)
+    # TODO: tfnp.isinf will get python bool when input is a scalar, so we
+    # need the extra `convert_to_tensor`
+    return convert_to_tensor(tfnp.isinf(x))
 
 
 def isnan(x):
