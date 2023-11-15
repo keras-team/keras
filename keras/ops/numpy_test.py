@@ -5647,7 +5647,26 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
-    # TODO: test_meshgrid
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_meshgrid(self, dtype):
+        import jax.numpy as jnp
+
+        if dtype == "bool":
+            self.skipTest("meshgrid doesn't support bool dtype")
+        elif dtype is None:
+            dtype = backend.floatx()
+        x = knp.array([1, 2, 3], dtype=dtype)
+        y = knp.array([4, 5, 6], dtype=dtype)
+        x_jax = jnp.array([1, 2, 3], dtype=dtype)
+        y_jax = jnp.array([4, 5, 6], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.meshgrid(x_jax, y_jax)[0].dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.meshgrid(x, y)[0].dtype), expected_dtype
+        )
+        self.assertEqual(
+            knp.Meshgrid().symbolic_call(x, y)[0].dtype, expected_dtype
+        )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_min(self, dtype):
@@ -5700,6 +5719,21 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(
             standardize_dtype(knp.Mod().symbolic_call(x1, x2).dtype),
             expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_moveaxis(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1, 1, 1), dtype=dtype)
+        x_jax = jnp.ones((1, 1, 1), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.moveaxis(x_jax, -2, -1).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.moveaxis(x, -2, -1).dtype), expected_dtype
+        )
+        self.assertEqual(
+            knp.Moveaxis(-2, -1).symbolic_call(x).dtype, expected_dtype
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))

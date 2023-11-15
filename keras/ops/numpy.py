@@ -3744,7 +3744,9 @@ class Meshgrid(Operation):
         tmp = output_shape[0]
         output_shape[0] = output_shape[1]
         output_shape[1] = tmp
-        return [KerasTensor(output_shape) for _ in range(len(x))]
+        return [
+            KerasTensor(output_shape, dtype=xi.dtype) for _ in range(len(x))
+        ]
 
 
 @keras_export(["keras.ops.meshgrid", "keras.ops.numpy.meshgrid"])
