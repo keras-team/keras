@@ -24,7 +24,7 @@ as proposed in the paper, "Attention is All You Need".
 **References:**
 
 - [Attention is All You Need](https://papers.nips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf)
-- [Very Deep Self-Attention Networks for End-to-End Speech Recognition](https://arxiv.org/pdf/1904.13377.pdf)
+- [Very Deep Self-Attention Networks for End-to-End Speech Recognition](https://arxiv.org/abs/1904.13377)
 - [Speech Transformers](https://ieeexplore.ieee.org/document/8462506)
 - [LJSpeech Dataset](https://keithito.com/LJ-Speech-Dataset/)
 """
