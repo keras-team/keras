@@ -389,6 +389,8 @@ def load_image(
     if crop_to_aspect_ratio:
         from keras.backend import tensorflow as tf_backend
 
+        if data_format == "channels_first":
+            img = tf.transpose(img, (2, 0, 1))
         img = image_utils.smart_resize(
             img,
             image_size,
@@ -398,5 +400,10 @@ def load_image(
         )
     else:
         img = tf.image.resize(img, image_size, method=interpolation)
-    img.set_shape((image_size[0], image_size[1], num_channels))
+        if data_format == "channels_first":
+            img = tf.transpose(img, (2, 0, 1))
+    if data_format == "channels_last":
+        img.set_shape((image_size[0], image_size[1], num_channels))
+    else:
+        img.set_shape((num_channels, image_size[0], image_size[1]))
     return img
