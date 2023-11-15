@@ -299,6 +299,13 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllEqual(x, (1, 1))
         self.assertIsInstance(x, np.ndarray)
 
+        # Empty lists should give an empty array.
+        x = ops.convert_to_tensor([])
+        np_x = ops.convert_to_numpy(x)
+        self.assertTrue(ops.is_tensor(x))
+        self.assertAllEqual(x, [])
+        self.assertIsInstance(np_x, np.ndarray)
+
         # Partially converted.
         x = ops.convert_to_tensor((1, ops.array(2), 3))
         self.assertAllEqual(x, (1, 2, 3))
