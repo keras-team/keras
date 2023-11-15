@@ -250,3 +250,15 @@ class SequentialTest(testing.TestCase):
         model = Sequential(name="seq")
         with self.assertRaisesRegex(ValueError, "Only instances of"):
             model.add({})
+
+        model = Sequential(name="seq")
+
+        class BadLayer(layers.Layer):
+            def call(self, inputs, training):
+                return inputs
+
+        model.add(BadLayer())
+        with self.assertRaisesRegex(
+            ValueError, "can only have a single positional"
+        ):
+            model.build((None, 2))
