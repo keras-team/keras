@@ -81,27 +81,42 @@ class CoreOpsStaticShapeTest(testing.TestCase):
     def test_scan(self):
         def f(carry, x):
             if type(carry) is list or type(carry) is tuple:
-                x += carry[0]
                 carry = carry[0]
+                if type(carry) is int or type(x) is int:
+                    carry = int(carry)
+
+                x += carry
+
+            elif type(carry) is float or type(x) is float:
+                x = float(x)
+                carry = float(carry)
+                x += carry
             else:
                 x += carry
+
             return carry, x
 
-        init_carr = np.array(1)
-        xs = np.array([0, 1, 2, 3, 4, 5, 6])
+        test_cases = [
+            (np.array([0, 1, 2, 3, 4, 5, 6]), 1),
+            (np.array([0.1, 1.2, 2.3, 3.4, 4.5, 5.6, 6.7]), 1.1),
+            (np.array([123, 423, 3, 78, 43, 13]), 1.1),
+            (np.array([-1, -2, -3, -4, -5, -6]), -2),
+            (np.array([0, 0, 0, 0, 0, 0, 0]), 0),
+            (np.array([1.1, 2, 3, 4, 5, 6, 7]), 9),
+        ]
+        for test_case in test_cases:
+            init_carr = test_case[1]
+            xs = test_case[0]
 
-        carry_op, ys_op = core.scan(
-            f, init_carr, xs, length=len(xs), reverse=False
-        )
-        carry_jax, ys_jax = jax.lax.scan(
-            f, init_carr, xs, length=len(xs), reverse=False
-        )
+            carry_jax, ys_jax = jax.lax.scan(
+                f, init_carr, xs, length=len(xs), reverse=False
+            )
+            carry_op, ys_op = core.scan(
+                f, init_carr, xs, length=len(xs), reverse=False
+            )
 
-        ys_op = ys_op
-        ys_jax = ys_jax
-
-        self.assertEqual(ys_jax.shape, ys_op.shape)
-        self.assertEqual(ys_jax.dtype, ys_op.dtype)
+            self.assertEqual(ys_jax.shape, ys_op.shape)
+            self.assertEqual(ys_jax.dtype, ys_op.dtype)
 
 
 class CoreOpsCorrectnessTest(testing.TestCase):
@@ -244,17 +259,17 @@ class CoreOpsCorrectnessTest(testing.TestCase):
     def test_scan(self):
         def f(carry, x):
             if type(carry) is list or type(carry) is tuple:
-                x += carry[0]
                 carry = carry[0]
+                if type(carry) is int or type(x) is int:
+                    carry = int(carry)
+
+                x += carry
+
+            elif type(carry) is float or type(x) is float:
+                x = float(x)
+                carry = float(carry)
+                x += carry
             else:
-                if (
-                    isinstance(x, np.floating)
-                    or isinstance(carry, np.floating)
-                    or isinstance(x, float)
-                    or isinstance(carry, float)
-                ):
-                    x = float(x)  # x.astype(np.float32)
-                    carry = float(carry)  # carry.astype(np.float32)
                 x += carry
 
             return carry, x

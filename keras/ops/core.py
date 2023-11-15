@@ -173,7 +173,10 @@ class Scan(Operation):
         return backend.core.scan(f, init, xs, length, reverse, unroll)
 
     def compute_output_spec(self, f, init, xs, length, reverse, unroll):
-        return KerasTensor(xs.shape, dtype=xs.dtype)
+        return [
+            KerasTensor(xs.shape, dtype=xs.dtype),
+            KerasTensor(init.shape, dtype=init.dtype),
+        ]
 
 
 @keras_export("keras.ops.slice_update")
@@ -213,7 +216,7 @@ def slice_update(inputs, start_indices, updates):
 
 
 @keras_export("keras.ops.scan")
-def scan(f, init, xs, length=None, reverse=False):
+def scan(f, init, xs, length=None, reverse=False, unroll=False):
     """Scan a function over leading array axes while carrying along state.
 
     At a high level, this operation does
@@ -248,8 +251,8 @@ def scan(f, init, xs, length=None, reverse=False):
         A scanned array and a carry element.
     """
     if any_symbolic_tensors((init, xs)):
-        return SliceUpdate().symbolic_call(f, init, xs, length, reverse)
-    return backend.core.scan(f, init, xs, length, reverse)
+        return SliceUpdate().symbolic_call(f, init, xs, length, reverse, unroll)
+    return backend.core.scan(f, init, xs, length, reverse, unroll)
 
 
 class WhileLoop(Operation):

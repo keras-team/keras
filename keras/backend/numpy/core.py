@@ -204,7 +204,7 @@ def while_loop(
     return loop_vars
 
 
-def scan(f, init, xs, length=None, reverse=False):
+def scan(f, init, xs, length=None, reverse=False, unroll=False):
     if xs is None:
         xs = [None] * length
     carry = init
@@ -221,7 +221,6 @@ def scan(f, init, xs, length=None, reverse=False):
     if len(ys) > 0:
         if isinstance(ys[0], np.integer):
             ys = ys.astype(np.int32)
-
         if isinstance(ys[0], np.floating):
             ys = ys.astype(np.float32)
     if isinstance(ys, np.integer):

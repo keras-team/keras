@@ -194,29 +194,35 @@ def slice_update(inputs, start_indices, updates):
     return dynamic_update_slice(inputs, updates, start_indices)
 
 
-def scan(f, init, xs, length=None, reverse=False):
+def scan(f, init, xs, length=None, reverse=False, unroll=False):
     if xs is None:
         xs = [None] * length
     if reverse:
         tf.reverse(xs, [0])
-    if (
-        isinstance(init, float)
-        or isinstance(init, np.floating)
-        or any(isinstance(x, float) for x in xs)
-        or isinstance(xs, np.floating)
+    for x in xs:
+        print(type(x))
+    print("any(type(x) is float for x in xs)")
+    print(any(np.issubdtype(type(x), np.floating) for x in xs))
+    if type(init) is float or any(
+        np.issubdtype(type(x), np.floating) for x in xs
     ):
         init = (
-            tf.cast(init, dtype=tf.float32),
-            tf.zeros_like(0, dtype=tf.float32),
+            tf.cast(init, dtype=tf.double),
+            tf.zeros_like(0, dtype=tf.double),
         )
-        xs = tf.cast(xs, tf.float32)
+        xs = tf.cast(xs, dtype=tf.double)
     else:
-        init = (tf.cast(init, dtype=tf.int32), tf.zeros_like(0, dtype=tf.int32))
-        xs = tf.cast(xs, tf.int32)
+        init = (tf.cast(init, dtype=tf.int64), tf.zeros_like(0, dtype=tf.int64))
+
     carry, ys = tf.scan(f, xs, initializer=init)
 
-    if carry[0].dtype is tf.float64:
-        return tf.cast(carry[0], dtype=tf.float32), ys.numpy()
+    # if carry[0].dtype is tf.float64:
+    #    return tf.cast(carry[0], dtype=tf.float32), ys.numpy()
+    # carry = tf.cast(carry[0], dtype=tf.int64)
+    if ys.dtype == tf.int64:
+        ys = tf.cast(ys, dtype=tf.int32)
+    if ys.dtype == tf.double:
+        ys = tf.cast(ys, dtype=tf.float32)
     return carry[0], ys.numpy()
 
 
