@@ -435,7 +435,7 @@ class Model(Trainer, Layer):
         elif "shapes_dict" in config:
             # Case: inputs were recorded as multiple keyword arguments.
             if utils.is_default(self.build):
-                status = self._build_for_kwargs(config["shapes_dict"])
+                status = self._build_by_run_for_kwargs(config["shapes_dict"])
             else:
                 try:
                     self.build(**config["shapes_dict"])
