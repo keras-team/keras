@@ -81,7 +81,7 @@ jobs:
       #     coverage xml --omit='keras/applications/*' -o core-coverage.xml
       - name: Test with pytest
         run: |
-          pytest keras --ignore keras/applications --cov=keras -k test_speedup -s
+          pytest keras --ignore keras/applications -k test_speedup -s
           coverage xml --omit='keras/applications/*' -o core-coverage.xml
       # - name: Codecov keras
       #   uses: codecov/codecov-action@v3
