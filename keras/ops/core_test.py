@@ -11,7 +11,6 @@ from keras import models
 from keras import ops
 from keras import optimizers
 from keras import testing
-from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import core
@@ -300,27 +299,16 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllEqual(x, (1, 1))
         self.assertIsInstance(x, np.ndarray)
 
-        # Empty lists should give an empty array with the default float type.
+        # Empty lists should give an empty array.
         x = ops.convert_to_tensor([])
-        x = ops.convert_to_numpy(x)
+        np_x = ops.convert_to_numpy(x)
+        self.assertTrue(ops.is_tensor(x))
         self.assertAllEqual(x, [])
-        self.assertIsInstance(x, np.ndarray)
-        self.assertEqual(x.dtype.name, "float32")
+        self.assertIsInstance(np_x, np.ndarray)
 
         # Partially converted.
         x = ops.convert_to_tensor((1, ops.array(2), 3))
         self.assertAllEqual(x, (1, 2, 3))
-
-        # Check dtype convertion.
-        x = [[1, 0, 1], [1, 1, 0]]
-        output = ops.convert_to_tensor(x, dtype="int32")
-        self.assertEqual(standardize_dtype(output.dtype), "int32")
-        x = [[1, 0, 1], [1, 1, 0]]
-        output = ops.convert_to_tensor(x, dtype="float32")
-        self.assertEqual(standardize_dtype(output.dtype), "float32")
-        x = [[1, 0, 1], [1, 1, 0]]
-        output = ops.convert_to_tensor(x, dtype="bool")
-        self.assertEqual(standardize_dtype(output.dtype), "bool")
 
         with self.assertRaises(ValueError):
             ops.convert_to_numpy(KerasTensor((2,)))
@@ -435,8 +423,18 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             backend.convert_to_numpy(output), 2 * np.ones((2, 3))
         )
 
+    def test_is_tensor(self):
+        np_x = np.array([[1, 2, 3], [3, 2, 1]])
+        x = backend.convert_to_tensor(np_x)
+        if backend.backend() != "numpy":
+            self.assertFalse(ops.is_tensor(np_x))
+        self.assertTrue(ops.is_tensor(x))
+        self.assertFalse(ops.is_tensor([1, 2, 3]))
+
 
 class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
+    import jax  # enable bfloat16 for numpy
+
     # TODO: Using uint64 will lead to weak type promotion (`float`),
     # resulting in different behavior between JAX and Keras. Currently, we
     # are skipping the test for uint64
@@ -451,23 +449,30 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         ]
 
     @parameterized.parameters(
-        (bool(0), "bool"),
-        (int(0), "int32"),
-        (float(0), backend.floatx()),
-        ([False, True, False], "bool"),
-        ([1, 2, 3], "int32"),
-        ([1.0, 2.0, 3.0], backend.floatx()),
-        ([1, 2.0, 3], backend.floatx()),
-        ([[False], [True], [False]], "bool"),
-        ([[1], [2], [3]], "int32"),
-        ([[1], [2.0], [3]], backend.floatx()),
+        ((), None, backend.floatx()),
+        ([], None, backend.floatx()),
+        (bool(0), None, "bool"),
+        (int(0), None, "int32"),
+        (float(0), None, backend.floatx()),
+        ([False, True, False], None, "bool"),
+        ([1, 2, 3], None, "int32"),
+        ([1.0, 2.0, 3.0], None, backend.floatx()),
+        ([1, 2.0, 3], None, backend.floatx()),
+        ([[False], [True], [False]], None, "bool"),
+        ([[1], [2], [3]], None, "int32"),
+        ([[1], [2.0], [3]], None, backend.floatx()),
         *[
-            (np.array(0, dtype=dtype), dtype)
+            (np.array(0, dtype=dtype), None, dtype)
+            for dtype in ALL_DTYPES
+            if dtype is not None
+        ],
+        *[
+            ([[1, 0, 1], [1, 1, 0]], dtype, dtype)
             for dtype in ALL_DTYPES
             if dtype is not None
         ],
     )
-    def test_convert_to_tensor(self, x, expected_dtype):
+    def test_convert_to_tensor(self, x, dtype, expected_dtype):
         # We have to disable x64 for jax backend since jnp.array doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit.
@@ -481,14 +486,8 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
 
         with jax_disable_x64:
             self.assertEqual(
-                backend.standardize_dtype(ops.convert_to_tensor(x).dtype),
+                backend.standardize_dtype(
+                    ops.convert_to_tensor(x, dtype=dtype).dtype
+                ),
                 expected_dtype,
             )
-
-    def test_is_tensor(self):
-        np_x = np.array([[1, 2, 3], [3, 2, 1]])
-        x = backend.convert_to_tensor(np_x)
-        if backend.backend() != "numpy":
-            self.assertFalse(ops.is_tensor(np_x))
-        self.assertTrue(ops.is_tensor(x))
-        self.assertFalse(ops.is_tensor([1, 2, 3]))

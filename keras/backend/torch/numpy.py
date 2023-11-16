@@ -206,11 +206,7 @@ def amin(x, axis=None, keepdims=False):
     return torch.amin(x, dim=axis, keepdim=keepdims)
 
 
-def append(
-    x1,
-    x2,
-    axis=None,
-):
+def append(x1, x2, axis=None):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     if axis is None:
         return torch.cat((x1.flatten(), x2.flatten()))
@@ -316,13 +312,18 @@ def array(x, dtype=None):
 
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
-    # Conversion to float necessary for `torch.mean`
-    x = cast(x, "float32") if x.dtype in TORCH_INT_TYPES else x
+    dtypes_to_resolve = [x.dtype, float]
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+    dtype = dtypes.result_type(*dtypes_to_resolve)
+    x = cast(x, dtype)
+    if weights is not None:
+        weights = cast(weights, dtype)
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
     if weights is not None:
-        weights = convert_to_tensor(weights)
         return torch.sum(torch.mul(x, weights), dim=axis) / torch.sum(
             weights, dim=-1
         )
@@ -432,7 +433,7 @@ def count_nonzero(x, axis=None):
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return cast(torch.ne(x, 0), "int32")
-    return torch.count_nonzero(x, dim=axis).T
+    return cast(torch.count_nonzero(x, dim=axis).T, "int32")
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=-1):
@@ -442,8 +443,19 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=-1):
             f"Received: axisa={axisa}, axisb={axisb}, axisc={axisc}. Please "
             "use `axis` arg in torch backend."
         )
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return torch.cross(x1, x2, dim=axis)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    compute_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    result_dtype = compute_dtype
+    # TODO: torch.cross doesn't support bfloat16 with gpu
+    if get_device() == "cuda" and compute_dtype == "bfloat16":
+        compute_dtype = "float32"
+    # TODO: torch.cross doesn't support float16 with cpu
+    elif get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+    return cast(torch.cross(x1, x2, dim=axis), result_dtype)
 
 
 def cumprod(x, axis=None):
@@ -485,6 +497,8 @@ def diff(a, n=1, axis=-1):
 def digitize(x, bins):
     x = convert_to_tensor(x)
     bins = convert_to_tensor(bins)
+    if standardize_dtype(x.dtype) == "bool":
+        x = cast(x, "uint8")
     return cast(torch.bucketize(x, bins, right=True), "int32")
 
 

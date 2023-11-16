@@ -1205,15 +1205,15 @@ class Layer(BackendLayer, Operation):
 
         # Otherwise, attempt to build the layer by calling it on symbolic input.
         if might_have_unbuilt_state(self):
-            if len(shapes_dict) == 1:
-                success = self._build_by_run_for_single_pos_arg(first_shape)
-            else:
-                success = self._build_by_run_for_kwargs(shapes_dict)
-            if not success:
+            try:
+                backend.compute_output_spec(
+                    self.call, **call_spec.arguments_dict
+                )
+            except Exception as e:
                 if call_spec.eager:
                     # Will let the actual eager call do state-building
                     return
-                raise ValueError(
+                warnings.warn(
                     f"Layer '{self.name}' looks like it has unbuilt state, but "
                     "Keras is not able to trace the layer `call()` in order to "
                     "build it automatically. Possible causes:\n"
@@ -1225,21 +1225,10 @@ class Layer(BackendLayer, Operation):
                     "to implement the `def build(self, input_shape)` method on "
                     "your layer. It should create all variables used by the "
                     "layer (e.g. by calling `layer.build()` on all its "
-                    "children layers)."
+                    "children layers).\n"
+                    f"Exception encoutered: ''{e}''"
                 )
-
         self.build(first_shape)
-
-    def _build_by_run(self, *args, **kwargs):
-        call_spec = CallSpec(self._call_signature, args, kwargs)
-        shapes_dict = get_shapes_dict(call_spec)
-        if len(shapes_dict) == 1:
-            success = self._build_by_run_for_single_pos_arg(
-                tuple(shapes_dict.values())[0]
-            )
-        else:
-            success = self._build_by_run_for_kwargs(shapes_dict)
-        return success
 
     def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).
@@ -1249,7 +1238,8 @@ class Layer(BackendLayer, Operation):
         try:
             backend.compute_output_spec(self.call, input_tensors)
             return True
-        except:
+        except Exception as e:
+            raise e
             return False
 
     def _build_by_run_for_kwargs(self, shapes_dict):
