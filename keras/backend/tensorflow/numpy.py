@@ -482,14 +482,19 @@ def ceil(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return tf.cast(tfnp.ceil(x), dtype=dtype)
+    x = tf.cast(x, dtype)
+    # TODO: consider tfnp.ceil, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.ceil(x)
 
 
 def clip(x, x_min, x_max):
     dtype = standardize_dtype(x.dtype)
     if dtype == "bool":
-        dtype = "int64"
-    return tf.cast(tfnp.clip(x, x_min, x_max), dtype=dtype)
+        x = tf.cast(x, "int64")
+    # TODO: consider tfnp.clip, but currently, it incorrectly promotes
+    # uint* to int*
+    return tf.clip_by_value(x, x_min, x_max)
 
 
 def concatenate(xs, axis=0):
