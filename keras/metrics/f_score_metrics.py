@@ -135,7 +135,7 @@ class FBetaScore(Metric):
             )
         num_classes = y_pred_shape[-1]
         if self.average != "micro":
-            init_shape = num_classes
+            init_shape = (num_classes,)
         else:
             init_shape = ()
 
