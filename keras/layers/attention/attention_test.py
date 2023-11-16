@@ -103,12 +103,8 @@ class AttentionTest(testing.TestCase):
     def test_attention_with_dropout(self):
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
         value = np.array([[[1.0, 1.0], [1.0, 1.0]]])
-        layer_with_dropout = layers.Attention(
-            dropout=0.2, noise_shape=None, seed_generator=None
-        )
-        layer_without_dropout = layers.Attention(
-            noise_shape=None, seed_generator=None
-        )
+        layer_with_dropout = layers.Attention(dropout=0.2)
+        layer_without_dropout = layers.Attention()
 
         output1, scores1 = layer_with_dropout(
             [query, value], return_attention_scores=True, training=True
