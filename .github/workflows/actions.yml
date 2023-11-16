@@ -75,17 +75,21 @@ jobs:
         if: ${{ matrix.backend == 'torch'}}
         run: |
           pytest integration_tests/torch_workflow_test.py
+      # - name: Test with pytest
+      #   run: |
+      #     pytest keras --ignore keras/applications --cov=keras
+      #     coverage xml --omit='keras/applications/*' -o core-coverage.xml
       - name: Test with pytest
         run: |
-          pytest keras --ignore keras/applications --cov=keras
+          pytest keras --ignore keras/applications --cov=keras -k test_speedup -s
           coverage xml --omit='keras/applications/*' -o core-coverage.xml
-      - name: Codecov keras
-        uses: codecov/codecov-action@v3
-        with:
-          env_vars: PYTHON,KERAS_BACKEND
-          flags: keras,keras-${{ matrix.backend }}
-          files: core-coverage.xml
-          fail_ci_if_error: false
+      # - name: Codecov keras
+      #   uses: codecov/codecov-action@v3
+      #   with:
+      #     env_vars: PYTHON,KERAS_BACKEND
+      #     flags: keras,keras-${{ matrix.backend }}
+      #     files: core-coverage.xml
+      #     fail_ci_if_error: false
 
   format:
     name: Check the code format

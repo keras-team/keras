@@ -144,5 +144,7 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
         for batch in gen:
             pass
         speedup_time = time.time() - t0
+        print("\n!!!speedup test!!!")
+        print(speedup_time, no_speedup_time)
 
         self.assertLess(speedup_time, no_speedup_time)
