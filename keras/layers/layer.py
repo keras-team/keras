@@ -1238,8 +1238,7 @@ class Layer(BackendLayer, Operation):
         try:
             backend.compute_output_spec(self.call, input_tensors)
             return True
-        except Exception as e:
-            raise e
+        except:
             return False
 
     def _build_by_run_for_kwargs(self, shapes_dict):
