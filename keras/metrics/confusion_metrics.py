@@ -659,7 +659,6 @@ class SensitivitySpecificityBase(Metric):
             ops.nonzero(predicate(constrained, self.value))
         )
 
-        print(feasible)
         feasible_exists = ops.greater(ops.size(feasible), 0)
         max_dependent = ops.max(ops.take(dependent, feasible), initial=0)
 

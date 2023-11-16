@@ -1,4 +1,5 @@
 import numpy as np
+import tree
 
 from keras.backend import config
 from keras.backend import standardize_dtype
@@ -94,12 +95,13 @@ def amin(x, axis=None, keepdims=False):
     return np.amin(x, axis=axis, keepdims=keepdims)
 
 
-def append(
-    x1,
-    x2,
-    axis=None,
-):
+def append(x1, x2, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.append(x1, x2, axis=axis)
 
 
@@ -205,6 +207,15 @@ def array(x, dtype=None):
 
 def average(x, axis=None, weights=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    x = convert_to_tensor(x)
+    dtypes_to_resolve = [x.dtype, float]
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+    dtype = dtypes.result_type(*dtypes_to_resolve)
+    x = x.astype(dtype)
+    if weights is not None:
+        weights = weights.astype(dtype)
     return np.average(x, weights=weights, axis=axis)
 
 
@@ -259,6 +270,12 @@ def clip(x, x_min, x_max):
 
 def concatenate(xs, axis=0):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
     return np.concatenate(xs, axis=axis)
 
 
@@ -296,11 +313,18 @@ def cosh(x):
 
 def count_nonzero(x, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.count_nonzero(x, axis=axis)
+    # np.count_nonzero will return python int when axis=None, so we need
+    # to convert_to_tensor
+    return convert_to_tensor(np.count_nonzero(x, axis=axis)).astype("int32")
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.cross(
         x1,
         x2,
