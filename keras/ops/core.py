@@ -46,7 +46,7 @@ def scatter(indices, values, shape):
     Args:
         indices: A tensor or list/tuple specifying
             indices for the values in `values`.
-        updates: A tensor, the values to be set at `indices`.
+        values: A tensor, the values to be set at `indices`.
         shape: Shape of the output tensor.
 
     Example:
