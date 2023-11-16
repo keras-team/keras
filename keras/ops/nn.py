@@ -1232,7 +1232,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None):
     all other indices are marked as 0.
 
     Args:
-        x : Integer tensor to be encoded. The shape can be
+        x: Integer tensor to be encoded. The shape can be
             arbitrary, but the dtype should be integer.
         num_classes: Number of classes for the one-hot encoding.
         axis: Axis along which the encoding is performed. Defaults to
