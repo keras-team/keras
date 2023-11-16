@@ -101,14 +101,20 @@ class AttentionTest(testing.TestCase):
             layer([tensor, tensor], mask=[tensor])
 
     def test_attention_with_dropout(self):
-        layer = layers.Attention(dropout=0.2)
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
         value = np.array([[[1.0, 1.0], [1.0, 1.0]]])
-        output, scores = layer(
-            [query, value],
-            return_attention_scores=True,
-            training=True
+        layer_with_dropout = layers.Attention(
+            dropout=0.2, noise_shape=None, seed_generator=None
         )
-        self.assertIsNotNone(output)
-        self.assertIsNotNone(scores)
-        
+        layer_without_dropout = layers.Attention(
+            noise_shape=None, seed_generator=None
+        )
+
+        output1, scores1 = layer_with_dropout(
+            [query, value], return_attention_scores=True, training=True
+        )
+        output2, scores2 = layer_without_dropout(
+            [query, value], return_attention_scores=True, training=True
+        )
+        self.assertNotAllClose(output1, output2)
+        self.assertNotAllClose(scores1, scores2)
