@@ -354,8 +354,9 @@ def arccos(x):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
-    # TODO: tfnp.arccos incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.arccos(x), dtype)
+    # TODO: consider tfnp.arccos, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.acos(x)
 
 
 @sparse.densifying_unary(np.nan)
@@ -366,8 +367,9 @@ def arccosh(x):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
-    # TODO: tfnp.arccosh incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.arccosh(x), dtype)
+    # TODO: consider tfnp.arccosh, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.acosh(x)
 
 
 @sparse.elementwise_unary
@@ -378,8 +380,9 @@ def arcsin(x):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
-    # TODO: tfnp.arcsin incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.arcsin(x), dtype)
+    # TODO: consider tfnp.arcsin, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.asin(x)
 
 
 @sparse.elementwise_unary
@@ -390,8 +393,9 @@ def arcsinh(x):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
-    # TODO: tfnp.arcsinh incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.arcsinh(x), dtype)
+    # TODO: consider tfnp.arcsinh, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.asinh(x)
 
 
 @sparse.elementwise_unary
@@ -402,8 +406,9 @@ def arctan(x):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
-    # TODO: tfnp.arctan incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.arctan(x), dtype)
+    # TODO: consider tfnp.arctan, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.atan(x)
 
 
 def arctan2(x1, x2):
@@ -423,8 +428,9 @@ def arctanh(x):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
-    # TODO: tfnp.arctanh incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.arctanh(x), dtype)
+    # TODO: consider tfnp.arctanh, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.atanh(x)
 
 
 def argmax(x, axis=None):
@@ -476,14 +482,19 @@ def ceil(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return tf.cast(tfnp.ceil(x), dtype=dtype)
+    x = tf.cast(x, dtype)
+    # TODO: consider tfnp.ceil, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.ceil(x)
 
 
 def clip(x, x_min, x_max):
     dtype = standardize_dtype(x.dtype)
     if dtype == "bool":
-        dtype = "int64"
-    return tf.cast(tfnp.clip(x, x_min, x_max), dtype=dtype)
+        x = tf.cast(x, "int64")
+    # TODO: consider tfnp.clip, but currently, it incorrectly promotes
+    # uint* to int*
+    return tf.clip_by_value(x, x_min, x_max)
 
 
 def concatenate(xs, axis=0):
@@ -526,8 +537,9 @@ def cos(x):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
-    # TODO: tfnp.cos incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.cos(x), dtype)
+    # TODO: consider tfnp.cos, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.cos(x)
 
 
 @sparse.densifying_unary(1)
@@ -538,12 +550,13 @@ def cosh(x):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
-    # TODO: tfnp.cosh incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.cosh(x), dtype)
+    # TODO: consider tfnp.cosh, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.cosh(x)
 
 
 def count_nonzero(x, axis=None):
-    return tf.cast(tfnp.count_nonzero(x, axis=axis), "int32")
+    return tf.math.count_nonzero(x, axis=axis, dtype="int32")
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
@@ -648,15 +661,11 @@ def equal(x1, x2):
 def exp(x):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
-
-    # TODO: When input dtype is bfloat16, the result dtype will become float64
-    # using tfnp.exp
-    if ori_dtype == "bfloat16":
-        return tf.exp(x)
-
     if "int" in ori_dtype or ori_dtype == "bool":
         x = tf.cast(x, config.floatx())
-    return tfnp.exp(x)
+    # TODO: consider tfnp.exp, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.exp(x)
 
 
 def expand_dims(x, axis):
@@ -669,15 +678,11 @@ def expand_dims(x, axis):
 def expm1(x):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
-
-    # TODO: When input dtype is bfloat16, the result dtype will become float64
-    # using tfnp.expm1
-    if ori_dtype == "bfloat16":
-        return tf.math.expm1(x)
-
     if "int" in ori_dtype or ori_dtype == "bool":
         x = tf.cast(x, config.floatx())
-    return tfnp.expm1(x)
+    # TODO: consider tfnp.expm1, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.expm1(x)
 
 
 def flip(x, axis=None):
@@ -802,8 +807,9 @@ def log(x):
         else dtypes.result_type(x.dtype, float)
     )
     x = tf.cast(x, dtype)
-    # TODO: tfnp.log incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.log(x), dtype)
+    # TODO: consider tfnp.log, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.log(x)
 
 
 @sparse.densifying_unary(-tfnp.inf)
@@ -815,8 +821,9 @@ def log10(x):
         else dtypes.result_type(x.dtype, float)
     )
     x = tf.cast(x, dtype)
-    # TODO: tfnp.log10 incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.log10(x), dtype)
+    # TODO: consider tfnp.log10, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.log(x) / tf.math.log(tf.constant(10, x.dtype))
 
 
 @sparse.elementwise_unary
@@ -828,8 +835,9 @@ def log1p(x):
         else dtypes.result_type(x.dtype, float)
     )
     x = tf.cast(x, dtype)
-    # TODO: tfnp.log1p incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.log1p(x), dtype)
+    # TODO: consider tfnp.log1p, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.log1p(x)
 
 
 @sparse.densifying_unary(-tfnp.inf)
@@ -841,8 +849,9 @@ def log2(x):
         else dtypes.result_type(x.dtype, float)
     )
     x = tf.cast(x, dtype)
-    # TODO: tfnp.log10 incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.log2(x), dtype)
+    # TODO: consider tfnp.log2, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.log(x) / tf.math.log(tf.constant(2, x.dtype))
 
 
 def logaddexp(x1, x2):
@@ -851,8 +860,17 @@ def logaddexp(x1, x2):
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    # TODO: tfnp.logaddexp incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.logaddexp(x1, x2), dtype)
+
+    # TODO: consider tfnp.logaddexp, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    # Below is the same implementation as tfnp.logaddexp using all native
+    # ops to prevent incorrect promotion of bfloat16.
+    delta = x1 - x2
+    return tf.where(
+        tf.math.is_nan(delta),
+        x1 + x2,
+        tf.maximum(x1, x2) + tf.math.log1p(tf.math.exp(-tf.abs(delta))),
+    )
 
 
 def logical_and(x1, x2):
@@ -1175,8 +1193,9 @@ def sin(x):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
-    # TODO: tfnp.sin incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.sin(x), dtype)
+    # TODO: consider tfnp.sin, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.sin(x)
 
 
 @sparse.elementwise_unary
@@ -1187,8 +1206,9 @@ def sinh(x):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
-    # TODO: tfnp.sinh incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.sinh(x), dtype)
+    # TODO: consider tfnp.sinh, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.sinh(x)
 
 
 def size(x):
@@ -1253,8 +1273,9 @@ def tan(x):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
-    # TODO: tfnp.sinh incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.tan(x), dtype)
+    # TODO: consider tfnp.tan, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.tan(x)
 
 
 @sparse.elementwise_unary
@@ -1265,8 +1286,9 @@ def tanh(x):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
-    # TODO: tfnp.sinh incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.tanh(x), dtype)
+    # TODO: consider tfnp.tanh, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.tanh(x)
 
 
 def tensordot(x1, x2, axes=2):
@@ -1365,8 +1387,9 @@ def sqrt(x):
         else dtypes.result_type(x.dtype, float)
     )
     x = tf.cast(x, dtype)
-    # TODO: tfnp.sqrt incorrectly promote bfloat16 to float64
-    return tf.cast(tfnp.sqrt(x), dtype)
+    # TODO: consider tfnp.sqrt, but currently, it incorrectly promotes
+    # bfloat16 to float64
+    return tf.math.sqrt(x)
 
 
 def squeeze(x, axis=None):
@@ -1409,7 +1432,10 @@ def sum(x, axis=None, keepdims=False):
         dtype = "int32"
     elif dtype in ("uint8", "uint16"):
         dtype = "uint32"
-    return tf.cast(tfnp.sum(x, axis=axis, keepdims=keepdims), dtype)
+    x = tf.cast(x, dtype)
+    # TODO: consider tfnp.sum, but currently, it incorrectly promotes
+    # int32 to int64 / uint32 to uint64
+    return tf.reduce_sum(x, axis=axis, keepdims=keepdims)
 
 
 def eye(N, M=None, k=0, dtype=None):
