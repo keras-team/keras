@@ -63,33 +63,29 @@ jobs:
           flags: keras.applications,keras.applications-${{ matrix.backend }}
           files: apps-coverage.xml
           fail_ci_if_error: false
-      # - name: Test integrations
-      #   if: ${{ matrix.backend != 'numpy'}}
-      #   run: |
-      #     python integration_tests/import_test.py
-      # - name: Test TF-specific integrations
-      #   if: ${{ matrix.backend == 'tensorflow'}}
-      #   run: |
-      #     python integration_tests/tf_distribute_training_test.py
-      # - name: Test Torch-specific integrations
-      #   if: ${{ matrix.backend == 'torch'}}
-      #   run: |
-      #     pytest integration_tests/torch_workflow_test.py
-      # - name: Test with pytest
-      #   run: |
-      #     pytest keras --ignore keras/applications --cov=keras
-      #     coverage xml --omit='keras/applications/*' -o core-coverage.xml
+      - name: Test integrations
+        if: ${{ matrix.backend != 'numpy'}}
+        run: |
+          python integration_tests/import_test.py
+      - name: Test TF-specific integrations
+        if: ${{ matrix.backend == 'tensorflow'}}
+        run: |
+          python integration_tests/tf_distribute_training_test.py
+      - name: Test Torch-specific integrations
+        if: ${{ matrix.backend == 'torch'}}
+        run: |
+          pytest integration_tests/torch_workflow_test.py
       - name: Test with pytest
         run: |
-          pytest keras --ignore keras/applications -k test_speedup -s
+          pytest keras --ignore keras/applications --cov=keras
           coverage xml --omit='keras/applications/*' -o core-coverage.xml
-      # - name: Codecov keras
-      #   uses: codecov/codecov-action@v3
-      #   with:
-      #     env_vars: PYTHON,KERAS_BACKEND
-      #     flags: keras,keras-${{ matrix.backend }}
-      #     files: core-coverage.xml
-      #     fail_ci_if_error: false
+      - name: Codecov keras
+        uses: codecov/codecov-action@v3
+        with:
+          env_vars: PYTHON,KERAS_BACKEND
+          flags: keras,keras-${{ matrix.backend }}
+          files: core-coverage.xml
+          fail_ci_if_error: false
 
   format:
     name: Check the code format
