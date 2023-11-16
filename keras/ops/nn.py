@@ -718,7 +718,7 @@ def average_pool(
 
     Args:
         inputs: Tensor of rank N+2. `inputs` has shape
-            `(batch_size,)` + inputs_spatial_shape + (num_channels,)` if
+            `(batch_size,) + inputs_spatial_shape + (num_channels,)` if
             `data_format="channels_last"`, or
             `(batch_size, num_channels) + inputs_spatial_shape` if
             `data_format="channels_first"`. Pooling happens over the spatial
@@ -910,7 +910,7 @@ def depthwise_conv(
 
     Args:
         inputs: Tensor of rank N+2. `inputs` has shape
-            `(batch_size,)` + inputs_spatial_shape + (num_channels,)` if
+            `(batch_size,) + inputs_spatial_shape + (num_channels,)` if
             `data_format="channels_last"`, or
             `(batch_size, num_channels) + inputs_spatial_shape` if
             `data_format="channels_first"`.
@@ -1021,7 +1021,7 @@ def separable_conv(
 
     Args:
         inputs: Tensor of rank N+2. `inputs` has shape
-            `(batch_size,)` + inputs_spatial_shape + (num_channels,)` if
+            `(batch_size,) + inputs_spatial_shape + (num_channels,)` if
             `data_format="channels_last"`, or
             `(batch_size, num_channels) + inputs_spatial_shape` if
             `data_format="channels_first"`.
@@ -1142,7 +1142,7 @@ def conv_transpose(
 
     Args:
         inputs: Tensor of rank N+2. `inputs` has shape
-            `(batch_size,)` + inputs_spatial_shape + (num_channels,)` if
+            `(batch_size,) + inputs_spatial_shape + (num_channels,)` if
             `data_format="channels_last"`, or
             `(batch_size, num_channels) + inputs_spatial_shape` if
             `data_format="channels_first"`.
