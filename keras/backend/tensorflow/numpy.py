@@ -556,7 +556,7 @@ def cosh(x):
 
 
 def count_nonzero(x, axis=None):
-    return tf.cast(tfnp.count_nonzero(x, axis=axis), "int32")
+    return tf.math.count_nonzero(x, axis=axis, dtype="int32")
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
