@@ -451,6 +451,12 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
+    xs = tree.map_structure(convert_to_tensor, xs)
+    dtypes_to_resolve = []
+    for x in xs:
+        dtypes_to_resolve.append(x.dtype)
+    dtype = dtypes.result_type(*dtypes_to_resolve)
+    xs = tree.map_structure(lambda x: x.astype(dtype), xs)
     return np.hstack(xs)
 
 
