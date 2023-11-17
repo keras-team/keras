@@ -152,7 +152,7 @@ def softmax(x, axis=-1):
     The input values in are the log-odds of the resulting probability.
 
     Args:
-        x : Input tensor.
+        x: Input tensor.
         axis: Integer, axis along which the softmax is applied.
     """
     output = ops.softmax(x, axis=axis)
