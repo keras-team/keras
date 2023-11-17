@@ -75,7 +75,7 @@ def einsum(subscripts, *operands, **kwargs):
 
     dtypes_to_resolve = []
     for x in operands:
-        dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
+        dtypes_to_resolve.append(x.dtype)
     result_dtype = dtypes.result_type(*dtypes_to_resolve)
     compute_dtype = result_dtype
     # TODO: tfnp.einsum doesn't support integer dtype with gpu
@@ -509,7 +509,8 @@ def concatenate(xs, axis=0):
                 tf.sparse.to_dense(x) if isinstance(x, tf.SparseTensor) else x
                 for x in xs
             ]
-    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    xs = tf.nest.map_structure(convert_to_tensor, xs)
+    dtype_set = set([x.dtype for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
         xs = tf.nest.map_structure(lambda x: tf.cast(x, dtype), xs)
@@ -730,7 +731,7 @@ def hstack(xs):
     xs = tf.nest.map_structure(convert_to_tensor, xs)
     dtypes_to_resolve = []
     for x in xs:
-        dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
+        dtypes_to_resolve.append(x.dtype)
     dtype = dtypes.result_type(*dtypes_to_resolve)
     xs = tf.nest.map_structure(lambda x: tf.cast(x, dtype), xs)
     return tfnp.hstack(xs)
