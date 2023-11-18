@@ -493,6 +493,9 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
             knn.moments(x, axes=[1, 2], keepdims=True)[0].shape, (None, 1, 1)
         )
 
+    def test_batch_norm(self):
+        pass
+
 
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
@@ -887,6 +890,9 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(
             knn.moments(x, axes=[0, 1], keepdims=True)[0].shape, (1, 1, 4)
         )
+
+    def test_batch_norm(self):
+        pass
 
 
 class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -1610,6 +1616,9 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(mean.values[0], 4.5)
             self.assertEqual(variance.values[0], 8.75)
             self.assertEqual(variance.values[0], 8.75)
+
+    def test_batch_norm(self):
+        pass
 
 
 class TestLogitRecovery(testing.TestCase):
