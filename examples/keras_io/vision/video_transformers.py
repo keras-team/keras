@@ -1,11 +1,11 @@
 """
 Title: Video Classification with Transformers
 Author: [Sayak Paul](https://twitter.com/RisingSayak)
-Converted to Keras 3 by: [Soumik Rakshit](http://github.com/soumik12345)
 Date created: 2021/06/08
 Last modified: 2023/22/07
 Description: Training a video classifier with hybrid transformers.
 Accelerator: GPU
+Converted to Keras 3 by: [Soumik Rakshit](http://github.com/soumik12345)
 """
 """
 This example is a follow-up to the
