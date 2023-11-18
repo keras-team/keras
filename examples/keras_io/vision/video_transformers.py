@@ -246,9 +246,9 @@ class PositionalEmbedding(layers.Layer):
 
     def call(self, inputs):
         # The inputs are of shape: `(batch_size, frames, num_features)`
-        inputs = keras.backend.cast(inputs, self.compute_dtype)
-        length = keras.backend.shape(inputs)[1]
-        positions = keras.ops.numpy.arange(start=0, stop=length, step=1)
+        inputs = keras.ops.cast(inputs, self.compute_dtype)
+        length = keras.ops.shape(inputs)[1]
+        positions = keras.ops.arange(start=0, stop=length, step=1)
         embedded_positions = self.position_embeddings(positions)
         return inputs + embedded_positions
 
