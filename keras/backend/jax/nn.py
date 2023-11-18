@@ -509,8 +509,12 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # but less numerically stable.
     # Note: stop_gradient does not change the gradient to the mean, because that
     # gradient is zero.
-    variance = jnp.mean(jnp.square(x), axis=axes, keepdims=True) - jnp.square(
-        jax.lax.stop_gradient(mean)
+    # The substraction operation does not guarantee a non-negative
+    # result given float precision, so we clamp it to 0.
+    variance = jnp.maximum(
+        jnp.mean(jnp.square(x), axis=axes, keepdims=True)
+        - jnp.square(jax.lax.stop_gradient(mean)),
+        0.0,
     )
 
     if not keepdims:
