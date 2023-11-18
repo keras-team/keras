@@ -684,8 +684,8 @@ def _compute_moments_sync(x, axes, keepdims):
     )
     count_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_count)
 
-    mean = tf.divide_no_nan(y_sum, count_sum)
-    y_squared_mean = tf.divide_no_nan(y_squared_sum, count_sum)
+    mean = tf.math.divide_no_nan(y_sum, count_sum)
+    y_squared_mean = tf.math.divide_no_nan(y_squared_sum, count_sum)
     # var = E(x^2) - E(x)^2
     variance = tf.maximum(y_squared_mean - tf.square(mean), 0.0)
     if not keepdims:
