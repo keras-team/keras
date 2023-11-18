@@ -44,9 +44,6 @@ tar -xf ucf101_top5.tar.gz
 """
 
 import os
-
-os.environ["KERAS_BACKEND"] = "jax"  # @param ["tensorflow", "jax", "torch"]
-
 import keras
 from keras import layers
 from keras.applications.densenet import DenseNet121
@@ -243,6 +240,9 @@ class PositionalEmbedding(layers.Layer):
         )
         self.sequence_length = sequence_length
         self.output_dim = output_dim
+
+    def build(self, input_shape):
+        self.position_embeddings.build(input_shape)
 
     def call(self, inputs):
         # The inputs are of shape: `(batch_size, frames, num_features)`
