@@ -878,3 +878,87 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         output = kmath.solve(x1, x2)
         expected_result = np.array([[2, 0], [0, 2]], dtype="float32")
         self.assertAllClose(output, expected_result)
+
+
+class QrMoreTests(testing.TestCase):
+    def test_qr_init_valid_modes(self):
+        for mode in ["reduced", "complete"]:
+            try:
+                qr_op = kmath.Qr(mode=mode)
+                self.assertIsNotNone(qr_op)
+            except Exception as e:
+                self.fail(f"Valid mode '{mode}' raised exception: {e}")
+
+    def test_qr_init_invalid_mode(self):
+        invalid_mode = "invalid_mode"
+        expected_error = (
+            r"`mode` argument value not supported. "
+            r"Expected one of \{'reduced', 'complete'\}. "
+            f"Received: mode={invalid_mode}"
+        )
+        with self.assertRaisesRegex(ValueError, expected_error):
+            kmath.Qr(mode=invalid_mode)
+
+    def test_compute_output_spec_low_rank(self):
+        qr_op = kmath.Qr(mode="reduced")
+        low_rank_input = np.random.rand(3)
+        with self.assertRaisesRegex(
+            ValueError, r"Input should have rank >= 2. Received: .*"
+        ):
+            qr_op.compute_output_spec(low_rank_input)
+
+    def test_compute_output_spec_undefined_dimensions(self):
+        qr_op = kmath.Qr(mode="reduced")
+        undefined_dim_input = KerasTensor(shape=(None, 4), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Input should have its last 2 dimensions "
+            r"fully-defined. Received: .*",
+        ):
+            qr_op.compute_output_spec(undefined_dim_input)
+
+    def test_qr_call(self):
+        for mode in ["reduced", "complete"]:
+            qr_op = kmath.Qr(mode=mode)
+            test_input = np.random.rand(10, 10)
+            q, r = qr_op.call(test_input)
+            self.assertEqual(q.shape, (10, 10))
+            self.assertEqual(r.shape, (10, 10))
+
+
+class ExtractSequencesMoreTests(testing.TestCase):
+    def test_extract_sequences_init(self):
+        sequence_lengths = [1, 5, 10]
+        sequence_strides = [1, 2, 3]
+        for length in sequence_lengths:
+            for stride in sequence_strides:
+                extract_op = kmath.ExtractSequences(length, stride)
+                self.assertIsNotNone(extract_op)
+
+    def test_compute_output_spec_low_rank(self):
+        extract_op = kmath.ExtractSequences(
+            sequence_length=5, sequence_stride=1
+        )
+        low_rank_input = np.array(42)
+        error_message = r"Input should have rank >= 1. Received: .*"
+        with self.assertRaisesRegex(ValueError, error_message):
+            extract_op.compute_output_spec(low_rank_input)
+
+    def test_extract_sequences_call(self):
+        sequence_length, sequence_stride = 5, 2
+        extract_op = kmath.ExtractSequences(sequence_length, sequence_stride)
+        test_input = np.random.rand(10, 20)
+        result = extract_op.call(test_input)
+
+        expected_shape = self.calculate_expected_shape(
+            test_input.shape, sequence_length, sequence_stride
+        )
+        self.assertEqual(result.shape, expected_shape)
+
+    def calculate_expected_shape(
+        self, input_shape, sequence_length, sequence_stride
+    ):
+        num_sequences = (
+            (input_shape[1] - sequence_length) // sequence_stride
+        ) + 1
+        return (input_shape[0], num_sequences, sequence_length)
