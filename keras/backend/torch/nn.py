@@ -692,6 +692,10 @@ def batch_norm(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
     x = convert_to_tensor(x)
     mean = convert_to_tensor(mean).detach()
     variance = convert_to_tensor(variance).detach()
+    if offset is not None:
+        offset = convert_to_tensor(offset)
+    if scale is not None:
+        scale = convert_to_tensor(scale)
 
     def _batch_norm():
         return tnn.batch_norm(

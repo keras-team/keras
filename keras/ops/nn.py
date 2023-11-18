@@ -1652,7 +1652,7 @@ class BatchNorm(Operation):
             x, mean, variance, self.axis, self.offset, self.scale, self.epsilon
         )
 
-    def compute_output_spec(self, x):
+    def compute_output_spec(self, x, mean, variance):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -1672,13 +1672,15 @@ def batch_norm(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
         x: Input tensor.
         mean: A mean vector of the same length as the `axis` dimension of the
             input thensor.
-        variance: A variance tensor of the same length as the `axis` dimension
+        variance: A variance vector of the same length as the `axis` dimension
             of the input tensor.
         axis: Integer, the axis that should be normalized.
-        offset: An offset tensor. If not None, `offset` is added to the
-            normalized tensor. Defaults to None.
-        scale: A scale tensor. If not None, the normalized tensor is multiplied
-            by `scale`. Defaults to None.
+        offset: An offset vector of the same length as the `axis` dimension of
+            the input tensor. If not None, `offset` is added to the normalized
+            tensor. Defaults to None.
+        scale: A scale vector of the same length as the `axis` dimension of the
+            input tensor. If not None, the normalized tensor is multiplied by
+            `scale`. Defaults to None.
         epsilon: Small float added to variance to avoid dividing by zero.
             Defaults to 1e-3.
 
@@ -1702,9 +1704,9 @@ def batch_norm(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
 
     """
     if any_symbolic_tensors((x,)):
-        return BatchNorm(
-            x, mean, variance, axis, offset, scale, epsilon
-        ).symbolic_call(x)
+        return BatchNorm(axis, offset, scale, epsilon).symbolic_call(
+            x, mean, variance
+        )
 
     return backend.nn.batch_norm(
         x, mean, variance, axis, offset, scale, epsilon

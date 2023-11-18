@@ -494,7 +494,23 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_batch_norm(self):
-        pass
+        x = KerasTensor([None, 3, 4])
+        mean = KerasTensor([4])
+        variance = KerasTensor([4])
+        self.assertEqual(
+            knn.batch_norm(x, mean, variance, axis=-1).shape, (None, 3, 4)
+        )
+
+        x = KerasTensor([None, 3, 4, 5])
+        self.assertEqual(
+            knn.batch_norm(x, mean, variance, axis=2).shape, (None, 3, 4, 5)
+        )
+
+        mean = KerasTensor([3])
+        variance = KerasTensor([3])
+        self.assertEqual(
+            knn.batch_norm(x, mean, variance, axis=1).shape, (None, 3, 4, 5)
+        )
 
 
 class NNOpsStaticShapeTest(testing.TestCase):
@@ -892,7 +908,23 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_batch_norm(self):
-        pass
+        x = KerasTensor([10, 3, 4])
+        mean = KerasTensor([4])
+        variance = KerasTensor([4])
+        self.assertEqual(
+            knn.batch_norm(x, mean, variance, axis=-1).shape, (10, 3, 4)
+        )
+
+        x = KerasTensor([10, 3, 4, 5])
+        self.assertEqual(
+            knn.batch_norm(x, mean, variance, axis=2).shape, (10, 3, 4, 5)
+        )
+
+        mean = KerasTensor([3])
+        variance = KerasTensor([3])
+        self.assertEqual(
+            knn.batch_norm(x, mean, variance, axis=1).shape, (10, 3, 4, 5)
+        )
 
 
 class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -1618,7 +1650,20 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(variance.values[0], 8.75)
 
     def test_batch_norm(self):
-        pass
+        x = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+        mean = np.array([0.2, 0.3, 0.4])
+        variance = np.array([4.0, 16.0, 64.0])
+        output = knn.batch_norm(
+            x,
+            mean,
+            variance,
+            axis=-1,
+            offset=np.array([5.0, 10.0, 15.0]),
+            scale=np.array([10.0, 20.0, 30.0]),
+            epsilon=1e-7,
+        )
+        expected_output = np.array([[4.5, 9.5, 14.625], [6.0, 11.0, 15.75]])
+        self.assertAllClose(output, expected_output)
 
 
 class TestLogitRecovery(testing.TestCase):
