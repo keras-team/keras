@@ -512,6 +512,27 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
             knn.batch_norm(x, mean, variance, axis=1).shape, (None, 3, 4, 5)
         )
 
+        self.assertRaisesRegex(
+            ValueError,
+            "must be a vector of length",
+            knn.batch_norm,
+            x,
+            mean,
+            variance,
+            axis=-1,
+        )
+        self.assertRaisesRegex(
+            ValueError,
+            "must be a vector of length",
+            knn.batch_norm,
+            x,
+            mean,
+            variance,
+            axis=-1,
+            offset=KerasTensor([3]),
+            scale=KerasTensor([3]),
+        )
+
 
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
@@ -1663,6 +1684,18 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             epsilon=1e-7,
         )
         expected_output = np.array([[4.5, 9.5, 14.625], [6.0, 11.0, 15.75]])
+        self.assertAllClose(output, expected_output)
+
+        output = knn.batch_norm(
+            x,
+            mean,
+            variance,
+            axis=-1,
+            epsilon=1e-7,
+        )
+        expected_output = np.array(
+            [[-0.05, -0.025, -0.0125], [0.1, 0.05, 0.025]]
+        )
         self.assertAllClose(output, expected_output)
 
 

@@ -1640,19 +1640,27 @@ def moments(x, axes, keepdims=False, synchronized=False):
 
 
 class BatchNorm(Operation):
-    def __init__(self, axis, offset, scale, epsilon, name=None):
+    def __init__(self, axis, epsilon, name=None):
         super().__init__(name)
         self.axis = axis
-        self.offset = offset
-        self.scale = scale
         self.epsilon = epsilon
 
-    def call(self, x, mean, variance):
-        return backend.nn.batch_norm(
-            x, mean, variance, self.axis, self.offset, self.scale, self.epsilon
-        )
+    def _check_shape(self, name, shape, expected_shape):
+        if shape != expected_shape:
+            raise ValueError(
+                f"Arguments `{name}` must be a vector of length "
+                f"`x.shape[axis]`. Expected: `{expected_shape}`. "
+                f"Received: `{shape}."
+            )
 
-    def compute_output_spec(self, x, mean, variance):
+    def compute_output_spec(self, x, mean, variance, offset, scale):
+        shape = (x.shape[self.axis],)
+        self._check_shape("mean", tuple(mean.shape), shape)
+        self._check_shape("variance", tuple(variance.shape), shape)
+        if offset is not None:
+            self._check_shape("offset", tuple(offset.shape), shape)
+        if offset is not scale:
+            self._check_shape("scale", tuple(scale.shape), shape)
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -1703,9 +1711,9 @@ def batch_norm(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
            [ 3.6624e-01,  3.6624e-01,  3.6624e-01]])
 
     """
-    if any_symbolic_tensors((x,)):
-        return BatchNorm(axis, offset, scale, epsilon).symbolic_call(
-            x, mean, variance
+    if any_symbolic_tensors((x, mean, variance, offset, scale)):
+        return BatchNorm(axis, epsilon).symbolic_call(
+            x, mean, variance, offset, scale
         )
 
     return backend.nn.batch_norm(
