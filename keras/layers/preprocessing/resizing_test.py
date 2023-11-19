@@ -177,12 +177,18 @@ class ResizingTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(ref_out, out)
 
     def test_tf_data_compatibility(self):
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 10, 12, 3)
+            output_shape = (2, 8, 9, 3)
+        else:
+            input_shape = (2, 3, 10, 12)
+            output_shape = (2, 3, 8, 9)
         layer = layers.Resizing(8, 9)
-        input_data = np.random.random((2, 10, 12, 3))
+        input_data = np.random.random(input_shape)
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output = output.numpy()
-        self.assertEqual(list(output.shape), [2, 8, 9, 3])
+        self.assertEqual(tuple(output.shape), output_shape)
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
@@ -191,8 +197,14 @@ class ResizingTest(testing.TestCase, parameterized.TestCase):
     def test_tf_data_compatibility_sequential(self):
         # Test compatibility when wrapping in a Sequential
         # https://github.com/keras-team/keras/issues/347
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 10, 12, 3)
+            output_shape = (2, 8, 9, 3)
+        else:
+            input_shape = (2, 3, 10, 12)
+            output_shape = (2, 3, 8, 9)
         layer = layers.Resizing(8, 9)
-        input_data = np.random.random((2, 10, 12, 3))
+        input_data = np.random.random(input_shape)
         ds = (
             tf_data.Dataset.from_tensor_slices(input_data)
             .batch(2)
@@ -200,4 +212,4 @@ class ResizingTest(testing.TestCase, parameterized.TestCase):
         )
         for output in ds.take(1):
             output = output.numpy()
-        self.assertEqual(list(output.shape), [2, 8, 9, 3])
+        self.assertEqual(tuple(output.shape), output_shape)

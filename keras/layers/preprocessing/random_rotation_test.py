@@ -28,7 +28,11 @@ class RandomRotationTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_random_rotation_correctness(self):
-        input_image = np.reshape(np.arange(0, 25), (1, 5, 5, 1))
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (1, 5, 5, 1)
+        else:
+            input_shape = (1, 1, 5, 5)
+        input_image = np.reshape(np.arange(0, 25), input_shape)
         layer = layers.RandomRotation(factor=(0.5, 0.5))
         actual_output = layer(input_image)
         expected_output = np.asarray(
@@ -39,7 +43,7 @@ class RandomRotationTest(testing.TestCase, parameterized.TestCase):
                 [9, 8, 7, 6, 5],
                 [4, 3, 2, 1, 0],
             ]
-        ).reshape((1, 5, 5, 1))
+        ).reshape(input_shape)
 
         self.assertAllClose(
             backend.convert_to_tensor(expected_output), actual_output, atol=1e-5
@@ -52,7 +56,11 @@ class RandomRotationTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(actual_output, input_image)
 
     def test_tf_data_compatibility(self):
-        input_image = np.reshape(np.arange(0, 25), (1, 5, 5, 1))
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (1, 5, 5, 1)
+        else:
+            input_shape = (1, 1, 5, 5)
+        input_image = np.reshape(np.arange(0, 25), input_shape)
         layer = layers.RandomRotation(factor=(0.5, 0.5))
 
         ds = tf_data.Dataset.from_tensor_slices(input_image).map(layer)
@@ -64,7 +72,7 @@ class RandomRotationTest(testing.TestCase, parameterized.TestCase):
                 [9, 8, 7, 6, 5],
                 [4, 3, 2, 1, 0],
             ]
-        ).reshape((5, 5, 1))
+        ).reshape(input_shape[1:])
         for output in ds.take(1):
             output = output.numpy()
         self.assertAllClose(expected_output, output)
