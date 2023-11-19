@@ -59,12 +59,13 @@ Target | Diagnosis of heart disease (1 = true; 0 = false) | Target
 ## Setup
 """
 
+import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import tensorflow as tf
 import pandas as pd
 import keras
 from keras.utils import FeatureSpace
-
-keras.config.disable_traceback_filtering()
 
 """
 ## Preparing the data
