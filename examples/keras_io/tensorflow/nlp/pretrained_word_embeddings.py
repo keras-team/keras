@@ -171,11 +171,11 @@ test = ["the", "cat", "sat", "on", "the", "mat"]
 Let's download pre-trained GloVe embeddings (a 822M zip file).
 
 You'll need to run the following commands:
+"""
 
-```
-!wget http://nlp.stanford.edu/data/glove.6B.zip
-!unzip -q glove.6B.zip
-```
+"""shell
+wget http://nlp.stanford.edu/data/glove.6B.zip
+unzip -q glove.6B.zip
 """
 
 """
