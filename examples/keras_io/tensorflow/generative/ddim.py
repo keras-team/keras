@@ -67,6 +67,9 @@ with deterministic sampling.
 ## Setup
 """
 
+import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import math
 import matplotlib.pyplot as plt
 import tensorflow as tf
