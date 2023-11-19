@@ -24,7 +24,7 @@ from keras import layers
 from keras.applications import efficientnet
 from keras.layers import TextVectorization
 
-keras.utils.seed_random_seed(111)
+keras.utils.set_random_seed(111)
 
 """
 ## Download the dataset
