@@ -572,7 +572,7 @@ early_stopping = keras.callbacks.EarlyStopping(
 
 # Learning Rate Scheduler for the optimizer
 class LRSchedule(
-    keras.optimizers.schedules.learning_rate_schedule.LearningRateSchedule
+    keras.optimizers.schedules.LearningRateSchedule
 ):
     def __init__(self, post_warmup_learning_rate, warmup_steps):
         super().__init__()
