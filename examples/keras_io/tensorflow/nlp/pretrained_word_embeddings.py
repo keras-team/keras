@@ -174,7 +174,7 @@ You'll need to run the following commands:
 """
 
 """shell
-wget http://nlp.stanford.edu/data/glove.6B.zip
+wget https://downloads.cs.stanford.edu/nlp/data/glove.6B.zip
 unzip -q glove.6B.zip
 """
 
@@ -185,9 +185,7 @@ The archive contains text-encoded vectors of various sizes: 50-dimensional,
 Let's make a dict mapping words (strings) to their NumPy vector representation:
 """
 
-path_to_glove_file = os.path.join(
-    os.path.expanduser("~"), ".keras/datasets/glove.6B.100d.txt"
-)
+path_to_glove_file = "glove.6B.100d.txt"
 
 embeddings_index = {}
 with open(path_to_glove_file) as f:
