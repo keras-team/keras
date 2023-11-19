@@ -512,24 +512,29 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
             knn.batch_norm(x, mean, variance, axis=1).shape, (None, 3, 4, 5)
         )
 
+        # Test wrong offset shape
         self.assertRaisesRegex(
             ValueError,
-            "must be a vector of length",
+            "`offset` must be a vector of length",
             knn.batch_norm,
-            x,
-            mean,
-            variance,
-            axis=-1,
-        )
-        self.assertRaisesRegex(
-            ValueError,
-            "must be a vector of length",
-            knn.batch_norm,
-            x,
-            mean,
-            variance,
+            KerasTensor([None, 3, 4, 5]),
+            KerasTensor([5]),
+            KerasTensor([5]),
             axis=-1,
             offset=KerasTensor([3]),
+            scale=KerasTensor([5]),
+        )
+
+        # Test wrong scale shape
+        self.assertRaisesRegex(
+            ValueError,
+            "`scale` must be a vector of length",
+            knn.batch_norm,
+            KerasTensor([None, 3, 4, 5]),
+            KerasTensor([5]),
+            KerasTensor([5]),
+            axis=-1,
+            offset=KerasTensor([5]),
             scale=KerasTensor([3]),
         )
 
@@ -1690,13 +1695,23 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             x,
             mean,
             variance,
-            axis=-1,
+            axis=1,
             epsilon=1e-7,
         )
         expected_output = np.array(
             [[-0.05, -0.025, -0.0125], [0.1, 0.05, 0.025]]
         )
         self.assertAllClose(output, expected_output)
+
+        output = knn.batch_norm(
+            np.random.uniform(size=[2, 3, 3, 5]),
+            np.random.uniform(size=[5]),
+            np.random.uniform(size=[5]),
+            axis=3,
+            offset=np.random.uniform(size=[5]),
+            scale=np.random.uniform(size=[5]),
+        )
+        self.assertEqual(tuple(output.shape), (2, 3, 3, 5))
 
 
 class TestLogitRecovery(testing.TestCase):
