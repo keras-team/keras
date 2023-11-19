@@ -85,7 +85,7 @@ def einsum(subscripts, *operands, **kwargs):
     operands = tf.nest.map_structure(
         lambda x: tf.cast(x, compute_dtype), operands
     )
-    return tf.cast(tfnp.einsum(subscripts, *operands, **kwargs), result_dtype)
+    return tf.cast(tf.einsum(subscripts, *operands, **kwargs), result_dtype)
 
 
 @sparse.elementwise_binary_union(sparse.sparse_subtract)
