@@ -529,7 +529,9 @@ def moments(x, axes, keepdims=False, synchronized=False):
     return mean, variance
 
 
-def batch_norm(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
     shape = [1] * len(x.shape)
     shape[axis] = mean.shape[0]
     mean = jnp.reshape(mean, shape)

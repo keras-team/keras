@@ -247,7 +247,7 @@ class BatchNormalization(Layer):
         else:
             beta = None
 
-        outputs = ops.batch_norm(
+        outputs = ops.batch_normalization(
             x=inputs,
             mean=mean,
             variance=variance,

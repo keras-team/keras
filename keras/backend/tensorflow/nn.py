@@ -731,7 +731,9 @@ def _compute_moments(x, axes, keepdims):
     return mean, variance
 
 
-def batch_norm(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
     if axis != -1:
         shape = [1] * len(x.shape)
         shape[axis] = mean.shape[0]

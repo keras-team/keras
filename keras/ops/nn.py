@@ -1666,11 +1666,13 @@ class BatchNorm(Operation):
 
 @keras_export(
     [
-        "keras.ops.batch_norm",
-        "keras.ops.nn.batch_norm",
+        "keras.ops.batch_normalization",
+        "keras.ops.nn.batch_normalization",
     ]
 )
-def batch_norm(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
     """Normalizes `x` by `mean` and `variance`.
 
     This op is typically used by the batch normalization step in a neural
@@ -1700,7 +1702,7 @@ def batch_norm(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
     >>> x = keras.ops.convert_to_tensor(
     ...     [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]
     ... )
-    >>> keras.ops.batch_norm(
+    >>> keras.ops.batch_normalization(
     ...     x,
     ...     mean=[0.4, 0.5, 0.6],
     ...     variance=[0.67, 0.67, 0.67],
@@ -1716,6 +1718,6 @@ def batch_norm(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
             x, mean, variance, offset, scale
         )
 
-    return backend.nn.batch_norm(
+    return backend.nn.batch_normalization(
         x, mean, variance, axis, offset, scale, epsilon
     )
