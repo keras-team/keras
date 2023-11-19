@@ -53,8 +53,18 @@ class Reshape(Layer):
             shape=output_shape, dtype=inputs.dtype, sparse=inputs.sparse
         )
 
+    def build(self, input_shape):
+        self._sample_output_shape = (
+            operation_utils.compute_reshape_output_shape(
+                input_shape[1:], self.target_shape, "target_shape"
+            )
+        )
+        self.built = True
+
     def call(self, inputs):
-        return ops.reshape(inputs, (ops.shape(inputs)[0],) + self.target_shape)
+        return ops.reshape(
+            inputs, (ops.shape(inputs)[0],) + self._sample_output_shape
+        )
 
     def get_config(self):
         config = {"target_shape": self.target_shape}
