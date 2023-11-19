@@ -12,6 +12,8 @@ Accelerator: GPU
 """
 
 import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import re
 import numpy as np
 import matplotlib.pyplot as plt
@@ -22,10 +24,7 @@ from keras import layers
 from keras.applications import efficientnet
 from keras.layers import TextVectorization
 
-
-seed = 111
-np.random.seed(seed)
-tf.random.set_seed(seed)
+keras.utils.seed_random_seed(111)
 
 """
 ## Download the dataset
