@@ -11,9 +11,16 @@ Accelerator: GPU
 ## Setup
 """
 
+import os
+
+# Only the TensorFlow backend supports string inputs.
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
+import pathlib
 import numpy as np
 import tensorflow.data as tf_data
 import keras
+from keras import layers
 
 """
 ## Introduction
@@ -41,9 +48,6 @@ data_path = keras.utils.get_file(
 """
 ## Let's take a look at the data
 """
-
-import os
-import pathlib
 
 data_dir = pathlib.Path(data_path).parent / "20_newsgroup"
 dirnames = os.listdir(data_dir)
@@ -123,9 +127,7 @@ Our layer will only consider the top 20,000 words, and will truncate or pad sequ
 be actually 200 tokens long.
 """
 
-from keras.layers import TextVectorization
-
-vectorizer = TextVectorization(max_tokens=20000, output_sequence_length=200)
+vectorizer = layers.TextVectorization(max_tokens=20000, output_sequence_length=200)
 text_ds = tf_data.Dataset.from_tensor_slices(train_samples).batch(128)
 vectorizer.adapt(text_ds)
 
@@ -244,9 +246,7 @@ embedding_layer.set_weights([embedding_matrix])
 A simple 1D convnet with global max pooling and a classifier at the end.
 """
 
-from keras import layers
-
-int_sequences_input = keras.Input(shape=(None,), dtype="int64")
+int_sequences_input = keras.Input(shape=(None,), dtype="int32")
 embedded_sequences = embedding_layer(int_sequences_input)
 x = layers.Conv1D(128, 5, activation="relu")(embedded_sequences)
 x = layers.MaxPooling1D(5)(x)
