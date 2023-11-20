@@ -96,8 +96,16 @@ class ReshapeTest(testing.TestCase, parameterized.TestCase):
     def test_reshape_with_dynamic_batch_size_and_minus_one(self):
         input = KerasTensor((None, 6, 4))
         layer = layers.Reshape((-1, 8))
+        layer.build(input.shape)
         reshaped = backend.compute_output_spec(layer.__call__, input)
         self.assertEqual(reshaped.shape, (None, 3, 8))
+
+    def test_reshape_with_dynamic_dim_and_minus_one(self):
+        input = KerasTensor((4, 6, None, 3))
+        layer = layers.Reshape((-1, 3))
+        layer.build(input.shape)
+        reshaped = backend.compute_output_spec(layer.__call__, input)
+        self.assertEqual(reshaped.shape, (4, None, 3))
 
     def test_reshape_sets_static_shape(self):
         input_layer = layers.Input(batch_shape=(2, None))
