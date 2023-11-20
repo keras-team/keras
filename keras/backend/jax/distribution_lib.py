@@ -26,7 +26,7 @@ def list_devices(device_type=None):
     """
     device_type = device_type.lower() if device_type else None
     jax_devices = jax.devices(backend=device_type)
-    return [f"{device.device_kind}:{device.id}" for device in jax_devices]
+    return [f"{device.platform}:{device.id}" for device in jax_devices]
 
 
 def distribute_variable(value, layout):
