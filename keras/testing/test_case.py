@@ -92,7 +92,7 @@ class TestCase(unittest.TestCase):
             revived_config, sort_keys=True, indent=4
         )
         self.assertEqual(config_json, revived_config_json)
-        self.assertEqual(ref_dir, dir(revived_instance))
+        self.assertEqual(set(ref_dir), set(dir(revived_instance)))
 
         # serialization roundtrip
         serialized = serialize_keras_object(instance)
@@ -110,7 +110,7 @@ class TestCase(unittest.TestCase):
         for lst in [ref_dir, new_dir]:
             if "__annotations__" in lst:
                 lst.remove("__annotations__")
-        self.assertEqual(ref_dir, new_dir)
+        self.assertEqual(set(ref_dir), set(new_dir))
         return revived_instance
 
     def run_layer_test(
