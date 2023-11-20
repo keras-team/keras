@@ -107,8 +107,13 @@ class EarlyStopping(Callback):
                 or self.monitor.endswith("auc")
             ):
                 self.monitor_op = ops.greater
-            else:
+            elif monitor.endswith("loss"):
                 self.monitor_op = ops.less
+            else:
+                raise ValueError(
+                    f"For the given metric {self.monitor}, "
+                    "user has to define the `mode`. "
+                )
 
         if self.monitor_op == ops.greater:
             self.min_delta *= 1
