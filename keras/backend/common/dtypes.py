@@ -268,10 +268,9 @@ def result_type(*dtypes):
     "float32"
     """
     if len(dtypes) == 0:
-        raise ValueError(
-            "Invalid `dtypes`. At least one dtype is required. "
-            f"Received: dtypes={dtypes}"
-        )
+        # If no dtypes provided, default to floatx, this matches
+        # `ops.convert_to_tensor([])`
+        return backend.floatx()
     return _lattice_result_type(
         *(backend.floatx() if arg is None else arg for arg in dtypes),
     )

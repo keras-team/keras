@@ -25,6 +25,8 @@ example.
 """
 
 import numpy as np
+import keras
+from keras import layers
 
 
 def readucr(filename):
@@ -60,12 +62,7 @@ timeseries.
 
 You can replace your classification RNN layers with this one: the
 inputs are fully compatible!
-"""
 
-import keras
-from keras import layers
-
-"""
 We include residual connections, layer normalization, and dropout.
 The resulting layer can be stacked multiple times.
 
@@ -156,7 +153,7 @@ model.fit(
     x_train,
     y_train,
     validation_split=0.2,
-    epochs=2,
+    epochs=150,
     batch_size=64,
     callbacks=callbacks,
 )
@@ -173,6 +170,4 @@ with less than 100k parameters. Of course, parameter count and accuracy could be
 improved by a hyperparameter search and a more sophisticated learning rate
 schedule, or a different optimizer.
 
-You can use the trained model hosted on [Hugging Face Hub](https://huggingface.co/keras-io/timeseries_transformer_classification)
-and try the demo on [Hugging Face Spaces](https://huggingface.co/spaces/keras-io/timeseries_transformer_classification).
 """

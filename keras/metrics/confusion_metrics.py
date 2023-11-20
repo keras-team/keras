@@ -659,7 +659,6 @@ class SensitivitySpecificityBase(Metric):
             ops.nonzero(predicate(constrained, self.value))
         )
 
-        print(feasible)
         feasible_exists = ops.greater(ops.size(feasible), 0)
         max_dependent = ops.max(ops.take(dependent, feasible), initial=0)
 
@@ -983,7 +982,7 @@ class RecallAtPrecision(SensitivitySpecificityBase):
 
     Args:
         precision: A scalar value in range `[0, 1]`.
-            num_thresholds: (Optional) Defaults to 200. The number of thresholds
+        num_thresholds: (Optional) Defaults to 200. The number of thresholds
             to use for matching the given precision.
         class_id: (Optional) Integer class ID for which we want binary metrics.
             This must be in the half-open interval `[0, num_classes)`, where

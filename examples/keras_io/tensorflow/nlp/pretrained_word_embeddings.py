@@ -11,9 +11,16 @@ Accelerator: GPU
 ## Setup
 """
 
+import os
+
+# Only the TensorFlow backend supports string inputs.
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
+import pathlib
 import numpy as np
 import tensorflow.data as tf_data
 import keras
+from keras import layers
 
 """
 ## Introduction
@@ -41,9 +48,6 @@ data_path = keras.utils.get_file(
 """
 ## Let's take a look at the data
 """
-
-import os
-import pathlib
 
 data_dir = pathlib.Path(data_path).parent / "20_newsgroup"
 dirnames = os.listdir(data_dir)
@@ -123,9 +127,7 @@ Our layer will only consider the top 20,000 words, and will truncate or pad sequ
 be actually 200 tokens long.
 """
 
-from keras.layers import TextVectorization
-
-vectorizer = TextVectorization(max_tokens=20000, output_sequence_length=200)
+vectorizer = layers.TextVectorization(max_tokens=20000, output_sequence_length=200)
 text_ds = tf_data.Dataset.from_tensor_slices(train_samples).batch(128)
 vectorizer.adapt(text_ds)
 
@@ -169,11 +171,11 @@ test = ["the", "cat", "sat", "on", "the", "mat"]
 Let's download pre-trained GloVe embeddings (a 822M zip file).
 
 You'll need to run the following commands:
+"""
 
-```
-!wget http://nlp.stanford.edu/data/glove.6B.zip
-!unzip -q glove.6B.zip
-```
+"""shell
+wget https://downloads.cs.stanford.edu/nlp/data/glove.6B.zip
+unzip -q glove.6B.zip
 """
 
 """
@@ -183,9 +185,7 @@ The archive contains text-encoded vectors of various sizes: 50-dimensional,
 Let's make a dict mapping words (strings) to their NumPy vector representation:
 """
 
-path_to_glove_file = os.path.join(
-    os.path.expanduser("~"), ".keras/datasets/glove.6B.100d.txt"
-)
+path_to_glove_file = "glove.6B.100d.txt"
 
 embeddings_index = {}
 with open(path_to_glove_file) as f:
@@ -244,9 +244,7 @@ embedding_layer.set_weights([embedding_matrix])
 A simple 1D convnet with global max pooling and a classifier at the end.
 """
 
-from keras import layers
-
-int_sequences_input = keras.Input(shape=(None,), dtype="int64")
+int_sequences_input = keras.Input(shape=(None,), dtype="int32")
 embedded_sequences = embedding_layer(int_sequences_input)
 x = layers.Conv1D(128, 5, activation="relu")(embedded_sequences)
 x = layers.MaxPooling1D(5)(x)

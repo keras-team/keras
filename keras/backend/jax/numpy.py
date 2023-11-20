@@ -110,11 +110,7 @@ def amin(x, axis=None, keepdims=False):
     return jnp.amin(x, axis=axis, keepdims=keepdims)
 
 
-def append(
-    x1,
-    x2,
-    axis=None,
-):
+def append(x1, x2, axis=None):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jnp.append(x1, x2, axis=axis)
@@ -129,6 +125,7 @@ def arange(start, stop=None, step=1, dtype=None):
         if stop is not None:
             dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
         dtype = dtypes.result_type(*dtypes_to_resolve)
+    dtype = standardize_dtype(dtype)
     return jnp.arange(start, stop, step=step, dtype=dtype)
 
 
@@ -212,6 +209,15 @@ def array(x, dtype=None):
 
 
 def average(x, axis=None, weights=None):
+    x = convert_to_tensor(x)
+    dtypes_to_resolve = [x.dtype, float]
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+    dtype = dtypes.result_type(*dtypes_to_resolve)
+    x = cast(x, dtype)
+    if weights is not None:
+        weights = cast(weights, dtype)
     return jnp.average(x, weights=weights, axis=axis)
 
 
@@ -267,7 +273,7 @@ def cosh(x):
 
 
 def count_nonzero(x, axis=None):
-    return jnp.count_nonzero(x, axis=axis)
+    return cast(jnp.count_nonzero(x, axis=axis), "int32")
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
@@ -352,6 +358,9 @@ def flip(x, axis=None):
 
 
 def floor(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        x = cast(x, config.floatx())
     return jnp.floor(x)
 
 

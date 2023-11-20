@@ -3,20 +3,34 @@ import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
+from keras import backend
 from keras import layers
 from keras import testing
 
 
 class CenterCropTest(testing.TestCase, parameterized.TestCase):
-    def np_center_crop(self, img, h_new, w_new):
+    def np_center_crop(self, img, h_new, w_new, data_format="channels_last"):
         img = np.array(img)
         if img.ndim == 4:
-            _, h, w = img.shape[:3]
+            if data_format == "channels_last":
+                _, h, w = img.shape[:3]
+            else:
+                _, h, w = img.shape[1:]
         else:
-            h, w = img.shape[:2]
+            if data_format == "channels_last":
+                h, w = img.shape[:2]
+            else:
+                h, w = img.shape[1:]
         h_start = (h - h_new) // 2
         w_start = (w - w_new) // 2
-        return img[..., h_start : h_start + h_new, w_start : w_start + w_new, :]
+        if data_format == "channels_last":
+            return img[
+                ..., h_start : h_start + h_new, w_start : w_start + w_new, :
+            ]
+        else:
+            return img[
+                ..., h_start : h_start + h_new, w_start : w_start + w_new
+            ]
 
     @pytest.mark.requires_trainable_backend
     def test_center_crop_basics(self):
@@ -148,19 +162,35 @@ class CenterCropTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(ref_out, out)
 
     def test_tf_data_compatibility(self):
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 10, 12, 3)
+            output_shape = (2, 8, 9, 3)
+        else:
+            input_shape = (2, 3, 10, 12)
+            output_shape = (2, 3, 8, 9)
         layer = layers.CenterCrop(8, 9)
-        input_data = np.random.random((2, 10, 12, 3))
+        input_data = np.random.random(input_shape)
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output = output.numpy()
-        self.assertEqual(list(output.shape), [2, 8, 9, 3])
+        self.assertEqual(tuple(output.shape), output_shape)
 
     def test_list_compatibility(self):
-        images = [
-            np.random.rand(10, 10, 3),
-            np.random.rand(10, 10, 3),
-        ]
+        if backend.config.image_data_format() == "channels_last":
+            images = [
+                np.random.rand(10, 10, 3),
+                np.random.rand(10, 10, 3),
+            ]
+            output_shape = (2, 6, 5, 3)
+        else:
+            images = [
+                np.random.rand(3, 10, 10),
+                np.random.rand(3, 10, 10),
+            ]
+            output_shape = (2, 3, 6, 5)
         output = layers.CenterCrop(height=6, width=5)(images)
-        ref_output = self.np_center_crop(images, 6, 5)
-        self.assertListEqual(list(output.shape), [2, 6, 5, 3])
+        ref_output = self.np_center_crop(
+            images, 6, 5, data_format=backend.config.image_data_format()
+        )
+        self.assertEqual(tuple(output.shape), output_shape)
         self.assertAllClose(ref_output, output)

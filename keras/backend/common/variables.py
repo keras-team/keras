@@ -48,7 +48,7 @@ class KerasVariable:
             if callable(initializer):
                 self._value = None
                 self._initializer = initializer
-                self._shape = standardize_shape(shape)
+                self._shape = self._validate_shape(shape)
                 register_uninitialized_variable(self)
             else:
                 raise ValueError(
@@ -70,6 +70,7 @@ class KerasVariable:
                 )
         else:
             if callable(initializer):
+                shape = self._validate_shape(shape)
                 value = initializer(shape, dtype=dtype)
             else:
                 value = initializer
@@ -90,6 +91,16 @@ class KerasVariable:
             )
         value = self._initializer(self._shape, dtype=self._dtype)
         self._initialize(value)
+
+    def _validate_shape(self, shape):
+        shape = standardize_shape(shape)
+        if None in shape:
+            raise ValueError(
+                "Shapes used to initialize variables must be "
+                "fully-defined (no `None` dimensions). Received: "
+                f"shape={shape} for variable path='{self.path}'"
+            )
+        return shape
 
     def _maybe_autocast(self, value):
         autocast_scope = get_autocast_scope()

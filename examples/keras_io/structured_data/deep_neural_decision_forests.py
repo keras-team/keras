@@ -46,8 +46,6 @@ import pandas as pd
 import math
 
 
-_dtype = "float32"
-
 """
 ## Prepare the data
 """
@@ -211,7 +209,7 @@ def create_model_inputs():
     for feature_name in FEATURE_NAMES:
         if feature_name in NUMERIC_FEATURE_NAMES:
             inputs[feature_name] = layers.Input(
-                name=feature_name, shape=(), dtype=_dtype
+                name=feature_name, shape=(), dtype="float32"
             )
         else:
             inputs[feature_name] = layers.Input(
@@ -286,14 +284,14 @@ class NeuralDecisionTree(keras.Model):
             np.arange(num_features), num_used_features, replace=False
         )
         self.used_features_mask = ops.convert_to_tensor(
-            one_hot[sampled_feature_indices], dtype=_dtype
+            one_hot[sampled_feature_indices], dtype="float32"
         )
 
         # Initialize the weights of the classes in leaves.
         self.pi = self.add_weight(
             initializer="random_normal",
             shape=[self.num_leaves, self.num_classes],
-            dtype=_dtype,
+            dtype="float32",
             trainable=True,
         )
 
@@ -476,9 +474,3 @@ def create_forest_model():
 forest_model = create_forest_model()
 
 run_experiment(forest_model)
-
-
-"""
-You can use the trained model hosted on [Hugging Face Hub](https://huggingface.co/keras-io/neural-decision-forest)
-and try the demo on [Hugging Face Spaces](https://huggingface.co/spaces/keras-io/Neural-Decision-Forest).
-"""

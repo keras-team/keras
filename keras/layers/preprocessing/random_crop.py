@@ -53,7 +53,7 @@ class RandomCrop(TFDataLayer):
         self.data_format = backend.standardize_data_format(data_format)
 
         if self.data_format == "channels_first":
-            self.heigh_axis = -2
+            self.height_axis = -2
             self.width_axis = -1
         elif self.data_format == "channels_last":
             self.height_axis = -3

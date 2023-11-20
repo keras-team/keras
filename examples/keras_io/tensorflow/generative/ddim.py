@@ -67,6 +67,9 @@ with deterministic sampling.
 ## Setup
 """
 
+import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import math
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -741,11 +744,6 @@ Stochastic sampling process (noisy images on top, predicted images on bottom, 80
 
 ![flowers stochastic generation gif](https://i.imgur.com/kRXOGzd.gif)
 
-Trained model and demo available on HuggingFace:
-
-| Trained Model | Demo |
-| :--: | :--: |
-| [![model badge](https://img.shields.io/badge/%F0%9F%A4%97%20Model-DDIM-black.svg)](https://huggingface.co/keras-io/denoising-diffusion-implicit-models) | [![spaces badge](https://img.shields.io/badge/%F0%9F%A4%97%20Spaces-DDIM-black.svg)](https://huggingface.co/spaces/keras-io/denoising-diffusion-implicit-models) |
 """
 
 """

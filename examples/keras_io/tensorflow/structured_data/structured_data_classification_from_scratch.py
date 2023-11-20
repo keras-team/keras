@@ -49,6 +49,11 @@ Target | Diagnosis of heart disease (1 = true; 0 = false) | Target
 ## Setup
 """
 
+import os
+
+# TensorFlow is the only backend that supports string inputs.
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import tensorflow as tf
 import pandas as pd
 import keras
@@ -172,14 +177,10 @@ then one-hot encode these integer indices.
 - `encode_integer_categorical_feature` to one-hot encode integer categorical features.
 """
 
-from keras.layers import IntegerLookup
-from keras.layers import Normalization
-from keras.layers import StringLookup
-
 
 def encode_numerical_feature(feature, name, dataset):
     # Create a Normalization layer for our feature
-    normalizer = Normalization()
+    normalizer = layers.Normalization()
 
     # Prepare a Dataset that only yields our feature
     feature_ds = dataset.map(lambda x, y: x[name])
@@ -194,7 +195,7 @@ def encode_numerical_feature(feature, name, dataset):
 
 
 def encode_categorical_feature(feature, name, dataset, is_string):
-    lookup_class = StringLookup if is_string else IntegerLookup
+    lookup_class = layers.StringLookup if is_string else layers.IntegerLookup
     # Create a lookup layer which will turn strings into integer indices
     lookup = lookup_class(output_mode="binary")
 

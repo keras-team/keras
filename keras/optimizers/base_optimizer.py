@@ -180,7 +180,7 @@ class BaseOptimizer:
         if hasattr(reference_variable, "path"):
             name = reference_variable.path.replace("/", "_") + "_" + name
         else:
-            name = reference_variable.name + "_" + name
+            name = str(reference_variable.name).replace(":", "_") + "_" + name
         return self.add_variable(
             shape=reference_variable.shape,
             initializer=initializer,
