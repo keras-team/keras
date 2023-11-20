@@ -1686,11 +1686,11 @@ def batch_normalization(
             of the input tensor.
         axis: Integer, the axis that should be normalized.
         offset: An offset vector of the same length as the `axis` dimension of
-            the input tensor. If not None, `offset` is added to the normalized
-            tensor. Defaults to None.
+            the input tensor. If not `None`, `offset` is added to the normalized
+            tensor. Defaults to `None`.
         scale: A scale vector of the same length as the `axis` dimension of the
-            input tensor. If not None, the normalized tensor is multiplied by
-            `scale`. Defaults to None.
+            input tensor. If not `None`, the normalized tensor is multiplied by
+            `scale`. Defaults to `None`.
         epsilon: Small float added to variance to avoid dividing by zero.
             Defaults to 1e-3.
 
