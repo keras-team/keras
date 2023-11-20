@@ -562,6 +562,12 @@ def flip(x, axis=None):
 
 def floor(x):
     x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = cast(x, dtype)
     return torch.floor(x)
 
 
@@ -579,6 +585,7 @@ def full(shape, fill_value, dtype=None):
 
 
 def full_like(x, fill_value, dtype=None):
+    dtype = dtype or x.dtype
     return full(shape=x.shape, fill_value=fill_value, dtype=dtype)
 
 
@@ -616,13 +623,11 @@ def imag(x):
 
 
 def isclose(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    if x1.dtype != x2.dtype:
-        result_dtype = torch.result_type(x1, x2)
-        if x1.dtype != result_dtype:
-            x1 = cast(x1, result_dtype)
-        else:
-            x2 = cast(x2, result_dtype)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = cast(x1, result_dtype)
+    x2 = cast(x2, result_dtype)
     return torch.isclose(x1, x2)
 
 

@@ -5164,6 +5164,33 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(knp.Dot().symbolic_call(x1, x2).dtype, expected_dtype)
 
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_einsum(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1, 1, 1), dtype=dtype1)
+        x2 = knp.ones((1, 1, 1), dtype=dtype2)
+        x1_jax = jnp.ones((1, 1, 1), dtype=dtype1)
+        x2_jax = jnp.ones((1, 1, 1), dtype=dtype2)
+        subscripts = "ijk,lkj->il"
+        expected_dtype = standardize_dtype(
+            jnp.einsum(subscripts, x1_jax, x2_jax).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.einsum(subscripts, x1, x2).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Einsum(subscripts).symbolic_call(x1, x2).dtype
+            ),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_empty(self, dtype):
         import jax.numpy as jnp
@@ -5218,6 +5245,22 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_expand_dims(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.expand_dims(x_jax, -1).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.expand_dims(x, -1).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.ExpandDims(-1).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_expm1(self, dtype):
         import jax.numpy as jnp
 
@@ -5262,6 +5305,38 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_flip(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.flip(x_jax, -1).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.flip(x, -1).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Flip(-1).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_floor(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.floor(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.floor(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Floor().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_full(self, dtype):
         import jax.numpy as jnp
 
@@ -5277,6 +5352,22 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(
                 knp.Full().symbolic_call((), 0, dtype=dtype).dtype
             ),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_full_like(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.full_like(x_jax, 0).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.full_like(x, 0).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.FullLike().symbolic_call(x, 0).dtype),
             expected_dtype,
         )
 
@@ -5324,6 +5415,27 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_hstack(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1, 1), dtype=dtype1)
+        x2 = knp.ones((1, 1), dtype=dtype2)
+        x1_jax = jnp.ones((1, 1), dtype=dtype1)
+        x2_jax = jnp.ones((1, 1), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.hstack([x1_jax, x2_jax]).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.hstack([x1, x2]).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Hstack().symbolic_call([x1, x2]).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_identity(self, dtype):
         import jax.numpy as jnp
@@ -5338,6 +5450,71 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(
                 knp.Identity().symbolic_call(3, dtype=dtype).dtype
             ),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_isclose(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.isclose(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.isclose(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Isclose().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_isfinite(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.isfinite(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.isfinite(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Isfinite().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_isinf(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.isinf(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.isinf(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Isinf().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_isnan(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.isnan(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.isnan(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Isnan().symbolic_call(x).dtype),
             expected_dtype,
         )
 
@@ -5667,7 +5844,26 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
-    # TODO: test_meshgrid
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_meshgrid(self, dtype):
+        import jax.numpy as jnp
+
+        if dtype == "bool":
+            self.skipTest("meshgrid doesn't support bool dtype")
+        elif dtype is None:
+            dtype = backend.floatx()
+        x = knp.array([1, 2, 3], dtype=dtype)
+        y = knp.array([4, 5, 6], dtype=dtype)
+        x_jax = jnp.array([1, 2, 3], dtype=dtype)
+        y_jax = jnp.array([4, 5, 6], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.meshgrid(x_jax, y_jax)[0].dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.meshgrid(x, y)[0].dtype), expected_dtype
+        )
+        self.assertEqual(
+            knp.Meshgrid().symbolic_call(x, y)[0].dtype, expected_dtype
+        )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_min(self, dtype):
@@ -5720,6 +5916,21 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(
             standardize_dtype(knp.Mod().symbolic_call(x1, x2).dtype),
             expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_moveaxis(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1, 1, 1), dtype=dtype)
+        x_jax = jnp.ones((1, 1, 1), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.moveaxis(x_jax, -2, -1).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.moveaxis(x, -2, -1).dtype), expected_dtype
+        )
+        self.assertEqual(
+            knp.Moveaxis(-2, -1).symbolic_call(x).dtype, expected_dtype
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))

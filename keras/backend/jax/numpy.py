@@ -358,6 +358,9 @@ def flip(x, axis=None):
 
 
 def floor(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        x = cast(x, config.floatx())
     return jnp.floor(x)
 
 

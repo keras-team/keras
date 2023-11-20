@@ -2352,11 +2352,10 @@ class Einsum(Operation):
         output_shape = expanded_operands_shapes[0]
         for shape in expanded_operands_shapes[1:]:
             output_shape = broadcast_shapes(output_shape, shape)
-        dtype = None
+        dtypes_to_resolve = []
         for x in operands:
-            if hasattr(x, "dtype"):
-                dtype = x.dtype
-                break
+            dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
+        dtype = dtypes.result_type(*dtypes_to_resolve)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -2637,7 +2636,12 @@ class Floor(Operation):
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+        dtype = (
+            backend.floatx()
+            if backend.standardize_dtype(x.dtype) == "int64"
+            else dtypes.result_type(x.dtype, float)
+        )
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.floor", "keras.ops.numpy.floor"])
@@ -2686,6 +2690,7 @@ class FullLike(Operation):
         return backend.numpy.full_like(x, fill_value, dtype=dtype)
 
     def compute_output_spec(self, x, fill_value, dtype=None):
+        dtype = dtype or x.dtype
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -2851,6 +2856,7 @@ class Hstack(Operation):
     def compute_output_spec(self, xs):
         first_shape = xs[0].shape
         total_size_on_axis = 0
+        dtypes_to_resolve = []
         for x in xs:
             if not shape_equal(x.shape, first_shape, axis=[1], allow_none=True):
                 raise ValueError(
@@ -2863,9 +2869,11 @@ class Hstack(Operation):
                 total_size_on_axis = None
             else:
                 total_size_on_axis += x.shape[1]
+            dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
         output_shape = list(first_shape)
         output_shape[1] = total_size_on_axis
-        return KerasTensor(output_shape)
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+        return KerasTensor(output_shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.hstack", "keras.ops.numpy.hstack"])
@@ -2944,7 +2952,7 @@ class Isclose(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        return KerasTensor(output_shape, dtype="bool")
 
 
 @keras_export(["keras.ops.isclose", "keras.ops.numpy.isclose"])
@@ -3744,7 +3752,9 @@ class Meshgrid(Operation):
         tmp = output_shape[0]
         output_shape[0] = output_shape[1]
         output_shape[1] = tmp
-        return [KerasTensor(output_shape) for _ in range(len(x))]
+        return [
+            KerasTensor(output_shape, dtype=xi.dtype) for _ in range(len(x))
+        ]
 
 
 @keras_export(["keras.ops.meshgrid", "keras.ops.numpy.meshgrid"])
