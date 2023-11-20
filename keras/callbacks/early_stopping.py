@@ -107,7 +107,11 @@ class EarlyStopping(Callback):
                 or self.monitor.endswith("auc")
             ):
                 self.monitor_op = ops.greater
-            elif monitor.endswith("loss"):
+            elif (
+                self.monitor.endswith("loss")
+                or self.monitor.endswith("mse")
+                or self.monitor.endswith("error")
+            ):
                 self.monitor_op = ops.less
             else:
                 raise ValueError(
