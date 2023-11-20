@@ -1,6 +1,7 @@
 import numpy as np
 from absl.testing import parameterized
 
+from keras import backend
 from keras import layers
 from keras import testing
 
@@ -57,9 +58,15 @@ class ZeroPadding2DTest(testing.TestCase, parameterized.TestCase):
             self.assertAllClose(outputs[:, 2:-2, 2:-2, :], inputs)
 
     def test_zero_padding_2d_with_dynamic_spatial_dim(self):
-        input_layer = layers.Input(batch_shape=(1, 2, None, 4))
+        if backend.config.image_data_format() == "channels_last":
+            input_layer = layers.Input(batch_shape=(1, 2, None, 4))
+        else:
+            input_layer = layers.Input(batch_shape=(1, 4, 2, None))
         padded = layers.ZeroPadding2D(((1, 2), (3, 4)))(input_layer)
-        self.assertEqual(padded.shape, (1, 5, None, 4))
+        if backend.config.image_data_format() == "channels_last":
+            self.assertEqual(padded.shape, (1, 5, None, 4))
+        else:
+            self.assertEqual(padded.shape, (1, 4, 5, None))
 
     def test_zero_padding_2d_errors_if_padding_argument_invalid(self):
         with self.assertRaises(ValueError):
