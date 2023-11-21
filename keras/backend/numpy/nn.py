@@ -555,3 +555,24 @@ def moments(x, axes, keepdims=False, synchronized=False):
         mean = cast(mean, ori_dtype)
         variance = cast(variance, ori_dtype)
     return mean, variance
+
+
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
+    shape = [1] * len(x.shape)
+    shape[axis] = mean.shape[0]
+    mean = np.reshape(mean, shape)
+    variance = np.reshape(variance, shape)
+
+    inv = 1.0 / np.sqrt(variance + epsilon)
+    if scale is not None:
+        scale = np.reshape(scale, shape)
+        inv = inv * scale
+
+    res = -mean * inv
+    if offset is not None:
+        offset = np.reshape(offset, shape)
+        res = res + offset
+
+    return x * inv + res
