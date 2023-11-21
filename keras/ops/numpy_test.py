@@ -5949,8 +5949,6 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
-    # TODO: test_non_zero
-
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
@@ -5971,6 +5969,67 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(knp.NotEqual().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_ones_like(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.ones_like(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.ones_like(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.OnesLike().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_outer(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1, 2), dtype=dtype1)
+        x2 = knp.ones((3, 4), dtype=dtype2)
+        x1_jax = jnp.ones((1, 2), dtype=dtype1)
+        x2_jax = jnp.ones((3, 4), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.outer(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.outer(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Outer().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_pad(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((2, 2, 2, 2), dtype=dtype)
+        x_jax = jnp.ones((2, 2, 2, 2), dtype=dtype)
+        pad_width = ((0, 0), (1, 1), (1, 1), (1, 1))
+
+        for mode in ("constant", "symmetric", "reflect"):
+            expected_dtype = standardize_dtype(
+                jnp.pad(x_jax, pad_width, mode).dtype
+            )
+
+            self.assertEqual(
+                standardize_dtype(knp.pad(x, pad_width, mode).dtype),
+                expected_dtype,
+            )
+            self.assertEqual(
+                standardize_dtype(
+                    knp.Pad(pad_width, mode).symbolic_call(x).dtype
+                ),
+                expected_dtype,
+            )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_quantile(self, dtype):
@@ -6101,5 +6160,21 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Tri().symbolic_call(3, dtype=dtype).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_zeros_like(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.ones_like(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.zeros_like(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.ZerosLike().symbolic_call(x).dtype),
             expected_dtype,
         )

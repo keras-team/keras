@@ -4142,7 +4142,11 @@ class Outer(Operation):
         else:
             x2_flatten_shape = int(np.prod(x2_shape))
         output_shape = [x1_flatten_shape, x2_flatten_shape]
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        output_dtype = backend.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        return KerasTensor(output_shape, dtype=output_dtype)
 
 
 @keras_export(["keras.ops.outer", "keras.ops.numpy.outer"])
@@ -5588,7 +5592,11 @@ class Power(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        output_dtype = backend.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        return KerasTensor(output_shape, dtype=output_dtype)
 
 
 @keras_export(["keras.ops.power", "keras.ops.numpy.power"])

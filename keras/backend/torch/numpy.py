@@ -918,7 +918,7 @@ def not_equal(x1, x2):
 
 def ones_like(x, dtype=None):
     x = convert_to_tensor(x)
-    dtype = to_torch_dtype(dtype)
+    dtype = to_torch_dtype(dtype or x.dtype)
     return torch.ones_like(x, dtype=dtype)
 
 
