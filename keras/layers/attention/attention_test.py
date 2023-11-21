@@ -17,12 +17,12 @@ class AttentionTest(testing.TestCase):
             expected_output_shape=(2, 3, 4),
             expected_num_trainable_weights=0,
             expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
+            expected_num_seed_generators=1,
             expected_num_losses=0,
             supports_masking=True,
             run_training_check=False,
         )
-        # Sale and concat.
+        # Scale and concat.
         self.run_layer_test(
             layers.Attention,
             init_kwargs={
@@ -34,7 +34,7 @@ class AttentionTest(testing.TestCase):
             expected_output_shape=(2, 3, 4),
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
+            expected_num_seed_generators=1,
             expected_num_losses=0,
             supports_masking=True,
             run_training_check=False,
@@ -99,3 +99,18 @@ class AttentionTest(testing.TestCase):
 
         with self.assertRaisesRegex(ValueError, "length 2 or 3"):
             layer([tensor, tensor], mask=[tensor])
+
+    def test_attention_with_dropout(self):
+        query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
+        value = np.array([[[1.0, 1.0], [1.0, 1.0]]])
+        layer_with_dropout = layers.Attention(dropout=0.2)
+        layer_without_dropout = layers.Attention()
+
+        output1, scores1 = layer_with_dropout(
+            [query, value], return_attention_scores=True, training=True
+        )
+        output2, scores2 = layer_without_dropout(
+            [query, value], return_attention_scores=True, training=True
+        )
+        self.assertNotAllClose(output1, output2)
+        self.assertNotAllClose(scores1, scores2)
