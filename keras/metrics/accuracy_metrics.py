@@ -233,6 +233,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
         (y_true_rank is not None)
         and (y_pred_rank is not None)
         and (len(y_true.shape) == len(y_pred.shape))
+        and ops.shape(y_true)[-1] == 1
     ):
         y_true = ops.squeeze(y_true, -1)
         reshape_matches = True
