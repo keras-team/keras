@@ -13,6 +13,10 @@ class ConvLSTMCellTest(testing.TestCase):
         s1 = np.arange(200).reshape((2, 5, 5, 4)).astype("float32") / 10
         s2 = np.arange(200).reshape((2, 5, 5, 4)).astype("float32") / 10
 
+        if backend.config.image_data_format() == "channels_first":
+            x = x.transpose((0, 3, 1, 2))
+            s1 = s1.transpose((0, 3, 1, 2))
+            s2 = s2.transpose((0, 3, 1, 2))
         layer = ConvLSTMCell(
             rank=2,
             filters=4,
@@ -36,6 +40,10 @@ class ConvLSTMTest(testing.TestCase):
         s1 = np.arange(200).reshape((2, 5, 5, 4)).astype("float32") / 100
         s2 = np.arange(200).reshape((2, 5, 5, 4)).astype("float32") / 100
 
+        if backend.config.image_data_format() == "channels_first":
+            x = x.transpose((0, 1, 4, 2, 3))
+            s1 = s1.transpose((0, 3, 1, 2))
+            s2 = s2.transpose((0, 3, 1, 2))
         layer = ConvLSTM(
             rank=2,
             filters=4,

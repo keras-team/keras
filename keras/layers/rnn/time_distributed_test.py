@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from keras import backend
 from keras import initializers
 from keras import layers
 from keras import ops
@@ -21,10 +22,16 @@ class TimeDistributedTest(testing.TestCase):
         )
 
     def test_build(self):
-        inputs = layers.Input(shape=(10, 128, 128, 3), batch_size=32)
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (10, 128, 128, 3)
+            output_shape = (32, 10, 126, 126, 64)
+        else:
+            input_shape = (10, 3, 128, 128)
+            output_shape = (32, 10, 64, 126, 126)
+        inputs = layers.Input(shape=input_shape, batch_size=32)
         conv_2d_layer = layers.Conv2D(64, (3, 3))
         outputs = layers.TimeDistributed(conv_2d_layer)(inputs)
-        self.assertEqual(outputs.shape, (32, 10, 126, 126, 64))
+        self.assertEqual(outputs.shape, output_shape)
 
     def test_correctness(self):
         sequence = np.arange(24).reshape((3, 2, 4)).astype("float32")
