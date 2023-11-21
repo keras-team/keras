@@ -54,16 +54,17 @@ class Reshape(Layer):
         )
 
     def build(self, input_shape):
-        self._sample_output_shape = (
-            operation_utils.compute_reshape_output_shape(
-                input_shape[1:], self.target_shape, "target_shape"
-            )
+        sample_output_shape = operation_utils.compute_reshape_output_shape(
+            input_shape[1:], self.target_shape, "target_shape"
+        )
+        self._resolved_target_shape = tuple(
+            -1 if d is None else d for d in sample_output_shape
         )
         self.built = True
 
     def call(self, inputs):
         return ops.reshape(
-            inputs, (ops.shape(inputs)[0],) + self._sample_output_shape
+            inputs, (ops.shape(inputs)[0],) + self._resolved_target_shape
         )
 
     def get_config(self):
