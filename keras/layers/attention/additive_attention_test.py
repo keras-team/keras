@@ -22,7 +22,7 @@ class AdditiveAttentionTest(testing.TestCase):
             supports_masking=True,
             run_training_check=False,
         )
-        # Scale.
+        # With scale.
         self.run_layer_test(
             layers.AdditiveAttention,
             init_kwargs={

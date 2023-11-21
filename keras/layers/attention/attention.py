@@ -179,8 +179,7 @@ class Attention(Layer):
             weights = backend.random.dropout(
                 weights,
                 self.dropout,
-                noise_shape=None,
-                seed=None,
+                seed=self.seed_generator,
             )
         return ops.matmul(weights, value), weights
 
