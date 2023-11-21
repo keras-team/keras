@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras import backend
 from keras import layers
 from keras import ops
 from keras import testing
@@ -123,9 +124,15 @@ class Cropping3DTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_cropping_3d_with_dynamic_spatial_dim(self):
-        input_layer = layers.Input(batch_shape=(1, 7, None, 13, 5))
+        if backend.config.image_data_format() == "channels_last":
+            input_layer = layers.Input(batch_shape=(1, 7, None, 13, 5))
+        else:
+            input_layer = layers.Input(batch_shape=(1, 5, 7, None, 13))
         cropped = layers.Cropping3D(((1, 2), (3, 4), (5, 6)))(input_layer)
-        self.assertEqual(cropped.shape, (1, 4, None, 2, 5))
+        if backend.config.image_data_format() == "channels_last":
+            self.assertEqual(cropped.shape, (1, 4, None, 2, 5))
+        else:
+            self.assertEqual(cropped.shape, (1, 5, 4, None, 2))
 
     @parameterized.product(
         (
