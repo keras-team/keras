@@ -880,14 +880,14 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output, expected_result)
 
 
-class QrMoreTests(testing.TestCase):
-    def test_qr_init_valid_modes(self):
-        for mode in ["reduced", "complete"]:
-            try:
-                qr_op = kmath.Qr(mode=mode)
-                self.assertIsNotNone(qr_op)
-            except Exception as e:
-                self.fail(f"Valid mode '{mode}' raised exception: {e}")
+class QrOpTest(testing.TestCase):
+    def test_qr_init_mode_reduced(self):
+        qr_op = kmath.Qr(mode="reduced")
+        self.assertIsNotNone(qr_op)
+
+    def test_qr_init_mode_complete(self):
+        qr_op = kmath.Qr(mode="complete")
+        self.assertIsNotNone(qr_op)
 
     def test_qr_init_invalid_mode(self):
         invalid_mode = "invalid_mode"
@@ -917,23 +917,37 @@ class QrMoreTests(testing.TestCase):
         ):
             qr_op.compute_output_spec(undefined_dim_input)
 
-    def test_qr_call(self):
-        for mode in ["reduced", "complete"]:
-            qr_op = kmath.Qr(mode=mode)
-            test_input = np.random.rand(10, 10)
-            q, r = qr_op.call(test_input)
-            self.assertEqual(q.shape, (10, 10))
-            self.assertEqual(r.shape, (10, 10))
+    def test_qr_call_mode_reduced(self):
+        qr_op = kmath.Qr(mode="reduced")
+        test_input = np.random.rand(10, 10)
+        q, r = qr_op.call(test_input)
+        self.assertEqual(q.shape, (10, 10))
+        self.assertEqual(r.shape, (10, 10))
+
+    def test_qr_call_mode_complete(self):
+        qr_op = kmath.Qr(mode="complete")
+        test_input = np.random.rand(10, 10)
+        q, r = qr_op.call(test_input)
+        self.assertEqual(q.shape, (10, 10))
+        self.assertEqual(r.shape, (10, 10))
 
 
-class ExtractSequencesMoreTests(testing.TestCase):
-    def test_extract_sequences_init(self):
-        sequence_lengths = [1, 5, 10]
-        sequence_strides = [1, 2, 3]
-        for length in sequence_lengths:
-            for stride in sequence_strides:
-                extract_op = kmath.ExtractSequences(length, stride)
-                self.assertIsNotNone(extract_op)
+class ExtractSequencesOpTest(testing.TestCase):
+    def test_extract_sequences_init_length_1_stride_1(self):
+        extract_op = kmath.ExtractSequences(
+            sequence_length=1, sequence_stride=1
+        )
+        self.assertIsNotNone(extract_op)
+        self.assertEqual(extract_op.sequence_length, 1)
+        self.assertEqual(extract_op.sequence_stride, 1)
+
+    def test_extract_sequences_init_length_5_stride_2(self):
+        extract_op = kmath.ExtractSequences(
+            sequence_length=5, sequence_stride=2
+        )
+        self.assertIsNotNone(extract_op)
+        self.assertEqual(extract_op.sequence_length, 5)
+        self.assertEqual(extract_op.sequence_stride, 2)
 
     def test_compute_output_spec_low_rank(self):
         extract_op = kmath.ExtractSequences(
