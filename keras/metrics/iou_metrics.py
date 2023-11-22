@@ -57,6 +57,8 @@ class _IoUBase(Metric):
     ):
         # defaulting to float32 to avoid issues with confusion matrix
         super().__init__(name=name, dtype=dtype or "float32")
+        # Metric should be maximized during optimization.
+        self._direction = "up"
         self.num_classes = num_classes
         self.ignore_class = ignore_class
         self.sparse_y_true = sparse_y_true

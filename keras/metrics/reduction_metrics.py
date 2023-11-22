@@ -1,8 +1,8 @@
 from keras import backend
 from keras import initializers
+from keras import losses
 from keras import ops
 from keras.api_export import keras_export
-from keras.losses import loss
 from keras.metrics.metric import Metric
 from keras.saving import serialization_lib
 
@@ -13,11 +13,13 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
     if sample_weight is not None:
         sample_weight = ops.cast(sample_weight, dtype=dtype)
         if mask is not None:
-            sample_weight = loss.apply_mask(
+            sample_weight = losses.loss.apply_mask(
                 sample_weight, mask, dtype=dtype, reduction="sum"
             )
         # Update dimensions of weights to match with values if possible.
-        values, sample_weight = loss.squeeze_to_same_rank(values, sample_weight)
+        values, sample_weight = losses.loss.squeeze_to_same_rank(
+            values, sample_weight
+        )
         # Reduce values to same ndim as weight array
         weight_ndim = len(sample_weight.shape)
         values_ndim = len(values.shape)
@@ -186,11 +188,20 @@ class MeanMetricWrapper(Mean):
         self._fn = fn
         self._fn_kwargs = kwargs
 
+        # If we are wrapping a Keras loss, register the metric's
+        # direction as "down" (needs to be minimized during training).
+        if (
+            self._fn in losses.ALL_OBJECTS
+            or hasattr(self._fn, "__class__")
+            and self._fn.__class__ in losses.ALL_OBJECTS
+        ):
+            self._direction = "down"
+
     def update_state(self, y_true, y_pred, sample_weight=None):
         mask = getattr(y_pred, "_keras_mask", None)
         values = self._fn(y_true, y_pred, **self._fn_kwargs)
         if sample_weight is not None and mask is not None:
-            sample_weight = loss.apply_mask(
+            sample_weight = losses.loss.apply_mask(
                 sample_weight, mask, dtype=self.dtype, reduction="sum"
             )
         return super().update_state(values, sample_weight=sample_weight)

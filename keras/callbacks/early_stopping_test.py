@@ -3,6 +3,7 @@ import pytest
 
 from keras import callbacks
 from keras import layers
+from keras import metrics
 from keras import models
 from keras import testing
 
@@ -23,7 +24,13 @@ class EarlyStoppingTest(testing.TestCase):
         model.compile(
             loss="mae",
             optimizer="adam",
-            metrics=["mse"],
+            metrics=[
+                "mse",
+                "acc",
+                "accuracy",
+                "hinge",
+                metrics.F1Score(name="f1_score"),
+            ],
         )
 
         cases = [
@@ -31,7 +38,10 @@ class EarlyStoppingTest(testing.TestCase):
             ("min", "val_loss"),
             ("auto", "val_mse"),
             ("auto", "loss"),
-            ("unknown", "unknown"),
+            ("auto", "acc"),
+            ("auto", "val_accuracy"),
+            ("auto", "hinge"),
+            ("auto", "f1_score"),
         ]
         for mode, monitor in cases:
             patience = 0
@@ -46,7 +56,21 @@ class EarlyStoppingTest(testing.TestCase):
                 batch_size=5,
                 validation_data=(x_test, y_test),
                 callbacks=cbks,
-                epochs=5,
+                epochs=2,
+                verbose=0,
+            )
+
+        with self.assertRaises(ValueError):
+            cbks = [
+                callbacks.EarlyStopping(patience=patience, monitor="unknown")
+            ]
+            model.fit(
+                x_train,
+                y_train,
+                batch_size=5,
+                validation_data=(x_test, y_test),
+                callbacks=cbks,
+                epochs=2,
                 verbose=0,
             )
 

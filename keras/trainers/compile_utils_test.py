@@ -75,6 +75,8 @@ class TestCompileMetrics(testing.TestCase):
         y_true = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
         y_pred = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
         compile_metrics.build(y_true, y_pred)
+        self.assertEqual(len(compile_metrics.metrics), 8)
+
         # Test eager build
         y_true = [
             np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
@@ -86,6 +88,7 @@ class TestCompileMetrics(testing.TestCase):
         ]
         sample_weight = np.array([1, 0.0, 1])
         compile_metrics.build(y_true, y_pred)
+        self.assertEqual(len(compile_metrics.metrics), 8)
 
         # Test update / result / reset flow
         compile_metrics.update_state(

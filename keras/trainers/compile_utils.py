@@ -147,6 +147,18 @@ class CompileMetrics(metrics_module.Metric):
         self.output_names = output_names
 
     @property
+    def metrics(self):
+        if not self.built:
+            return []
+        metrics = []
+        for m in self._flat_metrics + self._flat_weighted_metrics:
+            if isinstance(m, MetricsList):
+                metrics.extend(m.metrics)
+            elif m is not None:
+                metrics.append(m)
+        return metrics
+
+    @property
     def variables(self):
         # Avoiding relying on implicit tracking since
         # CompileMetrics may be instantiated or built in a no tracking scope.
