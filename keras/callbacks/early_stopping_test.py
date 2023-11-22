@@ -5,6 +5,7 @@ from keras import callbacks
 from keras import layers
 from keras import metrics
 from keras import models
+from keras import ops
 from keras import testing
 
 
@@ -34,16 +35,16 @@ class EarlyStoppingTest(testing.TestCase):
         )
 
         cases = [
-            ("max", "val_mse"),
-            ("min", "val_loss"),
-            ("auto", "val_mse"),
-            ("auto", "loss"),
-            ("auto", "acc"),
-            ("auto", "val_accuracy"),
-            ("auto", "hinge"),
-            ("auto", "f1_score"),
+            ("max", "val_mse", "max"),
+            ("min", "val_loss", "min"),
+            ("auto", "val_mse", "min"),
+            ("auto", "loss", "min"),
+            ("auto", "acc", "max"),
+            ("auto", "val_accuracy", "max"),
+            ("auto", "hinge", "min"),
+            ("auto", "f1_score", "max"),
         ]
-        for mode, monitor in cases:
+        for mode, monitor, expected_mode in cases:
             patience = 0
             cbks = [
                 callbacks.EarlyStopping(
@@ -59,6 +60,11 @@ class EarlyStoppingTest(testing.TestCase):
                 epochs=2,
                 verbose=0,
             )
+            if expected_mode == "max":
+                monitor_op = ops.greater
+            else:
+                monitor_op = ops.less
+            self.assertEqual(cbks[0].monitor_op, monitor_op)
 
         with self.assertRaises(ValueError):
             cbks = [

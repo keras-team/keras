@@ -97,19 +97,17 @@ class EarlyStopping(Callback):
             )
             mode = "auto"
         self.mode = mode
+        self.monitor_op = None
 
     def _set_monitor_op(self):
         if self.mode == "min":
             self.monitor_op = ops.less
-            return
         elif self.mode == "max":
             self.monitor_op = ops.greater
-            return
         else:
             metric_name = self.monitor.removeprefix("val_")
             if metric_name == "loss":
                 self.monitor_op = ops.less
-                return
             if hasattr(self.model, "metrics"):
                 all_metrics = []
                 for m in self.model.metrics:
@@ -126,34 +124,35 @@ class EarlyStopping(Callback):
                         if hasattr(m, "_direction"):
                             if m._direction == "up":
                                 self.monitor_op = ops.greater
-                                return
                             else:
                                 self.monitor_op = ops.less
-                                return
-        raise ValueError(
-            f"EarlyStopping callback received monitor={self.monitor} "
-            "but Keras isn't able to automatically determine whether "
-            "that metric should be maximized or minimized. "
-            "Pass `mode='max'` in order to do early stopping based "
-            "on the highest metric value, or pass `mode='min'` "
-            "in order to use the lowest value."
-        )
-
-    def on_train_begin(self, logs=None):
-        self._set_monitor_op()
+        if self.monitor_op is None:
+            raise ValueError(
+                f"EarlyStopping callback received monitor={self.monitor} "
+                "but Keras isn't able to automatically determine whether "
+                "that metric should be maximized or minimized. "
+                "Pass `mode='max'` in order to do early stopping based "
+                "on the highest metric value, or pass `mode='min'` "
+                "in order to use the lowest value."
+            )
         if self.monitor_op == ops.less:
             self.min_delta *= -1
-
-        # Allow instances to be re-used
-        self.wait = 0
-        self.stopped_epoch = 0
         self.best = (
             float("inf") if self.monitor_op == ops.less else -float("inf")
         )
+
+    def on_train_begin(self, logs=None):
+        # Allow instances to be re-used
+        self.wait = 0
+        self.stopped_epoch = 0
         self.best_weights = None
         self.best_epoch = 0
 
     def on_epoch_end(self, epoch, logs=None):
+        if self.monitor_op is None:
+            # Delay setup until the model's metrics are all built
+            self._set_monitor_op()
+
         current = self.get_monitor_value(logs)
         if current is None or epoch < self.start_from_epoch:
             # If no monitor value exists or still in initial warm-up stage.
