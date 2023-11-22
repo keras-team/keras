@@ -37,6 +37,8 @@ class MeanSquaredError(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="mean_squared_error", dtype=None):
         super().__init__(fn=mean_squared_error, name=name, dtype=dtype)
+        # Metric should be minimized during optimization.
+        self._direction = "down"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}
@@ -82,6 +84,8 @@ class MeanAbsoluteError(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="mean_absolute_error", dtype=None):
         super().__init__(mean_absolute_error, name, dtype=dtype)
+        # Metric should be minimized during optimization.
+        self._direction = "down"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}
@@ -127,6 +131,8 @@ class MeanAbsolutePercentageError(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="mean_absolute_percentage_error", dtype=None):
         super().__init__(mean_absolute_percentage_error, name, dtype=dtype)
+        # Metric should be minimized during optimization.
+        self._direction = "down"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}
@@ -172,6 +178,8 @@ class MeanSquaredLogarithmicError(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="mean_squared_logarithmic_error", dtype=None):
         super().__init__(mean_squared_logarithmic_error, name, dtype=dtype)
+        # Metric should be minimized during optimization.
+        self._direction = "down"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}
@@ -218,6 +226,8 @@ class RootMeanSquaredError(reduction_metrics.Mean):
 
     def __init__(self, name="root_mean_squared_error", dtype=None):
         super().__init__(name, dtype=dtype)
+        # Metric should be minimized during optimization.
+        self._direction = "down"
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         """Accumulates root mean squared error statistics.
@@ -293,6 +303,8 @@ class CosineSimilarity(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="cosine_similarity", dtype=None, axis=-1):
         super().__init__(cosine_similarity, name, dtype=dtype, axis=axis)
+        # Metric should be maximized during optimization.
+        self._direction = "up"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}
@@ -338,6 +350,8 @@ class LogCoshError(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="logcosh", dtype=None):
         super().__init__(log_cosh, name, dtype=dtype)
+        # Metric should be minimized during optimization.
+        self._direction = "down"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}
@@ -404,6 +418,8 @@ class R2Score(reduction_metrics.Metric):
         dtype=None,
     ):
         super().__init__(name=name, dtype=dtype)
+        # Metric should be maximized during optimization.
+        self._direction = "up"
 
         valid_class_aggregation_values = (
             None,

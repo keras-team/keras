@@ -729,3 +729,26 @@ def _compute_moments(x, axes, keepdims):
         mean = cast(mean, ori_dtype)
         variance = cast(variance, ori_dtype)
     return mean, variance
+
+
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
+    if axis != -1:
+        shape = [1] * len(x.shape)
+        shape[axis] = mean.shape[0]
+        mean = tf.reshape(mean, shape)
+        variance = tf.reshape(variance, shape)
+        if offset is not None:
+            offset = tf.reshape(offset, shape)
+        if scale is not None:
+            scale = tf.reshape(scale, shape)
+
+    return tf.nn.batch_normalization(
+        x=x,
+        mean=mean,
+        variance=variance,
+        offset=offset,
+        scale=scale,
+        variance_epsilon=epsilon,
+    )
