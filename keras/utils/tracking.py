@@ -2,6 +2,7 @@ from functools import wraps
 
 from keras.backend.common.global_state import get_global_attribute
 from keras.backend.common.global_state import set_global_attribute
+from keras.utils import python_utils
 
 
 class DotNotTrackScope:
@@ -91,8 +92,8 @@ class Tracker:
     def untrack(self, value):
         for store_name in self.stored_ids.keys():
             if id(value) in self.stored_ids[store_name]:
-                self.config[store_name][1].remove(value)
                 self.stored_ids[store_name].remove(id(value))
+                python_utils.remove_by_id(self.config[store_name][1], value)
 
     def lock(self, msg):
         self.locked = True
@@ -131,7 +132,10 @@ class TrackedList(list):
     def remove(self, value):
         if self.tracker:
             self.tracker.untrack(value)
-        super().remove(value)
+        try:
+            super().remove(value)
+        except ValueError:
+            python_utils.remove_by_id(self, value)
 
 
 class TrackedDict(dict):
