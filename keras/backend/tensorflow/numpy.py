@@ -1040,6 +1040,15 @@ def pad(x, pad_width, mode="constant"):
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
+    x = convert_to_tensor(x)
+    if dtype is None:
+        dtype = dtypes.result_type(x.dtype)
+        if dtype == "bool":
+            dtype = "int32"
+        elif dtype in ("int8", "int16"):
+            dtype = "int32"
+        elif dtype in ("uint8", "uint16"):
+            dtype = "uint32"
     return tfnp.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
@@ -1179,6 +1188,11 @@ def reciprocal(x):
 def repeat(x, repeats, axis=None):
     # tfnp.repeat has trouble with dynamic Tensors in compiled function.
     # tf.repeat does not.
+    x = convert_to_tensor(x)
+    # TODO: tf.repeat doesn't support uint16
+    if standardize_dtype(x.dtype) == "uint16":
+        x = tf.cast(x, "uint32")
+        return tf.cast(tf.repeat(x, repeats, axis=axis), "uint16")
     return tf.repeat(x, repeats, axis=axis)
 
 
@@ -1194,7 +1208,13 @@ def roll(x, shift, axis=None):
 
 @sparse.elementwise_unary
 def sign(x):
-    return tfnp.sign(x)
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    # TODO: tf.sign doesn't support uint8, uint16, uint32
+    if ori_dtype in ("uint8", "uint16", "uint32"):
+        x = tf.cast(x, "int32")
+        return tf.cast(tf.sign(x), ori_dtype)
+    return tf.sign(x)
 
 
 @sparse.elementwise_unary
@@ -1224,7 +1244,13 @@ def size(x):
 
 
 def sort(x, axis=-1):
-    return tfnp.sort(x, axis=axis)
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    # TODO: tf.sort doesn't support bool
+    if ori_dtype == "bool":
+        x = tf.cast(x, "int8")
+        return tf.cast(tf.sort(x, axis=axis), ori_dtype)
+    return tf.sort(x, axis=axis)
 
 
 def split(x, indices_or_sections, axis=0):
@@ -1232,10 +1258,20 @@ def split(x, indices_or_sections, axis=0):
 
 
 def stack(x, axis=0):
+    x = tf.nest.map_structure(convert_to_tensor, x)
+    dtypes_to_resolve = []
+    for a in x:
+        dtypes_to_resolve.append(a.dtype)
+    dtype = dtypes.result_type(*dtypes_to_resolve)
+    x = tf.nest.map_structure(lambda a: tf.cast(a, dtype), x)
     return tfnp.stack(x, axis=axis)
 
 
 def std(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = tf.cast(x, config.floatx())
     return tfnp.std(x, axis=axis, keepdims=keepdims)
 
 
@@ -1378,6 +1414,9 @@ def negative(x):
 
 @sparse.elementwise_unary
 def square(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "bool":
+        x = tf.cast(x, "int32")
     return tfnp.square(x)
 
 

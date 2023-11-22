@@ -669,6 +669,9 @@ def stack(x, axis=0):
 
 
 def std(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        x = cast(x, config.floatx())
     return jnp.std(x, axis=axis, keepdims=keepdims)
 
 
