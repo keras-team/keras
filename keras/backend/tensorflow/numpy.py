@@ -1368,25 +1368,7 @@ def true_divide(x1, x2):
 
 
 def power(x1, x2):
-    if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
-    if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
-    compute_dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-    )
-    result_dtype = compute_dtype
-    # TODO: tf.math.pow doesn't support uint*
-    if compute_dtype == "uint8":
-        compute_dtype = "int16"
-    elif compute_dtype == "uint16":
-        compute_dtype = "int32"
-    elif compute_dtype == "uint32":
-        compute_dtype = "int64"
-    x1 = tf.cast(x1, compute_dtype)
-    x2 = tf.cast(x2, compute_dtype)
-    return tf.cast(tf.math.pow(x1, x2), result_dtype)
+    return tfnp.power(x1, x2)
 
 
 @sparse.elementwise_unary
