@@ -11,7 +11,12 @@ class SumTest(testing.TestCase):
         self.assertEqual(sum_obj.name, "sum")
         self.assertEqual(len(sum_obj.variables), 1)
         self.assertEqual(sum_obj._dtype, "float32")
-        # TODO: Check save and restore config
+
+        # Check save and restore config
+        sum_obj2 = reduction_metrics.Sum.from_config(sum_obj.get_config())
+        self.assertEqual(sum_obj2.name, "sum")
+        self.assertEqual(len(sum_obj2.variables), 1)
+        self.assertEqual(sum_obj2._dtype, "float32")
 
     def test_unweighted(self):
         sum_obj = reduction_metrics.Sum(name="sum", dtype="float32")
@@ -38,7 +43,12 @@ class MeanTest(testing.TestCase):
         self.assertEqual(mean_obj.name, "mean")
         self.assertEqual(len(mean_obj.variables), 2)
         self.assertEqual(mean_obj._dtype, "float32")
-        # TODO: Check save and restore config
+
+        # Check save and restore config
+        mean_obj2 = reduction_metrics.Mean.from_config(mean_obj.get_config())
+        self.assertEqual(mean_obj2.name, "mean")
+        self.assertEqual(len(mean_obj2.variables), 2)
+        self.assertEqual(mean_obj2._dtype, "float32")
 
     def test_unweighted(self):
         mean_obj = reduction_metrics.Mean(name="mean", dtype="float32")
