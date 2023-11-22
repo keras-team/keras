@@ -493,6 +493,54 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
             knn.moments(x, axes=[1, 2], keepdims=True)[0].shape, (None, 1, 1)
         )
 
+    def test_batch_normalization(self):
+        x = KerasTensor([None, 3, 4])
+        mean = KerasTensor([4])
+        variance = KerasTensor([4])
+        self.assertEqual(
+            knn.batch_normalization(x, mean, variance, axis=-1).shape,
+            (None, 3, 4),
+        )
+
+        x = KerasTensor([None, 3, 4, 5])
+        self.assertEqual(
+            knn.batch_normalization(x, mean, variance, axis=2).shape,
+            (None, 3, 4, 5),
+        )
+
+        mean = KerasTensor([3])
+        variance = KerasTensor([3])
+        self.assertEqual(
+            knn.batch_normalization(x, mean, variance, axis=1).shape,
+            (None, 3, 4, 5),
+        )
+
+        # Test wrong offset shape
+        self.assertRaisesRegex(
+            ValueError,
+            "`offset` must be a vector of length",
+            knn.batch_normalization,
+            KerasTensor([None, 3, 4, 5]),
+            KerasTensor([5]),
+            KerasTensor([5]),
+            axis=-1,
+            offset=KerasTensor([3]),
+            scale=KerasTensor([5]),
+        )
+
+        # Test wrong scale shape
+        self.assertRaisesRegex(
+            ValueError,
+            "`scale` must be a vector of length",
+            knn.batch_normalization,
+            KerasTensor([None, 3, 4, 5]),
+            KerasTensor([5]),
+            KerasTensor([5]),
+            axis=-1,
+            offset=KerasTensor([5]),
+            scale=KerasTensor([3]),
+        )
+
 
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
@@ -886,6 +934,28 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.moments(x, axes=[0, 1])[0].shape, (4,))
         self.assertEqual(
             knn.moments(x, axes=[0, 1], keepdims=True)[0].shape, (1, 1, 4)
+        )
+
+    def test_batch_normalization(self):
+        x = KerasTensor([10, 3, 4])
+        mean = KerasTensor([4])
+        variance = KerasTensor([4])
+        self.assertEqual(
+            knn.batch_normalization(x, mean, variance, axis=-1).shape,
+            (10, 3, 4),
+        )
+
+        x = KerasTensor([10, 3, 4, 5])
+        self.assertEqual(
+            knn.batch_normalization(x, mean, variance, axis=2).shape,
+            (10, 3, 4, 5),
+        )
+
+        mean = KerasTensor([3])
+        variance = KerasTensor([3])
+        self.assertEqual(
+            knn.batch_normalization(x, mean, variance, axis=1).shape,
+            (10, 3, 4, 5),
         )
 
 
@@ -1610,6 +1680,44 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(mean.values[0], 4.5)
             self.assertEqual(variance.values[0], 8.75)
             self.assertEqual(variance.values[0], 8.75)
+
+    def test_batch_normalization(self):
+        x = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+        mean = np.array([0.2, 0.3, 0.4])
+        variance = np.array([4.0, 16.0, 64.0])
+        output = knn.batch_normalization(
+            x,
+            mean,
+            variance,
+            axis=-1,
+            offset=np.array([5.0, 10.0, 15.0]),
+            scale=np.array([10.0, 20.0, 30.0]),
+            epsilon=1e-7,
+        )
+        expected_output = np.array([[4.5, 9.5, 14.625], [6.0, 11.0, 15.75]])
+        self.assertAllClose(output, expected_output)
+
+        output = knn.batch_normalization(
+            x,
+            mean,
+            variance,
+            axis=1,
+            epsilon=1e-7,
+        )
+        expected_output = np.array(
+            [[-0.05, -0.025, -0.0125], [0.1, 0.05, 0.025]]
+        )
+        self.assertAllClose(output, expected_output)
+
+        output = knn.batch_normalization(
+            np.random.uniform(size=[2, 3, 3, 5]),
+            np.random.uniform(size=[5]),
+            np.random.uniform(size=[5]),
+            axis=3,
+            offset=np.random.uniform(size=[5]),
+            scale=np.random.uniform(size=[5]),
+        )
+        self.assertEqual(tuple(output.shape), (2, 3, 3, 5))
 
 
 class TestLogitRecovery(testing.TestCase):

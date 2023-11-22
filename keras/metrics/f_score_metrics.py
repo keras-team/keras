@@ -72,6 +72,8 @@ class FBetaScore(Metric):
         dtype=None,
     ):
         super().__init__(name=name, dtype=dtype)
+        # Metric should be maximized during optimization.
+        self._direction = "up"
 
         if average not in (None, "micro", "macro", "weighted"):
             raise ValueError(

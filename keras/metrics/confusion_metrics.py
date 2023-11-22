@@ -338,6 +338,9 @@ class Precision(Metric):
         self, thresholds=None, top_k=None, class_id=None, name=None, dtype=None
     ):
         super().__init__(name=name, dtype=dtype)
+        # Metric should be maximized during optimization.
+        self._direction = "up"
+
         self.init_thresholds = thresholds
         self.top_k = top_k
         self.class_id = class_id
@@ -479,6 +482,9 @@ class Recall(Metric):
         self, thresholds=None, top_k=None, class_id=None, name=None, dtype=None
     ):
         super().__init__(name=name, dtype=dtype)
+        # Metric should be maximized during optimization.
+        self._direction = "up"
+
         self.init_thresholds = thresholds
         self.top_k = top_k
         self.class_id = class_id
@@ -560,6 +566,9 @@ class SensitivitySpecificityBase(Metric):
         self, value, num_thresholds=200, class_id=None, name=None, dtype=None
     ):
         super().__init__(name=name, dtype=dtype)
+        # Metric should be maximized during optimization.
+        self._direction = "up"
+
         if num_thresholds <= 0:
             raise ValueError(
                 "Argument `num_thresholds` must be an integer > 0. "
@@ -1192,6 +1201,9 @@ class AUC(Metric):
         label_weights=None,
         from_logits=False,
     ):
+        # Metric should be maximized during optimization.
+        self._direction = "up"
+
         # Validate configurations.
         if isinstance(curve, metrics_utils.AUCCurve) and curve not in list(
             metrics_utils.AUCCurve

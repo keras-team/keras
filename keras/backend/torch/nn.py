@@ -686,3 +686,44 @@ def moments(x, axes, keepdims=False, synchronized=False):
         mean = cast(mean, ori_dtype)
         variance = cast(variance, ori_dtype)
     return mean, variance
+
+
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
+    x = convert_to_tensor(x)
+    mean = convert_to_tensor(mean).detach()
+    variance = convert_to_tensor(variance).detach()
+    if offset is not None:
+        offset = convert_to_tensor(offset)
+    if scale is not None:
+        scale = convert_to_tensor(scale)
+
+    def _batch_norm():
+        return tnn.batch_norm(
+            input=x,
+            running_mean=mean,
+            running_var=variance,
+            weight=scale,
+            bias=offset,
+            training=False,
+            eps=epsilon,
+        )
+
+    if axis == 1:
+        return _batch_norm()
+
+    if axis < 0:
+        axis = len(x.shape) + axis
+
+    order = list(range(len(x.shape)))
+    order.pop(axis)
+    order.insert(1, axis)
+    x = x.permute(order)
+
+    x = _batch_norm()
+
+    order = list(range(len(x.shape)))
+    order.pop(1)
+    order.insert(axis, 1)
+    return x.permute(order)

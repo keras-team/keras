@@ -186,7 +186,7 @@ class TorchTrainer(base_trainer.Trainer):
             # Build all model state with `backend.compute_output_spec`.
             try:
                 y_pred = backend.compute_output_spec(self, x)
-            except:
+            except Exception as e:
                 raise RuntimeError(
                     "Unable to automatically build the model. "
                     "Please build it yourself before calling "
@@ -194,7 +194,9 @@ class TorchTrainer(base_trainer.Trainer):
                     "A model is 'built' when its variables have "
                     "been created and its `self.built` attribute "
                     "is True. Usually, calling the model on a batch "
-                    "of data is the right way to build it."
+                    "of data is the right way to build it.\n"
+                    "Exception encountered:\n"
+                    f"'{e}'"
                 )
             if compile_metrics_unbuilt:
                 # Build all metric state with `backend.compute_output_spec`.

@@ -1637,3 +1637,87 @@ def moments(x, axes, keepdims=False, synchronized=False):
         )
 
     return backend.nn.moments(x, axes, keepdims, synchronized=synchronized)
+
+
+class BatchNorm(Operation):
+    def __init__(self, axis, epsilon, name=None):
+        super().__init__(name)
+        self.axis = axis
+        self.epsilon = epsilon
+
+    def _check_shape(self, name, shape, expected_shape):
+        if shape != expected_shape:
+            raise ValueError(
+                f"Arguments `{name}` must be a vector of length "
+                f"`x.shape[axis]`. Expected: `{expected_shape}`. "
+                f"Received: `{shape}."
+            )
+
+    def compute_output_spec(self, x, mean, variance, offset, scale):
+        shape = (x.shape[self.axis],)
+        self._check_shape("mean", tuple(mean.shape), shape)
+        self._check_shape("variance", tuple(variance.shape), shape)
+        if offset is not None:
+            self._check_shape("offset", tuple(offset.shape), shape)
+        if offset is not scale:
+            self._check_shape("scale", tuple(scale.shape), shape)
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(
+    [
+        "keras.ops.batch_normalization",
+        "keras.ops.nn.batch_normalization",
+    ]
+)
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
+    """Normalizes `x` by `mean` and `variance`.
+
+    This op is typically used by the batch normalization step in a neural
+    network. It normalizes the input tensor along the given axis.
+
+    Args:
+        x: Input tensor.
+        mean: A mean vector of the same length as the `axis` dimension of the
+            input thensor.
+        variance: A variance vector of the same length as the `axis` dimension
+            of the input tensor.
+        axis: Integer, the axis that should be normalized.
+        offset: An offset vector of the same length as the `axis` dimension of
+            the input tensor. If not `None`, `offset` is added to the normalized
+            tensor. Defaults to `None`.
+        scale: A scale vector of the same length as the `axis` dimension of the
+            input tensor. If not `None`, the normalized tensor is multiplied by
+            `scale`. Defaults to `None`.
+        epsilon: Small float added to variance to avoid dividing by zero.
+            Defaults to 1e-3.
+
+    Returns:
+        The normalized tensor.
+
+    Example:
+
+    >>> x = keras.ops.convert_to_tensor(
+    ...     [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]
+    ... )
+    >>> keras.ops.batch_normalization(
+    ...     x,
+    ...     mean=[0.4, 0.5, 0.6],
+    ...     variance=[0.67, 0.67, 0.67],
+    ...     axis=-1
+    ... )
+    array([[-3.6624e-01, -3.6624e-01, -3.6624e-01],
+           [-4.6445e-09,  0.0000e+00, -1.8578e-08],
+           [ 3.6624e-01,  3.6624e-01,  3.6624e-01]])
+
+    """
+    if any_symbolic_tensors((x, mean, variance, offset, scale)):
+        return BatchNorm(axis, epsilon).symbolic_call(
+            x, mean, variance, offset, scale
+        )
+
+    return backend.nn.batch_normalization(
+        x, mean, variance, axis, offset, scale, epsilon
+    )

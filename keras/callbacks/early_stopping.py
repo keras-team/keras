@@ -3,6 +3,7 @@ import warnings
 from keras import ops
 from keras.api_export import keras_export
 from keras.callbacks.callback import Callback
+from keras.trainers import compile_utils
 from keras.utils import io_utils
 
 
@@ -95,37 +96,63 @@ class EarlyStopping(Callback):
                 stacklevel=2,
             )
             mode = "auto"
+        self.mode = mode
+        self.monitor_op = None
 
-        if mode == "min":
+    def _set_monitor_op(self):
+        if self.mode == "min":
             self.monitor_op = ops.less
-        elif mode == "max":
+        elif self.mode == "max":
             self.monitor_op = ops.greater
         else:
-            if (
-                self.monitor.endswith("acc")
-                or self.monitor.endswith("accuracy")
-                or self.monitor.endswith("auc")
-            ):
-                self.monitor_op = ops.greater
-            else:
+            metric_name = self.monitor.removeprefix("val_")
+            if metric_name == "loss":
                 self.monitor_op = ops.less
-
-        if self.monitor_op == ops.greater:
-            self.min_delta *= 1
-        else:
+            if hasattr(self.model, "metrics"):
+                all_metrics = []
+                for m in self.model.metrics:
+                    if isinstance(
+                        m,
+                        (
+                            compile_utils.CompileMetrics,
+                            compile_utils.MetricsList,
+                        ),
+                    ):
+                        all_metrics.extend(m.metrics)
+                for m in all_metrics:
+                    if m.name == metric_name:
+                        if hasattr(m, "_direction"):
+                            if m._direction == "up":
+                                self.monitor_op = ops.greater
+                            else:
+                                self.monitor_op = ops.less
+        if self.monitor_op is None:
+            raise ValueError(
+                f"EarlyStopping callback received monitor={self.monitor} "
+                "but Keras isn't able to automatically determine whether "
+                "that metric should be maximized or minimized. "
+                "Pass `mode='max'` in order to do early stopping based "
+                "on the highest metric value, or pass `mode='min'` "
+                "in order to use the lowest value."
+            )
+        if self.monitor_op == ops.less:
             self.min_delta *= -1
+        self.best = (
+            float("inf") if self.monitor_op == ops.less else -float("inf")
+        )
 
     def on_train_begin(self, logs=None):
         # Allow instances to be re-used
         self.wait = 0
         self.stopped_epoch = 0
-        self.best = (
-            float("inf") if self.monitor_op == ops.less else -float("inf")
-        )
         self.best_weights = None
         self.best_epoch = 0
 
     def on_epoch_end(self, epoch, logs=None):
+        if self.monitor_op is None:
+            # Delay setup until the model's metrics are all built
+            self._set_monitor_op()
+
         current = self.get_monitor_value(logs)
         if current is None or epoch < self.start_from_epoch:
             # If no monitor value exists or still in initial warm-up stage.
