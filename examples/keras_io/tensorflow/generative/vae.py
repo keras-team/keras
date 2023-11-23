@@ -156,7 +156,7 @@ def plot_latent_space(vae, n=30, figsize=15):
     for i, yi in enumerate(grid_y):
         for j, xi in enumerate(grid_x):
             z_sample = np.array([[xi, yi]])
-            x_decoded = vae.decoder.predict(z_sample)
+            x_decoded = vae.decoder.predict(z_sample, verbose=0)
             digit = x_decoded[0].reshape(digit_size, digit_size)
             figure[
                 i * digit_size : (i + 1) * digit_size,
