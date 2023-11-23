@@ -2,7 +2,7 @@
 Title: Character-level recurrent sequence-to-sequence model
 Author: [fchollet](https://twitter.com/fchollet)
 Date created: 2017/09/29
-Last modified: 2020/04/26
+Last modified: 2023/11/22
 Description: Character-level recurrent sequence-to-sequence model.
 Accelerator: GPU
 """

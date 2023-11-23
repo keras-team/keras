@@ -17,13 +17,16 @@ aligned image pairs. However, obtaining paired examples isn't always feasible.
 CycleGAN tries to learn this mapping without requiring paired input-output images,
 using cycle-consistent adversarial networks.
 
-- [Paper](https://arxiv.org/pdf/1703.10593.pdf)
+- [Paper](https://arxiv.org/abs/1703.10593)
 - [Original implementation](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix)
 """
 
 """
 ## Setup
 """
+
+import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -637,7 +640,7 @@ cycle_gan_model.compile(
 # Callbacks
 plotter = GANMonitor()
 checkpoint_filepath = (
-    "./model_checkpoints/cyclegan_checkpoints.{epoch:03d}.weights.h5"
+    "cyclegan_checkpoints.{epoch:03d}.weights.h5"
 )
 model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath, save_weights_only=True
@@ -652,10 +655,7 @@ cycle_gan_model.fit(
 )
 
 """
-Test the performance of the model.
-
-You can use the trained model hosted on [Hugging Face Hub](https://huggingface.co/keras-io/CycleGAN)
-and try the demo on [Hugging Face Spaces](https://huggingface.co/spaces/keras-io/CycleGAN).
+## Test the performance of the model.
 """
 
 
@@ -676,7 +676,7 @@ print("Weights loaded successfully")
 
 _, ax = plt.subplots(4, 2, figsize=(10, 15))
 for i, img in enumerate(test_horses.take(4)):
-    prediction = cycle_gan_model.gen_G(img, training=False)[0].numpy()
+    prediction = cycle_gan_model.gen_G.predict(img)[0]
     prediction = (prediction * 127.5 + 127.5).astype(np.uint8)
     img = (img[0] * 127.5 + 127.5).numpy().astype(np.uint8)
 
