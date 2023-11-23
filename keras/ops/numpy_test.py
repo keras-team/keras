@@ -3172,48 +3172,34 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np.count_nonzero(x, axis=1),
         )
 
-    def test_cumprod(self):
+    @parameterized.product(
+        axis=[None, 0, 1, -1],
+        dtype=[None, "int32", "float32"],
+    )
+    def test_cumprod(self, axis, dtype):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(knp.cumprod(x), np.cumprod(x))
         self.assertAllClose(
-            knp.cumprod(x, axis=0),
-            np.cumprod(x, axis=0),
+            knp.cumprod(x, axis=axis, dtype=dtype),
+            np.cumprod(x, axis=axis, dtype=dtype or x.dtype),
         )
         self.assertAllClose(
-            knp.cumprod(x, axis=None),
-            np.cumprod(x, axis=None),
-        )
-
-        self.assertAllClose(knp.Cumprod()(x), np.cumprod(x))
-        self.assertAllClose(
-            knp.Cumprod(axis=0)(x),
-            np.cumprod(x, axis=0),
-        )
-        self.assertAllClose(
-            knp.Cumprod(axis=None)(x),
-            np.cumprod(x, axis=None),
+            knp.Cumprod(axis=axis, dtype=dtype)(x),
+            np.cumprod(x, axis=axis, dtype=dtype or x.dtype),
         )
 
-    def test_cumsum(self):
+    @parameterized.product(
+        axis=[None, 0, 1, -1],
+        dtype=[None, "int32", "float32"],
+    )
+    def test_cumsum(self, axis, dtype):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(knp.cumsum(x), np.cumsum(x))
         self.assertAllClose(
-            knp.cumsum(x, axis=0),
-            np.cumsum(x, axis=0),
+            knp.cumsum(x, axis=axis, dtype=dtype),
+            np.cumsum(x, axis=axis, dtype=dtype or x.dtype),
         )
         self.assertAllClose(
-            knp.cumsum(x, axis=1),
-            np.cumsum(x, axis=1),
-        )
-
-        self.assertAllClose(knp.Cumsum()(x), np.cumsum(x))
-        self.assertAllClose(
-            knp.Cumsum(axis=0)(x),
-            np.cumsum(x, axis=0),
-        )
-        self.assertAllClose(
-            knp.Cumsum(axis=1)(x),
-            np.cumsum(x, axis=1),
+            knp.Cumsum(axis=axis, dtype=dtype)(x),
+            np.cumsum(x, axis=axis, dtype=dtype or x.dtype),
         )
 
     def test_diag(self):

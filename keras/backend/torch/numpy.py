@@ -458,20 +458,24 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=-1):
     return cast(torch.cross(x1, x2, dim=axis), result_dtype)
 
 
-def cumprod(x, axis=None):
+def cumprod(x, axis=None, dtype=None):
     x = convert_to_tensor(x)
     if axis is None:
         x = x.flatten()
         axis = 0
-    return torch.cumprod(x, dim=axis)
+    return torch.cumprod(
+        x, dim=axis, dtype=x.dtype if dtype is None else to_torch_dtype(dtype)
+    )
 
 
-def cumsum(x, axis=None):
+def cumsum(x, axis=None, dtype=None):
     x = convert_to_tensor(x)
     if axis is None:
         x = x.flatten()
         axis = 0
-    return torch.cumsum(x, dim=axis)
+    return torch.cumsum(
+        x, dim=axis, dtype=x.dtype if dtype is None else to_torch_dtype(dtype)
+    )
 
 
 def diag(x, k=0):
