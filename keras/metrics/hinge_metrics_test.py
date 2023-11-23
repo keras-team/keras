@@ -9,7 +9,12 @@ class HingeTest(testing.TestCase):
         hinge_obj = hinge_metrics.Hinge(name="hinge", dtype="int32")
         self.assertEqual(hinge_obj.name, "hinge")
         self.assertEqual(hinge_obj._dtype, "int32")
-        # TODO: Check save and restore config
+
+        # Check save and restore config
+        hinge_obj2 = hinge_metrics.Hinge.from_config(hinge_obj.get_config())
+        self.assertEqual(hinge_obj2.name, "hinge")
+        self.assertEqual(len(hinge_obj2.variables), 2)
+        self.assertEqual(hinge_obj2._dtype, "int32")
 
     def test_unweighted(self):
         hinge_obj = hinge_metrics.Hinge()
@@ -35,7 +40,14 @@ class SquaredHingeTest(testing.TestCase):
         )
         self.assertEqual(sq_hinge_obj.name, "squared_hinge")
         self.assertEqual(sq_hinge_obj._dtype, "int32")
-        # TODO: Check save and restore config
+
+        # Check save and restore config
+        sq_hinge_obj2 = hinge_metrics.SquaredHinge.from_config(
+            sq_hinge_obj.get_config()
+        )
+        self.assertEqual(sq_hinge_obj2.name, "squared_hinge")
+        self.assertEqual(len(sq_hinge_obj2.variables), 2)
+        self.assertEqual(sq_hinge_obj2._dtype, "int32")
 
     def test_unweighted(self):
         sq_hinge_obj = hinge_metrics.SquaredHinge()
@@ -61,7 +73,14 @@ class CategoricalHingeTest(testing.TestCase):
         )
         self.assertEqual(cat_hinge_obj.name, "cat_hinge")
         self.assertEqual(cat_hinge_obj._dtype, "int32")
-        # TODO: Check save and restore config
+
+        # Check save and restore config
+        cat_hinge_obj2 = hinge_metrics.CategoricalHinge.from_config(
+            cat_hinge_obj.get_config()
+        )
+        self.assertEqual(cat_hinge_obj2.name, "cat_hinge")
+        self.assertEqual(len(cat_hinge_obj2.variables), 2)
+        self.assertEqual(cat_hinge_obj2._dtype, "int32")
 
     def test_unweighted(self):
         cat_hinge_obj = hinge_metrics.CategoricalHinge()
