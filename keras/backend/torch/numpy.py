@@ -922,7 +922,7 @@ def not_equal(x1, x2):
 
 def ones_like(x, dtype=None):
     x = convert_to_tensor(x)
-    dtype = to_torch_dtype(dtype)
+    dtype = to_torch_dtype(dtype or x.dtype)
     return torch.ones_like(x, dtype=dtype)
 
 
@@ -975,14 +975,31 @@ def pad(x, pad_width, mode="constant"):
 
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = convert_to_tensor(x)
-    dtype = to_torch_dtype(dtype)
+    if dtype is None:
+        dtype = dtypes.result_type(x.dtype)
+        if dtype == "bool":
+            dtype = "int32"
+        elif dtype in ("int8", "int16"):
+            dtype = "int32"
+        # TODO: torch.prod doesn't support uint32
+        elif dtype == "uint8":
+            dtype = "int32"
+    compute_dtype = dtype
+    # TODO: torch.prod doesn't support float16 with cpu
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
     if axis is None:
-        return torch.prod(x, dtype=dtype)
+        return cast(torch.prod(x, dtype=to_torch_dtype(compute_dtype)), dtype)
     if not isinstance(axis, (list, tuple)):
         axis = (axis,)
     for a in axis:
         # `torch.prod` does not handle multiple axes.
-        x = torch.prod(x, dim=a, keepdim=keepdims, dtype=dtype)
+        x = cast(
+            torch.prod(
+                x, dim=a, keepdim=keepdims, dtype=to_torch_dtype(compute_dtype)
+            ),
+            dtype,
+        )
     return x
 
 
@@ -1141,8 +1158,9 @@ def stack(x, axis=0):
 
 def std(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    # Conversion to float necessary for `torch.std`
-    x = cast(x, "float32") if x.dtype in TORCH_INT_TYPES else x
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = cast(x, "float32")
     # Remove Bessel correction to align with numpy
     return torch.std(x, dim=axis, keepdim=keepdims, unbiased=False)
 
@@ -1204,6 +1222,11 @@ def tensordot(x1, x2, axes=2):
 
 def round(x, decimals=0):
     x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    # TODO: torch.round doesn't support int8, int16, int32, int64, uint8
+    if "int" in ori_dtype:
+        x = cast(x, config.floatx())
+        return cast(torch.round(x, decimals=decimals), ori_dtype)
     return torch.round(x, decimals=decimals)
 
 
@@ -1278,6 +1301,8 @@ def negative(x):
 
 def square(x):
     x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "bool":
+        x = cast(x, "int32")
     return torch.square(x)
 
 

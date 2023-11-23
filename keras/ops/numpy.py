@@ -4144,7 +4144,11 @@ class Outer(Operation):
         else:
             x2_flatten_shape = int(np.prod(x2_shape))
         output_shape = [x1_flatten_shape, x2_flatten_shape]
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        output_dtype = backend.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        return KerasTensor(output_shape, dtype=output_dtype)
 
 
 @keras_export(["keras.ops.outer", "keras.ops.numpy.outer"])
@@ -4270,9 +4274,22 @@ class Prod(Operation):
         )
 
     def compute_output_spec(self, x):
+        if self.dtype is not None:
+            dtype = self.dtype
+        else:
+            dtype = backend.result_type(x.dtype)
+            if dtype == "bool":
+                dtype = "int32"
+            elif dtype in ("int8", "int16"):
+                dtype = "int32"
+            elif dtype in ("uint8", "uint16"):
+                dtype = "uint32"
+        # TODO: torch doesn't support uint32
+        if backend.backend() == "torch" and dtype == "uint32":
+            dtype = "int32"
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=self.dtype,
+            dtype=dtype,
         )
 
 
@@ -4604,7 +4621,7 @@ class Sign(Operation):
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype="int32", sparse=sparse)
+        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.sign", "keras.ops.numpy.sign"])
@@ -4814,6 +4831,7 @@ class Stack(Operation):
 
     def compute_output_spec(self, xs):
         first_shape = xs[0].shape
+        dtypes_to_resolve = []
         for x in xs:
             if not shape_equal(x.shape, first_shape, axis=[], allow_none=True):
                 raise ValueError(
@@ -4821,6 +4839,7 @@ class Stack(Operation):
                     f"element of shape {x.shape},  which is different from the "
                     f"first element's shape {first_shape}."
                 )
+            dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
 
         size_on_axis = len(xs)
         output_shape = list(first_shape)
@@ -4830,7 +4849,8 @@ class Stack(Operation):
             output_shape.insert(self.axis, size_on_axis)
         else:
             output_shape.insert(self.axis + 1, size_on_axis)
-        return KerasTensor(output_shape, dtype=x.dtype)
+        output_dtype = dtypes.result_type(*dtypes_to_resolve)
+        return KerasTensor(output_shape, dtype=output_dtype)
 
 
 @keras_export(["keras.ops.stack", "keras.ops.numpy.stack"])
@@ -4865,8 +4885,12 @@ class Std(Operation):
         return backend.numpy.std(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
+        output_dtype = backend.standardize_dtype(x.dtype)
+        if "int" in output_dtype or output_dtype == "bool":
+            output_dtype = backend.floatx()
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=output_dtype,
         )
 
 
@@ -5639,7 +5663,10 @@ class Square(Operation):
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype == "bool":
+            dtype = "int32"
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.square", "keras.ops.numpy.square"])
