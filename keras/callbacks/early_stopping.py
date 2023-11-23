@@ -158,8 +158,10 @@ class EarlyStopping(Callback):
             # If no monitor value exists or still in initial warm-up stage.
             return
         if self.restore_best_weights and self.best_weights is None:
-            # Restore the weights after first epoch if no progress is ever made.
+            # If best weights were never set,
+            # then the current weights are the best.
             self.best_weights = self.model.get_weights()
+            self.best_epoch = epoch
 
         self.wait += 1
         if self._is_improvement(current, self.best):
@@ -175,24 +177,24 @@ class EarlyStopping(Callback):
                 self.wait = 0
             return
 
-        # Only check after the first epoch.
         if self.wait >= self.patience and epoch > 0:
+            # Patience has been exceeded: stop training
             self.stopped_epoch = epoch
             self.model.stop_training = True
-            if self.restore_best_weights and self.best_weights is not None:
-                if self.verbose > 0:
-                    io_utils.print_msg(
-                        "Restoring model weights from "
-                        "the end of the best epoch: "
-                        f"{self.best_epoch + 1}."
-                    )
-                self.model.set_weights(self.best_weights)
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
             io_utils.print_msg(
                 f"Epoch {self.stopped_epoch + 1}: early stopping"
             )
+        if self.restore_best_weights and self.best_weights is not None:
+            if self.verbose > 0:
+                io_utils.print_msg(
+                    "Restoring model weights from "
+                    "the end of the best epoch: "
+                    f"{self.best_epoch + 1}."
+                )
+            self.model.set_weights(self.best_weights)
 
     def get_monitor_value(self, logs):
         logs = logs or {}
