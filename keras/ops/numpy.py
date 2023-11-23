@@ -1779,12 +1779,13 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 
 class Cumprod(Operation):
-    def __init__(self, axis=None):
+    def __init__(self, axis=None, dtype=None):
         super().__init__()
         self.axis = axis
+        self.dtype = dtype
 
     def call(self, x):
-        return backend.numpy.cumprod(x, axis=self.axis)
+        return backend.numpy.cumprod(x, axis=self.axis, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         if self.axis is None:
@@ -1792,34 +1793,35 @@ class Cumprod(Operation):
                 output_shape = (None,)
             else:
                 output_shape = (int(np.prod(x.shape)),)
-            return KerasTensor(output_shape, dtype="int32")
-        return KerasTensor(x.shape, dtype=x.dtype)
+        else:
+            output_shape = x.shape
+        return KerasTensor(output_shape, self.dtype or x.dtype)
 
 
 @keras_export(["keras.ops.cumprod", "keras.ops.numpy.cumprod"])
-def cumprod(x, axis=None):
+def cumprod(x, axis=None, dtype=None):
     """Return the cumulative product of elements along a given axis.
 
     Args:
         x: Input tensor.
         axis: Axis along which the cumulative product is computed.
             By default the input is flattened.
+        dtype: dtype of returned tensor. Defaults to x.dtype.
 
     Returns:
         Output tensor.
     """
-    if any_symbolic_tensors((x,)):
-        return Cumprod(axis=axis).symbolic_call(x)
-    return backend.numpy.cumprod(x, axis=axis)
+    return Cumprod(axis=axis, dtype=dtype)(x)
 
 
 class Cumsum(Operation):
-    def __init__(self, axis=None):
+    def __init__(self, axis=None, dtype=None):
         super().__init__()
         self.axis = axis
+        self.dtype = dtype
 
     def call(self, x):
-        return backend.numpy.cumsum(x, axis=self.axis)
+        return backend.numpy.cumsum(x, axis=self.axis, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         if self.axis is None:
@@ -1827,25 +1829,25 @@ class Cumsum(Operation):
                 output_shape = (None,)
             else:
                 output_shape = (int(np.prod(x.shape)),)
-            return KerasTensor(output_shape, dtype="int32")
-        return KerasTensor(x.shape, dtype=x.dtype)
+        else:
+            output_shape = x.shape
+        return KerasTensor(output_shape, self.dtype or x.dtype)
 
 
 @keras_export(["keras.ops.cumsum", "keras.ops.numpy.cumsum"])
-def cumsum(x, axis=None):
+def cumsum(x, axis=None, dtype=None):
     """Returns the cumulative sum of elements along a given axis.
 
     Args:
         x: Input tensor.
         axis: Axis along which the cumulative sum is computed.
             By default the input is flattened.
+        dtype: dtype of returned tensor. Defaults to x.dtype.
 
     Returns:
         Output tensor.
     """
-    if any_symbolic_tensors((x,)):
-        return Cumsum(axis=axis).symbolic_call(x)
-    return backend.numpy.cumsum(x, axis=axis)
+    return Cumsum(axis=axis, dtype=dtype)(x)
 
 
 class Diag(Operation):
