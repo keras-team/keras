@@ -977,17 +977,26 @@ def prod(x, axis=None, keepdims=False, dtype=None):
             dtype = "int32"
         elif dtype in ("int8", "int16"):
             dtype = "int32"
-        # TODO: torch doesn't support uint32
+        # TODO: torch.prod doesn't support uint32
         elif dtype == "uint8":
             dtype = "int32"
-    dtype = to_torch_dtype(dtype)
+    compute_dtype = dtype
+    # TODO: torch.prod doesn't support float16 with cpu
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
+    x = cast(x, compute_dtype)
     if axis is None:
-        return torch.prod(x, dtype=dtype)
+        return cast(torch.prod(x, dtype=to_torch_dtype(compute_dtype)), dtype)
     if not isinstance(axis, (list, tuple)):
         axis = (axis,)
     for a in axis:
         # `torch.prod` does not handle multiple axes.
-        x = torch.prod(x, dim=a, keepdim=keepdims, dtype=dtype)
+        x = cast(
+            torch.prod(
+                x, dim=a, keepdim=keepdims, dtype=to_torch_dtype(compute_dtype)
+            ),
+            dtype,
+        )
     return x
 
 
