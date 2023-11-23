@@ -143,25 +143,6 @@ def show_raw_visualization(data):
 
 show_raw_visualization(df)
 
-"""
-This heat map shows the correlation between different features.
-"""
-
-
-def show_heatmap(data):
-    plt.matshow(data.corr())
-    plt.xticks(range(data.shape[1]), data.columns, fontsize=14, rotation=90)
-    plt.gca().xaxis.tick_bottom()
-    plt.yticks(range(data.shape[1]), data.columns, fontsize=14)
-
-    cb = plt.colorbar()
-    cb.ax.tick_params(labelsize=14)
-    plt.title("Feature Correlation Heatmap", fontsize=14)
-    plt.show()
-
-
-show_heatmap(df)
-
 
 """
 ## Data Preprocessing
