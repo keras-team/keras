@@ -17,7 +17,7 @@ aligned image pairs. However, obtaining paired examples isn't always feasible.
 CycleGAN tries to learn this mapping without requiring paired input-output images,
 using cycle-consistent adversarial networks.
 
-- [Paper](https://arxiv.org/pdf/1703.10593.pdf)
+- [Paper](https://arxiv.org/abs/1703.10593)
 - [Original implementation](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix)
 """
 
