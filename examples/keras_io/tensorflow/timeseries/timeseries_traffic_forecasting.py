@@ -439,10 +439,10 @@ class GraphConv(layers.Layer):
         self.graph_info = graph_info
         self.aggregation_type = aggregation_type
         self.combination_type = combination_type
-        self.weight = keras.Variable(
-            initial_value=keras.initializers.GlorotUniform()(
-                shape=(in_feat, out_feat), dtype="float32"
-            ),
+        self.weight = self.add_weight(
+            initializer=keras.initializers.GlorotUniform(),
+            shape=(in_feat, out_feat),
+            dtype="float32",
             trainable=True,
         )
         self.activation = layers.Activation(activation)
