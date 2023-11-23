@@ -2,7 +2,7 @@
 Title: Variational AutoEncoder
 Author: [fchollet](https://twitter.com/fchollet)
 Date created: 2020/05/03
-Last modified: 2020/05/03
+Last modified: 2023/11/22
 Description: Convolutional Variational AutoEncoder (VAE) trained on MNIST digits.
 Accelerator: GPU
 """
@@ -10,6 +10,9 @@ Accelerator: GPU
 """
 ## Setup
 """
+
+import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import numpy as np
 import tensorflow as tf
