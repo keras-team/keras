@@ -2,14 +2,13 @@
 Title: Timeseries forecasting for weather prediction
 Authors: [Prabhanshu Attri](https://prabhanshu.com/github), [Yashika Sharma](https://github.com/yashika51), [Kristi Takach](https://github.com/ktakattack), [Falak Shah](https://github.com/falaktheoptimist)
 Date created: 2020/06/23
-Last modified: 2020/07/20
+Last modified: 2023/11/22
 Description: This notebook demonstrates how to do timeseries forecasting using a LSTM model.
 Accelerator: GPU
 """
 
 """
 ## Setup
-This example requires TensorFlow 2.3 or higher.
 """
 
 import pandas as pd
@@ -389,11 +388,3 @@ for x, y in dataset_val.take(5):
         12,
         "Single Step Prediction",
     )
-
-
-"""
-**Example available on HuggingFace**
-| Trained Model | Demo |
-| :--: | :--: |
-| [![Generic badge](https://img.shields.io/badge/%F0%9F%A4%97%20Model-Time%20Series-black.svg)](https://huggingface.co/keras-io/timeseries_forecasting_for_weather) | [![Generic badge](https://img.shields.io/badge/%F0%9F%A4%97%20Spaces-Time%20Series-black.svg)](https://huggingface.co/spaces/keras-io/timeseries_forecasting_for_weather) |
-"""
