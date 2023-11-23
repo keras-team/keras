@@ -753,9 +753,6 @@ def where(condition, x1, x2):
 def divide(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
-    x1 = cast(x1, dtype)
-    x2 = cast(x2, dtype)
     return jnp.divide(x1, x2)
 
 

@@ -4343,6 +4343,48 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_add_python_types(self, dtype):
+        import jax.experimental
+        import jax.numpy as jnp
+
+        # We have to disable x64 for jax since jnp.add doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
+        # the expected dtype from 64 bit to 32 bit when using jax backend.
+        with jax.experimental.disable_x64():
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
+
+            # python int
+            expected_dtype = standardize_dtype(jnp.add(x_jax, 1).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            elif dtype == "int64":
+                expected_dtype = "int64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.add(x, 1).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Add().symbolic_call(x, 1).dtype, expected_dtype
+            )
+
+            # python float
+            expected_dtype = standardize_dtype(jnp.add(x_jax, 1.0).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.add(x, 1.0).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Add().symbolic_call(x, 1.0).dtype, expected_dtype
+            )
+
     @parameterized.named_parameters(named_product(dtype=INT_DTYPES))
     def test_bincount(self, dtype):
         import jax.numpy as jnp
@@ -4428,6 +4470,48 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             knp.Subtract().symbolic_call(x1, x2).dtype, expected_dtype
         )
 
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_subtract_python_types(self, dtype):
+        import jax.experimental
+        import jax.numpy as jnp
+
+        # We have to disable x64 for jax since jnp.subtract doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
+        # the expected dtype from 64 bit to 32 bit when using jax backend.
+        with jax.experimental.disable_x64():
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
+
+            # python int
+            expected_dtype = standardize_dtype(jnp.subtract(x_jax, 1).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            elif dtype == "int64":
+                expected_dtype = "int64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.subtract(x, 1).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Subtract().symbolic_call(x, 1).dtype, expected_dtype
+            )
+
+            # python float
+            expected_dtype = standardize_dtype(jnp.subtract(x_jax, 1.0).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.subtract(x, 1.0).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Subtract().symbolic_call(x, 1.0).dtype, expected_dtype
+            )
+
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
@@ -4467,6 +4551,48 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(
             knp.Multiply().symbolic_call(x1, x2).dtype, expected_dtype
         )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_multiply_python_types(self, dtype):
+        import jax.experimental
+        import jax.numpy as jnp
+
+        # We have to disable x64 for jax since jnp.multiply doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
+        # the expected dtype from 64 bit to 32 bit when using jax backend.
+        with jax.experimental.disable_x64():
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
+
+            # python int
+            expected_dtype = standardize_dtype(jnp.multiply(x_jax, 1).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            elif dtype == "int64":
+                expected_dtype = "int64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.multiply(x, 1).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Multiply().symbolic_call(x, 1).dtype, expected_dtype
+            )
+
+            # python float
+            expected_dtype = standardize_dtype(jnp.multiply(x_jax, 1.0).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.multiply(x, 1.0).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Multiply().symbolic_call(x, 1.0).dtype, expected_dtype
+            )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_mean(self, dtype):
@@ -5112,25 +5238,70 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
     def test_divide(self, dtypes):
+        import jax.experimental
         import jax.numpy as jnp
 
-        dtype1, dtype2 = dtypes
-        x1 = knp.ones((1,), dtype=dtype1)
-        x2 = knp.ones((1,), dtype=dtype2)
-        x1_jax = jnp.ones((1,), dtype=dtype1)
-        x2_jax = jnp.ones((1,), dtype=dtype2)
-        expected_dtype = standardize_dtype(jnp.divide(x1_jax, x2_jax).dtype)
-        if dtype1 is not None and "float" not in dtype1:
-            if dtype2 is not None and "float" not in dtype2:
-                if "int64" in (dtype1, dtype2) or "uint32" in (dtype1, dtype2):
-                    expected_dtype = backend.floatx()
+        # We have to disable x64 for jax since jnp.divide doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
+        # the expected dtype from 64 bit to 32 bit when using jax backend.
+        with jax.experimental.disable_x64():
+            dtype1, dtype2 = dtypes
+            x1 = knp.ones((1,), dtype=dtype1)
+            x2 = knp.ones((1,), dtype=dtype2)
+            x1_jax = jnp.ones((1,), dtype=dtype1)
+            x2_jax = jnp.ones((1,), dtype=dtype2)
+            expected_dtype = standardize_dtype(jnp.divide(x1_jax, x2_jax).dtype)
+            if "float64" in (dtype1, dtype2):
+                expected_dtype = "float64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
 
-        self.assertEqual(
-            standardize_dtype(knp.divide(x1, x2).dtype), expected_dtype
-        )
-        self.assertEqual(
-            knp.Divide().symbolic_call(x1, x2).dtype, expected_dtype
-        )
+            self.assertEqual(
+                standardize_dtype(knp.divide(x1, x2).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Divide().symbolic_call(x1, x2).dtype, expected_dtype
+            )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_divide_python_types(self, dtype):
+        import jax.experimental
+        import jax.numpy as jnp
+
+        # We have to disable x64 for jax since jnp.divide doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
+        # the expected dtype from 64 bit to 32 bit when using jax backend.
+        with jax.experimental.disable_x64():
+            x = knp.ones((), dtype=dtype)
+            x_jax = jnp.ones((), dtype=dtype)
+
+            # python int
+            expected_dtype = standardize_dtype(jnp.divide(x_jax, 1).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.divide(x, 1).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Divide().symbolic_call(x, 1).dtype, expected_dtype
+            )
+
+            # python float
+            expected_dtype = standardize_dtype(jnp.divide(x_jax, 1.0).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.divide(x, 1.0).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Divide().symbolic_call(x, 1.0).dtype, expected_dtype
+            )
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
@@ -5808,6 +5979,47 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_maximum_python_types(self, dtype):
+        import jax.experimental
+        import jax.numpy as jnp
+
+        # We have to disable x64 for jax since jnp.maximum doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`.
+        with jax.experimental.disable_x64():
+            x = knp.ones((), dtype=dtype)
+            x_jax = jnp.ones((), dtype=dtype)
+
+            # python int
+            expected_dtype = standardize_dtype(jnp.maximum(x_jax, 1).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            elif dtype == "int64":
+                expected_dtype = "int64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.maximum(x, 1).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Maximum().symbolic_call(x, 1).dtype, expected_dtype
+            )
+
+            # python float
+            expected_dtype = standardize_dtype(jnp.maximum(x_jax, 1.0).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.maximum(x, 1.0).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Maximum().symbolic_call(x, 1.0).dtype, expected_dtype
+            )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_median(self, dtype):
         import jax.numpy as jnp
 
@@ -5882,6 +6094,47 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(knp.Minimum().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_minimum_python_types(self, dtype):
+        import jax.experimental
+        import jax.numpy as jnp
+
+        # We have to disable x64 for jax since jnp.minimum doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`.
+        with jax.experimental.disable_x64():
+            x = knp.ones((), dtype=dtype)
+            x_jax = jnp.ones((), dtype=dtype)
+
+            # python int
+            expected_dtype = standardize_dtype(jnp.minimum(x_jax, 1).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            elif dtype == "int64":
+                expected_dtype = "int64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.minimum(x, 1).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Minimum().symbolic_call(x, 1).dtype, expected_dtype
+            )
+
+            # python float
+            expected_dtype = standardize_dtype(jnp.minimum(x_jax, 1.0).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.minimum(x, 1.0).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.Minimum().symbolic_call(x, 1.0).dtype, expected_dtype
+            )
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))

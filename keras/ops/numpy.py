@@ -5549,8 +5549,8 @@ class Divide(Operation):
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
         output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", backend.floatx()),
-            getattr(x2, "dtype", backend.floatx()),
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
             float,
         )
         x1_sparse = getattr(x1, "sparse", False)

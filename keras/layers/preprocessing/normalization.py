@@ -298,19 +298,13 @@ class Normalization(Layer):
                 self.mean,
                 ops.multiply(
                     inputs,
-                    ops.maximum(
-                        ops.sqrt(self.variance),
-                        ops.cast(backend.epsilon(), self.compute_dtype),
-                    ),
+                    ops.maximum(ops.sqrt(self.variance), backend.epsilon()),
                 ),
             )
         else:
             return ops.divide(
                 ops.subtract(inputs, self.mean),
-                ops.maximum(
-                    ops.sqrt(self.variance),
-                    ops.cast(backend.epsilon(), self.compute_dtype),
-                ),
+                ops.maximum(ops.sqrt(self.variance), backend.epsilon()),
             )
 
     def compute_output_shape(self, input_shape):
