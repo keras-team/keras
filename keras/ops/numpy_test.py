@@ -5983,7 +5983,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         import jax.experimental
         import jax.numpy as jnp
 
-        # We have to disable x64 for jax since jnp.array doesn't respect
+        # We have to disable x64 for jax since jnp.maximum doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`.
         with jax.experimental.disable_x64():
             x = knp.ones((), dtype=dtype)
@@ -6100,7 +6100,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         import jax.experimental
         import jax.numpy as jnp
 
-        # We have to disable x64 for jax since jnp.array doesn't respect
+        # We have to disable x64 for jax since jnp.minimum doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`.
         with jax.experimental.disable_x64():
             x = knp.ones((), dtype=dtype)
