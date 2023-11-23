@@ -6274,6 +6274,23 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_squeeze(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1, 1), dtype=dtype)
+        x_jax = jnp.ones((1, 1), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.squeeze(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.squeeze(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Squeeze().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
