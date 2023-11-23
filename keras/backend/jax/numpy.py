@@ -287,12 +287,12 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     )
 
 
-def cumprod(x, axis=None):
-    return jnp.cumprod(x, axis=axis)
+def cumprod(x, axis=None, dtype=None):
+    return jnp.cumprod(x, axis=axis, dtype=dtype)
 
 
-def cumsum(x, axis=None):
-    return jnp.cumsum(x, axis=axis)
+def cumsum(x, axis=None, dtype=None):
+    return jnp.cumsum(x, axis=axis, dtype=dtype)
 
 
 def diag(x, k=0):

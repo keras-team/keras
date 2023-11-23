@@ -574,12 +574,12 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     )
 
 
-def cumprod(x, axis=None):
-    return tfnp.cumprod(x, axis=axis)
+def cumprod(x, axis=None, dtype=None):
+    return tfnp.cumprod(x, axis=axis, dtype=dtype or x.dtype)
 
 
-def cumsum(x, axis=None):
-    return tfnp.cumsum(x, axis=axis)
+def cumsum(x, axis=None, dtype=None):
+    return tfnp.cumsum(x, axis=axis, dtype=dtype or x.dtype)
 
 
 def diag(x, k=0):
