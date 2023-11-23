@@ -984,7 +984,6 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     # TODO: torch.prod doesn't support float16 with cpu
     if get_device() == "cpu" and compute_dtype == "float16":
         compute_dtype = "float32"
-    x = cast(x, compute_dtype)
     if axis is None:
         return cast(torch.prod(x, dtype=to_torch_dtype(compute_dtype)), dtype)
     if not isinstance(axis, (list, tuple)):
