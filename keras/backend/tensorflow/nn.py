@@ -684,10 +684,10 @@ def _compute_moments_sync(x, axes, keepdims):
     )
     count_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_count)
 
-    mean = y_sum / count_sum
-    y_squared_mean = y_squared_sum / count_sum
+    mean = tf.math.divide_no_nan(y_sum, count_sum)
+    y_squared_mean = tf.math.divide_no_nan(y_squared_sum, count_sum)
     # var = E(x^2) - E(x)^2
-    variance = y_squared_mean - tf.square(mean)
+    variance = tf.maximum(y_squared_mean - tf.square(mean), 0.0)
     if not keepdims:
         mean = tf.squeeze(mean, axes)
         variance = tf.squeeze(variance, axes)
@@ -715,9 +715,13 @@ def _compute_moments(x, axes, keepdims):
     # but less numerically stable.
     # Note: stop_gradient does not change the gradient to the mean, because that
     # gradient is zero.
-    variance = tf.reduce_mean(
-        tf.square(x), axis=axes, keepdims=True
-    ) - tf.square(tf.stop_gradient(mean))
+    # The substraction operation does not guarantee a non-negative
+    # result given float precision, so we clamp it to 0.
+    variance = tf.maximum(
+        tf.reduce_mean(tf.square(x), axis=axes, keepdims=True)
+        - tf.square(tf.stop_gradient(mean)),
+        0.0,
+    )
 
     if not keepdims:
         mean = tf.squeeze(mean, axes)
