@@ -463,7 +463,9 @@ def cumprod(x, axis=None, dtype=None):
     if axis is None:
         x = x.flatten()
         axis = 0
-    return torch.cumprod(x, dim=axis, dtype=dtype or x.dtype)
+    return torch.cumprod(
+        x, dim=axis, dtype=x.dtype if dtype is None else to_torch_dtype(dtype)
+    )
 
 
 def cumsum(x, axis=None, dtype=None):
@@ -471,7 +473,9 @@ def cumsum(x, axis=None, dtype=None):
     if axis is None:
         x = x.flatten()
         axis = 0
-    return torch.cumsum(x, dim=axis, dtype=dtype or x.dtype)
+    return torch.cumsum(
+        x, dim=axis, dtype=x.dtype if dtype is None else to_torch_dtype(dtype)
+    )
 
 
 def diag(x, k=0):
