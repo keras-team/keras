@@ -583,8 +583,11 @@ def outer(x1, x2):
     return jnp.outer(x1, x2)
 
 
-def pad(x, pad_width, mode="constant"):
-    return jnp.pad(x, pad_width, mode=mode)
+def pad(x, pad_width, mode="constant", constant_values=0):
+    kwargs = {}
+    if mode == "constant":
+        kwargs["constant_values"] = constant_values
+    return jnp.pad(x, pad_width, mode=mode, **kwargs)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):

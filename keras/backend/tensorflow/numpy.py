@@ -1030,8 +1030,8 @@ def outer(x1, x2):
     return tfnp.outer(x1, x2)
 
 
-def pad(x, pad_width, mode="constant"):
-    return tfnp.pad(x, pad_width, mode=mode)
+def pad(x, pad_width, mode="constant", constant_values=0):
+    return tfnp.pad(x, pad_width, mode=mode, constant_values=constant_values)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):

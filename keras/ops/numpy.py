@@ -4191,10 +4191,15 @@ class Pad(Operation):
                 pad_width[i] = (pw[0], pw[0])
         return pad_width
 
-    def call(self, x):
-        return backend.numpy.pad(x, pad_width=self.pad_width, mode=self.mode)
+    def call(self, x, constant_values=0):
+        return backend.numpy.pad(
+            x,
+            pad_width=self.pad_width,
+            mode=self.mode,
+            constant_values=constant_values,
+        )
 
-    def compute_output_spec(self, x):
+    def compute_output_spec(self, x, constant_values=0):
         output_shape = list(x.shape)
         if len(self.pad_width) == 1:
             pad_width = [self.pad_width[0] for _ in range(len(output_shape))]
@@ -4215,7 +4220,7 @@ class Pad(Operation):
 
 
 @keras_export(["keras.ops.pad", "keras.ops.numpy.pad"])
-def pad(x, pad_width, mode="constant"):
+def pad(x, pad_width, mode="constant", constant_values=0):
     """Pad a tensor.
 
     Args:
@@ -4231,6 +4236,7 @@ def pad(x, pad_width, mode="constant"):
             `"maximum"`, `"mean"`, `"median"`, `"minimum"`,
             `"reflect"`, `"symmetric"`, `"wrap"`, `"empty"`,
             `"circular"`. Defaults to`"constant"`.
+        constant_values: value to pad with if `mode=="constant"`.
 
     Note:
         Torch backend only supports modes `"constant"`, `"reflect"`,
@@ -4244,9 +4250,7 @@ def pad(x, pad_width, mode="constant"):
     Returns:
         Padded tensor.
     """
-    if any_symbolic_tensors((x,)):
-        return Pad(pad_width, mode=mode).symbolic_call(x)
-    return backend.numpy.pad(x, pad_width, mode=mode)
+    return Pad(pad_width, mode=mode)(x, constant_values=constant_values)
 
 
 class Prod(Operation):
