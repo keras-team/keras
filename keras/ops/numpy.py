@@ -4190,8 +4190,8 @@ class Pad(Operation):
         for i, pw in enumerate(pad_width):
             if len(pw) != first_len:
                 raise ValueError(
-                    "`pad_width` should be a list of tuples of length 2 or "
-                    f"1, but received {pad_width}."
+                    "`pad_width` should be a list of tuples of length "
+                    f"1 or 2. Received: pad_width={pad_width}"
                 )
             if len(pw) == 1:
                 pad_width[i] = (pw[0], pw[0])
@@ -4213,8 +4213,10 @@ class Pad(Operation):
             pad_width = self.pad_width
         else:
             raise ValueError(
-                "`pad_width` must have the same length as `x.shape`, but "
-                f"received {len(self.pad_width)} and {len(x.shape)}."
+                "`pad_width` must have the same length as `x.shape`. "
+                f"Received: pad_width={self.pad_width} "
+                f"(of length {len(self.pad_width)}) and x.shape={x.shape} "
+                f"(of length {len(x.shape)})"
             )
 
         for i in range(len(output_shape)):

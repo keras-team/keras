@@ -3553,8 +3553,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             if constant_values is not None:
                 with self.assertRaisesRegex(
                     ValueError,
-                    "Argument 'constant_values' can only be "
-                    "provided when mode == 'constant'",
+                    "Argument `constant_values` can only be "
+                    "provided when `mode == 'constant'`",
                 ):
                     knp.pad(
                         x, pad_width, mode=mode, constant_values=constant_values

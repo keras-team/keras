@@ -1065,9 +1065,9 @@ def pad(x, pad_width, mode="constant", constant_values=None):
     if constant_values is not None:
         if mode != "constant":
             raise ValueError(
-                "Argument 'constant_values' can only be "
-                "provided when mode == 'constant'. "
-                f"Received mode '{mode}'"
+                "Argument `constant_values` can only be "
+                "provided when `mode == 'constant'`. "
+                f"Received: mode={mode}"
             )
         kwargs["constant_values"] = constant_values
     return tfnp.pad(x, pad_width, mode=mode, **kwargs)
