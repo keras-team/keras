@@ -1134,6 +1134,10 @@ def size(x):
 
 def sort(x, axis=-1):
     x = convert_to_tensor(x)
+    # TODO: torch.sort doesn't support bool with cuda
+    if get_device() == "cuda" and standardize_dtype(x.dtype) == "bool":
+        x = cast(x, "uint8")
+        return cast(torch.sort(x, dim=axis).values, "bool")
     return torch.sort(x, dim=axis).values
 
 
