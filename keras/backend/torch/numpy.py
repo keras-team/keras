@@ -1134,6 +1134,10 @@ def size(x):
 
 def sort(x, axis=-1):
     x = convert_to_tensor(x)
+    if get_device() == "cuda" and standardize_dtype(x.dtype) == "bool":
+        # Convert bool to uint8, because
+        # "RuntimeError: Sort currently does not support bool dtype on CUDA."
+        x = cast(x, "uint8")
     return torch.sort(x, dim=axis).values
 
 
