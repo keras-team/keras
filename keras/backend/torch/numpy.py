@@ -949,7 +949,16 @@ def outer(x1, x2):
     return torch.outer(x1.flatten(), x2.flatten())
 
 
-def pad(x, pad_width, mode="constant"):
+def pad(x, pad_width, mode="constant", constant_values=None):
+    kwargs = {}
+    if constant_values is not None:
+        if mode != "constant":
+            raise ValueError(
+                "Argument 'constant_values' can only be "
+                "provided when mode == 'constant'. "
+                f"Received mode '{mode}'"
+            )
+        kwargs["value"] = constant_values
     x = convert_to_tensor(x)
     pad_sum = []
     pad_width = list(pad_width)[::-1]  # torch uses reverse order
@@ -964,8 +973,7 @@ def pad(x, pad_width, mode="constant"):
     if mode == "symmetric":
         mode = "replicate"
     if mode == "constant":
-        return torch.nn.functional.pad(x, pad=pad_sum, mode=mode)
-
+        return torch.nn.functional.pad(x, pad=pad_sum, mode=mode, **kwargs)
     # TODO: reflect and symmetric padding are implemented for padding the
     # last 3 dimensions of a 4D or 5D input tensor, the last 2 dimensions of a
     # 3D or 4D input tensor, or the last dimension of a 2D or 3D input tensor.

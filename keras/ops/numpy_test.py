@@ -3541,27 +3541,50 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 "int32",
             ],
             mode=["constant", "reflect", "symmetric"],
+            constant_values=[None, 0, 2],
         )
     )
-    def test_pad(self, dtype, mode):
+    def test_pad(self, dtype, mode, constant_values):
         # 2D
         x = np.ones([2, 3], dtype=dtype)
         pad_width = ((1, 1), (1, 1))
+
+        if mode != "constant":
+            if constant_values is not None:
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "Argument 'constant_values' can only be "
+                    "provided when mode == 'constant'",
+                ):
+                    knp.pad(
+                        x, pad_width, mode=mode, constant_values=constant_values
+                    )
+                return
+            # constant_values is None
+            kwargs = {}
+        else:
+            # mode is constant
+            kwargs = {"constant_values": constant_values or 0}
+
         self.assertAllClose(
-            knp.pad(x, pad_width, mode=mode), np.pad(x, pad_width, mode=mode)
+            knp.pad(x, pad_width, mode=mode, constant_values=constant_values),
+            np.pad(x, pad_width, mode=mode, **kwargs),
         )
         self.assertAllClose(
-            knp.Pad(pad_width, mode=mode)(x), np.pad(x, pad_width, mode=mode)
+            knp.Pad(pad_width, mode=mode)(x, constant_values=constant_values),
+            np.pad(x, pad_width, mode=mode, **kwargs),
         )
 
         # 5D (pad last 3D)
         x = np.ones([2, 3, 4, 5, 6], dtype=dtype)
         pad_width = ((0, 0), (0, 0), (2, 3), (1, 1), (1, 1))
         self.assertAllClose(
-            knp.pad(x, pad_width, mode=mode), np.pad(x, pad_width, mode=mode)
+            knp.pad(x, pad_width, mode=mode, constant_values=constant_values),
+            np.pad(x, pad_width, mode=mode, **kwargs),
         )
         self.assertAllClose(
-            knp.Pad(pad_width, mode=mode)(x), np.pad(x, pad_width, mode=mode)
+            knp.Pad(pad_width, mode=mode)(x, constant_values=constant_values),
+            np.pad(x, pad_width, mode=mode, **kwargs),
         )
 
         # 5D (pad arbitrary dimensions)
@@ -3573,10 +3596,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         x = np.ones([2, 3, 4, 5, 6], dtype=dtype)
         pad_width = ((1, 1), (2, 1), (3, 2), (4, 3), (5, 4))
         self.assertAllClose(
-            knp.pad(x, pad_width, mode=mode), np.pad(x, pad_width, mode=mode)
+            knp.pad(x, pad_width, mode=mode, constant_values=constant_values),
+            np.pad(x, pad_width, mode=mode, **kwargs),
         )
         self.assertAllClose(
-            knp.Pad(pad_width, mode=mode)(x), np.pad(x, pad_width, mode=mode)
+            knp.Pad(pad_width, mode=mode)(x, constant_values=constant_values),
+            np.pad(x, pad_width, mode=mode, **kwargs),
         )
 
     def test_prod(self):
