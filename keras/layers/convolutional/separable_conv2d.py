@@ -28,8 +28,8 @@ class SeparableConv2D(BaseSeparableConv):
             incompatible with `dilation_rate > 1`.
         padding: string, either `"valid"` or `"same"` (case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
-            the left/right or up/down of the input such that output has the same
-            height/width dimension as the input.
+            the left/right or up/down of the input. When `padding="same"` and
+            `strides=1`, the output has the same size as the input.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
             corresponds to inputs with shape `(batch, steps, features)`
