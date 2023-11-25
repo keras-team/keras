@@ -1060,23 +1060,24 @@ class Layer(BackendLayer, Operation):
         else:
             self._losses.extend(losses)
 
-    def _get_own_losses(self):
+    def _get_added_losses(self):
+        """List of scalar losses from `add_loss` including from sublayers."""
         if backend.in_stateless_scope():
             losses = []
             scope = backend.get_stateless_scope()
             for loss in scope.losses:
                 if id(loss) in self._loss_ids:
                     losses.append(loss)
-            return losses
         else:
-            return self._losses[:]
+            losses = list(self._losses[:])
+        for layer in self._layers:
+            losses.extend(layer._get_added_losses())
+        return losses
 
     @property
     def losses(self):
-        """List of scalar losses added via `add_loss()` during layer call."""
-        losses = self._get_own_losses()
-        for layer in self._layers:
-            losses.extend(layer.losses)
+        """List of scalar losses from `add_loss`, regularizers and sublayers."""
+        losses = self._get_added_losses()
         weight_regularization_losses = []
         for v in self.trainable_weights:
             if backend.in_stateless_scope():
