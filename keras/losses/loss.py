@@ -97,23 +97,6 @@ def squeeze_to_same_rank(x1, x2):
     return x1, x2
 
 
-def reduce_values(values, reduction="sum_over_batch_size"):
-    if (
-        reduction is None
-        or reduction == "none"
-        or tuple(values.shape) == ()
-        or tuple(values.shape) == (0,)
-    ):
-        return values
-    loss = ops.sum(values)
-    if reduction == "sum_over_batch_size":
-        loss /= ops.cast(
-            ops.prod(ops.convert_to_tensor(ops.shape(values), dtype="int32")),
-            loss.dtype,
-        )
-    return loss
-
-
 def reduce_weighted_values(
     values,
     sample_weight=None,
@@ -126,48 +109,38 @@ def reduce_weighted_values(
     values = ops.convert_to_tensor(values, dtype=dtype)
     if sample_weight is not None:
         sample_weight = ops.convert_to_tensor(sample_weight, dtype=dtype)
-    if mask is not None:
-        mask = ops.convert_to_tensor(mask, dtype=dtype)
-
-    # Merge mask and sample weight into sample weight.
-    sample_weight = apply_mask(
-        sample_weight, mask, dtype=values.dtype, reduction=reduction
-    )
-
-    if sample_weight is not None:
-        sample_weight = ops.cast(sample_weight, values.dtype)
-        # Update dimensions of `sample_weight` to match `losses`.
-        values, sample_weight = squeeze_to_same_rank(values, sample_weight)
+        sample_weight, values = squeeze_to_same_rank(sample_weight, values)
         values = values * sample_weight
 
-    # Apply reduction function to the individual weighted losses.
-    loss = reduce_values(values, reduction)
-    return loss
-
-
-def apply_mask(sample_weight, mask, dtype, reduction):
-    """Applies any mask on predictions to sample weights."""
     if mask is not None:
-        mask = ops.cast(mask, dtype=dtype)
-        if reduction == "sum_over_batch_size":
-            # Valid entries have weight `total/valid`, while invalid ones
-            # have 0. When summed over batch, they will be reduced to:
-            #
-            # mean(loss * sample_weight * total / valid)
-            #   = sum(loss * sample_weight * total / valid) / total
-            #   = sum(loss * sample_weight) / total * total / valid
-            #   = sum(loss * sample_weight) / valid
-            total = ops.cast(
-                ops.prod(ops.convert_to_tensor(ops.shape(mask), dtype="int32")),
-                dtype,
-            )
-            valid = ops.sum(mask)  # May be 0!
-            mask *= total / (valid + backend.epsilon())
+        mask = ops.cast(mask, "bool")
+        mask, values = squeeze_to_same_rank(mask, values)
+        values = ops.where(mask, values, ops.zeros_like(values))
 
-        if sample_weight is not None:
-            sample_weight = ops.cast(sample_weight, dtype=dtype)
-            mask, sample_weight = squeeze_to_same_rank(mask, sample_weight)
-            sample_weight *= mask
-        else:
-            sample_weight = mask
-    return sample_weight
+    if reduction is None or reduction == "none":
+        return values
+
+    if reduction == "sum":
+        return ops.sum(values)
+
+    if reduction == "sum_over_batch_size":
+        if mask is None:
+            # batch_size is the total number of elements
+            return ops.mean(values)
+        batch_size = ops.count_nonzero(mask)
+        values_sum = ops.sum(values)
+        # safe divide
+        return ops.cond(
+            batch_size == 0,
+            lambda: values_sum,  # will necessarily be all zeros
+            lambda: values_sum / ops.cast(batch_size, dtype),
+        )
+
+    # we shouldn't get here because the call to `standardize_reduction`
+    # at the top of this function should raise the exact error as below.
+    allowed = {"sum_over_batch_size", "sum", None, "none"}
+    raise ValueError(
+        "Invalid value for argument `reduction`. "
+        f"Expected on of {allowed}. Received: "
+        f"reduction={reduction}"
+    )
