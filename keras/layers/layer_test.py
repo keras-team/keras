@@ -328,6 +328,12 @@ class LayerTest(testing.TestCase):
         self.assertLen(model.losses, 1)
         self.assertAllClose(model.losses[0], 1.0)
 
+        # It works recursively in nested models
+        model = models.Sequential([model])
+        model(np.ones((1,)))
+        self.assertLen(model.losses, 1)
+        self.assertAllClose(model.losses[0], 1.0)
+
     def test_training_arg_value_resolution(self):
         # Check that even if `training` is not passed
         # to an inner layer, the outer value gets propagated

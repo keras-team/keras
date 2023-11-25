@@ -1076,7 +1076,7 @@ class Layer(BackendLayer, Operation):
         """List of scalar losses added via `add_loss()` during layer call."""
         losses = self._get_own_losses()
         for layer in self._layers:
-            losses.extend(layer._get_own_losses())
+            losses.extend(layer.losses)
         weight_regularization_losses = []
         for v in self.trainable_weights:
             if backend.in_stateless_scope():
