@@ -463,9 +463,16 @@ def cumprod(x, axis=None, dtype=None):
     if axis is None:
         x = x.flatten()
         axis = 0
-    return torch.cumprod(
-        x, dim=axis, dtype=x.dtype if dtype is None else to_torch_dtype(dtype)
-    )
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    # TODO: torch.cumprod doesn't support float16 with cpu
+    elif get_device() == "cpu" and dtype == "float16":
+        return cast(
+            torch.cumprod(x, dim=axis, dtype=to_torch_dtype("float32")),
+            "float16",
+        )
+    return torch.cumprod(x, dim=axis, dtype=to_torch_dtype(dtype))
 
 
 def cumsum(x, axis=None, dtype=None):
@@ -473,9 +480,16 @@ def cumsum(x, axis=None, dtype=None):
     if axis is None:
         x = x.flatten()
         axis = 0
-    return torch.cumsum(
-        x, dim=axis, dtype=x.dtype if dtype is None else to_torch_dtype(dtype)
-    )
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    # TODO: torch.cumsum doesn't support float16 with cpu
+    elif get_device() == "cpu" and dtype == "float16":
+        return cast(
+            torch.cumsum(x, dim=axis, dtype=to_torch_dtype("float32")),
+            "float16",
+        )
+    return torch.cumsum(x, dim=axis, dtype=to_torch_dtype(dtype))
 
 
 def diag(x, k=0):
@@ -1235,10 +1249,13 @@ def tanh(x):
 
 
 def tensordot(x1, x2, axes=2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    # Conversion to long necessary for `torch.tensordot`
-    x1 = cast(x1, "int64") if x1.dtype in TORCH_INT_TYPES else x1
-    x2 = cast(x2, "int64") if x2.dtype in TORCH_INT_TYPES else x2
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: torch.tensordot only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
     # torch only handles dims=((0,), (1,)), numpy accepts axes=(0, 1).
     if isinstance(axes, (list, tuple)):
         first, second = axes
@@ -1247,7 +1264,7 @@ def tensordot(x1, x2, axes=2):
         if not isinstance(second, (list, tuple)):
             second = (second,)
         axes = (first, second)
-    return torch.tensordot(x1, x2, dims=axes)
+    return cast(torch.tensordot(x1, x2, dims=axes), result_dtype)
 
 
 def round(x, decimals=0):

@@ -590,11 +590,17 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 
 def cumprod(x, axis=None, dtype=None):
-    return tfnp.cumprod(x, axis=axis, dtype=dtype or x.dtype)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return tfnp.cumprod(x, axis=axis, dtype=dtype)
 
 
 def cumsum(x, axis=None, dtype=None):
-    return tfnp.cumsum(x, axis=axis, dtype=dtype or x.dtype)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return tfnp.cumsum(x, axis=axis, dtype=dtype)
 
 
 def diag(x, k=0):
@@ -1366,7 +1372,14 @@ def tanh(x):
 
 
 def tensordot(x1, x2, axes=2):
-    return tfnp.tensordot(x1, x2, axes=axes)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: tfnp.tensordot only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
+    return tf.cast(tfnp.tensordot(x1, x2, axes=axes), dtype=result_dtype)
 
 
 @sparse.elementwise_unary

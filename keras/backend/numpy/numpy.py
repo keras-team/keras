@@ -366,12 +366,18 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 def cumprod(x, axis=None, dtype=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.cumprod(x, axis=axis, dtype=dtype or x.dtype)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return np.cumprod(x, axis=axis, dtype=dtype)
 
 
 def cumsum(x, axis=None, dtype=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.cumsum(x, axis=axis, dtype=dtype or x.dtype)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return np.cumsum(x, axis=axis, dtype=dtype)
 
 
 def diag(x, k=0):
@@ -864,6 +870,11 @@ def tanh(x):
 
 def tensordot(x1, x2, axes=2):
     axes = tuple(axes) if isinstance(axes, list) else axes
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.tensordot(x1, x2, axes=axes)
 
 

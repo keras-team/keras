@@ -5198,6 +5198,36 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_cumprod(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.cumprod(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.cumprod(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Cumprod().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_cumsum(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.cumsum(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.cumsum(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Cumsum().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_diag(self, dtype):
         import jax.numpy as jnp
 
@@ -6630,6 +6660,46 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_take(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.take(x_jax, 0).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.take(x, 0).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Take().symbolic_call(x, 0).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_take_along_axis(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        indices = knp.zeros((1,), dtype="int32")
+        x_jax = jnp.ones((1,), dtype=dtype)
+        indices_jax = jnp.zeros((1,), dtype="int32")
+        expected_dtype = standardize_dtype(
+            jnp.take_along_axis(x_jax, indices_jax, 0).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.take_along_axis(x, indices, 0).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.TakeAlongAxis(0).symbolic_call(x, indices).dtype
+            ),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_tan(self, dtype):
         import jax.numpy as jnp
 
@@ -6659,6 +6729,28 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(
             standardize_dtype(knp.Tanh().symbolic_call(x).dtype),
             expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_tensordot(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1, 1), dtype=dtype1)
+        x2 = knp.ones((1, 1), dtype=dtype2)
+        x1_jax = jnp.ones((1, 1), dtype=dtype1)
+        x2_jax = jnp.ones((1, 1), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.tensordot(x1_jax, x2_jax, 2).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.tensordot(x1, x2, 2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            knp.Tensordot(2).symbolic_call(x1, x2).dtype, expected_dtype
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
