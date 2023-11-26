@@ -1,11 +1,11 @@
 """
 Title: MobileViT: A mobile-friendly Transformer-based model for image classification
 Author: [Sayak Paul](https://twitter.com/RisingSayak)
-Converted to Keras 3 by: [Pavan Kumar Singh](https://github.com/pksX01)
 Date created: 2021/10/20
 Last modified: 2023/11/23
 Description: MobileViT for image classification with combined benefits of convolutions and Transformers.
 Accelerator: GPU
+Converted to Keras 3 by: [Pavan Kumar Singh](https://github.com/pksX01)
 """
 """
 ## Introduction
