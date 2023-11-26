@@ -749,12 +749,10 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    xs = tf.nest.map_structure(convert_to_tensor, xs)
-    dtypes_to_resolve = []
-    for x in xs:
-        dtypes_to_resolve.append(x.dtype)
-    dtype = dtypes.result_type(*dtypes_to_resolve)
-    xs = tf.nest.map_structure(lambda x: tf.cast(x, dtype), xs)
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tf.nest.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
     return tfnp.hstack(xs)
 
 
@@ -1298,12 +1296,10 @@ def split(x, indices_or_sections, axis=0):
 
 
 def stack(x, axis=0):
-    x = tf.nest.map_structure(convert_to_tensor, x)
-    dtypes_to_resolve = []
-    for a in x:
-        dtypes_to_resolve.append(a.dtype)
-    dtype = dtypes.result_type(*dtypes_to_resolve)
-    x = tf.nest.map_structure(lambda a: tf.cast(a, dtype), x)
+    dtype_set = set([getattr(a, "dtype", type(a)) for a in x])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        x = tf.nest.map_structure(lambda a: convert_to_tensor(a, dtype), x)
     return tfnp.stack(x, axis=axis)
 
 
@@ -1416,18 +1412,39 @@ def tri(N, M=None, k=0, dtype=None):
 
 
 def tril(x, k=0):
+    x = convert_to_tensor(x)
+    # TODO: tfnp.tril doesn't support bool
+    if standardize_dtype(x.dtype) == "bool":
+        x = tf.cast(x, "uint8")
+        return tf.cast(tfnp.tril(x, k=k), "bool")
     return tfnp.tril(x, k=k)
 
 
 def triu(x, k=0):
+    x = convert_to_tensor(x)
+    # TODO: tfnp.triu doesn't support bool
+    if standardize_dtype(x.dtype) == "bool":
+        x = tf.cast(x, "uint8")
+        return tf.cast(tfnp.tril(x, k=k), "bool")
     return tfnp.triu(x, k=k)
 
 
 def vdot(x1, x2):
-    return tfnp.vdot(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: tfnp.vdot only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
+    return tf.cast(tfnp.vdot(x1, x2), result_dtype)
 
 
 def vstack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tf.nest.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
     return tfnp.vstack(xs)
 
 
@@ -1453,7 +1470,7 @@ def divide(x1, x2):
 
 @sparse.elementwise_division
 def true_divide(x1, x2):
-    return tfnp.true_divide(x1, x2)
+    return divide(x1, x2)
 
 
 def power(x1, x2):

@@ -476,12 +476,12 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    xs = tree.map_structure(convert_to_tensor, xs)
-    dtypes_to_resolve = []
-    for x in xs:
-        dtypes_to_resolve.append(x.dtype)
-    dtype = dtypes.result_type(*dtypes_to_resolve)
-    xs = tree.map_structure(lambda x: x.astype(dtype), xs)
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
     return np.hstack(xs)
 
 
@@ -906,10 +906,21 @@ def triu(x, k=0):
 
 
 def vdot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.vdot(x1, x2)
 
 
 def vstack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
     return np.vstack(xs)
 
 
@@ -936,7 +947,7 @@ def divide(x1, x2):
 
 
 def true_divide(x1, x2):
-    return np.true_divide(x1, x2)
+    return divide(x1, x2)
 
 
 def power(x1, x2):

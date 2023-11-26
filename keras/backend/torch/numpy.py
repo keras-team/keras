@@ -1307,8 +1307,19 @@ def triu(x, k=0):
 
 
 def vdot(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return torch.vdot(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: torch.vdot only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
+
+    # TODO: torch.vdot doesn't support float16 with cpu
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
+
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+    return cast(torch.vdot(x1, x2), result_dtype)
 
 
 def vstack(xs):
@@ -1335,8 +1346,7 @@ def divide(x1, x2):
 
 
 def true_divide(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return torch.true_divide(x1, x2)
+    return divide(x1, x2)
 
 
 def power(x1, x2):
