@@ -23,8 +23,6 @@ MobileViT as a general-purpose mobile-friendly backbone for different image reco
 tasks. Their findings suggest that, performance-wise, MobileViT is better than other
 models with the same or higher complexity ([MobileNetV3](https://arxiv.org/abs/1905.02244),
 for example), while being efficient on mobile devices.
-
-Note: This example should be run with Tensorflow 2.13 and higher.
 """
 
 """
@@ -35,8 +33,6 @@ os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import tensorflow as tf
 
-# For versions <TF2.13 change the above import to:
-# from keras.applications import imagenet_utils
 from keras import layers
 import keras as keras
 
@@ -72,7 +68,7 @@ presented in the figure below (taken from the
 
 def conv_block(x, filters=16, kernel_size=3, strides=2):
     conv_layer = layers.Conv2D(
-        filters, kernel_size, strides=strides, activation=tf.nn.swish, padding="same"
+        filters, kernel_size, strides=strides, activation=keras.activations.swish, padding="same"
     )
     return conv_layer(x)
 
@@ -96,7 +92,7 @@ def inverted_residual_block(x, expanded_channels, output_channels, strides=1):
     m = layers.Conv2D(output_channels, 1, padding="same", use_bias=False)(m)
     m = layers.BatchNormalization()(m)
 
-    if tf.math.equal(x.shape[-1], output_channels) and strides == 1:
+    if x.shape[-1] == output_channels and strides == 1:
         return layers.Add()([m, x])
     return m
 
@@ -374,7 +370,4 @@ open("mobilevit_xxs.tflite", "wb").write(tflite_model)
 To learn more about different quantization recipes available in TFLite and running
 inference with TFLite models, check out
 [this official resource](https://www.tensorflow.org/lite/performance/post_training_quantization).
-
-You can use the trained model hosted on [Hugging Face Hub](https://huggingface.co/keras-io/mobile-vit-xxs)
-and try the demo on [Hugging Face Spaces](https://huggingface.co/spaces/keras-io/Flowers-Classification-MobileViT).
 """
