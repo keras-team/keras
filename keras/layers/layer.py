@@ -1073,9 +1073,9 @@ class Layer(BackendLayer, Operation):
 
     @property
     def losses(self):
-        """List of scalar losses added via `add_loss()` during layer call."""
+        """List of scalar losses from `add_loss`, regularizers and sublayers."""
         losses = self._get_own_losses()
-        for layer in self._layers:
+        for layer in self._flatten_layers(include_self=False):
             losses.extend(layer._get_own_losses())
         weight_regularization_losses = []
         for v in self.trainable_weights:
