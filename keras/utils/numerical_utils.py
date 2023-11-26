@@ -112,10 +112,9 @@ def encode_categorical_inputs(
     output_mode,
     depth,
     dtype="float32",
-    count_weights=None,
     backend_module=None,
 ):
-    """Encodes categoical inputs according to output_mode."""
+    """Encodes categorical inputs according to output_mode."""
     backend_module = backend_module or backend
 
     if output_mode == "int":
@@ -149,5 +148,4 @@ def encode_categorical_inputs(
             minlength=depth,
         )
     bincounts = backend_module.cast(bincounts, dtype)
-
     return bincounts
