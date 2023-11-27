@@ -662,7 +662,7 @@ class Block(keras.layers.Layer):
         mlp_ratio=4.0,
         qkv_bias=True,
         qk_scale=None,
-        drop=0.0,
+        dropout=0.0,
         attn_drop=0.0,
         path_drop=0.0,
         activation="gelu",
@@ -676,7 +676,7 @@ class Block(keras.layers.Layer):
         self.mlp_ratio = mlp_ratio
         self.qkv_bias = qkv_bias
         self.qk_scale = qk_scale
-        self.drop = drop
+        self.dropout = dropout
         self.attn_drop = attn_drop
         self.path_drop = path_drop
         self.activation = activation
@@ -692,7 +692,7 @@ class Block(keras.layers.Layer):
             qkv_bias=self.qkv_bias,
             qk_scale=self.qk_scale,
             attention_dropout=self.attn_drop,
-            projection_dropout=self.drop,
+            projection_dropout=self.dropout,
             name="attn",
         )
         self.drop_path1 = DropPath(self.path_drop)
@@ -700,7 +700,7 @@ class Block(keras.layers.Layer):
         self.norm2 = keras.layers.LayerNormalization(-1, 1e-05, name="norm2")
         self.mlp = MLP(
             hidden_features=int(C * self.mlp_ratio),
-            dropout=self.drop,
+            dropout=self.dropout,
             activation=self.activation,
             name="mlp",
         )
