@@ -486,8 +486,8 @@ class WindowAttention(keras.layers.Layer):
         global_query: if the input contains global_query
         qkv_bias: bool argument for query, key, value learnable bias.
         qk_scale: bool argument to scaling query, key.
-        attn_dropout: attention dropout rate.
-        proj_dropout: output dropout rate.
+        attention_dropout: attention dropout rate.
+        projection_dropout: output dropout rate.
     """
 
     def __init__(
@@ -497,8 +497,8 @@ class WindowAttention(keras.layers.Layer):
         global_query,
         qkv_bias=True,
         qk_scale=None,
-        attn_dropout=0.0,
-        proj_dropout=0.0,
+        attention_dropout=0.0,
+        projection_dropout=0.0,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -508,8 +508,8 @@ class WindowAttention(keras.layers.Layer):
         self.global_query = global_query
         self.qkv_bias = qkv_bias
         self.qk_scale = qk_scale
-        self.attn_dropout = attn_dropout
-        self.proj_dropout = proj_dropout
+        self.attention_dropout = attention_dropout
+        self.projection_dropout = projection_dropout
 
     def build(self, input_shape):
         embed_dim = input_shape[0][-1]
@@ -529,9 +529,9 @@ class WindowAttention(keras.layers.Layer):
             trainable=True,
             dtype=self.dtype,
         )
-        self.attn_drop = keras.layers.Dropout(self.attn_dropout, name="attn_drop")
+        self.attn_drop = keras.layers.Dropout(self.attention_dropout, name="attn_drop")
         self.proj = keras.layers.Dense(embed_dim, name="proj")
-        self.proj_drop = keras.layers.Dropout(self.proj_dropout, name="proj_drop")
+        self.proj_drop = keras.layers.Dropout(self.projection_dropout, name="proj_drop")
         self.softmax = keras.layers.Activation("softmax", name="softmax")
         super().build(input_shape)
 
@@ -691,8 +691,8 @@ class Block(keras.layers.Layer):
             global_query=self.global_query,
             qkv_bias=self.qkv_bias,
             qk_scale=self.qk_scale,
-            attn_dropout=self.attn_drop,
-            proj_dropout=self.drop,
+            attention_dropout=self.attn_drop,
+            projection_dropout=self.drop,
             name="attn",
         )
         self.drop_path1 = DropPath(self.path_drop)
