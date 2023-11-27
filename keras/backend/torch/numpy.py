@@ -1292,8 +1292,6 @@ def trace(x, offset=None, axis1=None, axis2=None):
     dtype = standardize_dtype(x.dtype)
     if dtype == "int64":
         dtype = "int64"
-    elif dtype == "uint32":
-        dtype = "uint32"
     else:
         dtype = dtypes.result_type(dtype, "int32")
     return torch.sum(
