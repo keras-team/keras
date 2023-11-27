@@ -1,3 +1,4 @@
+import contextlib
 import types
 
 import jax
@@ -314,3 +315,18 @@ def unstack(x, num=None, axis=0):
         jax.lax.index_in_dim(x, i, axis, keepdims=False)
         for i in range(x.shape[axis])
     ]
+
+
+@contextlib.contextmanager
+def device(device):
+    if isinstance(device, str):
+        # We support string value like "cpu:0", "gpu:1", etc.
+        jax_device = distribution_lib._to_jax_device(device)
+    elif not isinstance(device, jax.Device):
+        raise ValueError(
+            "Expect the device to be string or `jax.Device`, got: " f"{device}"
+        )
+    else:
+        jax_device = device
+    # The jax.Device instance can be used as context.
+    return jax_device
