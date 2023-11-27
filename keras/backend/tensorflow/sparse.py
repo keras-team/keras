@@ -13,6 +13,26 @@ def empty_tensor(shape, dtype):
     return tf.reshape(tf.convert_to_tensor((), dtype=dtype), shape=shape)
 
 
+def sparse_to_dense(x, default_value=None):
+    x_shape = x.shape
+    x = tf.sparse.to_dense(x, default_value=default_value)
+    x.set_shape(x_shape)
+    return x
+
+
+def sparse_with_values(x, values):
+    x_shape = x.shape
+    x = tf.SparseTensor(x.indices, values, x.dense_shape)
+    x.set_shape(x_shape)
+    return x
+
+
+def broadcast_scalar_to_sparse_shape(scalar, sparse):
+    output = tf.broadcast_to(scalar, sparse.dense_shape)
+    output.set_shape(sparse.shape)
+    return output
+
+
 def sparse_subtract(x1, x2):
     """Subtraction for `tf.SparseTensor`s.
 
@@ -164,7 +184,7 @@ def sparse_intersection_indices_and_values(x1, x2):
 
     def empty_intersection():
         return (
-            empty_tensor((0, x1.indices.shape[1]), dtype=tf.int64),
+            empty_tensor((0, x1.shape.rank), dtype=tf.int64),
             empty_tensor((0,), dtype=x1.values.dtype),
             empty_tensor((0,), dtype=x2.values.dtype),
         )
@@ -300,10 +320,10 @@ def densifying_unary(default_value):
         @functools.wraps(func)
         def sparse_wrapper(x, *args, **kwargs):
             if isinstance(x, tf.SparseTensor):
-                sparse_output = tf.SparseTensor(
-                    x.indices, func(x.values, *args, **kwargs), x.dense_shape
+                sparse_output = sparse_with_values(
+                    x, func(x.values, *args, **kwargs)
                 )
-                return tf.sparse.to_dense(
+                return sparse_to_dense(
                     sparse_output,
                     tf.cast(default_value, sparse_output.values.dtype),
                 )
@@ -356,9 +376,7 @@ def elementwise_unary(func):
     @functools.wraps(func)
     def sparse_wrapper(x, *args, **kwargs):
         if isinstance(x, tf.SparseTensor):
-            return tf.SparseTensor(
-                x.indices, func(x.values, *args, **kwargs), x.dense_shape
-            )
+            return sparse_with_values(x, func(x.values, *args, **kwargs))
         elif isinstance(x, tf.IndexedSlices):
             return tf.IndexedSlices(
                 func(x.values, *args, **kwargs), x.indices, x.dense_shape
@@ -412,30 +430,30 @@ def elementwise_binary_union(sparse_op, densify_mixed=False):
                 if isinstance(x2, tf.SparseTensor):
                     # x1 is a SparseTensor and x2 is a SparseTensor.
                     if x1.indices is x2.indices:
-                        return tf.SparseTensor(
-                            x1.indices,
-                            func(x1.values, x2.values),
-                            x1.dense_shape,
+                        return sparse_with_values(
+                            x1, func(x1.values, x2.values)
                         )
                     else:
-                        return sparse_op(x1, x2)
+                        output = sparse_op(x1, x2)
+                        output.set_shape(x1.shape)
+                        return output
                 else:
                     # x1 is a SparseTensor.
                     if densify_mixed:
-                        x1 = tf.sparse.to_dense(x1)
+                        x1 = sparse_to_dense(x1)
                     else:
                         if not hasattr(x2, "shape") or len(x2.shape) == 0:
                             # x2 is a scalar, broadcast.
-                            x2 = tf.broadcast_to(x2, x1.dense_shape)
+                            x2 = broadcast_scalar_to_sparse_shape(x2, x1)
                         return sparse_op(x1, x2)
             elif isinstance(x2, tf.SparseTensor):
                 # x2 is a SparseTensor.
                 if densify_mixed:
-                    x2 = tf.sparse.to_dense(x2)
+                    x2 = sparse_to_dense(x2)
                 else:
                     if not hasattr(x1, "shape") or len(x1.shape) == 0:
                         # x1 is a scalar, broadcast.
-                        x1 = tf.broadcast_to(x1, x2.dense_shape)
+                        x1 = broadcast_scalar_to_sparse_shape(x1, x2)
                     return sparse_op(x1, x2)
             elif isinstance(x1, tf.IndexedSlices):
                 if isinstance(x2, tf.IndexedSlices):
@@ -513,9 +531,7 @@ def elementwise_binary_intersection(func):
             if isinstance(x2, tf.SparseTensor):
                 # x1 is a SparseTensor and x2 is a SparseTensor.
                 if x1.indices is x2.indices:
-                    return tf.SparseTensor(
-                        x1.indices, func(x1.values, x2.values), x1.dense_shape
-                    )
+                    return sparse_with_values(x1, func(x1.values, x2.values))
                 else:
                     # Compute the intersection of indices.
                     (
@@ -524,7 +540,7 @@ def elementwise_binary_intersection(func):
                         x2_values_for_intersection,
                     ) = sparse_intersection_indices_and_values(x1, x2)
                     # Now, it is an element-wise operation on the intersection.
-                    return tf.SparseTensor(
+                    output = tf.SparseTensor(
                         intersection_indices,
                         func(
                             x1_values_for_intersection,
@@ -532,37 +548,27 @@ def elementwise_binary_intersection(func):
                         ),
                         x1.dense_shape,
                     )
+                    output.set_shape(x1.shape)
+                    return output
             else:
                 # x1 is a SparseTensor.
                 if not hasattr(x2, "shape") or len(x2.shape) == 0:
                     # x2 is a scalar, apply func element-wise.
-                    return tf.SparseTensor(
-                        x1.indices,
-                        func(x1.values, x2),
-                        x1.dense_shape,
-                    )
+                    return sparse_with_values(x1, func(x1.values, x2))
                 else:
                     # x2 is dense, gather values from x1 indices.
-                    return tf.SparseTensor(
-                        x1.indices,
-                        func(x1.values, tf.gather_nd(x2, x1.indices)),
-                        x1.dense_shape,
+                    return sparse_with_values(
+                        x1, func(x1.values, tf.gather_nd(x2, x1.indices))
                     )
         elif isinstance(x2, tf.SparseTensor):
             # x2 is a SparseTensor.
             if not hasattr(x1, "shape") or len(x1.shape) == 0:
                 # x1 is a scalar, apply func element-wise.
-                return tf.SparseTensor(
-                    x2.indices,
-                    func(x1, x2.values),
-                    x2.dense_shape,
-                )
+                return sparse_with_values(x2, func(x1, x2.values))
             else:
                 # x1 is dense, gather values from x2 indices.
-                return tf.SparseTensor(
-                    x2.indices,
-                    func(tf.gather_nd(x1, x2.indices), x2.values),
-                    x2.dense_shape,
+                return sparse_with_values(
+                    x2, func(tf.gather_nd(x1, x2.indices), x2.values)
                 )
         elif isinstance(x1, tf.IndexedSlices):
             if isinstance(x2, tf.IndexedSlices):
@@ -654,17 +660,13 @@ def elementwise_division(func):
                 # x1 is a SparseTensor and x2 is a SparseTensor.
                 # Divisor is sparse, meaning we're doing divisions by zero
                 # outside of x2.indices, so the result is dense. Densify both.
-                x1 = tf.sparse.to_dense(x1)
-                x2 = tf.sparse.to_dense(x2)
+                x1 = sparse_to_dense(x1)
+                x2 = sparse_to_dense(x2)
             else:
                 # x1 is a SparseTensor.
                 if not hasattr(x2, "shape") or len(x2.shape) == 0:
                     # x2 is a scalar, apply func element-wise.
-                    return tf.SparseTensor(
-                        x1.indices,
-                        func(x1.values, x2),
-                        x1.dense_shape,
-                    )
+                    return sparse_with_values(x1, func(x1.values, x2))
                 else:
                     # x2 is dense.
                     x2_zeros_and_nans = tf.equal(x2, 0)
@@ -675,10 +677,8 @@ def elementwise_division(func):
 
                     def func_for_x1_indices():
                         # Gather values from x1 indices.
-                        return tf.SparseTensor(
-                            x1.indices,
-                            func(x1.values, tf.gather_nd(x2, x1.indices)),
-                            x1.dense_shape,
+                        return sparse_with_values(
+                            x1, func(x1.values, tf.gather_nd(x2, x1.indices))
                         )
 
                     def func_for_union_indices():
@@ -691,7 +691,7 @@ def elementwise_division(func):
                         ) = sparse_union_indices_and_values(
                             x1, x2_zeros_and_nan_indices
                         )
-                        return tf.SparseTensor(
+                        output = tf.SparseTensor(
                             union_indices,
                             func(
                                 x1_values_for_union,
@@ -699,6 +699,8 @@ def elementwise_division(func):
                             ),
                             x1.dense_shape,
                         )
+                        output.set_shape(x1.shape)
+                        return output
 
                     return tf.cond(
                         tf.reduce_any(x2_zeros_and_nans),
@@ -708,7 +710,7 @@ def elementwise_division(func):
         elif isinstance(x2, tf.SparseTensor):
             # x2 is a SparseTensor.
             # Divisor is sparse, densify to do the divisions by zero correctly.
-            x2 = tf.sparse.to_dense(x2)
+            x2 = sparse_to_dense(x2)
         elif isinstance(x1, tf.IndexedSlices):
             if isinstance(x2, tf.IndexedSlices):
                 # x1 is an IndexedSlices and x2 is an IndexedSlices.
