@@ -237,7 +237,7 @@ class MLP(keras.layers.Layer):
     Args:
         hidden_features: hidden features dimension.
         out_features: output features dimension.
-        act_layer: activation function.
+        activation: activation function.
         dropout: dropout rate.
     """
 
@@ -245,14 +245,14 @@ class MLP(keras.layers.Layer):
         self,
         hidden_features=None,
         out_features=None,
-        act_layer="gelu",
+        activation="gelu",
         dropout=0.0,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.hidden_features = hidden_features
         self.out_features = out_features
-        self.act_layer = act_layer
+        self.activation = activation
         self.dropout = dropout
 
     def build(self, input_shape):
@@ -260,7 +260,7 @@ class MLP(keras.layers.Layer):
         self.hidden_features = self.hidden_features or self.in_features
         self.out_features = self.out_features or self.in_features
         self.fc1 = keras.layers.Dense(self.hidden_features, name="fc1")
-        self.act = keras.layers.Activation(self.act_layer, name="act")
+        self.act = keras.layers.Activation(self.activation, name="act")
         self.fc2 = keras.layers.Dense(self.out_features, name="fc2")
         self.drop1 = keras.layers.Dropout(self.dropout, name="drop1")
         self.drop2 = keras.layers.Dropout(self.dropout, name="drop2")
@@ -650,7 +650,7 @@ class Block(keras.layers.Layer):
         drop: dropout rate.
         attn_drop: attention dropout rate.
         path_drop: drop path rate.
-        act_layer: activation function.
+        activation: activation function.
         layer_scale: layer scaling coefficient.
     """
 
@@ -665,7 +665,7 @@ class Block(keras.layers.Layer):
         drop=0.0,
         attn_drop=0.0,
         path_drop=0.0,
-        act_layer="gelu",
+        activation="gelu",
         layer_scale=None,
         **kwargs,
     ):
@@ -679,7 +679,7 @@ class Block(keras.layers.Layer):
         self.drop = drop
         self.attn_drop = attn_drop
         self.path_drop = path_drop
-        self.act_layer = act_layer
+        self.activation = activation
         self.layer_scale = layer_scale
 
     def build(self, input_shape):
@@ -701,7 +701,7 @@ class Block(keras.layers.Layer):
         self.mlp = MLP(
             hidden_features=int(C * self.mlp_ratio),
             dropout=self.drop,
-            act_layer=self.act_layer,
+            activation=self.activation,
             name="mlp",
         )
         if self.layer_scale is not None:
