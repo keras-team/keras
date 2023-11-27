@@ -119,6 +119,7 @@ def affine_transform(
         interpolation=interpolation.upper(),
         fill_mode=fill_mode.upper(),
     )
+    affined = tf.ensure_shape(affined, image.shape)
 
     if data_format == "channels_first":
         affined = tf.transpose(affined, (0, 3, 1, 2))
