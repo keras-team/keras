@@ -52,7 +52,7 @@ computer vision tasks.
 <img src="https://raw.githubusercontent.com/awsaf49/gcvit-tf/main/image/vit_gif.gif"
 width=600>
 
-* However, **quadratic [$O(n^2)$] computational complexity** of self-attention and **lack
+* However, **quadratic [`O(n^2)`] computational complexity** of self-attention and **lack
 of multi-scale information** makes it difficult for **ViT** to be considered as
 general-purpose architecture for Compute Vision tasks like **segmentation and object
 detection** where it requires **dense prediction at the pixel level**.
