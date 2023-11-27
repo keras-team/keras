@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 """
-# Introduction
+## Introduction
 
 In this notebook, we will utilize multi-backend Keras 3.0 to implement the [**GCViT:
 Global Context Vision Transformer**](https://arxiv.org/abs/2206.09959) paper, presented
@@ -37,7 +37,7 @@ TensorFlow, PyTorch, and Jax, showcasing the true potential of multi-backend Ker
 """
 
 """
-# Motivation
+## Motivation
 > **Note:** In this section we'll learn about the backstory of GCViT and try to
 understand why it is proposed.
 
@@ -77,7 +77,7 @@ width=800>
 """
 
 """
-# Architecture
+## Architecture
 Let's have a quick **overview** of our key components,
 1. `Stem/PatchEmbed:` A stem/patchify layer processes images at the network’s beginning.
 For this network, it creates **patches/tokens** and converts them into **embeddings**.
@@ -103,7 +103,7 @@ I've annotated the architecture figure to make it easier to digest,
 """
 
 """
-## Unit Blocks
+### Unit Blocks
 > **Note:** This blocks are used to build other modules throughout the paper. Most of the
 blocks are either borrowed from other work or modified version old work.
 
@@ -276,7 +276,7 @@ class MLP(keras.layers.Layer):
 
 
 """
-## Stem
+### Stem
 > **Notes**: In the code, this module is referred to as **PatchEmbed** but on paper, it
 is referred to as **Stem**.
 
@@ -323,7 +323,7 @@ class PatchEmbed(keras.layers.Layer):
 
 
 """
-## Global Token Gen.
+### Global Token Gen.
 > **Notes:** It is one of the two **CNN** modules that is used to imppose inductive bias.
 
 As we can see from above cell, in the `level` we have first used `to_q_global/Global
@@ -423,7 +423,7 @@ class GlobalQueryGen(keras.layers.Layer):
 
 
 """
-## Attention
+### Attention
 > **Notes:** This is the core contribution of the paper.
 
 As we can see from the `call` method,
@@ -604,7 +604,7 @@ class WindowAttention(keras.layers.Layer):
 
 
 """
-## Block
+### Block
 > **Notes:** This module doesn't have any Convolutional module.
 
 In the `level` second module that we have used is `block`. Let's try to understand how it
@@ -624,7 +624,7 @@ to **batch windows** as we'll be applying **Window Attention**.
 width=400>
 
 
-## Window
+### Window
 In the `block` module, we have created **windows** before and after applying attention.
 Let's try to understand how we're creating windows,
 * Following module converts feature maps $(B, H, W, C)$ to stacked windows $(B \times
@@ -798,7 +798,7 @@ class Block(keras.layers.Layer):
 
 
 """
-## Level
+### Level
 > **Note:** This module has both Transformer and CNN modules.
 
 In the model, the second module that we have used is `level`. Let's try to understand
@@ -907,7 +907,7 @@ class Level(keras.layers.Layer):
 
 
 """
-## Model
+### Model
 Let's directly jump to the model. As we can see from the `call` method,
 1. It creates patch embeddings from an image. This layer doesn't flattens these
 embeddings which means output of this module will be $(batch,
@@ -1037,7 +1037,7 @@ class GCViT(keras.Model):
 
 
 """
-# Build Model
+## Build Model
 * Let's build a complete model with all the modules that we've explained above. We'll
 build **GCViT-XXTiny** model with the configuration mentioned in the paper.
 * Also we'll load the ported official **pre-trained** weights and try for some
@@ -1096,7 +1096,7 @@ consists `104` classes.
 """
 
 """
-## Configs
+### Configs
 """
 
 # Model
@@ -1142,7 +1142,7 @@ def make_dataset(dataset: tf.data.Dataset, train: bool, image_size: int = IMAGE_
 
 
 """
-## Flower Dataset
+### Flower Dataset
 """
 
 train_dataset, val_dataset = tfds.load(
@@ -1156,7 +1156,7 @@ train_dataset = make_dataset(train_dataset, True)
 val_dataset = make_dataset(val_dataset, False)
 
 """
-## Re-Build Model for Flower Dataset
+### Re-Build Model for Flower Dataset
 """
 
 # Re-Build Model
@@ -1173,7 +1173,7 @@ model.compile(
 )
 
 """
-## Training
+### Training
 """
 
 history = model.fit(
@@ -1181,7 +1181,7 @@ history = model.fit(
 )
 
 """
-# Reference
+## Reference
 
 * [gcvit-tf - A Python library for GCViT with TF2.0](https://github.com/awsaf49/gcvit-tf)
 * [gcvit - Official codebase for GCViT](https://github.com/NVlabs/GCVit)
