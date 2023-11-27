@@ -5473,7 +5473,10 @@ class Where(Operation):
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(condition_shape, x1_shape)
         output_shape = broadcast_shapes(output_shape, x2_shape)
-        output_dtype = getattr(x1, "dtype", "int")
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1) if x1 is not None else "int"),
+            getattr(x2, "dtype", type(x2) if x2 is not None else "int"),
+        )
         return KerasTensor(output_shape, dtype=output_dtype)
 
 
@@ -5649,7 +5652,10 @@ class Power(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)), getattr(x2, "dtype", type(x2))
+        )
+        return KerasTensor(output_shape, dtype=output_dtype)
 
 
 @keras_export(["keras.ops.power", "keras.ops.numpy.power"])

@@ -944,7 +944,7 @@ def ndim(x):
 
 def nonzero(x):
     x = convert_to_tensor(x)
-    return torch.nonzero(x).T
+    return tuple(cast(indices, "int32") for indices in torch.nonzero(x).T)
 
 
 def not_equal(x1, x2):
@@ -1254,6 +1254,9 @@ def tensordot(x1, x2, axes=2):
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     # TODO: torch.tensordot only supports float types
     compute_dtype = dtypes.result_type(result_dtype, float)
+    # TODO: torch.tensordot doesn't support float16 with cpu
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
     x1 = cast(x1, compute_dtype)
     x2 = cast(x2, compute_dtype)
     # torch only handles dims=((0,), (1,)), numpy accepts axes=(0, 1).

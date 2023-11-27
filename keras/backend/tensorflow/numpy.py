@@ -1035,7 +1035,9 @@ def ndim(x):
 
 
 def nonzero(x):
-    return tfnp.nonzero(x)
+    return tf.nest.map_structure(
+        lambda indices: tf.cast(indices, "int32"), tfnp.nonzero(x)
+    )
 
 
 def not_equal(x1, x2):
@@ -1449,6 +1451,17 @@ def vstack(xs):
 
 
 def where(condition, x1, x2):
+    if x1 is not None and x2 is not None:
+        if not isinstance(x1, (int, float)):
+            x1 = convert_to_tensor(x1)
+        if not isinstance(x2, (int, float)):
+            x2 = convert_to_tensor(x2)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        x1 = convert_to_tensor(x1, dtype)
+        x2 = convert_to_tensor(x2, dtype)
     return tfnp.where(condition, x1, x2)
 
 
@@ -1474,6 +1487,21 @@ def true_divide(x1, x2):
 
 
 def power(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    # TODO: tfnp.power doesn't support uint* types
+    if "uint" in dtype:
+        x1 = convert_to_tensor(x1, "int32")
+        x2 = convert_to_tensor(x2, "int32")
+        return tf.cast(tfnp.power(x1, x2), dtype)
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return tfnp.power(x1, x2)
 
 
