@@ -5255,8 +5255,12 @@ class Trace(Operation):
         x_shape[self.axis2] = -1
         output_shape = list(filter((-1).__ne__, x_shape))
         output_dtype = backend.standardize_dtype(x.dtype)
-        if output_dtype != "uint32" and "int" in output_dtype:
-            output_dtype = "int32"
+        if output_dtype == "int64":
+            output_dtype = "int64"
+        elif output_dtype == "uint32":
+            output_dtype = "uint32"
+        else:
+            output_dtype = dtypes.result_type(output_dtype, "int32")
         return KerasTensor(output_shape, dtype=output_dtype)
 
 

@@ -6845,6 +6845,37 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_trace(self, dtype):
+        import jax.experimental
+        import jax.numpy as jnp
+
+        # We have to disable x64 for jax since jnp.true_divide doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
+        # the expected dtype from 64 bit to 32 bit when using jax backend.
+        with jax.experimental.disable_x64():
+            x = knp.ones((1, 1, 1), dtype=dtype)
+            x_jax = jnp.ones((1, 1, 1), dtype=dtype)
+            expected_dtype = standardize_dtype(jnp.trace(x_jax).dtype)
+            # jnp.trace is buggy with bool. We set the expected_dtype to int32
+            # for bool inputs
+            if dtype == "bool":
+                expected_dtype = "int32"
+            elif dtype == "float64":
+                expected_dtype = "float64"
+            elif dtype == "int64":
+                expected_dtype = "int64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.trace(x).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(knp.Trace().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_transpose(self, dtype):
         import jax.numpy as jnp
 

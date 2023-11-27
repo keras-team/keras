@@ -731,7 +731,11 @@ def tile(x, repeats):
 
 
 def trace(x, offset=0, axis1=0, axis2=1):
-    return jnp.trace(x, offset=offset, axis1=axis1, axis2=axis2)
+    x = convert_to_tensor(x)
+    dtype = None
+    if standardize_dtype(x.dtype) == "bool":
+        dtype = "int32"
+    return jnp.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 
 
 def tri(N, M=None, k=0, dtype=None):

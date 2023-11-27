@@ -889,7 +889,15 @@ def tile(x, repeats):
 def trace(x, offset=0, axis1=0, axis2=1):
     axis1 = tuple(axis1) if isinstance(axis1, list) else axis1
     axis2 = tuple(axis2) if isinstance(axis2, list) else axis2
-    return np.trace(x, offset=offset, axis1=axis1, axis2=axis2)
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "int64":
+        dtype = "int64"
+    elif dtype == "uint32":
+        dtype = "uint32"
+    else:
+        dtype = dtypes.result_type(dtype, "int32")
+    return np.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 
 
 def tri(N, M=None, k=0, dtype=None):

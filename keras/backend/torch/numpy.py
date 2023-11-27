@@ -1289,7 +1289,18 @@ def tile(x, repeats):
 
 def trace(x, offset=None, axis1=None, axis2=None):
     x = convert_to_tensor(x)
-    return torch.sum(torch.diagonal(x, offset, axis1, axis2), dim=-1)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "int64":
+        dtype = "int64"
+    elif dtype == "uint32":
+        dtype = "uint32"
+    else:
+        dtype = dtypes.result_type(dtype, "int32")
+    return torch.sum(
+        torch.diagonal(x, offset, axis1, axis2),
+        dim=-1,
+        dtype=to_torch_dtype(dtype),
+    )
 
 
 def tri(N, M=None, k=0, dtype=None):
