@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
@@ -133,6 +134,10 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
         model = models.Model(inputs, outputs)
         model.predict(np.random.random((1, 6, 6, 3)))
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="The NumPy backend does not implement fit.",
+    )
     def test_connect_with_flatten(self):
         model = models.Sequential(
             [
