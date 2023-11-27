@@ -366,12 +366,18 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 def cumprod(x, axis=None, dtype=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.cumprod(x, axis=axis, dtype=dtype or x.dtype)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return np.cumprod(x, axis=axis, dtype=dtype)
 
 
 def cumsum(x, axis=None, dtype=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.cumsum(x, axis=axis, dtype=dtype or x.dtype)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return np.cumsum(x, axis=axis, dtype=dtype)
 
 
 def diag(x, k=0):
@@ -470,12 +476,12 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    xs = tree.map_structure(convert_to_tensor, xs)
-    dtypes_to_resolve = []
-    for x in xs:
-        dtypes_to_resolve.append(x.dtype)
-    dtype = dtypes.result_type(*dtypes_to_resolve)
-    xs = tree.map_structure(lambda x: x.astype(dtype), xs)
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
     return np.hstack(xs)
 
 
@@ -680,7 +686,7 @@ def ndim(x):
 
 
 def nonzero(x):
-    return np.nonzero(x)
+    return tuple(indices.astype("int32") for indices in np.nonzero(x))
 
 
 def not_equal(x1, x2):
@@ -864,6 +870,11 @@ def tanh(x):
 
 def tensordot(x1, x2, axes=2):
     axes = tuple(axes) if isinstance(axes, list) else axes
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.tensordot(x1, x2, axes=axes)
 
 
@@ -878,7 +889,15 @@ def tile(x, repeats):
 def trace(x, offset=0, axis1=0, axis2=1):
     axis1 = tuple(axis1) if isinstance(axis1, list) else axis1
     axis2 = tuple(axis2) if isinstance(axis2, list) else axis2
-    return np.trace(x, offset=offset, axis1=axis1, axis2=axis2)
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "int64":
+        dtype = "int64"
+    elif dtype == "uint32":
+        dtype = "uint32"
+    else:
+        dtype = dtypes.result_type(dtype, "int32")
+    return np.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 
 
 def tri(N, M=None, k=0, dtype=None):
@@ -895,15 +914,36 @@ def triu(x, k=0):
 
 
 def vdot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.vdot(x1, x2)
 
 
 def vstack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
     return np.vstack(xs)
 
 
 def where(condition, x1, x2):
     if x1 is not None and x2 is not None:
+        if not isinstance(x1, (int, float)):
+            x1 = convert_to_tensor(x1)
+        if not isinstance(x2, (int, float)):
+            x2 = convert_to_tensor(x2)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        x1 = convert_to_tensor(x1, dtype)
+        x2 = convert_to_tensor(x2, dtype)
         return np.where(condition, x1, x2)
     else:
         return np.where(condition)
@@ -925,10 +965,20 @@ def divide(x1, x2):
 
 
 def true_divide(x1, x2):
-    return np.true_divide(x1, x2)
+    return divide(x1, x2)
 
 
 def power(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return np.power(x1, x2)
 
 

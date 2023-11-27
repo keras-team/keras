@@ -463,9 +463,16 @@ def cumprod(x, axis=None, dtype=None):
     if axis is None:
         x = x.flatten()
         axis = 0
-    return torch.cumprod(
-        x, dim=axis, dtype=x.dtype if dtype is None else to_torch_dtype(dtype)
-    )
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    # TODO: torch.cumprod doesn't support float16 with cpu
+    elif get_device() == "cpu" and dtype == "float16":
+        return cast(
+            torch.cumprod(x, dim=axis, dtype=to_torch_dtype("float32")),
+            "float16",
+        )
+    return torch.cumprod(x, dim=axis, dtype=to_torch_dtype(dtype))
 
 
 def cumsum(x, axis=None, dtype=None):
@@ -473,9 +480,16 @@ def cumsum(x, axis=None, dtype=None):
     if axis is None:
         x = x.flatten()
         axis = 0
-    return torch.cumsum(
-        x, dim=axis, dtype=x.dtype if dtype is None else to_torch_dtype(dtype)
-    )
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    # TODO: torch.cumsum doesn't support float16 with cpu
+    elif get_device() == "cpu" and dtype == "float16":
+        return cast(
+            torch.cumsum(x, dim=axis, dtype=to_torch_dtype("float32")),
+            "float16",
+        )
+    return torch.cumsum(x, dim=axis, dtype=to_torch_dtype(dtype))
 
 
 def diag(x, k=0):
@@ -930,7 +944,7 @@ def ndim(x):
 
 def nonzero(x):
     x = convert_to_tensor(x)
-    return torch.nonzero(x).T
+    return tuple(cast(indices, "int32") for indices in torch.nonzero(x).T)
 
 
 def not_equal(x1, x2):
@@ -1235,10 +1249,16 @@ def tanh(x):
 
 
 def tensordot(x1, x2, axes=2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    # Conversion to long necessary for `torch.tensordot`
-    x1 = cast(x1, "int64") if x1.dtype in TORCH_INT_TYPES else x1
-    x2 = cast(x2, "int64") if x2.dtype in TORCH_INT_TYPES else x2
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: torch.tensordot only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
+    # TODO: torch.tensordot doesn't support float16 with cpu
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
     # torch only handles dims=((0,), (1,)), numpy accepts axes=(0, 1).
     if isinstance(axes, (list, tuple)):
         first, second = axes
@@ -1247,7 +1267,7 @@ def tensordot(x1, x2, axes=2):
         if not isinstance(second, (list, tuple)):
             second = (second,)
         axes = (first, second)
-    return torch.tensordot(x1, x2, dims=axes)
+    return cast(torch.tensordot(x1, x2, dims=axes), result_dtype)
 
 
 def round(x, decimals=0):
@@ -1269,7 +1289,16 @@ def tile(x, repeats):
 
 def trace(x, offset=None, axis1=None, axis2=None):
     x = convert_to_tensor(x)
-    return torch.sum(torch.diagonal(x, offset, axis1, axis2), dim=-1)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "int64":
+        dtype = "int64"
+    else:
+        dtype = dtypes.result_type(dtype, "int32")
+    return torch.sum(
+        torch.diagonal(x, offset, axis1, axis2),
+        dim=-1,
+        dtype=to_torch_dtype(dtype),
+    )
 
 
 def tri(N, M=None, k=0, dtype=None):
@@ -1290,8 +1319,19 @@ def triu(x, k=0):
 
 
 def vdot(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return torch.vdot(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: torch.vdot only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
+
+    # TODO: torch.vdot doesn't support float16 with cpu
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
+
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+    return cast(torch.vdot(x1, x2), result_dtype)
 
 
 def vstack(xs):
@@ -1318,8 +1358,7 @@ def divide(x1, x2):
 
 
 def true_divide(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return torch.true_divide(x1, x2)
+    return divide(x1, x2)
 
 
 def power(x1, x2):

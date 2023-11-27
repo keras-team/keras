@@ -590,11 +590,17 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 
 def cumprod(x, axis=None, dtype=None):
-    return tfnp.cumprod(x, axis=axis, dtype=dtype or x.dtype)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return tfnp.cumprod(x, axis=axis, dtype=dtype)
 
 
 def cumsum(x, axis=None, dtype=None):
-    return tfnp.cumsum(x, axis=axis, dtype=dtype or x.dtype)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return tfnp.cumsum(x, axis=axis, dtype=dtype)
 
 
 def diag(x, k=0):
@@ -743,12 +749,10 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    xs = tf.nest.map_structure(convert_to_tensor, xs)
-    dtypes_to_resolve = []
-    for x in xs:
-        dtypes_to_resolve.append(x.dtype)
-    dtype = dtypes.result_type(*dtypes_to_resolve)
-    xs = tf.nest.map_structure(lambda x: tf.cast(x, dtype), xs)
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tf.nest.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
     return tfnp.hstack(xs)
 
 
@@ -1031,7 +1035,9 @@ def ndim(x):
 
 
 def nonzero(x):
-    return tfnp.nonzero(x)
+    return tf.nest.map_structure(
+        lambda indices: tf.cast(indices, "int32"), tfnp.nonzero(x)
+    )
 
 
 def not_equal(x1, x2):
@@ -1292,12 +1298,10 @@ def split(x, indices_or_sections, axis=0):
 
 
 def stack(x, axis=0):
-    x = tf.nest.map_structure(convert_to_tensor, x)
-    dtypes_to_resolve = []
-    for a in x:
-        dtypes_to_resolve.append(a.dtype)
-    dtype = dtypes.result_type(*dtypes_to_resolve)
-    x = tf.nest.map_structure(lambda a: tf.cast(a, dtype), x)
+    dtype_set = set([getattr(a, "dtype", type(a)) for a in x])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        x = tf.nest.map_structure(lambda a: convert_to_tensor(a, dtype), x)
     return tfnp.stack(x, axis=axis)
 
 
@@ -1366,7 +1370,14 @@ def tanh(x):
 
 
 def tensordot(x1, x2, axes=2):
-    return tfnp.tensordot(x1, x2, axes=axes)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: tfnp.tensordot only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
+    return tf.cast(tfnp.tensordot(x1, x2, axes=axes), dtype=result_dtype)
 
 
 @sparse.elementwise_unary
@@ -1394,7 +1405,15 @@ def tile(x, repeats):
 
 
 def trace(x, offset=0, axis1=0, axis2=1):
-    return tfnp.trace(x, offset=offset, axis1=axis1, axis2=axis2)
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "int64":
+        dtype = "int64"
+    elif dtype == "uint32":
+        dtype = "uint32"
+    else:
+        dtype = dtypes.result_type(dtype, "int32")
+    return tfnp.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 
 
 def tri(N, M=None, k=0, dtype=None):
@@ -1403,22 +1422,54 @@ def tri(N, M=None, k=0, dtype=None):
 
 
 def tril(x, k=0):
+    x = convert_to_tensor(x)
+    # TODO: tfnp.tril doesn't support bool
+    if standardize_dtype(x.dtype) == "bool":
+        x = tf.cast(x, "uint8")
+        return tf.cast(tfnp.tril(x, k=k), "bool")
     return tfnp.tril(x, k=k)
 
 
 def triu(x, k=0):
+    x = convert_to_tensor(x)
+    # TODO: tfnp.triu doesn't support bool
+    if standardize_dtype(x.dtype) == "bool":
+        x = tf.cast(x, "uint8")
+        return tf.cast(tfnp.tril(x, k=k), "bool")
     return tfnp.triu(x, k=k)
 
 
 def vdot(x1, x2):
-    return tfnp.vdot(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: tfnp.vdot only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
+    return tf.cast(tfnp.vdot(x1, x2), result_dtype)
 
 
 def vstack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tf.nest.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
     return tfnp.vstack(xs)
 
 
 def where(condition, x1, x2):
+    if x1 is not None and x2 is not None:
+        if not isinstance(x1, (int, float)):
+            x1 = convert_to_tensor(x1)
+        if not isinstance(x2, (int, float)):
+            x2 = convert_to_tensor(x2)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        x1 = convert_to_tensor(x1, dtype)
+        x2 = convert_to_tensor(x2, dtype)
     return tfnp.where(condition, x1, x2)
 
 
@@ -1440,10 +1491,25 @@ def divide(x1, x2):
 
 @sparse.elementwise_division
 def true_divide(x1, x2):
-    return tfnp.true_divide(x1, x2)
+    return divide(x1, x2)
 
 
 def power(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    # TODO: tfnp.power doesn't support uint* types
+    if "uint" in dtype:
+        x1 = convert_to_tensor(x1, "int32")
+        x2 = convert_to_tensor(x2, "int32")
+        return tf.cast(tfnp.power(x1, x2), dtype)
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return tfnp.power(x1, x2)
 
 
