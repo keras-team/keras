@@ -28,10 +28,10 @@ import numpy as np
 """
 ## Introduction
 
-In this notebook, we will utilize multi-backend Keras 3.0 to implement the [**GCViT:
-Global Context Vision Transformer**](https://arxiv.org/abs/2206.09959) paper, presented
-at ICML 2023 by A Hatamizadeh et al. The, we will fine-tune the model on the Flower
-dataset for image classification task, leveraging the official ImageNet pre-trained
+In this notebook, we will utilize multi-backend Keras 3.0 to implement the
+[**GCViT: Global Context Vision Transformer**](https://arxiv.org/abs/2206.09959) paper,
+presented at ICML 2023 by A Hatamizadeh et al. The, we will fine-tune the model on the
+Flower dataset for image classification task, leveraging the official ImageNet pre-trained
 weights. A highlight of this notebook is its compatibility with multiple backends:
 TensorFlow, PyTorch, and Jax, showcasing the true potential of multi-backend Keras.
 """
