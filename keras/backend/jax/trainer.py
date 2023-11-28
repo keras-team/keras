@@ -579,6 +579,7 @@ class JAXTrainer(base_trainer.Trainer):
         self._record_training_state_sharding_spec()
 
         self.make_test_function()
+        self.stop_evaluating = False
         callbacks.on_test_begin()
         logs = None
         self.reset_metrics()
@@ -616,6 +617,8 @@ class JAXTrainer(base_trainer.Trainer):
                 "metrics_variables": metrics_variables,
             }
             callbacks.on_test_batch_end(step, self._pythonify_logs(logs))
+            if self.stop_evaluating:
+                break
 
         # Reattach state back to model.
         self.jax_state_sync()
@@ -667,6 +670,7 @@ class JAXTrainer(base_trainer.Trainer):
         self._record_training_state_sharding_spec()
 
         self.make_predict_function()
+        self.stop_predicting = False
         callbacks.on_predict_begin()
 
         def append_to_outputs(batch_outputs, outputs):
@@ -696,6 +700,8 @@ class JAXTrainer(base_trainer.Trainer):
             batch_outputs, state = self.predict_function(state, x)
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+            if self.stop_predicting:
+                break
         callbacks.on_predict_end()
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
 
