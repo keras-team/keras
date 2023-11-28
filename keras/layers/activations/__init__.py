@@ -1,4 +1,5 @@
 from keras.layers.activations.elu import ELU
+from keras.layers.activations.hard_swish import HardSwish
 from keras.layers.activations.leaky_relu import LeakyReLU
 from keras.layers.activations.prelu import PReLU
 from keras.layers.activations.relu import ReLU
