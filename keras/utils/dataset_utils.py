@@ -1,8 +1,8 @@
-import multiprocessing
 import os
 import random
 import time
 import warnings
+from multiprocessing.pool import ThreadPool
 
 import numpy as np
 
@@ -574,7 +574,7 @@ def index_directory(
 
     # Build an index of the files
     # in the different class subfolders.
-    pool = multiprocessing.pool.ThreadPool()
+    pool = ThreadPool()
     results = []
     filenames = []
 
