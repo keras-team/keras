@@ -27,8 +27,11 @@ class DeviceTest(testing.TestCase):
     @pytest.mark.skipif(backend.backend() != "jax", reason="jax only")
     def test_jax_device_scope(self):
         import jax
+        from jax.lib import xla_bridge
 
-        if not jax.device_count("gpu"):
+        platform = xla_bridge.get_backend().platform
+
+        if platform != "gpu":
             self.skipTest("Need at least one GPU for testing")
 
         with backend.device("cpu:0"):
@@ -53,7 +56,7 @@ class DeviceTest(testing.TestCase):
     def test_torch_device_scope(self):
         import torch
 
-        if not torch.device("cuda"):
+        if not torch.cuda.device_count():
             self.skipTest("Need at least one GPU for testing")
 
         with backend.device("cpu:0"):
@@ -62,12 +65,12 @@ class DeviceTest(testing.TestCase):
 
         # When leaving the scope, the device should be back with gpu:0
         t = backend.numpy.ones((2, 1))
-        self.assertEqual(t.device, torch.device("cuda"))
+        self.assertEqual(t.device, torch.device("cuda", 0))
 
         # Also verify the explicit gpu -> cuda conversion
         with backend.device("gpu:0"):
             t = backend.numpy.ones((2, 1))
-            self.assertEqual(t.device, torch.device("cuda"))
+            self.assertEqual(t.device, torch.device("cuda", 0))
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
     def test_invalid_torch_device(self):
