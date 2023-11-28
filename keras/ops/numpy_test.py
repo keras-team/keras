@@ -5085,6 +5085,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.clip(x_jax, -2, 2).dtype)
+        if dtype == "bool":
+            expected_dtype = "int32"
 
         self.assertEqual(
             standardize_dtype(knp.clip(x, -2, 2).dtype), expected_dtype
