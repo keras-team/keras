@@ -5,7 +5,7 @@ from keras import testing
 
 
 class DeviceTest(testing.TestCase):
-    @pytest.mark.skipif(backend.backend() != "tensorflow", "tf only")
+    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_tf_device_scope(self):
         import tensorflow as tf
 
@@ -24,7 +24,7 @@ class DeviceTest(testing.TestCase):
             t = backend.numpy.ones((2, 1))
             self.assertIn("GPU:0", t.device)
 
-    @pytest.mark.skipif(backend.backend() != "jax", "jax only")
+    @pytest.mark.skipif(backend.backend() != "jax", reason="jax only")
     def test_jax_device_scope(self):
         import jax
 
@@ -44,12 +44,12 @@ class DeviceTest(testing.TestCase):
             t = backend.numpy.ones((2, 1))
             self.assertEqual(t.device(), jax.devices("gpu")[0])
 
-    @pytest.mark.skipif(backend.backend() != "jax", "jax only")
+    @pytest.mark.skipif(backend.backend() != "jax", reason="jax only")
     def test_invalid_jax_device(self):
         with self.assertRaisesRegex(ValueError, "Received: device=123"):
             backend.device(123).__enter__()
 
-    @pytest.mark.skipif(backend.backend() != "torch", "torch only")
+    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
     def test_torch_device_scope(self):
         import torch
 
@@ -69,7 +69,7 @@ class DeviceTest(testing.TestCase):
             t = backend.numpy.ones((2, 1))
             self.assertEqual(t.device, torch.device("cuda", 0))
 
-    @pytest.mark.skipif(backend.backend() != "torch", "torch only")
+    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
     def test_invalid_torch_device(self):
         with self.assertRaisesRegex(ValueError, "Received: device=123"):
             backend.device(123).__enter__()
