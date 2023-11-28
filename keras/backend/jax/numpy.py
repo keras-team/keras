@@ -823,12 +823,12 @@ def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     # `jnp.var` does not handle low precision (e.g., float16) overflow
     # correctly, so we compute with float32 and cast back to the original type.
-    ori_dtype = standardize_dtype(x.dtype)
-    outputs = jnp.var(x, axis=axis, keepdims=keepdims, dtype=jnp.float32)
-    if "float" in ori_dtype:
-        return cast(outputs, ori_dtype)
-    else:
-        return cast(outputs, config.floatx())
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    return cast(
+        jnp.var(x, axis=axis, keepdims=keepdims, dtype=compute_dtype),
+        result_dtype,
+    )
 
 
 def sum(x, axis=None, keepdims=False):

@@ -1400,14 +1400,17 @@ def transpose(x, axes=None):
 
 
 def var(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-    if "float" not in standardize_dtype(x.dtype):
-        x = cast(x, config.floatx())
     if axis == [] or axis == ():
         # Torch handles the empty axis case differently from numpy.
-        return zeros_like(x)
+        return zeros_like(x, result_dtype)
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
     # Bessel correction removed for numpy compatibility
-    return torch.var(x, dim=axis, keepdim=keepdims, correction=0)
+    x = cast(x, compute_dtype)
+    return cast(
+        torch.var(x, dim=axis, keepdim=keepdims, correction=0), result_dtype
+    )
 
 
 def sum(x, axis=None, keepdims=False):

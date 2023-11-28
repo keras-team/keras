@@ -1012,7 +1012,12 @@ def transpose(x, axes=None):
 
 def var(x, axis=None, keepdims=False):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.var(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    return np.var(x, axis=axis, keepdims=keepdims, dtype=compute_dtype).astype(
+        result_dtype
+    )
 
 
 def sum(x, axis=None, keepdims=False):

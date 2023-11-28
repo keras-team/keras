@@ -6971,6 +6971,22 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 knp.TrueDivide().symbolic_call(x1, x2).dtype, expected_dtype
             )
 
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_var(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((2,), dtype=dtype)
+        x_jax = jnp.ones((2,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.var(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.var(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Var().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )

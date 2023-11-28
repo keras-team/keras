@@ -1563,7 +1563,13 @@ def transpose(x, axes=None):
 
 
 def var(x, axis=None, keepdims=False):
-    return tfnp.var(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    return tf.cast(
+        tfnp.var(x, axis=axis, keepdims=keepdims, dtype=compute_dtype),
+        result_dtype,
+    )
 
 
 def sum(x, axis=None, keepdims=False):
