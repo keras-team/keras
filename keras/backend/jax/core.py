@@ -1,4 +1,3 @@
-import contextlib
 import types
 
 import jax
@@ -317,14 +316,15 @@ def unstack(x, num=None, axis=0):
     ]
 
 
-@contextlib.contextmanager
 def device(device):
     if isinstance(device, str):
         # We support string value like "cpu:0", "gpu:1", etc.
         jax_device = distribution_lib._to_jax_device(device)
     elif not isinstance(device, jax.Device):
         raise ValueError(
-            "Expect the device to be string or `jax.Device`, got: " f"{device}"
+            "Invalid value for argument `device`. "
+            "Expected a string like 'gpu:0' or a `jax.Device` instance. "
+            f"Received: device={device}"
         )
     else:
         jax_device = device

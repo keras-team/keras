@@ -1,4 +1,3 @@
-import contextlib
 import types
 
 import numpy as np
@@ -282,6 +281,5 @@ class name_scope(base_name_scope):
             self._tf_name_scope.__exit__(*args, **kwargs)
 
 
-# @contextlib.contextmanager
 def device(device):
     return tf.device(device)

@@ -1,39 +1,75 @@
-import unittest
+import pytest
 
 from keras import backend
 from keras import testing
 
 
 class DeviceTest(testing.TestCase):
-    def test_device_scope(self):
+    @pytest.mark.skipif(backend.backend() != "tensorflow", "tf only")
+    def test_tf_device_scope(self):
         import tensorflow as tf
 
         if not tf.config.list_physical_devices("GPU"):
             self.skipTest("Need at least one GPU for testing")
 
         with backend.device("cpu:0"):
-            t = keras.backend.numpy.ones((2, 1))
-            self._assertDevice(t, "gpu", 1)
+            t = backend.numpy.ones((2, 1))
+            self.assertIn(f"CPU:0", t.device)
+        # When leaving the scope, the device should be back with gpu:0
+        t = backend.numpy.ones((2, 1))
+        self.assertIn(f"GPU:0", t.device)
+
+        # Also verify the explicit gpu device
+        with backend.device("gpu:0"):
+            t = backend.numpy.ones((2, 1))
+            self.assertIn(f"GPU:0", t.device)
+
+    @pytest.mark.skipif(backend.backend() != "jax", "jax only")
+    def test_jax_device_scope(self):
+        import jax
+
+        if not jax.devices("gpu"):
+            self.skipTest("Need at least one GPU for testing")
+
+        with backend.device("cpu:0"):
+            t = backend.numpy.ones((2, 1))
+            self.assertEqual(t.device(), jax.devices("cpu")[0])
 
         # When leaving the scope, the device should be back with gpu:0
-        t = tf.ones((2, 1))
-        self._assertDevice(t, "gpu", 0)
+        t = backend.numpy.ones((2, 1))
+        self.assertEqual(t.device(), jax.devices("gpu")[0])
 
-    def _assertDevice(self, t, expected_device_type, expected_device_id):
-        if backend.backend() == "jax":
-            import jax
+        # Also verify the explicit gpu device
+        with backend.device("gpu:0"):
+            t = backend.numpy.ones((2, 1))
+            self.assertEqual(t.device(), jax.devices("gpu")[0])
 
-            self.assertEqual(
-                t.device(),
-                jax.list_devices(expected_device_type)[expected_device_id],
-            )
-        elif backend.backend() == "tensorflow":
-            self.assertIn(
-                f"{expected_device_type}:{expected_device_id}", t.device
-            )
-        elif backend.backend() == "torch":
-            import torch
+    @pytest.mark.skipif(backend.backend() != "jax", "jax only")
+    def test_invalid_jax_device(self):
+        with self.assertRaisesRegex(ValueError, "Received: device=123"):
+            backend.device(123).__enter__()
 
-            self.assertEqual(
-                t.device, torch.device(expected_device_type, expected_device_id)
-            )
+    @pytest.mark.skipif(backend.backend() != "torch", "torch only")
+    def test_torch_device_scope(self):
+        import torch
+
+        if not torch.device("cuda"):
+            self.skipTest("Need at least one GPU for testing")
+
+        with backend.device("cpu:0"):
+            t = backend.numpy.ones((2, 1))
+            self.assertEqual(t.device, torch.device("cpu", 0))
+
+        # When leaving the scope, the device should be back with gpu:0
+        t = backend.numpy.ones((2, 1))
+        self.assertEqual(t.device, torch.device("cuda", 0))
+
+        # Also verify the explicit gpu -> cuda conversion
+        with backend.device("gpu:0"):
+            t = backend.numpy.ones((2, 1))
+            self.assertEqual(t.device, torch.device("cuda", 0))
+
+    @pytest.mark.skipif(backend.backend() != "torch", "torch only")
+    def test_invalid_torch_device(self):
+        with self.assertRaisesRegex(ValueError, "Received: device=123"):
+            backend.device(123).__enter__()

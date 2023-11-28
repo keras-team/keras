@@ -48,9 +48,11 @@ TORCH_DTYPES = {
 @contextlib.contextmanager
 def device(device):
     previous_device = global_state.get_global_attribute("torch_device", None)
+    device = _parse_device_input(device)
     global_state.set_global_attribute("torch_device", device)
     try:
-        yield
+        with device:
+            yield
     finally:
         global_state.set_global_attribute("torch_device", previous_device)
 
@@ -60,6 +62,25 @@ def get_device():
     if device is None:
         return DEFAULT_DEVICE
     return device
+
+
+def _parse_device_input(device):
+    if isinstance(device, str):
+        # We support string value like "cpu:0", "gpu:1", and need to convert
+        # "gpu" to "cuda"
+        if "gpu" in device:
+            device = device.replace("gpu", "cuda")
+        torch_device = torch.device(device)
+    elif not isinstance(device, torch.device):
+        raise ValueError(
+            "Invalid value for argument `device`. "
+            "Expected a string like 'gpu:0' or a `torch.device` instance. "
+            f"Received: device={device}"
+        )
+    else:
+        torch_device = device
+    # The jax.Device instance can be used as context.
+    return torch_device
 
 
 def to_torch_dtype(dtype):
