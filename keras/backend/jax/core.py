@@ -328,5 +328,4 @@ def device(device):
         )
     else:
         jax_device = device
-    # The jax.Device instance can be used as context.
-    return jax_device
+    return jax.default_device(jax_device)
