@@ -296,6 +296,7 @@ def cumsum(x, axis=None, dtype=None):
 
 
 def diag(x, k=0):
+    x = convert_to_tensor(x)
     return jnp.diag(x, k=k)
 
 

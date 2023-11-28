@@ -1,5 +1,7 @@
 import numpy as np
 
+from keras import layers
+from keras import models
 from keras import testing
 from keras.metrics import iou_metrics as metrics
 
@@ -92,6 +94,16 @@ class IoUTest(testing.TestCase):
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (1 / (1 + 1 - 1)) / 1
         self.assertAllClose(result, expected_result, atol=1e-3)
+
+    def test_compilation(self):
+        m_obj = metrics.MeanIoU(num_classes=2)
+        model = models.Sequential(
+            [
+                layers.Dense(2, activation="softmax"),
+            ]
+        )
+        model.compile(optimizer="rmsprop", loss="mse", metrics=[m_obj])
+        model.fit(np.array([[1.0, 1.0]]), np.array([[1.0, 0.0]]))
 
 
 class BinaryIoUTest(testing.TestCase):
