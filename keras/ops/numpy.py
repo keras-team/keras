@@ -4814,9 +4814,6 @@ def split(x, indices_or_sections, axis=0):
 
     Args:
         x: Input tensor.
-        indices_or_sections: Either an integer indicating the number of
-            sections along `axis` or a list of integers indicating the indices
-            along `axis` at which the tensor is split.
         indices_or_sections: If an integer, N, the tensor will be split into N
             equal sections along `axis`. If a 1-D array of sorted integers,
             the entries indicate indices at which the tensor will be split
