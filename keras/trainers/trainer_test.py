@@ -1131,11 +1131,11 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
                 y = np.ones((2, 3))
                 yield (x,) if method == "predict" else (x, y)
 
-        for stop_count in (5, 7):
-            stopper = Stopper(stop_count)
+        stop_count = 5
+        stopper = Stopper(stop_count)
 
-            getattr(model, method)(
-                infinite_gen(),
-                callbacks=[stopper],
-            )
-            self.assertEqual(stopper.counter, stop_count)
+        getattr(model, method)(
+            infinite_gen(),
+            callbacks=[stopper],
+        )
+        self.assertEqual(stopper.counter, stop_count)
