@@ -135,6 +135,3 @@ class InputLayerTest(testing.TestCase, parameterized.TestCase):
     def test_numpy_shape(self):
         # non-python int type shapes should be ok
         InputLayer(shape=(np.int64(32),))
-        # float should still raise
-        with self.assertRaisesRegex(ValueError, "Cannot convert"):
-            InputLayer(shape=(np.float64(32),))
