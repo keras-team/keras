@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras import layers
 from keras import models
@@ -95,6 +96,7 @@ class IoUTest(testing.TestCase):
         expected_result = (1 / (1 + 1 - 1)) / 1
         self.assertAllClose(result, expected_result, atol=1e-3)
 
+    @pytest.mark.requires_trainable_backend
     def test_compilation(self):
         m_obj = metrics.MeanIoU(num_classes=2)
         model = models.Sequential(
