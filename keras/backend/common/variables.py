@@ -419,7 +419,7 @@ def standardize_shape(shape):
         if not is_int_dtype(type(e)):
             raise ValueError(
                 f"Cannot convert '{shape}' to a shape. "
-                f"Found invalid entry '{e}'. "
+                f"Found invalid entry '{e}' of type '{type(e)}'. "
             )
         if e < 0:
             raise ValueError(
