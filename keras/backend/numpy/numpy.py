@@ -287,13 +287,15 @@ def ceil(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return np.ceil(x).astype(dtype)
+    x = x.astype(dtype)
+    return np.ceil(x)
 
 
 def clip(x, x_min, x_max):
+    x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
     if dtype == "bool":
-        dtype = "int64"
+        dtype = "int32"
     return np.clip(x, x_min, x_max).astype(dtype)
 
 
@@ -728,9 +730,7 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     x = convert_to_tensor(x)
     if dtype is None:
         dtype = dtypes.result_type(x.dtype)
-        if dtype == "bool":
-            dtype = "int32"
-        elif dtype in ("int8", "int16"):
+        if dtype in ("bool", "int8", "int16"):
             dtype = "int32"
         elif dtype in ("uint8", "uint16"):
             dtype = "uint32"
@@ -891,11 +891,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
     axis2 = tuple(axis2) if isinstance(axis2, list) else axis2
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if dtype == "int64":
-        dtype = "int64"
-    elif dtype == "uint32":
-        dtype = "uint32"
-    else:
+    if dtype not in ("int64", "uint32", "uint64"):
         dtype = dtypes.result_type(dtype, "int32")
     return np.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 
@@ -1016,7 +1012,12 @@ def transpose(x, axes=None):
 
 def var(x, axis=None, keepdims=False):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.var(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    return np.var(x, axis=axis, keepdims=keepdims, dtype=compute_dtype).astype(
+        result_dtype
+    )
 
 
 def sum(x, axis=None, keepdims=False):

@@ -391,9 +391,11 @@ def clip(x, x_min, x_max):
     # TODO: torch.clip doesn't support float16 with cpu
     if get_device() == "cpu" and ori_dtype == "float16":
         x = cast(x, "float32")
+        return cast(torch.clip(x, min=x_min, max=x_max), "float16")
 
-    dtype = "int64" if ori_dtype == "bool" else ori_dtype
-    return cast(torch.clip(x, min=x_min, max=x_max), dtype=dtype)
+    if ori_dtype == "bool":
+        x = cast(x, "int32")
+    return torch.clip(x, min=x_min, max=x_max)
 
 
 def concatenate(xs, axis=0):
@@ -1290,9 +1292,7 @@ def tile(x, repeats):
 def trace(x, offset=None, axis1=None, axis2=None):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if dtype == "int64":
-        dtype = "int64"
-    else:
+    if dtype != "int64":
         dtype = dtypes.result_type(dtype, "int32")
     return torch.sum(
         torch.diagonal(x, offset, axis1, axis2),
@@ -1380,7 +1380,7 @@ def square(x):
 
 def sqrt(x):
     x = convert_to_tensor(x)
-    if x.dtype == torch.int64:
+    if standardize_dtype(x.dtype) == "int64":
         x = cast(x, config.floatx())
     return torch.sqrt(x)
 
@@ -1400,14 +1400,17 @@ def transpose(x, axes=None):
 
 
 def var(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x, dtype="float32")
-    # Conversion to float necessary for `torch.var`
-    x = cast(x, "float32") if x.dtype in TORCH_INT_TYPES else x
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
     if axis == [] or axis == ():
         # Torch handles the empty axis case differently from numpy.
-        return zeros_like(x)
+        return zeros_like(x, result_dtype)
     # Bessel correction removed for numpy compatibility
-    return torch.var(x, dim=axis, keepdim=keepdims, correction=0)
+    x = cast(x, compute_dtype)
+    return cast(
+        torch.var(x, dim=axis, keepdim=keepdims, correction=0), result_dtype
+    )
 
 
 def sum(x, axis=None, keepdims=False):

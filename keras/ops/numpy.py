@@ -1385,7 +1385,7 @@ class Clip(Operation):
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
         if dtype == "bool":
-            dtype = "int64"
+            dtype = "int32"
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -5187,11 +5187,7 @@ class Trace(Operation):
         x_shape[self.axis2] = -1
         output_shape = list(filter((-1).__ne__, x_shape))
         output_dtype = backend.standardize_dtype(x.dtype)
-        if output_dtype == "int64":
-            output_dtype = "int64"
-        elif output_dtype == "uint32":
-            output_dtype = "uint32"
-        else:
+        if output_dtype not in ("int64", "uint32", "uint64"):
             output_dtype = dtypes.result_type(output_dtype, "int32")
         return KerasTensor(output_shape, dtype=output_dtype)
 
@@ -5821,9 +5817,10 @@ class Var(Operation):
         return backend.numpy.var(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
+        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
+            dtype=output_dtype,
         )
 
 

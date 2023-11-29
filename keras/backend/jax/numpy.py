@@ -130,6 +130,7 @@ def arange(start, stop=None, step=1, dtype=None):
 
 
 def arccos(x):
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:
@@ -139,6 +140,7 @@ def arccos(x):
 
 
 def arccosh(x):
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:
@@ -148,6 +150,7 @@ def arccosh(x):
 
 
 def arcsin(x):
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:
@@ -157,6 +160,7 @@ def arcsin(x):
 
 
 def arcsinh(x):
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:
@@ -166,6 +170,7 @@ def arcsinh(x):
 
 
 def arctan(x):
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:
@@ -184,6 +189,7 @@ def arctan2(x1, x2):
 
 
 def arctanh(x):
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:
@@ -235,6 +241,9 @@ def ceil(x):
 
 
 def clip(x, x_min, x_max):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "bool":
+        x = cast(x, "int32")
     return jnp.clip(x, x_min, x_max)
 
 
@@ -255,6 +264,7 @@ def copy(x):
 
 
 def cos(x):
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:
@@ -264,6 +274,7 @@ def cos(x):
 
 
 def cosh(x):
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:
@@ -518,6 +529,7 @@ def median(x, axis=None, keepdims=False):
     # axis of jnp.median must be hashable
     if isinstance(axis, list):
         axis = tuple(axis)
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         x = cast(x, config.floatx())
 
@@ -645,6 +657,7 @@ def sign(x):
 
 
 def sin(x):
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:
@@ -654,6 +667,7 @@ def sin(x):
 
 
 def sinh(x):
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:
@@ -700,6 +714,7 @@ def take_along_axis(x, indices, axis=None):
 
 
 def tan(x):
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:
@@ -709,6 +724,7 @@ def tan(x):
 
 
 def tanh(x):
+    x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:
@@ -805,14 +821,15 @@ def transpose(x, axes=None):
 
 
 def var(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
     # `jnp.var` does not handle low precision (e.g., float16) overflow
     # correctly, so we compute with float32 and cast back to the original type.
-    outputs = jnp.var(x, axis=axis, keepdims=keepdims, dtype=jnp.float32)
-    dtype = getattr(x, "dtype", None)
-    if hasattr(dtype, "name") and "float" in dtype.name:
-        return cast(outputs, dtype)
-    else:
-        return cast(outputs, config.floatx())
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    return cast(
+        jnp.var(x, axis=axis, keepdims=keepdims, dtype=compute_dtype),
+        result_dtype,
+    )
 
 
 def sum(x, axis=None, keepdims=False):

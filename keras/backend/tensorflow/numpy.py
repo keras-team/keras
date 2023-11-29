@@ -532,7 +532,7 @@ def ceil(x):
 def clip(x, x_min, x_max):
     dtype = standardize_dtype(x.dtype)
     if dtype == "bool":
-        x = tf.cast(x, "int64")
+        x = tf.cast(x, "int32")
     return tf.clip_by_value(x, x_min, x_max)
 
 
@@ -1450,11 +1450,7 @@ def tile(x, repeats):
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if dtype == "int64":
-        dtype = "int64"
-    elif dtype == "uint32":
-        dtype = "uint32"
-    else:
+    if dtype not in ("int64", "uint32", "uint64"):
         dtype = dtypes.result_type(dtype, "int32")
     return tfnp.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 
@@ -1612,7 +1608,13 @@ def transpose(x, axes=None):
 
 
 def var(x, axis=None, keepdims=False):
-    return tfnp.var(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    return tf.cast(
+        tfnp.var(x, axis=axis, keepdims=keepdims, dtype=compute_dtype),
+        result_dtype,
+    )
 
 
 def sum(x, axis=None, keepdims=False):
