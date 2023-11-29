@@ -1,5 +1,7 @@
 import numpy as np
+import pytest
 
+from keras import backend
 from keras import ops
 from keras import testing
 from keras.metrics import reduction_metrics
@@ -123,6 +125,10 @@ class MetricWrapperTest(testing.TestCase):
         result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(0.54285, result, atol=1e-5)
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
     def test_masked(self):
         mse_obj = reduction_metrics.MeanMetricWrapper(
             fn=mse, name="mse", dtype="float32"
@@ -144,6 +150,10 @@ class MetricWrapperTest(testing.TestCase):
         result = mse_obj(y_true, y_pred)
         self.assertAllClose(expected, result, atol=1e-5)
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
     def test_masked_and_weighted(self):
         mse_obj = reduction_metrics.MeanMetricWrapper(
             fn=mse, name="mse", dtype="float32"
