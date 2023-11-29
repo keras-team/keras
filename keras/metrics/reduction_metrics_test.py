@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras import ops
 from keras import testing
 from keras.metrics import reduction_metrics
 from keras.saving import register_keras_serializable
@@ -121,3 +122,49 @@ class MetricWrapperTest(testing.TestCase):
         sample_weight = np.array([1.0, 1.5, 2.0, 2.5])
         result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(0.54285, result, atol=1e-5)
+
+    def test_masked(self):
+        mse_obj = reduction_metrics.MeanMetricWrapper(
+            fn=mse, name="mse", dtype="float32"
+        )
+        y_true = np.array(
+            [[0, 1, 0, 1, 0], [0, 0, 1, 1, 1], [1, 1, 1, 1, 0], [0, 0, 0, 0, 1]]
+        )
+        y_pred = np.array(
+            [[0, 0, 1, 1, 0], [1, 1, 1, 1, 1], [0, 1, 0, 1, 0], [1, 1, 1, 1, 1]]
+        )
+        mask = np.array([True, True, False, True])
+        expected = ((y_true[mask] - y_pred[mask]) ** 2).mean()
+
+        y_pred = ops.convert_to_tensor(y_pred)
+        y_true = ops.convert_to_tensor(y_true)
+        mask = ops.convert_to_tensor(mask)
+
+        y_pred._keras_mask = mask
+        result = mse_obj(y_true, y_pred)
+        self.assertAllClose(expected, result, atol=1e-5)
+
+    def test_masked_and_weighted(self):
+        mse_obj = reduction_metrics.MeanMetricWrapper(
+            fn=mse, name="mse", dtype="float32"
+        )
+        y_true = np.array(
+            [[0, 1, 0, 1, 0], [0, 0, 1, 1, 1], [1, 1, 1, 1, 0], [0, 0, 0, 0, 1]]
+        )
+        y_pred = np.array(
+            [[0, 0, 1, 1, 0], [1, 1, 1, 1, 1], [0, 1, 0, 1, 0], [1, 1, 1, 1, 1]]
+        )
+        mask = np.array([True, True, False, True])
+        sample_weight = np.array([1.0, 1.5, 2.0, 2.5])
+        expected = (
+            (y_true[mask] - y_pred[mask]) ** 2 * sample_weight[mask][:, None]
+        ).mean(1).sum() / sample_weight[mask].sum()
+
+        y_pred = ops.convert_to_tensor(y_pred)
+        y_true = ops.convert_to_tensor(y_true)
+        sample_weight = ops.convert_to_tensor(sample_weight)
+        mask = ops.convert_to_tensor(mask)
+
+        y_pred._keras_mask = mask
+        result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAllClose(expected, result, atol=1e-5)

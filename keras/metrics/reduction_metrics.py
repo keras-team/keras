@@ -10,15 +10,10 @@ from keras.saving import serialization_lib
 def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
     mask = getattr(values, "_keras_mask", None)
     values = ops.cast(values, dtype=dtype)
+    values = losses.loss.apply_mask(values, mask)
     if sample_weight is not None:
         sample_weight = ops.cast(sample_weight, dtype=dtype)
-        if mask is not None:
-            sample_weight, mask = losses.loss.squeeze_to_same_rank(
-                sample_weight, mask
-            )
-            sample_weight = ops.where(
-                mask, sample_weight, ops.zeros_like(sample_weight)
-            )
+        sample_weight = losses.loss.apply_mask(sample_weight, mask)
         # Update dimensions of weights to match with values if possible.
         values, sample_weight = losses.loss.squeeze_to_same_rank(
             values, sample_weight
@@ -203,13 +198,12 @@ class MeanMetricWrapper(Mean):
     def update_state(self, y_true, y_pred, sample_weight=None):
         mask = getattr(y_pred, "_keras_mask", None)
         values = self._fn(y_true, y_pred, **self._fn_kwargs)
-        if sample_weight is not None and mask is not None:
-            sample_weight, mask = losses.loss.squeeze_to_same_rank(
-                sample_weight, mask
-            )
-            sample_weight = ops.where(
-                mask, sample_weight, ops.zeros_like(sample_weight)
-            )
+        if mask is not None:
+            values = losses.loss.apply_mask(values, mask)
+            if sample_weight is None:
+                sample_weight = ops.cast(mask, values.dtype)
+            else:
+                sample_weight = losses.loss.apply_mask(sample_weight, mask)
         return super().update_state(values, sample_weight=sample_weight)
 
     def get_config(self):

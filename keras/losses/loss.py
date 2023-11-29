@@ -76,7 +76,7 @@ def standardize_reduction(reduction):
     if reduction not in allowed:
         raise ValueError(
             "Invalid value for argument `reduction`. "
-            f"Expected on of {allowed}. Received: "
+            f"Expected one of {allowed}. Received: "
             f"reduction={reduction}"
         )
     return reduction
@@ -112,10 +112,7 @@ def reduce_weighted_values(
         sample_weight, values = squeeze_to_same_rank(sample_weight, values)
         values = values * sample_weight
 
-    if mask is not None:
-        mask = ops.cast(mask, "bool")
-        mask, values = squeeze_to_same_rank(mask, values)
-        values = ops.where(mask, values, ops.zeros_like(values))
+    values = apply_mask(values, mask)
 
     if reduction is None or reduction == "none":
         return values
@@ -141,6 +138,16 @@ def reduce_weighted_values(
     allowed = {"sum_over_batch_size", "sum", None, "none"}
     raise ValueError(
         "Invalid value for argument `reduction`. "
-        f"Expected on of {allowed}. Received: "
+        f"Expected one of {allowed}. Received: "
         f"reduction={reduction}"
     )
+
+
+def apply_mask(values, mask):
+    if mask is None:
+        return values
+    mask = ops.cast(mask, "bool")
+    while len(mask.shape) < len(values.shape):
+        mask = ops.expand_dims(mask, axis=-1)
+    values, mask = squeeze_to_same_rank(values, mask)
+    return ops.where(mask, values, ops.zeros_like(values))
