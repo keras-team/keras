@@ -40,9 +40,7 @@ class ExamplePyDataset(py_dataset_adapter.PyDataset):
 
 
 class DictPyDataset(py_dataset_adapter.PyDataset):
-    def __init__(
-        self, inputs, batch_size=32, **kwargs
-    ):
+    def __init__(self, inputs, batch_size=32, **kwargs):
         super().__init__(**kwargs)
         self.inputs = inputs
         self.batch_size = batch_size
@@ -176,9 +174,7 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
             "y": np.random.random((40, 2)),
         }
         py_dataset = DictPyDataset(inputs, batch_size=4)
-        adapter = py_dataset_adapter.PyDatasetAdapter(
-            py_dataset, shuffle=False
-        )
+        adapter = py_dataset_adapter.PyDatasetAdapter(py_dataset, shuffle=False)
         gen = adapter.get_numpy_iterator()
         for batch in gen:
             self.assertEqual(len(batch), 2)
@@ -188,7 +184,7 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(bx.dtype, by.dtype)
             self.assertEqual(bx.shape, (4, 4))
             self.assertEqual(by.shape, (4, 2))
-        
+
         ds = adapter.get_tf_dataset()
         for batch in ds:
             self.assertEqual(len(batch), 2)
