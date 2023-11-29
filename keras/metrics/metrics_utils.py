@@ -615,7 +615,7 @@ def _filter_top_k(x, k):
 def confusion_matrix(
     labels,
     predictions,
-    num_classes=None,
+    num_classes,
     weights=None,
     dtype="int32",
 ):
@@ -652,9 +652,8 @@ def confusion_matrix(
     Args:
         labels: 1-D tensor of real labels for the classification task.
         predictions: 1-D tensor of predictions for a given classification.
-        num_classes: The possible number of labels the classification task can
-                    have. If this value is not provided, it will be calculated
-                    using both predictions and labels array.
+        num_classes: The possible number of labels the classification
+            task can have.
         weights: An optional tensor whose shape matches `predictions`.
         dtype: Data type of the confusion matrix.
 
@@ -670,11 +669,6 @@ def confusion_matrix(
     predictions = ops.cast(predictions, dtype)
     labels = ops.cast(labels, dtype)
 
-    if num_classes is None:
-        num_classes = ops.maximum(ops.max(predictions), ops.max(labels)) + 1
-    else:
-        num_classes = ops.cast(num_classes, dtype)
-
     if weights is not None:
         weights = ops.convert_to_tensor(weights, dtype)
 
@@ -682,6 +676,6 @@ def confusion_matrix(
     values = ops.ones_like(predictions, dtype) if weights is None else weights
     indices = ops.cast(indices, dtype="int64")
     values = ops.cast(values, dtype=dtype)
-    num_classes = ops.cast(num_classes, "int64")
+    num_classes = int(num_classes)
     confusion_matrix = ops.scatter(indices, values, (num_classes, num_classes))
     return confusion_matrix
