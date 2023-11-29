@@ -316,16 +316,16 @@ def unstack(x, num=None, axis=0):
     ]
 
 
-def device(device):
-    if isinstance(device, str):
+def device_scope(device_name):
+    if isinstance(device_name, str):
         # We support string value like "cpu:0", "gpu:1", etc.
-        jax_device = distribution_lib._to_jax_device(device)
-    elif not isinstance(device, jax.Device):
+        jax_device = distribution_lib._to_jax_device(device_name)
+    elif not isinstance(device_name, jax.Device):
         raise ValueError(
-            "Invalid value for argument `device`. "
+            "Invalid value for argument `device_name`. "
             "Expected a string like 'gpu:0' or a `jax.Device` instance. "
-            f"Received: device={device}"
+            f"Received: device_name='{device_name}'"
         )
     else:
-        jax_device = device
+        jax_device = device_name
     return jax.default_device(jax_device)

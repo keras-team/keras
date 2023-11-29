@@ -12,15 +12,19 @@ class DeviceTest(testing.TestCase):
         if not tf.config.list_physical_devices("GPU"):
             self.skipTest("Need at least one GPU for testing")
 
-        with backend.device("cpu:0"):
+        with backend.device_scope("cpu:0"):
             t = backend.numpy.ones((2, 1))
             self.assertIn("CPU:0", t.device)
+        with backend.device_scope("CPU:0"):
+            t = backend.numpy.ones((2, 1))
+            self.assertIn("CPU:0", t.device)
+
         # When leaving the scope, the device should be back with gpu:0
         t = backend.numpy.ones((2, 1))
         self.assertIn("GPU:0", t.device)
 
         # Also verify the explicit gpu device
-        with backend.device("gpu:0"):
+        with backend.device_scope("gpu:0"):
             t = backend.numpy.ones((2, 1))
             self.assertIn("GPU:0", t.device)
 
@@ -34,7 +38,10 @@ class DeviceTest(testing.TestCase):
         if platform != "gpu":
             self.skipTest("Need at least one GPU for testing")
 
-        with backend.device("cpu:0"):
+        with backend.device_scope("cpu:0"):
+            t = backend.numpy.ones((2, 1))
+            self.assertEqual(t.device(), jax.devices("cpu")[0])
+        with backend.device_scope("CPU:0"):
             t = backend.numpy.ones((2, 1))
             self.assertEqual(t.device(), jax.devices("cpu")[0])
 
@@ -43,14 +50,14 @@ class DeviceTest(testing.TestCase):
         self.assertEqual(t.device(), jax.devices("gpu")[0])
 
         # Also verify the explicit gpu device
-        with backend.device("gpu:0"):
+        with backend.device_scope("gpu:0"):
             t = backend.numpy.ones((2, 1))
             self.assertEqual(t.device(), jax.devices("gpu")[0])
 
     @pytest.mark.skipif(backend.backend() != "jax", reason="jax only")
     def test_invalid_jax_device(self):
-        with self.assertRaisesRegex(ValueError, "Received: device=123"):
-            backend.device(123).__enter__()
+        with self.assertRaisesRegex(ValueError, "Received: device='123'"):
+            backend.device_scope(123).__enter__()
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
     def test_torch_device_scope(self):
@@ -59,7 +66,10 @@ class DeviceTest(testing.TestCase):
         if not torch.cuda.device_count():
             self.skipTest("Need at least one GPU for testing")
 
-        with backend.device("cpu:0"):
+        with backend.device_scope("cpu:0"):
+            t = backend.numpy.ones((2, 1))
+            self.assertEqual(t.device, torch.device("cpu"))
+        with backend.device_scope("CPU:0"):
             t = backend.numpy.ones((2, 1))
             self.assertEqual(t.device, torch.device("cpu"))
 
@@ -68,11 +78,11 @@ class DeviceTest(testing.TestCase):
         self.assertEqual(t.device, torch.device("cuda", 0))
 
         # Also verify the explicit gpu -> cuda conversion
-        with backend.device("gpu:0"):
+        with backend.device_scope("gpu:0"):
             t = backend.numpy.ones((2, 1))
             self.assertEqual(t.device, torch.device("cuda", 0))
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
     def test_invalid_torch_device(self):
-        with self.assertRaisesRegex(ValueError, "Received: device=123"):
-            backend.device(123).__enter__()
+        with self.assertRaisesRegex(ValueError, "Received: device_name='123'"):
+            backend.device_scope(123).__enter__()

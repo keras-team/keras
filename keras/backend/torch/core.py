@@ -46,13 +46,12 @@ TORCH_DTYPES = {
 
 
 @contextlib.contextmanager
-def device(device):
+def device_scope(device_name):
     previous_device = global_state.get_global_attribute("torch_device", None)
-    device = _parse_device_input(device)
-    global_state.set_global_attribute("torch_device", device)
+    current_device = _parse_device_input(device_name)
+    global_state.set_global_attribute("torch_device", current_device)
     try:
-        with device:
-            yield
+        yield
     finally:
         global_state.set_global_attribute("torch_device", previous_device)
 
@@ -64,23 +63,22 @@ def get_device():
     return device
 
 
-def _parse_device_input(device):
-    if isinstance(device, str):
+def _parse_device_input(device_name):
+    if isinstance(device_name, str):
         # We support string value like "cpu:0", "gpu:1", and need to convert
         # "gpu" to "cuda"
-        if "gpu" in device:
-            device = device.replace("gpu", "cuda")
-        torch_device = torch.device(device)
-    elif not isinstance(device, torch.device):
+        device_name = device_name.lower()
+        if "gpu" in device_name:
+            device_name = device_name.replace("gpu", "cuda")
+        torch_device = torch.device(device_name)
+    elif not isinstance(device_name, torch.device):
         raise ValueError(
-            "Invalid value for argument `device`. "
+            "Invalid value for argument `device_name`. "
             "Expected a string like 'gpu:0' or a `torch.device` instance. "
-            f"Received: device={device}"
+            f"Received: device_name='{device_name}'"
         )
-    else:
-        torch_device = device
-    # The jax.Device instance can be used as context.
-    return torch_device
+    # The torch.Device instance can be used directly.
+    return device_name
 
 
 def to_torch_dtype(dtype):
@@ -92,10 +90,14 @@ def to_torch_dtype(dtype):
 
 class Variable(KerasVariable):
     def _initialize(self, value):
-        self._value = torch.nn.Parameter(
-            convert_to_tensor(value, dtype=self._dtype),
-            requires_grad=self.trainable,
-        ).to(get_device())
+        if isinstance(value, torch.nn.Parameter):
+            # Reuse same parameter
+            self._value = value
+        else:
+            self._value = torch.nn.Parameter(
+                convert_to_tensor(value, dtype=self._dtype),
+                requires_grad=self.trainable,
+            ).to(get_device())
 
     def _direct_assign(self, value):
         with torch.no_grad():
@@ -128,7 +130,7 @@ class Variable(KerasVariable):
     def value(self):
         value = super().value
         # Create and use a symbolic tensor stub in symbolic calls.
-        if get_device() == "meta" and str(value.device) != "meta":
+        if str(get_device()) == "meta" and str(value.device) != "meta":
             return torch.empty(
                 size=value.shape,
                 dtype=value.dtype,
@@ -279,14 +281,14 @@ def compute_output_spec(fn, *args, **kwargs):
             # First try instantiating all tensors on the `"meta"` device,
             # which  should give a "zero flop" way to trace shape, but does
             # not have universal support with torch operations.
-            with device("meta"):
+            with device_scope("meta"):
                 meta_args, meta_kwargs = tree.map_structure(
                     lambda x: convert_keras_tensor_to_torch(x, fill_value),
                     (args, kwargs),
                 )
                 return fn(*meta_args, **meta_kwargs)
         except:
-            with device(DEFAULT_DEVICE):
+            with device_scope(DEFAULT_DEVICE):
                 # If the `"meta"` device placement fails, fall back to tracing
                 # eagerly with tensors on the default device. This will be
                 # more robust, but more expensive.

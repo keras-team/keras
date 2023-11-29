@@ -101,10 +101,11 @@ class TorchModuleWrapper(Layer):
         from keras.backend.torch import Variable
 
         for param in self.module.parameters():
+            # The Variable will reuse the raw `param`
+            # and simply wrap it.
             variable = Variable(
                 initializer=param, trainable=param.requires_grad
             )
-            variable._value = param
             self._track_variable(variable)
         self.built = True
 

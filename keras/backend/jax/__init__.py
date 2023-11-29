@@ -12,7 +12,7 @@ from keras.backend.jax.core import compute_output_spec
 from keras.backend.jax.core import cond
 from keras.backend.jax.core import convert_to_numpy
 from keras.backend.jax.core import convert_to_tensor
-from keras.backend.jax.core import device
+from keras.backend.jax.core import device_scope
 from keras.backend.jax.core import is_tensor
 from keras.backend.jax.core import scatter
 from keras.backend.jax.core import shape

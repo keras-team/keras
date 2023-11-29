@@ -285,5 +285,5 @@ class name_scope(base_name_scope):
             self._tf_name_scope.__exit__(*args, **kwargs)
 
 
-def device(device):
-    return tf.device(device)
+def device_scope(device_name):
+    return tf.device(device_name)
