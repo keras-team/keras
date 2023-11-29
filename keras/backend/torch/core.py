@@ -70,11 +70,10 @@ def _parse_device_input(device_name):
         device_name = device_name.lower()
         if "gpu" in device_name:
             device_name = device_name.replace("gpu", "cuda")
-        torch_device = torch.device(device_name)
-    elif not isinstance(device_name, torch.device):
+    else:
         raise ValueError(
             "Invalid value for argument `device_name`. "
-            "Expected a string like 'gpu:0' or a `torch.device` instance. "
+            "Expected a string like 'gpu:0' or 'cpu'. "
             f"Received: device_name='{device_name}'"
         )
     # The torch.Device instance can be used directly.
