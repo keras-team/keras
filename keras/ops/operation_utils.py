@@ -6,6 +6,68 @@ import tree
 from keras.api_export import keras_export
 
 
+def broadcast_shapes(shape1, shape2):
+    """Broadcast input shapes to a unified shape.
+
+    Convert to list for mutability.
+
+    Args:
+        shape1: A tuple or list of integers.
+        shape2: A tuple or list of integers.
+
+    Returns:
+        output_shape (list of integers or `None`): The broadcasted shape.
+
+    Example:
+    >>> broadcast_shapes((5, 3), (1, 3))
+    [5, 3]
+    """
+    shape1 = list(shape1)
+    shape2 = list(shape2)
+    origin_shape1 = shape1
+    origin_shape2 = shape2
+
+    if len(shape1) > len(shape2):
+        shape2 = [1] * (len(shape1) - len(shape2)) + shape2
+    if len(shape1) < len(shape2):
+        shape1 = [1] * (len(shape2) - len(shape1)) + shape1
+    output_shape = list(shape1)
+    for i in range(len(shape1)):
+        if shape1[i] == 1:
+            output_shape[i] = shape2[i]
+        elif shape1[i] is None:
+            output_shape[i] = None if shape2[i] == 1 else shape2[i]
+        else:
+            if shape2[i] == 1 or shape2[i] is None or shape2[i] == shape1[i]:
+                output_shape[i] = shape1[i]
+            else:
+                raise ValueError(
+                    "Cannot broadcast shape, the failure dim has value "
+                    f"{shape1[i]}, which cannot be broadcasted to {shape2[i]}. "
+                    f"Input shapes are: {origin_shape1} and {origin_shape2}."
+                )
+
+    return output_shape
+
+
+def compute_expand_dims_output_shape(input_shape, axis):
+    """Compute the output shape for the `expand_dims` operation.
+
+    Args:
+        input_shape: Input shape.
+        axis: int for the axis to expand.
+
+    Returns:
+        Tuple of ints: The output shape after the `expand_dims` operation.
+    """
+    input_shape = list(input_shape)
+    if axis is None:
+        axis = len(input_shape)
+    elif axis < 0:
+        axis = len(input_shape) + 1 + axis
+    return tuple(input_shape[:axis] + [1] + input_shape[axis:])
+
+
 def compute_pooling_output_shape(
     input_shape,
     pool_size,
@@ -170,6 +232,41 @@ def compute_conv_output_shape(
     return output_shape
 
 
+def compute_matmul_output_shape(shape1, shape2):
+    """Compute the output shape of a `matmul` operation.
+
+    Args:
+        shape1: Shape of the left operand.
+        shape2: Shape of the right operand.
+
+    Returns:
+        Tuple of ints: The output shape for the `matmul` operation.
+    """
+    if len(shape1) == 1:
+        shape1 = (1, shape1[0])
+    if len(shape2) == 1:
+        shape2 = (shape2[0], 1)
+    if (
+        shape1[-1] is not None
+        and shape2[-2] is not None
+        and shape1[-1] != shape2[-2]
+    ):
+        raise ValueError(
+            "Inner dimensions (`x1.shape[-1]` and `x2.shape[-2]`) must be "
+            f"equal, but received `x1.shape={shape1}` and "
+            f"`x2.shape={shape2}`."
+        )
+
+    leading_shape = broadcast_shapes(shape1[:-2], shape2[:-2])
+    last_2_dims_shape = [shape1[-2], shape2[-1]]
+    output_shape = leading_shape + last_2_dims_shape
+    if len(shape1) == 1:
+        del output_shape[-2]
+    if len(shape2) == 1:
+        del output_shape[-1]
+    return tuple(output_shape)
+
+
 def compute_reshape_output_shape(input_shape, new_shape, new_shape_arg_name):
     """Converts `-1` in `new_shape` to either an actual dimension or `None`.
 
@@ -216,6 +313,28 @@ def compute_reshape_output_shape(input_shape, new_shape, new_shape_arg_name):
     output_shape = list(new_shape)
     output_shape[unknown_dim_index] = input_size // known_output_size
     return tuple(output_shape)
+
+
+def compute_transpose_output_shape(input_shape, axes):
+    """Compute the output shape for the `transpose` operation.
+
+    Args:
+        input_shape: Input shape.
+        axes: Permutation of the dimensions for the `transpose` operation.
+
+    Returns:
+        Tuple of ints: The output shape after the `transpose` operation.
+    """
+    input_shape = list(input_shape)
+    if axes is None:
+        return tuple(input_shape[::-1])
+
+    if len(axes) != len(input_shape):
+        raise ValueError(
+            "axis must be a list of the same length as the input shape, "
+            f"expected {len(input_shape)}, but received {len(axes)}."
+        )
+    return tuple(input_shape[ax] for ax in axes)
 
 
 def reduce_shape(shape, axis=None, keepdims=False):

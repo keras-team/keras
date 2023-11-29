@@ -101,7 +101,9 @@ class Variable(
 
 def convert_to_tensor(x, dtype=None, sparse=None):
     if isinstance(x, tf.SparseTensor) and sparse is not None and not sparse:
+        x_shape = x.shape
         x = tf.sparse.to_dense(x)
+        x.set_shape(x_shape)
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if not tf.is_tensor(x):
@@ -119,7 +121,9 @@ def convert_to_tensor(x, dtype=None, sparse=None):
 
 def convert_to_numpy(x):
     if isinstance(x, tf.SparseTensor):
+        x_shape = x.shape
         x = tf.sparse.to_dense(x)
+        x.set_shape(x_shape)
     elif isinstance(x, tf.IndexedSlices):
         x = tf.convert_to_tensor(x)
     return np.array(x)
