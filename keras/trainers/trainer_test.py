@@ -1010,9 +1010,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_recompile(self):
-        inputs = layers.Input((2,))
-        outputs = layers.Dense(3)(inputs)
-        model = keras.Model(inputs, outputs)
+        model = ExampleModel(units=3)
         model.compile(
             optimizer="sgd", loss="mse", metrics=["mean_squared_error"]
         )
@@ -1072,9 +1070,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         # Test that you can pass an infinite generator to `validation_data`
         # arg of fit() as well as a `validation_steps` argument and that
         # validation only runs for the correct number of steps.
-        inputs = layers.Input((2,))
-        outputs = layers.Dense(3)(inputs)
-        model = keras.Model(inputs, outputs)
+        model = ExampleModel(units=3)
         model.compile(optimizer="sgd", loss="mse", metrics=["mse"])
 
         class Recorder(keras.callbacks.Callback):
@@ -1105,3 +1101,41 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(recorder.train_counter, 3)
         self.assertEqual(recorder.val_counter, 4)
+
+    @parameterized.named_parameters(
+        [
+            ("fit", "fit", "training", "train"),
+            ("evaluate", "evaluate", "evaluating", "test"),
+            ("predict", "predict", "predicting", "predict"),
+        ]
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_stop_loop(self, method, method_gerund, on_end_name):
+        model = ExampleModel(units=3)
+        model.compile(optimizer="sgd", loss="mse", metrics=["mse"])
+
+        class Stopper(keras.callbacks.Callback):
+            def __init__(self, stop_count):
+                self.stop_count = stop_count
+                self.counter = 0
+                setattr(self, f"on_{on_end_name}_batch_end", self.batch_end)
+
+            def batch_end(self, *args, **kwargs):
+                self.counter += 1
+                if self.counter == self.stop_count:
+                    setattr(self.model, f"stop_{method_gerund}", True)
+
+        def infinite_gen():
+            while True:
+                x = np.ones((2, 2))
+                y = np.ones((2, 3))
+                yield (x,) if method == "predict" else (x, y)
+
+        stop_count = 5
+        stopper = Stopper(stop_count)
+
+        getattr(model, method)(
+            infinite_gen(),
+            callbacks=[stopper],
+        )
+        self.assertEqual(stopper.counter, stop_count)
