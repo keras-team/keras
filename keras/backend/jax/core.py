@@ -314,3 +314,18 @@ def unstack(x, num=None, axis=0):
         jax.lax.index_in_dim(x, i, axis, keepdims=False)
         for i in range(x.shape[axis])
     ]
+
+
+def device(device):
+    if isinstance(device, str):
+        # We support string value like "cpu:0", "gpu:1", etc.
+        jax_device = distribution_lib._to_jax_device(device)
+    elif not isinstance(device, jax.Device):
+        raise ValueError(
+            "Invalid value for argument `device`. "
+            "Expected a string like 'gpu:0' or a `jax.Device` instance. "
+            f"Received: device={device}"
+        )
+    else:
+        jax_device = device
+    return jax.default_device(jax_device)

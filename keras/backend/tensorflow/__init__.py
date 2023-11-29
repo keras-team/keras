@@ -13,6 +13,7 @@ from keras.backend.tensorflow.core import compute_output_spec
 from keras.backend.tensorflow.core import cond
 from keras.backend.tensorflow.core import convert_to_numpy
 from keras.backend.tensorflow.core import convert_to_tensor
+from keras.backend.tensorflow.core import device
 from keras.backend.tensorflow.core import is_tensor
 from keras.backend.tensorflow.core import name_scope
 from keras.backend.tensorflow.core import scatter

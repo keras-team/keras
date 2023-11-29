@@ -46,11 +46,13 @@ TORCH_DTYPES = {
 
 
 @contextlib.contextmanager
-def device_scope(device):
+def device(device):
     previous_device = global_state.get_global_attribute("torch_device", None)
+    device = _parse_device_input(device)
     global_state.set_global_attribute("torch_device", device)
     try:
-        yield
+        with device:
+            yield
     finally:
         global_state.set_global_attribute("torch_device", previous_device)
 
@@ -60,6 +62,25 @@ def get_device():
     if device is None:
         return DEFAULT_DEVICE
     return device
+
+
+def _parse_device_input(device):
+    if isinstance(device, str):
+        # We support string value like "cpu:0", "gpu:1", and need to convert
+        # "gpu" to "cuda"
+        if "gpu" in device:
+            device = device.replace("gpu", "cuda")
+        torch_device = torch.device(device)
+    elif not isinstance(device, torch.device):
+        raise ValueError(
+            "Invalid value for argument `device`. "
+            "Expected a string like 'gpu:0' or a `torch.device` instance. "
+            f"Received: device={device}"
+        )
+    else:
+        torch_device = device
+    # The jax.Device instance can be used as context.
+    return torch_device
 
 
 def to_torch_dtype(dtype):
@@ -258,14 +279,14 @@ def compute_output_spec(fn, *args, **kwargs):
             # First try instantiating all tensors on the `"meta"` device,
             # which  should give a "zero flop" way to trace shape, but does
             # not have universal support with torch operations.
-            with device_scope("meta"):
+            with device("meta"):
                 meta_args, meta_kwargs = tree.map_structure(
                     lambda x: convert_keras_tensor_to_torch(x, fill_value),
                     (args, kwargs),
                 )
                 return fn(*meta_args, **meta_kwargs)
         except:
-            with device_scope(DEFAULT_DEVICE):
+            with device(DEFAULT_DEVICE):
                 # If the `"meta"` device placement fails, fall back to tracing
                 # eagerly with tensors on the default device. This will be
                 # more robust, but more expensive.

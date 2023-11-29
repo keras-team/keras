@@ -27,6 +27,7 @@ from keras.backend.torch.core import compute_output_spec
 from keras.backend.torch.core import cond
 from keras.backend.torch.core import convert_to_numpy
 from keras.backend.torch.core import convert_to_tensor
+from keras.backend.torch.core import device
 from keras.backend.torch.core import is_tensor
 from keras.backend.torch.core import scatter
 from keras.backend.torch.core import shape
