@@ -389,6 +389,8 @@ def standardize_dtype(dtype):
         "torch" in str(dtype) or "jax.numpy" in str(dtype)
     ):
         dtype = str(dtype).split(".")[-1]
+    elif hasattr(dtype, "__name__"):
+        dtype = dtype.__name__
 
     if dtype not in ALLOWED_DTYPES:
         raise ValueError(f"Invalid dtype: {dtype}")
@@ -414,10 +416,10 @@ def standardize_shape(shape):
         if config.backend() == "jax" and str(e) == "b":
             # JAX2TF tracing represents `None` dimensions as `b`
             continue
-        if not isinstance(e, int):
+        if not is_int_dtype(type(e)):
             raise ValueError(
                 f"Cannot convert '{shape}' to a shape. "
-                f"Found invalid entry '{e}'. "
+                f"Found invalid entry '{e}' of type '{type(e)}'. "
             )
         if e < 0:
             raise ValueError(
