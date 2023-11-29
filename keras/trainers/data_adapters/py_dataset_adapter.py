@@ -209,13 +209,16 @@ class PyDatasetAdapter(DataAdapter):
         self._output_signature = tree.map_structure(get_tensor_spec, batch)
 
     def _standardize_batch(self, batch):
+        if isinstance(batch, dict):
+            return batch
         if isinstance(batch, np.ndarray):
             batch = (batch,)
         if isinstance(batch, list):
             batch = tuple(batch)
         if not isinstance(batch, tuple) or len(batch) not in {1, 2, 3}:
             raise ValueError(
-                "PyDataset.__getitem__() must return a tuple, either "
+                "PyDataset.__getitem__() must return a tuple or a dict. "
+                "If a tuple, it must be ordered either "
                 "(input,) or (inputs, targets) or "
                 "(inputs, targets, sample_weights). "
                 f"Received: {str(batch)[:100]}... of type {type(batch)}"
