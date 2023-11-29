@@ -152,51 +152,8 @@ from keras.backend import any_symbolic_tensors
 from keras.backend.common import dtypes
 from keras.ops import operation_utils
 from keras.ops.operation import Operation
+from keras.ops.operation_utils import broadcast_shapes
 from keras.ops.operation_utils import reduce_shape
-
-
-def broadcast_shapes(shape1, shape2):
-    """Broadcast input shapes to a unified shape.
-
-    Convert to list for mutability.
-
-    Args:
-        shape1: A tuple or list of integers.
-        shape2: A tuple or list of integers.
-
-    Returns:
-        output_shape (list of integers or `None`): The broadcasted shape.
-
-    Example:
-    >>> broadcast_shapes((5, 3), (1, 3))
-    [5, 3]
-    """
-    shape1 = list(shape1)
-    shape2 = list(shape2)
-    origin_shape1 = shape1
-    origin_shape2 = shape2
-
-    if len(shape1) > len(shape2):
-        shape2 = [1] * (len(shape1) - len(shape2)) + shape2
-    if len(shape1) < len(shape2):
-        shape1 = [1] * (len(shape2) - len(shape1)) + shape1
-    output_shape = list(shape1)
-    for i in range(len(shape1)):
-        if shape1[i] == 1:
-            output_shape[i] = shape2[i]
-        elif shape1[i] is None:
-            output_shape[i] = None if shape2[i] == 1 else shape2[i]
-        else:
-            if shape2[i] == 1 or shape2[i] is None or shape2[i] == shape1[i]:
-                output_shape[i] = shape1[i]
-            else:
-                raise ValueError(
-                    "Cannot broadcast shape, the failure dim has value "
-                    f"{shape1[i]}, which cannot be broadcasted to {shape2[i]}. "
-                    f"Input shapes are: {origin_shape1} and {origin_shape2}."
-                )
-
-    return output_shape
 
 
 def shape_equal(shape1, shape2, axis=None, allow_none=True):
@@ -2546,12 +2503,9 @@ class ExpandDims(Operation):
         return backend.numpy.expand_dims(x, self.axis)
 
     def compute_output_spec(self, x):
-        x_shape = list(x.shape)
-        if self.axis < 0:
-            axis = len(x.shape) + 1 + self.axis
-        else:
-            axis = self.axis
-        output_shape = x_shape[:axis] + [1] + x_shape[axis:]
+        output_shape = operation_utils.compute_expand_dims_output_shape(
+            x.shape, self.axis
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
 
@@ -3552,28 +3506,9 @@ class Matmul(Operation):
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
-        if len(x1_shape) == 1:
-            x1_shape = (1, x1_shape[0])
-        if len(x2_shape) == 1:
-            x2_shape = (x2_shape[0], 1)
-        if (
-            x1_shape[-1] is not None
-            and x2_shape[-2] is not None
-            and x1_shape[-1] != x2_shape[-2]
-        ):
-            raise ValueError(
-                "Inner dimensions (`x1.shape[-1]` and `x2.shape[-2]`) must be "
-                f"equal, but received `x1.shape={x1.shape}` and "
-                f"`x2.shape={x2.shape}`."
-            )
-
-        leading_shape = broadcast_shapes(x1_shape[:-2], x2_shape[:-2])
-        last_2_dims_shape = [x1_shape[-2], x2_shape[-1]]
-        output_shape = leading_shape + last_2_dims_shape
-        if len(x1.shape) == 1:
-            del output_shape[-2]
-        if len(x2.shape) == 1:
-            del output_shape[-1]
+        output_shape = operation_utils.compute_matmul_output_shape(
+            x1_shape, x2_shape
+        )
         x1_sparse = getattr(x1, "sparse", True)
         x2_sparse = getattr(x2, "sparse", True)
         output_sparse = x1_sparse and x2_sparse
@@ -5807,19 +5742,10 @@ class Transpose(Operation):
         return backend.numpy.transpose(x, axes=self.axes)
 
     def compute_output_spec(self, x):
-        x_shape = x.shape
+        output_shape = operation_utils.compute_transpose_output_shape(
+            x.shape, self.axes
+        )
         sparse = getattr(x, "sparse", False)
-        if self.axes is None:
-            return KerasTensor(x_shape[::-1], dtype=x.dtype, sparse=sparse)
-
-        if len(self.axes) != len(x_shape):
-            raise ValueError(
-                "axis must be a list of the same length as the input shape, "
-                f"expected {len(x_shape)}, but received {len(self.axes)}."
-            )
-        output_shape = []
-        for ax in self.axes:
-            output_shape.append(x_shape[ax])
         return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
 
 

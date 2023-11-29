@@ -52,21 +52,21 @@ def bincount(x, weights=None, minlength=0):
     else:
         dtype = "int32"
     if isinstance(x, tf.SparseTensor):
-        result = tf.sparse.bincount(
+        output = tf.sparse.bincount(
             x,
             weights=weights,
             minlength=minlength,
             axis=-1,
         )
-        result = tf.cast(result, dtype)
+        output = tf.cast(output, dtype)
         if x.shape.rank == 1:
             output_shape = (minlength,)
         else:
-            batch_size = tf.shape(result)[0]
+            batch_size = tf.shape(output)[0]
             output_shape = (batch_size, minlength)
         return tf.SparseTensor(
-            indices=result.indices,
-            values=result.values,
+            indices=output.indices,
+            values=output.values,
             dense_shape=output_shape,
         )
     return tf.cast(
@@ -109,6 +109,8 @@ def subtract(x1, x2):
 
 
 def matmul(x1, x2):
+    x1_shape = x1.shape
+    x2_shape = x2.shape
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     # TODO: GPU and XLA only support float types
@@ -117,15 +119,29 @@ def matmul(x1, x2):
     x1 = tf.cast(x1, compute_dtype)
     x2 = tf.cast(x2, compute_dtype)
 
-    def with_combined_batch_dimensions(a, b, fn_3d):
-        batch_shape = (
-            b.shape[:-2] if isinstance(b, tf.SparseTensor) else a.shape[:-2]
-        )
+    def with_combined_batch_dimensions(a, b, output_shape, fn_3d):
+        a_sparse = isinstance(a, tf.SparseTensor)
+        b_sparse = isinstance(b, tf.SparseTensor)
+        batch_shape = b.shape[:-2] if b_sparse else a.shape[:-2]
         batch_size = math.prod(batch_shape)
-        a_3d = reshape(a, [batch_size] + a.shape[-2:])
-        b_3d = reshape(b, [batch_size] + b.shape[-2:])
-        result = fn_3d(a_3d, b_3d)
-        return reshape(result, batch_shape + result.shape[1:])
+        a3d_shape = [batch_size] + a.shape[-2:]
+        a_3d = (
+            tf.sparse.reshape(a, a3d_shape)
+            if a_sparse
+            else tf.reshape(a, a3d_shape)
+        )
+        b3d_shape = [batch_size] + b.shape[-2:]
+        b_3d = (
+            tf.sparse.reshape(b, b3d_shape)
+            if b_sparse
+            else tf.reshape(b, b3d_shape)
+        )
+        result_3d = fn_3d(a_3d, b_3d)
+        return (
+            tf.sparse.reshape(result_3d, output_shape)
+            if isinstance(result_3d, tf.SparseTensor)
+            else tf.reshape(result_3d, output_shape)
+        )
 
     def sparse_sparse_matmul(a, b):
         dtype = a.values.dtype
@@ -172,31 +188,37 @@ def matmul(x1, x2):
 
     x1_sparse = isinstance(x1, tf.SparseTensor)
     x2_sparse = isinstance(x2, tf.SparseTensor)
-    if x1_sparse and x2_sparse:
-        if x1.shape.rank <= 3:
-            result = sparse_sparse_matmul(x1, x2)
-        else:
-            result = with_combined_batch_dimensions(
-                x1, x2, sparse_sparse_matmul
-            )
-    elif x1_sparse or x2_sparse:
-        # Sparse * dense or dense * sparse
-        sparse_rank = x1.shape.rank if x1_sparse else x2.shape.rank
+    if x1_sparse or x2_sparse:
+        from keras.ops.operation_utils import compute_matmul_output_shape
 
-        # Special case: embedding_lookup_sparse for sparse * dense and rank 2
-        if x1_sparse and sparse_rank == 2:
-            result = embedding_lookup_sparse_dense_matmul(x1, x2)
-        elif sparse_rank == 2:
-            result = tf.sparse.sparse_dense_matmul(x1, x2)
-        elif sparse_rank == 3:
-            result = sparse_dense_matmul_3d(x1, x2)
+        output_shape = compute_matmul_output_shape(x1_shape, x2_shape)
+        if x1_sparse and x2_sparse:
+            if x1_shape.rank <= 3:
+                output = sparse_sparse_matmul(x1, x2)
+            else:
+                output = with_combined_batch_dimensions(
+                    x1, x2, output_shape, sparse_sparse_matmul
+                )
         else:
-            result = with_combined_batch_dimensions(
-                x1, x2, sparse_dense_matmul_3d
-            )
+            # Sparse * dense or dense * sparse
+            sparse_rank = x1_shape.rank if x1_sparse else x2_shape.rank
+
+            # Special case: embedding_lookup_sparse for sparse * dense, rank 2
+            if x1_sparse and sparse_rank == 2:
+                output = embedding_lookup_sparse_dense_matmul(x1, x2)
+            elif sparse_rank == 2:
+                output = tf.sparse.sparse_dense_matmul(x1, x2)
+            elif sparse_rank == 3:
+                output = sparse_dense_matmul_3d(x1, x2)
+            else:
+                output = with_combined_batch_dimensions(
+                    x1, x2, output_shape, sparse_dense_matmul_3d
+                )
+        output = tf.cast(output, result_dtype)
+        output.set_shape(output_shape)
+        return output
     else:
-        result = tfnp.matmul(x1, x2)
-    return tf.cast(result, result_dtype)
+        return tf.cast(tfnp.matmul(x1, x2), result_dtype)
 
 
 @sparse.elementwise_binary_intersection
@@ -286,8 +308,8 @@ def mean(x, axis=None, keepdims=False):
         result_dtype = compute_dtype
     else:
         result_dtype = ori_dtype
-    result = tfnp.mean(x, axis=axis, keepdims=keepdims, dtype=compute_dtype)
-    return tf.cast(result, result_dtype)
+    output = tfnp.mean(x, axis=axis, keepdims=keepdims, dtype=compute_dtype)
+    return tf.cast(output, result_dtype)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
@@ -521,7 +543,9 @@ def concatenate(xs, axis=0):
             return tf.sparse.concat(axis=axis, sp_inputs=xs)
         else:
             xs = [
-                tf.sparse.to_dense(x) if isinstance(x, tf.SparseTensor) else x
+                convert_to_tensor(x, sparse=False)
+                if isinstance(x, tf.SparseTensor)
+                else x
                 for x in xs
             ]
     xs = tf.nest.map_structure(convert_to_tensor, xs)
@@ -642,11 +666,13 @@ def digitize(x, bins):
             lambda y: tf.raw_ops.Bucketize(input=y, boundaries=bins), x
         )
     elif isinstance(x, tf.SparseTensor):
-        return tf.SparseTensor(
+        output = tf.SparseTensor(
             indices=tf.identity(x.indices),
             values=tf.raw_ops.Bucketize(input=x.values, boundaries=bins),
             dense_shape=tf.identity(x.dense_shape),
         )
+        output.set_shape(x.shape)
+        return output
     return tf.raw_ops.Bucketize(input=x, boundaries=bins)
 
 
@@ -688,7 +714,11 @@ def exp(x):
 
 def expand_dims(x, axis):
     if isinstance(x, tf.SparseTensor):
-        return tf.sparse.expand_dims(x, axis)
+        from keras.ops.operation_utils import compute_expand_dims_output_shape
+
+        output = tf.sparse.expand_dims(x, axis)
+        output.set_shape(compute_expand_dims_output_shape(x.shape, axis))
+        return output
     return tfnp.expand_dims(x, axis)
 
 
@@ -1238,7 +1268,14 @@ def repeat(x, repeats, axis=None):
 
 def reshape(x, new_shape):
     if isinstance(x, tf.SparseTensor):
-        return tf.sparse.reshape(x, new_shape)
+        from keras.ops.operation_utils import compute_reshape_output_shape
+
+        output_shape = compute_reshape_output_shape(
+            x.shape, new_shape, "new_shape"
+        )
+        output = tf.sparse.reshape(x, new_shape)
+        output.set_shape(output_shape)
+        return output
     return tfnp.reshape(x, new_shape)
 
 
@@ -1325,7 +1362,9 @@ def take(x, indices, axis=None):
                 f"`x.dtype={x.dtype}` when `indices` is a sparse tensor; "
                 "densifying `indices`."
             )
-            return tfnp.take(x, tf.sparse.to_dense(indices), axis=axis)
+            return tfnp.take(
+                x, convert_to_tensor(indices, sparse=False), axis=axis
+            )
         if axis is None:
             x = tf.reshape(x, (-1,))
         elif axis != 0:
@@ -1334,12 +1373,16 @@ def take(x, indices, axis=None):
                 f"`axis={axis}` when `indices` is a sparse tensor; "
                 "densifying `indices`."
             )
-            return tfnp.take(x, tf.sparse.to_dense(indices), axis=axis)
-        return tf.nn.safe_embedding_lookup_sparse(
+            return tfnp.take(
+                x, convert_to_tensor(indices, sparse=False), axis=axis
+            )
+        output = tf.nn.safe_embedding_lookup_sparse(
             embedding_weights=tf.convert_to_tensor(x),
             sparse_ids=tf.sparse.expand_dims(indices, axis=-1),
             default_id=0,
         )
+        output.set_shape(indices.shape + output.shape[len(indices.shape) :])
+        return output
     return tfnp.take(x, indices, axis=axis)
 
 
@@ -1540,21 +1583,19 @@ def sqrt(x):
 
 def squeeze(x, axis=None):
     if isinstance(x, tf.SparseTensor):
-        new_shape = list(x.shape)
-        gather_indices = list(range(len(new_shape)))
-        if axis is None:
-            for i in range(len(new_shape) - 1, -1, -1):
-                if new_shape[i] == 1:
-                    del new_shape[i]
-                    del gather_indices[i]
-        else:
-            if new_shape[axis] != 1:
-                raise ValueError(
-                    f"Cannot squeeze axis {axis}, because the "
-                    "dimension is not 1."
-                )
-            del new_shape[axis]
-            del gather_indices[axis]
+        static_shape = x.shape.as_list()
+        if axis is not None and static_shape[axis] != 1:
+            raise ValueError(
+                f"Cannot squeeze axis {axis}, because the "
+                "dimension is not 1."
+            )
+        dynamic_shape = tf.shape(x)
+        new_shape = []
+        gather_indices = []
+        for i, dim in enumerate(static_shape):
+            if not (dim == 1 if axis is None else i == axis):
+                new_shape.append(dim if dim is not None else dynamic_shape[i])
+                gather_indices.append(i)
         new_indices = tf.gather(x.indices, gather_indices, axis=1)
         return tf.SparseTensor(new_indices, x.values, tuple(new_shape))
     return tfnp.squeeze(x, axis=axis)
@@ -1562,7 +1603,11 @@ def squeeze(x, axis=None):
 
 def transpose(x, axes=None):
     if isinstance(x, tf.SparseTensor):
-        return tf.sparse.transpose(x, perm=axes)
+        from keras.ops.operation_utils import compute_transpose_output_shape
+
+        output = tf.sparse.transpose(x, perm=axes)
+        output.set_shape(compute_transpose_output_shape(x.shape, axes))
+        return output
     return tfnp.transpose(x, axes=axes)
 
 
