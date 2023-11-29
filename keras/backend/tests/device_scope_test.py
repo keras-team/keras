@@ -56,7 +56,7 @@ class DeviceTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "jax", reason="jax only")
     def test_invalid_jax_device(self):
-        with self.assertRaisesRegex(ValueError, "Received: device='123'"):
+        with self.assertRaisesRegex(ValueError, "Received: device_name='123'"):
             backend.device_scope(123).__enter__()
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
