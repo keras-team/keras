@@ -319,6 +319,7 @@ def unstack(x, num=None, axis=0):
 def device_scope(device_name):
     if isinstance(device_name, str):
         # We support string value like "cpu:0", "gpu:1", etc.
+        device_name = device_name.lower()
         jax_device = distribution_lib._to_jax_device(device_name)
     elif not isinstance(device_name, jax.Device):
         raise ValueError(
