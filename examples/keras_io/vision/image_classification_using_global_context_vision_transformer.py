@@ -941,7 +941,7 @@ class GCViT(keras.Model):
         path_drop: drop path rate.
         layer_scale: layer scaling coefficient.
         num_classes: number of classes.
-        head_act: activation function for head.
+        head_activation: activation function for head.
     """
 
     def __init__(
@@ -958,7 +958,7 @@ class GCViT(keras.Model):
         path_drop=0.1,
         layer_scale=None,
         num_classes=1000,
-        head_act="softmax",
+        head_activation="softmax",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -974,7 +974,7 @@ class GCViT(keras.Model):
         self.path_drop = path_drop
         self.layer_scale = layer_scale
         self.num_classes = num_classes
-        self.head_act = head_act
+        self.head_activation = head_activation
 
         self.patch_embed = PatchEmbed(embed_dim=embed_dim, name="patch_embed")
         self.pos_drop = keras.layers.Dropout(drop_rate, name="pos_drop")
@@ -1001,7 +1001,7 @@ class GCViT(keras.Model):
             self.levels.append(level)
         self.norm = keras.layers.LayerNormalization(axis=-1, epsilon=1e-05, name="norm")
         self.pool = keras.layers.GlobalAvgPool2D(name="pool")
-        self.head = keras.layers.Dense(num_classes, name="head", activation=head_act)
+        self.head = keras.layers.Dense(num_classes, name="head", activation=head_activation)
 
     def build(self, input_shape):
         super().build(input_shape)
