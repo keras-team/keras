@@ -85,7 +85,7 @@ Let's have a quick **overview** of our key components,
 For this network, it creates **patches/tokens** and converts them into **embeddings**.
 2. `Level:` It is the repetitive building block that extracts features using different
 blocks.
-3. `Global Token Gen./FeatExtract:` It generates **global tokens/patches** with
+3. `Global Token Gen./FeatureExtraction:` It generates **global tokens/patches** with
 **Depthwise-CNN**, **SE (Squeeze-Excitation)**, **CNN** and **MaxPooling**. So basically
 it's a Feature Extractor.
 4. `Block:` It is the repetitive module that applies attention to the features and
@@ -323,14 +323,14 @@ class PatchEmbed(keras.layers.Layer):
 > **Notes:** It is one of the two **CNN** modules that is used to imppose inductive bias.
 
 As we can see from above cell, in the `level` we have first used `to_q_global/Global
-Token Gen./FeatExtract`. Let's try to understand how it works,
+Token Gen./FeatureExtraction`. Let's try to understand how it works,
 
 * This module is series of `FeatureExtract` module, according to paper we need to repeat
 this module $K$ times, where
 $$K = \log_{2}(\frac{H}{h})$$
 $$H = feature\_map\_height$$
 $$W = feature\_map\_width$$
-* `FeatExtract:` This layer is very similar to `ReduceSize` module except it uses
+* `FeatureExtraction:` This layer is very similar to `ReduceSize` module except it uses
 **MaxPooling** module to reduce the dimension, it doesn't increse feature dimension
 (channelsie) and it doesn't uses **LayerNormalizaton**. This module is used to in
 `Generate Token Gen.` module repeatedly to generte **global tokens** for
@@ -350,7 +350,7 @@ width=800>
 """
 
 
-class FeatExtract(keras.layers.Layer):
+class FeatureExtraction(keras.layers.Layer):
     """Feature extraction block.
 
     Args:
@@ -390,7 +390,7 @@ class GlobalQueryGen(keras.layers.Layer):
     """Global query generator.
 
     Args:
-        keepdims: to keep the dimension of FeatExtract layer.
+        keepdims: to keep the dimension of FeatureExtraction layer.
         For instance, repeating log(56/7) = 3 blocks, with input
         window dimension 56 and output window dimension 7 at down-sampling
         ratio 2. Please check Fig.5 of GC ViT paper for details.
@@ -402,7 +402,7 @@ class GlobalQueryGen(keras.layers.Layer):
 
     def build(self, input_shape):
         self.to_q_global = [
-            FeatExtract(keepdims, name=f"to_q_global_{i}")
+            FeatureExtraction(keepdims, name=f"to_q_global_{i}")
             for i, keepdims in enumerate(self.keepdims)
         ]
         super().build(input_shape)
@@ -455,7 +455,7 @@ image-tokens with window-tokens even after image-tokens have larger dimensions t
 window-tokens? (from above figure image-tokens have shape $(1, 8, 8, 3)$ and
 window-tokens have shape $(1, 4, 4, 3)$). Yes, you are right we can't directly compare
 them hence we resize image-tokens to fit window-tokens with `Global Token
-Gen./FeatExtract` **CNN** module. The following table should give you a clear comparison,
+Gen./FeatureExtraction` **CNN** module. The following table should give you a clear comparison,
 
 | Model            | Query Tokens    | Key-Value Tokens  | Attention Type            | Attention Coverage |
 |------------------|-----------------|-------------------|---------------------------|--------------------|
@@ -796,8 +796,8 @@ class Block(keras.layers.Layer):
 
 In the model, the second module that we have used is `level`. Let's try to understand
 this module. As we can see from the `call` method,
-1. First it creates **global_token** with a series of `FeatExtract` modules. As we'll see
-later that `FeatExtract` is nothing but a simple **CNN** based module.
+1. First it creates **global_token** with a series of `FeatureExtraction` modules. As we'll see
+later that `FeatureExtraction` is nothing but a simple **CNN** based module.
 2. Then it uses series of`Block` modules to apply **local or global window attention**
 depending on depth level.
 3. Finally, it uses `ReduceSize` to reduce the dimension of **contextualized features**.
@@ -817,7 +817,7 @@ class Level(keras.layers.Layer):
         depth: number of layers in each stage.
         num_heads: number of heads in each stage.
         window_size: window size in each stage.
-        keepdims: dims to keep in FeatExtract.
+        keepdims: dims to keep in FeatureExtraction.
         downsample: bool argument for down-sampling.
         mlp_ratio: MLP ratio.
         qkv_bias: bool argument for query, key, value learnable bias.
