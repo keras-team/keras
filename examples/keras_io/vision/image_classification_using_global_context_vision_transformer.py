@@ -393,20 +393,20 @@ class GlobalQueryGen(keras.layers.Layer):
     """Global query generator.
 
     Args:
-        keep_dims: to keep the dimension of FeatExtract layer.
+        keepdims: to keep the dimension of FeatExtract layer.
         For instance, repeating log(56/7) = 3 blocks, with input
         window dimension 56 and output window dimension 7 at down-sampling
         ratio 2. Please check Fig.5 of GC ViT paper for details.
     """
 
-    def __init__(self, keep_dims=False, **kwargs):
+    def __init__(self, keepdims=False, **kwargs):
         super().__init__(**kwargs)
-        self.keep_dims = keep_dims
+        self.keepdims = keepdims
 
     def build(self, input_shape):
         self.to_q_global = [
             FeatExtract(keep_dim, name=f"to_q_global_{i}")
-            for i, keep_dim in enumerate(self.keep_dims)
+            for i, keep_dim in enumerate(self.keepdims)
         ]
         super().build(input_shape)
 
@@ -820,7 +820,7 @@ class Level(keras.layers.Layer):
         depth: number of layers in each stage.
         num_heads: number of heads in each stage.
         window_size: window size in each stage.
-        keep_dims: dims to keep in FeatExtract.
+        keepdims: dims to keep in FeatExtract.
         downsample: bool argument for down-sampling.
         mlp_ratio: MLP ratio.
         qkv_bias: bool argument for query, key, value learnable bias.
@@ -836,7 +836,7 @@ class Level(keras.layers.Layer):
         depth,
         num_heads,
         window_size,
-        keep_dims,
+        keepdims,
         downsample=True,
         mlp_ratio=4.0,
         qkv_bias=True,
@@ -851,7 +851,7 @@ class Level(keras.layers.Layer):
         self.depth = depth
         self.num_heads = num_heads
         self.window_size = window_size
-        self.keep_dims = keep_dims
+        self.keepdims = keepdims
         self.downsample = downsample
         self.mlp_ratio = mlp_ratio
         self.qkv_bias = qkv_bias
@@ -884,7 +884,7 @@ class Level(keras.layers.Layer):
             for i in range(self.depth)
         ]
         self.down = ReduceSize(keep_dim=False, name="downsample")
-        self.q_global_gen = GlobalQueryGen(self.keep_dims, name="q_global_gen")
+        self.q_global_gen = GlobalQueryGen(self.keepdims, name="q_global_gen")
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
@@ -982,7 +982,7 @@ class GCViT(keras.Model):
         self.patch_embed = PatchEmbed(embed_dim=embed_dim, name="patch_embed")
         self.pos_drop = keras.layers.Dropout(drop_rate, name="pos_drop")
         path_drops = np.linspace(0.0, path_drop, sum(depths))
-        keep_dims = [(0, 0, 0), (0, 0), (1,), (1,)]
+        keepdims = [(0, 0, 0), (0, 0), (1,), (1,)]
         self.levels = []
         for i in range(len(depths)):
             path_drop = path_drops[sum(depths[:i]) : sum(depths[: i + 1])].tolist()
@@ -990,7 +990,7 @@ class GCViT(keras.Model):
                 depth=depths[i],
                 num_heads=num_heads[i],
                 window_size=window_size[i],
-                keep_dims=keep_dims[i],
+                keepdims=keepdims[i],
                 downsample=(i < len(depths) - 1),
                 mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias,
