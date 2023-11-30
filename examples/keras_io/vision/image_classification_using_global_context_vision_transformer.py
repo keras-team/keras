@@ -342,7 +342,7 @@ tokens** in a image. This makes the computation very efficient.
 If we copy these global tokens for total $M$ local windows in a image where, $M = \frac{H
 \times W}{h \times w} = num\_window$, then output shape: $(B * M, h, w, C)$.
 
-> **Summary**: This module is used to `resize` the image to fit window.
+> Summary: This module is used to `resize` the image to fit window.
 
 <img
 src="https://raw.githubusercontent.com/awsaf49/gcvit-tf/main/image/global_token_annot.png"
