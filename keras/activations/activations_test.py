@@ -41,7 +41,7 @@ def _ref_hard_sigmoid(x):
 
 
 def _ref_hard_swish(x):
-    return x * np.minimum(np.maximum(0, x + 3.0), 6.0) * (1.0 / 6.0)
+    return x * np.minimum(np.maximum(0.0, x + 3.0), 6.0) * (1.0 / 6.0)
 
 
 def _ref_sigmoid(x):
