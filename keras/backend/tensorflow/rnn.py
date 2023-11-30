@@ -456,15 +456,14 @@ def gru(
     time_major=False,
     reset_after=True,
 ):
-    if not _is_cuddn_and_inputs_supported(
-        mask,
-        bias,
+    cudnn_supported = cudnn_ok(
         activation,
         recurrent_activation,
         unroll,
-        time_major,
+        use_bias=bias is not None,
         reset_after=reset_after,
-    ):
+    )
+    if not cudnn_supported:
         raise NotImplementedError
 
     from keras.backend.tensorflow import Variable
@@ -534,19 +533,22 @@ def _do_lstm_arguments_support_cudnn(
     )
 
 
-def _do_rnn_inputs_support_cudnn(mask, time_major):
-    if tf.sysconfig.get_build_info()["is_rocm_build"]:
-        if mask is not None:
-            return tf.reduce_all(mask)
-        return True
-    if mask is None:
-        return True
-    if time_major:
-        mask = tf.transpose(mask)
-    return tf.logical_and(
-        _is_sequence_right_padded(mask),
-        tf.logical_not(_has_fully_masked_sequence(mask)),
-    )
+# Returns a TF symbolic tensor array and requires to be wrapped in
+# `tf.function`. But that causes regression of 20x for LSTM/GRU.
+# See GitHub issues #18397 and #18854
+# def _do_rnn_inputs_support_cudnn(mask, time_major):
+#     if tf.sysconfig.get_build_info()["is_rocm_build"]:
+#         if mask is not None:
+#             return tf.reduce_all(mask)
+#         return True
+#     if mask is None:
+#         return True
+#     if time_major:
+#         mask = tf.transpose(mask)
+#     return tf.logical_and(
+#         _is_sequence_right_padded(mask),
+#         tf.logical_not(_has_fully_masked_sequence(mask)),
+#     )
 
 
 def _is_sequence_right_padded(mask):
@@ -800,31 +802,6 @@ def cudnn_ok(
     return args_supported and _is_gpu_available()
 
 
-@tf.function
-def _is_cuddn_and_inputs_supported(
-    mask,
-    bias,
-    activation,
-    recurrent_activation,
-    unroll,
-    time_major,
-    reset_after=None,
-):
-    """Returns True if inputs are supported and CUDNN is supported.
-    wrap in `tf.function` since inputs_supported returns a TF symbolic tensor
-    and cudnn_supported returns a python bool.
-    """
-    inputs_supported = _do_rnn_inputs_support_cudnn(mask, time_major)
-    cudnn_supported = cudnn_ok(
-        activation,
-        recurrent_activation,
-        unroll,
-        use_bias=bias is not None,
-        reset_after=reset_after,
-    )
-    return cudnn_supported and inputs_supported
-
-
 def lstm(
     inputs,
     initial_state_h,
@@ -840,9 +817,10 @@ def lstm(
     unroll=False,
     time_major=False,
 ):
-    if not _is_cuddn_and_inputs_supported(
-        mask, bias, activation, recurrent_activation, unroll, time_major
-    ):
+    cudnn_supported = cudnn_ok(
+        activation, recurrent_activation, unroll, use_bias=bias is not None
+    )
+    if not cudnn_supported:
         raise NotImplementedError
 
     from keras.backend.tensorflow import Variable
