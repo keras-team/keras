@@ -441,7 +441,6 @@ def rnn(
     return last_output, outputs, new_states
 
 
-@tf.function
 def gru(
     inputs,
     initial_state,
@@ -457,15 +456,15 @@ def gru(
     time_major=False,
     reset_after=True,
 ):
-    inputs_supported = _do_rnn_inputs_support_cudnn(mask, time_major)
-    cudnn_supported = cudnn_ok(
+    if not _is_cuddn_and_inputs_supported(
+        mask,
+        bias,
         activation,
         recurrent_activation,
         unroll,
-        use_bias=bias is not None,
+        time_major,
         reset_after=reset_after,
-    )
-    if not cudnn_supported or not inputs_supported:
+    ):
         raise NotImplementedError
 
     from keras.backend.tensorflow import Variable
@@ -655,7 +654,6 @@ def _is_gpu_available():
     return bool(tf.config.list_logical_devices("GPU"))
 
 
-@tf.function(autograph=False)
 def _cudnn_gru(
     inputs,
     initial_state,
@@ -803,6 +801,30 @@ def cudnn_ok(
 
 
 @tf.function
+def _is_cuddn_and_inputs_supported(
+    mask,
+    bias,
+    activation,
+    recurrent_activation,
+    unroll,
+    time_major,
+    reset_after=None,
+):
+    """Returns True if inputs are supported and CUDNN is supported.
+    wrap in `tf.function` since inputs_supported returns a TF symbolic tensor
+    and cudnn_supported returns a python bool.
+    """
+    inputs_supported = _do_rnn_inputs_support_cudnn(mask, time_major)
+    cudnn_supported = cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=bias is not None,
+        reset_after=reset_after,
+    )
+    return cudnn_supported and inputs_supported
+
+
 def lstm(
     inputs,
     initial_state_h,
@@ -818,11 +840,9 @@ def lstm(
     unroll=False,
     time_major=False,
 ):
-    inputs_supported = _do_rnn_inputs_support_cudnn(mask, time_major)
-    cudnn_supported = cudnn_ok(
-        activation, recurrent_activation, unroll, use_bias=bias is not None
-    )
-    if not cudnn_supported or not inputs_supported:
+    if not _is_cuddn_and_inputs_supported(
+        mask, bias, activation, recurrent_activation, unroll, time_major
+    ):
         raise NotImplementedError
 
     from keras.backend.tensorflow import Variable
@@ -855,7 +875,6 @@ def lstm(
         raise NotImplementedError
 
 
-@tf.function(autograph=False)
 def _cudnn_lstm(
     inputs,
     initial_state_h,
