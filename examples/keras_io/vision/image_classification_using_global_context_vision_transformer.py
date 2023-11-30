@@ -216,7 +216,6 @@ class ReduceSize(keras.layers.Layer):
             -1, 1e-05, name="norm1"
         )  # eps like PyTorch
         self.norm2 = keras.layers.LayerNormalization(-1, 1e-05, name="norm2")
-        super().build(input_shape)
 
     def call(self, inputs, **kwargs):
         x = self.norm1(inputs)
@@ -263,7 +262,6 @@ class MLP(keras.layers.Layer):
         self.fc2 = keras.layers.Dense(self.out_features, name="fc2")
         self.drop1 = keras.layers.Dropout(self.dropout, name="drop1")
         self.drop2 = keras.layers.Dropout(self.dropout, name="drop2")
-        super().build(input_shape)
 
     def call(self, inputs, **kwargs):
         x = self.fc1(inputs)
@@ -311,7 +309,6 @@ class PatchEmbed(keras.layers.Layer):
         self.pad = keras.layers.ZeroPadding2D(1, name="pad")
         self.proj = keras.layers.Conv2D(self.embed_dim, 3, 2, name="proj")
         self.conv_down = ReduceSize(keep_dim=True, name="conv_down")
-        super().build(input_shape)
 
     def call(self, inputs, **kwargs):
         x = self.pad(inputs)
