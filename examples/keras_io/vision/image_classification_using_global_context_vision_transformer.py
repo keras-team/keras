@@ -177,16 +177,16 @@ class ReduceSize(keras.layers.Layer):
     """Down-sampling block.
 
     Args:
-        keep_dim: if False spatial dim is reduced and channel dim is increased
+        keepdims: if False spatial dim is reduced and channel dim is increased
     """
 
-    def __init__(self, keep_dim=False, **kwargs):
+    def __init__(self, keepdims=False, **kwargs):
         super().__init__(**kwargs)
-        self.keep_dim = keep_dim
+        self.keepdims = keepdims
 
     def build(self, input_shape):
         embed_dim = input_shape[-1]
-        dim_out = embed_dim if self.keep_dim else 2 * embed_dim
+        dim_out = embed_dim if self.keepdims else 2 * embed_dim
         self.pad1 = keras.layers.ZeroPadding2D(1, name="pad1")
         self.pad2 = keras.layers.ZeroPadding2D(1, name="pad2")
         self.conv = [
@@ -308,7 +308,7 @@ class PatchEmbed(keras.layers.Layer):
     def build(self, input_shape):
         self.pad = keras.layers.ZeroPadding2D(1, name="pad")
         self.proj = keras.layers.Conv2D(self.embed_dim, 3, 2, name="proj")
-        self.conv_down = ReduceSize(keep_dim=True, name="conv_down")
+        self.conv_down = ReduceSize(keepdims=True, name="conv_down")
 
     def call(self, inputs, **kwargs):
         x = self.pad(inputs)
@@ -354,12 +354,12 @@ class FeatExtract(keras.layers.Layer):
     """Feature extraction block.
 
     Args:
-        keep_dim: bool argument for maintaining the resolution.
+        keepdims: bool argument for maintaining the resolution.
     """
 
-    def __init__(self, keep_dim=False, **kwargs):
+    def __init__(self, keepdims=False, **kwargs):
         super().__init__(**kwargs)
-        self.keep_dim = keep_dim
+        self.keepdims = keepdims
 
     def build(self, input_shape):
         embed_dim = input_shape[-1]
@@ -371,7 +371,7 @@ class FeatExtract(keras.layers.Layer):
             SE(name="conv_2"),
             keras.layers.Conv2D(embed_dim, 1, 1, use_bias=False, name="conv_3"),
         ]
-        if not self.keep_dim:
+        if not self.keepdims:
             self.pool = keras.layers.MaxPool2D(3, 2, name="pool")
         super().build(input_shape)
 
@@ -381,7 +381,7 @@ class FeatExtract(keras.layers.Layer):
         for layer in self.conv:
             xr = layer(xr)
         x = x + xr
-        if not self.keep_dim:
+        if not self.keepdims:
             x = self.pool(self.pad2(x))
         return x
 
@@ -402,8 +402,8 @@ class GlobalQueryGen(keras.layers.Layer):
 
     def build(self, input_shape):
         self.to_q_global = [
-            FeatExtract(keep_dim, name=f"to_q_global_{i}")
-            for i, keep_dim in enumerate(self.keepdims)
+            FeatExtract(keepdims, name=f"to_q_global_{i}")
+            for i, keepdims in enumerate(self.keepdims)
         ]
         super().build(input_shape)
 
@@ -880,7 +880,7 @@ class Level(keras.layers.Layer):
             )
             for i in range(self.depth)
         ]
-        self.down = ReduceSize(keep_dim=False, name="downsample")
+        self.down = ReduceSize(keepdims=False, name="downsample")
         self.q_global_gen = GlobalQueryGen(self.keepdims, name="q_global_gen")
         super().build(input_shape)
 
