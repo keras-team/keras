@@ -640,7 +640,7 @@ class Block(keras.layers.Layer):
         qkv_bias: bool argument for query, key, value learnable bias.
         qk_scale: bool argument to scaling query, key.
         drop: dropout rate.
-        attn_drop: attention dropout rate.
+        attention_dropout: attention dropout rate.
         path_drop: drop path rate.
         activation: activation function.
         layer_scale: layer scaling coefficient.
@@ -655,7 +655,7 @@ class Block(keras.layers.Layer):
         qkv_bias=True,
         qk_scale=None,
         dropout=0.0,
-        attn_drop=0.0,
+        attention_dropout=0.0,
         path_drop=0.0,
         activation="gelu",
         layer_scale=None,
@@ -669,7 +669,7 @@ class Block(keras.layers.Layer):
         self.qkv_bias = qkv_bias
         self.qk_scale = qk_scale
         self.dropout = dropout
-        self.attn_drop = attn_drop
+        self.attention_dropout = attention_dropout
         self.path_drop = path_drop
         self.activation = activation
         self.layer_scale = layer_scale
@@ -683,7 +683,7 @@ class Block(keras.layers.Layer):
             global_query=self.global_query,
             qkv_bias=self.qkv_bias,
             qk_scale=self.qk_scale,
-            attention_dropout=self.attn_drop,
+            attention_dropout=self.attention_dropout,
             projection_dropout=self.dropout,
             name="attn",
         )
@@ -823,7 +823,7 @@ class Level(keras.layers.Layer):
         qkv_bias: bool argument for query, key, value learnable bias.
         qk_scale: bool argument to scaling query, key.
         drop: dropout rate.
-        attn_drop: attention dropout rate.
+        attention_dropout: attention dropout rate.
         path_drop: drop path rate.
         layer_scale: layer scaling coefficient.
     """
@@ -839,7 +839,7 @@ class Level(keras.layers.Layer):
         qkv_bias=True,
         qk_scale=None,
         drop=0.0,
-        attn_drop=0.0,
+        attention_dropout=0.0,
         path_drop=0.0,
         layer_scale=None,
         **kwargs,
@@ -854,7 +854,7 @@ class Level(keras.layers.Layer):
         self.qkv_bias = qkv_bias
         self.qk_scale = qk_scale
         self.drop = drop
-        self.attn_drop = attn_drop
+        self.attention_dropout = attention_dropout
         self.path_drop = path_drop
         self.layer_scale = layer_scale
 
@@ -873,7 +873,7 @@ class Level(keras.layers.Layer):
                 qkv_bias=self.qkv_bias,
                 qk_scale=self.qk_scale,
                 drop=self.drop,
-                attn_drop=self.attn_drop,
+                attention_dropout=self.attention_dropout,
                 path_drop=path_drop[i],
                 layer_scale=self.layer_scale,
                 name=f"blocks_{i}",
@@ -937,7 +937,7 @@ class GCViT(keras.Model):
         mlp_ratio: MLP ratio.
         qkv_bias: bool argument for query, key, value learnable bias.
         qk_scale: bool argument to scaling query, key.
-        attn_drop: attention dropout rate.
+        attention_dropout: attention dropout rate.
         path_drop: drop path rate.
         layer_scale: layer scaling coefficient.
         num_classes: number of classes.
@@ -954,7 +954,7 @@ class GCViT(keras.Model):
         mlp_ratio=3.0,
         qkv_bias=True,
         qk_scale=None,
-        attn_drop=0.0,
+        attention_dropout=0.0,
         path_drop=0.1,
         layer_scale=None,
         num_classes=1000,
@@ -970,7 +970,7 @@ class GCViT(keras.Model):
         self.mlp_ratio = mlp_ratio
         self.qkv_bias = qkv_bias
         self.qk_scale = qk_scale
-        self.attn_drop = attn_drop
+        self.attention_dropout = attention_dropout
         self.path_drop = path_drop
         self.layer_scale = layer_scale
         self.num_classes = num_classes
@@ -993,7 +993,7 @@ class GCViT(keras.Model):
                 qkv_bias=qkv_bias,
                 qk_scale=qk_scale,
                 drop=drop_rate,
-                attn_drop=attn_drop,
+                attention_dropout=attention_dropout,
                 path_drop=path_drop,
                 layer_scale=layer_scale,
                 name=f"levels_{i}",
