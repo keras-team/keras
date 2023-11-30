@@ -38,6 +38,7 @@ TensorFlow, PyTorch, and JAX, showcasing the true potential of multi-backend Ker
 
 """
 ## Motivation
+
 > **Note:** In this section we'll learn about the backstory of GCViT and try to
 understand why it is proposed.
 
@@ -78,6 +79,7 @@ width=800>
 
 """
 ## Architecture
+
 Let's have a quick **overview** of our key components,
 1. `Stem/PatchEmbed:` A stem/patchify layer processes images at the network’s beginning.
 For this network, it creates **patches/tokens** and converts them into **embeddings**.
@@ -104,6 +106,7 @@ I've annotated the architecture figure to make it easier to digest,
 
 """
 ### Unit Blocks
+
 > **Note:** This blocks are used to build other modules throughout the paper. Most of the
 blocks are either borrowed from other work or modified version old work.
 
@@ -277,6 +280,7 @@ class MLP(keras.layers.Layer):
 
 """
 ### Stem
+
 > **Notes**: In the code, this module is referred to as **PatchEmbed** but on paper, it
 is referred to as **Stem**.
 
@@ -324,6 +328,7 @@ class PatchEmbed(keras.layers.Layer):
 
 """
 ### Global Token Gen.
+
 > **Notes:** It is one of the two **CNN** modules that is used to imppose inductive bias.
 
 As we can see from above cell, in the `level` we have first used `to_q_global/Global
@@ -424,6 +429,7 @@ class GlobalQueryGen(keras.layers.Layer):
 
 """
 ### Attention
+
 > **Notes:** This is the core contribution of the paper.
 
 As we can see from the `call` method,
@@ -605,6 +611,7 @@ class WindowAttention(keras.layers.Layer):
 
 """
 ### Block
+
 > **Notes:** This module doesn't have any Convolutional module.
 
 In the `level` second module that we have used is `block`. Let's try to understand how it
@@ -799,6 +806,7 @@ class Block(keras.layers.Layer):
 
 """
 ### Level
+
 > **Note:** This module has both Transformer and CNN modules.
 
 In the model, the second module that we have used is `level`. Let's try to understand
@@ -908,6 +916,7 @@ class Level(keras.layers.Layer):
 
 """
 ### Model
+
 Let's directly jump to the model. As we can see from the `call` method,
 1. It creates patch embeddings from an image. This layer doesn't flattens these
 embeddings which means output of this module will be $(batch,
@@ -1038,6 +1047,7 @@ class GCViT(keras.Model):
 
 """
 ## Build Model
+
 * Let's build a complete model with all the modules that we've explained above. We'll
 build **GCViT-XXTiny** model with the configuration mentioned in the paper.
 * Also we'll load the ported official **pre-trained** weights and try for some
@@ -1122,6 +1132,7 @@ AUTO = tf.data.AUTOTUNE
 
 """
 ## Data Loader
+
 """
 
 
@@ -1143,6 +1154,7 @@ def make_dataset(dataset: tf.data.Dataset, train: bool, image_size: int = IMAGE_
 
 """
 ### Flower Dataset
+
 """
 
 train_dataset, val_dataset = tfds.load(
@@ -1174,6 +1186,7 @@ model.compile(
 
 """
 ### Training
+
 """
 
 history = model.fit(
