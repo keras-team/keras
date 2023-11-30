@@ -290,7 +290,7 @@ creates **overlapping patches**. We can notice that from the code,
 `Conv2D(self.embed_dim, kernel_size=3, strides=2, name='proj')`. If we wanted
 **non-overlapping** patches then we would've used the same `kernel_size` and `stride`.
 5. This module reduces the spatial dimension of input by $4x$.
-> **Summary:** image $\rightarrow$ padding $\rightarrow$ convolution $\rightarrow$
+> Summary: image → padding → convolution →
 (feature_extract + downsample)
 """
 
@@ -803,8 +803,8 @@ later that `FeatureExtraction` is nothing but a simple **CNN** based module.
 depending on depth level.
 3. Finally, it uses `ReduceSize` to reduce the dimension of **contextualized features**.
 
-> **Summary:** feature_map $\rightarrow$ global_token $\rightarrow$ local/global window
-attention $\rightarrow$ dowsample
+> Summary: feature_map → global_token → local/global window
+attention → dowsample
 
 <img src="https://raw.githubusercontent.com/awsaf49/gcvit-tf/main/image/level.png"
 width=400>
@@ -920,9 +920,9 @@ In the last layer paper doesn't use **downsample** and increase **channels**.
 shape after this module is $(batch, embed\_dim \times 2^{n-1})$
 7. Finally, pooled features are sent to `Dense/Linear` module for classification.
 
-> **Sumamry:** image $\rightarrow$ (patchs + embedding) $\rightarrow$ dropout
-$\rightarrow$ (attention + feature extraction) $\rightarrow$ normalizaion $\rightarrow$
-pooling $\rightarrow$ classify
+> Sumamry: image → (patchs + embedding) → dropout
+→ (attention + feature extraction) → normalizaion →
+pooling → classify
 """
 
 
