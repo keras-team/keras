@@ -46,9 +46,10 @@ TORCH_DTYPES = {
 
 
 @contextlib.contextmanager
-def device_scope(device):
+def device_scope(device_name):
     previous_device = global_state.get_global_attribute("torch_device", None)
-    global_state.set_global_attribute("torch_device", device)
+    current_device = _parse_device_input(device_name)
+    global_state.set_global_attribute("torch_device", current_device)
     try:
         yield
     finally:
@@ -62,6 +63,23 @@ def get_device():
     return device
 
 
+def _parse_device_input(device_name):
+    if isinstance(device_name, str):
+        # We support string value like "cpu:0", "gpu:1", and need to convert
+        # "gpu" to "cuda"
+        device_name = device_name.lower()
+        if "gpu" in device_name:
+            device_name = device_name.replace("gpu", "cuda")
+    else:
+        raise ValueError(
+            "Invalid value for argument `device_name`. "
+            "Expected a string like 'gpu:0' or 'cpu'. "
+            f"Received: device_name='{device_name}'"
+        )
+    # The torch.Device instance can be used directly.
+    return device_name
+
+
 def to_torch_dtype(dtype):
     standardized_dtype = TORCH_DTYPES.get(standardize_dtype(dtype), None)
     if standardized_dtype is None:
@@ -71,10 +89,14 @@ def to_torch_dtype(dtype):
 
 class Variable(KerasVariable):
     def _initialize(self, value):
-        self._value = torch.nn.Parameter(
-            convert_to_tensor(value, dtype=self._dtype),
-            requires_grad=self.trainable,
-        ).to(get_device())
+        if isinstance(value, torch.nn.Parameter):
+            # Reuse same parameter
+            self._value = value
+        else:
+            self._value = torch.nn.Parameter(
+                convert_to_tensor(value, dtype=self._dtype),
+                requires_grad=self.trainable,
+            ).to(get_device())
 
     def _direct_assign(self, value):
         with torch.no_grad():
@@ -107,7 +129,7 @@ class Variable(KerasVariable):
     def value(self):
         value = super().value
         # Create and use a symbolic tensor stub in symbolic calls.
-        if get_device() == "meta" and str(value.device) != "meta":
+        if str(get_device()) == "meta" and str(value.device) != "meta":
             return torch.empty(
                 size=value.shape,
                 dtype=value.dtype,

@@ -426,6 +426,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.eval()
 
         self.make_test_function()
+        self.stop_evaluating = False
         callbacks.on_test_begin()
         logs = None
         self.reset_metrics()
@@ -433,6 +434,8 @@ class TorchTrainer(base_trainer.Trainer):
             callbacks.on_test_batch_begin(step)
             logs = self.test_function(data)
             callbacks.on_test_batch_end(step, self._pythonify_logs(logs))
+            if self.stop_evaluating:
+                break
         logs = self.get_metrics_result()
         callbacks.on_test_end(logs)
 
@@ -484,6 +487,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.eval()
 
         self.make_predict_function()
+        self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
         for step, data in epoch_iterator.enumerate_epoch():
@@ -491,6 +495,8 @@ class TorchTrainer(base_trainer.Trainer):
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+            if self.stop_predicting:
+                break
         callbacks.on_predict_end()
         outputs = tree.map_structure(backend.convert_to_numpy, outputs)
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
