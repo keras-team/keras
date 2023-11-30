@@ -86,7 +86,7 @@ For this network, it creates **patches/tokens** and converts them into **embeddi
 2. `Level:` It is the repetitive building block that extracts features using different
 blocks.
 3. `Global Token Gen./FeatureExtraction:` It generates **global tokens/patches** with
-**Depthwise-CNN**, **SE (Squeeze-Excitation)**, **CNN** and **MaxPooling**. So basically
+**Depthwise-CNN**, **SqueezeAndExcitation (Squeeze-Excitation)**, **CNN** and **MaxPooling**. So basically
 it's a Feature Extractor.
 4. `Block:` It is the repetitive module that applies attention to the features and
 projects them to a certain dimension.
@@ -110,14 +110,14 @@ I've annotated the architecture figure to make it easier to digest,
 > **Note:** This blocks are used to build other modules throughout the paper. Most of the
 blocks are either borrowed from other work or modified version old work.
 
-1. `SE`: **Squeeze-Excitation (SE)** aka **Bottleneck** module acts sd kind of **channel
+1. `SqueezeAndExcitation`: **Squeeze-Excitation (SE)** aka **Bottleneck** module acts sd kind of **channel
 attention**. It consits of **AvgPooling**, **Dense/FullyConnected (FC)/Linear** ,
 **GELU** and **Sigmoid** module.
 <img src="https://raw.githubusercontent.com/awsaf49/gcvit-tf/main/image/se_annot.png"
 width=400>
 
 2. `Fused-MBConv:` This is similar to the one used in **EfficientNetV2**. It uses
-**Depthwise-Conv**, **GELU**, **SE**, **Conv**, to extract feature with a resiudal
+**Depthwise-Conv**, **GELU**, **SqueezeAndExcitation**, **Conv**, to extract feature with a resiudal
 connection. Note that, no new module is declared for this one, we simply applied
 corresponding modules directly.
 <img src="https://raw.githubusercontent.com/awsaf49/gcvit-tf/main/image/fmb_annot.png"
@@ -141,7 +141,7 @@ dimension.
 """
 
 
-class SE(keras.layers.Layer):
+class SqueezeAndExcitation(keras.layers.Layer):
     """Squeeze and excitation block.
 
     Args:
@@ -194,7 +194,7 @@ class ReduceSize(keras.layers.Layer):
                 kernel_size=3, strides=1, padding="valid", use_bias=False, name="conv_0"
             ),
             keras.layers.Activation("gelu", name="conv_1"),
-            SE(name="conv_2"),
+            SqueezeAndExcitation(name="conv_2"),
             keras.layers.Conv2D(
                 embed_dim,
                 kernel_size=1,
@@ -368,7 +368,7 @@ class FeatureExtraction(keras.layers.Layer):
         self.conv = [
             keras.layers.DepthwiseConv2D(3, 1, use_bias=False, name="conv_0"),
             keras.layers.Activation("gelu", name="conv_1"),
-            SE(name="conv_2"),
+            SqueezeAndExcitation(name="conv_2"),
             keras.layers.Conv2D(embed_dim, 1, 1, use_bias=False, name="conv_3"),
         ]
         if not self.keepdims:
