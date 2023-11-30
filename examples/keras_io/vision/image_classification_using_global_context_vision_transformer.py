@@ -17,6 +17,7 @@ pip install --upgrade keras_cv
 import keras
 from keras_cv.layers import DropPath
 from keras import ops
+from keras import layers
 
 import tensorflow as tf  # only for dataloader
 import tensorflow_datasets as tfds  # for flower dataset
@@ -141,7 +142,7 @@ dimension.
 """
 
 
-class SqueezeAndExcitation(keras.layers.Layer):
+class SqueezeAndExcitation(layers.Layer):
     """Squeeze and excitation block.
 
     Args:
@@ -157,12 +158,12 @@ class SqueezeAndExcitation(keras.layers.Layer):
     def build(self, input_shape):
         inp = input_shape[-1]
         self.output_dim = self.output_dim or inp
-        self.avg_pool = keras.layers.GlobalAvgPool2D(keepdims=True, name="avg_pool")
+        self.avg_pool = layers.GlobalAvgPool2D(keepdims=True, name="avg_pool")
         self.fc = [
-            keras.layers.Dense(int(inp * self.expansion), use_bias=False, name="fc_0"),
-            keras.layers.Activation("gelu", name="fc_1"),
-            keras.layers.Dense(self.output_dim, use_bias=False, name="fc_2"),
-            keras.layers.Activation("sigmoid", name="fc_3"),
+            layers.Dense(int(inp * self.expansion), use_bias=False, name="fc_0"),
+            layers.Activation("gelu", name="fc_1"),
+            layers.Dense(self.output_dim, use_bias=False, name="fc_2"),
+            layers.Activation("sigmoid", name="fc_3"),
         ]
         super().build(input_shape)
 
@@ -173,7 +174,7 @@ class SqueezeAndExcitation(keras.layers.Layer):
         return x * inputs
 
 
-class ReduceSize(keras.layers.Layer):
+class ReduceSize(layers.Layer):
     """Down-sampling block.
 
     Args:
@@ -187,15 +188,15 @@ class ReduceSize(keras.layers.Layer):
     def build(self, input_shape):
         embed_dim = input_shape[-1]
         dim_out = embed_dim if self.keepdims else 2 * embed_dim
-        self.pad1 = keras.layers.ZeroPadding2D(1, name="pad1")
-        self.pad2 = keras.layers.ZeroPadding2D(1, name="pad2")
+        self.pad1 = layers.ZeroPadding2D(1, name="pad1")
+        self.pad2 = layers.ZeroPadding2D(1, name="pad2")
         self.conv = [
-            keras.layers.DepthwiseConv2D(
+            layers.DepthwiseConv2D(
                 kernel_size=3, strides=1, padding="valid", use_bias=False, name="conv_0"
             ),
-            keras.layers.Activation("gelu", name="conv_1"),
+            layers.Activation("gelu", name="conv_1"),
             SqueezeAndExcitation(name="conv_2"),
-            keras.layers.Conv2D(
+            layers.Conv2D(
                 embed_dim,
                 kernel_size=1,
                 strides=1,
@@ -204,7 +205,7 @@ class ReduceSize(keras.layers.Layer):
                 name="conv_3",
             ),
         ]
-        self.reduction = keras.layers.Conv2D(
+        self.reduction = layers.Conv2D(
             dim_out,
             kernel_size=3,
             strides=2,
@@ -212,10 +213,10 @@ class ReduceSize(keras.layers.Layer):
             use_bias=False,
             name="reduction",
         )
-        self.norm1 = keras.layers.LayerNormalization(
+        self.norm1 = layers.LayerNormalization(
             -1, 1e-05, name="norm1"
         )  # eps like PyTorch
-        self.norm2 = keras.layers.LayerNormalization(-1, 1e-05, name="norm2")
+        self.norm2 = layers.LayerNormalization(-1, 1e-05, name="norm2")
 
     def call(self, inputs, **kwargs):
         x = self.norm1(inputs)
@@ -229,7 +230,7 @@ class ReduceSize(keras.layers.Layer):
         return x
 
 
-class MLP(keras.layers.Layer):
+class MLP(layers.Layer):
     """Multi-Layer Perceptron (MLP) block.
 
     Args:
@@ -257,11 +258,11 @@ class MLP(keras.layers.Layer):
         self.in_features = input_shape[-1]
         self.hidden_features = self.hidden_features or self.in_features
         self.out_features = self.out_features or self.in_features
-        self.fc1 = keras.layers.Dense(self.hidden_features, name="fc1")
-        self.act = keras.layers.Activation(self.activation, name="act")
-        self.fc2 = keras.layers.Dense(self.out_features, name="fc2")
-        self.drop1 = keras.layers.Dropout(self.dropout, name="drop1")
-        self.drop2 = keras.layers.Dropout(self.dropout, name="drop2")
+        self.fc1 = layers.Dense(self.hidden_features, name="fc1")
+        self.act = layers.Activation(self.activation, name="act")
+        self.fc2 = layers.Dense(self.out_features, name="fc2")
+        self.drop1 = layers.Dropout(self.dropout, name="drop1")
+        self.drop2 = layers.Dropout(self.dropout, name="drop2")
 
     def call(self, inputs, **kwargs):
         x = self.fc1(inputs)
@@ -294,7 +295,7 @@ creates **overlapping patches**. We can notice that from the code,
 """
 
 
-class PatchEmbed(keras.layers.Layer):
+class PatchEmbed(layers.Layer):
     """Patch embedding block.
 
     Args:
@@ -306,8 +307,8 @@ class PatchEmbed(keras.layers.Layer):
         self.embed_dim = embed_dim
 
     def build(self, input_shape):
-        self.pad = keras.layers.ZeroPadding2D(1, name="pad")
-        self.proj = keras.layers.Conv2D(self.embed_dim, 3, 2, name="proj")
+        self.pad = layers.ZeroPadding2D(1, name="pad")
+        self.proj = layers.Conv2D(self.embed_dim, 3, 2, name="proj")
         self.conv_down = ReduceSize(keepdims=True, name="conv_down")
 
     def call(self, inputs, **kwargs):
@@ -350,7 +351,7 @@ width=800>
 """
 
 
-class FeatureExtraction(keras.layers.Layer):
+class FeatureExtraction(layers.Layer):
     """Feature extraction block.
 
     Args:
@@ -363,16 +364,16 @@ class FeatureExtraction(keras.layers.Layer):
 
     def build(self, input_shape):
         embed_dim = input_shape[-1]
-        self.pad1 = keras.layers.ZeroPadding2D(1, name="pad1")
-        self.pad2 = keras.layers.ZeroPadding2D(1, name="pad2")
+        self.pad1 = layers.ZeroPadding2D(1, name="pad1")
+        self.pad2 = layers.ZeroPadding2D(1, name="pad2")
         self.conv = [
-            keras.layers.DepthwiseConv2D(3, 1, use_bias=False, name="conv_0"),
-            keras.layers.Activation("gelu", name="conv_1"),
+            layers.DepthwiseConv2D(3, 1, use_bias=False, name="conv_0"),
+            layers.Activation("gelu", name="conv_1"),
             SqueezeAndExcitation(name="conv_2"),
-            keras.layers.Conv2D(embed_dim, 1, 1, use_bias=False, name="conv_3"),
+            layers.Conv2D(embed_dim, 1, 1, use_bias=False, name="conv_3"),
         ]
         if not self.keepdims:
-            self.pool = keras.layers.MaxPool2D(3, 2, name="pool")
+            self.pool = layers.MaxPool2D(3, 2, name="pool")
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
@@ -386,7 +387,7 @@ class FeatureExtraction(keras.layers.Layer):
         return x
 
 
-class GlobalQueryGenerator(keras.layers.Layer):
+class GlobalQueryGenerator(layers.Layer):
     """Global query generator.
 
     Args:
@@ -467,7 +468,7 @@ Gen./FeatureExtraction` **CNN** module. The following table should give you a cl
 """
 
 
-class WindowAttention(keras.layers.Layer):
+class WindowAttention(layers.Layer):
     """Local window attention.
 
     This implementation was proposed by
@@ -509,7 +510,7 @@ class WindowAttention(keras.layers.Layer):
         head_dim = embed_dim // self.num_heads
         self.scale = self.qk_scale or head_dim**-0.5
         self.qkv_size = 3 - int(self.global_query)
-        self.qkv = keras.layers.Dense(
+        self.qkv = layers.Dense(
             embed_dim * self.qkv_size, use_bias=self.qkv_bias, name="qkv"
         )
         self.relative_position_bias_table = self.add_weight(
@@ -522,10 +523,10 @@ class WindowAttention(keras.layers.Layer):
             trainable=True,
             dtype=self.dtype,
         )
-        self.attn_drop = keras.layers.Dropout(self.attention_dropout, name="attn_drop")
-        self.proj = keras.layers.Dense(embed_dim, name="proj")
-        self.proj_drop = keras.layers.Dropout(self.projection_dropout, name="proj_drop")
-        self.softmax = keras.layers.Activation("softmax", name="softmax")
+        self.attn_drop = layers.Dropout(self.attention_dropout, name="attn_drop")
+        self.proj = layers.Dense(embed_dim, name="proj")
+        self.proj_drop = layers.Dropout(self.projection_dropout, name="proj_drop")
+        self.softmax = layers.Activation("softmax", name="softmax")
         super().build(input_shape)
 
     def get_relative_position_index(self):
@@ -629,7 +630,7 @@ of iterating over them.
 """
 
 
-class Block(keras.layers.Layer):
+class Block(layers.Layer):
     """GCViT block.
 
     Args:
@@ -676,7 +677,7 @@ class Block(keras.layers.Layer):
 
     def build(self, input_shape):
         B, H, W, C = input_shape[0]
-        self.norm1 = keras.layers.LayerNormalization(-1, 1e-05, name="norm1")
+        self.norm1 = layers.LayerNormalization(-1, 1e-05, name="norm1")
         self.attn = WindowAttention(
             window_size=self.window_size,
             num_heads=self.num_heads,
@@ -689,7 +690,7 @@ class Block(keras.layers.Layer):
         )
         self.drop_path1 = DropPath(self.path_drop)
         self.drop_path2 = DropPath(self.path_drop)
-        self.norm2 = keras.layers.LayerNormalization(-1, 1e-05, name="norm2")
+        self.norm2 = layers.LayerNormalization(-1, 1e-05, name="norm2")
         self.mlp = MLP(
             hidden_features=int(C * self.mlp_ratio),
             dropout=self.dropout,
@@ -810,7 +811,7 @@ width=400>
 """
 
 
-class Level(keras.layers.Layer):
+class Level(layers.Layer):
     """GCViT level.
 
     Args:
@@ -977,7 +978,7 @@ class GCViT(keras.Model):
         self.head_activation = head_activation
 
         self.patch_embed = PatchEmbed(embed_dim=embed_dim, name="patch_embed")
-        self.pos_drop = keras.layers.Dropout(drop_rate, name="pos_drop")
+        self.pos_drop = layers.Dropout(drop_rate, name="pos_drop")
         path_drops = np.linspace(0.0, path_drop, sum(depths))
         keepdims = [(0, 0, 0), (0, 0), (1,), (1,)]
         self.levels = []
@@ -999,9 +1000,9 @@ class GCViT(keras.Model):
                 name=f"levels_{i}",
             )
             self.levels.append(level)
-        self.norm = keras.layers.LayerNormalization(axis=-1, epsilon=1e-05, name="norm")
-        self.pool = keras.layers.GlobalAvgPool2D(name="pool")
-        self.head = keras.layers.Dense(num_classes, name="head", activation=head_activation)
+        self.norm = layers.LayerNormalization(axis=-1, epsilon=1e-05, name="norm")
+        self.pool = layers.GlobalAvgPool2D(name="pool")
+        self.head = layers.Dense(num_classes, name="head", activation=head_activation)
 
     def build(self, input_shape):
         super().build(input_shape)
