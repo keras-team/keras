@@ -2,6 +2,7 @@ from keras.utils.audio_dataset_utils import audio_dataset_from_directory
 from keras.utils.dataset_utils import split_dataset
 from keras.utils.file_utils import get_file
 from keras.utils.image_dataset_utils import image_dataset_from_directory
+from keras.utils.csv_dataset_utils import csv_dataset_from_directory
 from keras.utils.image_utils import array_to_img
 from keras.utils.image_utils import img_to_array
 from keras.utils.image_utils import load_img
