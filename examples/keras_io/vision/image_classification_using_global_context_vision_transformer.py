@@ -98,8 +98,8 @@ projects them to a certain dimension.
 uses **CNN** instead of **MaxPooling** to downsample with additional **Layer
 Normalization** modules.
 6. `Head:` It is the module responsible for the classification task.
-    1. `Pooling:` It converts $N \times 2D$ features to $N \times 1D$ features.
-    2. `Classifier:` It processes $N \times 1D$ features to make a decision about class.
+    1. `Pooling:` It converts `N x 2D` features to `N x 1D` features.
+    2. `Classifier:` It processes `N x 1D` features to make a decision about class.
 
 I've annotated the architecture figure to make it easier to digest,
 <img src="https://raw.githubusercontent.com/awsaf49/gcvit-tf/main/image/arch_annot.png">
@@ -289,7 +289,7 @@ neither reduces spatial dimension nor increases spatial dimension.
 creates **overlapping patches**. We can notice that from the code,
 `Conv2D(self.embed_dim, kernel_size=3, strides=2, name='proj')`. If we wanted
 **non-overlapping** patches then we would've used the same `kernel_size` and `stride`.
-5. This module reduces the spatial dimension of input by $4x$.
+5. This module reduces the spatial dimension of input by `4x`.
 > Summary: image → padding → convolution →
 (feature_extract + downsample)
 """
@@ -326,11 +326,9 @@ class PatchEmbed(layers.Layer):
 As we can see from above cell, in the `level` we have first used `to_q_global/Global
 Token Gen./FeatureExtraction`. Let's try to understand how it works,
 
-* This module is series of `FeatureExtract` module, according to paper we need to repeat
-this module $K$ times, where
-$$K = \log_{2}(\frac{H}{h})$$
-$$H = feature\_map\_height$$
-$$W = feature\_map\_width$$
+* This module is series of `FeatureExtract` module, according to paper we need to 
+repeat this module `K` times, where `K = log2(H/h)`, `H = feature_map_height`, 
+`W = feature_map_width`.
 * `FeatureExtraction:` This layer is very similar to `ReduceSize` module except it uses
 **MaxPooling** module to reduce the dimension, it doesn't increse feature dimension
 (channelsie) and it doesn't uses **LayerNormalizaton**. This module is used to in
@@ -339,9 +337,9 @@ $$W = feature\_map\_width$$
 * One important point to notice from the figure is that, **global tokens** is shared
 across the whole image which means we use only **one global window** for **all local
 tokens** in a image. This makes the computation very efficient.
-* For input feature map with shape $(B, H, W, C)$, we'll get output shape $(B, h, w, C)$.
-If we copy these global tokens for total $M$ local windows in a image where, $M = \frac{H
-\times W}{h \times w} = num\_window$, then output shape: $(B * M, h, w, C)$.
+* For input feature map with shape `(B, H, W, C)`, we'll get output shape `(B, h, w, C)`. 
+If we copy these global tokens for total `M` local windows in an image where,
+`M = (H x W)/(h x w) = num_window`, then output shape: `(B * M, h, w, C)`."
 
 > Summary: This module is used to `resize` the image to fit window.
 
@@ -453,8 +451,8 @@ width=800>
 **SwinTransformer** we compare window-tokens with window-tokens but in **GCViT** we
 compare image-tokens with window-tokens. But now you may ask, how can compare(attention)
 image-tokens with window-tokens even after image-tokens have larger dimensions than
-window-tokens? (from above figure image-tokens have shape $(1, 8, 8, 3)$ and
-window-tokens have shape $(1, 4, 4, 3)$). Yes, you are right we can't directly compare
+window-tokens? (from above figure image-tokens have shape `(1, 8, 8, 3)` and
+window-tokens have shape `(1, 4, 4, 3)`). Yes, you are right we can't directly compare
 them hence we resize image-tokens to fit window-tokens with `Global Token
 Gen./FeatureExtraction` **CNN** module. The following table should give you a clear comparison,
 
@@ -622,9 +620,8 @@ width=400>
 ### Window
 In the `block` module, we have created **windows** before and after applying attention.
 Let's try to understand how we're creating windows,
-* Following module converts feature maps $(B, H, W, C)$ to stacked windows $(B \times
-\frac{H}{h} \times \frac{W}{w}, h, w, C)$ => $(num\_windows_{batch}, window\_size,
-window\_size, channel)$
+* Following module converts feature maps `(B, H, W, C)` to stacked windows 
+`(B x H/h x W/w, h, w, C)` → `(num_windows_batch, window_size, window_size, channel)`
 * This module uses `reshape` & `transpose` to create these windows out of image instead
 of iterating over them.
 """
@@ -903,21 +900,21 @@ class Level(layers.Layer):
 
 Let's directly jump to the model. As we can see from the `call` method,
 1. It creates patch embeddings from an image. This layer doesn't flattens these
-embeddings which means output of this module will be $(batch,
-\frac{height}{window\_size}, \frac{width}{window\_size}, embed\_dim)$ instead of $(batch,
-\frac{height \times width}{window\_size^2}, embed\_dim)$.
+embeddings which means output of this module will be
+`(batch, height/window_size, width/window_size, embed_dim)` instead of
+`(batch, height x width/window_size^2, embed_dim)`.
 2. Then it applies `Dropout` module which randomly sets input units to 0.
 3. It passes these embeddings to series of `Level` modules which we are calling `level`
 where,
     1. Global token is generated
     1. Both local & global attention is applied
     1. Finally downsample is applied.
-4. So, output after $n$ number of **levels**, shape: $(batch, \frac{width}{window\_size
-\times 2^{n-1}}, \frac{width}{window\_size \times 2^{n-1}}, embed\_dim \times 2^{n-1})$.
-In the last layer paper doesn't use **downsample** and increase **channels**.
+4. So, output after `n` number of **levels**, shape: `(batch, width/window_size x 2^{n-1}, 
+width/window_size x 2^{n-1}, embed_dim x 2^{n-1})`. In the last layer,
+paper doesn't use **downsample** and increase **channels**.
 5. Output of above layer is normalized using `LayerNormalization` module.
-6. In the head, 2D features are converted to 1D features with `Pooling` module. Output
-shape after this module is $(batch, embed\_dim \times 2^{n-1})$
+6. In the head, 2D features are converted to 1D features with `Pooling` module. Output 
+shape after this module is `(batch, embed_dim x 2^{n-1})`
 7. Finally, pooled features are sent to `Dense/Linear` module for classification.
 
 > Sumamry: image → (patchs + embedding) → dropout
