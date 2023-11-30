@@ -386,7 +386,7 @@ class FeatureExtraction(keras.layers.Layer):
         return x
 
 
-class GlobalQueryGen(keras.layers.Layer):
+class GlobalQueryGenerator(keras.layers.Layer):
     """Global query generator.
 
     Args:
@@ -881,7 +881,7 @@ class Level(keras.layers.Layer):
             for i in range(self.depth)
         ]
         self.down = ReduceSize(keepdims=False, name="downsample")
-        self.q_global_gen = GlobalQueryGen(self.keepdims, name="q_global_gen")
+        self.q_global_gen = GlobalQueryGenerator(self.keepdims, name="q_global_gen")
         super().build(input_shape)
 
     def call(self, inputs, **kwargs):
