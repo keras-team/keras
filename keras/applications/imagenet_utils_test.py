@@ -3,6 +3,7 @@ import pytest
 from absl.testing import parameterized
 
 import keras
+from keras import backend
 from keras import testing
 from keras.applications import imagenet_utils as utils
 from keras.mixed_precision import set_dtype_policy
@@ -53,8 +54,8 @@ class TestImageNetUtils(testing.TestCase, parameterized.TestCase):
         for mode in ["torch", "tf"]:
             x = np.random.uniform(0, 255, (2, 10, 10, 3))
             xint = x.astype("int")
-            x2 = utils.preprocess_input(x, mode=mode)
-            xint2 = utils.preprocess_input(xint)
+            x2 = utils.preprocess_input(x, "channels_last", mode=mode)
+            xint2 = utils.preprocess_input(xint, "channels_last")
             self.assertAllClose(x, x2)
             self.assertNotEqual(xint.astype("float").max(), xint2.max())
 
@@ -64,7 +65,7 @@ class TestImageNetUtils(testing.TestCase, parameterized.TestCase):
         x2 = utils.preprocess_input(
             x, data_format="channels_last", mode="caffe"
         )
-        xint2 = utils.preprocess_input(xint)
+        xint2 = utils.preprocess_input(xint, data_format="channels_last")
         self.assertAllClose(x, x2[..., ::-1])
         self.assertNotEqual(xint.astype("float").max(), xint2.max())
 
@@ -77,8 +78,12 @@ class TestImageNetUtils(testing.TestCase, parameterized.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_preprocess_input_symbolic(self, mode):
+        backend_data_format = backend.image_data_format()
         # Test image batch
-        x = np.random.uniform(0, 255, (2, 10, 10, 3))
+        if backend_data_format == "channels_last":
+            x = np.random.uniform(0, 255, (2, 10, 10, 3))
+        elif backend_data_format == "channels_first":
+            x = np.random.uniform(0, 255, (2, 3, 10, 10))
         inputs = keras.layers.Input(shape=x.shape[1:])
         outputs = keras.layers.Lambda(
             lambda x: utils.preprocess_input(x, mode=mode),
@@ -87,6 +92,8 @@ class TestImageNetUtils(testing.TestCase, parameterized.TestCase):
         model = keras.Model(inputs, outputs)
         self.assertEqual(model.predict(x).shape, x.shape)
 
+        x = np.random.uniform(0, 255, (2, 10, 10, 3))
+        inputs = keras.layers.Input(shape=x.shape[1:])
         outputs1 = keras.layers.Lambda(
             lambda x: utils.preprocess_input(x, "channels_last", mode=mode),
             output_shape=x.shape[1:],
@@ -104,7 +111,10 @@ class TestImageNetUtils(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(out1, out2.transpose(0, 2, 3, 1))
 
         # Test single image
-        x = np.random.uniform(0, 255, (10, 10, 3))
+        if backend_data_format == "channels_last":
+            x = np.random.uniform(0, 255, (10, 10, 3))
+        elif backend_data_format == "channels_first":
+            x = np.random.uniform(0, 255, (3, 10, 10))
         inputs = keras.layers.Input(shape=x.shape)
         outputs = keras.layers.Lambda(
             lambda x: utils.preprocess_input(x, mode=mode), output_shape=x.shape
@@ -112,6 +122,8 @@ class TestImageNetUtils(testing.TestCase, parameterized.TestCase):
         model = keras.Model(inputs, outputs)
         self.assertEqual(model.predict(x[np.newaxis])[0].shape, x.shape)
 
+        x = np.random.uniform(0, 255, (10, 10, 3))
+        inputs = keras.layers.Input(shape=x.shape)
         outputs1 = keras.layers.Lambda(
             lambda x: utils.preprocess_input(x, "channels_last", mode=mode),
             output_shape=x.shape,
