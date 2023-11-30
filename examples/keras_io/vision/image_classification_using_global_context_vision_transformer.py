@@ -145,23 +145,23 @@ class SE(keras.layers.Layer):
     """Squeeze and excitation block.
 
     Args:
-        oup: output features dimension, if `None` use same dim as input.
+        output_dim: output features dimension, if `None` use same dim as input.
         expansion: expansion ratio.
     """
 
-    def __init__(self, oup=None, expansion=0.25, **kwargs):
+    def __init__(self, output_dim=None, expansion=0.25, **kwargs):
         super().__init__(**kwargs)
         self.expansion = expansion
-        self.oup = oup
+        self.output_dim = output_dim
 
     def build(self, input_shape):
         inp = input_shape[-1]
-        self.oup = self.oup or inp
+        self.output_dim = self.output_dim or inp
         self.avg_pool = keras.layers.GlobalAvgPool2D(keepdims=True, name="avg_pool")
         self.fc = [
             keras.layers.Dense(int(inp * self.expansion), use_bias=False, name="fc_0"),
             keras.layers.Activation("gelu", name="fc_1"),
-            keras.layers.Dense(self.oup, use_bias=False, name="fc_2"),
+            keras.layers.Dense(self.output_dim, use_bias=False, name="fc_2"),
             keras.layers.Activation("sigmoid", name="fc_3"),
         ]
         super().build(input_shape)
