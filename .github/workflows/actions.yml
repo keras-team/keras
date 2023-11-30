@@ -53,7 +53,7 @@ jobs:
       - name: Test applications with pytest
         if: ${{ steps.filter.outputs.applications == 'true' }}
         run: |
-          pytest keras/applications --cov=keras.applications
+          pytest keras/applications --cov=keras/applications
           coverage xml --include='keras/applications/*' -o apps-coverage.xml
       - name: Codecov keras.applications
         if: ${{ steps.filter.outputs.applications == 'true' }}
