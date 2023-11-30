@@ -142,8 +142,7 @@ dimension.
 
 
 class SE(keras.layers.Layer):
-    """
-    Squeeze and excitation block
+    """Squeeze and excitation block.
 
     Args:
         oup: output features dimension, if `None` use same dim as input.
@@ -175,9 +174,7 @@ class SE(keras.layers.Layer):
 
 
 class ReduceSize(keras.layers.Layer):
-    """
-    Down-sampling block based on: "Hatamizadeh et al.,
-    Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+    """Down-sampling block.
 
     Args:
         keep_dim: if False spatial dim is reduced and channel dim is increased
@@ -234,8 +231,7 @@ class ReduceSize(keras.layers.Layer):
 
 
 class MLP(keras.layers.Layer):
-    """
-    Multi-Layer Perceptron (MLP) block
+    """Multi-Layer Perceptron (MLP) block.
 
     Args:
         hidden_features: hidden features dimension.
@@ -301,9 +297,7 @@ creates **overlapping patches**. We can notice that from the code,
 
 
 class PatchEmbed(keras.layers.Layer):
-    """
-    Patch embedding block based on: "Hatamizadeh et al.,
-    Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+    """Patch embedding block.
 
     Args:
         embed_dim: feature size dimension.
@@ -360,9 +354,7 @@ width=800>
 
 
 class FeatExtract(keras.layers.Layer):
-    """
-    Feature extraction block based on: "Hatamizadeh et al.,
-    Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+    """Feature extraction block.
 
     Args:
         keep_dim: bool argument for maintaining the resolution.
@@ -398,9 +390,7 @@ class FeatExtract(keras.layers.Layer):
 
 
 class GlobalQueryGen(keras.layers.Layer):
-    """
-    Global query generator based on: "Hatamizadeh et al.,
-    Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+    """Global query generator.
 
     Args:
         keep_dims: to keep the dimension of FeatExtract layer.
@@ -481,10 +471,10 @@ Gen./FeatExtract` **CNN** module. The following table should give you a clear co
 
 
 class WindowAttention(keras.layers.Layer):
-    """
-    Local window attention based on: "Liu et al.,
-    Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
-    <https://arxiv.org/abs/2103.14030>"
+    """Local window attention.
+
+    This implementation was proposed by
+    [Liu et al., 2021](https://arxiv.org/abs/2103.14030) in SwinTransformer.
 
     Args:
         window_size: window size.
@@ -643,9 +633,7 @@ of iterating over them.
 
 
 class Block(keras.layers.Layer):
-    """
-    GCViT block based on: "Hatamizadeh et al.,
-    Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+    """GCViT block.
 
     Args:
         window_size: window size.
@@ -826,9 +814,7 @@ width=400>
 
 
 class Level(keras.layers.Layer):
-    """
-    GCViT level based on: "Hatamizadeh et al.,
-    Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+    """GCViT level.
 
     Args:
         depth: number of layers in each stage.
@@ -943,9 +929,7 @@ pooling $\rightarrow$ classify
 
 
 class GCViT(keras.Model):
-    """
-    GCViT based on: "Hatamizadeh et al.,
-    Global Context Vision Transformers <https://arxiv.org/abs/2206.09959>"
+    """GCViT model.
 
     Args:
         window_size: window size in each stage.
