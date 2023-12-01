@@ -51,6 +51,8 @@ def leaky_relu(x, negative_slope=0.2):
 
 
 def hard_sigmoid(x):
+    # python numbers will be promoted to float64 by np, so it's neccessary to
+    # first convert the python numbers to np scalars
     x = x / np.array(6.0, x.dtype) + np.array(0.5, x.dtype)
     return np.where(
         x <= 0.0,
