@@ -53,8 +53,7 @@ def leaky_relu(x, negative_slope=0.2):
 
 def hard_sigmoid(x):
     x = convert_to_tensor(x)
-    x = x / tf.constant(6.0, dtype=x.dtype) + tf.constant(0.5, dtype=x.dtype)
-    return tf.clip_by_value(x, 0.0, 1.0)
+    return relu6(x + tf.constant(3.0, x.dtype)) / tf.constant(6.0, x.dtype)
 
 
 def hard_swish(x):
