@@ -188,7 +188,7 @@ def get_file(
         cache_dir: Location to store cached files, when None it
             defaults ether `$KERAS_HOME` if the `KERAS_HOME` environment
             variable is set or `~/.keras/`.
-        force_download: If True, the file will always be re-downloaded
+        force_download: If `True`, the file will always be re-downloaded
             regardless of the cache state.
 
     Returns:
@@ -244,6 +244,7 @@ def get_file(
     if force_download:
         download = True
     elif os.path.exists(fpath):
+        # File found in cache.
         download = False
         # Verify integrity if a hash was provided.
         if file_hash is not None:
