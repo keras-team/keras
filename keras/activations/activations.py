@@ -394,7 +394,7 @@ def hard_swish(x):
     - [A Howard, 2019](https://arxiv.org/abs/1905.02244)
     """
     x = backend.convert_to_tensor(x)
-    return x * ops.relu6(x + 3.0) * (1.0 / 6.0)
+    return ops.hard_swish(x)
 
 
 @keras_export("keras.activations.linear")

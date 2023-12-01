@@ -51,8 +51,18 @@ def leaky_relu(x, negative_slope=0.2):
 
 
 def hard_sigmoid(x):
-    x = (x / 6.0) + 0.5
-    return np.where(x <= 0.0, 0.0, np.where(x >= 1.0, 1.0, x))
+    # python numbers will be promoted to float64 by np, so it's neccessary to
+    # first convert the python numbers to np scalars
+    x = x / np.array(6.0, x.dtype) + np.array(0.5, x.dtype)
+    return np.where(
+        x <= 0.0,
+        np.array(0.0, x.dtype),
+        np.where(x >= 1.0, np.array(1.0, x.dtype), x),
+    )
+
+
+def hard_swish(x):
+    return x * hard_sigmoid(x)
 
 
 def elu(x, alpha=1.0):

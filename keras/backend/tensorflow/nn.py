@@ -9,6 +9,7 @@ from keras.backend.common.backend_utils import (
 )
 from keras.backend.config import epsilon
 from keras.backend.tensorflow.core import cast
+from keras.backend.tensorflow.core import convert_to_tensor
 
 
 def relu(x):
@@ -51,8 +52,13 @@ def leaky_relu(x, negative_slope=0.2):
 
 
 def hard_sigmoid(x):
-    x = x / 6.0 + 0.5
+    x = convert_to_tensor(x)
+    x = x / tf.constant(6.0, dtype=x.dtype) + tf.constant(0.5, dtype=x.dtype)
     return tf.clip_by_value(x, 0.0, 1.0)
+
+
+def hard_swish(x):
+    return x * hard_sigmoid(x)
 
 
 def elu(x, alpha=1.0):

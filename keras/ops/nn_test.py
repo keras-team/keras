@@ -1,13 +1,16 @@
 import numpy as np
 import pytest
 from absl.testing import parameterized
+from tensorflow.python.ops.numpy_ops import np_config
 
 from keras import backend
 from keras import layers
 from keras import losses
 from keras import models
 from keras import testing
+from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
+from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.layers.convolutional.conv_test import np_conv1d
 from keras.layers.convolutional.conv_test import np_conv2d
 from keras.layers.convolutional.conv_test import np_conv3d
@@ -19,6 +22,11 @@ from keras.layers.pooling.average_pooling_test import np_avgpool2d
 from keras.layers.pooling.max_pooling_test import np_maxpool1d
 from keras.layers.pooling.max_pooling_test import np_maxpool2d
 from keras.ops import nn as knn
+from keras.ops import numpy as knp
+from keras.testing.test_utils import named_product
+
+# TODO: remove reliance on this (or alternatively, turn it on by default).
+np_config.enable_numpy_behavior()
 
 
 class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
@@ -57,6 +65,10 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
     def test_hard_sigmoid(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_sigmoid(x).shape, (None, 2, 3))
+
+    def test_hard_swish(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.hard_swish(x).shape, (None, 2, 3))
 
     def test_elu(self):
         x = KerasTensor([None, 2, 3])
@@ -579,6 +591,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.hard_sigmoid(x).shape, (1, 2, 3))
 
+    def test_hard_swish(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.hard_swish(x).shape, (1, 2, 3))
+
     def test_elu(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.elu(x).shape, (1, 2, 3))
@@ -1011,6 +1027,13 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             knn.hard_sigmoid(x),
             [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
+        )
+
+    def test_hard_swish(self):
+        x = np.array([-3, -2, -1, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.hard_swish(x),
+            [-0.0, -0.333333, -0.333333, 0.0, 0.6666667, 1.6666667, 3.0],
         )
 
     def test_elu(self):
@@ -1735,3 +1758,56 @@ class TestLogitRecovery(testing.TestCase):
         model.compile(loss="binary_crossentropy", optimizer="sgd")
         out = model.evaluate(x, y)
         self.assertAllClose(out, 2.682124)
+
+
+class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
+    """Test the dtype to verify that the behavior matches JAX."""
+
+    FLOAT_DTYPES = [x for x in ALLOWED_DTYPES if "float" in x]
+
+    def setUp(self):
+        from jax.experimental import enable_x64
+
+        self.jax_enable_x64 = enable_x64()
+        self.jax_enable_x64.__enter__()
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        self.jax_enable_x64.__exit__(None, None, None)
+        return super().tearDown()
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_hard_sigmoid(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.hard_sigmoid(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.hard_sigmoid(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.HardSigmoid().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_hard_swish(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.hard_swish(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.hard_swish(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.HardSwish().symbolic_call(x).dtype),
+            expected_dtype,
+        )
