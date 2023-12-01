@@ -22,6 +22,8 @@ as well as `tf.data` pipelines.
 
 ### Local installation
 
+#### Minimal installation
+
 Keras 3 is compatible with Linux and MacOS systems. For Windows users, we recommend using WSL2 to run Keras.
 To install a local development version:
 
@@ -36,6 +38,8 @@ pip install -r requirements.txt
 ```
 python pip_build.py --install
 ```
+
+#### Adding GPU support
 
 The `requirements.txt` file will install a CPU-only version of TensorFlow, JAX, and PyTorch. For GPU support, we also
 provide a separate `requirements-{backend}-cuda.txt` for TensorFlow, JAX, and PyTorch. These install all CUDA
