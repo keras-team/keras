@@ -533,24 +533,6 @@ def _do_lstm_arguments_support_cudnn(
     )
 
 
-# Returns a TF symbolic tensor array and requires to be wrapped in
-# `tf.function`. But that causes regression of 20x for LSTM/GRU.
-# See GitHub issues #18397 and #18854
-# def _do_rnn_inputs_support_cudnn(mask, time_major):
-#     if tf.sysconfig.get_build_info()["is_rocm_build"]:
-#         if mask is not None:
-#             return tf.reduce_all(mask)
-#         return True
-#     if mask is None:
-#         return True
-#     if time_major:
-#         mask = tf.transpose(mask)
-#     return tf.logical_and(
-#         _is_sequence_right_padded(mask),
-#         tf.logical_not(_has_fully_masked_sequence(mask)),
-#     )
-
-
 def _is_sequence_right_padded(mask):
     """Check the mask tensor and see if it right padded.
 
