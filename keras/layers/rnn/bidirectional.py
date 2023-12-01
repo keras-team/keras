@@ -222,13 +222,14 @@ class Bidirectional(Wrapper):
         y_rev = self.backward_layer(
             backward_inputs, initial_state=backward_state, **kwargs
         )
-        y = ops.cast(y, self.compute_dtype)
-        y_rev = ops.cast(y_rev, self.compute_dtype)
 
         if self.return_state:
-            states = y[1:] + y_rev[1:]
+            states = tuple(y[1:] + y_rev[1:])
             y = y[0]
             y_rev = y_rev[0]
+
+        y = ops.cast(y, self.compute_dtype)
+        y_rev = ops.cast(y_rev, self.compute_dtype)
 
         if self.return_sequences:
             y_rev = ops.flip(y_rev, axis=1)
@@ -241,7 +242,7 @@ class Bidirectional(Wrapper):
         elif self.merge_mode == "mul":
             output = y * y_rev
         elif self.merge_mode is None:
-            output = [y, y_rev]
+            output = (y, y_rev)
         else:
             raise ValueError(
                 "Unrecognized value for `merge_mode`. "
@@ -251,7 +252,7 @@ class Bidirectional(Wrapper):
         if self.return_state:
             if self.merge_mode is None:
                 return output + states
-            return [output] + states
+            return (output,) + states
         return output
 
     def reset_states(self):
@@ -264,6 +265,12 @@ class Bidirectional(Wrapper):
         self.forward_layer.reset_state()
         self.backward_layer.reset_state()
 
+    @property
+    def states(self):
+        if self.forward_layer.states and self.backward_layer.states:
+            return tuple(self.forward_layer.states + self.backward_layer.states)
+        return None
+
     def build(self, sequences_shape, initial_state_shape=None):
         self.forward_layer.build(sequences_shape)
         self.backward_layer.build(sequences_shape)
@@ -274,18 +281,17 @@ class Bidirectional(Wrapper):
             mask = mask[0]
         if self.return_sequences:
             if not self.merge_mode:
-                output_mask = [mask, mask]
+                output_mask = (mask, mask)
             else:
                 output_mask = mask
         else:
-            output_mask = [None, None] if not self.merge_mode else None
+            output_mask = (None, None) if not self.merge_mode else None
 
-        if self.return_state:
-            states = self.forward_layer.states
-            state_mask = [None for _ in states]
+        if self.return_state and self.states is not None:
+            state_mask = (None for _ in self.states)
             if isinstance(output_mask, list):
                 return output_mask + state_mask * 2
-            return [output_mask] + state_mask * 2
+            return (output_mask,) + state_mask * 2
         return output_mask
 
     def get_config(self):
