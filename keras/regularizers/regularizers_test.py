@@ -37,10 +37,13 @@ class RegularizersTest(testing.TestCase):
         inputs = value / l2_norm
         self.assertAllClose(
             y,
-            0.1 * 0.5 * np.sum(np.abs(np.dot(inputs, np.transpose(inputs)) * (1.0 - np.eye(4))))
-            / (4.0 * (4.0 - 1.0) / 2.0)
+            0.1
+            * 0.5
+            * np.sum(
+                np.abs(np.dot(inputs, np.transpose(inputs)) * (1.0 - np.eye(4)))
+            )
+            / (4.0 * (4.0 - 1.0) / 2.0),
         )
-
 
     def test_get_method(self):
         obj = regularizers.get("l1l2")
