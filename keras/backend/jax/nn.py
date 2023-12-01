@@ -64,6 +64,11 @@ def hard_sigmoid(x):
     return jnn.hard_sigmoid(x)
 
 
+def hard_swish(x):
+    x = convert_to_tensor(x)
+    return jnn.hard_swish(x)
+
+
 def elu(x, alpha=1.0):
     x = convert_to_tensor(x)
     return jnn.elu(x, alpha=alpha)

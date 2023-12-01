@@ -55,6 +55,10 @@ def hard_sigmoid(x):
     return tf.clip_by_value(x, 0.0, 1.0)
 
 
+def hard_swish(x):
+    return x * hard_sigmoid(x)
+
+
 def elu(x, alpha=1.0):
     res = tf.nn.elu(x)
     if alpha == 1:

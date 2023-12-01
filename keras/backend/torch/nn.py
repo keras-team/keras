@@ -67,6 +67,11 @@ def hard_sigmoid(x):
     return tnn.hardsigmoid(x)
 
 
+def hard_swish(x):
+    x = convert_to_tensor(x)
+    return tnn.hardswish(x)
+
+
 def elu(x, alpha=1.0):
     x = convert_to_tensor(x)
     return tnn.elu(x, alpha)
