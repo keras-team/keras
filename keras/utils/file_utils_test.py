@@ -378,6 +378,60 @@ class GetFileTest(test_case.TestCase):
         path = file_utils.get_file("test.txt", origin, file_hash=hashval)
         self.assertTrue(os.path.exists(path))
 
+    def test_cache_invalidation(self):
+        """Test using a hash to force cache invalidation."""
+        cache_dir = self.get_temp_dir()
+        src_path = os.path.join(self.get_temp_dir(), "test.txt")
+        with open(src_path, "w") as text_file:
+            text_file.write("Float like a butterfly, sting like a bee.")
+        orig_hash = file_utils.hash_file(src_path)
+        origin = urllib.parse.urljoin(
+            "file://", urllib.request.pathname2url(os.path.abspath(src_path))
+        )
+        # Download into the cache.
+        dest_path = file_utils.get_file(
+            "test.txt", origin, file_hash=orig_hash, cache_dir=cache_dir
+        )
+        self.assertEqual(orig_hash, file_utils.hash_file(dest_path))
+
+        with open(src_path, "w") as text_file:
+            text_file.write("Float like a zeppelin, sting like a jellyfish.")
+        new_hash = file_utils.hash_file(src_path)
+        # Without a hash, we should get the cached version.
+        dest_path = file_utils.get_file("test.txt", origin, cache_dir=cache_dir)
+        self.assertEqual(orig_hash, file_utils.hash_file(dest_path))
+        # Without the new hash, we should re-download.
+        dest_path = file_utils.get_file(
+            "test.txt", origin, file_hash=new_hash, cache_dir=cache_dir
+        )
+        self.assertEqual(new_hash, file_utils.hash_file(dest_path))
+
+    def test_force_download(self):
+        """Test using a hash to force cache invalidation."""
+        cache_dir = self.get_temp_dir()
+        src_path = os.path.join(self.get_temp_dir(), "test.txt")
+        with open(src_path, "w") as text_file:
+            text_file.write("Float like a butterfly, sting like a bee.")
+        orig_hash = file_utils.hash_file(src_path)
+        origin = urllib.parse.urljoin(
+            "file://", urllib.request.pathname2url(os.path.abspath(src_path))
+        )
+        # Download into the cache.
+        dest_path = file_utils.get_file("test.txt", origin, cache_dir=cache_dir)
+        self.assertEqual(orig_hash, file_utils.hash_file(dest_path))
+
+        with open(src_path, "w") as text_file:
+            text_file.write("Float like a zeppelin, sting like a jellyfish.")
+        new_hash = file_utils.hash_file(src_path)
+        # Get cached version.
+        dest_path = file_utils.get_file("test.txt", origin, cache_dir=cache_dir)
+        self.assertEqual(orig_hash, file_utils.hash_file(dest_path))
+        # Force download.
+        dest_path = file_utils.get_file(
+            "test.txt", origin, force_download=True, cache_dir=cache_dir
+        )
+        self.assertEqual(new_hash, file_utils.hash_file(dest_path))
+
     def test_get_file_with_failed_integrity_check(self):
         """Test file download with failed integrity check."""
         orig_dir = self.get_temp_dir()
