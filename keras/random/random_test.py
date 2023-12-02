@@ -233,3 +233,27 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertFalse(np.all(x == ops.convert_to_numpy(y)))
         self.assertAllClose(np.sum(x, axis=1), ops.sum(y, axis=1))
         self.assertNotAllClose(np.sum(x, axis=0), ops.sum(y, axis=0))
+
+    def test_randint_dtype_validation(self):
+        with self.assertRaisesRegex(
+            ValueError, "`keras.random.randint` requires an integer `dtype`."
+        ):
+            random.randint((3, 4), minval=0, maxval=10, dtype="float64")
+
+    def test_uniform_dtype_validation(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "`keras.random.uniform` requires a floating point `dtype`.",
+        ):
+            random.uniform((3, 4), minval=0, maxval=10, dtype="int64")
+
+    @parameterized.parameters(
+        {"seed": 10, "shape": (5, 2), "alpha": 2.0, "dtype": "float16"},
+        {"seed": 10, "shape": (2,), "alpha": 1.5, "dtype": "float32"},
+        {"seed": 10, "shape": (2, 3), "alpha": 0.5, "dtype": "float32"},
+    )
+    def test_gamma(self, seed, shape, alpha, dtype):
+        values = random.gamma(shape, alpha=alpha, seed=seed, dtype=dtype)
+        self.assertEqual(ops.shape(values), shape)
+        self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
+        self.assertGreater(np.min(ops.convert_to_numpy(values)), 0.0)

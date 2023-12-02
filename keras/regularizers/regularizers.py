@@ -340,11 +340,13 @@ class OrthogonalRegularizer(Regularizer):
 
 def validate_float_arg(value, name):
     """check penalty number availability, raise ValueError if failed."""
-    if not isinstance(value, (float, int)) or (
-        math.isinf(value) or math.isnan(value)
+    if (
+        not isinstance(value, (float, int))
+        or (math.isinf(value) or math.isnan(value))
+        or value < 0
     ):
         raise ValueError(
-            f"Invalid value for argument {name}: expected a float. "
+            f"Invalid value for argument {name}: expected a non-negative float."
             f"Received: {name}={value}"
         )
     return float(value)

@@ -140,3 +140,11 @@ def removesuffix(x, suffix):
         return x[: -len(suffix)]
     else:
         return x
+
+
+def remove_by_id(lst, value):
+    """Remove a value from a list by id."""
+    for i, v in enumerate(lst):
+        if id(v) == id(value):
+            del lst[i]
+            return

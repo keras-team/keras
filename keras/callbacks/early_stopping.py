@@ -3,6 +3,7 @@ import warnings
 from keras import ops
 from keras.api_export import keras_export
 from keras.callbacks.callback import Callback
+from keras.trainers import compile_utils
 from keras.utils import io_utils
 
 
@@ -95,44 +96,72 @@ class EarlyStopping(Callback):
                 stacklevel=2,
             )
             mode = "auto"
+        self.mode = mode
+        self.monitor_op = None
 
-        if mode == "min":
+    def _set_monitor_op(self):
+        if self.mode == "min":
             self.monitor_op = ops.less
-        elif mode == "max":
+        elif self.mode == "max":
             self.monitor_op = ops.greater
         else:
-            if (
-                self.monitor.endswith("acc")
-                or self.monitor.endswith("accuracy")
-                or self.monitor.endswith("auc")
-            ):
-                self.monitor_op = ops.greater
-            else:
+            metric_name = self.monitor.removeprefix("val_")
+            if metric_name == "loss":
                 self.monitor_op = ops.less
-
-        if self.monitor_op == ops.greater:
-            self.min_delta *= 1
-        else:
+            if hasattr(self.model, "metrics"):
+                all_metrics = []
+                for m in self.model.metrics:
+                    if isinstance(
+                        m,
+                        (
+                            compile_utils.CompileMetrics,
+                            compile_utils.MetricsList,
+                        ),
+                    ):
+                        all_metrics.extend(m.metrics)
+                for m in all_metrics:
+                    if m.name == metric_name:
+                        if hasattr(m, "_direction"):
+                            if m._direction == "up":
+                                self.monitor_op = ops.greater
+                            else:
+                                self.monitor_op = ops.less
+        if self.monitor_op is None:
+            raise ValueError(
+                f"EarlyStopping callback received monitor={self.monitor} "
+                "but Keras isn't able to automatically determine whether "
+                "that metric should be maximized or minimized. "
+                "Pass `mode='max'` in order to do early stopping based "
+                "on the highest metric value, or pass `mode='min'` "
+                "in order to use the lowest value."
+            )
+        if self.monitor_op == ops.less:
             self.min_delta *= -1
+        self.best = (
+            float("inf") if self.monitor_op == ops.less else -float("inf")
+        )
 
     def on_train_begin(self, logs=None):
         # Allow instances to be re-used
         self.wait = 0
         self.stopped_epoch = 0
-        self.best = (
-            float("inf") if self.monitor_op == ops.less else -float("inf")
-        )
         self.best_weights = None
         self.best_epoch = 0
 
     def on_epoch_end(self, epoch, logs=None):
+        if self.monitor_op is None:
+            # Delay setup until the model's metrics are all built
+            self._set_monitor_op()
+
         current = self.get_monitor_value(logs)
         if current is None or epoch < self.start_from_epoch:
             # If no monitor value exists or still in initial warm-up stage.
             return
         if self.restore_best_weights and self.best_weights is None:
-            # Restore the weights after first epoch if no progress is ever made.
+            # If best weights were never set,
+            # then the current weights are the best.
             self.best_weights = self.model.get_weights()
+            self.best_epoch = epoch
 
         self.wait += 1
         if self._is_improvement(current, self.best):
@@ -148,24 +177,24 @@ class EarlyStopping(Callback):
                 self.wait = 0
             return
 
-        # Only check after the first epoch.
         if self.wait >= self.patience and epoch > 0:
+            # Patience has been exceeded: stop training
             self.stopped_epoch = epoch
             self.model.stop_training = True
-            if self.restore_best_weights and self.best_weights is not None:
-                if self.verbose > 0:
-                    io_utils.print_msg(
-                        "Restoring model weights from "
-                        "the end of the best epoch: "
-                        f"{self.best_epoch + 1}."
-                    )
-                self.model.set_weights(self.best_weights)
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
             io_utils.print_msg(
                 f"Epoch {self.stopped_epoch + 1}: early stopping"
             )
+        if self.restore_best_weights and self.best_weights is not None:
+            if self.verbose > 0:
+                io_utils.print_msg(
+                    "Restoring model weights from "
+                    "the end of the best epoch: "
+                    f"{self.best_epoch + 1}."
+                )
+            self.model.set_weights(self.best_weights)
 
     def get_monitor_value(self, logs):
         logs = logs or {}

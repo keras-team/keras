@@ -44,7 +44,7 @@ import os
 
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
-import keras as keras
+import keras
 from keras import layers
 
 import gym

@@ -352,6 +352,7 @@ class JAXTrainer(base_trainer.Trainer):
     ):
         self._assert_compile_called("fit")
         # TODO: respect compiled trainable state
+        self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported
             # for TF/numpy/jax arrays.
@@ -466,7 +467,11 @@ class JAXTrainer(base_trainer.Trainer):
             self.jax_state_sync()
 
             # Override with model metrics instead of last step logs
-            epoch_logs = self.get_metrics_result()
+            # The jax spmd_mode is need for multi-process context, since the
+            # metrics values are replicated, and we don't want to do a all
+            # gather, and only need the local copy of the value.
+            with jax.spmd_mode("allow_all"):
+                epoch_logs = self.get_metrics_result()
 
             # Run validation.
             if validation_data and self._should_eval(epoch, validation_freq):
@@ -574,6 +579,7 @@ class JAXTrainer(base_trainer.Trainer):
         self._record_training_state_sharding_spec()
 
         self.make_test_function()
+        self.stop_evaluating = False
         callbacks.on_test_begin()
         logs = None
         self.reset_metrics()
@@ -611,11 +617,17 @@ class JAXTrainer(base_trainer.Trainer):
                 "metrics_variables": metrics_variables,
             }
             callbacks.on_test_batch_end(step, self._pythonify_logs(logs))
+            if self.stop_evaluating:
+                break
 
         # Reattach state back to model.
         self.jax_state_sync()
 
-        logs = self.get_metrics_result()
+        # The jax spmd_mode is need for multi-process context, since the
+        # metrics values are replicated, and we don't want to do a all
+        # gather, and only need the local copy of the value.
+        with jax.spmd_mode("allow_all"):
+            logs = self.get_metrics_result()
         callbacks.on_test_end(logs)
         self._jax_state = None
         if return_dict:
@@ -658,6 +670,7 @@ class JAXTrainer(base_trainer.Trainer):
         self._record_training_state_sharding_spec()
 
         self.make_predict_function()
+        self.stop_predicting = False
         callbacks.on_predict_begin()
 
         def append_to_outputs(batch_outputs, outputs):
@@ -687,6 +700,8 @@ class JAXTrainer(base_trainer.Trainer):
             batch_outputs, state = self.predict_function(state, x)
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+            if self.stop_predicting:
+                break
         callbacks.on_predict_end()
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
 
@@ -846,7 +861,7 @@ class JAXTrainer(base_trainer.Trainer):
 
             def distribute_single_value(d):
                 layout = distribution.get_data_layout(d.shape)
-                return jax_distribution_lib.distribute_value(d, layout)
+                return jax_distribution_lib.distribute_data_input(d, layout)
 
             return jax.tree_util.tree_map(distribute_single_value, data)
         else:

@@ -265,6 +265,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
     ):
         self._assert_compile_called("fit")
         # TODO: respect compiled trainable state
+        self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported
             # for TF/numpy/jax arrays.
@@ -422,6 +423,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             )
 
         self.make_test_function()
+        self.stop_evaluating = False
         callbacks.on_test_begin()
         logs = None
         self.reset_metrics()
@@ -430,6 +432,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 callbacks.on_test_batch_begin(step)
                 logs = self.test_function(iterator)
                 callbacks.on_test_batch_end(step, self._pythonify_logs(logs))
+                if self.stop_evaluating:
+                    break
         logs = self.get_metrics_result()
         callbacks.on_test_end(logs)
 
@@ -497,6 +501,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             return data
 
         self.make_predict_function()
+        self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
         with epoch_iterator.catch_stop_iteration():
@@ -506,6 +511,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 batch_outputs = self.predict_function(data)
                 outputs = append_to_outputs(batch_outputs, outputs)
                 callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+                if self.stop_predicting:
+                    break
         callbacks.on_predict_end()
         outputs = tree.map_structure_up_to(
             batch_outputs, potentially_ragged_concat, outputs
@@ -622,26 +629,24 @@ class TFEpochIterator(EpochIterator):
     def __init__(self, distribute_strategy=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._distribute_strategy = distribute_strategy
+        dataset = self.data_adapter.get_tf_dataset()
+        if not isinstance(dataset, tf.distribute.DistributedDataset):
+            dataset = self._distribute_strategy.experimental_distribute_dataset(
+                dataset
+            )
+        self._distributed_dataset = dataset
         self._steps_seen = 0
 
     def enumerate_epoch(self):
         if self.steps_per_epoch:
             if not self._current_iterator:
-                self._current_iterator = iter(
-                    self._distribute_strategy.experimental_distribute_dataset(
-                        self.data_adapter.get_tf_dataset()
-                    )
-                )
+                self._current_iterator = iter(self._distributed_dataset)
             for step in range(
                 0, self.steps_per_epoch, self.steps_per_execution
             ):
                 yield step, self._current_iterator
         else:
-            iterator = iter(
-                self._distribute_strategy.experimental_distribute_dataset(
-                    self.data_adapter.get_tf_dataset()
-                )
-            )
+            iterator = iter(self._distributed_dataset)
             if self.num_batches:
                 for step in range(
                     0, self.num_batches, self.steps_per_execution

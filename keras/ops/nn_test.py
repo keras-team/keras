@@ -1,12 +1,32 @@
 import numpy as np
 import pytest
-import tensorflow as tf
 from absl.testing import parameterized
+from tensorflow.python.ops.numpy_ops import np_config
 
 from keras import backend
+from keras import layers
+from keras import losses
+from keras import models
 from keras import testing
+from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
+from keras.backend.common.variables import ALLOWED_DTYPES
+from keras.layers.convolutional.conv_test import np_conv1d
+from keras.layers.convolutional.conv_test import np_conv2d
+from keras.layers.convolutional.conv_test import np_conv3d
+from keras.layers.convolutional.conv_transpose_test import np_conv1d_transpose
+from keras.layers.convolutional.conv_transpose_test import np_conv2d_transpose
+from keras.layers.convolutional.depthwise_conv_test import np_depthwise_conv2d
+from keras.layers.pooling.average_pooling_test import np_avgpool1d
+from keras.layers.pooling.average_pooling_test import np_avgpool2d
+from keras.layers.pooling.max_pooling_test import np_maxpool1d
+from keras.layers.pooling.max_pooling_test import np_maxpool2d
 from keras.ops import nn as knn
+from keras.ops import numpy as knp
+from keras.testing.test_utils import named_product
+
+# TODO: remove reliance on this (or alternatively, turn it on by default).
+np_config.enable_numpy_behavior()
 
 
 class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
@@ -46,6 +66,10 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_sigmoid(x).shape, (None, 2, 3))
 
+    def test_hard_swish(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.hard_swish(x).shape, (None, 2, 3))
+
     def test_elu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.elu(x).shape, (None, 2, 3))
@@ -71,37 +95,80 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.log_softmax(x, axis=-1).shape, (None, 2, 3))
 
     def test_max_pool(self):
-        x = KerasTensor([None, 8, 3])
-        self.assertEqual(knn.max_pool(x, 2, 1).shape, (None, 7, 3))
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_shape = (None, 8, 3)
+        else:
+            input_shape = (None, 3, 8)
+        x = KerasTensor(input_shape)
         self.assertEqual(
-            knn.max_pool(x, 2, 2, padding="same").shape, (None, 4, 3)
+            knn.max_pool(x, 2, 1).shape,
+            (None, 7, 3) if data_format == "channels_last" else (None, 3, 7),
+        )
+        self.assertEqual(
+            knn.max_pool(x, 2, 2, padding="same").shape,
+            (None, 4, 3) if data_format == "channels_last" else (None, 3, 4),
         )
 
-        x = KerasTensor([None, 8, None, 3])
-        self.assertEqual(knn.max_pool(x, 2, 1).shape, (None, 7, None, 3))
+        if data_format == "channels_last":
+            input_shape = (None, 8, None, 3)
+        else:
+            input_shape = (None, 3, 8, None)
+        x = KerasTensor(input_shape)
         self.assertEqual(
-            knn.max_pool(x, 2, 2, padding="same").shape, (None, 4, None, 3)
+            knn.max_pool(x, 2, 1).shape, (None, 7, None, 3)
+        ) if data_format == "channels_last" else (None, 3, 7, None)
+        self.assertEqual(
+            knn.max_pool(x, 2, 2, padding="same").shape,
+            (None, 4, None, 3)
+            if data_format == "channels_last"
+            else (None, 3, 4, None),
         )
         self.assertEqual(
             knn.max_pool(x, (2, 2), (2, 2), padding="same").shape,
-            (None, 4, None, 3),
+            (None, 4, None, 3)
+            if data_format == "channels_last"
+            else (None, 3, 4, None),
         )
 
     def test_average_pool(self):
-        x = KerasTensor([None, 8, 3])
-        self.assertEqual(knn.average_pool(x, 2, 1).shape, (None, 7, 3))
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_shape = (None, 8, 3)
+        else:
+            input_shape = (None, 3, 8)
+        x = KerasTensor(input_shape)
         self.assertEqual(
-            knn.average_pool(x, 2, 2, padding="same").shape, (None, 4, 3)
+            knn.average_pool(x, 2, 1).shape,
+            (None, 7, 3) if data_format == "channels_last" else (None, 3, 7),
+        )
+        self.assertEqual(
+            knn.average_pool(x, 2, 2, padding="same").shape,
+            (None, 4, 3) if data_format == "channels_last" else (None, 3, 4),
         )
 
-        x = KerasTensor([None, 8, None, 3])
-        self.assertEqual(knn.average_pool(x, 2, 1).shape, (None, 7, None, 3))
+        if data_format == "channels_last":
+            input_shape = (None, 8, None, 3)
+        else:
+            input_shape = (None, 3, 8, None)
+        x = KerasTensor(input_shape)
         self.assertEqual(
-            knn.average_pool(x, 2, 2, padding="same").shape, (None, 4, None, 3)
+            knn.average_pool(x, 2, 1).shape,
+            (None, 7, None, 3)
+            if data_format == "channels_last"
+            else (None, 3, 7, None),
+        )
+        self.assertEqual(
+            knn.average_pool(x, 2, 2, padding="same").shape,
+            (None, 4, None, 3)
+            if data_format == "channels_last"
+            else (None, 3, 4, None),
         )
         self.assertEqual(
             knn.average_pool(x, (2, 2), (2, 2), padding="same").shape,
-            (None, 4, None, 3),
+            (None, 4, None, 3)
+            if data_format == "channels_last"
+            else (None, 3, 4, None),
         )
 
     def test_multi_hot(self):
@@ -118,171 +185,297 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
 
     def test_conv(self):
+        data_format = backend.config.image_data_format()
         # Test 1D conv.
-        inputs_1d = KerasTensor([None, 20, 3])
+        if data_format == "channels_last":
+            input_shape = (None, 20, 3)
+        else:
+            input_shape = (None, 3, 20)
+        inputs_1d = KerasTensor(input_shape)
         kernel = KerasTensor([4, 3, 2])
-        self.assertEqual(
-            knn.conv(inputs_1d, kernel, 1, padding="valid").shape, (None, 17, 2)
-        )
-        self.assertEqual(
-            knn.conv(inputs_1d, kernel, 1, padding="same").shape, (None, 20, 2)
-        )
+        for padding in ["valid", "VALID"]:
+            self.assertEqual(
+                knn.conv(inputs_1d, kernel, 1, padding=padding).shape,
+                (None, 17, 2)
+                if data_format == "channels_last"
+                else (None, 2, 17),
+            )
+        for padding in ["same", "SAME"]:
+            self.assertEqual(
+                knn.conv(inputs_1d, kernel, 1, padding=padding).shape,
+                (None, 20, 2)
+                if data_format == "channels_last"
+                else (None, 2, 20),
+            )
         self.assertEqual(
             knn.conv(inputs_1d, kernel, (2,), dilation_rate=2).shape,
-            (None, 7, 2),
+            (None, 7, 2) if data_format == "channels_last" else (None, 2, 7),
         )
 
         # Test 2D conv.
-        inputs_2d = KerasTensor([None, 10, None, 3])
+        if data_format == "channels_last":
+            input_shape = (None, 10, None, 3)
+        else:
+            input_shape = (None, 3, 10, None)
+        inputs_2d = KerasTensor(input_shape)
         kernel = KerasTensor([2, 2, 3, 2])
-        self.assertEqual(
-            knn.conv(inputs_2d, kernel, 1, padding="valid").shape,
-            (None, 9, None, 2),
-        )
-        self.assertEqual(
-            knn.conv(inputs_2d, kernel, 1, padding="same").shape,
-            (None, 10, None, 2),
-        )
+        for padding in ["valid", "VALID"]:
+            self.assertEqual(
+                knn.conv(inputs_2d, kernel, 1, padding=padding).shape,
+                (None, 9, None, 2)
+                if data_format == "channels_last"
+                else (None, 2, 9, None),
+            )
+        for padding in ["same", "SAME"]:
+            self.assertEqual(
+                knn.conv(inputs_2d, kernel, 1, padding=padding).shape,
+                (None, 10, None, 2)
+                if data_format == "channels_last"
+                else (None, 2, 10, None),
+            )
         self.assertEqual(
             knn.conv(inputs_2d, kernel, (2, 1), dilation_rate=(2, 1)).shape,
-            (None, 4, None, 2),
+            (None, 4, None, 2)
+            if data_format == "channels_last"
+            else (None, 2, 4, None),
+        )
+
+        # Test 2D conv - H, W specified
+        if data_format == "channels_last":
+            input_shape = (None, 10, 10, 3)
+        else:
+            input_shape = (None, 3, 10, 10)
+        inputs_2d = KerasTensor(input_shape)
+        kernel = KerasTensor([2, 2, 3, 2])
+        for padding in ["valid", "VALID"]:
+            self.assertEqual(
+                knn.conv(inputs_2d, kernel, 1, padding=padding).shape,
+                (None, 9, 9, 2)
+                if data_format == "channels_last"
+                else (None, 2, 9, 9),
+            )
+        for padding in ["same", "SAME"]:
+            self.assertEqual(
+                knn.conv(inputs_2d, kernel, 1, padding=padding).shape,
+                (None, 10, 10, 2)
+                if data_format == "channels_last"
+                else (None, 2, 10, 10),
+            )
+        self.assertEqual(
+            knn.conv(inputs_2d, kernel, (2, 1), dilation_rate=(2, 1)).shape,
+            (None, 4, 9, 2)
+            if data_format == "channels_last"
+            else (None, 2, 4, 9),
         )
 
         # Test 3D conv.
-        inputs_3d = KerasTensor([None, 8, None, 8, 3])
+        if data_format == "channels_last":
+            input_shape = (None, 8, None, 8, 3)
+        else:
+            input_shape = (None, 3, 8, None, 8)
+        inputs_3d = KerasTensor(input_shape)
         kernel = KerasTensor([3, 3, 3, 3, 2])
-        self.assertEqual(
-            knn.conv(inputs_3d, kernel, 1, padding="valid").shape,
-            (None, 6, None, 6, 2),
-        )
-        self.assertEqual(
-            knn.conv(inputs_3d, kernel, (2, 1, 2), padding="same").shape,
-            (None, 4, None, 4, 2),
-        )
+        for padding in ["valid", "VALID"]:
+            self.assertEqual(
+                knn.conv(inputs_3d, kernel, 1, padding=padding).shape,
+                (None, 6, None, 6, 2)
+                if data_format == "channels_last"
+                else (None, 2, 6, None, 6),
+            )
+        for padding in ["same", "SAME"]:
+            self.assertEqual(
+                knn.conv(inputs_3d, kernel, (2, 1, 2), padding=padding).shape,
+                (None, 4, None, 4, 2)
+                if data_format == "channels_last"
+                else (None, 2, 4, None, 4),
+            )
         self.assertEqual(
             knn.conv(
                 inputs_3d, kernel, 1, padding="valid", dilation_rate=(1, 2, 2)
             ).shape,
-            (None, 6, None, 4, 2),
+            (None, 6, None, 4, 2)
+            if data_format == "channels_last"
+            else (None, 2, 6, None, 4),
         )
 
     def test_depthwise_conv(self):
+        data_format = backend.config.image_data_format()
         # Test 1D depthwise conv.
-        inputs_1d = KerasTensor([None, 20, 3])
+        if data_format == "channels_last":
+            input_shape = (None, 20, 3)
+        else:
+            input_shape = (None, 3, 20)
+        inputs_1d = KerasTensor(input_shape)
         kernel = KerasTensor([4, 3, 1])
-        self.assertEqual(
-            knn.depthwise_conv(inputs_1d, kernel, 1, padding="valid").shape,
-            (None, 17, 3),
-        )
-        self.assertEqual(
-            knn.depthwise_conv(inputs_1d, kernel, (1,), padding="same").shape,
-            (None, 20, 3),
-        )
+        for padding in ["valid", "VALID"]:
+            self.assertEqual(
+                knn.depthwise_conv(inputs_1d, kernel, 1, padding=padding).shape,
+                (None, 17, 3)
+                if data_format == "channels_last"
+                else (None, 3, 17),
+            )
+        for padding in ["same", "SAME"]:
+            self.assertEqual(
+                knn.depthwise_conv(
+                    inputs_1d, kernel, (1,), padding=padding
+                ).shape,
+                (None, 20, 3)
+                if data_format == "channels_last"
+                else (None, 3, 20),
+            )
         self.assertEqual(
             knn.depthwise_conv(inputs_1d, kernel, 2, dilation_rate=2).shape,
-            (None, 7, 3),
+            (None, 7, 3) if data_format == "channels_last" else (None, 3, 7),
         )
 
         # Test 2D depthwise conv.
-        inputs_2d = KerasTensor([None, 10, 10, 3])
+        if data_format == "channels_last":
+            input_shape = (None, 10, 10, 3)
+        else:
+            input_shape = (None, 3, 10, 10)
+        inputs_2d = KerasTensor(input_shape)
         kernel = KerasTensor([2, 2, 3, 1])
-        self.assertEqual(
-            knn.depthwise_conv(inputs_2d, kernel, 1, padding="valid").shape,
-            (None, 9, 9, 3),
-        )
-        self.assertEqual(
-            knn.depthwise_conv(inputs_2d, kernel, (1, 2), padding="same").shape,
-            (None, 10, 5, 3),
-        )
+        for padding in ["valid", "VALID"]:
+            self.assertEqual(
+                knn.depthwise_conv(inputs_2d, kernel, 1, padding=padding).shape,
+                (None, 9, 9, 3)
+                if data_format == "channels_last"
+                else (None, 3, 9, 9),
+            )
+        for padding in ["same", "SAME"]:
+            self.assertEqual(
+                knn.depthwise_conv(
+                    inputs_2d, kernel, (1, 2), padding=padding
+                ).shape,
+                (None, 10, 5, 3)
+                if data_format == "channels_last"
+                else (None, 3, 10, 5),
+            )
         self.assertEqual(
             knn.depthwise_conv(inputs_2d, kernel, 2, dilation_rate=2).shape,
-            (None, 4, 4, 3),
+            (None, 4, 4, 3)
+            if data_format == "channels_last"
+            else (None, 3, 4, 4),
         )
         self.assertEqual(
             knn.depthwise_conv(
                 inputs_2d, kernel, 2, dilation_rate=(2, 1)
             ).shape,
-            (None, 4, 5, 3),
+            (None, 4, 5, 3)
+            if data_format == "channels_last"
+            else (None, 3, 4, 5),
         )
 
     def test_separable_conv(self):
+        data_format = backend.config.image_data_format()
         # Test 1D separable conv.
-        inputs_1d = KerasTensor([None, 20, 3])
+        if data_format == "channels_last":
+            input_shape = (None, 20, 3)
+        else:
+            input_shape = (None, 3, 20)
+        inputs_1d = KerasTensor(input_shape)
         kernel = KerasTensor([4, 3, 2])
         pointwise_kernel = KerasTensor([1, 6, 5])
         self.assertEqual(
             knn.separable_conv(
                 inputs_1d, kernel, pointwise_kernel, 1, padding="valid"
             ).shape,
-            (None, 17, 5),
+            (None, 17, 5) if data_format == "channels_last" else (None, 5, 17),
         )
         self.assertEqual(
             knn.separable_conv(
                 inputs_1d, kernel, pointwise_kernel, 1, padding="same"
             ).shape,
-            (None, 20, 5),
+            (None, 20, 5) if data_format == "channels_last" else (None, 5, 20),
         )
         self.assertEqual(
             knn.separable_conv(
                 inputs_1d, kernel, pointwise_kernel, 2, dilation_rate=2
             ).shape,
-            (None, 7, 5),
+            (None, 7, 5) if data_format == "channels_last" else (None, 5, 7),
         )
 
         # Test 2D separable conv.
-        inputs_2d = KerasTensor([None, 10, 10, 3])
+        if data_format == "channels_last":
+            input_shape = (None, 10, 10, 3)
+        else:
+            input_shape = (None, 3, 10, 10)
+        inputs_2d = KerasTensor(input_shape)
         kernel = KerasTensor([2, 2, 3, 2])
         pointwise_kernel = KerasTensor([1, 1, 6, 5])
         self.assertEqual(
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, 1, padding="valid"
             ).shape,
-            (None, 9, 9, 5),
+            (None, 9, 9, 5)
+            if data_format == "channels_last"
+            else (None, 5, 9, 9),
         )
         self.assertEqual(
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, (1, 2), padding="same"
             ).shape,
-            (None, 10, 5, 5),
+            (None, 10, 5, 5)
+            if data_format == "channels_last"
+            else (None, 5, 10, 5),
         )
         self.assertEqual(
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, 2, dilation_rate=(2, 1)
             ).shape,
-            (None, 4, 5, 5),
+            (None, 4, 5, 5)
+            if data_format == "channels_last"
+            else (None, 5, 4, 5),
         )
 
     def test_conv_transpose(self):
-        inputs_1d = KerasTensor([None, 4, 3])
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_shape = (None, 4, 3)
+        else:
+            input_shape = (None, 3, 4)
+        inputs_1d = KerasTensor(input_shape)
         kernel = KerasTensor([2, 5, 3])
         self.assertEqual(
-            knn.conv_transpose(inputs_1d, kernel, 2).shape, (None, 8, 5)
+            knn.conv_transpose(inputs_1d, kernel, 2).shape,
+            (None, 8, 5) if data_format == "channels_last" else (None, 5, 8),
         )
         self.assertEqual(
             knn.conv_transpose(inputs_1d, kernel, 2, padding="same").shape,
-            (None, 8, 5),
+            (None, 8, 5) if data_format == "channels_last" else (None, 5, 8),
         )
         self.assertEqual(
             knn.conv_transpose(
                 inputs_1d, kernel, 5, padding="valid", output_padding=4
             ).shape,
-            (None, 21, 5),
+            (None, 21, 5) if data_format == "channels_last" else (None, 5, 21),
         )
 
-        inputs_2d = KerasTensor([None, 4, 4, 3])
+        if data_format == "channels_last":
+            input_shape = (None, 4, 4, 3)
+        else:
+            input_shape = (None, 3, 4, 4)
+        inputs_2d = KerasTensor(input_shape)
         kernel = KerasTensor([2, 2, 5, 3])
         self.assertEqual(
-            knn.conv_transpose(inputs_2d, kernel, 2).shape, (None, 8, 8, 5)
+            knn.conv_transpose(inputs_2d, kernel, 2).shape,
+            (None, 8, 8, 5)
+            if data_format == "channels_last"
+            else (None, 5, 8, 8),
         )
         self.assertEqual(
             knn.conv_transpose(inputs_2d, kernel, (2, 2), padding="same").shape,
-            (None, 8, 8, 5),
+            (None, 8, 8, 5)
+            if data_format == "channels_last"
+            else (None, 5, 8, 8),
         )
         self.assertEqual(
             knn.conv_transpose(
                 inputs_2d, kernel, (5, 5), padding="valid", output_padding=4
             ).shape,
-            (None, 21, 21, 5),
+            (None, 21, 21, 5)
+            if data_format == "channels_last"
+            else (None, 5, 21, 21),
         )
 
     def test_one_hot(self):
@@ -310,6 +503,54 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.moments(x, axes=[1, 2])[0].shape, (None,))
         self.assertEqual(
             knn.moments(x, axes=[1, 2], keepdims=True)[0].shape, (None, 1, 1)
+        )
+
+    def test_batch_normalization(self):
+        x = KerasTensor([None, 3, 4])
+        mean = KerasTensor([4])
+        variance = KerasTensor([4])
+        self.assertEqual(
+            knn.batch_normalization(x, mean, variance, axis=-1).shape,
+            (None, 3, 4),
+        )
+
+        x = KerasTensor([None, 3, 4, 5])
+        self.assertEqual(
+            knn.batch_normalization(x, mean, variance, axis=2).shape,
+            (None, 3, 4, 5),
+        )
+
+        mean = KerasTensor([3])
+        variance = KerasTensor([3])
+        self.assertEqual(
+            knn.batch_normalization(x, mean, variance, axis=1).shape,
+            (None, 3, 4, 5),
+        )
+
+        # Test wrong offset shape
+        self.assertRaisesRegex(
+            ValueError,
+            "`offset` must be a vector of length",
+            knn.batch_normalization,
+            KerasTensor([None, 3, 4, 5]),
+            KerasTensor([5]),
+            KerasTensor([5]),
+            axis=-1,
+            offset=KerasTensor([3]),
+            scale=KerasTensor([5]),
+        )
+
+        # Test wrong scale shape
+        self.assertRaisesRegex(
+            ValueError,
+            "`scale` must be a vector of length",
+            knn.batch_normalization,
+            KerasTensor([None, 3, 4, 5]),
+            KerasTensor([5]),
+            KerasTensor([5]),
+            axis=-1,
+            offset=KerasTensor([5]),
+            scale=KerasTensor([3]),
         )
 
 
@@ -350,6 +591,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.hard_sigmoid(x).shape, (1, 2, 3))
 
+    def test_hard_swish(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.hard_swish(x).shape, (1, 2, 3))
+
     def test_elu(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.elu(x).shape, (1, 2, 3))
@@ -375,199 +620,293 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.log_softmax(x, axis=-1).shape, (1, 2, 3))
 
     def test_max_pool(self):
-        x = KerasTensor([1, 8, 3])
-        self.assertEqual(knn.max_pool(x, 2, 1).shape, (1, 7, 3))
-        self.assertEqual(knn.max_pool(x, 2, 2, padding="same").shape, (1, 4, 3))
-
-        x = KerasTensor([1, 8, 8, 3])
-        self.assertEqual(knn.max_pool(x, 2, 1).shape, (1, 7, 7, 3))
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_shape = (1, 8, 3)
+        else:
+            input_shape = (1, 3, 8)
+        x = KerasTensor(input_shape)
         self.assertEqual(
-            knn.max_pool(x, 2, 2, padding="same").shape, (1, 4, 4, 3)
+            knn.max_pool(x, 2, 1).shape,
+            (1, 7, 3) if data_format == "channels_last" else (1, 3, 7),
         )
         self.assertEqual(
-            knn.max_pool(x, (2, 2), (2, 2), padding="same").shape, (1, 4, 4, 3)
+            knn.max_pool(x, 2, 2, padding="same").shape,
+            (1, 4, 3) if data_format == "channels_last" else (1, 3, 4),
+        )
+
+        if data_format == "channels_last":
+            input_shape = (1, 8, 8, 3)
+        else:
+            input_shape = (1, 3, 8, 8)
+        x = KerasTensor(input_shape)
+        self.assertEqual(
+            knn.max_pool(x, 2, 1).shape,
+            (1, 7, 7, 3) if data_format == "channels_last" else (1, 3, 7, 7),
+        )
+        self.assertEqual(
+            knn.max_pool(x, 2, 2, padding="same").shape,
+            (1, 4, 4, 3) if data_format == "channels_last" else (1, 3, 4, 4),
+        )
+        self.assertEqual(
+            knn.max_pool(x, (2, 2), (2, 2), padding="same").shape,
+            (1, 4, 4, 3) if data_format == "channels_last" else (1, 3, 4, 4),
         )
 
     def test_average_pool(self):
-        x = KerasTensor([1, 8, 3])
-        self.assertEqual(knn.average_pool(x, 2, 1).shape, (1, 7, 3))
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_shape = (1, 8, 3)
+        else:
+            input_shape = (1, 3, 8)
+        x = KerasTensor(input_shape)
         self.assertEqual(
-            knn.average_pool(x, 2, 2, padding="same").shape, (1, 4, 3)
+            knn.average_pool(x, 2, 1).shape,
+            (1, 7, 3) if data_format == "channels_last" else (1, 3, 7),
+        )
+        self.assertEqual(
+            knn.average_pool(x, 2, 2, padding="same").shape,
+            (1, 4, 3) if data_format == "channels_last" else (1, 3, 4),
         )
 
-        x = KerasTensor([1, 8, 8, 3])
-        self.assertEqual(knn.average_pool(x, 2, 1).shape, (1, 7, 7, 3))
+        if data_format == "channels_last":
+            input_shape = (1, 8, 8, 3)
+        else:
+            input_shape = (1, 3, 8, 8)
+        x = KerasTensor(input_shape)
         self.assertEqual(
-            knn.average_pool(x, 2, 2, padding="same").shape, (1, 4, 4, 3)
+            knn.average_pool(x, 2, 1).shape,
+            (1, 7, 7, 3) if data_format == "channels_last" else (1, 3, 7, 7),
+        )
+        self.assertEqual(
+            knn.average_pool(x, 2, 2, padding="same").shape,
+            (1, 4, 4, 3) if data_format == "channels_last" else (1, 3, 4, 4),
         )
         self.assertEqual(
             knn.average_pool(x, (2, 2), (2, 2), padding="same").shape,
-            (1, 4, 4, 3),
+            (1, 4, 4, 3) if data_format == "channels_last" else (1, 3, 4, 4),
         )
 
     def test_conv(self):
+        data_format = backend.config.image_data_format()
         # Test 1D conv.
-        inputs_1d = KerasTensor([2, 20, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 20, 3)
+        else:
+            input_shape = (2, 3, 20)
+        inputs_1d = KerasTensor(input_shape)
         kernel = KerasTensor([4, 3, 2])
         self.assertEqual(
-            knn.conv(inputs_1d, kernel, 1, padding="valid").shape, (2, 17, 2)
+            knn.conv(inputs_1d, kernel, 1, padding="valid").shape,
+            (2, 17, 2) if data_format == "channels_last" else (2, 2, 17),
         )
         self.assertEqual(
-            knn.conv(inputs_1d, kernel, 1, padding="same").shape, (2, 20, 2)
+            knn.conv(inputs_1d, kernel, 1, padding="same").shape,
+            (2, 20, 2) if data_format == "channels_last" else (2, 2, 20),
         )
         self.assertEqual(
-            knn.conv(inputs_1d, kernel, (2,), dilation_rate=2).shape, (2, 7, 2)
+            knn.conv(inputs_1d, kernel, (2,), dilation_rate=2).shape,
+            (2, 7, 2) if data_format == "channels_last" else (2, 2, 7),
         )
 
         # Test 2D conv.
-        inputs_2d = KerasTensor([2, 10, 10, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 10, 10, 3)
+        else:
+            input_shape = (2, 3, 10, 10)
+        inputs_2d = KerasTensor(input_shape)
         kernel = KerasTensor([2, 2, 3, 2])
         self.assertEqual(
-            knn.conv(inputs_2d, kernel, 1, padding="valid").shape, (2, 9, 9, 2)
+            knn.conv(inputs_2d, kernel, 1, padding="valid").shape,
+            (2, 9, 9, 2) if data_format == "channels_last" else (2, 2, 9, 9),
         )
         self.assertEqual(
-            knn.conv(inputs_2d, kernel, 1, padding="same").shape, (2, 10, 10, 2)
+            knn.conv(inputs_2d, kernel, 1, padding="same").shape,
+            (2, 10, 10, 2)
+            if data_format == "channels_last"
+            else (2, 2, 10, 10),
         )
         self.assertEqual(
             knn.conv(inputs_2d, kernel, (2, 1), dilation_rate=(2, 1)).shape,
-            (2, 4, 9, 2),
+            (2, 4, 9, 2) if data_format == "channels_last" else (2, 2, 4, 9),
         )
 
         # Test 3D conv.
-        inputs_3d = KerasTensor([2, 8, 8, 8, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 8, 8, 8, 3)
+        else:
+            input_shape = (2, 3, 8, 8, 8)
+        inputs_3d = KerasTensor(input_shape)
         kernel = KerasTensor([3, 3, 3, 3, 2])
         self.assertEqual(
             knn.conv(inputs_3d, kernel, 1, padding="valid").shape,
-            (2, 6, 6, 6, 2),
+            (2, 6, 6, 6, 2)
+            if data_format == "channels_last"
+            else (2, 2, 6, 6, 6),
         )
         self.assertEqual(
             knn.conv(inputs_3d, kernel, (2, 1, 2), padding="same").shape,
-            (2, 4, 8, 4, 2),
+            (2, 4, 8, 4, 2)
+            if data_format == "channels_last"
+            else (2, 2, 4, 8, 4),
         )
         self.assertEqual(
             knn.conv(
                 inputs_3d, kernel, 1, padding="valid", dilation_rate=(1, 2, 2)
             ).shape,
-            (2, 6, 4, 4, 2),
+            (2, 6, 4, 4, 2)
+            if data_format == "channels_last"
+            else (2, 2, 6, 4, 4),
         )
 
     def test_depthwise_conv(self):
+        data_format = backend.config.image_data_format()
         # Test 1D depthwise conv.
-        inputs_1d = KerasTensor([2, 20, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 20, 3)
+        else:
+            input_shape = (2, 3, 20)
+        inputs_1d = KerasTensor(input_shape)
         kernel = KerasTensor([4, 3, 1])
         self.assertEqual(
             knn.depthwise_conv(inputs_1d, kernel, 1, padding="valid").shape,
-            (2, 17, 3),
+            (2, 17, 3) if data_format == "channels_last" else (2, 3, 17),
         )
         self.assertEqual(
             knn.depthwise_conv(inputs_1d, kernel, (1,), padding="same").shape,
-            (2, 20, 3),
+            (2, 20, 3) if data_format == "channels_last" else (2, 3, 20),
         )
         self.assertEqual(
             knn.depthwise_conv(inputs_1d, kernel, 2, dilation_rate=2).shape,
-            (2, 7, 3),
+            (2, 7, 3) if data_format == "channels_last" else (2, 3, 7),
         )
 
         # Test 2D depthwise conv.
-        inputs_2d = KerasTensor([2, 10, 10, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 10, 10, 3)
+        else:
+            input_shape = (2, 3, 10, 10)
+        inputs_2d = KerasTensor(input_shape)
         kernel = KerasTensor([2, 2, 3, 1])
         self.assertEqual(
             knn.depthwise_conv(inputs_2d, kernel, 1, padding="valid").shape,
-            (2, 9, 9, 3),
+            (2, 9, 9, 3) if data_format == "channels_last" else (2, 3, 9, 9),
         )
         self.assertEqual(
             knn.depthwise_conv(inputs_2d, kernel, (1, 2), padding="same").shape,
-            (2, 10, 5, 3),
+            (2, 10, 5, 3) if data_format == "channels_last" else (2, 3, 10, 5),
         )
         self.assertEqual(
             knn.depthwise_conv(inputs_2d, kernel, 2, dilation_rate=2).shape,
-            (2, 4, 4, 3),
+            (2, 4, 4, 3) if data_format == "channels_last" else (2, 3, 4, 4),
         )
         self.assertEqual(
             knn.depthwise_conv(
                 inputs_2d, kernel, 2, dilation_rate=(2, 1)
             ).shape,
-            (2, 4, 5, 3),
+            (2, 4, 5, 3) if data_format == "channels_last" else (2, 3, 4, 5),
         )
 
     def test_separable_conv(self):
-        # Test 1D separable conv.
-        inputs_1d = KerasTensor([2, 20, 3])
+        data_format = backend.config.image_data_format()
+        # Test 1D max pooling.
+        if data_format == "channels_last":
+            input_shape = (2, 20, 3)
+        else:
+            input_shape = (2, 3, 20)
+        inputs_1d = KerasTensor(input_shape)
         kernel = KerasTensor([4, 3, 2])
         pointwise_kernel = KerasTensor([1, 6, 5])
         self.assertEqual(
             knn.separable_conv(
                 inputs_1d, kernel, pointwise_kernel, 1, padding="valid"
             ).shape,
-            (2, 17, 5),
+            (2, 17, 5) if data_format == "channels_last" else (2, 5, 17),
         )
         self.assertEqual(
             knn.separable_conv(
                 inputs_1d, kernel, pointwise_kernel, 1, padding="same"
             ).shape,
-            (2, 20, 5),
+            (2, 20, 5) if data_format == "channels_last" else (2, 5, 20),
         )
         self.assertEqual(
             knn.separable_conv(
                 inputs_1d, kernel, pointwise_kernel, 2, dilation_rate=2
             ).shape,
-            (2, 7, 5),
+            (2, 7, 5) if data_format == "channels_last" else (2, 5, 7),
         )
 
         # Test 2D separable conv.
-        inputs_2d = KerasTensor([2, 10, 10, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 10, 10, 3)
+        else:
+            input_shape = (2, 3, 10, 10)
+        inputs_2d = KerasTensor(input_shape)
         kernel = KerasTensor([2, 2, 3, 2])
         pointwise_kernel = KerasTensor([1, 1, 6, 5])
         self.assertEqual(
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, 1, padding="valid"
             ).shape,
-            (2, 9, 9, 5),
+            (2, 9, 9, 5) if data_format == "channels_last" else (2, 5, 9, 9),
         )
         self.assertEqual(
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, (1, 2), padding="same"
             ).shape,
-            (2, 10, 5, 5),
+            (2, 10, 5, 5) if data_format == "channels_last" else (2, 5, 10, 5),
         )
         self.assertEqual(
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, 2, dilation_rate=(2, 1)
             ).shape,
-            (2, 4, 5, 5),
+            (2, 4, 5, 5) if data_format == "channels_last" else (2, 5, 4, 5),
         )
 
     def test_conv_transpose(self):
-        inputs_1d = KerasTensor([2, 4, 3])
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_shape = (2, 4, 3)
+        else:
+            input_shape = (2, 3, 4)
+        inputs_1d = KerasTensor(input_shape)
         kernel = KerasTensor([2, 5, 3])
         self.assertEqual(
-            knn.conv_transpose(inputs_1d, kernel, 2).shape, (2, 8, 5)
+            knn.conv_transpose(inputs_1d, kernel, 2).shape,
+            (2, 8, 5) if data_format == "channels_last" else (2, 5, 8),
         )
         self.assertEqual(
             knn.conv_transpose(inputs_1d, kernel, 2, padding="same").shape,
-            (2, 8, 5),
+            (2, 8, 5) if data_format == "channels_last" else (2, 5, 8),
         )
         self.assertEqual(
             knn.conv_transpose(
                 inputs_1d, kernel, 5, padding="valid", output_padding=4
             ).shape,
-            (2, 21, 5),
+            (2, 21, 5) if data_format == "channels_last" else (2, 5, 21),
         )
 
-        inputs_2d = KerasTensor([2, 4, 4, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 4, 4, 3)
+        else:
+            input_shape = (2, 3, 4, 4)
+        inputs_2d = KerasTensor(input_shape)
         kernel = KerasTensor([2, 2, 5, 3])
         self.assertEqual(
-            knn.conv_transpose(inputs_2d, kernel, 2).shape, (2, 8, 8, 5)
+            knn.conv_transpose(inputs_2d, kernel, 2).shape,
+            (2, 8, 8, 5) if data_format == "channels_last" else (2, 5, 8, 8),
         )
         self.assertEqual(
             knn.conv_transpose(inputs_2d, kernel, (2, 2), padding="same").shape,
-            (2, 8, 8, 5),
+            (2, 8, 8, 5) if data_format == "channels_last" else (2, 5, 8, 8),
         )
         self.assertEqual(
             knn.conv_transpose(
                 inputs_2d, kernel, (5, 5), padding="valid", output_padding=4
             ).shape,
-            (2, 21, 21, 5),
+            (2, 21, 21, 5)
+            if data_format == "channels_last"
+            else (2, 5, 21, 21),
         )
 
     def test_batched_and_unbatched_inputs_multi_hot(self):
@@ -611,6 +950,28 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.moments(x, axes=[0, 1])[0].shape, (4,))
         self.assertEqual(
             knn.moments(x, axes=[0, 1], keepdims=True)[0].shape, (1, 1, 4)
+        )
+
+    def test_batch_normalization(self):
+        x = KerasTensor([10, 3, 4])
+        mean = KerasTensor([4])
+        variance = KerasTensor([4])
+        self.assertEqual(
+            knn.batch_normalization(x, mean, variance, axis=-1).shape,
+            (10, 3, 4),
+        )
+
+        x = KerasTensor([10, 3, 4, 5])
+        self.assertEqual(
+            knn.batch_normalization(x, mean, variance, axis=2).shape,
+            (10, 3, 4, 5),
+        )
+
+        mean = KerasTensor([3])
+        variance = KerasTensor([3])
+        self.assertEqual(
+            knn.batch_normalization(x, mean, variance, axis=1).shape,
+            (10, 3, 4, 5),
         )
 
 
@@ -666,6 +1027,13 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             knn.hard_sigmoid(x),
             [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
+        )
+
+    def test_hard_swish(self):
+        x = np.array([-3, -2, -1, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.hard_swish(x),
+            [-0.0, -0.333333, -0.333333, 0.0, 0.6666667, 1.6666667, 3.0],
         )
 
     def test_elu(self):
@@ -750,41 +1118,59 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_max_pool(self):
+        data_format = backend.config.image_data_format()
         # Test 1D max pooling.
-        x = np.arange(120, dtype=float).reshape([2, 20, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 20, 3)
+        else:
+            input_shape = (2, 3, 20)
+        x = np.arange(120, dtype=float).reshape(input_shape)
         self.assertAllClose(
             knn.max_pool(x, 2, 1, padding="valid"),
-            tf.nn.max_pool1d(x, 2, 1, padding="VALID"),
+            np_maxpool1d(x, 2, 1, padding="valid", data_format=data_format),
         )
         self.assertAllClose(
             knn.max_pool(x, 2, 2, padding="same"),
-            tf.nn.max_pool1d(x, 2, 2, padding="SAME"),
+            np_maxpool1d(x, 2, 2, padding="same", data_format=data_format),
         )
 
         # Test 2D max pooling.
-        x = np.arange(540, dtype=float).reshape([2, 10, 9, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 10, 9, 3)
+        else:
+            input_shape = (2, 3, 10, 9)
+        x = np.arange(540, dtype=float).reshape(input_shape)
         self.assertAllClose(
             knn.max_pool(x, 2, 1, padding="valid"),
-            tf.nn.max_pool2d(x, 2, 1, padding="VALID"),
+            np_maxpool2d(x, 2, 1, padding="valid", data_format=data_format),
         )
         self.assertAllClose(
             knn.max_pool(x, 2, (2, 1), padding="same"),
-            tf.nn.max_pool2d(x, 2, (2, 1), padding="SAME"),
+            np_maxpool2d(x, 2, (2, 1), padding="same", data_format=data_format),
         )
 
     def test_average_pool_valid_padding(self):
+        data_format = backend.config.image_data_format()
         # Test 1D max pooling.
-        x = np.arange(120, dtype=float).reshape([2, 20, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 20, 3)
+        else:
+            input_shape = (2, 3, 20)
+        x = np.arange(120, dtype=float).reshape(input_shape)
         self.assertAllClose(
             knn.average_pool(x, 2, 1, padding="valid"),
-            tf.nn.avg_pool1d(x, 2, 1, padding="VALID"),
+            np_avgpool1d(x, 2, 1, padding="valid", data_format=data_format),
         )
 
         # Test 2D max pooling.
-        x = np.arange(540, dtype=float).reshape([2, 10, 9, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 10, 9, 3)
+        else:
+            input_shape = (2, 3, 10, 9)
+        x = np.arange(540, dtype=float).reshape(input_shape)
         self.assertAllClose(
             knn.average_pool(x, 2, 1, padding="valid"),
-            tf.nn.avg_pool2d(x, 2, 1, padding="VALID"),
+            np_avgpool2d(x, 2, 1, padding="valid", data_format=data_format),
         )
 
     @pytest.mark.skipif(
@@ -792,18 +1178,28 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         reason="Torch outputs differently from TF when using `same` padding.",
     )
     def test_average_pool_same_padding(self):
+        data_format = backend.config.image_data_format()
         # Test 1D max pooling.
-        x = np.arange(120, dtype=float).reshape([2, 20, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 20, 3)
+        else:
+            input_shape = (2, 3, 20)
+        x = np.arange(120, dtype=float).reshape(input_shape)
+
         self.assertAllClose(
             knn.average_pool(x, 2, 2, padding="same"),
-            tf.nn.avg_pool1d(x, 2, 2, padding="SAME"),
+            np_avgpool1d(x, 2, 2, padding="same", data_format=data_format),
         )
 
         # Test 2D max pooling.
-        x = np.arange(540, dtype=float).reshape([2, 10, 9, 3])
+        if data_format == "channels_last":
+            input_shape = (2, 10, 9, 3)
+        else:
+            input_shape = (2, 3, 10, 9)
+        x = np.arange(540, dtype=float).reshape(input_shape)
         self.assertAllClose(
             knn.average_pool(x, 2, (2, 1), padding="same"),
-            tf.nn.avg_pool2d(x, 2, (2, 1), padding="SAME"),
+            np_avgpool2d(x, 2, (2, 1), padding="same", data_format=data_format),
         )
 
     @parameterized.product(
@@ -815,7 +1211,11 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         if strides > 1 and dilation_rate > 1:
             pytest.skip("Unsupported configuration")
 
-        inputs_1d = np.arange(120, dtype=float).reshape([2, 20, 3])
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 20, 3)
+        else:
+            input_shape = (2, 3, 20)
+        inputs_1d = np.arange(120, dtype=float).reshape(input_shape)
         kernel = np.arange(24, dtype=float).reshape([4, 3, 2])
 
         outputs = knn.conv(
@@ -825,254 +1225,271 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             padding=padding,
             dilation_rate=dilation_rate,
         )
-        expected = tf.nn.conv1d(
+        expected = np_conv1d(
             inputs_1d,
             kernel,
-            strides,
-            padding=padding.upper(),
-            dilations=dilation_rate,
+            bias_weights=np.zeros((2,)),
+            strides=strides,
+            padding=padding.lower(),
+            data_format=backend.config.image_data_format(),
+            dilation_rate=dilation_rate,
+            groups=1,
         )
         self.assertAllClose(outputs, expected)
 
-    def test_conv_2d(self):
-        inputs_2d = np.arange(600, dtype=float).reshape([2, 10, 10, 3])
+    @parameterized.product(strides=(1, 2, (1, 2)), padding=("valid", "same"))
+    def test_conv_2d(self, strides, padding):
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 10, 10, 3)
+        else:
+            input_shape = (2, 3, 10, 10)
+        inputs_2d = np.arange(600, dtype=float).reshape(input_shape)
         kernel = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
 
-        outputs = knn.conv(inputs_2d, kernel, 1, padding="valid")
-        expected = tf.nn.conv2d(inputs_2d, kernel, 1, padding="VALID")
+        outputs = knn.conv(inputs_2d, kernel, strides, padding=padding)
+        expected = np_conv2d(
+            inputs_2d,
+            kernel,
+            bias_weights=np.zeros((2,)),
+            strides=strides,
+            padding=padding,
+            data_format=backend.config.image_data_format(),
+            dilation_rate=1,
+            groups=1,
+        )
         self.assertAllClose(outputs, expected)
 
-        outputs = knn.conv(inputs_2d, kernel, (1, 2), padding="valid")
-        expected = tf.nn.conv2d(inputs_2d, kernel, (1, 2), padding="VALID")
-        self.assertAllClose(outputs, expected)
-
-        outputs = knn.conv(inputs_2d, kernel, (1, 2), padding="same")
-        expected = tf.nn.conv2d(inputs_2d, kernel, (1, 2), padding="SAME")
-        self.assertAllClose(outputs, expected)
-
-        outputs = knn.conv(inputs_2d, kernel, 2, padding="same")
-        expected = tf.nn.conv2d(inputs_2d, kernel, 2, padding="SAME")
-        self.assertAllClose(outputs, expected)
-
-        # Test group > 1.
-        inputs_2d = np.ones([2, 10, 10, 4])
+    @parameterized.product(strides=(1, 2), dilation_rate=(1, (2, 1)))
+    def test_conv_2d_group_2(self, strides, dilation_rate):
+        if (
+            backend.backend() == "tensorflow"
+            and strides == 2
+            and dilation_rate == (2, 1)
+        ):
+            # This case is not supported by the TF backend.
+            return
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 10, 10, 4)
+        else:
+            input_shape = (2, 4, 10, 10)
+        inputs_2d = np.ones(input_shape)
         kernel = np.ones([2, 2, 2, 6])
         outputs = knn.conv(
-            inputs_2d, kernel, 2, padding="same", dilation_rate=1
-        )
-        expected = tf.nn.conv2d(
-            inputs_2d, kernel, 2, padding="SAME", dilations=1
-        )
-        self.assertAllClose(outputs, expected)
-
-        outputs = knn.conv(
             inputs_2d,
             kernel,
-            1,
+            strides,
             padding="same",
-            dilation_rate=(2, 1),
+            dilation_rate=dilation_rate,
         )
-        expected = tf.nn.conv2d(
+        expected = np_conv2d(
             inputs_2d,
             kernel,
-            1,
-            padding="SAME",
-            dilations=(2, 1),
+            bias_weights=np.zeros((6,)),
+            strides=strides,
+            padding="same",
+            data_format=backend.config.image_data_format(),
+            dilation_rate=dilation_rate,
+            groups=1,
         )
         self.assertAllClose(outputs, expected)
 
-    def test_conv_3d(self):
-        inputs_3d = np.arange(3072, dtype=float).reshape([2, 8, 8, 8, 3])
+    @parameterized.product(strides=(1, (1, 1, 1), 2), padding=("valid", "same"))
+    def test_conv_3d(self, strides, padding):
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 8, 8, 8, 3)
+        else:
+            input_shape = (2, 3, 8, 8, 8)
+        inputs_3d = np.arange(3072, dtype=float).reshape(input_shape)
         kernel = np.arange(162, dtype=float).reshape([3, 3, 3, 3, 2])
 
-        outputs = knn.conv(inputs_3d, kernel, 1, padding="valid")
-        expected = tf.nn.conv3d(
-            inputs_3d, kernel, (1, 1, 1, 1, 1), padding="VALID"
-        )
-        self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
-
-        outputs = knn.conv(
+        outputs = knn.conv(inputs_3d, kernel, strides, padding=padding)
+        expected = np_conv3d(
             inputs_3d,
             kernel,
-            (1, 1, 1),
-            padding="valid",
-            dilation_rate=(1, 1, 1),
-        )
-        expected = tf.nn.conv3d(
-            inputs_3d,
-            kernel,
-            (1, 1, 1, 1, 1),
-            padding="VALID",
-            dilations=(1, 1, 1, 1, 1),
+            bias_weights=np.zeros((2,)),
+            strides=strides,
+            padding=padding,
+            data_format=backend.config.image_data_format(),
+            dilation_rate=1,
+            groups=1,
         )
         self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
 
-        outputs = knn.conv(inputs_3d, kernel, 2, padding="valid")
-        expected = tf.nn.conv3d(
-            inputs_3d, kernel, (1, 2, 2, 2, 1), padding="VALID"
-        )
-        self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
-
-        outputs = knn.conv(inputs_3d, kernel, 2, padding="same")
-        expected = tf.nn.conv3d(
-            inputs_3d, kernel, (1, 2, 2, 2, 1), padding="SAME"
-        )
-        self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
-
-    def test_depthwise_conv_2d(self):
-        inputs_2d = np.arange(600, dtype=float).reshape([2, 10, 10, 3])
+    @parameterized.product(
+        strides=(1, (1, 1), (2, 2)),
+        padding=("valid", "same"),
+        dilation_rate=(1, (2, 2)),
+    )
+    def test_depthwise_conv_2d(self, strides, padding, dilation_rate):
+        if (
+            backend.backend() == "tensorflow"
+            and strides == (2, 2)
+            and dilation_rate == (2, 2)
+        ):
+            # This case is not supported by the TF backend.
+            return
+        print(strides, padding, dilation_rate)
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 10, 10, 3)
+        else:
+            input_shape = (2, 3, 10, 10)
+        inputs_2d = np.arange(600, dtype=float).reshape(input_shape)
         kernel = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
 
-        outputs = knn.depthwise_conv(inputs_2d, kernel, 1, padding="valid")
-        expected = tf.nn.depthwise_conv2d(
-            inputs_2d, kernel, (1, 1, 1, 1), padding="VALID"
-        )
-        self.assertAllClose(outputs, expected)
-
-        outputs = knn.depthwise_conv(inputs_2d, kernel, (1, 1), padding="valid")
-        expected = tf.nn.depthwise_conv2d(
-            inputs_2d, kernel, (1, 1, 1, 1), padding="VALID"
-        )
-        self.assertAllClose(outputs, expected)
-
-        outputs = knn.depthwise_conv(inputs_2d, kernel, (2, 2), padding="same")
-        expected = tf.nn.depthwise_conv2d(
-            inputs_2d, kernel, (1, 2, 2, 1), padding="SAME"
-        )
-        self.assertAllClose(outputs, expected)
-
         outputs = knn.depthwise_conv(
-            inputs_2d, kernel, 1, padding="same", dilation_rate=(2, 2)
+            inputs_2d,
+            kernel,
+            strides,
+            padding=padding,
+            dilation_rate=dilation_rate,
         )
-        expected = tf.nn.depthwise_conv2d(
-            inputs_2d, kernel, (1, 1, 1, 1), padding="SAME", dilations=(2, 2)
+        expected = np_depthwise_conv2d(
+            inputs_2d,
+            kernel,
+            bias_weights=np.zeros((6,)),
+            strides=strides,
+            padding=padding,
+            data_format=backend.config.image_data_format(),
+            dilation_rate=dilation_rate,
         )
         self.assertAllClose(outputs, expected)
 
-    def test_separable_conv_2d(self):
+    @parameterized.product(
+        strides=(1, 2),
+        padding=("valid", "same"),
+        dilation_rate=(1, (2, 2)),
+    )
+    def test_separable_conv_2d(self, strides, padding, dilation_rate):
+        if (
+            backend.backend() == "tensorflow"
+            and strides == 2
+            and dilation_rate == (2, 2)
+        ):
+            # This case is not supported by the TF backend.
+            return
         # Test 2D conv.
-        inputs_2d = np.arange(600, dtype=float).reshape([2, 10, 10, 3])
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 10, 10, 3)
+        else:
+            input_shape = (2, 3, 10, 10)
+        inputs_2d = np.arange(600, dtype=float).reshape(input_shape)
         depthwise_kernel = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
         pointwise_kernel = np.arange(72, dtype=float).reshape([1, 1, 6, 12])
 
         outputs = knn.separable_conv(
-            inputs_2d, depthwise_kernel, pointwise_kernel, 1, padding="valid"
-        )
-        expected = tf.nn.separable_conv2d(
             inputs_2d,
             depthwise_kernel,
             pointwise_kernel,
-            (1, 1, 1, 1),
-            padding="VALID",
+            strides,
+            padding=padding,
+            dilation_rate=dilation_rate,
+        )
+        # Depthwise followed by pointwise conv
+        expected_depthwise = np_depthwise_conv2d(
+            inputs_2d,
+            depthwise_kernel,
+            np.zeros(6),
+            strides=strides,
+            padding=padding,
+            data_format=backend.config.image_data_format(),
+            dilation_rate=dilation_rate,
+        )
+        expected = np_conv2d(
+            expected_depthwise,
+            pointwise_kernel,
+            np.zeros(6 * 12),
+            strides=1,
+            padding=padding,
+            data_format=backend.config.image_data_format(),
+            dilation_rate=dilation_rate,
+            groups=1,
         )
         self.assertAllClose(outputs, expected)
 
-        outputs = knn.separable_conv(
-            inputs_2d,
-            depthwise_kernel,
-            pointwise_kernel,
-            (1, 1),
-            padding="valid",
-        )
-        expected = tf.nn.separable_conv2d(
-            inputs_2d,
-            depthwise_kernel,
-            pointwise_kernel,
-            (1, 1, 1, 1),
-            padding="VALID",
-        )
-        self.assertAllClose(outputs, expected)
-
-        outputs = knn.separable_conv(
-            inputs_2d, depthwise_kernel, pointwise_kernel, 2, padding="same"
-        )
-        expected = tf.nn.separable_conv2d(
-            inputs_2d,
-            depthwise_kernel,
-            pointwise_kernel,
-            (1, 2, 2, 1),
-            padding="SAME",
-        )
-        self.assertAllClose(outputs, expected)
-
-        outputs = knn.separable_conv(
-            inputs_2d,
-            depthwise_kernel,
-            pointwise_kernel,
-            1,
-            padding="same",
-            dilation_rate=(2, 2),
-        )
-        expected = tf.nn.separable_conv2d(
-            inputs_2d,
-            depthwise_kernel,
-            pointwise_kernel,
-            (1, 1, 1, 1),
-            padding="SAME",
-            dilations=(2, 2),
-        )
-        self.assertAllClose(outputs, expected)
-
-    def test_conv_transpose_1d(self):
-        inputs_1d = np.arange(24, dtype=float).reshape([2, 4, 3])
+    @parameterized.product(padding=("valid", "same"))
+    def test_conv_transpose_1d(self, padding):
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 4, 3)
+        else:
+            input_shape = (2, 3, 4)
+        inputs_1d = np.arange(24, dtype=float).reshape(input_shape)
         kernel = np.arange(30, dtype=float).reshape([2, 5, 3])
-        outputs = knn.conv_transpose(inputs_1d, kernel, 2, padding="valid")
-        expected = tf.nn.conv_transpose(
-            inputs_1d, kernel, [2, 8, 5], 2, padding="VALID"
+        outputs = knn.conv_transpose(inputs_1d, kernel, 2, padding=padding)
+        expected = np_conv1d_transpose(
+            inputs_1d,
+            kernel,
+            bias_weights=np.zeros(5),
+            strides=2,
+            output_padding=None,
+            padding=padding,
+            data_format=backend.config.image_data_format(),
+            dilation_rate=1,
         )
         self.assertAllClose(outputs, expected)
 
-        outputs = knn.conv_transpose(inputs_1d, kernel, 2, padding="same")
-        expected = tf.nn.conv_transpose(
-            inputs_1d, kernel, [2, 8, 5], 2, padding="SAME"
-        )
-        self.assertAllClose(outputs, expected)
-
-    def test_conv_transpose_2d(self):
-        inputs_2d = np.arange(96, dtype=float).reshape([2, 4, 4, 3])
+    @parameterized.product(strides=(2, (2, 2)), padding=("valid", "same"))
+    def test_conv_transpose_2d(self, strides, padding):
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 4, 4, 3)
+        else:
+            input_shape = (2, 3, 4, 4)
+        inputs_2d = np.arange(96, dtype=float).reshape(input_shape)
         kernel = np.arange(60, dtype=float).reshape([2, 2, 5, 3])
 
-        outputs = knn.conv_transpose(inputs_2d, kernel, (2, 2), padding="valid")
-        expected = tf.nn.conv_transpose(
-            inputs_2d, kernel, [2, 8, 8, 5], (2, 2), padding="VALID"
+        outputs = knn.conv_transpose(
+            inputs_2d, kernel, strides, padding=padding
         )
-        self.assertAllClose(outputs, expected)
-
-        outputs = knn.conv_transpose(inputs_2d, kernel, 2, padding="same")
-        expected = tf.nn.conv_transpose(
-            inputs_2d, kernel, [2, 8, 8, 5], 2, padding="SAME"
+        expected = np_conv2d_transpose(
+            inputs_2d,
+            kernel,
+            bias_weights=np.zeros(5),
+            strides=strides,
+            output_padding=None,
+            padding=padding,
+            data_format=backend.config.image_data_format(),
+            dilation_rate=1,
         )
         self.assertAllClose(outputs, expected)
 
     def test_one_hot(self):
         # Test 1D one-hot.
         indices_1d = np.array([0, 1, 2, 3])
-        self.assertAllClose(
-            knn.one_hot(indices_1d, 4), tf.one_hot(indices_1d, 4)
-        )
+        self.assertAllClose(knn.one_hot(indices_1d, 4), np.eye(4)[indices_1d])
         self.assertAllClose(
             knn.one_hot(indices_1d, 4, axis=0),
-            tf.one_hot(indices_1d, 4, axis=0),
+            np.eye(4)[indices_1d],
         )
 
         # Test 2D one-hot.
         indices_2d = np.array([[0, 1], [2, 3]])
-        self.assertAllClose(
-            knn.one_hot(indices_2d, 4), tf.one_hot(indices_2d, 4)
-        )
+        self.assertAllClose(knn.one_hot(indices_2d, 4), np.eye(4)[indices_2d])
         self.assertAllClose(
             knn.one_hot(indices_2d, 4, axis=2),
-            tf.one_hot(indices_2d, 4, axis=2),
+            np.eye(4)[indices_2d],
         )
         self.assertAllClose(
             knn.one_hot(indices_2d, 4, axis=1),
-            tf.one_hot(indices_2d, 4, axis=1),
+            np.transpose(np.eye(4)[indices_2d], (0, 2, 1)),
         )
 
         # Test 1D one-hot with negative inputs
         indices_1d = np.array([0, -1, -1, 3])
         self.assertAllClose(
-            knn.one_hot(indices_1d, 4), tf.one_hot(indices_1d, 4)
+            knn.one_hot(indices_1d, 4),
+            np.array(
+                [
+                    [1, 0, 0, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                    [
+                        0,
+                        0,
+                        0,
+                        1,
+                    ],
+                ],
+                dtype=np.float32,
+            ),
         )
 
     def test_binary_crossentropy(self):
@@ -1220,3 +1637,177 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         expected_variance = np.finfo(np.float16).max
         self.assertAllClose(mean, expected_mean, atol=1e-5, rtol=1e-5)
         self.assertAllClose(variance, expected_variance, atol=1e-5, rtol=1e-5)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="synchronized=True only implemented for TF backend",
+    )
+    def test_moments_sync(self):
+        # Test batch statistics for 4D moments (batch, height, width, channels)
+        x = np.random.uniform(size=(2, 28, 28, 3)).astype(np.float32)
+        mean, variance = knn.moments(x, axes=[0], synchronized=True)
+        self.assertAllClose(mean, np.mean(x, axis=0), atol=1e-5, rtol=1e-5)
+        self.assertAllClose(variance, np.var(x, axis=0), atol=1e-5, rtol=1e-5)
+
+        # Test global statistics for 4D moments (batch, height, width, channels)
+        x = np.random.uniform(size=(2, 28, 28, 3)).astype(np.float32)
+        mean, variance = knn.moments(x, axes=[0, 1, 2], synchronized=True)
+        expected_mean = np.mean(x, axis=(0, 1, 2))
+        expected_variance = np.var(x, axis=(0, 1, 2))
+        self.assertAllClose(mean, expected_mean, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(variance, expected_variance, atol=1e-5, rtol=1e-5)
+
+        # Test keepdims
+        x = np.random.uniform(size=(2, 28, 28, 3)).astype(np.float32)
+        mean, variance = knn.moments(
+            x, axes=[0, 1, 2], keepdims=True, synchronized=True
+        )
+        expected_mean = np.mean(x, axis=(0, 1, 2), keepdims=True)
+        expected_variance = np.var(x, axis=(0, 1, 2), keepdims=True)
+        self.assertAllClose(mean, expected_mean, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(variance, expected_variance, atol=1e-5, rtol=1e-5)
+
+    @parameterized.product(dtype=["float16", "float32"])
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="synchronized=True only implemented for TF backend",
+    )
+    def test_moments_sync_with_distribution_strategy(self, dtype):
+        from keras.utils.module_utils import tensorflow as tf
+
+        # Config 2 CPUs for testing.
+        logical_cpus = tf.config.list_logical_devices("CPU")
+        if len(logical_cpus) == 1:
+            from tensorflow.python.eager import context
+
+            context._reset_context()
+            tf.config.set_logical_device_configuration(
+                tf.config.list_physical_devices("CPU")[0],
+                [
+                    tf.config.LogicalDeviceConfiguration(),
+                    tf.config.LogicalDeviceConfiguration(),
+                ],
+            )
+
+        @tf.function()
+        def test_on_moments(inputs):
+            return knn.moments(
+                inputs, axes=-1, keepdims=True, synchronized=True
+            )
+
+        # Test output of moments.
+        inputs = tf.constant([5.0, 9.0, 1.0, 3.0], dtype=dtype)
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
+        with strategy.scope():
+            mean, variance = strategy.run(test_on_moments, args=(inputs,))
+            self.assertEqual(mean.values[0], 4.5)
+            self.assertEqual(variance.values[0], 8.75)
+            self.assertEqual(variance.values[0], 8.75)
+
+    def test_batch_normalization(self):
+        x = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+        mean = np.array([0.2, 0.3, 0.4])
+        variance = np.array([4.0, 16.0, 64.0])
+        output = knn.batch_normalization(
+            x,
+            mean,
+            variance,
+            axis=-1,
+            offset=np.array([5.0, 10.0, 15.0]),
+            scale=np.array([10.0, 20.0, 30.0]),
+            epsilon=1e-7,
+        )
+        expected_output = np.array([[4.5, 9.5, 14.625], [6.0, 11.0, 15.75]])
+        self.assertAllClose(output, expected_output)
+
+        output = knn.batch_normalization(
+            x,
+            mean,
+            variance,
+            axis=1,
+            epsilon=1e-7,
+        )
+        expected_output = np.array(
+            [[-0.05, -0.025, -0.0125], [0.1, 0.05, 0.025]]
+        )
+        self.assertAllClose(output, expected_output)
+
+        output = knn.batch_normalization(
+            np.random.uniform(size=[2, 3, 3, 5]),
+            np.random.uniform(size=[5]),
+            np.random.uniform(size=[5]),
+            axis=3,
+            offset=np.random.uniform(size=[5]),
+            scale=np.random.uniform(size=[5]),
+        )
+        self.assertEqual(tuple(output.shape), (2, 3, 3, 5))
+
+
+class TestLogitRecovery(testing.TestCase):
+    def test_logit_recovery_binary_crossentropy(self):
+        layer = layers.Dense(
+            4, activation="sigmoid", use_bias=False, kernel_initializer="ones"
+        )
+        loss = losses.BinaryCrossentropy()
+        x = np.array([[1.4, 1.6, 0.8]])
+        y = np.array([[0.2, 0.6, 0.1, 0.3]])
+        loss_value = loss(y, layer(x))
+        self.assertAllClose(loss_value, 2.682124)
+
+        model = models.Sequential([layer])
+        model.compile(loss="binary_crossentropy", optimizer="sgd")
+        out = model.evaluate(x, y)
+        self.assertAllClose(out, 2.682124)
+
+
+class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
+    """Test the dtype to verify that the behavior matches JAX."""
+
+    FLOAT_DTYPES = [x for x in ALLOWED_DTYPES if "float" in x]
+
+    def setUp(self):
+        from jax.experimental import enable_x64
+
+        self.jax_enable_x64 = enable_x64()
+        self.jax_enable_x64.__enter__()
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        self.jax_enable_x64.__exit__(None, None, None)
+        return super().tearDown()
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_hard_sigmoid(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.hard_sigmoid(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.hard_sigmoid(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.HardSigmoid().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_hard_swish(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.hard_swish(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.hard_swish(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.HardSwish().symbolic_call(x).dtype),
+            expected_dtype,
+        )

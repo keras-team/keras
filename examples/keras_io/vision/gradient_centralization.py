@@ -34,7 +34,7 @@ pip install tensorflow-datasets
 
 from time import time
 
-import keras as keras
+import keras
 from keras import layers
 from keras.optimizers import RMSprop
 from keras import ops

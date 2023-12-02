@@ -51,8 +51,18 @@ def leaky_relu(x, negative_slope=0.2):
 
 
 def hard_sigmoid(x):
-    x = (x / 6.0) + 0.5
-    return np.where(x <= 0.0, 0.0, np.where(x >= 1.0, 1.0, x))
+    # python numbers will be promoted to float64 by np, so it's neccessary to
+    # first convert the python numbers to np scalars
+    x = x / np.array(6.0, x.dtype) + np.array(0.5, x.dtype)
+    return np.where(
+        x <= 0.0,
+        np.array(0.0, x.dtype),
+        np.where(x >= 1.0, np.array(1.0, x.dtype), x),
+    )
+
+
+def hard_swish(x):
+    return x * hard_sigmoid(x)
 
 
 def elu(x, alpha=1.0):
@@ -522,7 +532,11 @@ def binary_crossentropy(target, output, from_logits=False):
     return -bce
 
 
-def moments(x, axes, keepdims=False):
+def moments(x, axes, keepdims=False, synchronized=False):
+    if synchronized:
+        raise NotImplementedError(
+            "Argument synchronized=True is not supported with NumPy."
+        )
     axes = tuple(axes) if isinstance(axes, list) else axes
     # The dynamic range of float16 is too limited for statistics. As a
     # workaround, we simply perform the operations on float32 and convert back
@@ -551,3 +565,24 @@ def moments(x, axes, keepdims=False):
         mean = cast(mean, ori_dtype)
         variance = cast(variance, ori_dtype)
     return mean, variance
+
+
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
+    shape = [1] * len(x.shape)
+    shape[axis] = mean.shape[0]
+    mean = np.reshape(mean, shape)
+    variance = np.reshape(variance, shape)
+
+    inv = 1.0 / np.sqrt(variance + epsilon)
+    if scale is not None:
+        scale = np.reshape(scale, shape)
+        inv = inv * scale
+
+    res = -mean * inv
+    if offset is not None:
+        offset = np.reshape(offset, shape)
+        res = res + offset
+
+    return x * inv + res

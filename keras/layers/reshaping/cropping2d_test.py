@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras import backend
 from keras import layers
 from keras import ops
 from keras import testing
@@ -63,9 +64,15 @@ class Cropping2DTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_cropping_2d_with_dynamic_spatial_dim(self):
-        input_layer = layers.Input(batch_shape=(1, 7, None, 5))
+        if backend.config.image_data_format() == "channels_last":
+            input_layer = layers.Input(batch_shape=(1, 7, None, 5))
+        else:
+            input_layer = layers.Input(batch_shape=(1, 5, 7, None))
         cropped = layers.Cropping2D(((1, 2), (3, 4)))(input_layer)
-        self.assertEqual(cropped.shape, (1, 4, None, 5))
+        if backend.config.image_data_format() == "channels_last":
+            self.assertEqual(cropped.shape, (1, 4, None, 5))
+        else:
+            self.assertEqual(cropped.shape, (1, 5, 4, None))
 
     @parameterized.product(
         (
@@ -99,3 +106,30 @@ class Cropping2DTest(testing.TestCase, parameterized.TestCase):
             layers.Cropping2D(cropping=((1, 2), (3, -4)))
         with self.assertRaises(ValueError):
             layers.Cropping2D(cropping=((1, 2), "3"))
+
+    @parameterized.product(
+        (
+            {"cropping": ((4, 5), (0, 0)), "input_shape": (3, 8, 9, 5)},
+            {"cropping": ((0, 0), (5, 5)), "input_shape": (3, 8, 9, 5)},
+            {"cropping": ((6, 3), (0, 0)), "input_shape": (3, 8, 9, 5)},
+            {"cropping": ((0, 0), (7, 3)), "input_shape": (3, 8, 9, 5)},
+        ),
+        (
+            {"data_format": "channels_first"},
+            {"data_format": "channels_last"},
+        ),
+    )
+    def test_cropping_2d_error_on_excessive_cropping(
+        self, cropping, input_shape, data_format
+    ):
+        inputs = np.random.rand(*input_shape)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Values in `cropping` argument should be greater than the "
+            "corresponding spatial dimension of the input.",
+        ):
+            layer = layers.Cropping2D(
+                cropping=cropping, data_format=data_format
+            )
+            _ = layer(inputs)

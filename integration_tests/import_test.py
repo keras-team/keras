@@ -20,14 +20,13 @@ def setup_package():
         shell=True,
     )
     print(build_process.stdout)
-    match = re.search(
-        r"\s[^\s]*\.whl",
+    whl_path = re.findall(
+        r"[^\s]*\.whl",
         build_process.stdout,
-    )
-    if not match:
-        raise ValueError("Installing Keras package unsuccessful. ")
+    )[-1]
+    if not whl_path:
         print(build_process.stderr)
-    whl_path = match.group()
+        raise ValueError("Installing Keras package unsuccessful. ")
     return whl_path
 
 
@@ -82,35 +81,39 @@ def cleanup():
 
 def run_commands_local(commands):
     for command in commands:
+        print(f"Running command: {command}")
         subprocess.run(command, shell=True)
 
 
 def run_commands_venv(commands):
     for command in commands:
+        print(f"Running command: {command}")
         cmd_with_args = command.split(" ")
         cmd_with_args[0] = "test_env/bin/" + cmd_with_args[0]
         p = subprocess.Popen(cmd_with_args)
-        p.wait()
+        assert p.wait() == 0
 
 
 def test_keras_imports():
-    # Ensures packages from all backends are installed.
-    # Builds Keras core package and returns package file path.
-    whl_path = setup_package()
+    try:
+        # Ensures packages from all backends are installed.
+        # Builds Keras core package and returns package file path.
+        whl_path = setup_package()
 
-    # Creates and activates a virtual environment.
-    create_virtualenv()
+        # Creates and activates a virtual environment.
+        create_virtualenv()
 
-    # Ensures the backend's package is installed
-    # and the other backends are uninstalled.
-    manage_venv_installs(whl_path)
+        # Ensures the backend's package is installed
+        # and the other backends are uninstalled.
+        manage_venv_installs(whl_path)
 
-    # Runs test of basic flow in Keras Core.
-    # Tests for backend-specific imports and `model.fit()`.
-    run_keras_flow()
+        # Runs test of basic flow in Keras Core.
+        # Tests for backend-specific imports and `model.fit()`.
+        run_keras_flow()
 
-    # Removes virtual environment and associated files
-    cleanup()
+        # Removes virtual environment and associated files
+    finally:
+        cleanup()
 
 
 if __name__ == "__main__":

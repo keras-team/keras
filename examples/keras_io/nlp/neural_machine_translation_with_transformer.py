@@ -53,7 +53,7 @@ import numpy as np
 import tensorflow.data as tf_data
 import tensorflow.strings as tf_strings
 
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 from keras.layers import TextVectorization

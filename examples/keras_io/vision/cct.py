@@ -1,11 +1,11 @@
 """
 Title: Compact Convolutional Transformers
 Author: [Sayak Paul](https://twitter.com/RisingSayak)
-Converted to Keras 3 by: [Muhammad Anas Raza](https://anasrz.com), [Guillaume Baquiast](https://www.linkedin.com/in/guillaume-baquiast-478965ba/)
 Date created: 2021/06/30
 Last modified: 2023/08/07
 Description: Compact Convolutional Transformers for efficient image classification.
 Accelerator: GPU
+Converted to Keras 3 by: [Muhammad Anas Raza](https://anasrz.com), [Guillaume Baquiast](https://www.linkedin.com/in/guillaume-baquiast-478965ba/)
 """
 """
 As discussed in the [Vision Transformers (ViT)](https://arxiv.org/abs/2010.11929) paper,
@@ -30,17 +30,14 @@ If you are unfamiliar with the concept of self-attention or Transformers, you ca
 from  François Chollet's book *Deep Learning with Python*. This example uses
 code snippets from another example,
 [Image classification with Vision Transformer](https://keras.io/examples/vision/image_classification_with_vision_transformer/).
-
-
 """
-
 
 """
 ## Imports
 """
 
 from keras import layers
-import keras as keras
+import keras
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -251,12 +248,15 @@ class StochasticDepth(layers.Layer):
     def __init__(self, drop_prop, **kwargs):
         super().__init__(**kwargs)
         self.drop_prob = drop_prop
+        self.seed_generator = keras.random.SeedGenerator(1337)
 
     def call(self, x, training=None):
         if training:
             keep_prob = 1 - self.drop_prob
             shape = (keras.ops.shape(x)[0],) + (1,) * (len(x.shape) - 1)
-            random_tensor = keep_prob + keras.random.uniform(shape, 0, 1)
+            random_tensor = keep_prob + keras.random.uniform(
+                shape, 0, 1, seed=self.seed_generator
+            )
             random_tensor = keras.ops.floor(random_tensor)
             return (x / keep_prob) * random_tensor
         return x

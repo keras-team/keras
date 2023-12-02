@@ -184,14 +184,14 @@ def text_dataset_from_directory(
             file_paths=file_paths_train,
             labels=labels_train,
             label_mode=label_mode,
-            num_classes=len(class_names),
+            num_classes=len(class_names) if class_names else 0,
             max_length=max_length,
         )
         val_dataset = paths_and_labels_to_dataset(
             file_paths=file_paths_val,
             labels=labels_val,
             label_mode=label_mode,
-            num_classes=len(class_names),
+            num_classes=len(class_names) if class_names else 0,
             max_length=max_length,
         )
 
@@ -227,7 +227,7 @@ def text_dataset_from_directory(
             file_paths=file_paths,
             labels=labels,
             label_mode=label_mode,
-            num_classes=len(class_names),
+            num_classes=len(class_names) if class_names else 0,
             max_length=max_length,
         )
         dataset = dataset.prefetch(tf.data.AUTOTUNE)

@@ -19,7 +19,7 @@ import jax
 
 # We import TF so we can use tf.data.
 import tensorflow as tf
-import keras as keras
+import keras
 import numpy as np
 
 """
@@ -217,7 +217,7 @@ def train_step(state, data):
         trainable_variables, non_trainable_variables, x, y
     )
     trainable_variables, optimizer_variables = optimizer.stateless_apply(
-        grads, trainable_variables, optimizer_variables
+        optimizer_variables, grads, trainable_variables
     )
     # Return updated state
     return loss, (

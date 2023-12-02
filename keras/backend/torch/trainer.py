@@ -3,6 +3,7 @@ import warnings
 import numpy as np
 import torch
 import tree
+from packaging.version import parse
 
 from keras import backend
 from keras import callbacks as callbacks_module
@@ -10,6 +11,8 @@ from keras import optimizers as optimizers_module
 from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.torch.core import is_tensor
+from keras.trainers import data_adapters
+from keras.trainers import epoch_iterator
 from keras.trainers import trainer as base_trainer
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.epoch_iterator import EpochIterator
@@ -22,6 +25,20 @@ class TorchTrainer(base_trainer.Trainer):
         self.train_function = None
         self.test_function = None
         self.predict_function = None
+
+    def _should_torch_compile(self):
+        # require torch>=2.1.0 to enable dynamo since it
+        # includes many improvements/fixes to torch.compile()
+        # TODO eventually we want to get rid of this when
+        # torch is upgraded to >=2.1 (from 2.0.1) in g3
+        if self.jit_compile and parse(torch.__version__) < parse("2.1.0"):
+            warnings.warn(
+                "Please upgrade to torch>=2.1.0 for `jit_compile=True` "
+                "to take effect. Using `jit_compile=False`"
+            )
+            self.jit_compile = False
+
+        return self.jit_compile
 
     def train_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
@@ -99,13 +116,8 @@ class TorchTrainer(base_trainer.Trainer):
             data = data[0]
             return self.train_step(data)
 
-        if self.jit_compile:
-            raise ValueError(
-                "`jit_compile` is not yet enabled for the PyTorch backend."
-            )
-            # Temporarily disabled torch compile due to failed unit tests.
-            # TODO: Uncomment the following line when unit tests passes.
-            # self.train_function = torch.compile(one_step_on_data)
+        if self._should_torch_compile():
+            self.train_function = torch.compile(one_step_on_data)
         else:
             self.train_function = one_step_on_data
 
@@ -125,7 +137,10 @@ class TorchTrainer(base_trainer.Trainer):
             with torch.no_grad():
                 return self.test_step(data)
 
-        self.test_function = one_step_on_data
+        if self._should_torch_compile():
+            self.test_function = torch.compile(one_step_on_data)
+        else:
+            self.test_function = one_step_on_data
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
@@ -143,7 +158,10 @@ class TorchTrainer(base_trainer.Trainer):
             with torch.no_grad():
                 return self.predict_step(data)
 
-        self.predict_function = one_step_on_data
+        if self._should_torch_compile():
+            self.predict_function = torch.compile(one_step_on_data)
+        else:
+            self.predict_function = one_step_on_data
 
     def _symbolic_build(self, data_batch):
         model_unbuilt = not all(layer.built for layer in self._flatten_layers())
@@ -168,7 +186,7 @@ class TorchTrainer(base_trainer.Trainer):
             # Build all model state with `backend.compute_output_spec`.
             try:
                 y_pred = backend.compute_output_spec(self, x)
-            except:
+            except Exception as e:
                 raise RuntimeError(
                     "Unable to automatically build the model. "
                     "Please build it yourself before calling "
@@ -176,7 +194,9 @@ class TorchTrainer(base_trainer.Trainer):
                     "A model is 'built' when its variables have "
                     "been created and its `self.built` attribute "
                     "is True. Usually, calling the model on a batch "
-                    "of data is the right way to build it."
+                    "of data is the right way to build it.\n"
+                    "Exception encountered:\n"
+                    f"'{e}'"
                 )
             if compile_metrics_unbuilt:
                 # Build all metric state with `backend.compute_output_spec`.
@@ -218,6 +238,7 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         # TODO: respect compiled trainable state
+        self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported
             # for TF/numpy/jax arrays.
@@ -259,7 +280,7 @@ class TorchTrainer(base_trainer.Trainer):
         )
         if needs_building:
             # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
+            for _, data in epoch_iterator.enumerate_epoch():
                 data_batch = data[0]
                 self._symbolic_build(data_batch)
                 break
@@ -288,7 +309,7 @@ class TorchTrainer(base_trainer.Trainer):
             # do training behavior in case the user did not use `self.training`
             # when implementing a custom layer with torch layers.
             self.train()
-            for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
+            for step, data in epoch_iterator.enumerate_epoch():
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
 
@@ -384,7 +405,7 @@ class TorchTrainer(base_trainer.Trainer):
 
         if not all(layer.built for layer in self._flatten_layers()):
             # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
+            for _, data in epoch_iterator.enumerate_epoch():
                 data_batch = data[0]
                 self._symbolic_build(data_batch)
                 break
@@ -405,13 +426,16 @@ class TorchTrainer(base_trainer.Trainer):
         self.eval()
 
         self.make_test_function()
+        self.stop_evaluating = False
         callbacks.on_test_begin()
         logs = None
         self.reset_metrics()
-        for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
+        for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_test_batch_begin(step)
             logs = self.test_function(data)
             callbacks.on_test_batch_end(step, self._pythonify_logs(logs))
+            if self.stop_evaluating:
+                break
         logs = self.get_metrics_result()
         callbacks.on_test_end(logs)
 
@@ -424,7 +448,7 @@ class TorchTrainer(base_trainer.Trainer):
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         # Create an iterator that yields batches of input data.
-        epoch_iterator = EpochIterator(
+        epoch_iterator = TorchEpochIterator(
             x=x,
             batch_size=batch_size,
             steps_per_epoch=steps,
@@ -463,13 +487,16 @@ class TorchTrainer(base_trainer.Trainer):
         self.eval()
 
         self.make_predict_function()
+        self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
-        for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
+        for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_predict_batch_begin(step)
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+            if self.stop_predicting:
+                break
         callbacks.on_predict_end()
         outputs = tree.map_structure(backend.convert_to_numpy, outputs)
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
@@ -535,3 +562,13 @@ class TorchTrainer(base_trainer.Trainer):
             backend.convert_to_numpy, batch_outputs
         )
         return batch_outputs
+
+
+class TorchEpochIterator(epoch_iterator.EpochIterator):
+    def _get_iterator(self, return_type="auto"):
+        if return_type == "auto" and isinstance(
+            self.data_adapter, data_adapters.TorchDataLoaderAdapter
+        ):
+            return self.data_adapter.get_torch_dataloader()
+
+        return super()._get_iterator(return_type)

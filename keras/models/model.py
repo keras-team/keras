@@ -156,8 +156,11 @@ class Model(Trainer, Layer):
         else:
             Layer.__init__(self, *args, **kwargs)
 
-    def call(self, inputs, training=False):
-        raise NotImplementedError
+    def call(self, *args, **kwargs):
+        raise NotImplementedError(
+            f"Model {self.__class__.__name__} does not have a `call()` "
+            "method implemented."
+        )
 
     @property
     def layers(self):
@@ -432,7 +435,7 @@ class Model(Trainer, Layer):
         elif "shapes_dict" in config:
             # Case: inputs were recorded as multiple keyword arguments.
             if utils.is_default(self.build):
-                status = self._build_for_kwargs(config["shapes_dict"])
+                status = self._build_by_run_for_kwargs(config["shapes_dict"])
             else:
                 try:
                     self.build(**config["shapes_dict"])

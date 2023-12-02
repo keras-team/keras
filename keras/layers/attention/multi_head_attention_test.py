@@ -170,7 +170,7 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
         backend.backend() == "numpy",
         reason="Numpy backend does not support masking.",
     )
-    def test_query_mask_progagation(self):
+    def test_query_mask_propagation(self):
         """Test automatic propagation of the query's mask."""
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
         self.assertTrue(layer.supports_masking)

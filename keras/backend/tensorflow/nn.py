@@ -9,6 +9,7 @@ from keras.backend.common.backend_utils import (
 )
 from keras.backend.config import epsilon
 from keras.backend.tensorflow.core import cast
+from keras.backend.tensorflow.core import convert_to_tensor
 
 
 def relu(x):
@@ -51,8 +52,13 @@ def leaky_relu(x, negative_slope=0.2):
 
 
 def hard_sigmoid(x):
-    x = x / 6.0 + 0.5
+    x = convert_to_tensor(x)
+    x = x / tf.constant(6.0, dtype=x.dtype) + tf.constant(0.5, dtype=x.dtype)
     return tf.clip_by_value(x, 0.0, 1.0)
+
+
+def hard_swish(x):
+    return x * hard_sigmoid(x)
 
 
 def elu(x, alpha=1.0):
@@ -439,7 +445,8 @@ def _get_logits(output, from_logits, op_type, fn_name):
         from_logits_ = True
 
     from_expected_op_type = (
-        not isinstance(output, (tf.__internal__.EagerTensor, tf.Variable))
+        hasattr(output, "op")
+        and not isinstance(output, (tf.__internal__.EagerTensor, tf.Variable))
         and output.op.type == op_type
     ) and not has_keras_logits
 
@@ -564,6 +571,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         raise ValueError(
             f"Only axis=-1 is currently supported. Received: axis={axis}"
         )
+    output, from_logits = _get_logits(
+        output, from_logits, "Softmax", "sparse_categorical_crossentropy"
+    )
 
     target = tf.convert_to_tensor(target)
     target = tf.cast(target, dtype="int64")
@@ -591,9 +601,6 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
 
-    output, from_logits = _get_logits(
-        output, from_logits, "Softmax", "sparse_categorical_crossentropy"
-    )
     if not from_logits:
         output = tf.clip_by_value(output, epsilon(), 1 - epsilon())
         output = tf.math.log(output)
@@ -637,6 +644,7 @@ def binary_crossentropy(target, output, from_logits=False):
     output, from_logits = _get_logits(
         output, from_logits, "Sigmoid", "binary_crossentropy"
     )
+
     if from_logits:
         return tf.nn.sigmoid_cross_entropy_with_logits(
             labels=target, logits=output
@@ -649,7 +657,55 @@ def binary_crossentropy(target, output, from_logits=False):
     return -bce
 
 
-def moments(x, axes, keepdims=False):
+def moments(x, axes, keepdims=False, synchronized=False):
+    if synchronized:
+        return _compute_moments_sync(x, axes, keepdims)
+    else:
+        return _compute_moments(x, axes, keepdims)
+
+
+def _compute_moments_sync(x, axes, keepdims):
+    # The dynamic range of fp16 is too limited to support the collection
+    # of sufficient statistics. As a workaround we simply perform the
+    # operations on 32-bit floats before converting the mean and
+    # variance back to fp16
+    y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
+    replica_ctx = tf.distribute.get_replica_context()
+    if not replica_ctx:
+        return _compute_moments(x, axes, keepdims)
+
+    local_count = tf.ones_like(y, name="count")
+
+    local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
+    local_squared_sum = tf.reduce_sum(tf.square(y), axis=axes, keepdims=True)
+    local_count = tf.reduce_sum(local_count, axis=axes, keepdims=True)
+
+    # TODO(b/163099951): batch the all-reduces once we sort out the
+    # ordering issue for NCCL. We don't have a mechanism to launch
+    # NCCL in the same order in each replica nowadays, so we limit
+    # NCCL to batch all-reduces.
+    y_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_sum)
+    y_squared_sum = replica_ctx.all_reduce(
+        tf.distribute.ReduceOp.SUM, local_squared_sum
+    )
+    count_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_count)
+
+    mean = tf.math.divide_no_nan(y_sum, count_sum)
+    y_squared_mean = tf.math.divide_no_nan(y_squared_sum, count_sum)
+    # var = E(x^2) - E(x)^2
+    variance = tf.maximum(y_squared_mean - tf.square(mean), 0.0)
+    if not keepdims:
+        mean = tf.squeeze(mean, axes)
+        variance = tf.squeeze(variance, axes)
+    if x.dtype == tf.float16:
+        return (
+            tf.cast(mean, tf.float16),
+            tf.cast(variance, tf.float16),
+        )
+    return mean, variance
+
+
+def _compute_moments(x, axes, keepdims):
     # The dynamic range of float16 is too limited for statistics. As a
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
@@ -665,9 +721,13 @@ def moments(x, axes, keepdims=False):
     # but less numerically stable.
     # Note: stop_gradient does not change the gradient to the mean, because that
     # gradient is zero.
-    variance = tf.reduce_mean(
-        tf.square(x), axis=axes, keepdims=True
-    ) - tf.square(tf.stop_gradient(mean))
+    # The substraction operation does not guarantee a non-negative
+    # result given float precision, so we clamp it to 0.
+    variance = tf.maximum(
+        tf.reduce_mean(tf.square(x), axis=axes, keepdims=True)
+        - tf.square(tf.stop_gradient(mean)),
+        0.0,
+    )
 
     if not keepdims:
         mean = tf.squeeze(mean, axes)
@@ -679,3 +739,26 @@ def moments(x, axes, keepdims=False):
         mean = cast(mean, ori_dtype)
         variance = cast(variance, ori_dtype)
     return mean, variance
+
+
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
+    if axis != -1:
+        shape = [1] * len(x.shape)
+        shape[axis] = mean.shape[0]
+        mean = tf.reshape(mean, shape)
+        variance = tf.reshape(variance, shape)
+        if offset is not None:
+            offset = tf.reshape(offset, shape)
+        if scale is not None:
+            scale = tf.reshape(scale, shape)
+
+    return tf.nn.batch_normalization(
+        x=x,
+        mean=mean,
+        variance=variance,
+        offset=offset,
+        scale=scale,
+        variance_epsilon=epsilon,
+    )

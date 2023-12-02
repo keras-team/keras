@@ -703,7 +703,17 @@ def deserialize_keras_object(
     custom_obj_scope = object_registration.CustomObjectScope(custom_objects)
     safe_mode_scope = SafeModeScope(safe_mode)
     with custom_obj_scope, safe_mode_scope:
-        instance = cls.from_config(inner_config)
+        try:
+            instance = cls.from_config(inner_config)
+        except TypeError as e:
+            raise TypeError(
+                f"{cls} could not be deserialized properly. Please"
+                " ensure that components that are Python object"
+                " instances (layers, models, etc.) returned by"
+                " `get_config()` are explicitly deserialized in the"
+                " model's `from_config()` method."
+                f"\n\nconfig={config}.\n\nException encountered: {e}"
+            )
         build_config = config.get("build_config", None)
         if build_config and not instance.built:
             instance.build_from_config(build_config)

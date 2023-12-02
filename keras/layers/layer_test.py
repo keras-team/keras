@@ -328,6 +328,12 @@ class LayerTest(testing.TestCase):
         self.assertLen(model.losses, 1)
         self.assertAllClose(model.losses[0], 1.0)
 
+        # It works recursively in nested models
+        model = models.Sequential([model])
+        model(np.ones((1,)))
+        self.assertLen(model.losses, 1)
+        self.assertAllClose(model.losses[0], 1.0)
+
     def test_training_arg_value_resolution(self):
         # Check that even if `training` is not passed
         # to an inner layer, the outer value gets propagated
@@ -813,3 +819,37 @@ class LayerTest(testing.TestCase):
 
         layer = MyLayer()
         self.assertEqual(len(layer.weights), 1)
+
+    def test_add_weight_defaults(self):
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w1 = self.add_weight()
+                self.w2 = self.add_weight(dtype="int32", trainable=False)
+                self.w3 = self.add_weight(dtype="bool", trainable=False)
+                self.w4 = self.add_weight(
+                    dtype="int32", shape=(2, 2), trainable=False
+                )
+                self.w5 = self.add_weight(initializer="ones", shape=(2, 2))
+
+        layer = MyLayer()
+        self.assertEqual(layer.w1.shape, ())
+        self.assertEqual(layer.w1.dtype, "float32")
+
+        self.assertEqual(layer.w2.shape, ())
+        self.assertEqual(layer.w2.dtype, "int32")
+        self.assertAllClose(backend.convert_to_numpy(layer.w2), 0)
+
+        self.assertEqual(layer.w3.shape, ())
+        self.assertEqual(layer.w3.dtype, "bool")
+        self.assertAllClose(backend.convert_to_numpy(layer.w3), False)
+
+        self.assertEqual(layer.w4.shape, (2, 2))
+        self.assertEqual(layer.w4.dtype, "int32")
+        self.assertAllClose(
+            backend.convert_to_numpy(layer.w4), np.zeros((2, 2))
+        )
+
+        self.assertEqual(layer.w5.shape, (2, 2))
+        self.assertEqual(layer.w5.dtype, "float32")
+        self.assertAllClose(backend.convert_to_numpy(layer.w5), np.ones((2, 2)))

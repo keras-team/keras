@@ -20,7 +20,7 @@ classification dataset (unprocessed version). We use the `TextVectorization` lay
 """
 
 import tensorflow as tf
-import keras as keras
+import keras
 from keras.layers import TextVectorization
 from keras import layers
 import string

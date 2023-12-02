@@ -197,3 +197,40 @@ class SimpleRNNTest(testing.TestCase):
             ),
             output,
         )
+
+    def test_return_state(self):
+        sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
+        forward_layer = layers.LSTM(
+            2,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            return_state=True,
+        )
+        layer = layers.Bidirectional(layer=forward_layer)
+        output, h1, c1, h2, c2 = layer(sequence)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.1990008, 0.1990008, 0.12659755, 0.12659755],
+                    [0.52335435, 0.52335435, 0.44717982, 0.44717982],
+                ]
+            ),
+            output,
+        )
+        self.assertAllClose(
+            np.array([[0.1990008, 0.1990008], [0.52335435, 0.52335435]]),
+            h1,
+        )
+        self.assertAllClose(
+            np.array([[0.35567185, 0.35567185], [1.0492687, 1.0492687]]),
+            c1,
+        )
+        self.assertAllClose(
+            np.array([[0.12659755, 0.12659755], [0.44717982, 0.44717982]]),
+            h2,
+        )
+        self.assertAllClose(
+            np.array([[0.2501858, 0.2501858], [0.941473, 0.941473]]),
+            c2,
+        )

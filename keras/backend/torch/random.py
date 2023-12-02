@@ -1,4 +1,5 @@
 import torch
+import torch._dynamo as dynamo
 import torch.nn.functional as tnn
 
 from keras.backend.config import floatx
@@ -10,6 +11,9 @@ from keras.random.seed_generator import draw_seed
 from keras.random.seed_generator import make_default_seed
 
 
+# torch.Generator not supported with dynamo
+# see: https://github.com/pytorch/pytorch/issues/88576
+@dynamo.disable()
 def torch_seed_generator(seed):
     first_seed, second_seed = draw_seed(seed)
     device = get_device()
@@ -185,3 +189,17 @@ def shuffle(x, axis=0, seed=None):
         *[1 for _ in range(axis + 1)], *(x.shape[axis + 1 :])
     )
     return x.gather(axis, row_perm)
+
+
+def gamma(shape, alpha, dtype=None, seed=None):
+    dtype = dtype or floatx()
+    dtype = to_torch_dtype(dtype)
+    alpha = torch.ones(shape) * torch.tensor(alpha)
+    beta = torch.ones(shape)
+    prev_rng_state = torch.random.get_rng_state()
+    first_seed, second_seed = draw_seed(seed)
+    torch.manual_seed(first_seed + second_seed)
+    gamma_distribution = torch.distributions.gamma.Gamma(alpha, beta)
+    sample = gamma_distribution.sample().type(dtype)
+    torch.random.set_rng_state(prev_rng_state)
+    return sample

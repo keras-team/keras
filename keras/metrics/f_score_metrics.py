@@ -72,6 +72,8 @@ class FBetaScore(Metric):
         dtype=None,
     ):
         super().__init__(name=name, dtype=dtype)
+        # Metric should be maximized during optimization.
+        self._direction = "up"
 
         if average not in (None, "micro", "macro", "weighted"):
             raise ValueError(
@@ -135,7 +137,7 @@ class FBetaScore(Metric):
             )
         num_classes = y_pred_shape[-1]
         if self.average != "micro":
-            init_shape = num_classes
+            init_shape = (num_classes,)
         else:
             init_shape = ()
 

@@ -1,3 +1,5 @@
+from unittest import mock
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -91,6 +93,25 @@ class TrainingTestingLayer(Trainer, layers.Layer):
         return x * 0
 
 
+def tf_sparse_generator():
+    import tensorflow as tf
+
+    for i in range(4):
+        x = tf.random.uniform((2, 4), dtype="float32")
+        x = tf.sparse.from_dense(tf.nn.dropout(x, 0.25))
+        y = tf.random.uniform((2, 3), dtype="float32")
+        yield x, y
+
+
+def scipy_sparse_generator():
+    import scipy
+
+    for i in range(4):
+        x = scipy.sparse.random(2, 4, density=0.25, dtype="float32")
+        y = np.random.rand(2, 3).astype("float32")
+        yield x, y
+
+
 class TestTrainer(testing.TestCase, parameterized.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_metric_tracking(self):
@@ -148,6 +169,18 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(len(model_weighted.metrics), 3)
 
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="torch backend runs in eager mode for jit_compile='auto'",
+    )
+    def test_compile_eager_vs_jit_torch(self):
+        model = ExampleModel(units=3)
+        model.compile(jit_compile="auto")
+        # torch trainer en/disables torch.compile only based on the value of
+        # model.jit_compile (not model.run_eagerly)
+        self.assertFalse(model.run_eagerly)
+        self.assertFalse(model.jit_compile)
+
     @parameterized.named_parameters(
         [
             ("eager", True, False, False),
@@ -200,6 +233,98 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(
         [
+            ("eager", True, False, False),
+            ("graph_fn", False, False, False),
+            ("jit", False, True, False),
+            ("steps_per_epoch_eager", True, False, True),
+            ("steps_per_epoch_graph_fn", False, False, True),
+            ("steps_per_epoch_jit", False, True, True),
+        ]
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_fit_with_val_split(
+        self, run_eagerly, jit_compile, use_steps_per_epoch
+    ):
+        if not run_eagerly and not jit_compile and use_steps_per_epoch:
+            if backend.backend() == "tensorflow":
+                self.skipTest(
+                    "TODO: Graph mode without XLA in TF backend leads to "
+                    "unexpected logs, need further checks."
+                )
+
+        model = ExampleModel(units=3)
+        epochs = 3
+        batch_size = 20
+        steps_per_epoch = 7
+        dataset_size = batch_size * (steps_per_epoch - 2)
+        x = np.ones((dataset_size, 4))
+        y = np.zeros((dataset_size, 3))
+
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            run_eagerly=run_eagerly,
+            jit_compile=jit_compile,
+        )
+        history = model.fit(
+            x,
+            y,
+            batch_size=batch_size,
+            steps_per_epoch=steps_per_epoch if use_steps_per_epoch else None,
+            epochs=epochs,
+            validation_split=0.2,
+        )
+        history = history.history
+        self.assertIn("loss", history)
+        self.assertIn("val_loss", history)
+
+    @parameterized.named_parameters(
+        [
+            ("eager_tf_sparse", True, False),
+            ("graph_fn_tf_sparse", False, False),
+            ("eager_scipy_sparse", True, False),
+            ("graph_fn_scipy_sparse", False, False),
+        ]
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_fit_sparse(self, run_eagerly, use_scipy_sparse):
+        model = ExampleModel(units=3)
+        optimizer = optimizers.Adagrad()
+        model.compile(
+            optimizer=optimizer,
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            run_eagerly=run_eagerly,
+            jit_compile=False,
+        )
+        dataset = (
+            scipy_sparse_generator()
+            if use_scipy_sparse
+            else tf_sparse_generator()
+        )
+
+        sparse_variable_updates = False
+
+        def mock_optimizer_assign(variable, value):
+            nonlocal sparse_variable_updates
+            if value.__class__.__name__ == "IndexedSlices":
+                sparse_variable_updates = True
+
+        with mock.patch.object(
+            optimizer, "assign_sub", autospec=True
+        ) as optimizer_assign_sub:
+            optimizer_assign_sub.side_effect = mock_optimizer_assign
+            model.fit(dataset)
+
+        # Verify tensors did not get densified along the way.
+        self.assertTrue(sparse_variable_updates)
+
+    @parameterized.named_parameters(
+        [
             ("eager", True, False),
             ("graph_fn", False, False),
             ("jit", False, True),
@@ -228,6 +353,34 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(
         [
+            ("eager_tf_sparse", True, False),
+            ("graph_fn_tf_sparse", False, False),
+            ("eager_scipy_sparse", True, False),
+            ("graph_fn_scipy_sparse", False, False),
+        ]
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_evaluate_sparse(self, run_eagerly, use_scipy_sparse):
+        model = ExampleModel(units=3)
+        model.compile(
+            optimizer=optimizers.Adagrad(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            run_eagerly=run_eagerly,
+            jit_compile=False,
+        )
+        dataset = (
+            scipy_sparse_generator()
+            if use_scipy_sparse
+            else tf_sparse_generator()
+        )
+        model.evaluate(dataset)
+
+    @parameterized.named_parameters(
+        [
             ("eager", True, False),
             ("graph_fn", False, False),
             ("jit", False, True),
@@ -244,6 +397,14 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         outputs = model.predict(x, batch_size=batch_size)
         self.assertAllClose(outputs, 4 * np.ones((100, 3)))
 
+    @parameterized.named_parameters(
+        [
+            ("eager", True, False),
+            ("graph_fn", False, False),
+            ("jit", False, True),
+        ]
+    )
+    def test_predict_flow_struct(self, run_eagerly, jit_compile):
         # Test with input/output structs
         model = StructModel(units=3)
         model.run_eagerly = run_eagerly
@@ -259,6 +420,34 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertEqual(len(outputs), 2)
         self.assertAllClose(outputs["y_one"], 4 * np.ones((100, 3)))
         self.assertAllClose(outputs["y_two"], 4 * np.ones((100, 3)))
+
+    @parameterized.named_parameters(
+        [
+            ("eager_tf_sparse", True, False),
+            ("graph_fn_tf_sparse", False, False),
+            ("eager_scipy_sparse", True, False),
+            ("graph_fn_scipy_sparse", False, False),
+        ]
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_predict_sparse(self, run_eagerly, use_scipy_sparse):
+        model = ExampleModel(units=3)
+        model.compile(
+            optimizer=optimizers.Adagrad(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            run_eagerly=run_eagerly,
+            jit_compile=False,
+        )
+        dataset = (
+            scipy_sparse_generator()
+            if use_scipy_sparse
+            else tf_sparse_generator()
+        )
+        model.predict(dataset)
 
     @pytest.mark.skipif(
         backend.backend() != "jax",
@@ -341,6 +530,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             loss="mse",
             optimizer="adam",
             steps_per_execution=3,
+            jit_compile=True,  # TODO: fails in eager?
         )
         step_count = StepCount()
         model.fit(x=x, y=y, batch_size=16, callbacks=[step_count], verbose=0)
@@ -583,6 +773,49 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertEqual(out.shape, (3, 4))
 
     @pytest.mark.requires_trainable_backend
+    def test_for_eval_epoch_iterator(self):
+        model = ExampleModel(units=3)
+        model.compile(
+            optimizer="adam", loss="mse", metrics=["mean_absolute_error"]
+        )
+        x = np.ones((16, 4))
+        y = np.zeros((16, 3))
+        x_test = np.ones((16, 4))
+        y_test = np.zeros((16, 3))
+        model.fit(
+            x,
+            y,
+            batch_size=4,
+            validation_data=(x_test, y_test),
+        )
+        assert getattr(model, "_eval_epoch_iterator", None) is None
+
+        # Try model.fit with reshaped validation_data
+        # This will throw an exception which is intended
+        try:
+            model.fit(
+                x,
+                y,
+                batch_size=4,
+                validation_data=(
+                    x_test.reshape((-1, 16, 4)),
+                    y_test.reshape((-1, 16, 3)),
+                ),
+            )
+        except:
+            pass
+
+        # Try model.fit with correct validation_data this should work.
+        # After successful training `_eval_epoch_iterator` should be None
+        model.fit(
+            x,
+            y,
+            batch_size=4,
+            validation_data=(x_test, y_test),
+        )
+        assert getattr(model, "_eval_epoch_iterator", None) is None
+
+    @pytest.mark.requires_trainable_backend
     def test_callback_methods_keys(self):
         class CustomCallback(Callback):
             def on_train_begin(self, logs=None):
@@ -777,9 +1010,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_recompile(self):
-        inputs = layers.Input((2,))
-        outputs = layers.Dense(3)(inputs)
-        model = keras.Model(inputs, outputs)
+        model = ExampleModel(units=3)
         model.compile(
             optimizer="sgd", loss="mse", metrics=["mean_squared_error"]
         )
@@ -839,9 +1070,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         # Test that you can pass an infinite generator to `validation_data`
         # arg of fit() as well as a `validation_steps` argument and that
         # validation only runs for the correct number of steps.
-        inputs = layers.Input((2,))
-        outputs = layers.Dense(3)(inputs)
-        model = keras.Model(inputs, outputs)
+        model = ExampleModel(units=3)
         model.compile(optimizer="sgd", loss="mse", metrics=["mse"])
 
         class Recorder(keras.callbacks.Callback):
@@ -872,3 +1101,41 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(recorder.train_counter, 3)
         self.assertEqual(recorder.val_counter, 4)
+
+    @parameterized.named_parameters(
+        [
+            ("fit", "fit", "training", "train"),
+            ("evaluate", "evaluate", "evaluating", "test"),
+            ("predict", "predict", "predicting", "predict"),
+        ]
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_stop_loop(self, method, method_gerund, on_end_name):
+        model = ExampleModel(units=3)
+        model.compile(optimizer="sgd", loss="mse", metrics=["mse"])
+
+        class Stopper(keras.callbacks.Callback):
+            def __init__(self, stop_count):
+                self.stop_count = stop_count
+                self.counter = 0
+                setattr(self, f"on_{on_end_name}_batch_end", self.batch_end)
+
+            def batch_end(self, *args, **kwargs):
+                self.counter += 1
+                if self.counter == self.stop_count:
+                    setattr(self.model, f"stop_{method_gerund}", True)
+
+        def infinite_gen():
+            while True:
+                x = np.ones((2, 2))
+                y = np.ones((2, 3))
+                yield (x,) if method == "predict" else (x, y)
+
+        stop_count = 5
+        stopper = Stopper(stop_count)
+
+        getattr(model, method)(
+            infinite_gen(),
+            callbacks=[stopper],
+        )
+        self.assertEqual(stopper.counter, stop_count)

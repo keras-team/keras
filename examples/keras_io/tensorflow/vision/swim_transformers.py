@@ -29,7 +29,7 @@ This example requires TensorFlow 2.5 or higher.
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-import keras as keras
+import keras
 from keras import layers
 
 """

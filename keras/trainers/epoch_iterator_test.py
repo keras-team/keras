@@ -4,6 +4,7 @@ import tensorflow as tf
 
 from keras import backend
 from keras import testing
+from keras.trainers import data_adapters
 from keras.trainers import epoch_iterator
 
 
@@ -172,7 +173,7 @@ class TestEpochIterator(testing.TestCase):
         epoch_iter = epoch_iterator.EpochIterator(x=x)
         self.assertIsInstance(
             epoch_iter.data_adapter,
-            epoch_iterator.generator_data_adapter.GeneratorDataAdapter,
+            data_adapters.GeneratorDataAdapter,
         )
 
     def test_unrecognized_data_type(self):
@@ -187,6 +188,6 @@ class TestEpochIterator(testing.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "Argument `return_type` must be one of `{'np', 'tf'}`",
+            "Argument `return_type` must be one of `{'np', 'tf', 'auto'}`",
         ):
             _ = epoch_iter._get_iterator("unsupported")

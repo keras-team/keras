@@ -38,7 +38,7 @@ and compare the result to the (resized) original image.
 
 import numpy as np
 import tensorflow as tf
-import keras as keras
+import keras
 from keras.applications import inception_v3
 
 base_image_path = keras.utils.get_file(

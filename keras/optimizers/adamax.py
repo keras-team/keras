@@ -120,10 +120,18 @@ class Adamax(optimizer.Optimizer):
         m = self._m[self._get_variable_index(variable)]
         u = self._u[self._get_variable_index(variable)]
 
-        m.assign(m + (gradient - m) * (1 - self.beta_1))
-        u.assign(ops.maximum(self.beta_2 * u, ops.abs(gradient)))
-        variable.assign(
-            variable - (lr * m) / ((1 - beta_1_power) * (u + self.epsilon))
+        self.assign_add(
+            m, ops.multiply(ops.subtract(gradient, m), (1 - self.beta_1))
+        )
+        self.assign(
+            u, ops.maximum(ops.multiply(self.beta_2, u), ops.abs(gradient))
+        )
+        self.assign_sub(
+            variable,
+            ops.divide(
+                ops.multiply(lr, m),
+                ops.multiply((1 - beta_1_power), ops.add(u, self.epsilon)),
+            ),
         )
 
     def get_config(self):

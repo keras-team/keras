@@ -1,6 +1,3 @@
-[![](https://github.com/keras-team/keras/workflows/Tests/badge.svg?branch=master)](https://github.com/keras-team/keras/actions?query=workflow%3ATests+branch%3Amaster)
-[![](https://badge.fury.io/py/keras.svg)](https://badge.fury.io/py/keras)
-
 # Keras 3: A new multi-backend Keras
 
 Keras 3 is a new multi-backend implementation of the Keras API, with support for TensorFlow, JAX, and PyTorch.
@@ -9,24 +6,26 @@ Keras 3 is a new multi-backend implementation of the Keras API, with support for
 
 ### Install with pip
 
-Keras 3 is available as a preview release on PyPI named `keras-core`.
-Keras 2 (`tf.keras`) is distributed along with the `tensorflow` package.
+Keras 3 is available on PyPI as `keras`. Note that Keras 2 remains available as the `tf-keras` package.
 
-1. Install `keras-core`:
+1. Install `keras`:
 
 ```
-pip install keras-core
+pip install keras --upgrade
 ```
 
 2. Install backend package(s).
 
-To use keras-core, you should also install the backend of choice: `tensorflow`, `jax`, or `torch`.
+To use `keras`, you should also install the backend of choice: `tensorflow`, `jax`, or `torch`.
 Note that `tensorflow` is required for using certain Keras 3 features: certain preprocessing layers
 as well as `tf.data` pipelines.
 
 ### Local installation
 
-Keras 3 is compatible with Linux and MacOS systems. To install a local development version:
+#### Minimal installation
+
+Keras 3 is compatible with Linux and MacOS systems. For Windows users, we recommend using WSL2 to run Keras.
+To install a local development version:
 
 1. Install dependencies:
 
@@ -40,11 +39,19 @@ pip install -r requirements.txt
 python pip_build.py --install
 ```
 
-3. Add accelerator support for the backend(s) of your choice.
+#### Adding GPU support
 
-The `requirements.txt` file will install a CPU-only version of TensorFlow, JAX,
-and PyTorch. Full instruction for installing `tensorflow`, `jax`, or `torch`
-with accelerator support can be found on the respective project websites.
+The `requirements.txt` file will install a CPU-only version of TensorFlow, JAX, and PyTorch. For GPU support, we also
+provide a separate `requirements-{backend}-cuda.txt` for TensorFlow, JAX, and PyTorch. These install all CUDA
+dependencies via `pip` and expect a NVIDIA driver to be pre-installed. We recommend a clean python environment for each
+backend to avoid CUDA version mismatches. As an example, here is how to create a Jax GPU environment with `conda`:
+
+```shell
+conda create -y -n keras-jax python=3.10
+conda activate keras-jax
+pip install -r requirements-jax-cuda.txt
+python pip_build.py --install
+```
 
 ## Configuring your backend
 
@@ -61,7 +68,7 @@ In Colab, you can do:
 import os
 os.environ["KERAS_BACKEND"] = "jax"
 
-import keras as keras
+import keras_core as keras
 ```
 
 **Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after 
@@ -70,8 +77,8 @@ the package has been imported.
 ## Backwards compatibility
 
 Keras 3 is intended to work as a drop-in replacement for `tf.keras` (when using the TensorFlow backend). Just take your
-existing `tf.keras` code, change the `keras` imports to `keras`, make sure that your calls to `model.save()` are using
-the up-to-date `.keras` format, and you're done.
+existing `tf.keras` code, make sure that your calls to `model.save()` are using the up-to-date `.keras` format, and you're
+done.
 
 If your `tf.keras` model does not include custom components, you can start running it on top of JAX or PyTorch immediately.
 
@@ -80,15 +87,6 @@ to a backend-agnostic implementation in just a few minutes.
 
 In addition, Keras models can consume datasets in any format, regardless of the backend you're using:
 you can train your models with your existing `tf.data.Dataset` pipelines or PyTorch `DataLoaders`.
-
-## Keras 3 timeline
-
-At the moment, we are releasing Keras 3 as a preview release with under the `keras-core` name on PyPI. We encourage anyone
-interested in the future of the library to try it out and give feedback.
-
-You can find the current stable release of Keras 2 at the [tf-keras](https://github.com/keras-team/tf-keras) repository.
-
-We will share updates on the release timeline as soon as they are available.
 
 ## Why use Keras 3?
 
@@ -100,3 +98,6 @@ e.g. the scalability and performance of JAX or the production ecosystem options 
 - Make your ML code future-proof by avoiding framework lock-in.
 - As a PyTorch user: get access to power and usability of Keras, at last!
 - As a JAX user: get access to a fully-featured, battle-tested, well-documented modeling and training library.
+
+
+Read more in the [Keras 3 release announcement](https://keras.io/keras_3/).

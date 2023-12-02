@@ -23,11 +23,11 @@ class Conv1D(BaseConv):
             `dilation_rate > 1`.
         padding: string, `"valid"`, `"same"` or `"causal"`(case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
-            the left/right or up/down of the input such that output has the same
-            height/width dimension as the input. `"causal"` results in causal
-            (dilated) convolutions, e.g. `output[t]` does not depend on
-            `input[t+1:]`. Useful when modeling temporal data where the model
-            should not violate the temporal order.
+            the left/right or up/down of the input. When `padding="same"` and
+            `strides=1`, the output has the same size as the input.
+            `"causal"` results in causal(dilated) convolutions, e.g. `output[t]`
+            does not depend on`input[t+1:]`. Useful when modeling temporal data
+            where the model should not violate the temporal order.
             See [WaveNet: A Generative Model for Raw Audio, section2.1](
             https://arxiv.org/abs/1609.03499).
         data_format: string, either `"channels_last"` or `"channels_first"`.

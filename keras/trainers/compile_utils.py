@@ -78,15 +78,15 @@ def get_metric(identifier, y_true, y_pred):
                 name=str(identifier)
             )
 
-    if not isinstance(metric_obj, metrics_module.Metric):
-        metric_obj = metrics_module.MeanMetricWrapper(metric_obj)
-
     if isinstance(identifier, str):
         metric_name = identifier
     else:
         metric_name = get_object_name(metric_obj)
-    metric_obj.name = metric_name
 
+    if not isinstance(metric_obj, metrics_module.Metric):
+        metric_obj = metrics_module.MeanMetricWrapper(metric_obj)
+
+    metric_obj.name = metric_name
     return metric_obj
 
 
@@ -145,6 +145,18 @@ class CompileMetrics(metrics_module.Metric):
         self.built = False
         self.name = "compile_metrics"
         self.output_names = output_names
+
+    @property
+    def metrics(self):
+        if not self.built:
+            return []
+        metrics = []
+        for m in self._flat_metrics + self._flat_weighted_metrics:
+            if isinstance(m, MetricsList):
+                metrics.extend(m.metrics)
+            elif m is not None:
+                metrics.append(m)
+        return metrics
 
     @property
     def variables(self):

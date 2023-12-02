@@ -351,8 +351,13 @@ class TestTensorBoardV2(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_TensorBoard_weight_images(self):
-        model = self._get_model()
-        x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (10, 10, 1)
+            x_shape = (10, 10, 10, 1)
+        else:
+            input_shape = (1, 10, 10)
+            x_shape = (10, 1, 10, 10)
+        x, y = np.ones(x_shape), np.ones((10, 1))
         logdir, train_dir, validation_dir = self._get_log_dirs()
         tb_cbk = callbacks.TensorBoard(
             logdir, histogram_freq=1, write_images=True
@@ -360,7 +365,7 @@ class TestTensorBoardV2(testing.TestCase):
         model_type = "sequential"
         model = models.Sequential(
             [
-                layers.Input((10, 10, 1)),
+                layers.Input(input_shape),
                 layers.Conv2D(3, 10),
                 layers.GlobalAveragePooling2D(),
                 layers.Dense(1),

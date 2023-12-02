@@ -64,6 +64,11 @@ def hard_sigmoid(x):
     return jnn.hard_sigmoid(x)
 
 
+def hard_swish(x):
+    x = convert_to_tensor(x)
+    return jnn.hard_swish(x)
+
+
 def elu(x, alpha=1.0):
     x = convert_to_tensor(x)
     return jnn.elu(x, alpha=alpha)
@@ -489,7 +494,11 @@ def binary_crossentropy(target, output, from_logits=False):
     return -bce
 
 
-def moments(x, axes, keepdims=False):
+def moments(x, axes, keepdims=False, synchronized=False):
+    if synchronized:
+        raise NotImplementedError(
+            "Argument synchronized=True is not supported with JAX."
+        )
     # The dynamic range of float16 is too limited for statistics. As a
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
@@ -505,8 +514,12 @@ def moments(x, axes, keepdims=False):
     # but less numerically stable.
     # Note: stop_gradient does not change the gradient to the mean, because that
     # gradient is zero.
-    variance = jnp.mean(jnp.square(x), axis=axes, keepdims=True) - jnp.square(
-        jax.lax.stop_gradient(mean)
+    # The substraction operation does not guarantee a non-negative
+    # result given float precision, so we clamp it to 0.
+    variance = jnp.maximum(
+        jnp.mean(jnp.square(x), axis=axes, keepdims=True)
+        - jnp.square(jax.lax.stop_gradient(mean)),
+        0.0,
     )
 
     if not keepdims:
@@ -523,3 +536,24 @@ def moments(x, axes, keepdims=False):
         mean = cast(mean, ori_dtype)
         variance = cast(variance, ori_dtype)
     return mean, variance
+
+
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
+    shape = [1] * len(x.shape)
+    shape[axis] = mean.shape[0]
+    mean = jnp.reshape(mean, shape)
+    variance = jnp.reshape(variance, shape)
+
+    inv = jax.lax.rsqrt(variance + epsilon)
+    if scale is not None:
+        scale = jnp.reshape(scale, shape)
+        inv = inv * scale
+
+    res = -mean * inv
+    if offset is not None:
+        offset = jnp.reshape(offset, shape)
+        res = res + offset
+
+    return x * inv + res

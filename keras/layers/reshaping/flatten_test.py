@@ -46,7 +46,9 @@ class FlattenTest(testing.TestCase, parameterized.TestCase):
             init_kwargs={},
             input_data=inputs,
             input_sparse=True,
-            expected_output=expected_output_channels_last,
+            expected_output=expected_output_channels_last
+            if backend.config.image_data_format() == "channels_last"
+            else expected_output_channels_first,
             expected_output_sparse=sparse,
             run_training_check=not sparse,
         )

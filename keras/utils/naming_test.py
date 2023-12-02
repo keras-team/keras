@@ -61,7 +61,13 @@ class NamingUtilsTest(test_case.TestCase):
         name = "unique_name"
         unique_name = naming.uniquify(name)
         new_unique_name = naming.uniquify(unique_name)
-        self.assertEqual(new_unique_name, unique_name)
+
+        # first time `name` is uniquified so returns same name
+        self.assertEqual(name, unique_name)
+
+        # second time `name` is uniquified should be different
+        # from the first output
+        self.assertNotEqual(new_unique_name, unique_name)
 
     def test_to_snake_case_capital_after_any_character(self):
         name = "myVariableNameHere"

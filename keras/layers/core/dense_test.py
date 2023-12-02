@@ -47,6 +47,7 @@ class DenseTest(testing.TestCase):
         )
 
     def test_dense_correctness(self):
+        # With bias and activation.
         layer = layers.Dense(units=2, activation="relu")
         layer.build((1, 2))
         layer.set_weights(
@@ -59,6 +60,20 @@ class DenseTest(testing.TestCase):
             [[-1.0, 2.0]],
         )
         self.assertAllClose(layer(inputs), [[10.0, 0.0]])
+
+        # Just a kernel matmul.
+        layer = layers.Dense(units=2, use_bias=False)
+        layer.build((1, 2))
+        layer.set_weights(
+            [
+                np.array([[1.0, -2.0], [3.0, -4.0]]),
+            ]
+        )
+        inputs = np.array(
+            [[-1.0, 2.0]],
+        )
+        self.assertEqual(layer.bias, None)
+        self.assertAllClose(layer(inputs), [[5.0, -6.0]])
 
     def test_dense_errors(self):
         with self.assertRaisesRegex(ValueError, "incompatible with the layer"):
@@ -107,3 +122,48 @@ class DenseTest(testing.TestCase):
         self.assertIsInstance(
             g.gradient(outputs, layer.kernel), tf.IndexedSlices
         )
+
+    def test_dense_no_activation(self):
+        layer = layers.Dense(units=2, use_bias=False, activation=None)
+        layer.build((1, 2))
+        layer.set_weights(
+            [
+                np.array([[1.0, -2.0], [3.0, -4.0]]),
+            ]
+        )
+        inputs = np.array(
+            [[-1.0, 2.0]],
+        )
+        self.assertEqual(layer.bias, None)
+        self.assertAllClose(layer(inputs), [[5.0, -6.0]])
+
+    def test_dense_without_activation_set(self):
+        layer = layers.Dense(units=2, use_bias=False)
+        layer.build((1, 2))
+        layer.set_weights(
+            [
+                np.array([[1.0, -2.0], [3.0, -4.0]]),
+            ]
+        )
+        layer.activation = None
+        inputs = np.array(
+            [[-1.0, 2.0]],
+        )
+        self.assertEqual(layer.bias, None)
+        self.assertAllClose(layer(inputs), [[5.0, -6.0]])
+
+    def test_dense_with_activation(self):
+        layer = layers.Dense(units=2, use_bias=False, activation="relu")
+        layer.build((1, 2))
+        layer.set_weights(
+            [
+                np.array([[1.0, -2.0], [3.0, -4.0]]),
+            ]
+        )
+
+        inputs = np.array(
+            [[-1.0, 2.0]],
+        )
+        output = layer(inputs)
+        expected_output = np.array([[5.0, 0.0]])
+        self.assertAllClose(output, expected_output)

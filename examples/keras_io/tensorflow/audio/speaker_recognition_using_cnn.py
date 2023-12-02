@@ -1,11 +1,11 @@
 """
 Title: Speaker Recognition
 Author: [Fadi Badine](https://twitter.com/fadibadine)
-Converted to Keras 3 by: [Fadi Badine](https://twitter.com/fadibadine)
 Date created: 14/06/2020
 Last modified: 19/07/2023
 Description: Classify speakers using Fast Fourier Transform (FFT) and a 1D Convnet.
 Accelerator: GPU
+Converted to Keras 3 by: [Fadi Badine](https://twitter.com/fadibadine)
 """
 """
 ## Introduction
@@ -32,7 +32,7 @@ Note:
 - This example should be run with TensorFlow 2.3 or higher, or `tf-nightly`.
 - The noise samples in the dataset need to be resampled to a sampling rate of 16000 Hz
 before using the code in this example. In order to do this, you will need to have
-installed `ffmpg`.
+installed `ffmpeg`.
 """
 
 """
@@ -47,16 +47,20 @@ import shutil
 import numpy as np
 
 import tensorflow as tf
-import keras as keras
+import keras
 
 from pathlib import Path
 from IPython.display import display, Audio
 
-# Get the data from https://www.kaggle.com/kongaevans/speaker-recognition-dataset/download
-# and save it to the 'Downloads' folder in your HOME directory
-DATASET_ROOT = os.path.join(
-    os.path.expanduser("~"), "Downloads/16000_pcm_speeches"
-)
+# Get the data from https://www.kaggle.com/kongaevans/speaker-recognition-dataset/
+# and save it to ./speaker-recognition-dataset.zip
+# then unzip it to ./16000_pcm_speeches
+"""shell
+kaggle datasets download -d kongaevans/speaker-recognition-dataset
+unzip -qq speaker-recognition-dataset.zip
+"""
+
+DATASET_ROOT = "16000_pcm_speeches"
 
 # The folders in which we will put the audio samples and the noise samples
 AUDIO_SUBFOLDER = "audio"
@@ -135,14 +139,6 @@ main_directory/
 ```
 """
 
-# If folder `audio`, does not exist, create it, otherwise do nothing
-if os.path.exists(DATASET_AUDIO_PATH) is False:
-    os.makedirs(DATASET_AUDIO_PATH)
-
-# If folder `noise`, does not exist, create it, otherwise do nothing
-if os.path.exists(DATASET_NOISE_PATH) is False:
-    os.makedirs(DATASET_NOISE_PATH)
-
 for folder in os.listdir(DATASET_ROOT):
     if os.path.isdir(os.path.join(DATASET_ROOT, folder)):
         if folder in [AUDIO_SUBFOLDER, NOISE_SUBFOLDER]:
@@ -183,7 +179,8 @@ for subdir in os.listdir(DATASET_NOISE_PATH):
             for filepath in os.listdir(subdir_path)
             if filepath.endswith(".wav")
         ]
-
+if not noise_paths:
+    raise RuntimeError(f"Could not find any files at {DATASET_NOISE_PATH}")
 print(
     "Found {} files belonging to {} directories".format(
         len(noise_paths), len(os.listdir(DATASET_NOISE_PATH))
@@ -191,7 +188,8 @@ print(
 )
 
 """
-Resample all noise samples to 16000 Hz
+Resample all noise samples to 16000 Hz.
+Note that this requires `ffmpeg`.
 """
 
 command = (

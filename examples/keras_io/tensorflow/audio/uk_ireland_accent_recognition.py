@@ -108,7 +108,7 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow_hub as hub
 import tensorflow_io as tfio
-import keras as keras
+import keras
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats

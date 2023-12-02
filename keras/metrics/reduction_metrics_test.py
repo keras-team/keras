@@ -2,6 +2,7 @@ import numpy as np
 
 from keras import testing
 from keras.metrics import reduction_metrics
+from keras.saving import register_keras_serializable
 
 
 class SumTest(testing.TestCase):
@@ -10,7 +11,12 @@ class SumTest(testing.TestCase):
         self.assertEqual(sum_obj.name, "sum")
         self.assertEqual(len(sum_obj.variables), 1)
         self.assertEqual(sum_obj._dtype, "float32")
-        # TODO: Check save and restore config
+
+        # Check save and restore config
+        sum_obj2 = reduction_metrics.Sum.from_config(sum_obj.get_config())
+        self.assertEqual(sum_obj2.name, "sum")
+        self.assertEqual(len(sum_obj2.variables), 1)
+        self.assertEqual(sum_obj2._dtype, "float32")
 
     def test_unweighted(self):
         sum_obj = reduction_metrics.Sum(name="sum", dtype="float32")
@@ -37,7 +43,12 @@ class MeanTest(testing.TestCase):
         self.assertEqual(mean_obj.name, "mean")
         self.assertEqual(len(mean_obj.variables), 2)
         self.assertEqual(mean_obj._dtype, "float32")
-        # TODO: Check save and restore config
+
+        # Check save and restore config
+        mean_obj2 = reduction_metrics.Mean.from_config(mean_obj.get_config())
+        self.assertEqual(mean_obj2.name, "mean")
+        self.assertEqual(len(mean_obj2.variables), 2)
+        self.assertEqual(mean_obj2._dtype, "float32")
 
     def test_unweighted(self):
         mean_obj = reduction_metrics.Mean(name="mean", dtype="float32")
@@ -58,6 +69,9 @@ class MeanTest(testing.TestCase):
         self.assertAllClose(result, 3.0, atol=1e-3)
 
 
+# How users would register a custom function or class to use with
+# MeanMetricWrapper.
+@register_keras_serializable(package="test", name="mse")
 def mse(y_true, y_pred):
     return (y_true - y_pred) ** 2
 
@@ -70,7 +84,14 @@ class MetricWrapperTest(testing.TestCase):
         self.assertEqual(mse_obj.name, "mse")
         self.assertEqual(len(mse_obj.variables), 2)
         self.assertEqual(mse_obj._dtype, "float32")
-        # TODO: Check save and restore config
+        # Check save and restore config
+        mse_obj2 = reduction_metrics.MeanMetricWrapper.from_config(
+            mse_obj.get_config()
+        )
+        self.assertEqual(mse_obj2.name, "mse")
+        self.assertEqual(len(mse_obj2.variables), 2)
+        self.assertEqual(mse_obj2._dtype, "float32")
+        self.assertTrue("fn" in mse_obj2.get_config())
 
     def test_unweighted(self):
         mse_obj = reduction_metrics.MeanMetricWrapper(

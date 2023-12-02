@@ -7,10 +7,22 @@ from keras.trainers.data_adapters.data_adapter import DataAdapter
 class TFDatasetAdapter(DataAdapter):
     """Adapter that handles `tf.data.Dataset`."""
 
-    def __init__(self, dataset, class_weight=None):
+    def __init__(self, dataset, class_weight=None, distribution=None):
+        """Iniitialize the TFDatasetAdapter.
+
+        Args:
+            dataset: The input `tf.data.Dataset` instance.
+            class_weight: A map where the keys are integer class ids and values
+                are the class weights, e.g. `{0: 0.2, 1: 0.6, 2: 0.3}`.
+            distribution: A `keras.distribution.Distribution` instance. Used to
+                shard the input dataset into per worker/process dataset
+                instance.
+        """
         from keras.utils.module_utils import tensorflow as tf
 
-        if not isinstance(dataset, tf.data.Dataset):
+        if not isinstance(
+            dataset, (tf.data.Dataset, tf.distribute.DistributedDataset)
+        ):
             raise ValueError(
                 "Expected argument `dataset` to be a tf.data.Dataset. "
                 f"Received: {dataset}"
@@ -19,18 +31,33 @@ class TFDatasetAdapter(DataAdapter):
             dataset = dataset.map(
                 make_class_weight_map_fn(class_weight)
             ).prefetch(tf.data.AUTOTUNE)
+        if distribution is not None:
+            dataset = distribution.distribute_dataset(dataset)
         self._dataset = dataset
 
     def get_numpy_iterator(self):
+        from keras.utils.module_utils import tensorflow as tf
+
+        def convert_to_numpy(x):
+            if isinstance(x, tf.SparseTensor):
+                x = tf.sparse.to_dense(x)
+            return x.numpy()
+
         for batch in self._dataset:
-            yield tree.map_structure(lambda x: x.numpy(), batch)
+            yield tree.map_structure(convert_to_numpy, batch)
 
     def get_tf_dataset(self):
         return self._dataset
 
     @property
     def num_batches(self):
-        cardinality = int(self._dataset.cardinality())
+        cardinality = self._dataset.cardinality
+        if callable(cardinality):
+            # `dataset.cardinality` is normally expected to be a callable.
+            cardinality = int(self._dataset.cardinality())
+        else:
+            # However, in the case of `DistributedDataset`, it's a np.int64.
+            cardinality = int(cardinality)
         # Return None for Unknown and Infiite cardinality datasets
         if cardinality < 0:
             return None

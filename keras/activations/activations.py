@@ -152,7 +152,7 @@ def softmax(x, axis=-1):
     The input values in are the log-odds of the resulting probability.
 
     Args:
-        x : Input tensor.
+        x: Input tensor.
         axis: Integer, axis along which the softmax is applied.
     """
     output = ops.softmax(x, axis=axis)
@@ -372,6 +372,29 @@ def hard_sigmoid(x):
     - [Wikipedia "Hard sigmoid"](https://en.wikipedia.org/wiki/Hard_sigmoid)
     """
     return ops.hard_sigmoid(x)
+
+
+@keras_export("keras.activations.hard_swish")
+def hard_swish(x):
+    """Hard swish activation function.
+
+    The hard swish activation is defined as:
+
+    - `0` if `if x < -3`
+    - `x` if `x > 3`
+    - `x * (x + 3) / 6` if `-3 <= x <= 3`
+
+    It's a faster, piecewise linear approximation of the swish activation.
+
+    Args:
+        x: Input tensor.
+
+    Reference:
+
+    - [A Howard, 2019](https://arxiv.org/abs/1905.02244)
+    """
+    x = backend.convert_to_tensor(x)
+    return ops.hard_swish(x)
 
 
 @keras_export("keras.activations.linear")

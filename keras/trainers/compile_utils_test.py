@@ -4,6 +4,7 @@ from absl.testing import parameterized
 from keras import backend
 from keras import metrics as losses_module
 from keras import metrics as metrics_module
+from keras import ops
 from keras import testing
 from keras.trainers.compile_utils import CompileLoss
 from keras.trainers.compile_utils import CompileMetrics
@@ -74,6 +75,8 @@ class TestCompileMetrics(testing.TestCase):
         y_true = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
         y_pred = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
         compile_metrics.build(y_true, y_pred)
+        self.assertEqual(len(compile_metrics.metrics), 8)
+
         # Test eager build
         y_true = [
             np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
@@ -85,6 +88,7 @@ class TestCompileMetrics(testing.TestCase):
         ]
         sample_weight = np.array([1, 0.0, 1])
         compile_metrics.build(y_true, y_pred)
+        self.assertEqual(len(compile_metrics.metrics), 8)
 
         # Test update / result / reset flow
         compile_metrics.update_state(
@@ -211,6 +215,23 @@ class TestCompileMetrics(testing.TestCase):
         self.assertAllClose(result["acc"], 0.333333)
         self.assertAllClose(result["accuracy"], 0.333333)
         self.assertTrue("mse" in result)
+
+    def test_custom_metric_function(self):
+        def my_custom_metric(y_true, y_pred):
+            return ops.mean(ops.square(y_true - y_pred), axis=-1)
+
+        compile_metrics = CompileMetrics(
+            metrics=[my_custom_metric],
+            weighted_metrics=[],
+        )
+        y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
+        y_pred = np.array([[0.4, 0.1], [0.2, 0.6], [0.6, 0.1]])
+        compile_metrics.build(y_true, y_pred)
+        compile_metrics.update_state(y_true, y_pred, sample_weight=None)
+        result = compile_metrics.result()
+        self.assertIsInstance(result, dict)
+        self.assertEqual(len(result), 1)
+        self.assertTrue("my_custom_metric" in result)
 
 
 class TestCompileLoss(testing.TestCase, parameterized.TestCase):

@@ -103,11 +103,24 @@ class Lion(optimizer.Optimizer):
         beta_2 = ops.cast(self.beta_2, variable.dtype)
         m = self._momentums[self._get_variable_index(variable)]
 
-        # TODO: currently only support dense gradients
-        variable.assign_sub(
-            lr * ops.sign(m * beta_1 + gradient * (1.0 - beta_1))
+        self.assign_sub(
+            variable,
+            ops.multiply(
+                lr,
+                ops.sign(
+                    ops.add(
+                        ops.multiply(m, beta_1),
+                        ops.multiply(gradient, (1.0 - beta_1)),
+                    )
+                ),
+            ),
         )
-        m.assign(m * beta_2 + gradient * (1.0 - beta_2))
+        self.assign(
+            m,
+            ops.add(
+                ops.multiply(m, beta_2), ops.multiply(gradient, (1.0 - beta_2))
+            ),
+        )
 
     def get_config(self):
         config = super().get_config()

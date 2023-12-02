@@ -2,6 +2,7 @@ import torch
 
 from keras import optimizers
 from keras.optimizers.base_optimizer import BaseOptimizer
+from keras.utils import torch_utils
 
 
 class TorchOptimizer(BaseOptimizer):
@@ -33,6 +34,7 @@ class TorchOptimizer(BaseOptimizer):
             return OPTIMIZERS[cls](*args, **kwargs)
         return super().__new__(cls)
 
+    @torch_utils.no_grad
     def _apply_weight_decay(self, variables):
         if self.weight_decay is None:
             return

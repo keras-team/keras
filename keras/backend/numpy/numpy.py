@@ -1,32 +1,84 @@
 import numpy as np
+import tree
 
 from keras.backend import config
 from keras.backend import standardize_dtype
+from keras.backend.common import dtypes
+from keras.backend.numpy.core import convert_to_tensor
 
 
 def add(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return np.add(x1, x2)
 
 
 def einsum(subscripts, *operands, **kwargs):
-    return np.einsum(subscripts, *operands, **kwargs)
+    operands = tree.map_structure(convert_to_tensor, operands)
+    dtypes_to_resolve = []
+    for x in operands:
+        dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
+    result_dtype = dtypes.result_type(*dtypes_to_resolve)
+    compute_dtype = result_dtype
+    # TODO: np.einsum doesn't support bfloat16
+    if compute_dtype == "bfloat16":
+        compute_dtype = "float32"
+    operands = tree.map_structure(lambda x: x.astype(compute_dtype), operands)
+    return np.einsum(subscripts, *operands, **kwargs).astype(result_dtype)
 
 
 def subtract(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return np.subtract(x1, x2)
 
 
 def matmul(x1, x2):
-    return np.matmul(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.matmul(x1, x2).astype(dtype)
 
 
 def multiply(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return np.multiply(x1, x2)
 
 
 def mean(x, axis=None, keepdims=False):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.mean(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        result_dtype = dtypes.result_type(x.dtype, "float32")
+    else:
+        result_dtype = ori_dtype
+    return np.mean(x, axis=axis, keepdims=keepdims).astype(result_dtype)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
@@ -34,11 +86,13 @@ def max(x, axis=None, keepdims=False, initial=None):
     return np.max(x, axis=axis, keepdims=keepdims, initial=initial)
 
 
-def ones(shape, dtype="float32"):
+def ones(shape, dtype=None):
+    dtype = dtype or config.floatx()
     return np.ones(shape, dtype=dtype)
 
 
-def zeros(shape, dtype="float32"):
+def zeros(shape, dtype=None):
+    dtype = dtype or config.floatx()
     return np.zeros(shape, dtype=dtype)
 
 
@@ -70,80 +124,139 @@ def amin(x, axis=None, keepdims=False):
     return np.amin(x, axis=axis, keepdims=keepdims)
 
 
-def append(
-    x1,
-    x2,
-    axis=None,
-):
+def append(x1, x2, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.append(x1, x2, axis=axis)
 
 
 def arange(start, stop=None, step=None, dtype=None):
     if dtype is None:
-        if hasattr(start, "dtype"):
-            dtype = start.dtype
-        elif isinstance(start, int):
-            dtype = "int32"
-        else:
-            dtype = config.floatx()
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(step, "dtype", type(step)),
+        ]
+        if stop is not None:
+            dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return np.arange(start, stop, step=step, dtype=dtype)
 
 
 def arccos(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.arccos(x)
 
 
 def arccosh(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.arccosh(x)
 
 
 def arcsin(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.arcsin(x)
 
 
 def arcsinh(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.arcsinh(x)
 
 
 def arctan(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.arctan(x)
 
 
 def arctan2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.arctan2(x1, x2)
 
 
 def arctanh(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.arctanh(x)
 
 
 def argmax(x, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.argmax(x, axis=axis)
+    return np.argmax(x, axis=axis).astype("int32")
 
 
 def argmin(x, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.argmin(x, axis=axis)
+    return np.argmin(x, axis=axis).astype("int32")
 
 
 def argsort(x, axis=-1):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.argsort(x, axis=axis)
+    return np.argsort(x, axis=axis).astype("int32")
 
 
 def array(x, dtype=None):
-    dtype = dtype or config.floatx()
-    return np.array(x, dtype=dtype)
+    return convert_to_tensor(x, dtype=dtype)
 
 
 def average(x, axis=None, weights=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    x = convert_to_tensor(x)
+    dtypes_to_resolve = [x.dtype, float]
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+    dtype = dtypes.result_type(*dtypes_to_resolve)
+    x = x.astype(dtype)
+    if weights is not None:
+        weights = weights.astype(dtype)
     return np.average(x, weights=weights, axis=axis)
 
 
 def bincount(x, weights=None, minlength=0):
+    x = convert_to_tensor(x)
+    dtypes_to_resolve = [x.dtype]
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    else:
+        dtype = "int32"
     if len(x.shape) == 2:
         if weights is None:
 
@@ -160,8 +273,8 @@ def bincount(x, weights=None, minlength=0):
 
             bincounts = list(map(bincount_fn, zip(x, weights)))
 
-        return np.stack(bincounts)
-    return np.bincount(x, weights, minlength)
+        return np.stack(bincounts).astype(dtype)
+    return np.bincount(x, weights, minlength).astype(dtype)
 
 
 def broadcast_to(x, shape):
@@ -169,15 +282,31 @@ def broadcast_to(x, shape):
 
 
 def ceil(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.ceil(x)
 
 
 def clip(x, x_min, x_max):
-    return np.clip(x, x_min, x_max)
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return np.clip(x, x_min, x_max).astype(dtype)
 
 
 def concatenate(xs, axis=0):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
     return np.concatenate(xs, axis=axis)
 
 
@@ -194,20 +323,39 @@ def copy(x):
 
 
 def cos(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.cos(x)
 
 
 def cosh(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.cosh(x)
 
 
 def count_nonzero(x, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.count_nonzero(x, axis=axis)
+    # np.count_nonzero will return python int when axis=None, so we need
+    # to convert_to_tensor
+    return convert_to_tensor(np.count_nonzero(x, axis=axis)).astype("int32")
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.cross(
         x1,
         x2,
@@ -218,14 +366,20 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     )
 
 
-def cumprod(x, axis=None):
+def cumprod(x, axis=None, dtype=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.cumprod(x, axis=axis)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return np.cumprod(x, axis=axis, dtype=dtype)
 
 
-def cumsum(x, axis=None):
+def cumsum(x, axis=None, dtype=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.cumsum(x, axis=axis)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return np.cumsum(x, axis=axis, dtype=dtype)
 
 
 def diag(x, k=0):
@@ -243,15 +397,25 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     )
 
 
+def diff(a, n=1, axis=-1):
+    return np.diff(a, n=n, axis=axis)
+
+
 def digitize(x, bins):
     return np.digitize(x, bins).astype(np.int32)
 
 
 def dot(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     return np.dot(x, y)
 
 
-def empty(shape, dtype="float32"):
+def empty(shape, dtype=None):
+    dtype = dtype or config.floatx()
     return np.empty(shape, dtype=dtype)
 
 
@@ -260,6 +424,10 @@ def equal(x1, x2):
 
 
 def exp(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = x.astype(config.floatx())
     return np.exp(x)
 
 
@@ -269,6 +437,10 @@ def expand_dims(x, axis):
 
 
 def expm1(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = x.astype(config.floatx())
     return np.expm1(x)
 
 
@@ -278,6 +450,13 @@ def flip(x, axis=None):
 
 
 def floor(x):
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = x.astype(dtype)
     return np.floor(x)
 
 
@@ -299,10 +478,17 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
     return np.hstack(xs)
 
 
-def identity(n, dtype="float32"):
+def identity(n, dtype=None):
+    dtype = dtype or config.floatx()
     return np.identity(n, dtype=dtype)
 
 
@@ -338,6 +524,13 @@ def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return np.linspace(
         start,
         stop,
@@ -350,22 +543,51 @@ def linspace(
 
 
 def log(x):
-    return np.log(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    return np.log(x, dtype=dtype)
 
 
 def log10(x):
-    return np.log10(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    return np.log10(x, dtype=dtype)
 
 
 def log1p(x):
-    return np.log1p(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    return np.log1p(x, dtype=dtype)
 
 
 def log2(x):
-    return np.log2(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    return np.log2(x, dtype=dtype)
 
 
 def logaddexp(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.logaddexp(x1, x2)
 
 
@@ -382,6 +604,13 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return np.logspace(
         start,
         stop,
@@ -394,7 +623,22 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 
 def maximum(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return np.maximum(x1, x2)
+
+
+def median(x, axis=None, keepdims=False):
+    dtype = dtypes.result_type(x.dtype, float)
+    return np.median(x, axis=axis, keepdims=keepdims).astype(dtype)
 
 
 def meshgrid(*x, indexing="xy"):
@@ -407,10 +651,27 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return np.minimum(x1, x2)
 
 
 def mod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.mod(x1, x2)
 
 
@@ -427,7 +688,7 @@ def ndim(x):
 
 
 def nonzero(x):
-    return np.nonzero(x)
+    return tuple(indices.astype("int32") for indices in np.nonzero(x))
 
 
 def not_equal(x1, x2):
@@ -443,16 +704,54 @@ def ones_like(x, dtype=None):
 
 
 def outer(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.outer(x1, x2)
 
 
-def pad(x, pad_width, mode="constant"):
-    return np.pad(x, pad_width, mode=mode)
+def pad(x, pad_width, mode="constant", constant_values=None):
+    kwargs = {}
+    if constant_values is not None:
+        if mode != "constant":
+            raise ValueError(
+                "Argument `constant_values` can only be "
+                "provided when `mode == 'constant'`. "
+                f"Received: mode={mode}"
+            )
+        kwargs["constant_values"] = constant_values
+    return np.pad(x, pad_width, mode=mode, **kwargs)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    x = convert_to_tensor(x)
+    if dtype is None:
+        dtype = dtypes.result_type(x.dtype)
+        if dtype in ("bool", "int8", "int16"):
+            dtype = "int32"
+        elif dtype in ("uint8", "uint16"):
+            dtype = "uint32"
     return np.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
+
+
+def quantile(x, q, axis=None, method="linear", keepdims=False):
+    axis = tuple(axis) if isinstance(axis, list) else axis
+    x = convert_to_tensor(x)
+
+    ori_dtype = standardize_dtype(x.dtype)
+    # np.quantile doesn't support bool
+    if ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    if ori_dtype == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    return np.quantile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
 
 
 def ravel(x):
@@ -484,10 +783,22 @@ def sign(x):
 
 
 def sin(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.sin(x)
 
 
 def sinh(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.sinh(x)
 
 
@@ -507,11 +818,19 @@ def split(x, indices_or_sections, axis=0):
 
 def stack(x, axis=0):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    dtype_set = set([getattr(a, "dtype", type(a)) for a in x])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        x = tree.map_structure(lambda a: convert_to_tensor(a).astype(dtype), x)
     return np.stack(x, axis=axis)
 
 
 def std(x, axis=None, keepdims=False):
     axis = tuple(axis) if isinstance(axis, list) else axis
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = x.astype(config.floatx())
     return np.std(x, axis=axis, keepdims=keepdims)
 
 
@@ -530,15 +849,32 @@ def take_along_axis(x, indices, axis=None):
 
 
 def tan(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.tan(x)
 
 
 def tanh(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     return np.tanh(x)
 
 
 def tensordot(x1, x2, axes=2):
     axes = tuple(axes) if isinstance(axes, list) else axes
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.tensordot(x1, x2, axes=axes)
 
 
@@ -553,10 +889,15 @@ def tile(x, repeats):
 def trace(x, offset=0, axis1=0, axis2=1):
     axis1 = tuple(axis1) if isinstance(axis1, list) else axis1
     axis2 = tuple(axis2) if isinstance(axis2, list) else axis2
-    return np.trace(x, offset=offset, axis1=axis1, axis2=axis2)
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype not in ("int64", "uint32", "uint64"):
+        dtype = dtypes.result_type(dtype, "int32")
+    return np.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 
 
-def tri(N, M=None, k=0, dtype="float32"):
+def tri(N, M=None, k=0, dtype=None):
+    dtype = dtype or config.floatx()
     return np.tri(N, M=M, k=k, dtype=dtype)
 
 
@@ -569,29 +910,71 @@ def triu(x, k=0):
 
 
 def vdot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.vdot(x1, x2)
 
 
 def vstack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
     return np.vstack(xs)
 
 
 def where(condition, x1, x2):
     if x1 is not None and x2 is not None:
+        if not isinstance(x1, (int, float)):
+            x1 = convert_to_tensor(x1)
+        if not isinstance(x2, (int, float)):
+            x2 = convert_to_tensor(x2)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        x1 = convert_to_tensor(x1, dtype)
+        x2 = convert_to_tensor(x2, dtype)
         return np.where(condition, x1, x2)
     else:
         return np.where(condition)
 
 
 def divide(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+        float,
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return np.divide(x1, x2)
 
 
 def true_divide(x1, x2):
-    return np.true_divide(x1, x2)
+    return divide(x1, x2)
 
 
 def power(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return np.power(x1, x2)
 
 
@@ -600,14 +983,20 @@ def negative(x):
 
 
 def square(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "bool":
+        x = x.astype("int32")
     return np.square(x)
 
 
 def sqrt(x):
-    dtype = None
-    if hasattr(x, "dtype"):
-        if standardize_dtype(x.dtype).startswith("int"):
-            dtype = config.floatx()
+    x = convert_to_tensor(x)
+    # upcast to float64 for int64 which matches JAX's behavior
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
     return np.sqrt(x, dtype=dtype)
 
 
@@ -623,15 +1012,27 @@ def transpose(x, axes=None):
 
 def var(x, axis=None, keepdims=False):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.var(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    return np.var(x, axis=axis, keepdims=keepdims, dtype=compute_dtype).astype(
+        result_dtype
+    )
 
 
 def sum(x, axis=None, keepdims=False):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.sum(x, axis=axis, keepdims=keepdims)
+    dtype = standardize_dtype(x.dtype)
+    # follow jax's rule
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    return np.sum(x, axis=axis, keepdims=keepdims).astype(dtype)
 
 
-def eye(N, M=None, k=0, dtype="float32"):
+def eye(N, M=None, k=0, dtype=None):
+    dtype = dtype or config.floatx()
     return np.eye(N, M=M, k=k, dtype=dtype)
 
 

@@ -51,7 +51,7 @@ os.environ['KERAS_BACKEND'] = 'tensorflow'
 
 from keras import layers
 from keras import regularizers
-import keras as keras
+import keras
 import tensorflow as tf
 
 import matplotlib.pyplot as plt

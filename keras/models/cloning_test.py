@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import tree
 from absl.testing import parameterized
 
 from keras import layers
@@ -8,7 +9,7 @@ from keras import testing
 from keras.models.cloning import clone_model
 
 
-def get_functional_model(shared_layers=False):
+def get_mlp_functional_model(shared_layers=False):
     inputs = layers.Input(shape=(3,))
     x = layers.Dense(2)(inputs)
     if shared_layers:
@@ -16,6 +17,18 @@ def get_functional_model(shared_layers=False):
         x = layer(x)
         x = layer(x)
     outputs = layers.Dense(2)(x)
+    model = models.Model(inputs, outputs)
+    return model
+
+
+def get_cnn_functional_model(shared_layers=False):
+    inputs = layers.Input(shape=(7, 3))
+    x = layers.Conv1D(2, 2, padding="same")(inputs)
+    if shared_layers:
+        layer = layers.Conv1D(2, 2, padding="same", name="shared")
+        x = layer(x)
+        x = layer(x)
+    outputs = layers.Conv1D(2, 2, padding="same")(x)
     model = models.Model(inputs, outputs)
     return model
 
@@ -45,7 +58,8 @@ def get_subclassed_model():
 @pytest.mark.requires_trainable_backend
 class CloneModelTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
-        ("functional", get_functional_model),
+        ("mlp_functional", get_mlp_functional_model),
+        ("cnn_functional", get_cnn_functional_model, True),
         ("sequential", get_sequential_model),
         (
             "deferred_sequential",
@@ -53,8 +67,8 @@ class CloneModelTest(testing.TestCase, parameterized.TestCase):
         ),
         ("subclassed", get_subclassed_model),
     )
-    def test_cloning_correctness(self, model_fn):
-        ref_input = np.random.random((2, 3))
+    def test_cloning_correctness(self, model_fn, is_conv=False):
+        ref_input = np.random.random((2, 7, 3) if is_conv else (2, 3))
         model = model_fn()
         new_model = clone_model(model)
         ref_output = model(ref_input)
@@ -64,7 +78,8 @@ class CloneModelTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(ref_output, output)
 
     @parameterized.named_parameters(
-        ("functional", get_functional_model),
+        ("mlp_functional", get_mlp_functional_model),
+        ("cnn_functional", get_cnn_functional_model),
         ("sequential", get_sequential_model),
     )
     def test_custom_clone_function(self, model_fn):
@@ -80,6 +95,29 @@ class CloneModelTest(testing.TestCase, parameterized.TestCase):
                 self.assertEqual(l2.name, l1.name + "_custom")
 
     def test_shared_layers_cloning(self):
-        model = get_functional_model(shared_layers=True)
+        model = get_mlp_functional_model(shared_layers=True)
         new_model = clone_model(model)
         self.assertLen(new_model.layers, 4)
+
+    def test_structured_io_cloning(self):
+        x = layers.Input((3,))
+        y = layers.Input((3,))
+        z1 = x + y
+        z2 = layers.Dense(5)(z1)
+        inputs = dict(x=x, y=y)
+        outputs = dict(z1=z1, z2=z2)
+        model0 = models.Model(inputs, outputs)
+
+        model = clone_model(model0)
+        tree.assert_same_structure(model.input, inputs)
+        tree.assert_same_structure(model.output, outputs)
+
+        model = clone_model(model0, input_tensors=inputs)
+        tree.assert_same_structure(model.input, inputs)
+        tree.assert_same_structure(model.output, outputs)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`input_tensors` must have the same structure as model.input",
+        ):
+            model = clone_model(model0, input_tensors=(x, y))

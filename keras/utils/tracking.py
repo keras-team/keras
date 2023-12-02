@@ -2,6 +2,7 @@ from functools import wraps
 
 from keras.backend.common.global_state import get_global_attribute
 from keras.backend.common.global_state import set_global_attribute
+from keras.utils import python_utils
 
 
 class DotNotTrackScope:
@@ -68,10 +69,10 @@ class Tracker:
         if not is_tracking_enabled():
             return attr
 
-        for name, (is_attr_type, _) in self.config.items():
+        for store_name, (is_attr_type, _) in self.config.items():
             if is_attr_type(attr):
-                if id(attr) not in self.stored_ids[name]:
-                    self.add_to_store(name, attr)
+                if id(attr) not in self.stored_ids[store_name]:
+                    self.add_to_store(store_name, attr)
                 return attr
         if isinstance(attr, tuple):
             wrapped_attr = []
@@ -87,6 +88,12 @@ class Tracker:
         elif isinstance(attr, set):
             return TrackedSet(attr, self)
         return attr
+
+    def untrack(self, value):
+        for store_name in self.stored_ids.keys():
+            if id(value) in self.stored_ids[store_name]:
+                self.stored_ids[store_name].remove(id(value))
+                python_utils.remove_by_id(self.config[store_name][1], value)
 
     def lock(self, msg):
         self.locked = True
@@ -121,6 +128,14 @@ class TrackedList(list):
         if self.tracker:
             values = [self.tracker.track(v) for v in values]
         super().extend(values)
+
+    def remove(self, value):
+        if self.tracker:
+            self.tracker.untrack(value)
+        try:
+            super().remove(value)
+        except ValueError:
+            python_utils.remove_by_id(self, value)
 
 
 class TrackedDict(dict):
@@ -159,3 +174,8 @@ class TrackedSet(set):
         if self.tracker:
             values = [self.tracker.track(v) for v in values]
         super().update(values)
+
+    def remove(self, value):
+        if self.tracker:
+            self.tracker.untrack(value)
+        super().remove(value)

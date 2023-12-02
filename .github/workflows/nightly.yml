@@ -1,0 +1,111 @@
+name: Nightly
+
+on:
+  workflow_dispatch: # To Generate wheels on demand outside of schedule.
+  schedule:
+    - cron: '0 3 * * *' # run at 3 AM UTC / 8 PM PDT
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.9]
+        backend: [tensorflow, jax, torch, numpy]
+    name: Run tests
+    runs-on: ubuntu-latest
+    env:
+      PYTHON: ${{ matrix.python-version }}
+      KERAS_BACKEND: ${{ matrix.backend }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          python -m pip install --upgrade pip setuptools
+          echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+      - name: pip cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}-${{ hashFiles('requirements.txt') }}
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt --progress-bar off --upgrade
+          pip uninstall -y keras keras-nightly
+          pip install -e "." --progress-bar off --upgrade
+      - name: Test integrations
+        if: ${{ matrix.backend != 'numpy'}}
+        run: |
+          python integration_tests/import_test.py
+      - name: Test TF-specific integrations
+        if: ${{ matrix.backend == 'tensorflow'}}
+        run: |
+          python integration_tests/tf_distribute_training_test.py
+      - name: Test Torch-specific integrations
+        if: ${{ matrix.backend == 'torch'}}
+        run: |
+          pytest integration_tests/torch_workflow_test.py
+      - name: Test with pytest
+        run: |
+          pytest keras --ignore keras/applications --cov=keras
+
+  format:
+    name: Check the code format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          python -m pip install --upgrade pip setuptools
+          echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+      - name: pip cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}-${{ hashFiles('requirements.txt') }}
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt --progress-bar off --upgrade
+          pip uninstall -y keras keras-nightly
+          pip install -e "." --progress-bar off --upgrade
+      - name: Lint
+        run: bash shell/lint.sh
+
+  nightly:
+    name: Build Wheel file and upload
+    needs: [build, format]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools
+          pip install twine
+          pip install -r requirements.txt --progress-bar off --upgrade
+          pip uninstall -y keras keras-nightly
+      - name: Build wheel file
+        run: |
+          python pip_build.py --nightly
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_NIGHTLY_API_TOKEN }}
+          packages-dir: dist/
+          verbose: true

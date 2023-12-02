@@ -200,7 +200,6 @@ def audio_dataset_from_directory(
             output_sequence_length=output_sequence_length,
             ragged=ragged,
         )
-
         train_dataset = prepare_dataset(
             dataset=train_dataset,
             batch_size=batch_size,
@@ -234,7 +233,6 @@ def audio_dataset_from_directory(
             output_sequence_length=output_sequence_length,
             ragged=ragged,
         )
-
         dataset = prepare_dataset(
             dataset=dataset,
             batch_size=batch_size,
@@ -312,7 +310,7 @@ def get_training_and_validation_dataset(
         file_paths=file_paths_train,
         labels=labels_train,
         label_mode=label_mode,
-        num_classes=len(class_names),
+        num_classes=len(class_names) if class_names else 0,
         sampling_rate=sampling_rate,
         output_sequence_length=output_sequence_length,
         ragged=ragged,
@@ -322,7 +320,7 @@ def get_training_and_validation_dataset(
         file_paths=file_paths_val,
         labels=labels_val,
         label_mode=label_mode,
-        num_classes=len(class_names),
+        num_classes=len(class_names) if class_names else 0,
         sampling_rate=sampling_rate,
         output_sequence_length=output_sequence_length,
         ragged=ragged,
@@ -356,7 +354,7 @@ def get_dataset(
         file_paths=file_paths,
         labels=labels,
         label_mode=label_mode,
-        num_classes=len(class_names),
+        num_classes=len(class_names) if class_names else 0,
         sampling_rate=sampling_rate,
         output_sequence_length=output_sequence_length,
         ragged=ragged,

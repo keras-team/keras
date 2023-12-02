@@ -1,0 +1,13 @@
+# Tensorflow cpu-only version (needed for testing).
+tf-nightly-cpu==2.16.0.dev20231130  # Pin a working nightly until rc0.
+
+# Torch cpu-only version (needed for testing).
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.1.0
+torchvision>=0.16.0
+
+# Jax with cuda support.
+--find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+jax[cuda12_pip]
+
+-r requirements-common.txt

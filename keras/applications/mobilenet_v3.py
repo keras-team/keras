@@ -247,7 +247,10 @@ def MobileNetV3(
                 input_shape = (cols, rows, 3)
     # If input_shape is None and input_tensor is None using standard shape
     if input_shape is None and input_tensor is None:
-        input_shape = (None, None, 3)
+        if backend.image_data_format() == "channels_last":
+            input_shape = (None, None, 3)
+        else:
+            input_shape = (3, None, None)
 
     if backend.image_data_format() == "channels_last":
         row_axis, col_axis = (0, 1)
@@ -537,7 +540,7 @@ def hard_sigmoid(x):
 
 
 def hard_swish(x):
-    return layers.Multiply()([x, hard_sigmoid(x)])
+    return layers.Activation("hard_swish")(x)
 
 
 # This function is taken from the original tf repo.

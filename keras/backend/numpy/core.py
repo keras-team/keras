@@ -3,6 +3,7 @@ import tree
 
 from keras.backend.common import KerasVariable
 from keras.backend.common import standardize_dtype
+from keras.backend.common.dtypes import result_type
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.utils.nest import pack_sequence_as
@@ -25,7 +26,7 @@ class Variable(KerasVariable):
         return self.value
 
 
-def convert_to_tensor(x, dtype=None, sparse=False):
+def convert_to_tensor(x, dtype=None, sparse=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with numpy backend")
     if dtype is not None:
@@ -34,6 +35,10 @@ def convert_to_tensor(x, dtype=None, sparse=False):
         if dtype and dtype != x.dtype:
             return x.value.astype(dtype)
         return x.value
+    if dtype is None:
+        dtype = result_type(
+            *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
+        )
     return np.array(x, dtype=dtype)
 
 
@@ -62,11 +67,11 @@ def cond(pred, true_fn, false_fn):
 
 
 def vectorized_map(function, elements):
-    if len(elements) == 1:
-        return function(elements)
+    if not isinstance(elements, (list, tuple)):
+        return np.stack([function(x) for x in elements])
     else:
         batch_size = elements[0].shape[0]
-        output_store = list()
+        output_store = []
         for index in range(batch_size):
             output_store.append(function([x[index] for x in elements]))
         return np.stack(output_store)

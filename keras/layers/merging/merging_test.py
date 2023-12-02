@@ -221,6 +221,19 @@ class MergingLayersTest(testing.TestCase, parameterized.TestCase):
         ):
             layers.Subtract()([input_1])
 
+    def test_dot_higher_dim(self):
+        a_shape = (1, 3, 2)
+        b_shape = (1, 1, 2, 3)
+        # Test symbolic call
+        a = layers.Input(batch_shape=a_shape)
+        b = layers.Input(batch_shape=b_shape)
+        c = layers.Dot(axes=(-2, -1))([a, b])
+        self.assertEqual(c.shape, (1, 2, 1, 2))
+        a = np.random.random(a_shape)
+        b = np.random.random(b_shape)
+        c = layers.Dot(axes=(-2, -1))([a, b])
+        self.assertEqual(backend.standardize_shape(c.shape), (1, 2, 1, 2))
+
     @parameterized.named_parameters(TEST_PARAMETERS)
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,

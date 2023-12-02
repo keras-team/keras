@@ -23,7 +23,7 @@ features back to a space of the original size.
 """
 
 import tensorflow as tf
-import keras as keras
+import keras
 from keras import layers
 
 """

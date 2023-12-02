@@ -30,7 +30,11 @@ class KerasVariable:
         self._dtype = dtype
         self._shape = None
         self._initializer = None
-        self.trainable = trainable
+        self._trainable = trainable
+        if isinstance(initializer, str):
+            from keras import initializers
+
+            initializer = initializers.get(initializer)
         if callable(initializer):
             if shape is None:
                 raise ValueError(
@@ -44,7 +48,7 @@ class KerasVariable:
             if callable(initializer):
                 self._value = None
                 self._initializer = initializer
-                self._shape = standardize_shape(shape)
+                self._shape = self._validate_shape(shape)
                 register_uninitialized_variable(self)
             else:
                 raise ValueError(
@@ -66,6 +70,7 @@ class KerasVariable:
                 )
         else:
             if callable(initializer):
+                shape = self._validate_shape(shape)
                 value = initializer(shape, dtype=dtype)
             else:
                 value = initializer
@@ -86,6 +91,16 @@ class KerasVariable:
             )
         value = self._initializer(self._shape, dtype=self._dtype)
         self._initialize(value)
+
+    def _validate_shape(self, shape):
+        shape = standardize_shape(shape)
+        if None in shape:
+            raise ValueError(
+                "Shapes used to initialize variables must be "
+                "fully-defined (no `None` dimensions). Received: "
+                f"shape={shape} for variable path='{self.path}'"
+            )
+        return shape
 
     def _maybe_autocast(self, value):
         autocast_scope = get_autocast_scope()
@@ -151,6 +166,14 @@ class KerasVariable:
     def ndim(self):
         return self._ndim
 
+    @property
+    def trainable(self):
+        return self._trainable
+
+    @trainable.setter
+    def trainable(self, value):
+        self._trainable = value
+
     def __repr__(self):
         return (
             f"<KerasVariable shape={self.shape}, dtype={self.dtype}, "
@@ -167,7 +190,11 @@ class KerasVariable:
         return self.value.__getitem__(idx)
 
     def __array__(self, dtype=None):
-        return self.value.__array__(dtype)
+        # We can't directly use self.value.__array__ here because of scalar.
+        # Numpy require this method to return as array like object. In the case
+        # of scalar, it will fail the type checking from numpy. We need to
+        # return a 0d array via numpy.
+        return np.asarray(self.value.__array__(dtype))
 
     def __bool__(self):
         raise TypeError("A Keras Variable cannot be used as a boolean.")
@@ -176,7 +203,7 @@ class KerasVariable:
         return self.value.__neg__()
 
     def __pos__(self):
-        return self.value.__pos__()
+        return self.value
 
     def __abs__(self):
         return self.value.__abs__()
@@ -232,14 +259,6 @@ class KerasVariable:
         value = self.value
         return value.__rmul__(self._convert_to_tensor(other, dtype=value.dtype))
 
-    def __div__(self, other):
-        value = self.value
-        return value.__div__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __rdiv__(self, other):
-        value = self.value
-        return value.__rdiv__(self._convert_to_tensor(other, dtype=value.dtype))
-
     def __truediv__(self, other):
         value = self.value
         return value.__truediv__(
@@ -261,18 +280,6 @@ class KerasVariable:
     def __rfloordiv__(self, other):
         value = self.value
         return value.__rfloordiv__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __divmod__(self, other):
-        value = self.value
-        return value.__divmod__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rdivmod__(self, other):
-        value = self.value
-        return value.__rdivmod__(
             self._convert_to_tensor(other, dtype=value.dtype)
         )
 
@@ -328,34 +335,6 @@ class KerasVariable:
         value = self.value
         return value.__rxor__(self._convert_to_tensor(other, dtype=value.dtype))
 
-    def __lshift__(self, other):
-        value = self.value
-        return value.__lshift__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rlshift__(self, other):
-        value = self.value
-        return value.__rlshift__(
-            self._convert_to_tensor(other, dtype=self.dtype)
-        )
-
-    def __rshift__(self, other):
-        value = self.value
-        return value.__rshift__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rrshift__(self, other):
-        value = self.value
-        return value.__rrshift__(
-            self._convert_to_tensor(other, dtype=self.dtype)
-        )
-
-    def __round__(self, ndigits=None):
-        value = self.value
-        return value.__round__(ndigits)
-
 
 def register_uninitialized_variable(variable):
     uninitialized_variables = global_state.get_global_attribute(
@@ -406,8 +385,12 @@ def standardize_dtype(dtype):
     dtype = PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
         dtype = dtype.name
-    elif hasattr(dtype, "__str__") and "torch" in str(dtype):
+    elif hasattr(dtype, "__str__") and (
+        "torch" in str(dtype) or "jax.numpy" in str(dtype)
+    ):
         dtype = str(dtype).split(".")[-1]
+    elif hasattr(dtype, "__name__"):
+        dtype = dtype.__name__
 
     if dtype not in ALLOWED_DTYPES:
         raise ValueError(f"Invalid dtype: {dtype}")
@@ -433,10 +416,10 @@ def standardize_shape(shape):
         if config.backend() == "jax" and str(e) == "b":
             # JAX2TF tracing represents `None` dimensions as `b`
             continue
-        if not isinstance(e, int):
+        if not is_int_dtype(type(e)):
             raise ValueError(
                 f"Cannot convert '{shape}' to a shape. "
-                f"Found invalid entry '{e}'. "
+                f"Found invalid entry '{e}' of type '{type(e)}'. "
             )
         if e < 0:
             raise ValueError(

@@ -30,6 +30,8 @@ from keras import utils
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend.common import global_state
+from keras.backend.common.name_scope import current_path
+from keras.distribution import distribution_lib
 from keras.layers import input_spec
 from keras.metrics.metric import Metric
 from keras.ops.operation import Operation
@@ -443,8 +445,8 @@ class Layer(BackendLayer, Operation):
 
     def add_weight(
         self,
-        shape,
-        initializer,
+        shape=None,
+        initializer=None,
         dtype=None,
         trainable=True,
         regularizer=None,
@@ -456,12 +458,19 @@ class Layer(BackendLayer, Operation):
         Args:
             shape: Shape tuple for the variable.
                 Must be fully-defined (no `None` entries).
+                Defaults to `()` (scalar) if unspecified.
             initializer: Initializer object to use to
                 populate the initial variable value,
                 or string name of a built-in initializer
-                (e.g. `"random_normal"`).
+                (e.g. `"random_normal"`). If unspecified,
+                defaults to `"glorot_uniform"`
+                for floating-point variables and to `"zeros"`
+                for all other types (e.g. int, bool).
             dtype: Dtype of the variable to create,
-                e.g. `"float32"`.
+                e.g. `"float32"`. If unspecified,
+                defaults to the layer's
+                variable dtype (which itself defaults to
+                `"float32"` if unspecified).
             trainable: Boolean, whether the variable should
                 be trainable via backprop or whether its
                 updates are managed manually.
@@ -472,12 +481,23 @@ class Layer(BackendLayer, Operation):
                 for debugging purposes.
         """
         self._check_super_called()
+        if shape is None:
+            shape = ()
+        if dtype is not None:
+            dtype = backend.standardize_dtype(dtype)
+        else:
+            dtype = self.variable_dtype
+        if initializer is None:
+            if "float" in dtype:
+                initializer = "glorot_uniform"
+            else:
+                initializer = "zeros"
         initializer = initializers.get(initializer)
         with backend.name_scope(self.name, caller=self):
             variable = backend.Variable(
                 initializer=initializer,
                 shape=shape,
-                dtype=dtype or self.variable_dtype,
+                dtype=dtype,
                 trainable=trainable,
                 name=name,
             )
@@ -808,6 +828,19 @@ class Layer(BackendLayer, Operation):
                         outputs = super().__call__(*args, **kwargs)
                 else:
                     outputs = super().__call__(*args, **kwargs)
+                # Change the layout for the layer output if needed.
+                # This is useful for relayout intermediate tensor in the model
+                # to achieve the optimal performance.
+                distribution = distribution_lib.distribution()
+                if distribution is not None:
+                    current_layer_path = current_path()
+                    current_layer_path += "/output"
+                    layout = distribution.get_tensor_layout(current_layer_path)
+                    if layout:
+                        outputs = distribution_lib.distribute_tensor(
+                            outputs, layout
+                        )
+
                 if not self.built:
                     self.built = True
                 # Record activity regularizer loss.
@@ -838,7 +871,10 @@ class Layer(BackendLayer, Operation):
         return outputs
 
     def call(self, *args, **kwargs):
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"Layer {self.__class__.__name__} does not have a `call()` "
+            "method implemented."
+        )
 
     @traceback_utils.filter_traceback
     def stateless_call(
@@ -989,7 +1025,10 @@ class Layer(BackendLayer, Operation):
 
     @utils.default
     def compute_output_shape(self, *args, **kwargs):
-        return NotImplementedError
+        raise NotImplementedError(
+            f"Layer {self.__class__.__name__} should implement "
+            "`def compute_output_shape(self, input_shape)`."
+        )
 
     def add_loss(self, loss):
         """Can be called inside of the `call()` method to add a scalar loss.
@@ -1034,9 +1073,9 @@ class Layer(BackendLayer, Operation):
 
     @property
     def losses(self):
-        """List of scalar losses added via `add_loss()` during layer call."""
+        """List of scalar losses from `add_loss`, regularizers and sublayers."""
         losses = self._get_own_losses()
-        for layer in self._layers:
+        for layer in self._flatten_layers(include_self=False):
             losses.extend(layer._get_own_losses())
         weight_regularization_losses = []
         for v in self.trainable_weights:
@@ -1166,15 +1205,15 @@ class Layer(BackendLayer, Operation):
 
         # Otherwise, attempt to build the layer by calling it on symbolic input.
         if might_have_unbuilt_state(self):
-            if len(shapes_dict) == 1:
-                success = self._build_by_run_for_single_pos_arg(first_shape)
-            else:
-                success = self._build_by_run_for_kwargs(shapes_dict)
-            if not success:
+            try:
+                backend.compute_output_spec(
+                    self.call, **call_spec.arguments_dict
+                )
+            except Exception as e:
                 if call_spec.eager:
                     # Will let the actual eager call do state-building
                     return
-                raise ValueError(
+                warnings.warn(
                     f"Layer '{self.name}' looks like it has unbuilt state, but "
                     "Keras is not able to trace the layer `call()` in order to "
                     "build it automatically. Possible causes:\n"
@@ -1186,21 +1225,10 @@ class Layer(BackendLayer, Operation):
                     "to implement the `def build(self, input_shape)` method on "
                     "your layer. It should create all variables used by the "
                     "layer (e.g. by calling `layer.build()` on all its "
-                    "children layers)."
+                    "children layers).\n"
+                    f"Exception encoutered: ''{e}''"
                 )
-
         self.build(first_shape)
-
-    def _build_by_run(self, *args, **kwargs):
-        call_spec = CallSpec(self._call_signature, args, kwargs)
-        shapes_dict = get_shapes_dict(call_spec)
-        if len(shapes_dict) == 1:
-            success = self._build_by_run_for_single_pos_arg(
-                tuple(shapes_dict.values())[0]
-            )
-        else:
-            success = self._build_by_run_for_kwargs(shapes_dict)
-        return success
 
     def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).

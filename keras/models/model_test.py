@@ -286,6 +286,11 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
                 "output_b": ["mean_squared_error", "accuracy"],
             },
         )
+        # Check dict outputs.
+        outputs = model.predict(x)
+        self.assertIsInstance(outputs, dict)
+        self.assertEqual(outputs["output_a"].shape, (8, 1))
+        self.assertEqual(outputs["output_b"].shape, (8, 1))
         # Fit the model to make sure compile_metrics are built
         hist = model.fit(
             x,
@@ -332,6 +337,11 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
                 "output_b": ["mean_squared_error", "accuracy"],
             },
         )
+        # Check list outputs.
+        outputs = model.predict(x)
+        self.assertIsInstance(outputs, list)
+        self.assertEqual(outputs[0].shape, (8, 1))
+        self.assertEqual(outputs[1].shape, (8, 1))
         # Fit the model to make sure compile_metrics are built
         hist = model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
         hist_keys = sorted(hist.history.keys())

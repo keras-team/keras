@@ -5,7 +5,7 @@ from keras import layers
 from keras import losses
 from keras import metrics
 from keras import optimizers
-import keras as keras
+import keras
 
 keras.config.disable_traceback_filtering()
 

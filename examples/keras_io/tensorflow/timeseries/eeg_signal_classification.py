@@ -65,7 +65,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import json
 import numpy as np
-import keras as keras
+import keras
 from keras import layers
 import tensorflow as tf
 from sklearn import preprocessing, model_selection
@@ -127,7 +127,6 @@ def convert_string_data_to_values(value_string):
 eeg["raw_values"] = eeg["raw_values"].apply(convert_string_data_to_values)
 
 eeg = eeg.loc[eeg["signal_quality"] < QUALITY_THRESHOLD]
-print(eeg.shape)
 eeg.head()
 
 """

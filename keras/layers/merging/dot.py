@@ -150,9 +150,9 @@ def batch_dot(x, y, axes=None):
     # normalize both inputs to rank 3.
     if x_ndim > 3:
         # squash middle dimensions of x.
-        x_shape = list(ops.shape(x))
+        x_shape = ops.shape(x)
         x_mid_dims = x_shape[1:-1]
-        x_squashed_shape = ops.stack([x_shape[0], -1, x_shape[-1]])
+        x_squashed_shape = (x_shape[0], -1, x_shape[-1])
         x = ops.reshape(x, x_squashed_shape)
         x_squashed = True
     else:
@@ -160,9 +160,9 @@ def batch_dot(x, y, axes=None):
 
     if y_ndim > 3:
         # squash trailing dimensions of y.
-        y_shape = list(ops.shape(y))
+        y_shape = ops.shape(y)
         y_trail_dims = y_shape[2:]
-        y_squashed_shape = ops.stack([y_shape[0], y_shape[1], -1])
+        y_squashed_shape = (y_shape[0], y_shape[1], -1)
         y = ops.reshape(y, y_squashed_shape)
         y_squashed = True
     else:
@@ -175,13 +175,11 @@ def batch_dot(x, y, axes=None):
     do_reshape = False
 
     if x_squashed:
-        output_shape = ops.concat(
-            [output_shape[:1], x_mid_dims, output_shape[-1:]], 0
-        )
+        output_shape = output_shape[:1] + x_mid_dims + output_shape[-1:]
         do_reshape = True
 
     if y_squashed:
-        output_shape = ops.concat([output_shape[:-1], y_trail_dims], 0)
+        output_shape = output_shape[:-1] + y_trail_dims
         do_reshape = True
 
     if do_reshape:

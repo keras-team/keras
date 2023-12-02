@@ -10,7 +10,7 @@ Accelerator: None
 ## Setup
 """
 import numpy as np
-import keras as keras
+import keras
 from keras import ops
 from keras import layers
 

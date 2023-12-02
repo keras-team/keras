@@ -2,19 +2,18 @@
 Title: Timeseries forecasting for weather prediction
 Authors: [Prabhanshu Attri](https://prabhanshu.com/github), [Yashika Sharma](https://github.com/yashika51), [Kristi Takach](https://github.com/ktakattack), [Falak Shah](https://github.com/falaktheoptimist)
 Date created: 2020/06/23
-Last modified: 2020/07/20
+Last modified: 2023/11/22
 Description: This notebook demonstrates how to do timeseries forecasting using a LSTM model.
 Accelerator: GPU
 """
 
 """
 ## Setup
-This example requires TensorFlow 2.3 or higher.
 """
 
 import pandas as pd
 import matplotlib.pyplot as plt
-import keras as keras
+import keras
 
 """
 ## Climate Data Time-Series
@@ -143,25 +142,6 @@ def show_raw_visualization(data):
 
 
 show_raw_visualization(df)
-
-"""
-This heat map shows the correlation between different features.
-"""
-
-
-def show_heatmap(data):
-    plt.matshow(data.corr())
-    plt.xticks(range(data.shape[1]), data.columns, fontsize=14, rotation=90)
-    plt.gca().xaxis.tick_bottom()
-    plt.yticks(range(data.shape[1]), data.columns, fontsize=14)
-
-    cb = plt.colorbar()
-    cb.ax.tick_params(labelsize=14)
-    plt.title("Feature Correlation Heatmap", fontsize=14)
-    plt.show()
-
-
-show_heatmap(df)
 
 
 """
@@ -389,11 +369,3 @@ for x, y in dataset_val.take(5):
         12,
         "Single Step Prediction",
     )
-
-
-"""
-**Example available on HuggingFace**
-| Trained Model | Demo |
-| :--: | :--: |
-| [![Generic badge](https://img.shields.io/badge/%F0%9F%A4%97%20Model-Time%20Series-black.svg)](https://huggingface.co/keras-io/timeseries_forecasting_for_weather) | [![Generic badge](https://img.shields.io/badge/%F0%9F%A4%97%20Spaces-Time%20Series-black.svg)](https://huggingface.co/spaces/keras-io/timeseries_forecasting_for_weather) |
-"""

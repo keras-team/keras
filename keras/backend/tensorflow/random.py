@@ -94,3 +94,14 @@ def shuffle(x, axis=0, seed=None):
     x = tf.random.experimental.stateless_shuffle(x, seed=seed)
     x = tfnp.swapaxes(x, axis1=0, axis2=axis)
     return x
+
+
+def gamma(shape, alpha, dtype=None, seed=None):
+    dtype = dtype or floatx()
+    seed = tf_draw_seed(seed)
+    return tf.random.stateless_gamma(
+        shape,
+        alpha=alpha,
+        dtype=dtype,
+        seed=seed,
+    )

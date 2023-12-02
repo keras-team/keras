@@ -798,7 +798,7 @@ class IndexLookup(Layer):
             self.idf_weights_const = self.idf_weights.value()
 
     def save_assets(self, dir_path):
-        if self.input_vocabulary:
+        if self.input_vocabulary is not None:
             # Vocab saved in config.
             # TODO: consider unifying both paths.
             return
@@ -808,7 +808,7 @@ class IndexLookup(Layer):
             f.write("\n".join([str(w) for w in vocabulary]))
 
     def load_assets(self, dir_path):
-        if self.input_vocabulary:
+        if self.input_vocabulary is not None:
             # Vocab saved in config.
             # TODO: consider unifying both paths.
             return

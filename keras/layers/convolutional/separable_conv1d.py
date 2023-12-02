@@ -28,8 +28,8 @@ class SeparableConv1D(BaseSeparableConv):
             incompatible with `dilation_rate > 1`.
         padding: string, either `"valid"` or `"same"` (case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
-            the left/right or up/down of the input such that output has the same
-            height/width dimension as the input.
+            the left/right or up/down of the input. When `padding="same"` and
+            `strides=1`, the output has the same size as the input.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
             corresponds to inputs with shape `(batch, steps, features)`
@@ -40,7 +40,7 @@ class SeparableConv1D(BaseSeparableConv):
         dilation_rate: int or tuple/list of 1 integers, specifying the dilation
             rate to use for dilated convolution. If only one int is specified,
             the same dilation rate will be used for all dimensions.
-         depth_multiplier: The number of depthwise convolution output channels
+        depth_multiplier: The number of depthwise convolution output channels
             for each input channel. The total number of depthwise convolution
             output channels will be equal to `input_channel * depth_multiplier`.
         activation: Activation function. If `None`, no activation is applied.
