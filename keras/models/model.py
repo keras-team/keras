@@ -269,13 +269,14 @@ class Model(Trainer, Layer):
         """Saves a model as a `.keras` file.
 
         Args:
-            filepath: `str` or `pathlib.Path` object.
-                Path where to save the model. Must end in `.keras`.
-            overwrite: Whether we should overwrite any existing model
-                at the target location, or instead ask the user
-                via an interactive prompt.
-            save_format: Format to use, as a string. Only the `"keras"`
-                format is supported at this time.
+            filepath: `str` or `pathlib.Path` object. Path where to save
+                the model. Must end in `.keras`.
+            overwrite: Whether we should overwrite any existing model at
+                the target location, or instead ask the user via
+                an interactive prompt.
+            save_format: The `save_format` argument is deprecated in Keras 3.
+                Format to use, as a string. Only the `"keras"` format is
+                supported at this time.
 
         Example:
 
@@ -292,8 +293,7 @@ class Model(Trainer, Layer):
         assert np.allclose(model.predict(x), loaded_model.predict(x))
         ```
 
-        Note that `model.save()` is an alias for
-        `keras.saving.save_model()`.
+        Note that `model.save()` is an alias for `keras.saving.save_model()`.
 
         The saved `.keras` file contains:
 
