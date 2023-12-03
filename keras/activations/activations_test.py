@@ -40,7 +40,7 @@ def _ref_hard_sigmoid(x):
     return z
 
 
-def _ref_hard_swish(x):
+def _ref_hard_silu(x):
     return x * np.minimum(np.maximum(0.0, x + 3.0), 6.0) * (1.0 / 6.0)
 
 
@@ -337,28 +337,28 @@ class ActivationsTest(testing.TestCase):
             result_positive_above_1, expected_positive_above_1, rtol=1e-05
         )
 
-    def test_hard_swish(self):
+    def test_hard_silu(self):
         # Basic test for random values between -3 and 3
         x = np.random.uniform(-3, 3, (2, 5)).astype("float32")
-        result = activations.hard_swish(x[np.newaxis, :])[0]
-        expected = np.vectorize(_ref_hard_swish)(x)
+        result = activations.hard_silu(x[np.newaxis, :])[0]
+        expected = np.vectorize(_ref_hard_silu)(x)
         self.assertAllClose(result, expected, rtol=1e-05)
 
         # Test with 1D array
         x_1d = np.random.uniform(-10, 10, 5).astype("float32")
-        result_1d = activations.hard_swish(x_1d)
-        expected_1d = np.vectorize(_ref_hard_swish)(x_1d)
+        result_1d = activations.hard_silu(x_1d)
+        expected_1d = np.vectorize(_ref_hard_silu)(x_1d)
         self.assertAllClose(result_1d, expected_1d, rtol=1e-05)
 
         # Test with 3D array
         x_3d = np.random.uniform(-10, 10, (3, 3, 3)).astype("float32")
-        result_3d = activations.hard_swish(x_3d)
-        expected_3d = np.vectorize(_ref_hard_swish)(x_3d)
+        result_3d = activations.hard_silu(x_3d)
+        expected_3d = np.vectorize(_ref_hard_silu)(x_3d)
         self.assertAllClose(result_3d, expected_3d, rtol=1e-05)
 
         # Test with strictly positive values much larger than 3
         x_positive_above_3 = np.random.uniform(5, 10, (2, 5)).astype("float32")
-        result_positive_above_3 = activations.hard_swish(x_positive_above_3)
+        result_positive_above_3 = activations.hard_silu(x_positive_above_3)
         expected_positive_above_3 = x_positive_above_3
         self.assertAllClose(
             result_positive_above_3, expected_positive_above_3, rtol=1e-05
@@ -366,7 +366,7 @@ class ActivationsTest(testing.TestCase):
 
         # Test with strictly negative values much smaller than -3
         x_negatives = np.random.uniform(-10, -5, (2, 5)).astype("float32")
-        result = activations.hard_swish(x_negatives)
+        result = activations.hard_silu(x_negatives)
         expected_zeros = np.zeros_like(x_negatives)
         self.assertAllClose(result, expected_zeros, rtol=1e-05)
 
