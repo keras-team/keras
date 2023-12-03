@@ -94,10 +94,6 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.log_softmax(x, axis=1).shape, (None, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=-1).shape, (None, 2, 3))
 
-    def test_tanh(self):
-        x = KerasTensor([None, 2, 3])
-        self.assertEqual(knn.tanh(x).shape, (None, 2, 3))
-
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
@@ -623,10 +619,6 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.log_softmax(x, axis=1).shape, (1, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=-1).shape, (1, 2, 3))
 
-    def test_tanh(self):
-        x = KerasTensor([1, 2, 3])
-        self.assertEqual(knn.tanh(x).shape, (1, 2, 3))
-
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
@@ -1123,13 +1115,6 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 [-2.407606, -1.407606, -0.407606],
                 [-2.407606, -1.407606, -0.407606],
             ],
-        )
-
-    def test_tanh(self):
-        x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
-        self.assertAllClose(
-            knn.tanh(x),
-            [-0.761594, 0.0, 0.761594, 0.964028, 0.995055],
         )
 
     def test_max_pool(self):
@@ -2071,23 +2056,5 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.Softsign().symbolic_call(x).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_tanh(self, dtype):
-        import jax.nn as jnn
-        import jax.numpy as jnp
-
-        x = knp.ones((), dtype=dtype)
-        x_jax = jnp.ones((), dtype=dtype)
-        expected_dtype = standardize_dtype(jnn.tanh(x_jax).dtype)
-
-        self.assertEqual(
-            standardize_dtype(knn.tanh(x).dtype),
-            expected_dtype,
-        )
-        self.assertEqual(
-            standardize_dtype(knn.Tanh().symbolic_call(x).dtype),
             expected_dtype,
         )

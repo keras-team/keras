@@ -626,36 +626,6 @@ def log_softmax(x, axis=-1):
         return backend.nn.log_softmax(x, axis=axis)
 
 
-class Tanh(Operation):
-    def call(self, x):
-        return backend.nn.tanh(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
-
-
-@keras_export(["keras.ops.tanh", "keras.ops.nn.tanh"])
-def tanh(x):
-    """Hyperbolic tangent activation function.
-
-    Args:
-        x: Input tensor.
-
-    Returns:
-        A tensor with the same shape as `x`.
-
-    Example:
-
-    >>> x = keras.ops.convert_to_tensor([-1.0, 0.0, 1.0])
-    >>> keras.ops.tanh(x)
-    array([-0.7615942, 0.0, 0.7615942], shape=(3,), dtype=float64)
-
-    """
-    if any_symbolic_tensors((x,)):
-        return Tanh().symbolic_call(x)
-    return backend.nn.tanh(x)
-
-
 class MaxPool(Operation):
     def __init__(
         self,
