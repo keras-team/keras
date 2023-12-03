@@ -66,9 +66,9 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_sigmoid(x).shape, (None, 2, 3))
 
-    def test_hard_swish(self):
+    def test_hard_silu(self):
         x = KerasTensor([None, 2, 3])
-        self.assertEqual(knn.hard_swish(x).shape, (None, 2, 3))
+        self.assertEqual(knn.hard_silu(x).shape, (None, 2, 3))
 
     def test_elu(self):
         x = KerasTensor([None, 2, 3])
@@ -591,9 +591,9 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.hard_sigmoid(x).shape, (1, 2, 3))
 
-    def test_hard_swish(self):
+    def test_hard_silu(self):
         x = KerasTensor([1, 2, 3])
-        self.assertEqual(knn.hard_swish(x).shape, (1, 2, 3))
+        self.assertEqual(knn.hard_silu(x).shape, (1, 2, 3))
 
     def test_elu(self):
         x = KerasTensor([1, 2, 3])
@@ -1029,10 +1029,10 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
         )
 
-    def test_hard_swish(self):
+    def test_hard_silu(self):
         x = np.array([-3, -2, -1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
-            knn.hard_swish(x),
+            knn.hard_silu(x),
             [-0.0, -0.333333, -0.333333, 0.0, 0.6666667, 1.6666667, 3.0],
         )
 
@@ -1795,6 +1795,37 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_gelu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+
+        # approximate = True
+        expected_dtype = standardize_dtype(jnn.gelu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.gelu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Gelu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+        # approximate = False
+        expected_dtype = standardize_dtype(jnn.gelu(x_jax, False).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.gelu(x, False).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Gelu(False).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_hard_sigmoid(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -1813,20 +1844,20 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_hard_swish(self, dtype):
+    def test_hard_silu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
 
         x = knp.ones((), dtype=dtype)
         x_jax = jnp.ones((), dtype=dtype)
-        expected_dtype = standardize_dtype(jnn.hard_swish(x_jax).dtype)
+        expected_dtype = standardize_dtype(jnn.hard_silu(x_jax).dtype)
 
         self.assertEqual(
-            standardize_dtype(knn.hard_swish(x).dtype),
+            standardize_dtype(knn.hard_silu(x).dtype),
             expected_dtype,
         )
         self.assertEqual(
-            standardize_dtype(knn.HardSwish().symbolic_call(x).dtype),
+            standardize_dtype(knn.HardSilu().symbolic_call(x).dtype),
             expected_dtype,
         )
 

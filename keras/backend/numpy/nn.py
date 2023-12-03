@@ -22,7 +22,11 @@ def relu(x):
 
 def relu6(x):
     x = convert_to_tensor(x)
-    return np.clip(x, np.array(0.0, x.dtype), np.array(6.0, x.dtype))
+    # np.clip incorrectly promote bfloat16 to float32, so we replace it with
+    # np.minimum and np.maximum here
+    return np.minimum(
+        np.maximum(x, np.array(0.0, x.dtype)), np.array(6.0, x.dtype)
+    )
 
 
 def sigmoid(x):
@@ -70,7 +74,7 @@ def hard_sigmoid(x):
     )
 
 
-def hard_swish(x):
+def hard_silu(x):
     return x * hard_sigmoid(x)
 
 
@@ -91,19 +95,25 @@ def selu(
 
 
 def gelu(x, approximate=True):
+    x = convert_to_tensor(x)
+    # followd by JAX's implementation
     if approximate:
-        return (
-            0.5
-            * x
-            * (
-                1.0
-                + np.tanh(
-                    np.sqrt(2.0 / np.pi) * (x + 0.044715 * np.power(x, 3))
-                )
+        sqrt_2_over_pi = np.sqrt(2 / np.pi).astype(x.dtype)
+        cdf = np.array(0.5, x.dtype) * (
+            np.array(1.0, x.dtype)
+            + np.tanh(
+                sqrt_2_over_pi
+                * (x + np.array(0.044715, x.dtype) * (x**3).astype(x.dtype))
             )
         )
+        return x * cdf
     else:
-        return x * scipy.stats.norm.cdf(x)
+        sqrt_2 = np.sqrt(2).astype(x.dtype)
+        return (
+            x
+            * (scipy.special.erf(x / sqrt_2) + 1).astype(x.dtype)
+            / np.array(2, x.dtype)
+        )
 
 
 def softmax(x, axis=None):

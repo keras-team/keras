@@ -56,7 +56,7 @@ def hard_sigmoid(x):
     return relu6(x + tf.constant(3.0, x.dtype)) / tf.constant(6.0, x.dtype)
 
 
-def hard_swish(x):
+def hard_silu(x):
     return x * hard_sigmoid(x)
 
 
@@ -73,7 +73,31 @@ def selu(x):
 
 
 def gelu(x, approximate=True):
-    return tf.nn.gelu(x, approximate)
+    x = convert_to_tensor(x)
+    # we need to explicitly implement gelu because bfloat16 will trigger
+    # DTypePromotionError when using enable_numpy_behavior()
+    if approximate:
+        coeff = tf.constant(0.044715, x.dtype)
+        return (
+            tf.constant(0.5, x.dtype)
+            * x
+            * (
+                tf.constant(1.0, x.dtype)
+                + tf.math.tanh(
+                    tf.constant(0.7978845608028654, x.dtype)
+                    * (x + coeff * tf.pow(x, 3))
+                )
+            )
+        )
+    else:
+        return (
+            tf.constant(0.5, x.dtype)
+            * x
+            * (
+                tf.constant(1.0, x.dtype)
+                + tf.math.erf(x / tf.constant(1.4142135623730951, x.dtype))
+            )
+        )
 
 
 def softmax(x, axis=-1):
