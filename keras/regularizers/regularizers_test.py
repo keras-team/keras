@@ -6,8 +6,20 @@ from keras import testing
 from keras.regularizers.regularizers import validate_float_arg
 
 
-# TODO: serialization tests
 class RegularizersTest(testing.TestCase):
+    def test_config(self):
+        reg = regularizers.L1(0.1)
+        self.run_class_serialization_test(reg)
+
+        reg = regularizers.L2(0.1)
+        self.run_class_serialization_test(reg)
+
+        reg = regularizers.L1L2(l1=0.1, l2=0.2)
+        self.run_class_serialization_test(reg)
+
+        reg = regularizers.OrthogonalRegularizer(factor=0.1, mode="rows")
+        self.run_class_serialization_test(reg)
+
     def test_l1(self):
         value = np.random.random((4, 4))
         x = backend.Variable(value)
