@@ -4,7 +4,7 @@ from keras.activations.activations import elu
 from keras.activations.activations import exponential
 from keras.activations.activations import gelu
 from keras.activations.activations import hard_sigmoid
-from keras.activations.activations import hard_swish
+from keras.activations.activations import hard_silu
 from keras.activations.activations import leaky_relu
 from keras.activations.activations import linear
 from keras.activations.activations import log_softmax
@@ -37,7 +37,7 @@ ALL_OBJECTS = {
     sigmoid,
     exponential,
     hard_sigmoid,
-    hard_swish,
+    hard_silu,
     linear,
     mish,
     log_softmax,
@@ -46,6 +46,7 @@ ALL_OBJECTS = {
 ALL_OBJECTS_DICT = {fn.__name__: fn for fn in ALL_OBJECTS}
 # Additional aliases
 ALL_OBJECTS_DICT["swish"] = silu
+ALL_OBJECTS_DICT["hard_swish"] = hard_silu
 
 
 @keras_export("keras.activations.serialize")

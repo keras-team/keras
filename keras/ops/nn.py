@@ -332,17 +332,24 @@ def hard_sigmoid(x):
     return backend.nn.hard_sigmoid(x)
 
 
-class HardSwish(Operation):
+class HardSilu(Operation):
     def call(self, x):
-        return backend.nn.hard_swish(x)
+        return backend.nn.hard_silu(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_export(["keras.ops.hard_swish", "keras.ops.nn.hard_swish"])
-def hard_swish(x):
-    """Hard swish activation function.
+@keras_export(
+    [
+        "keras.ops.hard_silu",
+        "keras.ops.nn.hard_silu",
+        "keras.ops.hard_swish",
+        "keras.ops.nn.hard_swish",
+    ]
+)
+def hard_silu(x):
+    """Hard SiLU activation function, also known as Hard Swish.
 
     It is defined as:
 
@@ -350,7 +357,7 @@ def hard_swish(x):
     - `x` if `x > 3`
     - `x * (x + 3) / 6` if `-3 <= x <= 3`
 
-    It's a faster, piecewise linear approximation of the swish activation.
+    It's a faster, piecewise linear approximation of the silu activation.
 
     Args:
         x: Input tensor.
@@ -361,13 +368,13 @@ def hard_swish(x):
     Example:
 
     >>> x = keras.ops.convert_to_tensor([-3.0, -1.0, 0.0, 1.0, 3.0])
-    >>> keras.ops.hard_swish(x)
+    >>> keras.ops.hard_silu(x)
     array([-0.0, -0.3333333, 0.0, 0.6666667, 3.0], shape=(5,), dtype=float32)
 
     """
     if any_symbolic_tensors((x,)):
-        return HardSwish().symbolic_call(x)
-    return backend.nn.hard_swish(x)
+        return HardSilu().symbolic_call(x)
+    return backend.nn.hard_silu(x)
 
 
 class Elu(Operation):

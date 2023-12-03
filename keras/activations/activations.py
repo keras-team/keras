@@ -374,8 +374,8 @@ def hard_sigmoid(x):
     return ops.hard_sigmoid(x)
 
 
-@keras_export("keras.activations.hard_swish")
-def hard_swish(x):
+@keras_export(["keras.activations.hard_silu", "keras.activations.hard_swish"])
+def hard_silu(x):
     """Hard swish activation function.
 
     The hard swish activation is defined as:
@@ -394,7 +394,7 @@ def hard_swish(x):
     - [A Howard, 2019](https://arxiv.org/abs/1905.02244)
     """
     x = backend.convert_to_tensor(x)
-    return ops.hard_swish(x)
+    return ops.hard_silu(x)
 
 
 @keras_export("keras.activations.linear")
