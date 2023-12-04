@@ -139,6 +139,7 @@ def get_file(
     extract=False,
     archive_format="auto",
     cache_dir=None,
+    force_download=False,
 ):
     """Downloads a file from a URL if it not already in the cache.
 
@@ -187,6 +188,8 @@ def get_file(
         cache_dir: Location to store cached files, when None it
             defaults ether `$KERAS_HOME` if the `KERAS_HOME` environment
             variable is set or `~/.keras/`.
+        force_download: If `True`, the file will always be re-downloaded
+            regardless of the cache state.
 
     Returns:
         Path to the downloaded file.
@@ -238,17 +241,19 @@ def get_file(
     else:
         fpath = os.path.join(datadir, fname)
 
-    download = False
-    if os.path.exists(fpath):
-        # File found; verify integrity if a hash was provided.
+    if force_download:
+        download = True
+    elif os.path.exists(fpath):
+        # File found in cache.
+        download = False
+        # Verify integrity if a hash was provided.
         if file_hash is not None:
             if not validate_file(fpath, file_hash, algorithm=hash_algorithm):
                 io_utils.print_msg(
                     "A local file was found, but it seems to be "
                     f"incomplete or outdated because the {hash_algorithm} "
                     "file hash does not match the original value of "
-                    f"{file_hash} "
-                    "so we will re-download the data."
+                    f"{file_hash} so we will re-download the data."
                 )
                 download = True
     else:
