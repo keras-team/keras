@@ -84,6 +84,12 @@ class BatchNormalization(Layer):
             - `training=False`: The layer will normalize its inputs using
             the mean and variance of its moving statistics, learned during
             training.
+        mask: Binary tensor of shape broadcastable to `inputs` tensor, with
+            True values indicating the positions for which mean and variance
+            should be computed. Masked elements of the current inputs are not
+            taken into account for mean and variance computation during
+            training. Any prior unmasked element values will be taken into
+            account until their momentum expires.
 
     Reference:
 
@@ -211,10 +217,9 @@ class BatchNormalization(Layer):
             inputs = ops.cast(inputs, "float32")
 
         if training and self.trainable:
-            mean, variance = ops.moments(
+            mean, variance = self._moments(
                 inputs,
-                axes=self._reduction_axes,
-                synchronized=self.synchronized,
+                mask,
             )
             moving_mean = ops.cast(self.moving_mean, inputs.dtype)
             moving_variance = ops.cast(self.moving_variance, inputs.dtype)
@@ -282,3 +287,57 @@ class BatchNormalization(Layer):
             "synchronized": self.synchronized,
         }
         return {**base_config, **config}
+
+    def _moments(self, inputs, mask):
+        if mask is None:
+            return ops.moments(
+                inputs,
+                axes=self._reduction_axes,
+                synchronized=self.synchronized,
+            )
+
+        mask_weights = ops.cast(
+            mask,
+            inputs.dtype,
+        )
+        mask_weights_broadcasted = ops.expand_dims(
+            mask_weights,
+            axis=-1,
+        )
+        weighted_inputs = mask_weights_broadcasted * inputs
+
+        weighted_input_sum = ops.sum(
+            weighted_inputs,
+            self._reduction_axes,
+            keepdims=True,
+        )
+        sum_of_weights = ops.sum(
+            mask_weights_broadcasted,
+            self._reduction_axes,
+            keepdims=True,
+        )
+        mean = self._divide_no_nan(weighted_input_sum, sum_of_weights)
+
+        difference = inputs - mean
+        squared_difference = difference * difference
+        weighted_distsq = ops.sum(
+            mask_weights_broadcasted * squared_difference,
+            self._reduction_axes,
+            keepdims=True,
+        )
+        variance = self._divide_no_nan(weighted_distsq, sum_of_weights)
+
+        return ops.squeeze(mean), ops.squeeze(variance)
+
+    def _divide_no_nan(self, x1, x2):
+        original_dtype = x1.dtype
+        x2_binary = ops.cast(x2, dtype="bool")
+        x2_mask = ops.cast(x2_binary, dtype=original_dtype)
+        x1_masked = x1 * x2_mask
+
+        x2_binary_inverted = ~x2_binary
+        x2_mask_inverted = ops.cast(x2_binary_inverted, original_dtype)
+        x2_masked = x2 + x2_mask_inverted
+
+        result = x1_masked / x2_masked
+        return result
