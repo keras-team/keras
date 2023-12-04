@@ -93,7 +93,7 @@ def gelu(x, approximate=True):
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    # TODO: tnn.softmax doesn't support float16
+    # TODO: tnn.softmax doesn't support float16 using cpu
     if get_device() == "cpu" and standardize_dtype(x.dtype) == "float16":
         x = cast(x, "float32")
     if axis is None:
@@ -110,7 +110,7 @@ def softmax(x, axis=-1):
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    # TODO: tnn.log_softmax doesn't support float16
+    # TODO: tnn.log_softmax doesn't support float16 using cpu
     if get_device() == "cpu" and standardize_dtype(x.dtype) == "float16":
         x = cast(x, "float32")
     if axis is None:
