@@ -66,9 +66,9 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_sigmoid(x).shape, (None, 2, 3))
 
-    def test_hard_swish(self):
+    def test_hard_silu(self):
         x = KerasTensor([None, 2, 3])
-        self.assertEqual(knn.hard_swish(x).shape, (None, 2, 3))
+        self.assertEqual(knn.hard_silu(x).shape, (None, 2, 3))
 
     def test_elu(self):
         x = KerasTensor([None, 2, 3])
@@ -591,9 +591,9 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.hard_sigmoid(x).shape, (1, 2, 3))
 
-    def test_hard_swish(self):
+    def test_hard_silu(self):
         x = KerasTensor([1, 2, 3])
-        self.assertEqual(knn.hard_swish(x).shape, (1, 2, 3))
+        self.assertEqual(knn.hard_silu(x).shape, (1, 2, 3))
 
     def test_elu(self):
         x = KerasTensor([1, 2, 3])
@@ -1029,10 +1029,10 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
         )
 
-    def test_hard_swish(self):
+    def test_hard_silu(self):
         x = np.array([-3, -2, -1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
-            knn.hard_swish(x),
+            knn.hard_silu(x),
             [-0.0, -0.333333, -0.333333, 0.0, 0.6666667, 1.6666667, 3.0],
         )
 
@@ -1777,6 +1777,55 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         return super().tearDown()
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_elu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.elu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.elu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Elu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_gelu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+
+        # approximate = True
+        expected_dtype = standardize_dtype(jnn.gelu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.gelu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Gelu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+        # approximate = False
+        expected_dtype = standardize_dtype(jnn.gelu(x_jax, False).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.gelu(x, False).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Gelu(False).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_hard_sigmoid(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -1795,19 +1844,217 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_hard_swish(self, dtype):
+    def test_hard_silu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
 
         x = knp.ones((), dtype=dtype)
         x_jax = jnp.ones((), dtype=dtype)
-        expected_dtype = standardize_dtype(jnn.hard_swish(x_jax).dtype)
+        expected_dtype = standardize_dtype(jnn.hard_silu(x_jax).dtype)
 
         self.assertEqual(
-            standardize_dtype(knn.hard_swish(x).dtype),
+            standardize_dtype(knn.hard_silu(x).dtype),
             expected_dtype,
         )
         self.assertEqual(
-            standardize_dtype(knn.HardSwish().symbolic_call(x).dtype),
+            standardize_dtype(knn.HardSilu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_leaky_relu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.leaky_relu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.leaky_relu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.LeakyRelu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_log_sigmoid(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.log_sigmoid(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.log_sigmoid(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.LogSigmoid().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_log_softmax(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((10,), dtype=dtype)
+        x_jax = jnp.ones((10,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.log_softmax(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.log_softmax(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.LogSoftmax().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_relu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.relu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.relu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Relu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_relu6(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.relu6(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.relu6(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Relu6().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_selu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.selu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.selu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Selu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_sigmoid(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.sigmoid(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.sigmoid(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Sigmoid().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_silu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.silu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.silu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Silu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_softplus(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.softplus(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.softplus(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Softplus().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_softmax(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((10,), dtype=dtype)
+        x_jax = jnp.ones((10,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.softmax(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.softmax(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Softmax().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_softsign(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.soft_sign(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.softsign(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Softsign().symbolic_call(x).dtype),
             expected_dtype,
         )

@@ -10,20 +10,28 @@ from keras.backend.common.backend_utils import (
 )
 from keras.backend.config import epsilon
 from keras.backend.numpy.core import cast
+from keras.backend.numpy.core import convert_to_tensor
 from keras.backend.numpy.core import is_tensor
 from keras.utils.module_utils import scipy
 
 
 def relu(x):
-    return np.maximum(x, 0.0)
+    x = convert_to_tensor(x)
+    return np.maximum(x, np.array(0.0, x.dtype))
 
 
 def relu6(x):
-    return np.clip(x, 0.0, 6.0)
+    x = convert_to_tensor(x)
+    # np.clip incorrectly promote bfloat16 to float32, so we replace it with
+    # np.minimum and np.maximum here
+    return np.minimum(
+        np.maximum(x, np.array(0.0, x.dtype)), np.array(6.0, x.dtype)
+    )
 
 
 def sigmoid(x):
-    return 1.0 / (1.0 + np.exp(-x))
+    x = convert_to_tensor(x)
+    return np.array(1.0, x.dtype) / (np.array(1.0, x.dtype) + np.exp(-x))
 
 
 def tanh(x):
@@ -31,23 +39,28 @@ def tanh(x):
 
 
 def softplus(x):
-    return np.log(1.0 + np.exp(x))
+    x = convert_to_tensor(x)
+    return np.logaddexp(x, np.array(0.0, x.dtype))
 
 
 def softsign(x):
-    return x / (1.0 + np.abs(x))
+    x = convert_to_tensor(x)
+    return x / (np.array(1.0, x.dtype) + np.abs(x))
 
 
 def silu(x):
-    return x * (1.0 / (1.0 + np.exp(-x)))
+    x = convert_to_tensor(x)
+    return x * sigmoid(x)
 
 
 def log_sigmoid(x):
-    return np.log(1.0 / (1.0 + np.exp(-x)))
+    x = convert_to_tensor(x)
+    return -softplus(-x)
 
 
 def leaky_relu(x, negative_slope=0.2):
-    return np.maximum(x, negative_slope * x)
+    x = convert_to_tensor(x)
+    return np.maximum(x, np.array(negative_slope, x.dtype) * x)
 
 
 def hard_sigmoid(x):
@@ -61,12 +74,15 @@ def hard_sigmoid(x):
     )
 
 
-def hard_swish(x):
+def hard_silu(x):
     return x * hard_sigmoid(x)
 
 
 def elu(x, alpha=1.0):
-    return np.where(x >= 0.0, x, alpha * (np.exp(x) - 1.0))
+    x = convert_to_tensor(x)
+    return np.where(
+        x >= np.array(0.0, x.dtype), x, np.array(alpha, x.dtype) * np.expm1(x)
+    )
 
 
 def selu(
@@ -74,23 +90,30 @@ def selu(
     alpha=1.6732632423543772848170429916717,
     scale=1.0507009873554804934193349852946,
 ):
-    return scale * np.where(x >= 0.0, x, alpha * (np.exp(x) - 1.0))
+    x = convert_to_tensor(x)
+    return np.array(scale, x.dtype) * elu(x, alpha)
 
 
 def gelu(x, approximate=True):
+    x = convert_to_tensor(x)
+    # followd by JAX's implementation
     if approximate:
-        return (
-            0.5
-            * x
-            * (
-                1.0
-                + np.tanh(
-                    np.sqrt(2.0 / np.pi) * (x + 0.044715 * np.power(x, 3))
-                )
+        sqrt_2_over_pi = np.sqrt(2 / np.pi).astype(x.dtype)
+        cdf = np.array(0.5, x.dtype) * (
+            np.array(1.0, x.dtype)
+            + np.tanh(
+                sqrt_2_over_pi
+                * (x + np.array(0.044715, x.dtype) * (x**3).astype(x.dtype))
             )
         )
+        return x * cdf
     else:
-        return x * scipy.stats.norm.cdf(x)
+        sqrt_2 = np.sqrt(2).astype(x.dtype)
+        return (
+            x
+            * (scipy.special.erf(x / sqrt_2) + 1).astype(x.dtype)
+            / np.array(2, x.dtype)
+        )
 
 
 def softmax(x, axis=None):
