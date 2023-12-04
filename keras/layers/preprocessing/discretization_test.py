@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 from tensorflow import data as tf_data
+from tensorflow import sparse
 
 from keras import backend
 from keras import layers
@@ -10,7 +11,7 @@ from keras import testing
 from keras.saving import saving_api
 
 
-class DicretizationTest(testing.TestCase):
+class DiscretizationTest(testing.TestCase):
     def test_discretization_basics(self):
         self.run_layer_test(
             layers.Discretization,
@@ -124,5 +125,10 @@ class DicretizationTest(testing.TestCase):
         self.assertAllClose(layer(ref_input), ref_output)
 
     def test_sparse_inputs(self):
-        # TODO
-        pass
+        x = sparse.from_dense(np.array([[-1.0, 0.2, 0.7, 1.2]]))
+        layer = layers.Discretization(
+            bin_boundaries=[0.0, 0.5, 1.0]
+        )
+        output = layer(x)
+        self.assertTrue(backend.is_tensor(output))
+        self.assertAllClose(output, np.array([[0, 1, 2, 3]]))
