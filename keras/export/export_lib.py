@@ -610,6 +610,7 @@ class TFSMLayer(Layer):
 
     def _add_existing_weight(self, weight):
         """Tracks an existing weight."""
+        # TODO: wrap in KerasVariable
         self._track_variable(weight)
 
     def call(self, inputs, training=False, **kwargs):

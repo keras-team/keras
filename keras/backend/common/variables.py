@@ -45,49 +45,61 @@ class KerasVariable:
                 )
 
         if in_stateless_scope():
+            scope = get_stateless_scope()
             if callable(initializer):
                 self._value = None
                 self._initializer = initializer
                 self._shape = self._validate_shape(shape)
                 register_uninitialized_variable(self)
             else:
-                raise ValueError(
-                    "You are attempting to create a variable "
-                    "while in a stateless scope. This is disallowed. "
-                    "Make sure that all variables are created "
-                    "before you start using your layer/model objects.\n\n"
-                    "In some cases, you might be seeing this error "
-                    "because you need to "
-                    "implement a `def build(self, input_shape)` method "
-                    "on your layer/model, which will "
-                    "create its variables.\n\n"
-                    "In some other cases, you might be seeing this error "
-                    "because you are instantiating a `Variable` and "
-                    "assigning it to a layer without going through "
-                    "self.add_variable()/self.add_weight(). Always prefer "
-                    "using these methods "
-                    "(with a `shape` and `initializer` argument)."
-                )
+                if not scope.allow_variable_creation:
+                    raise ValueError(
+                        "You are attempting to create a variable "
+                        "with an eager value "
+                        "while in a stateless scope. This is disallowed.\n\n"
+                        f"Variable: {self} with init value {initializer}\n\n"
+                        "Make sure that all variables are created "
+                        "before you start using your layer/model objects.\n\n"
+                        "In some cases, you might be seeing this error "
+                        "because you need to "
+                        "implement a `def build(self, input_shape)` method "
+                        "on your layer/model, which will "
+                        "create its variables.\n\n"
+                        "In some other cases, you might be seeing this error "
+                        "because you are instantiating a `Variable` and "
+                        "assigning it to a layer without going through "
+                        "self.add_variable()/self.add_weight(). Always prefer "
+                        "using these methods "
+                        "(with a `shape` and `initializer` argument)."
+                    )
+                # Special case where the stateless scope allows
+                # eager variable creation. Used for model loading.
+                self._initialize(initializer)
+                self._shape = tuple(self._value.shape)
         else:
             if callable(initializer):
                 shape = self._validate_shape(shape)
                 value = initializer(shape, dtype=dtype)
             else:
                 value = initializer
+
             self._initialize(value)
             self._shape = tuple(self._value.shape)
         self._ndim = len(self._shape)
 
     def _deferred_initialize(self):
         if self._value is not None:
-            raise ValueError(f"Variable {self.path} is already initialized.")
+            # Variables are allowed to already be force-initialized
+            # (e.g. this is what model loading does).
+            return
 
-        if in_stateless_scope():
+        if in_stateless_scope() and not get_stateless_scope().allow_variable_creation:
             raise ValueError(
                 "You are attempting to initialize a variable "
                 "while in a stateless scope. This is disallowed. "
                 "Make sure that all variables are initialized "
-                "before you start using your layer/model objects."
+                "before you start using your layer/model objects. "
+                f"Variable: {self}"
             )
         value = self._initializer(self._shape, dtype=self._dtype)
         self._initialize(value)
@@ -128,7 +140,7 @@ class KerasVariable:
             )
         return self._maybe_autocast(self._value)
 
-    def assign(self, value):
+    def assign(self, value, force=False):
         value = self._convert_to_tensor(value, dtype=self.dtype)
         if not shape_equal(value.shape, self.shape):
             raise ValueError(
@@ -139,7 +151,7 @@ class KerasVariable:
                 f"Received: value.shape={value.shape}. "
                 f"Target variable: {self}"
             )
-        if in_stateless_scope():
+        if in_stateless_scope() and not force:
             scope = get_stateless_scope()
             scope.add_update((self, value))
         else:

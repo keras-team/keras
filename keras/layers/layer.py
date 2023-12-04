@@ -1154,7 +1154,7 @@ class Layer(BackendLayer, Operation):
                 f"Expected: {[v.name for v in all_vars]}"
             )
         for i, v in enumerate(all_vars):
-            v.assign(store[f"{i}"])
+            v.assign(store[f"{i}"], force=True)
 
     def _track_variable(self, variable):
         if variable.trainable:

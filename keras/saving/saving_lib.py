@@ -10,6 +10,7 @@ import zipfile
 import numpy as np
 
 from keras.backend.common import global_state
+from keras.backend.common.stateless_scope import StatelessScope
 from keras.layers.layer import Layer
 from keras.losses.loss import Loss
 from keras.metrics.metric import Metric
@@ -148,11 +149,6 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         if not compile:
             # Disable compilation
             config_dict["compile_config"] = None
-        # Construct the model from the configuration file in the archive.
-        with ObjectSharingScope():
-            model = deserialize_keras_object(
-                config_dict, custom_objects, safe_mode=safe_mode
-            )
 
         all_filenames = zf.namelist()
         if _VARS_FNAME + ".h5" in all_filenames:
@@ -171,13 +167,24 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         else:
             asset_store = None
 
-        _load_state(
-            model,
-            weights_store=weights_store,
-            assets_store=asset_store,
-            inner_path="",
-            visited_trackables=set(),
-        )
+        # We use a stateless scope to prevent variable initialization
+        # (since the values would be discarded at loading time).
+        with StatelessScope(
+                allow_variable_creation=True
+            ):
+            with ObjectSharingScope():
+                # Construct the model from the configuration file.
+                model = deserialize_keras_object(
+                    config_dict, custom_objects, safe_mode=safe_mode
+                )
+            # Populate variable values.
+            _load_state(
+                model,
+                weights_store=weights_store,
+                assets_store=asset_store,
+                inner_path="",
+                visited_trackables=set(),
+            )
         weights_store.close()
         if asset_store:
             asset_store.close()

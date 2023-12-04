@@ -11,6 +11,7 @@ from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.name_scope import name_scope as base_name_scope
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.common.stateless_scope import in_stateless_scope
+from keras.backend.common.stateless_scope import get_stateless_scope
 from keras.utils.naming import auto_name
 
 SUPPORTS_SPARSE_TENSORS = True
@@ -34,9 +35,11 @@ class Variable(
 
     def _deferred_initialize(self):
         if self._value is not None:
-            raise ValueError(f"Variable {self.path} is already initialized.")
+            # Variables are allowed to already be force-initialized
+            # (e.g. this is what model loading does).
+            return
 
-        if in_stateless_scope():
+        if in_stateless_scope() and not get_stateless_scope().allow_variable_creation:
             raise ValueError(
                 "You are attempting to initialize a variable "
                 "while in a stateless scope. This is disallowed. "

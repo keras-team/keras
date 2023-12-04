@@ -109,9 +109,10 @@ def get(identifier):
     else:
         obj = identifier
 
+    if inspect.isclass(obj):
+        obj = obj()
+
     if callable(obj):
-        if inspect.isclass(obj):
-            obj = obj()
         return obj
     else:
         raise ValueError(

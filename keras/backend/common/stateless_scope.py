@@ -37,6 +37,7 @@ class StatelessScope:
         state_mapping=None,
         collect_losses=False,
         initialize_variables=True,
+        allow_variable_creation=False,
     ):
         from keras import backend
         from keras.backend.common.variables import KerasVariable
@@ -44,6 +45,7 @@ class StatelessScope:
         self.collect_losses = collect_losses
         self.initialize_variables = initialize_variables
         self.losses = []
+        self.allow_variable_creation = allow_variable_creation
         self.state_mapping = {}
         state_mapping = state_mapping or {}
         for k, v in state_mapping:
@@ -77,18 +79,21 @@ class StatelessScope:
         self.state_mapping[id(variable)] = value
 
     def get_current_value(self, variable):
-        return self.state_mapping.get(id(variable), None)
+        value = self.state_mapping.get(id(variable), None)
+        if value is None:
+            value = variable._value
+        return value
 
     def __exit__(self, *args, **kwargs):
         global_state.set_global_attribute(
             "stateless_scope", self.original_scope
         )
-        if self.original_scope is None and self.initialize_variables:
+        is_eager_friendly = self.original_scope is None or self.original_scope.allow_variable_creation
+        if self.initialize_variables and is_eager_friendly:
             # We're back in eager scope;
             # if any variables were created within the stateless
             # scope, we initialize them here.
             from keras.backend.common.variables import initialize_all_variables
-
             initialize_all_variables()
 
 

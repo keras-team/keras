@@ -445,7 +445,7 @@ class BaseOptimizer:
             warnings.warn(msg, stacklevel=2)
             return
         for i, variable in enumerate(self.variables):
-            variable.assign(store[str(i)])
+            variable.assign(store[str(i)], force=True)
 
     def _get_current_learning_rate(self):
         if isinstance(

@@ -56,14 +56,6 @@ class VariableInitializationTest(test_case.TestCase):
         ):
             backend.Variable(initializer=initializers.RandomNormal())
 
-    def test_deferred_initialize_already_initialized(self):
-        """Test deferred init on an already initialized variable."""
-        v = backend.Variable(initializer=np.ones((2, 2)))
-        with self.assertRaisesRegex(
-            ValueError, f"Variable {v.path} is already initialized."
-        ):
-            v._deferred_initialize()
-
     def test_variable_initialize(self):
         """Test initializing a variable."""
         v = backend.Variable(initializer=np.array([1, 2, 3]))

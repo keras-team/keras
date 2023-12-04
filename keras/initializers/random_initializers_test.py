@@ -149,7 +149,7 @@ class InitializersTest(testing.TestCase):
 
     def test_get_method(self):
         obj = initializers.get("glorot_normal")
-        self.assertTrue(obj, initializers.GlorotNormal)
+        self.assertTrue(isinstance(obj, initializers.GlorotNormal))
 
         obj = initializers.get(None)
         self.assertEqual(obj, None)
