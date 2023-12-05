@@ -53,11 +53,6 @@ class MultiHeadAttention(Layer):
             attention over all axes, but batch, heads, and features.
         kernel_initializer: Initializer for dense layer kernels.
         bias_initializer: Initializer for dense layer biases.
-        kernel_regularizer: Regularizer for dense layer kernels.
-        bias_regularizer: Regularizer for dense layer biases.
-        activity_regularizer: Regularizer for dense layer activity.
-        kernel_constraint: Constraint for dense layer kernels.
-        bias_constraint: Constraint for dense layer kernels.
 
     Call arguments:
         query: Query tensor of shape `(B, T, dim)`, where `B` is the batch size,
@@ -104,11 +99,6 @@ class MultiHeadAttention(Layer):
         attention_axes=None,
         kernel_initializer="glorot_uniform",
         bias_initializer="zeros",
-        kernel_regularizer=None,
-        bias_regularizer=None,
-        activity_regularizer=None,
-        kernel_constraint=None,
-        bias_constraint=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -123,11 +113,6 @@ class MultiHeadAttention(Layer):
         self._output_shape = output_shape
         self._kernel_initializer = initializers.get(kernel_initializer)
         self._bias_initializer = initializers.get(bias_initializer)
-        self._kernel_regularizer = regularizers.get(kernel_regularizer)
-        self._bias_regularizer = regularizers.get(bias_regularizer)
-        self._activity_regularizer = regularizers.get(activity_regularizer)
-        self._kernel_constraint = constraints.get(kernel_constraint)
-        self._bias_constraint = constraints.get(bias_constraint)
         if isinstance(attention_axes, int):
             attention_axes = (attention_axes,)
         elif attention_axes and not isinstance(attention_axes, (list, tuple)):
@@ -151,17 +136,22 @@ class MultiHeadAttention(Layer):
                 self._kernel_initializer
             ),
             "bias_initializer": initializers.serialize(self._bias_initializer),
-            "kernel_regularizer": regularizers.serialize(
-                self._kernel_regularizer
-            ),
-            "bias_regularizer": regularizers.serialize(self._bias_regularizer),
-            "activity_regularizer": regularizers.serialize(
-                self._activity_regularizer
-            ),
-            "kernel_constraint": constraints.serialize(self._kernel_constraint),
-            "bias_constraint": constraints.serialize(self._bias_constraint),
         }
         return {**base_config, **config}
+
+    @classmethod
+    def from_config(cls, config):
+        unused_legacy_args = {
+            "activity_regularizer",
+            "bias_regularizer",
+            "kernel_regularizer",
+            "bias_constraint",
+            "kernel_constraint",
+        }
+        for kwarg in unused_legacy_args:
+            if kwarg in config:
+                config.pop(kwarg)
+        return super().from_config(config)
 
     def build(
         self,
@@ -238,11 +228,6 @@ class MultiHeadAttention(Layer):
 
     def _get_common_kwargs_for_sublayer(self):
         common_kwargs = dict(
-            kernel_regularizer=self._kernel_regularizer,
-            bias_regularizer=self._bias_regularizer,
-            activity_regularizer=self._activity_regularizer,
-            kernel_constraint=self._kernel_constraint,
-            bias_constraint=self._bias_constraint,
             dtype=self.dtype_policy,
         )
         # Create new clone of kernel/bias initializer, so that we don't reuse
