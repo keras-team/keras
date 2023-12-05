@@ -169,7 +169,8 @@ def compute_output_spec(fn, *args, **kwargs):
                     idx_sym += 1
 
                 i += 1
-            return fn(*rec_args, **kwargs, **static_kwargs)
+            with StatelessScope():
+                return fn(*rec_args, **kwargs, **static_kwargs)
 
         jax_out = None
         if none_count:
@@ -208,7 +209,9 @@ def compute_output_spec(fn, *args, **kwargs):
                     else:
                         flat_out.append(x1)
                 jax_out = pack_sequence_as(jax_out_1, flat_out)
-            except:
+            except Exception as e:
+                if "[JAX RNG]" in str(e):
+                    raise e
                 # Errors can happen when the filled dimensions
                 # are not compatible with the function
                 # (or when the function contains a bug).
