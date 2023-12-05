@@ -3,6 +3,7 @@ import pytest
 from absl.testing import parameterized
 from numpy.lib.stride_tricks import as_strided
 
+from keras import constraints
 from keras import layers
 from keras import testing
 
@@ -783,3 +784,19 @@ class ConvCorrectnessTest(testing.TestCase, parameterized.TestCase):
             groups=groups,
         )
         self.assertAllClose(outputs, expected, rtol=5e-4)
+
+    def test_conv_constraints(self):
+        layer = layers.Conv2D(
+            filters=4,
+            kernel_size=3,
+            kernel_constraint="non_neg",
+        )
+        layer.build((None, 5, 5, 3))
+        self.assertIsInstance(layer.kernel.constraint, constraints.NonNeg)
+        layer = layers.Conv2D(
+            filters=4,
+            kernel_size=3,
+            bias_constraint="non_neg",
+        )
+        layer.build((None, 5, 5, 3))
+        self.assertIsInstance(layer.bias.constraint, constraints.NonNeg)

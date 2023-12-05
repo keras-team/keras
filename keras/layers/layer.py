@@ -23,6 +23,7 @@ from functools import wraps
 import tree
 
 from keras import backend
+from keras import constraints
 from keras import initializers
 from keras import mixed_precision
 from keras import regularizers
@@ -503,7 +504,7 @@ class Layer(BackendLayer, Operation):
             )
         # Will be added to layer.losses
         variable.regularizer = regularizer
-        variable.constraint = constraint
+        variable.constraint = constraints.get(constraint)
         self._track_variable(variable)
         return variable
 

@@ -1,6 +1,7 @@
 import pytest
 from absl.testing import parameterized
 
+from keras import constraints
 from keras import layers
 from keras import testing
 
@@ -263,3 +264,15 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(layer.kernel.shape, expected_kernel_shape)
         if expected_bias_shape is not None:
             self.assertEqual(layer.bias.shape, expected_bias_shape)
+
+    def test_einsum_dense_constraints(self):
+        layer = layers.EinsumDense(
+            "abc,cde->abde", (1, 3, 4), kernel_constraint="non_neg"
+        )
+        layer.build((2, 1, 2))
+        self.assertIsInstance(layer.kernel.constraint, constraints.NonNeg)
+        layer = layers.EinsumDense(
+            "ab,b->a", (1, 3, 4), bias_axes="a", bias_constraint="non_neg"
+        )
+        layer.build((2, 1, 2))
+        self.assertIsInstance(layer.bias.constraint, constraints.NonNeg)

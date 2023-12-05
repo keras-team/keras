@@ -10,6 +10,7 @@ from keras import initializers
 from keras import layers
 from keras import losses
 from keras import metrics
+from keras import models
 from keras import ops
 from keras import optimizers
 from keras import testing
@@ -1139,3 +1140,16 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             callbacks=[stopper],
         )
         self.assertEqual(stopper.counter, stop_count)
+
+    @pytest.mark.requires_trainable_backend
+    def test_constraints_are_applied(self):
+        model = models.Sequential(
+            [layers.Dense(2, kernel_constraint="non_neg")]
+        )
+        x = np.ones((2, 3))
+        y = np.ones((2, 2))
+        model.compile(optimizer="rmsprop", loss="mse")
+        model.fit(x, y)
+        self.assertGreaterEqual(
+            np.min(backend.convert_to_numpy(model.layers[0].kernel)), 0.0
+        )
