@@ -54,7 +54,7 @@ class ReduceLROnPlateau(Callback):
         mode="auto",
         min_delta=1e-4,
         cooldown=0,
-        min_lr=0,
+        min_lr=0.,
         **kwargs,
     ):
         super().__init__()
