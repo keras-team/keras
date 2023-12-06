@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn.functional as tnn
 import tree
@@ -68,6 +67,11 @@ def hard_sigmoid(x):
     return tnn.hardsigmoid(x)
 
 
+def hard_silu(x):
+    x = convert_to_tensor(x)
+    return tnn.hardswish(x)
+
+
 def elu(x, alpha=1.0):
     x = convert_to_tensor(x)
     return tnn.elu(x, alpha)
@@ -88,44 +92,66 @@ def gelu(x, approximate=True):
 
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    # TODO: tnn.softmax doesn't support float16 using cpu
+    if get_device() == "cpu" and standardize_dtype(x.dtype) == "float16":
+        x = cast(x, "float32")
     if axis is None:
         # Unlike numpy, PyTorch will handle axis=None as axis=-1.
         # We need this workaround for the reduction on every dim.
         output = torch.reshape(x, [-1])
         output = tnn.softmax(output, dim=-1)
-        return torch.reshape(output, x.shape)
-    return tnn.softmax(x, dim=axis)
+        output = torch.reshape(output, x.shape)
+    else:
+        output = tnn.softmax(x, dim=axis)
+    return cast(output, dtype)
 
 
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    # TODO: tnn.log_softmax doesn't support float16 using cpu
+    if get_device() == "cpu" and standardize_dtype(x.dtype) == "float16":
+        x = cast(x, "float32")
     if axis is None:
         # Unlike numpy, PyTorch will handle axis=None as axis=-1.
         # We need this workaround for the reduction on every dim.
         output = torch.reshape(x, [-1])
         output = tnn.log_softmax(output, dim=-1)
-        return torch.reshape(output, x.shape)
-    return tnn.log_softmax(x, dim=axis)
+        output = torch.reshape(output, x.shape)
+    else:
+        output = tnn.log_softmax(x, dim=axis)
+    return cast(output, dtype)
 
 
 def _compute_padding_length(
     input_length, kernel_length, stride, dilation_rate=1
 ):
     """Compute padding length along one dimension."""
-    if (input_length - 1) % stride == 0:
-        total_padding_length = dilation_rate * (kernel_length - 1)
-    else:
-        total_padding_length = (
-            dilation_rate * (kernel_length - 1) - (input_length - 1) % stride
-        )
-    left_padding = int(np.floor(total_padding_length / 2))
-    right_padding = int(np.ceil(total_padding_length / 2))
+    total_padding_length = (
+        dilation_rate * (kernel_length - 1) - (input_length - 1) % stride
+    )
+    left_padding = total_padding_length // 2
+    right_padding = (total_padding_length + 1) // 2
     return (left_padding, right_padding)
 
 
 def _apply_same_padding(
     inputs, kernel_size, strides, operation_type, dilation_rate=1
 ):
+    """Apply same padding to the input tensor.
+
+    This function will evaluate if the padding value is compatible with torch
+    functions. To avoid calling `pad()` as much as possible, which may cause
+    performance or memory issues, when compatible, it does not apply the padding
+    to the tensor, but returns the input tensor and the padding value to pass to
+    the torch functions. If not compatible, it returns the padded tensor and 0
+    as the padding value.
+
+    Returns:
+        tensor: A padded tensor or the inputs.
+        padding: The padding value, ready to pass to the torch functions.
+    """
     spatial_shape = inputs.shape[2:]
     num_spatial_dims = len(spatial_shape)
     padding = ()
@@ -144,9 +170,15 @@ def _apply_same_padding(
                 spatial_shape[i], kernel_size[i], strides[i], dilation_rate[i]
             )
             mode = "constant"
-        padding = padding_size + padding
+        padding = (padding_size,) + padding
 
-    return tnn.pad(inputs, padding, mode=mode)
+    if all([left == right for left, right in padding]):
+        return inputs, [left for left, _ in padding]
+
+    flattened_padding = tuple(
+        value for left_and_right in padding for value in left_and_right
+    )
+    return tnn.pad(inputs, pad=flattened_padding, mode=mode), 0
 
 
 def _transpose_spatial_inputs(inputs):
@@ -215,9 +247,11 @@ def max_pool(
     if padding == "same":
         # Torch does not natively support `"same"` padding, we need to manually
         # apply the right amount of padding to `inputs`.
-        inputs = _apply_same_padding(
+        inputs, padding = _apply_same_padding(
             inputs, pool_size, strides, operation_type="pooling"
         )
+    else:
+        padding = 0
 
     device = get_device()
     # Torch max pooling ops do not support symbolic tensors.
@@ -228,11 +262,17 @@ def max_pool(
         )
 
     if num_spatial_dims == 1:
-        outputs = tnn.max_pool1d(inputs, kernel_size=pool_size, stride=strides)
+        outputs = tnn.max_pool1d(
+            inputs, kernel_size=pool_size, stride=strides, padding=padding
+        )
     elif num_spatial_dims == 2:
-        outputs = tnn.max_pool2d(inputs, kernel_size=pool_size, stride=strides)
+        outputs = tnn.max_pool2d(
+            inputs, kernel_size=pool_size, stride=strides, padding=padding
+        )
     elif num_spatial_dims == 3:
-        outputs = tnn.max_pool3d(inputs, kernel_size=pool_size, stride=strides)
+        outputs = tnn.max_pool3d(
+            inputs, kernel_size=pool_size, stride=strides, padding=padding
+        )
     else:
         raise ValueError(
             "Inputs to pooling op must have ndim=3, 4 or 5, "
@@ -283,7 +323,9 @@ def average_pool(
                 # Handle unequal padding.
                 # `torch.nn.pad` sets padding value in the reverse order.
                 uneven_padding = [0, 1] + uneven_padding
-        inputs = tnn.pad(inputs, uneven_padding)
+        # Only call tnn.pad when needed.
+        if len(uneven_padding) > 0:
+            inputs = tnn.pad(inputs, uneven_padding)
 
     if num_spatial_dims == 1:
         outputs = tnn.avg_pool1d(
@@ -341,14 +383,13 @@ def conv(
     if padding == "same" and any(d != 1 for d in tree.flatten(strides)):
         # Torch does not support this case in conv2d().
         # Manually pad the tensor.
-        inputs = _apply_same_padding(
+        inputs, padding = _apply_same_padding(
             inputs,
             kernel.shape[2:],
             strides,
             operation_type="conv",
             dilation_rate=dilation_rate,
         )
-        padding = 0
     channels = inputs.shape[1]
     kernel_in_channels = kernel.shape[1]
     if channels % kernel_in_channels > 0:
@@ -662,3 +703,44 @@ def moments(x, axes, keepdims=False, synchronized=False):
         mean = cast(mean, ori_dtype)
         variance = cast(variance, ori_dtype)
     return mean, variance
+
+
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
+    x = convert_to_tensor(x)
+    mean = convert_to_tensor(mean).detach()
+    variance = convert_to_tensor(variance).detach()
+    if offset is not None:
+        offset = convert_to_tensor(offset)
+    if scale is not None:
+        scale = convert_to_tensor(scale)
+
+    def _batch_norm():
+        return tnn.batch_norm(
+            input=x,
+            running_mean=mean,
+            running_var=variance,
+            weight=scale,
+            bias=offset,
+            training=False,
+            eps=epsilon,
+        )
+
+    if axis == 1:
+        return _batch_norm()
+
+    if axis < 0:
+        axis = len(x.shape) + axis
+
+    order = list(range(len(x.shape)))
+    order.pop(axis)
+    order.insert(1, axis)
+    x = x.permute(order)
+
+    x = _batch_norm()
+
+    order = list(range(len(x.shape)))
+    order.pop(1)
+    order.insert(axis, 1)
+    return x.permute(order)

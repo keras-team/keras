@@ -8,8 +8,10 @@ import tree
 from keras.backend.common import KerasVariable
 from keras.backend.common import global_state
 from keras.backend.common import standardize_dtype
+from keras.backend.common.dtypes import result_type
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
+from keras.backend.config import floatx
 from keras.utils.nest import pack_sequence_as
 
 SUPPORTS_SPARSE_TENSORS = False
@@ -44,9 +46,10 @@ TORCH_DTYPES = {
 
 
 @contextlib.contextmanager
-def device_scope(device):
+def device_scope(device_name):
     previous_device = global_state.get_global_attribute("torch_device", None)
-    global_state.set_global_attribute("torch_device", device)
+    current_device = _parse_device_input(device_name)
+    global_state.set_global_attribute("torch_device", current_device)
     try:
         yield
     finally:
@@ -60,6 +63,23 @@ def get_device():
     return device
 
 
+def _parse_device_input(device_name):
+    if isinstance(device_name, str):
+        # We support string value like "cpu:0", "gpu:1", and need to convert
+        # "gpu" to "cuda"
+        device_name = device_name.lower()
+        if "gpu" in device_name:
+            device_name = device_name.replace("gpu", "cuda")
+    else:
+        raise ValueError(
+            "Invalid value for argument `device_name`. "
+            "Expected a string like 'gpu:0' or 'cpu'. "
+            f"Received: device_name='{device_name}'"
+        )
+    # The torch.Device instance can be used directly.
+    return device_name
+
+
 def to_torch_dtype(dtype):
     standardized_dtype = TORCH_DTYPES.get(standardize_dtype(dtype), None)
     if standardized_dtype is None:
@@ -69,10 +89,14 @@ def to_torch_dtype(dtype):
 
 class Variable(KerasVariable):
     def _initialize(self, value):
-        self._value = torch.nn.Parameter(
-            convert_to_tensor(value, dtype=self._dtype),
-            requires_grad=self.trainable,
-        ).to(get_device())
+        if isinstance(value, torch.nn.Parameter):
+            # Reuse same parameter
+            self._value = value
+        else:
+            self._value = torch.nn.Parameter(
+                convert_to_tensor(value, dtype=self._dtype),
+                requires_grad=self.trainable,
+            ).to(get_device())
 
     def _direct_assign(self, value):
         with torch.no_grad():
@@ -105,7 +129,7 @@ class Variable(KerasVariable):
     def value(self):
         value = super().value
         # Create and use a symbolic tensor stub in symbolic calls.
-        if get_device() == "meta" and str(value.device) != "meta":
+        if str(get_device()) == "meta" and str(value.device) != "meta":
             return torch.empty(
                 size=value.shape,
                 dtype=value.dtype,
@@ -130,7 +154,7 @@ class Variable(KerasVariable):
             return False
 
 
-def convert_to_tensor(x, dtype=None, sparse=False):
+def convert_to_tensor(x, dtype=None, sparse=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with torch backend")
     if is_tensor(x):
@@ -145,10 +169,15 @@ def convert_to_tensor(x, dtype=None, sparse=False):
         # Return it directly instead of pass it to the rest of the logic in the
         # function.
         return x.value
-    if isinstance(x, int):
-        return torch.as_tensor(x, dtype=torch.int32, device=get_device())
-    if isinstance(x, float):
-        return torch.as_tensor(x, dtype=torch.float32, device=get_device())
+    if dtype is None:
+        if isinstance(x, bool):
+            return torch.as_tensor(x, dtype=torch.bool, device=get_device())
+        elif isinstance(x, int):
+            return torch.as_tensor(x, dtype=torch.int32, device=get_device())
+        elif isinstance(x, float):
+            return torch.as_tensor(
+                x, dtype=to_torch_dtype(floatx()), device=get_device()
+            )
 
     # Convert to np in case of any array-like that is not list or tuple.
     if not isinstance(x, (list, tuple)):
@@ -160,7 +189,15 @@ def convert_to_tensor(x, dtype=None, sparse=False):
         if x.dtype == np.uint32:
             # Torch backend does not support uint32.
             x = x.astype(np.int64)
+        if standardize_dtype(x.dtype) == "bfloat16":
+            # Torch backend does not support converting bfloat16 ndarray.
+            x = x.astype(np.float32)
+            dtype = "bfloat16"
         dtype = dtype or x.dtype
+    if dtype is None:
+        dtype = result_type(
+            *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
+        )
     dtype = to_torch_dtype(dtype)
     return torch.as_tensor(x, dtype=dtype, device=get_device())
 

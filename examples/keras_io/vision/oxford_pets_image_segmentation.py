@@ -72,7 +72,7 @@ display(img)
 ## Prepare dataset to load & vectorize batches of data
 """
 
-import keras as keras
+import keras
 import numpy as np
 from tensorflow import data as tf_data
 from tensorflow import image as tf_image

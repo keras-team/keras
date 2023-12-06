@@ -179,9 +179,20 @@ class ApplicationsTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(test_parameters)
     @pytest.mark.skipif(PIL is None, reason="Requires PIL.")
     def test_application_base(self, app, _, app_module, image_data_format):
+        import tensorflow as tf
+
         if app == nasnet.NASNetMobile and backend.backend() == "torch":
             self.skipTest(
                 "NASNetMobile pretrained incorrect with torch backend."
+            )
+        if (
+            image_data_format == "channels_first"
+            and len(tf.config.list_physical_devices("GPU")) == 0
+            and backend.backend() == "tensorflow"
+        ):
+            self.skipTest(
+                "Conv2D doesn't support channels_first using CPU with "
+                "tensorflow backend"
             )
         self.skip_if_invalid_image_data_format_for_model(app, image_data_format)
         backend.set_image_data_format(image_data_format)

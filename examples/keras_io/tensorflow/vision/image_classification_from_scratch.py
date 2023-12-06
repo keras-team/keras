@@ -23,7 +23,7 @@ we use Keras image preprocessing layers for image standardization and data augme
 """
 
 import tensorflow as tf
-import keras as keras
+import keras
 from keras import layers
 import os
 from pathlib import Path

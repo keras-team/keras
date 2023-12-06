@@ -1,11 +1,11 @@
 """
 Title: CutMix data augmentation for image classification
 Author: [Sayan Nath](https://twitter.com/sayannath2350)
-Converted to Keras 3 By: [Piyush Thakur](https://github.com/cosmo3769)
 Date created: 2021/06/08
-Last modified: 2023/07/24
+Last modified: 2023/11/14
 Description: Data augmentation with CutMix for image classification on CIFAR-10.
 Accelerator: GPU
+Converted to Keras 3 By: [Piyush Thakur](https://github.com/cosmo3769)
 """
 
 """
@@ -47,8 +47,7 @@ where `rx, ry` are randomly drawn from a uniform distribution with upper bound.
 """
 
 import numpy as np
-import pandas as pd
-import keras as keras
+import keras
 import matplotlib.pyplot as plt
 
 from keras import layers
@@ -57,7 +56,7 @@ from keras import layers
 from tensorflow import clip_by_value
 from tensorflow import data as tf_data
 from tensorflow import image as tf_image
-from tensorflow.random import gamma as tf_random_gamma
+from tensorflow import random as tf_random
 
 keras.utils.set_random_seed(42)
 
@@ -106,7 +105,7 @@ IMG_SIZE = 32
 def preprocess_image(image, label):
     image = tf_image.resize(image, (IMG_SIZE, IMG_SIZE))
     image = tf_image.convert_image_dtype(image, "float32") / 255.0
-    label = keras.backend.cast(label, dtype="float32")
+    label = keras.ops.cast(label, dtype="float32")
     return image, label
 
 
@@ -147,13 +146,16 @@ test_ds = (
 """
 ## Define the CutMix data augmentation function
 
-The CutMix function takes two `image` and `label` pairs to perform the augmentation. It samples `λ(l)` from the [Beta distribution](https://en.wikipedia.org/wiki/Beta_distribution) and returns a bounding box from `get_box` function. We then crop the second image (`image2`) and pad this image in the final padded image at the same location.
+The CutMix function takes two `image` and `label` pairs to perform the augmentation.
+It samples `λ(l)` from the [Beta distribution](https://en.wikipedia.org/wiki/Beta_distribution)
+and returns a bounding box from `get_box` function. We then crop the second image (`image2`)
+and pad this image in the final padded image at the same location.
 """
 
 
 def sample_beta_distribution(size, concentration_0=0.2, concentration_1=0.2):
-    gamma_1_sample = tf_random_gamma(shape=[size], alpha=concentration_1)
-    gamma_2_sample = tf_random_gamma(shape=[size], alpha=concentration_0)
+    gamma_1_sample = tf_random.gamma(shape=[size], alpha=concentration_1)
+    gamma_2_sample = tf_random.gamma(shape=[size], alpha=concentration_0)
     return gamma_1_sample / (gamma_1_sample + gamma_2_sample)
 
 
@@ -161,15 +163,15 @@ def get_box(lambda_value):
     cut_rat = keras.ops.sqrt(1.0 - lambda_value)
 
     cut_w = IMG_SIZE * cut_rat  # rw
-    cut_w = keras.backend.cast(cut_w, "int32")
+    cut_w = keras.ops.cast(cut_w, "int32")
 
     cut_h = IMG_SIZE * cut_rat  # rh
-    cut_h = keras.backend.cast(cut_h, "int32")
+    cut_h = keras.ops.cast(cut_h, "int32")
 
-    cut_x = keras.random.random.uniform((1,), minval=0, maxval=IMG_SIZE)  # rx
-    cut_x = keras.backend.cast(cut_x, "int32")
-    cut_y = keras.random.random.uniform((1,), minval=0, maxval=IMG_SIZE)  # ry
-    cut_y = keras.backend.cast(cut_y, "int32")
+    cut_x = keras.random.uniform((1,), minval=0, maxval=IMG_SIZE)  # rx
+    cut_x = keras.ops.cast(cut_x, "int32")
+    cut_y = keras.random.uniform((1,), minval=0, maxval=IMG_SIZE)  # ry
+    cut_y = keras.ops.cast(cut_y, "int32")
 
     boundaryx1 = clip_by_value(cut_x[0] - cut_w // 2, 0, IMG_SIZE)
     boundaryy1 = clip_by_value(cut_y[0] - cut_h // 2, 0, IMG_SIZE)
@@ -227,7 +229,7 @@ def cutmix(train_ds_one, train_ds_two):
 
     # Adjust Lambda in accordance to the pixel ration
     lambda_value = 1 - (target_w * target_h) / (IMG_SIZE * IMG_SIZE)
-    lambda_value = keras.backend.cast(lambda_value, "float32")
+    lambda_value = keras.ops.cast(lambda_value, "float32")
 
     # Combine the labels of both images
     label = lambda_value * label1 + (1 - lambda_value) * label2

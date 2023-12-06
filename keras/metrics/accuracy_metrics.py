@@ -55,6 +55,8 @@ class Accuracy(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="accuracy", dtype=None):
         super().__init__(fn=accuracy, name=name, dtype=dtype)
+        # Metric should be maximized during optimization.
+        self._direction = "up"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}
@@ -124,6 +126,8 @@ class BinaryAccuracy(reduction_metrics.MeanMetricWrapper):
             fn=binary_accuracy, name=name, dtype=dtype, threshold=threshold
         )
         self.threshold = threshold
+        # Metric should be maximized during optimization.
+        self._direction = "up"
 
     def get_config(self):
         return {
@@ -214,6 +218,8 @@ class CategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="categorical_accuracy", dtype=None):
         super().__init__(fn=categorical_accuracy, name=name, dtype=dtype)
+        # Metric should be maximized during optimization.
+        self._direction = "up"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}
@@ -233,6 +239,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
         (y_true_rank is not None)
         and (y_pred_rank is not None)
         and (len(y_true.shape) == len(y_pred.shape))
+        and ops.shape(y_true)[-1] == 1
     ):
         y_true = ops.squeeze(y_true, -1)
         reshape_matches = True
@@ -298,6 +305,8 @@ class SparseCategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="sparse_categorical_accuracy", dtype=None):
         super().__init__(fn=sparse_categorical_accuracy, name=name, dtype=dtype)
+        # Metric should be maximized during optimization.
+        self._direction = "up"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}
@@ -375,6 +384,8 @@ class TopKCategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
             k=k,
         )
         self.k = k
+        # Metric should be maximized during optimization.
+        self._direction = "up"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype, "k": self.k}
@@ -451,6 +462,8 @@ class SparseTopKCategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
             k=k,
         )
         self.k = k
+        # Metric should be maximized during optimization.
+        self._direction = "up"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype, "k": self.k}

@@ -36,7 +36,7 @@ layer.
 """
 
 import tensorflow as tf
-import keras as keras
+import keras
 import matplotlib.pyplot as plt
 
 # Set seed for reproducibility.

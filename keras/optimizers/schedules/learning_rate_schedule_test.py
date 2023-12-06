@@ -325,7 +325,7 @@ class CosineDecayTest(testing.TestCase):
         for step in range(0, 1500, 250):
             lr = schedules.CosineDecay(
                 initial_lr,
-                0,
+                10,
                 warmup_target=target_lr,
                 warmup_steps=warmup_steps,
             )

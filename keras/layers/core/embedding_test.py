@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from keras import backend
+from keras import constraints
 from keras import layers
 from keras.testing import test_case
 
@@ -94,3 +95,8 @@ class EmbeddingTest(test_case.TestCase):
         input_data = np.array([2, 1, 0])
         mask = layer.compute_mask(input_data)
         self.assertIsNone(mask)
+
+    def test_embedding_constraints(self):
+        layer = layers.Embedding(3, 2, embeddings_constraint="non_neg")
+        layer.build((None, 2))
+        self.assertIsInstance(layer.embeddings.constraint, constraints.NonNeg)

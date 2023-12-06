@@ -52,7 +52,7 @@ class GroupedQueryAttention(Layer):
         key: Optional key tensor of shape
             `(batch_dim, source_seq_len, feature_dim)`. If not given, will use
             `value` for both `key` and `value`, which is most common case.
-        attention_mask : A boolean mask of shape
+        attention_mask: A boolean mask of shape
             `(batch_dim, target_seq_len, source_seq_len)`, that prevents
             attention to certain positions. The boolean mask specifies which
             query elements can attend to which key elements, where 1 indicates

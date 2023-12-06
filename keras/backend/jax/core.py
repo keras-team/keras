@@ -46,7 +46,7 @@ class Variable(KerasVariable):
         return self.value
 
 
-def convert_to_tensor(x, dtype=None, sparse=False):
+def convert_to_tensor(x, dtype=None, sparse=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with jax backend")
     if dtype is not None:
@@ -169,7 +169,8 @@ def compute_output_spec(fn, *args, **kwargs):
                     idx_sym += 1
 
                 i += 1
-            return fn(*rec_args, **kwargs, **static_kwargs)
+            with StatelessScope():
+                return fn(*rec_args, **kwargs, **static_kwargs)
 
         jax_out = None
         if none_count:
@@ -208,7 +209,9 @@ def compute_output_spec(fn, *args, **kwargs):
                     else:
                         flat_out.append(x1)
                 jax_out = pack_sequence_as(jax_out_1, flat_out)
-            except:
+            except Exception as e:
+                if "[JAX RNG]" in str(e):
+                    raise e
                 # Errors can happen when the filled dimensions
                 # are not compatible with the function
                 # (or when the function contains a bug).
@@ -314,3 +317,19 @@ def unstack(x, num=None, axis=0):
         jax.lax.index_in_dim(x, i, axis, keepdims=False)
         for i in range(x.shape[axis])
     ]
+
+
+def device_scope(device_name):
+    if isinstance(device_name, str):
+        # We support string value like "cpu:0", "gpu:1", etc.
+        device_name = device_name.lower()
+        jax_device = distribution_lib._to_jax_device(device_name)
+    elif not isinstance(device_name, jax.Device):
+        raise ValueError(
+            "Invalid value for argument `device_name`. "
+            "Expected a string like 'gpu:0' or a `jax.Device` instance. "
+            f"Received: device_name='{device_name}'"
+        )
+    else:
+        jax_device = device_name
+    return jax.default_device(jax_device)

@@ -12,20 +12,19 @@ Accelerator: GPU
 """
 
 import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import re
 import numpy as np
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
-import keras as keras
+import keras
 from keras import layers
 from keras.applications import efficientnet
 from keras.layers import TextVectorization
 
-
-seed = 111
-np.random.seed(seed)
-tf.random.set_seed(seed)
+keras.utils.set_random_seed(111)
 
 """
 ## Download the dataset
@@ -573,7 +572,7 @@ early_stopping = keras.callbacks.EarlyStopping(
 
 # Learning Rate Scheduler for the optimizer
 class LRSchedule(
-    keras.optimizers.schedules.learning_rate_schedule.LearningRateSchedule
+    keras.optimizers.schedules.LearningRateSchedule
 ):
     def __init__(self, post_warmup_learning_rate, warmup_steps):
         super().__init__()

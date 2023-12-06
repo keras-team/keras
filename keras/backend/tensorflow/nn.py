@@ -9,6 +9,7 @@ from keras.backend.common.backend_utils import (
 )
 from keras.backend.config import epsilon
 from keras.backend.tensorflow.core import cast
+from keras.backend.tensorflow.core import convert_to_tensor
 
 
 def relu(x):
@@ -51,8 +52,12 @@ def leaky_relu(x, negative_slope=0.2):
 
 
 def hard_sigmoid(x):
-    x = x / 6.0 + 0.5
-    return tf.clip_by_value(x, 0.0, 1.0)
+    x = convert_to_tensor(x)
+    return relu6(x + tf.constant(3.0, x.dtype)) / tf.constant(6.0, x.dtype)
+
+
+def hard_silu(x):
+    return x * hard_sigmoid(x)
 
 
 def elu(x, alpha=1.0):
@@ -68,7 +73,31 @@ def selu(x):
 
 
 def gelu(x, approximate=True):
-    return tf.nn.gelu(x, approximate)
+    x = convert_to_tensor(x)
+    # we need to explicitly implement gelu because bfloat16 will trigger
+    # DTypePromotionError when using enable_numpy_behavior()
+    if approximate:
+        coeff = tf.constant(0.044715, x.dtype)
+        return (
+            tf.constant(0.5, x.dtype)
+            * x
+            * (
+                tf.constant(1.0, x.dtype)
+                + tf.math.tanh(
+                    tf.constant(0.7978845608028654, x.dtype)
+                    * (x + coeff * tf.pow(x, 3))
+                )
+            )
+        )
+    else:
+        return (
+            tf.constant(0.5, x.dtype)
+            * x
+            * (
+                tf.constant(1.0, x.dtype)
+                + tf.math.erf(x / tf.constant(1.4142135623730951, x.dtype))
+            )
+        )
 
 
 def softmax(x, axis=-1):
@@ -439,7 +468,8 @@ def _get_logits(output, from_logits, op_type, fn_name):
         from_logits_ = True
 
     from_expected_op_type = (
-        not isinstance(output, (tf.__internal__.EagerTensor, tf.Variable))
+        hasattr(output, "op")
+        and not isinstance(output, (tf.__internal__.EagerTensor, tf.Variable))
         and output.op.type == op_type
     ) and not has_keras_logits
 
@@ -564,6 +594,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         raise ValueError(
             f"Only axis=-1 is currently supported. Received: axis={axis}"
         )
+    output, from_logits = _get_logits(
+        output, from_logits, "Softmax", "sparse_categorical_crossentropy"
+    )
 
     target = tf.convert_to_tensor(target)
     target = tf.cast(target, dtype="int64")
@@ -591,9 +624,6 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
 
-    output, from_logits = _get_logits(
-        output, from_logits, "Softmax", "sparse_categorical_crossentropy"
-    )
     if not from_logits:
         output = tf.clip_by_value(output, epsilon(), 1 - epsilon())
         output = tf.math.log(output)
@@ -637,6 +667,7 @@ def binary_crossentropy(target, output, from_logits=False):
     output, from_logits = _get_logits(
         output, from_logits, "Sigmoid", "binary_crossentropy"
     )
+
     if from_logits:
         return tf.nn.sigmoid_cross_entropy_with_logits(
             labels=target, logits=output
@@ -682,10 +713,10 @@ def _compute_moments_sync(x, axes, keepdims):
     )
     count_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_count)
 
-    mean = y_sum / count_sum
-    y_squared_mean = y_squared_sum / count_sum
+    mean = tf.math.divide_no_nan(y_sum, count_sum)
+    y_squared_mean = tf.math.divide_no_nan(y_squared_sum, count_sum)
     # var = E(x^2) - E(x)^2
-    variance = y_squared_mean - tf.square(mean)
+    variance = tf.maximum(y_squared_mean - tf.square(mean), 0.0)
     if not keepdims:
         mean = tf.squeeze(mean, axes)
         variance = tf.squeeze(variance, axes)
@@ -713,9 +744,13 @@ def _compute_moments(x, axes, keepdims):
     # but less numerically stable.
     # Note: stop_gradient does not change the gradient to the mean, because that
     # gradient is zero.
-    variance = tf.reduce_mean(
-        tf.square(x), axis=axes, keepdims=True
-    ) - tf.square(tf.stop_gradient(mean))
+    # The substraction operation does not guarantee a non-negative
+    # result given float precision, so we clamp it to 0.
+    variance = tf.maximum(
+        tf.reduce_mean(tf.square(x), axis=axes, keepdims=True)
+        - tf.square(tf.stop_gradient(mean)),
+        0.0,
+    )
 
     if not keepdims:
         mean = tf.squeeze(mean, axes)
@@ -727,3 +762,26 @@ def _compute_moments(x, axes, keepdims):
         mean = cast(mean, ori_dtype)
         variance = cast(variance, ori_dtype)
     return mean, variance
+
+
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
+    if axis != -1:
+        shape = [1] * len(x.shape)
+        shape[axis] = mean.shape[0]
+        mean = tf.reshape(mean, shape)
+        variance = tf.reshape(variance, shape)
+        if offset is not None:
+            offset = tf.reshape(offset, shape)
+        if scale is not None:
+            scale = tf.reshape(scale, shape)
+
+    return tf.nn.batch_normalization(
+        x=x,
+        mean=mean,
+        variance=variance,
+        offset=offset,
+        scale=scale,
+        variance_epsilon=epsilon,
+    )

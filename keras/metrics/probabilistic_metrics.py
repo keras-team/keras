@@ -156,6 +156,8 @@ class BinaryCrossentropy(reduction_metrics.MeanMetricWrapper):
         )
         self.from_logits = from_logits
         self.label_smoothing = label_smoothing
+        # Metric should be minimized during optimization.
+        self._direction = "down"
 
     def get_config(self):
         return {
@@ -242,6 +244,8 @@ class CategoricalCrossentropy(reduction_metrics.MeanMetricWrapper):
         self.from_logits = from_logits
         self.label_smoothing = label_smoothing
         self.axis = axis
+        # Metric should be minimized during optimization.
+        self._direction = "down"
 
     def get_config(self):
         return {
@@ -327,6 +331,8 @@ class SparseCategoricalCrossentropy(reduction_metrics.MeanMetricWrapper):
         )
         self.from_logits = from_logits
         self.axis = axis
+        # Metric should be minimized during optimization.
+        self._direction = "down"
 
     def get_config(self):
         return {

@@ -314,7 +314,6 @@ class SavingTest(testing.TestCase):
             config_dict["compile_config"]["optimizer"],
             "adam",
         )
-        print(config_dict["compile_config"])
         self.assertEqual(
             config_dict["compile_config"]["loss"]["config"],
             "my_mean_squared_error",

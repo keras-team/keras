@@ -1,11 +1,11 @@
 """
 Title: Multiclass semantic segmentation using DeepLabV3+
 Author: [Soumik Rakshit](http://github.com/soumik12345)
-Converted to Keras 3: [Muhammad Anas Raza](https://anasrz.com)
 Date created: 2021/08/31
 Last modified: 2023/07/19
 Description: Implement DeepLabV3+ architecture for Multi-class Semantic Segmentation.
 Accelerator: GPU
+Converted to Keras 3: [Muhammad Anas Raza](https://anasrz.com)
 """
 """
 ## Introduction
@@ -17,7 +17,7 @@ architecture that performs well on semantic segmentation benchmarks.
 
 ### References:
 
-- [Encoder-Decoder with Atrous Separable Convolution for Semantic Image Segmentation](https://arxiv.org/pdf/1802.02611.pdf)
+- [Encoder-Decoder with Atrous Separable Convolution for Semantic Image Segmentation](https://arxiv.org/abs/1802.02611)
 - [Rethinking Atrous Convolution for Semantic Image Segmentation](https://arxiv.org/abs/1706.05587)
 - [DeepLab: Semantic Image Segmentation with Deep Convolutional Nets, Atrous Convolution, and Fully Connected CRFs](https://arxiv.org/abs/1606.00915)
 """
@@ -32,15 +32,18 @@ This dataset can be used for the "human part segmentation" task.
 """
 
 
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 
-import cv2
+import os
 import numpy as np
 from glob import glob
+import cv2
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
+
+# For data preprocessing
 from tensorflow import image as tf_image
 from tensorflow import data as tf_data
 from tensorflow import io as tf_io
@@ -330,6 +333,7 @@ plot_predictions(train_images[:4], colormap, model=model)
 
 """
 ### Inference on Validation Images
+
 You can use the trained model hosted on [Hugging Face Hub](https://huggingface.co/keras-io/deeplabv3p-resnet50)
 and try the demo on [Hugging Face Spaces](https://huggingface.co/spaces/keras-io/Human-Part-Segmentation).
 """

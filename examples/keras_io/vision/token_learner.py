@@ -49,7 +49,7 @@ references:
 ## Imports
 """
 
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 from tensorflow import data as tf_data

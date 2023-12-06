@@ -29,6 +29,7 @@ import keras
 from keras import ops
 from keras import layers
 from keras.applications.resnet_v2 import ResNet50V2
+
 """
 ## Prepare the data
 """
@@ -109,7 +110,9 @@ def create_classifier(encoder, trainable=True):
     features = layers.Dropout(dropout_rate)(features)
     outputs = layers.Dense(num_classes, activation="softmax")(features)
 
-    model = keras.Model(inputs=inputs, outputs=outputs, name="cifar10-classifier")
+    model = keras.Model(
+        inputs=inputs, outputs=outputs, name="cifar10-classifier"
+    )
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate),
         loss=keras.losses.SparseCategoricalCrossentropy(),
@@ -121,6 +124,7 @@ def create_classifier(encoder, trainable=True):
 """
 ## Define npairs loss function
 """
+
 
 def npairs_loss(y_true, y_pred):
     """Computes the npairs loss between `y_true` and `y_pred`.
@@ -164,7 +168,9 @@ encoder = create_encoder()
 classifier = create_classifier(encoder)
 classifier.summary()
 
-history = classifier.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=num_epochs)
+history = classifier.fit(
+    x=x_train, y=y_train, batch_size=batch_size, epochs=num_epochs
+)
 
 accuracy = classifier.evaluate(x_test, y_test)[1]
 print(f"Test accuracy: {round(accuracy * 100, 2)}%")
@@ -192,11 +198,14 @@ class SupervisedContrastiveLoss(keras.losses.Loss):
 
     def __call__(self, labels, feature_vectors, sample_weight=None):
         # Normalize feature vectors
-        feature_vectors_normalized = keras.utils.normalize(feature_vectors, axis=1, order=2)
+        feature_vectors_normalized = keras.utils.normalize(
+            feature_vectors, axis=1, order=2
+        )
         # Compute logits
         logits = ops.divide(
             ops.matmul(
-                feature_vectors_normalized, ops.transpose(feature_vectors_normalized)
+                feature_vectors_normalized,
+                ops.transpose(feature_vectors_normalized),
             ),
             self.temperature,
         )
@@ -208,7 +217,9 @@ def add_projection_head(encoder):
     features = encoder(inputs)
     outputs = layers.Dense(projection_units, activation="relu")(features)
     model = keras.Model(
-        inputs=inputs, outputs=outputs, name="cifar-encoder_with_projection-head"
+        inputs=inputs,
+        outputs=outputs,
+        name="cifar-encoder_with_projection-head",
     )
     return model
 
@@ -237,7 +248,9 @@ history = encoder_with_projection_head.fit(
 
 classifier = create_classifier(encoder, trainable=False)
 
-history = classifier.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=num_epochs)
+history = classifier.fit(
+    x=x_train, y=y_train, batch_size=batch_size, epochs=num_epochs
+)
 
 accuracy = classifier.evaluate(x_test, y_test)[1]
 print(f"Test accuracy: {round(accuracy * 100, 2)}%")

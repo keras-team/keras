@@ -66,11 +66,8 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
 
         self.assertEqual(backend.result_type(None), jnp.result_type(None).name)
 
-    def test_result_type_invalid_dtypes(self):
-        with self.assertRaisesRegexp(
-            ValueError, "Invalid `dtypes`. At least one dtype is required."
-        ):
-            backend.result_type()
+    def test_result_type_empty_list(self):
+        self.assertEqual(backend.result_type(), "float32")
 
     def test_respect_weak_type_for_bool(self):
         self.assertEqual(dtypes._respect_weak_type("bool", True), "bool")

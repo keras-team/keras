@@ -3,7 +3,9 @@ import pytest
 
 from keras import callbacks
 from keras import layers
+from keras import metrics
 from keras import models
+from keras import ops
 from keras import testing
 
 
@@ -23,17 +25,26 @@ class EarlyStoppingTest(testing.TestCase):
         model.compile(
             loss="mae",
             optimizer="adam",
-            metrics=["mse"],
+            metrics=[
+                "mse",
+                "acc",
+                "accuracy",
+                "hinge",
+                metrics.F1Score(name="f1_score"),
+            ],
         )
 
         cases = [
-            ("max", "val_mse"),
-            ("min", "val_loss"),
-            ("auto", "val_mse"),
-            ("auto", "loss"),
-            ("unknown", "unknown"),
+            ("max", "val_mse", "max"),
+            ("min", "val_loss", "min"),
+            ("auto", "val_mse", "min"),
+            ("auto", "loss", "min"),
+            ("auto", "acc", "max"),
+            ("auto", "val_accuracy", "max"),
+            ("auto", "hinge", "min"),
+            ("auto", "f1_score", "max"),
         ]
-        for mode, monitor in cases:
+        for mode, monitor, expected_mode in cases:
             patience = 0
             cbks = [
                 callbacks.EarlyStopping(
@@ -46,7 +57,26 @@ class EarlyStoppingTest(testing.TestCase):
                 batch_size=5,
                 validation_data=(x_test, y_test),
                 callbacks=cbks,
-                epochs=5,
+                epochs=2,
+                verbose=0,
+            )
+            if expected_mode == "max":
+                monitor_op = ops.greater
+            else:
+                monitor_op = ops.less
+            self.assertEqual(cbks[0].monitor_op, monitor_op)
+
+        with self.assertRaises(ValueError):
+            cbks = [
+                callbacks.EarlyStopping(patience=patience, monitor="unknown")
+            ]
+            model.fit(
+                x_train,
+                y_train,
+                batch_size=5,
+                validation_data=(x_test, y_test),
+                callbacks=cbks,
+                epochs=2,
                 verbose=0,
             )
 
@@ -146,6 +176,7 @@ class EarlyStoppingTest(testing.TestCase):
             early_stop.on_epoch_end(epoch, logs={"val_loss": losses[epoch]})
             if early_stop.model.stop_training:
                 break
+        early_stop.on_train_end()
         # The best configuration is in epoch 2 (loss = 0.1000),
         # and while patience = 2, we're restoring the best weights,
         # so we end up at the epoch with the best weights, i.e. epoch 2
@@ -169,9 +200,35 @@ class EarlyStoppingTest(testing.TestCase):
             early_stop.on_epoch_end(epoch, logs={"val_loss": losses[epoch]})
             if early_stop.model.stop_training:
                 break
+        early_stop.on_train_end()
         # No epoch improves on the baseline, so we should train for only 5
         # epochs, and restore the second model.
         self.assertEqual(epochs_trained, 5)
+        self.assertEqual(early_stop.model.get_weights(), 2)
+
+        # Check weight restoration when another callback requests a stop.
+        early_stop = callbacks.EarlyStopping(
+            monitor="val_loss",
+            patience=5,
+            baseline=0.5,
+            restore_best_weights=True,
+        )
+        early_stop.set_model(DummyModel())
+        losses = [0.9, 0.8, 0.7, 0.71, 0.72, 0.73]
+        # The best configuration is in the epoch 2 (loss = 0.7000).
+        epochs_trained = 0
+        early_stop.on_train_begin()
+        for epoch in range(len(losses)):
+            epochs_trained += 1
+            early_stop.model.set_weight_to_epoch(epoch=epoch)
+            early_stop.on_epoch_end(epoch, logs={"val_loss": losses[epoch]})
+            if epoch == 3:
+                early_stop.model.stop_training = True
+            if early_stop.model.stop_training:
+                break
+        early_stop.on_train_end()
+        # We should restore the second model.
+        self.assertEqual(epochs_trained, 4)
         self.assertEqual(early_stop.model.get_weights(), 2)
 
     @pytest.mark.requires_trainable_backend

@@ -30,7 +30,7 @@ that keeps the L2 norm of the discriminator gradients close to 1.
 """
 
 import tensorflow as tf
-import keras as keras
+import keras
 from keras import layers
 
 

@@ -24,7 +24,7 @@ started.
 """
 
 import numpy as np
-import keras as keras
+import keras
 
 """
 ## Keras callbacks overview

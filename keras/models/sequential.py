@@ -1,4 +1,5 @@
 import copy
+import inspect
 
 import tree
 
@@ -178,6 +179,21 @@ class Sequential(Model):
                 # Can happen if shape inference is not implemented.
                 # TODO: consider reverting inbound nodes on layers processed.
                 return
+            except TypeError as e:
+                signature = inspect.signature(layer.call)
+                positional_args = [
+                    param
+                    for param in signature.parameters.values()
+                    if param.default == inspect.Parameter.empty
+                ]
+                if len(positional_args) != 1:
+                    raise ValueError(
+                        "Layers added to a Sequential model "
+                        "can only have a single positional argument, "
+                        f"the input tensor. Layer {layer.__class__.__name__} "
+                        f"has multiple positional arguments: {positional_args}"
+                    )
+                raise e
         outputs = x
         self._functional = Functional(inputs=inputs, outputs=outputs)
         self.built = True

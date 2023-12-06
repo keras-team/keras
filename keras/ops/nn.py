@@ -332,6 +332,51 @@ def hard_sigmoid(x):
     return backend.nn.hard_sigmoid(x)
 
 
+class HardSilu(Operation):
+    def call(self, x):
+        return backend.nn.hard_silu(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(
+    [
+        "keras.ops.hard_silu",
+        "keras.ops.nn.hard_silu",
+        "keras.ops.hard_swish",
+        "keras.ops.nn.hard_swish",
+    ]
+)
+def hard_silu(x):
+    """Hard SiLU activation function, also known as Hard Swish.
+
+    It is defined as:
+
+    - `0` if `if x < -3`
+    - `x` if `x > 3`
+    - `x * (x + 3) / 6` if `-3 <= x <= 3`
+
+    It's a faster, piecewise linear approximation of the silu activation.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = keras.ops.convert_to_tensor([-3.0, -1.0, 0.0, 1.0, 3.0])
+    >>> keras.ops.hard_silu(x)
+    array([-0.0, -0.3333333, 0.0, 0.6666667, 3.0], shape=(5,), dtype=float32)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return HardSilu().symbolic_call(x)
+    return backend.nn.hard_silu(x)
+
+
 class Elu(Operation):
     def __init__(self, alpha=1.0):
         super().__init__()
@@ -718,7 +763,7 @@ def average_pool(
 
     Args:
         inputs: Tensor of rank N+2. `inputs` has shape
-            `(batch_size,)` + inputs_spatial_shape + (num_channels,)` if
+            `(batch_size,) + inputs_spatial_shape + (num_channels,)` if
             `data_format="channels_last"`, or
             `(batch_size, num_channels) + inputs_spatial_shape` if
             `data_format="channels_first"`. Pooling happens over the spatial
@@ -910,7 +955,7 @@ def depthwise_conv(
 
     Args:
         inputs: Tensor of rank N+2. `inputs` has shape
-            `(batch_size,)` + inputs_spatial_shape + (num_channels,)` if
+            `(batch_size,) + inputs_spatial_shape + (num_channels,)` if
             `data_format="channels_last"`, or
             `(batch_size, num_channels) + inputs_spatial_shape` if
             `data_format="channels_first"`.
@@ -1021,7 +1066,7 @@ def separable_conv(
 
     Args:
         inputs: Tensor of rank N+2. `inputs` has shape
-            `(batch_size,)` + inputs_spatial_shape + (num_channels,)` if
+            `(batch_size,) + inputs_spatial_shape + (num_channels,)` if
             `data_format="channels_last"`, or
             `(batch_size, num_channels) + inputs_spatial_shape` if
             `data_format="channels_first"`.
@@ -1142,7 +1187,7 @@ def conv_transpose(
 
     Args:
         inputs: Tensor of rank N+2. `inputs` has shape
-            `(batch_size,)` + inputs_spatial_shape + (num_channels,)` if
+            `(batch_size,) + inputs_spatial_shape + (num_channels,)` if
             `data_format="channels_last"`, or
             `(batch_size, num_channels) + inputs_spatial_shape` if
             `data_format="channels_first"`.
@@ -1232,7 +1277,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None):
     all other indices are marked as 0.
 
     Args:
-        x : Integer tensor to be encoded. The shape can be
+        x: Integer tensor to be encoded. The shape can be
             arbitrary, but the dtype should be integer.
         num_classes: Number of classes for the one-hot encoding.
         axis: Axis along which the encoding is performed. Defaults to
@@ -1637,3 +1682,87 @@ def moments(x, axes, keepdims=False, synchronized=False):
         )
 
     return backend.nn.moments(x, axes, keepdims, synchronized=synchronized)
+
+
+class BatchNorm(Operation):
+    def __init__(self, axis, epsilon, name=None):
+        super().__init__(name)
+        self.axis = axis
+        self.epsilon = epsilon
+
+    def _check_shape(self, name, shape, expected_shape):
+        if shape != expected_shape:
+            raise ValueError(
+                f"Arguments `{name}` must be a vector of length "
+                f"`x.shape[axis]`. Expected: `{expected_shape}`. "
+                f"Received: `{shape}."
+            )
+
+    def compute_output_spec(self, x, mean, variance, offset, scale):
+        shape = (x.shape[self.axis],)
+        self._check_shape("mean", tuple(mean.shape), shape)
+        self._check_shape("variance", tuple(variance.shape), shape)
+        if offset is not None:
+            self._check_shape("offset", tuple(offset.shape), shape)
+        if offset is not scale:
+            self._check_shape("scale", tuple(scale.shape), shape)
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(
+    [
+        "keras.ops.batch_normalization",
+        "keras.ops.nn.batch_normalization",
+    ]
+)
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
+    """Normalizes `x` by `mean` and `variance`.
+
+    This op is typically used by the batch normalization step in a neural
+    network. It normalizes the input tensor along the given axis.
+
+    Args:
+        x: Input tensor.
+        mean: A mean vector of the same length as the `axis` dimension of the
+            input thensor.
+        variance: A variance vector of the same length as the `axis` dimension
+            of the input tensor.
+        axis: Integer, the axis that should be normalized.
+        offset: An offset vector of the same length as the `axis` dimension of
+            the input tensor. If not `None`, `offset` is added to the normalized
+            tensor. Defaults to `None`.
+        scale: A scale vector of the same length as the `axis` dimension of the
+            input tensor. If not `None`, the normalized tensor is multiplied by
+            `scale`. Defaults to `None`.
+        epsilon: Small float added to variance to avoid dividing by zero.
+            Defaults to 1e-3.
+
+    Returns:
+        The normalized tensor.
+
+    Example:
+
+    >>> x = keras.ops.convert_to_tensor(
+    ...     [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]
+    ... )
+    >>> keras.ops.batch_normalization(
+    ...     x,
+    ...     mean=[0.4, 0.5, 0.6],
+    ...     variance=[0.67, 0.67, 0.67],
+    ...     axis=-1
+    ... )
+    array([[-3.6624e-01, -3.6624e-01, -3.6624e-01],
+           [-4.6445e-09,  0.0000e+00, -1.8578e-08],
+           [ 3.6624e-01,  3.6624e-01,  3.6624e-01]])
+
+    """
+    if any_symbolic_tensors((x, mean, variance, offset, scale)):
+        return BatchNorm(axis, epsilon).symbolic_call(
+            x, mean, variance, offset, scale
+        )
+
+    return backend.nn.batch_normalization(
+        x, mean, variance, axis, offset, scale, epsilon
+    )

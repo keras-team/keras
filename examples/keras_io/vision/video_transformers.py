@@ -1,11 +1,11 @@
 """
 Title: Video Classification with Transformers
 Author: [Sayak Paul](https://twitter.com/RisingSayak)
-Converted to Keras 3 by: [Soumik Rakshit](http://github.com/soumik12345)
 Date created: 2021/06/08
 Last modified: 2023/22/07
 Description: Training a video classifier with hybrid transformers.
 Accelerator: GPU
+Converted to Keras 3 by: [Soumik Rakshit](http://github.com/soumik12345)
 """
 """
 This example is a follow-up to the
@@ -44,10 +44,7 @@ tar -xf ucf101_top5.tar.gz
 """
 
 import os
-
-os.environ["KERAS_BACKEND"] = "jax"  # @param ["tensorflow", "jax", "torch"]
-
-import keras as keras
+import keras
 from keras import layers
 from keras.applications.densenet import DenseNet121
 
@@ -244,11 +241,14 @@ class PositionalEmbedding(layers.Layer):
         self.sequence_length = sequence_length
         self.output_dim = output_dim
 
+    def build(self, input_shape):
+        self.position_embeddings.build(input_shape)
+
     def call(self, inputs):
         # The inputs are of shape: `(batch_size, frames, num_features)`
-        inputs = keras.backend.cast(inputs, self.compute_dtype)
-        length = keras.backend.shape(inputs)[1]
-        positions = keras.ops.numpy.arange(start=0, stop=length, step=1)
+        inputs = keras.ops.cast(inputs, self.compute_dtype)
+        length = keras.ops.shape(inputs)[1]
+        positions = keras.ops.arange(start=0, stop=length, step=1)
         embedded_positions = self.position_embeddings(positions)
         return inputs + embedded_positions
 

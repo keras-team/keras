@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
@@ -31,7 +32,11 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_random_zoom_out_correctness(self):
-        input_image = np.reshape(np.arange(0, 25), (1, 5, 5, 1))
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (1, 5, 5, 1)
+        else:
+            input_shape = (1, 1, 5, 5)
+        input_image = np.reshape(np.arange(0, 25), input_shape)
         expected_output = np.asarray(
             [
                 [0, 0, 0, 0, 0],
@@ -42,7 +47,7 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
             ]
         )
         expected_output = backend.convert_to_tensor(
-            np.reshape(expected_output, (1, 5, 5, 1))
+            np.reshape(expected_output, input_shape)
         )
         self.run_layer_test(
             layers.RandomZoom,
@@ -60,7 +65,11 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_random_zoom_in_correctness(self):
-        input_image = np.reshape(np.arange(0, 25), (1, 5, 5, 1))
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (1, 5, 5, 1)
+        else:
+            input_shape = (1, 1, 5, 5)
+        input_image = np.reshape(np.arange(0, 25), input_shape)
         expected_output = np.asarray(
             [
                 [6.0, 6.5, 7.0, 7.5, 8.0],
@@ -71,7 +80,7 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
             ]
         )
         expected_output = backend.convert_to_tensor(
-            np.reshape(expected_output, (1, 5, 5, 1))
+            np.reshape(expected_output, input_shape)
         )
         self.run_layer_test(
             layers.RandomZoom,
@@ -89,7 +98,11 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_tf_data_compatibility(self):
-        input_image = np.reshape(np.arange(0, 25), (1, 5, 5, 1))
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (1, 5, 5, 1)
+        else:
+            input_shape = (1, 1, 5, 5)
+        input_image = np.reshape(np.arange(0, 25), input_shape)
         layer = layers.RandomZoom(
             height_factor=(0.5, 0.5),
             width_factor=(0.8, 0.8),
@@ -105,7 +118,7 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
                 [0, 20, 22, 24, 0],
                 [0, 0, 0, 0, 0],
             ]
-        ).reshape((1, 5, 5, 1))
+        ).reshape(input_shape)
         output = next(iter(ds)).numpy()
         self.assertAllClose(expected_output, output)
 
@@ -119,3 +132,19 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
         )(inputs)
         model = models.Model(inputs, outputs)
         model.predict(np.random.random((1, 6, 6, 3)))
+
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="The NumPy backend does not implement fit.",
+    )
+    def test_connect_with_flatten(self):
+        model = models.Sequential(
+            [
+                layers.RandomZoom((-0.5, 0.0), (-0.5, 0.0)),
+                layers.Flatten(),
+                layers.Dense(1, activation="relu"),
+            ],
+        )
+
+        model.compile(loss="mse")
+        model.fit(np.random.random((2, 2, 2, 1)), y=np.random.random((2,)))

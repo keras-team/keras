@@ -46,7 +46,7 @@ import torch.nn.functional as F
 import torchvision
 from torchvision import datasets, models, transforms
 
-import keras as keras
+import keras
 from keras.layers import TorchModuleWrapper
 
 """

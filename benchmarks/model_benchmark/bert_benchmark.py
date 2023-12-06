@@ -21,7 +21,7 @@ from absl import flags
 from absl import logging
 from model_benchmark.benchmark_utils import BenchmarkMetricsCallback
 
-import keras as keras
+import keras
 
 flags.DEFINE_string("model_size", "small", "The size of model to benchmark.")
 flags.DEFINE_string(

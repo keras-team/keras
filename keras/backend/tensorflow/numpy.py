@@ -17,11 +17,16 @@ from keras.backend.tensorflow.core import convert_to_tensor
 
 @sparse.elementwise_binary_union(tf.sparse.add)
 def add(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    x1 = tf.cast(x1, dtype)
-    x2 = tf.cast(x2, dtype)
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return tfnp.add(x1, x2)
 
 
@@ -47,21 +52,21 @@ def bincount(x, weights=None, minlength=0):
     else:
         dtype = "int32"
     if isinstance(x, tf.SparseTensor):
-        result = tf.sparse.bincount(
+        output = tf.sparse.bincount(
             x,
             weights=weights,
             minlength=minlength,
             axis=-1,
         )
-        result = tf.cast(result, dtype)
+        output = tf.cast(output, dtype)
         if x.shape.rank == 1:
             output_shape = (minlength,)
         else:
-            batch_size = tf.shape(result)[0]
+            batch_size = tf.shape(output)[0]
             output_shape = (batch_size, minlength)
         return tf.SparseTensor(
-            indices=result.indices,
-            values=result.values,
+            indices=output.indices,
+            values=output.values,
             dense_shape=output_shape,
         )
     return tf.cast(
@@ -71,20 +76,41 @@ def bincount(x, weights=None, minlength=0):
 
 
 def einsum(subscripts, *operands, **kwargs):
-    return tfnp.einsum(subscripts, *operands, **kwargs)
+    operands = tf.nest.map_structure(convert_to_tensor, operands)
+
+    dtypes_to_resolve = []
+    for x in operands:
+        dtypes_to_resolve.append(x.dtype)
+    result_dtype = dtypes.result_type(*dtypes_to_resolve)
+    compute_dtype = result_dtype
+    # TODO: tfnp.einsum doesn't support integer dtype with gpu
+    if "int" in compute_dtype:
+        compute_dtype = config.floatx()
+
+    operands = tf.nest.map_structure(
+        lambda x: tf.cast(x, compute_dtype), operands
+    )
+    return tf.cast(tf.einsum(subscripts, *operands, **kwargs), result_dtype)
 
 
 @sparse.elementwise_binary_union(sparse.sparse_subtract)
 def subtract(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    x1 = tf.cast(x1, dtype)
-    x2 = tf.cast(x2, dtype)
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return tfnp.subtract(x1, x2)
 
 
 def matmul(x1, x2):
+    x1_shape = x1.shape
+    x2_shape = x2.shape
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     # TODO: GPU and XLA only support float types
@@ -93,15 +119,29 @@ def matmul(x1, x2):
     x1 = tf.cast(x1, compute_dtype)
     x2 = tf.cast(x2, compute_dtype)
 
-    def with_combined_batch_dimensions(a, b, fn_3d):
-        batch_shape = (
-            b.shape[:-2] if isinstance(b, tf.SparseTensor) else a.shape[:-2]
-        )
+    def with_combined_batch_dimensions(a, b, output_shape, fn_3d):
+        a_sparse = isinstance(a, tf.SparseTensor)
+        b_sparse = isinstance(b, tf.SparseTensor)
+        batch_shape = b.shape[:-2] if b_sparse else a.shape[:-2]
         batch_size = math.prod(batch_shape)
-        a_3d = reshape(a, [batch_size] + a.shape[-2:])
-        b_3d = reshape(b, [batch_size] + b.shape[-2:])
-        result = fn_3d(a_3d, b_3d)
-        return reshape(result, batch_shape + result.shape[1:])
+        a3d_shape = [batch_size] + a.shape[-2:]
+        a_3d = (
+            tf.sparse.reshape(a, a3d_shape)
+            if a_sparse
+            else tf.reshape(a, a3d_shape)
+        )
+        b3d_shape = [batch_size] + b.shape[-2:]
+        b_3d = (
+            tf.sparse.reshape(b, b3d_shape)
+            if b_sparse
+            else tf.reshape(b, b3d_shape)
+        )
+        result_3d = fn_3d(a_3d, b_3d)
+        return (
+            tf.sparse.reshape(result_3d, output_shape)
+            if isinstance(result_3d, tf.SparseTensor)
+            else tf.reshape(result_3d, output_shape)
+        )
 
     def sparse_sparse_matmul(a, b):
         dtype = a.values.dtype
@@ -148,40 +188,51 @@ def matmul(x1, x2):
 
     x1_sparse = isinstance(x1, tf.SparseTensor)
     x2_sparse = isinstance(x2, tf.SparseTensor)
-    if x1_sparse and x2_sparse:
-        if x1.shape.rank <= 3:
-            result = sparse_sparse_matmul(x1, x2)
-        else:
-            result = with_combined_batch_dimensions(
-                x1, x2, sparse_sparse_matmul
-            )
-    elif x1_sparse or x2_sparse:
-        # Sparse * dense or dense * sparse
-        sparse_rank = x1.shape.rank if x1_sparse else x2.shape.rank
+    if x1_sparse or x2_sparse:
+        from keras.ops.operation_utils import compute_matmul_output_shape
 
-        # Special case: embedding_lookup_sparse for sparse * dense and rank 2
-        if x1_sparse and sparse_rank == 2:
-            result = embedding_lookup_sparse_dense_matmul(x1, x2)
-        elif sparse_rank == 2:
-            result = tf.sparse.sparse_dense_matmul(x1, x2)
-        elif sparse_rank == 3:
-            result = sparse_dense_matmul_3d(x1, x2)
+        output_shape = compute_matmul_output_shape(x1_shape, x2_shape)
+        if x1_sparse and x2_sparse:
+            if x1_shape.rank <= 3:
+                output = sparse_sparse_matmul(x1, x2)
+            else:
+                output = with_combined_batch_dimensions(
+                    x1, x2, output_shape, sparse_sparse_matmul
+                )
         else:
-            result = with_combined_batch_dimensions(
-                x1, x2, sparse_dense_matmul_3d
-            )
+            # Sparse * dense or dense * sparse
+            sparse_rank = x1_shape.rank if x1_sparse else x2_shape.rank
+
+            # Special case: embedding_lookup_sparse for sparse * dense, rank 2
+            if x1_sparse and sparse_rank == 2:
+                output = embedding_lookup_sparse_dense_matmul(x1, x2)
+            elif sparse_rank == 2:
+                output = tf.sparse.sparse_dense_matmul(x1, x2)
+            elif sparse_rank == 3:
+                output = sparse_dense_matmul_3d(x1, x2)
+            else:
+                output = with_combined_batch_dimensions(
+                    x1, x2, output_shape, sparse_dense_matmul_3d
+                )
+        output = tf.cast(output, result_dtype)
+        output.set_shape(output_shape)
+        return output
     else:
-        result = tfnp.matmul(x1, x2)
-    return tf.cast(result, result_dtype)
+        return tf.cast(tfnp.matmul(x1, x2), result_dtype)
 
 
 @sparse.elementwise_binary_intersection
 def multiply(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    x1 = tf.cast(x1, dtype)
-    x2 = tf.cast(x2, dtype)
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return tfnp.multiply(x1, x2)
 
 
@@ -257,8 +308,8 @@ def mean(x, axis=None, keepdims=False):
         result_dtype = compute_dtype
     else:
         result_dtype = ori_dtype
-    result = tfnp.mean(x, axis=axis, keepdims=keepdims, dtype=compute_dtype)
-    return tf.cast(result, result_dtype)
+    output = tfnp.mean(x, axis=axis, keepdims=keepdims, dtype=compute_dtype)
+    return tf.cast(output, result_dtype)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
@@ -322,11 +373,12 @@ def amin(x, axis=None, keepdims=False):
     return tfnp.amin(x, axis=axis, keepdims=keepdims)
 
 
-def append(
-    x1,
-    x2,
-    axis=None,
-):
+def append(x1, x2, axis=None):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.append(x1, x2, axis=axis)
 
 
@@ -341,41 +393,83 @@ def arange(start, stop=None, step=1, dtype=None):
         if stop is not None:
             dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
         dtype = dtypes.result_type(*dtypes_to_resolve)
+    dtype = standardize_dtype(dtype)
     return tf.range(start, stop, delta=step, dtype=dtype)
 
 
 @sparse.densifying_unary(0.5 * tfnp.pi)
 def arccos(x):
-    return tfnp.arccos(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.acos(x)
 
 
 @sparse.densifying_unary(np.nan)
 def arccosh(x):
-    return tfnp.arccosh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.acosh(x)
 
 
 @sparse.elementwise_unary
 def arcsin(x):
-    return tfnp.arcsin(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.asin(x)
 
 
 @sparse.elementwise_unary
 def arcsinh(x):
-    return tfnp.arcsinh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.asinh(x)
 
 
 @sparse.elementwise_unary
 def arctan(x):
-    return tfnp.arctan(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.atan(x)
 
 
 def arctan2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.arctan2(x1, x2)
 
 
 @sparse.elementwise_unary
 def arctanh(x):
-    return tfnp.arctanh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.atanh(x)
 
 
 def argmax(x, axis=None):
@@ -394,16 +488,30 @@ def argsort(x, axis=-1):
 
 
 def array(x, dtype=None):
-    return tfnp.array(x, dtype=dtype)
+    return convert_to_tensor(x, dtype=dtype)
 
 
 def average(x, axis=None, weights=None):
+    x = convert_to_tensor(x)
     if not isinstance(axis, (list, tuple)):
         axis = (axis,)
+    dtypes_to_resolve = [x.dtype, float]
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+    result_dtype = dtypes.result_type(*dtypes_to_resolve)
+    compute_dtype = result_dtype
+    # TODO: since tfnp.average incorrectly promote bfloat16 to float64, we
+    # need to cast to float32 first and then cast back to bfloat16
+    if compute_dtype == "bfloat16":
+        compute_dtype = "float32"
+    x = tf.cast(x, compute_dtype)
+    if weights is not None:
+        weights = tf.cast(weights, compute_dtype)
     for a in axis:
         # `tfnp.average` does not handle multiple axes.
         x = tfnp.average(x, weights=weights, axis=a)
-    return x
+    return tf.cast(x, result_dtype)
 
 
 def broadcast_to(x, shape):
@@ -417,14 +525,15 @@ def ceil(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return tf.cast(tfnp.ceil(x), dtype=dtype)
+    x = tf.cast(x, dtype)
+    return tf.math.ceil(x)
 
 
 def clip(x, x_min, x_max):
     dtype = standardize_dtype(x.dtype)
     if dtype == "bool":
-        dtype = "int64"
-    return tf.cast(tfnp.clip(x, x_min, x_max), dtype=dtype)
+        x = tf.cast(x, "int32")
+    return tf.clip_by_value(x, x_min, x_max)
 
 
 def concatenate(xs, axis=0):
@@ -434,9 +543,16 @@ def concatenate(xs, axis=0):
             return tf.sparse.concat(axis=axis, sp_inputs=xs)
         else:
             xs = [
-                tf.sparse.to_dense(x) if isinstance(x, tf.SparseTensor) else x
+                convert_to_tensor(x, sparse=False)
+                if isinstance(x, tf.SparseTensor)
+                else x
                 for x in xs
             ]
+    xs = tf.nest.map_structure(convert_to_tensor, xs)
+    dtype_set = set([x.dtype for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tf.nest.map_structure(lambda x: tf.cast(x, dtype), xs)
     return tfnp.concatenate(xs, axis=axis)
 
 
@@ -457,19 +573,36 @@ def copy(x):
 
 @sparse.densifying_unary(1)
 def cos(x):
-    return tfnp.cos(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.cos(x)
 
 
 @sparse.densifying_unary(1)
 def cosh(x):
-    return tfnp.cosh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.cosh(x)
 
 
 def count_nonzero(x, axis=None):
-    return tfnp.count_nonzero(x, axis=axis)
+    return tf.math.count_nonzero(x, axis=axis, dtype="int32")
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.cross(
         x1,
         x2,
@@ -480,12 +613,18 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     )
 
 
-def cumprod(x, axis=None):
-    return tfnp.cumprod(x, axis=axis)
+def cumprod(x, axis=None, dtype=None):
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return tfnp.cumprod(x, axis=axis, dtype=dtype)
 
 
-def cumsum(x, axis=None):
-    return tfnp.cumsum(x, axis=axis)
+def cumsum(x, axis=None, dtype=None):
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return tfnp.cumsum(x, axis=axis, dtype=dtype)
 
 
 def diag(x, k=0):
@@ -501,19 +640,39 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     )
 
 
+def diff(a, n=1, axis=-1):
+    return tfnp.diff(a, n=n, axis=axis)
+
+
 def digitize(x, bins):
+    x = convert_to_tensor(x)
     bins = list(bins)
+
+    # bins must be float type
+    bins = tf.nest.map_structure(lambda x: float(x), bins)
+
+    # TODO: tf.raw_ops.Bucketize doesn't support bool, bfloat16, float16, int8
+    # int16, uint8, uint16, uint32
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype in ("bool", "int8", "int16", "uint8", "uint16"):
+        x = tf.cast(x, "int32")
+    elif ori_dtype == "uint32":
+        x = tf.cast(x, "int64")
+    elif ori_dtype in ("bfloat16", "float16"):
+        x = tf.cast(x, "float32")
+
     if isinstance(x, tf.RaggedTensor):
         return tf.ragged.map_flat_values(
             lambda y: tf.raw_ops.Bucketize(input=y, boundaries=bins), x
         )
     elif isinstance(x, tf.SparseTensor):
-        return tf.SparseTensor(
+        output = tf.SparseTensor(
             indices=tf.identity(x.indices),
             values=tf.raw_ops.Bucketize(input=x.values, boundaries=bins),
             dense_shape=tf.identity(x.dense_shape),
         )
-    x = convert_to_tensor(x)
+        output.set_shape(x.shape)
+        return output
     return tf.raw_ops.Bucketize(input=x, boundaries=bins)
 
 
@@ -536,11 +695,11 @@ def empty(shape, dtype=None):
 def equal(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    # TODO: currently, tfnp.equal doesn't support bfloat16
-    if standardize_dtype(x1.dtype) == "bfloat16":
-        x1 = tf.cast(x1, "float32")
-    if standardize_dtype(x2.dtype) == "bfloat16":
-        x2 = tf.cast(x2, "float32")
+    # tfnp handles the casting internally during comparision, but it lacks
+    # support for bfloat16. Therefore we explicitly cast to the same dtype.
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.equal(x1, x2)
 
 
@@ -548,20 +707,18 @@ def equal(x1, x2):
 def exp(x):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
-
-    # TODO: When input dtype is bfloat16, the result dtype will become float64
-    # using tfnp.exp
-    if ori_dtype == "bfloat16":
-        return tf.exp(x)
-
     if "int" in ori_dtype or ori_dtype == "bool":
         x = tf.cast(x, config.floatx())
-    return tfnp.exp(x)
+    return tf.exp(x)
 
 
 def expand_dims(x, axis):
     if isinstance(x, tf.SparseTensor):
-        return tf.sparse.expand_dims(x, axis)
+        from keras.ops.operation_utils import compute_expand_dims_output_shape
+
+        output = tf.sparse.expand_dims(x, axis)
+        output.set_shape(compute_expand_dims_output_shape(x.shape, axis))
+        return output
     return tfnp.expand_dims(x, axis)
 
 
@@ -569,15 +726,9 @@ def expand_dims(x, axis):
 def expm1(x):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
-
-    # TODO: When input dtype is bfloat16, the result dtype will become float64
-    # using tfnp.expm1
-    if ori_dtype == "bfloat16":
-        return tf.math.expm1(x)
-
     if "int" in ori_dtype or ori_dtype == "bool":
         x = tf.cast(x, config.floatx())
-    return tfnp.expm1(x)
+    return tf.math.expm1(x)
 
 
 def flip(x, axis=None):
@@ -586,7 +737,14 @@ def flip(x, axis=None):
 
 @sparse.elementwise_unary
 def floor(x):
-    return tfnp.floor(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    return tf.floor(x)
 
 
 def full(shape, fill_value, dtype=None):
@@ -601,26 +759,30 @@ def full_like(x, fill_value, dtype=None):
 def greater(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    # TODO: currently, tfnp.greater doesn't support bfloat16
-    if standardize_dtype(x1.dtype) == "bfloat16":
-        x1 = tf.cast(x1, "float32")
-    if standardize_dtype(x2.dtype) == "bfloat16":
-        x2 = tf.cast(x2, "float32")
+    # tfnp handles the casting internally during comparision, but it lacks
+    # support for bfloat16. Therefore we explicitly cast to the same dtype.
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.greater(x1, x2)
 
 
 def greater_equal(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    # TODO: currently, tfnp.greater_equal doesn't support bfloat16
-    if standardize_dtype(x1.dtype) == "bfloat16":
-        x1 = tf.cast(x1, "float32")
-    if standardize_dtype(x2.dtype) == "bfloat16":
-        x2 = tf.cast(x2, "float32")
+    # tfnp handles the casting internally during comparision, but it lacks
+    # support for bfloat16. Therefore we explicitly cast to the same dtype.
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.greater_equal(x1, x2)
 
 
 def hstack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tf.nest.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
     return tfnp.hstack(xs)
 
 
@@ -635,6 +797,13 @@ def imag(x):
 
 
 def isclose(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # tfnp handles the casting internally during comparision, but it lacks
+    # support for bfloat16. Therefore we explicitly cast to the same dtype.
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.isclose(x1, x2)
 
 
@@ -643,7 +812,9 @@ def isfinite(x):
 
 
 def isinf(x):
-    return tfnp.isinf(x)
+    # TODO: tfnp.isinf will get python bool when input is a scalar, so we
+    # need the extra `convert_to_tensor`
+    return convert_to_tensor(tfnp.isinf(x))
 
 
 def isnan(x):
@@ -653,28 +824,35 @@ def isnan(x):
 def less(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    # TODO: currently, tfnp.less doesn't support bfloat16
-    if standardize_dtype(x1.dtype) == "bfloat16":
-        x1 = tf.cast(x1, "float32")
-    if standardize_dtype(x2.dtype) == "bfloat16":
-        x2 = tf.cast(x2, "float32")
+    # tfnp handles the casting internally during comparision, but it lacks
+    # support for bfloat16. Therefore we explicitly cast to the same dtype.
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.less(x1, x2)
 
 
 def less_equal(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    # TODO: currently, tfnp.less_equal doesn't support bfloat16
-    if standardize_dtype(x1.dtype) == "bfloat16":
-        x1 = tf.cast(x1, "float32")
-    if standardize_dtype(x2.dtype) == "bfloat16":
-        x2 = tf.cast(x2, "float32")
+    # tfnp handles the casting internally during comparision, but it lacks
+    # support for bfloat16. Therefore we explicitly cast to the same dtype.
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.less_equal(x1, x2)
 
 
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return tfnp.linspace(
         start,
         stop,
@@ -688,26 +866,67 @@ def linspace(
 
 @sparse.densifying_unary(-tfnp.inf)
 def log(x):
-    return tfnp.log(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    return tf.math.log(x)
 
 
 @sparse.densifying_unary(-tfnp.inf)
 def log10(x):
-    return tfnp.log10(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    return tf.math.log(x) / tf.math.log(tf.constant(10, x.dtype))
 
 
 @sparse.elementwise_unary
 def log1p(x):
-    return tfnp.log1p(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    return tf.math.log1p(x)
 
 
 @sparse.densifying_unary(-tfnp.inf)
 def log2(x):
-    return tfnp.log2(x)
+    x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    return tf.math.log(x) / tf.math.log(tf.constant(2, x.dtype))
 
 
 def logaddexp(x1, x2):
-    return tfnp.logaddexp(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    # Below is the same implementation as tfnp.logaddexp using all native
+    # ops to prevent incorrect promotion of bfloat16.
+    delta = x1 - x2
+    return tf.where(
+        tf.math.is_nan(delta),
+        x1 + x2,
+        tf.maximum(x1, x2) + tf.math.log1p(tf.math.exp(-tf.abs(delta))),
+    )
 
 
 def logical_and(x1, x2):
@@ -723,6 +942,15 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    start = tf.cast(start, dtype)
+    stop = tf.cast(stop, dtype)
     return tfnp.logspace(
         start,
         stop,
@@ -736,6 +964,16 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 @sparse.elementwise_binary_union(tf.sparse.maximum, densify_mixed=True)
 def maximum(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return tfnp.maximum(x1, x2)
 
 
@@ -770,11 +1008,28 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 @sparse.elementwise_binary_union(tf.sparse.minimum, densify_mixed=True)
 def minimum(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return tfnp.minimum(x1, x2)
 
 
 @sparse.elementwise_division
 def mod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.mod(x1, x2)
 
 
@@ -783,14 +1038,24 @@ def moveaxis(x, source, destination):
 
 
 def nan_to_num(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+
+    # tf.bool doesn't support max and min
+    if dtype == "bool":
+        x = tf.where(tfnp.isnan(x), tf.constant(False, x.dtype), x)
+        x = tf.where(tfnp.isinf(x) & (x > 0), tf.constant(True, x.dtype), x)
+        x = tf.where(tfnp.isinf(x) & (x < 0), tf.constant(False, x.dtype), x)
+        return x
+
     # Replace NaN with 0
-    x = tf.where(tf.math.is_nan(x), 0, x)
+    x = tf.where(tfnp.isnan(x), tf.constant(0, x.dtype), x)
 
     # Replace positive infinitiy with dtype.max
-    x = tf.where(tf.math.is_inf(x) & (x > 0), x.dtype.max, x)
+    x = tf.where(tfnp.isinf(x) & (x > 0), tf.constant(x.dtype.max, x.dtype), x)
 
     # Replace negative infinity with dtype.min
-    x = tf.where(tf.math.is_inf(x) & (x < 0), x.dtype.min, x)
+    x = tf.where(tfnp.isinf(x) & (x < 0), tf.constant(x.dtype.min, x.dtype), x)
 
     return x
 
@@ -800,10 +1065,17 @@ def ndim(x):
 
 
 def nonzero(x):
-    return tfnp.nonzero(x)
+    return tf.nest.map_structure(
+        lambda indices: tf.cast(indices, "int32"), tfnp.nonzero(x)
+    )
 
 
 def not_equal(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.not_equal(x1, x2)
 
 
@@ -816,14 +1088,37 @@ def zeros_like(x, dtype=None):
 
 
 def outer(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     return tfnp.outer(x1, x2)
 
 
-def pad(x, pad_width, mode="constant"):
-    return tfnp.pad(x, pad_width, mode=mode)
+def pad(x, pad_width, mode="constant", constant_values=None):
+    kwargs = {}
+    if constant_values is not None:
+        if mode != "constant":
+            raise ValueError(
+                "Argument `constant_values` can only be "
+                "provided when `mode == 'constant'`. "
+                f"Received: mode={mode}"
+            )
+        kwargs["constant_values"] = constant_values
+    return tfnp.pad(x, pad_width, mode=mode, **kwargs)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
+    x = convert_to_tensor(x)
+    if dtype is None:
+        dtype = dtypes.result_type(x.dtype)
+        if dtype == "bool":
+            dtype = "int32"
+        elif dtype in ("int8", "int16"):
+            dtype = "int32"
+        elif dtype in ("uint8", "uint16"):
+            dtype = "uint32"
     return tfnp.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
@@ -963,12 +1258,24 @@ def reciprocal(x):
 def repeat(x, repeats, axis=None):
     # tfnp.repeat has trouble with dynamic Tensors in compiled function.
     # tf.repeat does not.
+    x = convert_to_tensor(x)
+    # TODO: tf.repeat doesn't support uint16
+    if standardize_dtype(x.dtype) == "uint16":
+        x = tf.cast(x, "uint32")
+        return tf.cast(tf.repeat(x, repeats, axis=axis), "uint16")
     return tf.repeat(x, repeats, axis=axis)
 
 
 def reshape(x, new_shape):
     if isinstance(x, tf.SparseTensor):
-        return tf.sparse.reshape(x, new_shape)
+        from keras.ops.operation_utils import compute_reshape_output_shape
+
+        output_shape = compute_reshape_output_shape(
+            x.shape, new_shape, "new_shape"
+        )
+        output = tf.sparse.reshape(x, new_shape)
+        output.set_shape(output_shape)
+        return output
     return tfnp.reshape(x, new_shape)
 
 
@@ -978,17 +1285,35 @@ def roll(x, shift, axis=None):
 
 @sparse.elementwise_unary
 def sign(x):
-    return tfnp.sign(x)
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    # TODO: tf.sign doesn't support uint8, uint16, uint32
+    if ori_dtype in ("uint8", "uint16", "uint32"):
+        x = tf.cast(x, "int32")
+        return tf.cast(tf.sign(x), ori_dtype)
+    return tf.sign(x)
 
 
 @sparse.elementwise_unary
 def sin(x):
-    return tfnp.sin(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.sin(x)
 
 
 @sparse.elementwise_unary
 def sinh(x):
-    return tfnp.sinh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.sinh(x)
 
 
 def size(x):
@@ -996,7 +1321,13 @@ def size(x):
 
 
 def sort(x, axis=-1):
-    return tfnp.sort(x, axis=axis)
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    # TODO: tf.sort doesn't support bool
+    if ori_dtype == "bool":
+        x = tf.cast(x, "int8")
+        return tf.cast(tf.sort(x, axis=axis), ori_dtype)
+    return tf.sort(x, axis=axis)
 
 
 def split(x, indices_or_sections, axis=0):
@@ -1004,10 +1335,18 @@ def split(x, indices_or_sections, axis=0):
 
 
 def stack(x, axis=0):
+    dtype_set = set([getattr(a, "dtype", type(a)) for a in x])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        x = tf.nest.map_structure(lambda a: convert_to_tensor(a, dtype), x)
     return tfnp.stack(x, axis=axis)
 
 
 def std(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = tf.cast(x, config.floatx())
     return tfnp.std(x, axis=axis, keepdims=keepdims)
 
 
@@ -1023,7 +1362,9 @@ def take(x, indices, axis=None):
                 f"`x.dtype={x.dtype}` when `indices` is a sparse tensor; "
                 "densifying `indices`."
             )
-            return tfnp.take(x, tf.sparse.to_dense(indices), axis=axis)
+            return tfnp.take(
+                x, convert_to_tensor(indices, sparse=False), axis=axis
+            )
         if axis is None:
             x = tf.reshape(x, (-1,))
         elif axis != 0:
@@ -1032,12 +1373,16 @@ def take(x, indices, axis=None):
                 f"`axis={axis}` when `indices` is a sparse tensor; "
                 "densifying `indices`."
             )
-            return tfnp.take(x, tf.sparse.to_dense(indices), axis=axis)
-        return tf.nn.safe_embedding_lookup_sparse(
+            return tfnp.take(
+                x, convert_to_tensor(indices, sparse=False), axis=axis
+            )
+        output = tf.nn.safe_embedding_lookup_sparse(
             embedding_weights=tf.convert_to_tensor(x),
             sparse_ids=tf.sparse.expand_dims(indices, axis=-1),
             default_id=0,
         )
+        output.set_shape(indices.shape + output.shape[len(indices.shape) :])
+        return output
     return tfnp.take(x, indices, axis=axis)
 
 
@@ -1047,16 +1392,35 @@ def take_along_axis(x, indices, axis=None):
 
 @sparse.elementwise_unary
 def tan(x):
-    return tfnp.tan(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.tan(x)
 
 
 @sparse.elementwise_unary
 def tanh(x):
-    return tfnp.tanh(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.tanh(x)
 
 
 def tensordot(x1, x2, axes=2):
-    return tfnp.tensordot(x1, x2, axes=axes)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: tfnp.tensordot only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
+    return tf.cast(tfnp.tensordot(x1, x2, axes=axes), dtype=result_dtype)
 
 
 @sparse.elementwise_unary
@@ -1084,7 +1448,11 @@ def tile(x, repeats):
 
 
 def trace(x, offset=0, axis1=0, axis2=1):
-    return tfnp.trace(x, offset=offset, axis1=axis1, axis2=axis2)
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype not in ("int64", "uint32", "uint64"):
+        dtype = dtypes.result_type(dtype, "int32")
+    return tfnp.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 
 
 def tri(N, M=None, k=0, dtype=None):
@@ -1093,36 +1461,94 @@ def tri(N, M=None, k=0, dtype=None):
 
 
 def tril(x, k=0):
+    x = convert_to_tensor(x)
+    # TODO: tfnp.tril doesn't support bool
+    if standardize_dtype(x.dtype) == "bool":
+        x = tf.cast(x, "uint8")
+        return tf.cast(tfnp.tril(x, k=k), "bool")
     return tfnp.tril(x, k=k)
 
 
 def triu(x, k=0):
+    x = convert_to_tensor(x)
+    # TODO: tfnp.triu doesn't support bool
+    if standardize_dtype(x.dtype) == "bool":
+        x = tf.cast(x, "uint8")
+        return tf.cast(tfnp.tril(x, k=k), "bool")
     return tfnp.triu(x, k=k)
 
 
 def vdot(x1, x2):
-    return tfnp.vdot(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # TODO: tfnp.vdot only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
+    return tf.cast(tfnp.vdot(x1, x2), result_dtype)
 
 
 def vstack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tf.nest.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
     return tfnp.vstack(xs)
 
 
 def where(condition, x1, x2):
+    if x1 is not None and x2 is not None:
+        if not isinstance(x1, (int, float)):
+            x1 = convert_to_tensor(x1)
+        if not isinstance(x2, (int, float)):
+            x2 = convert_to_tensor(x2)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        x1 = convert_to_tensor(x1, dtype)
+        x2 = convert_to_tensor(x2, dtype)
     return tfnp.where(condition, x1, x2)
 
 
 @sparse.elementwise_division
 def divide(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+        float,
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return tfnp.divide(x1, x2)
 
 
 @sparse.elementwise_division
 def true_divide(x1, x2):
-    return tfnp.true_divide(x1, x2)
+    return divide(x1, x2)
 
 
 def power(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    # TODO: tfnp.power doesn't support uint* types
+    if "uint" in dtype:
+        x1 = convert_to_tensor(x1, "int32")
+        x2 = convert_to_tensor(x2, "int32")
+        return tf.cast(tfnp.power(x1, x2), dtype)
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return tfnp.power(x1, x2)
 
 
@@ -1133,41 +1559,39 @@ def negative(x):
 
 @sparse.elementwise_unary
 def square(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "bool":
+        x = tf.cast(x, "int32")
     return tfnp.square(x)
 
 
 @sparse.elementwise_unary
 def sqrt(x):
     x = convert_to_tensor(x)
-    # upcast to float64 for int64 which matches JAX's behavior
     dtype = (
-        "float64"
+        config.floatx()
         if standardize_dtype(x.dtype) == "int64"
         else dtypes.result_type(x.dtype, float)
     )
     x = tf.cast(x, dtype)
-    # TODO: Use tfnp.sqrt. Currently, tfnp.sqrt will aggressively upcast to
-    # float64 if the input is bfloat16. This behavior mismatches with JAX.
-    return tf.sqrt(x)
+    return tf.math.sqrt(x)
 
 
 def squeeze(x, axis=None):
     if isinstance(x, tf.SparseTensor):
-        new_shape = list(x.shape)
-        gather_indices = list(range(len(new_shape)))
-        if axis is None:
-            for i in range(len(new_shape) - 1, -1, -1):
-                if new_shape[i] == 1:
-                    del new_shape[i]
-                    del gather_indices[i]
-        else:
-            if new_shape[axis] != 1:
-                raise ValueError(
-                    f"Cannot squeeze axis {axis}, because the "
-                    "dimension is not 1."
-                )
-            del new_shape[axis]
-            del gather_indices[axis]
+        static_shape = x.shape.as_list()
+        if axis is not None and static_shape[axis] != 1:
+            raise ValueError(
+                f"Cannot squeeze axis {axis}, because the "
+                "dimension is not 1."
+            )
+        dynamic_shape = tf.shape(x)
+        new_shape = []
+        gather_indices = []
+        for i, dim in enumerate(static_shape):
+            if not (dim == 1 if axis is None else i == axis):
+                new_shape.append(dim if dim is not None else dynamic_shape[i])
+                gather_indices.append(i)
         new_indices = tf.gather(x.indices, gather_indices, axis=1)
         return tf.SparseTensor(new_indices, x.values, tuple(new_shape))
     return tfnp.squeeze(x, axis=axis)
@@ -1175,16 +1599,34 @@ def squeeze(x, axis=None):
 
 def transpose(x, axes=None):
     if isinstance(x, tf.SparseTensor):
-        return tf.sparse.transpose(x, perm=axes)
+        from keras.ops.operation_utils import compute_transpose_output_shape
+
+        output = tf.sparse.transpose(x, perm=axes)
+        output.set_shape(compute_transpose_output_shape(x.shape, axes))
+        return output
     return tfnp.transpose(x, axes=axes)
 
 
 def var(x, axis=None, keepdims=False):
-    return tfnp.var(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    return tf.cast(
+        tfnp.var(x, axis=axis, keepdims=keepdims, dtype=compute_dtype),
+        result_dtype,
+    )
 
 
 def sum(x, axis=None, keepdims=False):
-    return tfnp.sum(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    # follow jax's rule
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    x = tf.cast(x, dtype)
+    return tf.reduce_sum(x, axis=axis, keepdims=keepdims)
 
 
 def eye(N, M=None, k=0, dtype=None):

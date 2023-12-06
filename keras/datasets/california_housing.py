@@ -6,8 +6,10 @@ from keras.api_export import keras_export
 from keras.utils.file_utils import get_file
 
 
-@keras_export("keras.datasets.boston_housing.load_data")
-def load_data(path="california_housing.npz", test_split=0.2, seed=113):
+@keras_export("keras.datasets.california_housing.load_data")
+def load_data(
+    version="large", path="california_housing.npz", test_split=0.2, seed=113
+):
     """Loads the California Housing dataset.
 
     This dataset was obtained from the [StatLib repository](
@@ -42,6 +44,11 @@ def load_data(path="california_housing.npz", test_split=0.2, seed=113):
     such as vacation resorts.
 
     Args:
+        version: `"small"` or `"large"`. The small version
+            contains 600 samples, the large version contains
+            20,640 samples. The purpose of the small version is
+            to serve as an approximate replacement for the
+            deprecated `boston_housing` dataset.
         path: path where to cache the dataset locally
             (relative to `~/.keras/datasets`).
         test_split: fraction of the data to reserve as test set.
@@ -74,6 +81,15 @@ def load_data(path="california_housing.npz", test_split=0.2, seed=113):
     with np.load(path, allow_pickle=True) as f:
         x = f["x"]
         y = f["y"]
+
+    if version == "small":
+        x = x[:600]
+        y = y[:600]
+    elif version != "large":
+        raise ValueError(
+            "Argument `version` must be one of 'small', 'large'. "
+            f"Received: version={version}"
+        )
 
     rng = np.random.RandomState(seed)
     indices = np.arange(len(x))

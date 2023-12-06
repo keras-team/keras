@@ -50,7 +50,7 @@ from pathlib import Path
 from dataclasses import dataclass
 
 import tensorflow as tf
-import keras as keras
+import keras
 from keras import layers
 
 """

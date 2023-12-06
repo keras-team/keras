@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from keras import backend
 from keras import initializers
 from keras import layers
 from keras import testing
@@ -48,7 +49,10 @@ class SpectralNormalizationTest(testing.TestCase):
             layer(inputs)
 
     def test_apply_layer(self):
-        images = np.ones((1, 2, 2, 1))
+        if backend.config.image_data_format() == "channels_last":
+            images = np.ones((1, 2, 2, 1))
+        else:
+            images = np.ones((1, 1, 2, 2))
         sn_wrapper = layers.SpectralNormalization(
             layers.Conv2D(
                 1, (2, 2), kernel_initializer=initializers.Constant(value=1)

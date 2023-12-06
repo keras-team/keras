@@ -4,6 +4,34 @@ from keras.backend.common import global_state
 
 @keras_export("keras.StatelessScope")
 class StatelessScope:
+    """Scope to prevent any update to Keras Variables.
+
+    The values of variables to be used inside the scope
+    should be passed via the `state_mapping` argument, a
+    list of tuples `(k, v)` where `k` is a `KerasVariable`
+    and `v` is the intended value for this variable
+    (a backend tensor).
+
+    Updated values can be collected on scope exit via
+    `value = scope.get_current_value(variable)`. No updates
+    will be applied in-place to any variables for the duration
+    of the scope.
+
+    Example:
+
+    ```python
+    state_mapping = [(k, ops.ones(k.shape, k.dtype)) for k in model.weights]
+    with keras.StatelessScope(state_mapping) as scope:
+        outputs = model.some_function(inputs)
+
+    # All model variables remain unchanged. Their new values can be
+    # collected via:
+    for k in model.weights:
+        new_value = scope.get_current_value(k)
+        print(f"New value for {k}: {new_value})
+    ```
+    """
+
     def __init__(
         self,
         state_mapping=None,
@@ -21,14 +49,14 @@ class StatelessScope:
         for k, v in state_mapping:
             if not isinstance(k, KerasVariable):
                 raise ValueError(
-                    "Invalid reference variable in VariableSwapScope: "
+                    "Invalid reference variable in StatelessScope: "
                     "all keys in argument `mapping` must be KerasVariable "
                     f"instances. Received instead: {k}"
                 )
             v = backend.convert_to_tensor(v, dtype=k.dtype)
             if k.shape != v.shape:
                 raise ValueError(
-                    "Invalid variable value in VariableSwapScope: "
+                    "Invalid variable value in StatelessScope: "
                     "all values in argument `mapping` must be tensors with "
                     "a shape that matches the corresponding variable shape. "
                     f"For variable {k}, received invalid value {v} with shape "

@@ -1,11 +1,11 @@
 """
 Title: Image classification with EANet (External Attention Transformer)
 Author: [ZhiYong Chang](https://github.com/czy00000)
-Converted to Keras 3: [Muhammad Anas Raza](https://anasrz.com)
 Date created: 2021/10/19
 Last modified: 2023/07/18
 Description: Image classification with a Transformer that leverages external attention.
 Accelerator: GPU
+Converted to Keras 3: [Muhammad Anas Raza](https://anasrz.com)
 """
 
 """
@@ -25,7 +25,7 @@ implicitly considers the correlations between all samples.
 ## Setup
 """
 
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 

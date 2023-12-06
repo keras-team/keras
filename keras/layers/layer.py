@@ -23,6 +23,7 @@ from functools import wraps
 import tree
 
 from keras import backend
+from keras import constraints
 from keras import initializers
 from keras import mixed_precision
 from keras import regularizers
@@ -503,7 +504,7 @@ class Layer(BackendLayer, Operation):
             )
         # Will be added to layer.losses
         variable.regularizer = regularizer
-        variable.constraint = constraint
+        variable.constraint = constraints.get(constraint)
         self._track_variable(variable)
         return variable
 
@@ -1025,7 +1026,10 @@ class Layer(BackendLayer, Operation):
 
     @utils.default
     def compute_output_shape(self, *args, **kwargs):
-        return NotImplementedError
+        raise NotImplementedError(
+            f"Layer {self.__class__.__name__} should implement "
+            "`def compute_output_shape(self, input_shape)`."
+        )
 
     def add_loss(self, loss):
         """Can be called inside of the `call()` method to add a scalar loss.
@@ -1070,9 +1074,9 @@ class Layer(BackendLayer, Operation):
 
     @property
     def losses(self):
-        """List of scalar losses added via `add_loss()` during layer call."""
+        """List of scalar losses from `add_loss`, regularizers and sublayers."""
         losses = self._get_own_losses()
-        for layer in self._layers:
+        for layer in self._flatten_layers(include_self=False):
             losses.extend(layer._get_own_losses())
         weight_regularization_losses = []
         for v in self.trainable_weights:
@@ -1202,15 +1206,15 @@ class Layer(BackendLayer, Operation):
 
         # Otherwise, attempt to build the layer by calling it on symbolic input.
         if might_have_unbuilt_state(self):
-            if len(shapes_dict) == 1:
-                success = self._build_by_run_for_single_pos_arg(first_shape)
-            else:
-                success = self._build_by_run_for_kwargs(shapes_dict)
-            if not success:
+            try:
+                backend.compute_output_spec(
+                    self.call, **call_spec.arguments_dict
+                )
+            except Exception as e:
                 if call_spec.eager:
                     # Will let the actual eager call do state-building
                     return
-                raise ValueError(
+                warnings.warn(
                     f"Layer '{self.name}' looks like it has unbuilt state, but "
                     "Keras is not able to trace the layer `call()` in order to "
                     "build it automatically. Possible causes:\n"
@@ -1222,21 +1226,10 @@ class Layer(BackendLayer, Operation):
                     "to implement the `def build(self, input_shape)` method on "
                     "your layer. It should create all variables used by the "
                     "layer (e.g. by calling `layer.build()` on all its "
-                    "children layers)."
+                    "children layers).\n"
+                    f"Exception encoutered: ''{e}''"
                 )
-
         self.build(first_shape)
-
-    def _build_by_run(self, *args, **kwargs):
-        call_spec = CallSpec(self._call_signature, args, kwargs)
-        shapes_dict = get_shapes_dict(call_spec)
-        if len(shapes_dict) == 1:
-            success = self._build_by_run_for_single_pos_arg(
-                tuple(shapes_dict.values())[0]
-            )
-        else:
-            success = self._build_by_run_for_kwargs(shapes_dict)
-        return success
 
     def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).

@@ -37,6 +37,15 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
 
+    def test_device_conversion(self):
+        devices = distribution_lib.list_devices("cpu")
+        jax_devices = jax.devices("cpu")
+
+        for d, jax_d in zip(devices, jax_devices):
+            converted_jax_device = backend_dlib._to_jax_device(d)
+            self.assertIsInstance(converted_jax_device, jax.Device)
+            self.assertEqual(jax_d, converted_jax_device)
+
     @mock.patch.object(jax.distributed, "initialize", return_value=None)
     def test_initialize_with_all_job_addresses(self, mock_jax_initialze):
         backend_dlib.initialize("10.0.0.1:1234,10.0.0.2:2345", 2, 0)

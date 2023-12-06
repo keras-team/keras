@@ -3,6 +3,7 @@ import pytest
 from absl.testing import parameterized
 
 from keras import backend
+from keras import constraints
 from keras import initializers
 from keras import layers
 from keras import testing
@@ -248,4 +249,41 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
             scores,
             [[[[0.33, 0.67], [0.67, 0.33]], [[0.33, 0.67], [0.67, 0.33]]]],
             atol=1e-3,
+        )
+
+    def test_mha_constraints(self):
+        query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
+        key = np.array([[[0.0, 1.0], [1.0, 0.0]]])
+        value = np.array([[[1.0, 2.0], [3.0, 4.0]]])
+        num_heads = 2
+        key_dim = 2
+        layer = layers.MultiHeadAttention(
+            num_heads=num_heads,
+            key_dim=key_dim,
+            kernel_constraint="non_neg",
+        )
+        layer.build(query.shape, key.shape, value.shape)
+        self.assertIsInstance(
+            layer._query_dense.kernel.constraint, constraints.NonNeg
+        )
+        self.assertIsInstance(
+            layer._value_dense.kernel.constraint, constraints.NonNeg
+        )
+        self.assertIsInstance(
+            layer._key_dense.kernel.constraint, constraints.NonNeg
+        )
+        layer = layers.MultiHeadAttention(
+            num_heads=num_heads,
+            key_dim=key_dim,
+            bias_constraint="non_neg",
+        )
+        layer.build(query.shape, key.shape, value.shape)
+        self.assertIsInstance(
+            layer._query_dense.bias.constraint, constraints.NonNeg
+        )
+        self.assertIsInstance(
+            layer._value_dense.bias.constraint, constraints.NonNeg
+        )
+        self.assertIsInstance(
+            layer._key_dense.bias.constraint, constraints.NonNeg
         )

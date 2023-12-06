@@ -31,6 +31,8 @@ class Hinge(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="hinge", dtype=None):
         super().__init__(fn=hinge, name=name, dtype=dtype)
+        # Metric should be minimized during optimization.
+        self._direction = "down"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}
@@ -62,6 +64,8 @@ class SquaredHinge(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="squared_hinge", dtype=None):
         super().__init__(fn=squared_hinge, name=name, dtype=dtype)
+        # Metric should be minimized during optimization.
+        self._direction = "down"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}
@@ -89,6 +93,8 @@ class CategoricalHinge(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="categorical_hinge", dtype=None):
         super().__init__(fn=categorical_hinge, name=name, dtype=dtype)
+        # Metric should be minimized during optimization.
+        self._direction = "down"
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}

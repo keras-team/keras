@@ -1,10 +1,11 @@
 """
 Title: Image classification with ConvMixer
 Author: [Sayak Paul](https://twitter.com/RisingSayak)
-Converted to Keras 3 by: [Md Awsafur Rahman](https://awsaf49.github.io)
 Date created: 2021/10/12
 Last modified: 2021/10/12
 Description: An all-convolutional network applied to patches of images.
+Accelerator: GPU
+Converted to Keras 3 by: [Md Awsafur Rahman](https://awsaf49.github.io)
 """
 """
 ## Introduction
@@ -36,10 +37,6 @@ the CIFAR-10 dataset.
 """
 ## Imports
 """
-
-import os
-
-os.environ["KERAS_BACKEND"] = "jax"
 
 import keras
 from keras import layers
@@ -92,7 +89,7 @@ auto = tf.data.AUTOTUNE
 
 augmentation_layers = [
     keras.layers.RandomCrop(image_size, image_size),
-    keras.layers.RandomFlip("horizontal")
+    keras.layers.RandomFlip("horizontal"),
 ]
 
 
@@ -162,7 +159,12 @@ def conv_mixer_block(x, filters: int, kernel_size: int):
 
 
 def get_conv_mixer_256_8(
-    image_size=32, filters=256, depth=8, kernel_size=5, patch_size=2, num_classes=10
+    image_size=32,
+    filters=256,
+    depth=8,
+    kernel_size=5,
+    patch_size=2,
+    num_classes=10,
 ):
     """ConvMixer-256/8: https://openreview.net/pdf?id=TVHS5Y4dNvM.
     The hyperparameter values are taken from the paper.

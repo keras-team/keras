@@ -261,6 +261,7 @@ class ModelCheckpointTest(testing.TestCase):
                 filepath,
                 monitor=monitor,
                 save_best_only=save_best_only,
+                save_weights_only=True,
                 mode=mode,
                 save_freq="invalid_save_freq",
             )
@@ -269,6 +270,7 @@ class ModelCheckpointTest(testing.TestCase):
             filepath,
             monitor=monitor,
             save_best_only=save_best_only,
+            save_weights_only=True,
             mode=mode,
             save_freq="epoch",
         )
@@ -276,6 +278,7 @@ class ModelCheckpointTest(testing.TestCase):
             filepath,
             monitor=monitor,
             save_best_only=save_best_only,
+            save_weights_only=True,
             mode=mode,
             save_freq=3,
         )

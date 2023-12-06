@@ -25,7 +25,7 @@ has at least ~100k characters. ~1M is better.
 """
 ## Setup
 """
-import keras as keras
+import keras
 from keras import layers
 
 import numpy as np

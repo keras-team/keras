@@ -27,7 +27,7 @@ Using this approach, we can quickly implement a
 [StandardizedConv2D](https://arxiv.org/abs/1903.10520) as shown below.
 """
 import tensorflow as tf
-import keras as keras
+import keras
 from keras import layers
 import numpy as np
 

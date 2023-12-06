@@ -252,12 +252,22 @@ def _clone_functional_model(model, input_tensors=None, clone_function=None):
         )
 
     if input_tensors is not None:
-        input_tensors = tree.flatten(input_tensors)
-        if not all(isinstance(x, backend.KerasTensor) for x in input_tensors):
+        if not all(
+            isinstance(x, backend.KerasTensor)
+            for x in tree.flatten(input_tensors)
+        ):
             raise ValueError(
                 "All entries in `input_tensors` must be KerasTensors. "
                 f"Received invalid values: inputs_tensors={input_tensors}"
             )
+        try:
+            tree.assert_same_structure(input_tensors, model.input)
+        except TypeError as e:
+            raise ValueError(
+                "`input_tensors` must have the same structure as model.input"
+                f"\nReference structure: {model.input}"
+                f"\nReceived structure: {input_tensors}"
+            ) from e
     else:
         input_tensors = tree.map_structure(
             lambda x: Input(batch_shape=x.shape, dtype=x.dtype, name=x.name),

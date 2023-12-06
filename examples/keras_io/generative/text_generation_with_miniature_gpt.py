@@ -42,7 +42,7 @@ with TensorFlow 2.3 or higher.
 import os
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 
-import keras as keras
+import keras
 from keras import layers
 from keras import ops
 from keras.layers import TextVectorization
@@ -281,7 +281,7 @@ class TextGenerator(keras.callbacks.Callback):
             else:
                 x = start_tokens
             x = np.array([x])
-            y, _ = self.model.predict(x)
+            y, _ = self.model.predict(x, verbose=0)
             sample_token = self.sample_from(y[0][sample_index])
             tokens_generated.append(sample_token)
             start_tokens.append(sample_token)

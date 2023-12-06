@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from keras import backend
+from keras import constraints
 from keras import layers
 from keras import testing
 from keras.backend.common import keras_tensor
@@ -167,3 +168,11 @@ class DenseTest(testing.TestCase):
         output = layer(inputs)
         expected_output = np.array([[5.0, 0.0]])
         self.assertAllClose(output, expected_output)
+
+    def test_dense_constraints(self):
+        layer = layers.Dense(units=2, kernel_constraint="non_neg")
+        layer.build((None, 2))
+        self.assertIsInstance(layer.kernel.constraint, constraints.NonNeg)
+        layer = layers.Dense(units=2, bias_constraint="non_neg")
+        layer.build((None, 2))
+        self.assertIsInstance(layer.bias.constraint, constraints.NonNeg)

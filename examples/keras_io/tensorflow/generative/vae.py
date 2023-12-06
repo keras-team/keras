@@ -2,7 +2,7 @@
 Title: Variational AutoEncoder
 Author: [fchollet](https://twitter.com/fchollet)
 Date created: 2020/05/03
-Last modified: 2020/05/03
+Last modified: 2023/11/22
 Description: Convolutional Variational AutoEncoder (VAE) trained on MNIST digits.
 Accelerator: GPU
 """
@@ -11,9 +11,12 @@ Accelerator: GPU
 ## Setup
 """
 
+import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import numpy as np
 import tensorflow as tf
-import keras as keras
+import keras
 from keras import layers
 
 """
@@ -153,7 +156,7 @@ def plot_latent_space(vae, n=30, figsize=15):
     for i, yi in enumerate(grid_y):
         for j, xi in enumerate(grid_x):
             z_sample = np.array([[xi, yi]])
-            x_decoded = vae.decoder.predict(z_sample)
+            x_decoded = vae.decoder.predict(z_sample, verbose=0)
             digit = x_decoded[0].reshape(digit_size, digit_size)
             figure[
                 i * digit_size : (i + 1) * digit_size,

@@ -60,6 +60,19 @@ class Function(Operation):
         self._outputs_struct = tree.map_structure(lambda x: x, outputs)
         self._inputs = tree.flatten(inputs)
         self._outputs = tree.flatten(outputs)
+        if not self._inputs:
+            raise ValueError(
+                "`inputs` argument cannot be empty. Received:\n"
+                f"inputs={inputs}\n"
+                f"outputs={outputs}"
+            )
+        if not self._outputs:
+            raise ValueError(
+                "`outputs` argument cannot be empty. Received:\n"
+                f"inputs={inputs}\n"
+                f"outputs={outputs}"
+            )
+
         if backend() == "tensorflow":
             self._self_setattr_tracking = _self_setattr_tracking
 

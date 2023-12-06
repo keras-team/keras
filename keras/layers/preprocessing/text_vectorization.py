@@ -370,6 +370,9 @@ class TextVectorization(Layer):
     def variable_dtype(self):
         return "string"
 
+    def build(self, input_shape=None):
+        pass
+
     def compute_output_shape(self, input_shape):
         if self._output_mode == "int":
             return (input_shape[0], self._output_sequence_length)
@@ -594,7 +597,6 @@ class TextVectorization(Layer):
             # dimension to the bounding shape of the ragged dimension.
             shape[-1] = self._output_sequence_length
             outputs = lookup_data.to_tensor(default_value=0, shape=shape)
-            print("outputs (after conversion from ragged):", outputs)
 
         # If we have a dense tensor, we need to pad/trim directly.
         if self._output_sequence_length is not None:

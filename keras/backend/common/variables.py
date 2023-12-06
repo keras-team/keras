@@ -48,7 +48,7 @@ class KerasVariable:
             if callable(initializer):
                 self._value = None
                 self._initializer = initializer
-                self._shape = standardize_shape(shape)
+                self._shape = self._validate_shape(shape)
                 register_uninitialized_variable(self)
             else:
                 raise ValueError(
@@ -70,6 +70,7 @@ class KerasVariable:
                 )
         else:
             if callable(initializer):
+                shape = self._validate_shape(shape)
                 value = initializer(shape, dtype=dtype)
             else:
                 value = initializer
@@ -90,6 +91,16 @@ class KerasVariable:
             )
         value = self._initializer(self._shape, dtype=self._dtype)
         self._initialize(value)
+
+    def _validate_shape(self, shape):
+        shape = standardize_shape(shape)
+        if None in shape:
+            raise ValueError(
+                "Shapes used to initialize variables must be "
+                "fully-defined (no `None` dimensions). Received: "
+                f"shape={shape} for variable path='{self.path}'"
+            )
+        return shape
 
     def _maybe_autocast(self, value):
         autocast_scope = get_autocast_scope()
@@ -374,8 +385,12 @@ def standardize_dtype(dtype):
     dtype = PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
         dtype = dtype.name
-    elif hasattr(dtype, "__str__") and "torch" in str(dtype):
+    elif hasattr(dtype, "__str__") and (
+        "torch" in str(dtype) or "jax.numpy" in str(dtype)
+    ):
         dtype = str(dtype).split(".")[-1]
+    elif hasattr(dtype, "__name__"):
+        dtype = dtype.__name__
 
     if dtype not in ALLOWED_DTYPES:
         raise ValueError(f"Invalid dtype: {dtype}")
@@ -401,10 +416,10 @@ def standardize_shape(shape):
         if config.backend() == "jax" and str(e) == "b":
             # JAX2TF tracing represents `None` dimensions as `b`
             continue
-        if not isinstance(e, int):
+        if not is_int_dtype(type(e)):
             raise ValueError(
                 f"Cannot convert '{shape}' to a shape. "
-                f"Found invalid entry '{e}'. "
+                f"Found invalid entry '{e}' of type '{type(e)}'. "
             )
         if e < 0:
             raise ValueError(

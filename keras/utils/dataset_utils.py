@@ -1,8 +1,8 @@
-import multiprocessing
 import os
 import random
 import time
 import warnings
+from multiprocessing.pool import ThreadPool
 
 import numpy as np
 
@@ -513,14 +513,15 @@ def index_directory(
             Otherwise, the directory structure is ignored.
         labels: Either `"inferred"`
             (labels are generated from the directory structure),
-            None (no labels),
+            `None` (no labels),
             or a list/tuple of integer labels of the same size as the number
             of valid files found in the directory.
             Labels should be sorted according
             to the alphanumeric order of the image file paths
             (obtained via `os.walk(directory)` in Python).
-        formats: Allowlist of file extensions to index (e.g. ".jpg", ".txt").
-        class_names: Only valid if "labels" is "inferred". This is the explicit
+        formats: Allowlist of file extensions to index
+            (e.g. `".jpg"`, `".txt"`).
+        class_names: Only valid if `labels="inferred"`. This is the explicit
             list of class names (must match names of subdirectories). Used
             to control the order of the classes
             (otherwise alphanumerical order is used).
@@ -536,11 +537,7 @@ def index_directory(
         - class_names: names of the classes corresponding to these labels, in
         order.
     """
-    if labels != "inferred":
-        # in the explicit/no-label cases, index from the parent directory down.
-        subdirs = [""]
-        class_names = subdirs
-    else:
+    if labels == "inferred":
         subdirs = []
         for subdir in sorted(tf.io.gfile.listdir(directory)):
             if tf.io.gfile.isdir(tf.io.gfile.join(directory, subdir)):
@@ -548,20 +545,36 @@ def index_directory(
                     if subdir.endswith("/"):
                         subdir = subdir[:-1]
                     subdirs.append(subdir)
-        if not class_names:
-            class_names = subdirs
-        else:
-            if set(class_names) != set(subdirs):
+        if class_names is not None:
+            if not set(class_names).issubset(set(subdirs)):
                 raise ValueError(
                     "The `class_names` passed did not match the "
                     "names of the subdirectories of the target directory. "
-                    f"Expected: {subdirs}, but received: {class_names}"
+                    f"Expected: {subdirs} (or a subset of it), "
+                    f"but received: class_names={class_names}"
                 )
+            subdirs = class_names  # Keep provided order.
+    else:
+        # In the explicit/no-label cases, index from the parent directory down.
+        subdirs = [""]
+        if class_names is not None:
+            if labels is None:
+                raise ValueError(
+                    "When `labels=None` (no labels), argument `class_names` "
+                    "cannot be specified."
+                )
+            else:
+                raise ValueError(
+                    "When argument `labels` is specified, argument "
+                    "`class_names` cannot be specified (the `class_names` "
+                    "will be the sorted list of labels)."
+                )
+    class_names = subdirs
     class_indices = dict(zip(class_names, range(len(class_names))))
 
     # Build an index of the files
     # in the different class subfolders.
-    pool = multiprocessing.pool.ThreadPool()
+    pool = ThreadPool()
     results = []
     filenames = []
 
@@ -577,7 +590,18 @@ def index_directory(
         partial_filenames, partial_labels = res.get()
         labels_list.append(partial_labels)
         filenames += partial_filenames
-    if labels not in ("inferred", None):
+
+    if labels == "inferred":
+        # Inferred labels.
+        i = 0
+        labels = np.zeros((len(filenames),), dtype="int32")
+        for partial_labels in labels_list:
+            labels[i : i + len(partial_labels)] = partial_labels
+            i += len(partial_labels)
+    elif labels is None:
+        class_names = None
+    else:
+        # Manual labels.
         if len(labels) != len(filenames):
             raise ValueError(
                 "Expected the lengths of `labels` to match the number "
@@ -585,13 +609,7 @@ def index_directory(
                 f"{len(labels)} while we found {len(filenames)} files "
                 f"in directory {directory}."
             )
-        class_names = sorted(set(labels))
-    else:
-        i = 0
-        labels = np.zeros((len(filenames),), dtype="int32")
-        for partial_labels in labels_list:
-            labels[i : i + len(partial_labels)] = partial_labels
-            i += len(partial_labels)
+        class_names = [str(label) for label in sorted(set(labels))]
 
     if labels is None:
         io_utils.print_msg(f"Found {len(filenames)} files.")
@@ -610,8 +628,9 @@ def index_directory(
             seed = np.random.randint(1e6)
         rng = np.random.RandomState(seed)
         rng.shuffle(file_paths)
-        rng = np.random.RandomState(seed)
-        rng.shuffle(labels)
+        if labels is not None:
+            rng = np.random.RandomState(seed)
+            rng.shuffle(labels)
     return file_paths, labels, class_names
 
 
@@ -678,11 +697,13 @@ def get_training_or_validation_split(samples, labels, validation_split, subset):
             f"Using {len(samples) - num_val_samples} " f"files for training."
         )
         samples = samples[:-num_val_samples]
-        labels = labels[:-num_val_samples]
+        if labels is not None:
+            labels = labels[:-num_val_samples]
     elif subset == "validation":
         io_utils.print_msg(f"Using {num_val_samples} files for validation.")
         samples = samples[-num_val_samples:]
-        labels = labels[-num_val_samples:]
+        if labels is not None:
+            labels = labels[-num_val_samples:]
     else:
         raise ValueError(
             '`subset` must be either "training" '
