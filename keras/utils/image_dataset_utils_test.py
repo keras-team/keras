@@ -438,7 +438,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             ValueError, "`validation_split` must be set"
         ):
             _ = image_dataset_utils.image_dataset_from_directory(
-                directory, validation_split=0., subset="training"
+                directory, validation_split=0.0, subset="training"
             )
 
         with self.assertRaisesRegex(ValueError, "must provide a `seed`"):
