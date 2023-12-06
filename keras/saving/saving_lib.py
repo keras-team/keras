@@ -557,6 +557,68 @@ class H5IOStore:
             self.io_file.close()
 
 
+class ShardedH5IOStore:
+    def __init__(self, root_path, max_size="10GB", archive=None, mode="r"):
+        self.shard_list = []
+        self.root_path = root_path
+        self.mode = mode
+        self.archive = archive
+        self.io_file = None
+        self.max_size = convert_str_bytes_to_int(max_size)
+        self.h5_file = self._create_new_file()
+
+    def _create_new_file(self, root_path):
+        if self.h5_file in self.shard_list:
+            self.root_path = str(root_path).replace(".weights.h5")
+        if self.archive:
+            if self.mode == "w":
+                self.io_file = io.BytesIO()
+            else:
+                self.io_file = self.archive.open(self.root_path, "r")
+            return h5py.File(self.io_file, mode=self.mode)
+        else:
+            return h5py.File(self.root_path, mode=self.mode)
+        
+    def make(self, path):
+        if self.current_shard_size > self.max_size:
+            self.close()
+            self.shard_list.append(self.h5_file)
+            self.h5_file = self._create_new_file()
+        if not path:
+            return self.h5_file.create_group("vars")
+        return self.h5_file.create_group(path).create_group("vars")
+
+    def close(self):
+        self.h5_file.close()
+        if self.mode == "w" and self.archive:
+            self.archive.writestr(self.root_path, self.io_file.getvalue())
+        if self.io_file:
+            self.io_file.close()
+
+
+
+def convert_str_bytes_to_int(size):
+    if size.upper().endswith("GB"):
+        return int(size[:-2]) * (10**9)
+    if size.upper().endswith("MB"):
+        return int(size[:-2]) * (10**6)
+    if size.upper().endswith("KB"):
+        return int(size[:-2]) * (10**3)
+    raise ValueError(
+        "Invalid format for `size`. Use an integer followed by the unit "
+        "(GB, MB, or KB). For example, '5GB' or '15MB'."
+    )
+
+
+def dtype_to_bytes(dtype):
+    if "bool" in str(dtype):
+        return 1 / 8
+    bits = re.search(r"[^\d](\d+)$", str(dtype))
+    if bits is None:
+        raise ValueError(f"`dtype` is not a valid dtype: {dtype}.")
+    return int(bits.groups()[0]) // 8  # Bit size in bytes
+
+
 class NpzIOStore:
     def __init__(self, root_path, archive=None, mode="r"):
         """Numerical variable store backed by NumPy.savez/load.
