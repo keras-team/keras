@@ -476,13 +476,13 @@ class Trainer:
                 `validation_split` or `validation_data` is not affected by
                 regularization layers like noise and dropout.
                 `validation_data` will override `validation_split`.
-                `validation_data` could be:
+                It could be:
                   - A tuple `(x_val, y_val)` of NumPy arrays or tensors.
                   - A tuple `(x_val, y_val, val_sample_weights)` of NumPy
                     arrays.
                   - A `tf.data.Dataset`.
                   - A Python generator or `keras.utils.PyDataset` returning
-                  `(inputs, targets)` or `(inputs, targets, sample_weights)`.
+                    `(inputs, targets)` or `(inputs, targets, sample_weights)`.
             shuffle: Boolean, whether to shuffle the training data
                 before each epoch. This argument is
                 ignored when `x` is a generator or a `tf.data.Dataset`.
