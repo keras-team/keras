@@ -3856,13 +3856,38 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             )
         )(x)
         model = keras.Model(x, [y1, y2])
-        model(np.ones((1, 2, 3)))
+
+        result = model(np.ones((1, 2, 3), "float32"))
+        self.assertAllClose(
+            result, [np.tril(np.ones((2, 2))), np.tril(np.ones((2, 2)), k=-1)]
+        )
 
     def test_triu(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
         self.assertAllClose(knp.triu(x), np.triu(x))
         self.assertAllClose(knp.triu(x, -1), np.triu(x, -1))
         self.assertAllClose(knp.Triu(-1)(x), np.triu(x, -1))
+
+    def test_triu_in_layer(self):
+        # https://github.com/keras-team/keras/issues/18890
+        x = keras.Input((None, 3))
+        y1 = keras.layers.Lambda(
+            lambda x: keras.ops.triu(
+                keras.ops.ones((keras.ops.shape(x)[1], keras.ops.shape(x)[1]))
+            )
+        )(x)
+        y2 = keras.layers.Lambda(
+            lambda x: keras.ops.triu(
+                keras.ops.ones((keras.ops.shape(x)[1], keras.ops.shape(x)[1])),
+                k=-1,
+            )
+        )(x)
+        model = keras.Model(x, [y1, y2])
+
+        result = model(np.ones((1, 2, 3), "float32"))
+        self.assertAllClose(
+            result, [np.triu(np.ones((2, 2))), np.triu(np.ones((2, 2)), k=-1)]
+        )
 
     def test_vstack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
