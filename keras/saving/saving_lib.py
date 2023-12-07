@@ -547,6 +547,12 @@ class H5IOStore:
             return self.h5_file["vars"]
         if path in self.h5_file and "vars" in self.h5_file[path]:
             return self.h5_file[path]["vars"]
+        # No hit.
+        # Fix for 2.13 compatibility
+        if "_layer_checkpoint_dependencies" in self.h5_file:
+            path = path.replace("layers", "_layer_checkpoint_dependencies")
+            if path in self.h5_file and "vars" in self.h5_file[path]:
+                return self.h5_file[path]["vars"]
         return {}
 
     def close(self):
