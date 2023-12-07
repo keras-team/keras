@@ -23,6 +23,8 @@ elif backend.backend() == "torch":
     from keras.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "numpy":
     from keras.backend.numpy.trainer import NumpyTrainer as Trainer
+elif backend.backend() == "mlx":
+    from keras.backend.mlx.trainer import MLXTrainer as Trainer
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement the Trainer class."

@@ -387,7 +387,7 @@ def standardize_dtype(dtype):
     if hasattr(dtype, "name"):
         dtype = dtype.name
     elif hasattr(dtype, "__str__") and (
-        "torch" in str(dtype) or "jax.numpy" in str(dtype)
+        "torch" in str(dtype) or "jax.numpy" in str(dtype) or "mlx" in str(dtype)
     ):
         dtype = str(dtype).split(".")[-1]
     elif hasattr(dtype, "__name__"):
