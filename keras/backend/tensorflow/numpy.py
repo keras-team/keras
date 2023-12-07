@@ -1462,20 +1462,26 @@ def tri(N, M=None, k=0, dtype=None):
 
 def tril(x, k=0):
     x = convert_to_tensor(x)
-    # TODO: tfnp.tril doesn't support bool
-    if standardize_dtype(x.dtype) == "bool":
-        x = tf.cast(x, "uint8")
-        return tf.cast(tfnp.tril(x, k=k), "bool")
-    return tfnp.tril(x, k=k)
+    if k >= 0:
+        return tf.linalg.band_part(x, -1, k)
+
+    # deal with negative k using mask
+    k = -k - 1
+    mask = tf.ones_like(x, dtype="bool")
+    mask = tf.logical_not(tf.linalg.band_part(mask, k, -1))
+    return tf.where(mask, x, tf.constant(0, x.dtype))
 
 
 def triu(x, k=0):
     x = convert_to_tensor(x)
-    # TODO: tfnp.triu doesn't support bool
-    if standardize_dtype(x.dtype) == "bool":
-        x = tf.cast(x, "uint8")
-        return tf.cast(tfnp.tril(x, k=k), "bool")
-    return tfnp.triu(x, k=k)
+    if k >= 0:
+        return tf.linalg.band_part(x, k, -1)
+
+    # deal with negative k using mask
+    k = -k
+    mask = tf.ones_like(x, dtype="bool")
+    mask = tf.logical_not(tf.linalg.band_part(mask, k, -1))
+    return tf.where(mask, tf.constant(0, x.dtype), x)
 
 
 def vdot(x1, x2):
