@@ -91,16 +91,6 @@ class ExportArchive:
                 "The export API is only compatible with JAX and TF backends."
             )
 
-        # TODO(nkovela): Make JAX version checking programatic.
-        if backend.backend() == "jax":
-            from jax import __version__ as jax_v
-
-            if jax_v > "0.4.15":
-                raise ValueError(
-                    "The export API is only compatible with JAX version 0.4.15 "
-                    f"and prior. Your JAX version: {jax_v}"
-                )
-
     @property
     def variables(self):
         return self._tf_trackable.variables
