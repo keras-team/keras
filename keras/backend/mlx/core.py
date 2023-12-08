@@ -47,6 +47,9 @@ class Variable(KerasVariable):
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype)
 
+    def __mlx_array__(self):
+        return self._value
+
     def __array__(self, dtype=None):
         value = convert_to_numpy(self._value)
         if dtype:
