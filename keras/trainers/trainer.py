@@ -410,16 +410,16 @@ class Trainer:
 
         Args:
             x: Input data. It could be:
-              - A NumPy array (or array-like), or a list of arrays
+                - A NumPy array (or array-like), or a list of arrays
                 (in case the model has multiple inputs).
-              - A tensor, or a list of tensors
+                - A tensor, or a list of tensors
                 (in case the model has multiple inputs).
-              - A dict mapping input names to the corresponding array/tensors,
+                - A dict mapping input names to the corresponding array/tensors,
                 if the model has named inputs.
-              - A `tf.data.Dataset`. Should return a tuple
+                - A `tf.data.Dataset`. Should return a tuple
                 of either `(inputs, targets)` or
                 `(inputs, targets, sample_weights)`.
-              - A `keras.utils.PyDataset` returning `(inputs,
+                - A `keras.utils.PyDataset` returning `(inputs,
                 targets)` or `(inputs, targets, sample_weights)`.
             y: Target data. Like the input data `x`,
                 it could be either NumPy array(s) or backend-native tensor(s).
@@ -477,12 +477,12 @@ class Trainer:
                 regularization layers like noise and dropout.
                 `validation_data` will override `validation_split`.
                 It could be:
-                  - A tuple `(x_val, y_val)` of NumPy arrays or tensors.
-                  - A tuple `(x_val, y_val, val_sample_weights)` of NumPy
-                    arrays.
-                  - A `tf.data.Dataset`.
-                  - A Python generator or `keras.utils.PyDataset` returning
-                    `(inputs, targets)` or `(inputs, targets, sample_weights)`.
+                - A tuple `(x_val, y_val)` of NumPy arrays or tensors.
+                - A tuple `(x_val, y_val, val_sample_weights)` of NumPy
+                arrays.
+                - A `tf.data.Dataset`.
+                - A Python generator or `keras.utils.PyDataset` returning
+                `(inputs, targets)` or `(inputs, targets, sample_weights)`.
             shuffle: Boolean, whether to shuffle the training data
                 before each epoch. This argument is
                 ignored when `x` is a generator or a `tf.data.Dataset`.
@@ -545,9 +545,9 @@ class Trainer:
                 the form of datasets or `keras.utils.PyDataset`
                 instances (since they generate batches).
             validation_freq: Only relevant if validation data is provided.
-              Specifies how many training epochs to run
-              before a new validation run is performed, e.g. `validation_freq=2`
-              runs validation every 2 epochs.
+                Specifies how many training epochs to run
+                before a new validation run is performed,
+                e.g. `validation_freq=2` runs validation every 2 epochs.
 
         Unpacking behavior for iterator-like inputs:
             A common pattern is to pass an iterator like object such as a
