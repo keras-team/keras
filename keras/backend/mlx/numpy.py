@@ -2,6 +2,7 @@ import math
 
 import mlx.core as mx
 
+from keras.backend import standardize_dtype
 from keras.backend.mlx.core import cast, convert_to_tensor, to_mlx_dtype
 
 
@@ -768,7 +769,7 @@ def split(x, indices_or_sections, axis=0):
 
 def stack(xs, axis=0):
     xs = [convert_to_tensor(x) for x in xs]
-    xs = [x.unsqueeze(axis) for x in xs]
+    xs = [mx.expand_dims(x, axis) for x in xs]
     return mx.concatenate(xs, axis=axis)
 
 

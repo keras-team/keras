@@ -1,5 +1,6 @@
 
 import mlx.core as mx
+import tree
 
 from keras import backend
 from keras import callbacks as callbacks_module
@@ -115,6 +116,7 @@ class MLXTrainer(base_trainer.Trainer):
             mapping = list(zip(self.optimizer.variables, optimizer_variables))
             with backend.StatelessScope(state_mapping=mapping):
                 loss = self.optimizer.scale_loss(loss)
+
         return loss, unscaled_loss, y_pred, non_trainable_variables
 
     def train_step(self, state, data):
@@ -452,6 +454,7 @@ class MLXTrainer(base_trainer.Trainer):
                     metrics_variables,
                 )
                 logs, state = self.train_function(state, data)
+                mx.eval(logs, state)
                 (
                     trainable_variables,
                     non_trainable_variables,
@@ -598,6 +601,7 @@ class MLXTrainer(base_trainer.Trainer):
                 metrics_variables,
             )
             logs, state = self.test_function(state, data)
+            mx.eval(logs, state)
             (
                 trainable_variables,
                 non_trainable_variables,
@@ -678,6 +682,7 @@ class MLXTrainer(base_trainer.Trainer):
         for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_predict_batch_begin(step)
             batch_outputs, state = self.predict_function(state, x)
+            mx.eval(batch_outputs, state)
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
             if self.stop_predicting:
@@ -727,6 +732,7 @@ class MLXTrainer(base_trainer.Trainer):
             metrics_variables,
         )
         logs, state = self.train_function(state, [data])
+        mx.eval(logs, state)
 
         # State sync
         (
@@ -776,6 +782,7 @@ class MLXTrainer(base_trainer.Trainer):
             metrics_variables,
         )
         logs, state = self.test_function(state, [data])
+        mx.eval(logs, state)
 
         # State sync
         trainable_variables, non_trainable_variables, metrics_variables = state
@@ -800,6 +807,7 @@ class MLXTrainer(base_trainer.Trainer):
         ]
         state = (trainable_variables, non_trainable_variables)
         batch_outputs, state = self.predict_function(state, [(x,)])
+        mx.eval(batch_outputs, state)
 
         # TODO: This copies but we could avoid it
         batch_outputs = tree.map_structure(

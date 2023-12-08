@@ -1,5 +1,8 @@
 import mlx.core as mx
 
+import numpy as np
+import tree
+
 from keras.backend.common import KerasVariable
 from keras.backend.common import global_state
 from keras.backend.common import standardize_dtype
@@ -22,7 +25,7 @@ MLX_DTYPES = {
     "int8": mx.int8,
     "int16": mx.int16,
     "int32": mx.int32,
-    "int64": mx.int64,
+    "int64": mx.int32,  # we only support int64 on cpu
     "bfloat16": mx.bfloat16,
     "bool": mx.bool_,
 }
@@ -48,7 +51,11 @@ class Variable(KerasVariable):
         return convert_to_tensor(value, dtype=dtype)
 
     def __mlx_array__(self):
-        return self._value
+        return self.value
+
+    @property
+    def shape(self):
+        return list(self._shape)
 
     def __array__(self, dtype=None):
         value = convert_to_numpy(self._value)
@@ -105,7 +112,7 @@ def compute_output_spec(fn, *args, **kwargs):
                 for i, e in enumerate(shape):
                     if e is None:
                         shape[i] = fill_value
-            return mlx.ones(shape, dtype=MLX_DTYPES[x.dtype])
+            return mx.ones(shape, dtype=MLX_DTYPES[x.dtype])
         return x
 
     def convert_mlx_to_keras_tensor(x):

@@ -1,6 +1,7 @@
 """MLX backend APIs."""
 
 from keras.backend.mlx import core
+from keras.backend.mlx import nn
 from keras.backend.mlx import numpy
 from keras.backend.mlx import random
 from keras.backend.mlx.core import SUPPORTS_SPARSE_TENSORS
