@@ -217,7 +217,7 @@ def slice_update(inputs, start_indices, updates):
 
 
 @keras_export("keras.ops.scan")
-def scan(f, init, xs, length=None, reverse=False, unroll=False):
+def scan(f, init, xs, length=None, reverse=False, unroll=1):
     """Scan a function over leading array axes while carrying along state.
 
     At a high level, this operation does
