@@ -261,12 +261,12 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
     @parameterized.parameters(
         {"seed": 10, "shape": (5, 2), "counts": 1., "probs": 0.5, "dtype": "float16"},
         {"seed": 10, "shape": (2,), "counts": 1, "probs": 0.5, "dtype": "float32"},
-        {"seed": 10, "shape": (2, 3), "counts": [[1, 2, 3], [4, 5, 6]],
-         "probs": [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], "dtype": "float32"},
+        {"seed": 10, "shape": (2, 3), "counts": np.array([[1, 2, 3], [4, 5, 6]]),
+         "probs": np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]), "dtype": "float32"},
     )
     def test_binomial(self, seed, shape, counts, probs, dtype):
-        values = random.binomial(shape, counts=np.array(counts),
-                                 probs=np.array(probs), seed=seed, dtype=dtype)
+        values = random.binomial(shape, counts=counts,
+                                 probs=probs, seed=seed, dtype=dtype)
         self.assertEqual(ops.shape(values), shape)
         self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
 
