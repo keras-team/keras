@@ -1,7 +1,7 @@
 import os
 
-import pytest
 import numpy as np
+import pytest
 from tensorflow import data as tf_data
 from tensorflow import sparse
 
