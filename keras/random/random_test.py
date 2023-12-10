@@ -265,7 +265,8 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
          "probs": [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], "dtype": "float32"},
     )
     def test_binomial(self, seed, shape, counts, probs, dtype):
-        values = random.binomial(shape, counts=counts, probs=probs, seed=seed, dtype=dtype)
+        values = random.binomial(shape, counts=np.array(counts),
+                                 probs=np.array(probs), seed=seed, dtype=dtype)
         self.assertEqual(ops.shape(values), shape)
         self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
 
