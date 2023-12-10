@@ -90,3 +90,25 @@ def gamma(shape, alpha, dtype=None, seed=None):
     seed = jax_draw_seed(seed)
     dtype = dtype or floatx()
     return jax.random.gamma(seed, alpha, shape=shape, dtype=dtype)
+
+
+def binomial(shape, counts, probs, dtype=None, seed=None):
+    dtype = dtype or floatx()
+    seed = jax_draw_seed(seed)
+    sample = jax.random.binomial(key=seed,
+                                 n=counts,
+                                 p=probs,
+                                 shape=shape,
+                                 dtype=dtype)
+    return sample
+
+
+def beta(shape, a, b, dtype=None, seed=None):
+    dtype = dtype or floatx()
+    seed = jax_draw_seed(seed)
+    sample = jax.random.beta(key=seed,
+                             a=a,
+                             b=b,
+                             shape=shape,
+                             dtype=dtype)
+    return sample

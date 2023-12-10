@@ -105,3 +105,44 @@ def gamma(shape, alpha, dtype=None, seed=None):
         dtype=dtype,
         seed=seed,
     )
+
+
+def binomial(shape, counts, probs, dtype=None, seed=None):
+    dtype = dtype or floatx()
+    seed = tf_draw_seed(seed)
+    sample = tf.random.stateless_binomial(shape=shape,
+                                          seed=seed,
+                                          counts=counts,
+                                          probs=probs,
+                                          output_dtype=dtype)
+    return sample
+
+
+def beta(shape, a, b, dtype=None, seed=None):
+    dtype = dtype or floatx()
+    # since tensorflow doesn't offer a beta distribution function
+    # so we'll use the formula U(a,b) = (X(a) / (X(a) + Y(b)),
+    # where U(a,b) is a beta-distributed random variable with
+    # parameters a and b, and X(a) and Y(b) are gamma-distributed
+    # random variables with parameters a and b respectively.
+
+    # Additionally, we'll use two different seeds for our two
+    # gamma random variables to prevent any unintended
+    # dependencies and correlations between the generated values
+    # due to the usage of same seed.
+    seed_1 = tf_draw_seed(seed)
+    # The choice of 12 is totally arbitrary, as we're
+    # incrementing the user specified seed by a CONSTANT to
+    # ensure deterministic results.
+    seed_2 = tf_draw_seed(seed) + 12
+
+    gamma_a = tf.random.stateless_gamma(shape=shape,
+                                        seed=seed_1,
+                                        alpha=a,
+                                        dtype=dtype)
+    gamma_b = tf.random.stateless_gamma(shape=shape,
+                                        seed=seed_2,
+                                        alpha=b,
+                                        dtype=dtype)
+    sample = gamma_a / (gamma_a + gamma_b)
+    return sample
