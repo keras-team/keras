@@ -209,7 +209,9 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
     dtype = dtype or floatx()
     dtype = to_torch_dtype(dtype)
     counts = torch.ones(shape, device=get_device()) * convert_to_tensor(counts)
-    probabilities = torch.ones(shape, device=get_device()) * convert_to_tensor(probabilities)
+    probabilities = torch.ones(shape, device=get_device()) * convert_to_tensor(
+        probabilities
+    )
     prev_rng_state = torch.random.get_rng_state()
     first_seed, second_seed = draw_seed(seed)
     torch.manual_seed(first_seed + second_seed)
