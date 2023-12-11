@@ -107,18 +107,20 @@ def gamma(shape, alpha, dtype=None, seed=None):
     )
 
 
-def binomial(shape, counts, probs, dtype=None, seed=None):
+def binomial(shape, counts, probabilities, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = tf_draw_seed(seed)
-    sample = tf.random.stateless_binomial(shape=shape,
-                                          seed=seed,
-                                          counts=counts,
-                                          probs=probs,
-                                          output_dtype=dtype)
+    sample = tf.random.stateless_binomial(
+        shape=shape,
+        seed=seed,
+        counts=counts,
+        probs=probabilities,
+        output_dtype=dtype,
+    )
     return sample
 
 
-def beta(shape, a, b, dtype=None, seed=None):
+def beta(shape, alpha, beta, dtype=None, seed=None):
     dtype = dtype or floatx()
     # since tensorflow doesn't offer a beta distribution function
     # so we'll use the formula U(a,b) = (X(a) / (X(a) + Y(b)),
@@ -132,17 +134,31 @@ def beta(shape, a, b, dtype=None, seed=None):
     # due to the usage of same seed.
     seed_1 = tf_draw_seed(seed)
     # The choice of 12 is totally arbitrary, as we're
-    # incrementing the user specified seed by a CONSTANT to
+    # incrementing the first drawn seed by a CONSTANT to
     # ensure deterministic results.
-    seed_2 = tf_draw_seed(seed) + 12
+    seed_2 = seed_1 + 12
 
-    gamma_a = tf.random.stateless_gamma(shape=shape,
-                                        seed=seed_1,
-                                        alpha=a,
-                                        dtype=dtype)
-    gamma_b = tf.random.stateless_gamma(shape=shape,
-                                        seed=seed_2,
-                                        alpha=b,
-                                        dtype=dtype)
+    alpha = tf.convert_to_tensor(alpha, dtype=dtype)
+    beta = tf.convert_to_tensor(beta, dtype=dtype)
+
+    # tensorflow's tf.random.stateless_gamma has a bit of unconventional
+    # implementation of the stateless_gamma function where it checks the
+    # broadcastability of alpha's shape with ONLY the RIGHTMOST dimension of
+    # the specified output shape instead of considering the whole.
+    # Consequently, it then results in errors for perfectly broadcastable shapes
+    # such as for output shape of (2, 3) and alpha shape of (1, 3)
+    # So to resolve this, we explicitly broadcast alpha and beta to shape before
+    # passing them to the stateless_gamma function.
+    if tf.rank(alpha) > 1:
+        alpha = tf.broadcast_to(alpha, shape)
+    if tf.rank(beta) > 1:
+        beta = tf.broadcast_to(beta, shape)
+
+    gamma_a = tf.random.stateless_gamma(
+        shape=shape, seed=seed_1, alpha=alpha, dtype=dtype
+    )
+    gamma_b = tf.random.stateless_gamma(
+        shape=shape, seed=seed_2, alpha=beta, dtype=dtype
+    )
     sample = gamma_a / (gamma_a + gamma_b)
     return sample
