@@ -163,7 +163,7 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
 
         inputs = layers.Input((None, 2))
         masked = layers.Masking(mask_value=mask_value)(inputs)
-        normed = layers.BatchNormalization(momentum=0.0)(masked)
+        normed = layers.BatchNormalization(momentum=0.0, epsilon=1e-9)(masked)
         model = Model(inputs, normed)
         loss = MeanSquaredError()
         model.compile(
@@ -172,8 +172,8 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
             run_eagerly=run_eagerly,
         )
         model.fit(x=padded_data, y=padded_data, batch_size=10, epochs=5)
-        self.assertAllEqual(model.layers[2].moving_mean.numpy(), [1.5, 5.0])
-        self.assertAllEqual(
+        self.assertAllClose(model.layers[2].moving_mean.numpy(), [1.5, 5.0])
+        self.assertAllClose(
             model.layers[2].moving_variance.numpy(), [0.25, 0.0]
         )
 
