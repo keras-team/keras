@@ -8,6 +8,7 @@ from keras import ops
 from keras import testing
 from keras.random import random
 from keras.random import seed_generator
+from keras.utils.rng_utils import set_random_seed
 
 
 class RandomTest(testing.TestCase, parameterized.TestCase):
@@ -257,3 +258,129 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(ops.shape(values), shape)
         self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
         self.assertGreater(np.min(ops.convert_to_numpy(values)), 0.0)
+
+    @parameterized.parameters(
+        {
+            "seed": 10,
+            "shape": (5, 2),
+            "counts": 5e4,
+            "probabilities": 0.5,
+            "dtype": "float16",
+        },
+        {
+            "seed": 10,
+            "shape": (2,),
+            "counts": 1e5,
+            "probabilities": 0.5,
+            "dtype": "float32",
+        },
+        {
+            "seed": 10,
+            "shape": (2, 3),
+            "counts": [[1e5, 2e5, 3e5], [4e5, 5e5, 6e5]],
+            "probabilities": [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+            "dtype": "float32",
+        },
+    )
+    def test_binomial(self, seed, shape, counts, probabilities, dtype):
+        set_random_seed(1337)
+        values = random.binomial(
+            shape=shape,
+            counts=counts,
+            probabilities=probabilities,
+            seed=seed,
+            dtype=dtype,
+        )
+        self.assertEqual(ops.shape(values), shape)
+        self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
+
+        # The following test that ensures that the number of time
+        # each event occurs doesn't exceed the total input count specified
+        # by the user for that event.
+        # Hence, we do an element wise comparison between `counts` array
+        # and the (generated) `values` array.
+        assert np.greater_equal(np.array(counts), np.array(values)).all()
+
+        # Following test computes the probabilities of each event
+        # by dividing number of times an event occurs (which is the generated
+        # value) by the corresponding value in the (total) counts array.
+        # and then makes sure that the computed probabilities approximate
+        # the input probabilities
+        generated_probabilities = np.array(values) / np.array(counts)
+        probabilities = np.ones(shape) * np.array(probabilities)
+        self.assertAllClose(
+            probabilities, generated_probabilities, rtol=0.005, atol=0.005
+        )
+
+    @parameterized.parameters(
+        {
+            "seed": 10,
+            "shape": (10000,),
+            "alpha": 3.0,
+            "beta": 2.0,
+            "dtype": "float16",
+        },
+        {
+            "seed": 10,
+            "shape": (10000, 3),
+            "alpha": [[7.0, 0.5, 1.5]],
+            "beta": [[15.0, 0.9, 4.5]],
+            "dtype": "float32",
+        },
+        {
+            "seed": 10,
+            "shape": (10000, 30),
+            "alpha": 1.0,
+            "beta": 1.0,
+            "dtype": "float32",
+        },
+    )
+    def test_beta(self, seed, shape, alpha, beta, dtype):
+        set_random_seed(1337)
+        values = random.beta(
+            shape=shape, alpha=alpha, beta=beta, seed=seed, dtype=dtype
+        )
+        self.assertEqual(ops.shape(values), shape)
+        self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
+        self.assertGreaterEqual(np.min(ops.convert_to_numpy(values)), b=0.0)
+        self.assertLessEqual(np.max(ops.convert_to_numpy(values)), b=1.0)
+
+        _alpha_is_an_array = False
+        if isinstance(alpha, list):
+            alpha = np.array(alpha)
+            beta = np.array(beta)
+            _alpha_is_an_array = True
+
+        # Mean check:
+        # For a beta distributed random variable,
+        # mean = alpha / (alpha + beta)
+        expected_mean = alpha / (alpha + beta)
+
+        if _alpha_is_an_array:
+            actual_mean = np.mean(np.array(values), axis=0)
+            self.assertAllClose(
+                expected_mean.flatten(), actual_mean, atol=0.005, rtol=0.005
+            )
+        else:
+            actual_mean = np.mean(np.array(values).flatten())
+            self.assertAlmostEqual(expected_mean, actual_mean, decimal=2)
+
+        # Variance check:
+        # For a beta distributed random variable,
+        # variance = (alpha * beta) / ((alpha + beta)^2)(alpha + beta + 1)
+        expected_variance = (alpha * beta) / (
+            np.square(alpha + beta) * (alpha + beta + 1)
+        )
+        if _alpha_is_an_array:
+            actual_variance = np.var(np.array(values), axis=0)
+            self.assertAllClose(
+                expected_variance.flatten(),
+                actual_variance,
+                atol=0.005,
+                rtol=0.005,
+            )
+        else:
+            actual_variance = np.var(np.array(values).flatten())
+            self.assertAlmostEqual(
+                expected_variance, actual_variance, decimal=2
+            )

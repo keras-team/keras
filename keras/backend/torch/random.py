@@ -203,3 +203,35 @@ def gamma(shape, alpha, dtype=None, seed=None):
     sample = gamma_distribution.sample().type(dtype)
     torch.random.set_rng_state(prev_rng_state)
     return sample
+
+
+def binomial(shape, counts, probabilities, dtype=None, seed=None):
+    dtype = dtype or floatx()
+    dtype = to_torch_dtype(dtype)
+    counts = torch.ones(shape) * convert_to_tensor(counts)
+    probabilities = torch.ones(shape) * convert_to_tensor(probabilities)
+    prev_rng_state = torch.random.get_rng_state()
+    first_seed, second_seed = draw_seed(seed)
+    torch.manual_seed(first_seed + second_seed)
+    binomial_distribution = torch.distributions.binomial.Binomial(
+        total_count=counts, probs=probabilities
+    )
+    sample = binomial_distribution.sample().type(dtype)
+    torch.random.set_rng_state(prev_rng_state)
+    return sample
+
+
+def beta(shape, alpha, beta, dtype=None, seed=None):
+    dtype = dtype or floatx()
+    dtype = to_torch_dtype(dtype)
+    alpha = torch.ones(shape) * convert_to_tensor(alpha)
+    beta = torch.ones(shape) * convert_to_tensor(beta)
+    prev_rng_state = torch.random.get_rng_state()
+    first_seed, second_seed = draw_seed(seed)
+    torch.manual_seed(first_seed + second_seed)
+    beta_distribution = torch.distributions.beta.Beta(
+        concentration1=alpha, concentration0=beta
+    )
+    sample = beta_distribution.sample().type(dtype)
+    torch.random.set_rng_state(prev_rng_state)
+    return sample
