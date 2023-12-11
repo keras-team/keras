@@ -73,9 +73,12 @@ def convert_to_tensor(x, dtype=None, sparse=None):
             return x
         return x.astype(mlx_dtype)
     if isinstance(x, Variable):
-        if dtype and dtype != x.dtype:
+        if dtype and standardize_dtype(dtype) != x.dtype:
             return x.value.astype(mlx_dtype)
         return x.value
+    if isinstance(x, np.ndarray):
+        if x.dtype == np.int64:
+            x = x.astype(np.int32)
     return mx.array(x, dtype=mlx_dtype)
 
 
