@@ -92,23 +92,25 @@ def gamma(shape, alpha, dtype=None, seed=None):
     return jax.random.gamma(seed, alpha, shape=shape, dtype=dtype)
 
 
-def binomial(shape, counts, probs, dtype=None, seed=None):
+def binomial(shape, counts, probabilities, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = jax_draw_seed(seed)
-    sample = jax.random.binomial(key=seed,
-                                 n=counts,
-                                 p=probs,
-                                 shape=shape,
-                                 dtype=dtype)
+    # jax doesn't accept python lists as arguments
+    counts = jax.numpy.array(counts)
+    probabilities = jax.numpy.array(probabilities)
+    sample = jax.random.binomial(
+        key=seed, n=counts, p=probabilities, shape=shape, dtype=dtype
+    )
     return sample
 
 
-def beta(shape, a, b, dtype=None, seed=None):
+def beta(shape, alpha, beta, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = jax_draw_seed(seed)
-    sample = jax.random.beta(key=seed,
-                             a=a,
-                             b=b,
-                             shape=shape,
-                             dtype=dtype)
+    # jax doesn't accept python lists as arguments
+    alpha = jax.numpy.array(alpha)
+    beta = jax.numpy.array(beta)
+    sample = jax.random.beta(
+        key=seed, a=alpha, b=beta, shape=shape, dtype=dtype
+    )
     return sample
