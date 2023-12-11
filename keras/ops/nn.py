@@ -1544,16 +1544,22 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
 
 class MultiHot(Operation):
-    def __init__(self, num_tokens=None, axis=-1, dtype=None, name=None):
-        super().__init__(name)
-        self.num_tokens = num_tokens
+    def __init__(
+        self, num_classes=None, axis=-1, dtype=None, name=None, **kwargs
+    ):
+        if num_classes is None and "num_tokens" in kwargs:
+            num_classes = kwargs.pop("num_tokens")
+        if num_classes is None:
+            raise ValueError("Argument `num_classes` must be specified.")
+        super().__init__(name, **kwargs)
+        self.num_classes = num_classes
         self.axis = axis
         self.dtype = dtype or backend.floatx()
 
     def call(self, inputs):
         return backend.nn.multi_hot(
             inputs,
-            num_classes=self.num_tokens,
+            num_classes=self.num_classes,
             axis=self.axis,
             dtype=self.dtype,
         )
@@ -1561,9 +1567,9 @@ class MultiHot(Operation):
     def compute_output_spec(self, inputs):
         x_shape = list(getattr(inputs, "shape", []))
         if self.axis == -1:
-            x_shape.append(self.num_tokens)
+            x_shape.append(self.num_classes)
         elif self.axis >= 0 and self.axis < len(x_shape):
-            x_shape.insert(self.axis, self.num_tokens)
+            x_shape.insert(self.axis, self.num_classes)
         else:
             raise ValueError(
                 f"axis must be -1 or between [0, {len(inputs.shape)}), but "
@@ -1584,7 +1590,7 @@ class MultiHot(Operation):
         "keras.ops.nn.multi_hot",
     ]
 )
-def multi_hot(inputs, num_tokens, axis=-1, dtype=None):
+def multi_hot(inputs, num_classes=None, axis=-1, dtype=None, **kwargs):
     """Encodes integer labels as multi-hot vectors.
 
     This function encodes integer labels as multi-hot vectors, where each label
@@ -1592,7 +1598,7 @@ def multi_hot(inputs, num_tokens, axis=-1, dtype=None):
 
     Args:
         inputs: Tensor of integer labels to be converted to multi-hot vectors.
-        num_tokens: Integer, the total number of unique tokens or classes.
+        num_classes: Integer, the total number of unique classes.
         axis: (optional) Axis along which the multi-hot encoding should be
             added. Defaults to `-1`, which corresponds to the last dimension.
         dtype: (optional) The data type of the resulting tensor. Default
@@ -1604,14 +1610,19 @@ def multi_hot(inputs, num_tokens, axis=-1, dtype=None):
     Example:
 
     >>> data = keras.ops.convert_to_tensor([0, 4])
-    >>> keras.ops.multi_hot(data, num_tokens=5)
+    >>> keras.ops.multi_hot(data, num_classes=5)
     array([1.0, 0.0, 0.0, 0.0, 1.0], dtype=float32)
 
     """
-    if any_symbolic_tensors((inputs,)):
-        return MultiHot(num_tokens, axis, dtype).symbolic_call(inputs)
+    if num_classes is None and "num_tokens" in kwargs:
+        num_classes = kwargs.pop("num_tokens")
+    if num_classes is None:
+        raise ValueError("Argument `num_classes` must be specified.")
 
-    return backend.nn.multi_hot(inputs, num_tokens, axis, dtype)
+    if any_symbolic_tensors((inputs,)):
+        return MultiHot(num_classes, axis, dtype).symbolic_call(inputs)
+
+    return backend.nn.multi_hot(inputs, num_classes, axis, dtype)
 
 
 class Moments(Operation):

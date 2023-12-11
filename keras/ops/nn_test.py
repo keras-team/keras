@@ -1460,6 +1460,14 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np.eye(4)[indices_1d],
         )
 
+        # Test 1D list one-hot.
+        indices_1d = [0, 1, 2, 3]
+        self.assertAllClose(knn.one_hot(indices_1d, 4), np.eye(4)[indices_1d])
+        self.assertAllClose(
+            knn.one_hot(indices_1d, 4, axis=0),
+            np.eye(4)[indices_1d],
+        )
+
         # Test 2D one-hot.
         indices_2d = np.array([[0, 1], [2, 3]])
         self.assertAllClose(knn.one_hot(indices_2d, 4), np.eye(4)[indices_2d])
