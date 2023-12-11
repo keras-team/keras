@@ -101,21 +101,17 @@ def gamma(shape, alpha, dtype=None, seed=None):
     return rng.gamma(alpha, scale=1.0, size=shape).astype(dtype)
 
 
-def binomial(shape, counts, probs, dtype=None, seed=None):
+def binomial(shape, counts, probabilities, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = draw_seed(seed)
     rng = np.random.default_rng(seed)
-    sample = rng.binomial(n=counts,
-                          p=probs,
-                          size=shape).astype(dtype)
+    sample = rng.binomial(n=counts, p=probabilities, size=shape).astype(dtype)
     return sample
 
 
-def beta(shape, a, b, dtype=None, seed=None):
+def beta(shape, alpha, beta, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = draw_seed(seed)
     rng = np.random.default_rng(seed)
-    sample = rng.beta(a=a,
-                      b=b,
-                      size=shape).astype(dtype)
+    sample = rng.beta(a=alpha, b=beta, size=shape).astype(dtype)
     return sample
