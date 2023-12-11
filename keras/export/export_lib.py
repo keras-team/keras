@@ -469,10 +469,12 @@ class ExportArchive:
         ):
             logging.warning(
                 "JAX backend is using GPU for export, but installed "
-                "TF package cannot access GPU. To use JAX-native serialization "
-                "for high-performance export and serving, please install "
-                "tensorflow-gpu and ensure CUDA version compatiblity between "
-                "your JAX and TF installations."
+                "TF package cannot access GPU, so reloading the model with "
+                "the TF runtime in the same environment will not work. "
+                "To use JAX-native serialization for high-performance export "
+                "and serving, please install `tensorflow-gpu` and ensure "
+                "CUDA version compatiblity between your JAX and TF "
+                "installations."
             )
             return False
         else:
