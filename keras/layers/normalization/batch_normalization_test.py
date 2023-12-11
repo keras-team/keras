@@ -163,7 +163,7 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
 
         inputs = layers.Input((None, 2))
         masked = layers.Masking(mask_value=mask_value)(inputs)
-        normed = layers.BatchNormalization(momentum=0.0, epsilon=1e-9)(masked)
+        normed = layers.BatchNormalization(momentum=0.0)(masked)
         model = Model(inputs, normed)
         loss = MeanSquaredError()
         model.compile(
