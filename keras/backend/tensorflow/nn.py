@@ -789,31 +789,6 @@ def batch_normalization(
     )
 
 
-def ctc_labels_to_sparse(labels, label_length):
-    """Converts CTC labels to a sparse tensor.
-
-    Arguments:
-        labels: Tensor `(batch_size, max_label_length)` containing
-            the dense CTC labels.
-        label_length: Tensor `(batch_size,)` containing the
-            sequence length for each label sequence in the batch.
-
-    Returns:
-        Sparse tensor representation of `labels`.
-    """
-    max_label_len = tf.shape(labels)[1]
-
-    mask = tf.sequence_mask(label_length, max_label_len)
-    indices = tf.where(mask)
-    values = tf.boolean_mask(labels, mask)
-
-    return tf.SparseTensor(
-        indices=indices,
-        values=values,
-        dense_shape=tf.cast(tf.shape(labels), dtype="int64"),
-    )
-
-
 def ctc_batch_cost(
     target,
     output,
@@ -825,8 +800,8 @@ def ctc_batch_cost(
 
     Arguments:
         target: Tensor `(batch_size, max_target_length)` containing the
-            target sequences.
-        output: Tensor `(batch_size, max_output_length, label_classes)`
+            target sequences in integer format.
+        output: Tensor `(batch_size, max_output_length, num_classes)`
             containing the output of the softmax.
         target_length: Tensor `(batch_size,)` containing the sequence length
             for each target sequence in the batch.
@@ -844,7 +819,17 @@ def ctc_batch_cost(
     output = tf.convert_to_tensor(output)
     output = tf.cast(output, dtype="float32")
 
-    sparse_target = ctc_labels_to_sparse(target, target_length)
+    max_label_len = tf.shape(target)[1]
+
+    mask = tf.sequence_mask(target_length, max_label_len)
+    indices = tf.where(mask)
+    values = tf.boolean_mask(target, mask)
+
+    sparse_target = tf.SparseTensor(
+        indices=indices,
+        values=values,
+        dense_shape=tf.cast(tf.shape(target), dtype="int64"),
+    )
 
     return tf.nn.ctc_loss(
         labels=sparse_target,
