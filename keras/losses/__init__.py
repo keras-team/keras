@@ -31,7 +31,6 @@ from keras.losses.losses import mean_squared_logarithmic_error
 from keras.losses.losses import poisson
 from keras.losses.losses import sparse_categorical_crossentropy
 from keras.losses.losses import squared_hinge
-from keras.losses.losses import ctc_batch_cost
 from keras.saving import serialization_lib
 
 ALL_OBJECTS = {
@@ -74,8 +73,6 @@ ALL_OBJECTS = {
     hinge,
     squared_hinge,
     categorical_hinge,
-    # CTC
-    ctc_batch_cost,
 }
 
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
