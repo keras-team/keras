@@ -90,7 +90,11 @@ class SeedGenerator:
         return new_seed_value
 
     def get_config(self):
-        return {"_initial_seed": self._initial_seed, "state": self.state}
+        return {"seed": self._initial_seed, "backend": self.backend}
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 def global_seed_generator():
