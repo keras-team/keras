@@ -23,6 +23,12 @@ jobs:
       PYTHON: ${{ matrix.python-version }}
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
     steps:
+      - name: Cleanup diskspace
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - uses: actions/checkout@v4
       - name: Check for changes in keras/applications
         uses: dorny/paths-filter@v2
@@ -91,6 +97,12 @@ jobs:
     name: Check the code format
     runs-on: ubuntu-latest
     steps:
+      - name: Cleanup diskspace
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - uses: actions/checkout@v4
       - name: Set up Python 3.9
         uses: actions/setup-python@v4
