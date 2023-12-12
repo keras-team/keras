@@ -745,3 +745,25 @@ def batch_normalization(
     order.pop(1)
     order.insert(axis, 1)
     return x.permute(order)
+
+
+def ctc_batch_cost(
+    target,
+    output,
+    target_length,
+    output_length,
+    blank_index=0,
+):
+    target = convert_to_tensor(target)
+    output = convert_to_tensor(output)
+    target_length = convert_to_tensor(target_length)
+    output_length = convert_to_tensor(output_length)
+
+    return tnn.ctc_loss(
+        output,
+        target,
+        output_length,
+        target_length,
+        blank=blank_index,
+        reduction="none",
+    )
