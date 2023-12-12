@@ -299,14 +299,15 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         # by the user for that event.
         # Hence, we do an element wise comparison between `counts` array
         # and the (generated) `values` array.
-        assert np.greater_equal(np.array(counts), np.array(values)).all()
+        values_np = ops.convert_to_numpy(values)
+        assert np.greater_equal(np.array(counts), values_np).all()
 
         # Following test computes the probabilities of each event
         # by dividing number of times an event occurs (which is the generated
         # value) by the corresponding value in the (total) counts array.
         # and then makes sure that the computed probabilities approximate
         # the input probabilities
-        generated_probabilities = np.array(values) / np.array(counts)
+        generated_probabilities = values_np / np.array(counts)
         probabilities = np.ones(shape) * np.array(probabilities)
         self.assertAllClose(
             probabilities, generated_probabilities, rtol=0.005, atol=0.005
@@ -342,8 +343,9 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(ops.shape(values), shape)
         self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
-        self.assertGreaterEqual(np.min(ops.convert_to_numpy(values)), b=0.0)
-        self.assertLessEqual(np.max(ops.convert_to_numpy(values)), b=1.0)
+        values_np = ops.convert_to_numpy(values)
+        self.assertGreaterEqual(np.min(values_np), b=0.0)
+        self.assertLessEqual(np.max(values_np), b=1.0)
 
         _alpha_is_an_array = False
         if isinstance(alpha, list):
@@ -357,12 +359,12 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         expected_mean = alpha / (alpha + beta)
 
         if _alpha_is_an_array:
-            actual_mean = np.mean(np.array(values), axis=0)
+            actual_mean = np.mean(values_np, axis=0)
             self.assertAllClose(
                 expected_mean.flatten(), actual_mean, atol=0.005, rtol=0.005
             )
         else:
-            actual_mean = np.mean(np.array(values).flatten())
+            actual_mean = np.mean(values_np.flatten())
             self.assertAlmostEqual(expected_mean, actual_mean, decimal=2)
 
         # Variance check:
@@ -372,7 +374,7 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
             np.square(alpha + beta) * (alpha + beta + 1)
         )
         if _alpha_is_an_array:
-            actual_variance = np.var(np.array(values), axis=0)
+            actual_variance = np.var(values_np, axis=0)
             self.assertAllClose(
                 expected_variance.flatten(),
                 actual_variance,
@@ -380,7 +382,7 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
                 rtol=0.005,
             )
         else:
-            actual_variance = np.var(np.array(values).flatten())
+            actual_variance = np.var(values_np.flatten())
             self.assertAlmostEqual(
                 expected_variance, actual_variance, decimal=2
             )
