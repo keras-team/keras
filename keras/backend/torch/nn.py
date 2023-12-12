@@ -759,8 +759,10 @@ def ctc_batch_cost(
     target_length = convert_to_tensor(target_length)
     output_length = convert_to_tensor(output_length)
 
+    logits = tnn.log_softmax(output, dim=-1)
+
     return tnn.ctc_loss(
-        output,
+        logits,
         target,
         output_length,
         target_length,
