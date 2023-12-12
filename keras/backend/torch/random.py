@@ -194,8 +194,8 @@ def shuffle(x, axis=0, seed=None):
 def gamma(shape, alpha, dtype=None, seed=None):
     dtype = dtype or floatx()
     dtype = to_torch_dtype(dtype)
-    alpha = torch.ones(shape) * torch.tensor(alpha)
-    beta = torch.ones(shape)
+    alpha = torch.broadcast_to(convert_to_tensor(alpha), shape)
+    beta = torch.ones(shape, device=get_device())
     prev_rng_state = torch.random.get_rng_state()
     first_seed, second_seed = draw_seed(seed)
     torch.manual_seed(first_seed + second_seed)
