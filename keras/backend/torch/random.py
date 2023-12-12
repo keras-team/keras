@@ -208,8 +208,8 @@ def gamma(shape, alpha, dtype=None, seed=None):
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
     dtype = dtype or floatx()
     dtype = to_torch_dtype(dtype)
-    counts = torch.ones(shape) * convert_to_tensor(counts)
-    probabilities = torch.ones(shape) * convert_to_tensor(probabilities)
+    counts = torch.broadcast_to(convert_to_tensor(counts), shape)
+    probabilities = torch.broadcast_to(convert_to_tensor(probabilities), shape)
     prev_rng_state = torch.random.get_rng_state()
     first_seed, second_seed = draw_seed(seed)
     torch.manual_seed(first_seed + second_seed)
@@ -224,8 +224,8 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
 def beta(shape, alpha, beta, dtype=None, seed=None):
     dtype = dtype or floatx()
     dtype = to_torch_dtype(dtype)
-    alpha = torch.ones(shape) * convert_to_tensor(alpha)
-    beta = torch.ones(shape) * convert_to_tensor(beta)
+    alpha = torch.broadcast_to(convert_to_tensor(alpha), shape)
+    beta = torch.broadcast_to(convert_to_tensor(beta), shape)
     prev_rng_state = torch.random.get_rng_state()
     first_seed, second_seed = draw_seed(seed)
     torch.manual_seed(first_seed + second_seed)
