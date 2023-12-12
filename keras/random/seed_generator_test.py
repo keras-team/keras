@@ -77,3 +77,30 @@ class SeedGeneratorTest(testing.TestCase):
             "When tracing a JAX function, you should only use seeded random",
         ):
             traced_function()
+
+    def config_equals(config1, config2):
+        # Both `config1` and `config2` are python dicts. So the first check is
+        # to see if both of them have same keys.
+        if config1.keys() != config2.keys():
+            return False
+
+        # Iterate over all keys of the configs and compare each entry.
+        for key in list(config1.keys()):
+            v1, v2 = config1[key], config2[key]
+            if not v1 == v2:
+                return False
+        return True
+
+    def test_seed_generator_serialization(self):
+        random_generator = seed_generator.SeedGenerator(seed=42)
+        config = random_generator.get_config()
+        self.assertAllInitParametersAreInConfig(random_generator, config)
+
+        reconstructed_random_generator = random_generator.from_config(config)
+
+        self.assertTrue(
+            self.config_equals(
+                random_generator.get_config(),
+                reconstructed_random_generator.get_config(),
+            )
+        )
