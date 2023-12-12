@@ -1867,3 +1867,10 @@ def binary_focal_crossentropy(
         focal_bce = weight * focal_bce
 
     return ops.mean(focal_bce, axis=axis)
+
+
+@keras_export("keras.losses.ctc_batch_cost")
+def ctc_batch_cost(y_true, y_pred, input_length, label_length, blank_label=0):
+    return backend.nn.ctc_batch_cost(
+        y_true, y_pred, input_length, label_length, blank_index=blank_label
+    )
