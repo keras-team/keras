@@ -27,7 +27,7 @@ class Conv2D(BaseConv):
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
             corresponds to inputs with shape
-            `(batch_size, channels, height, width)`
+            `(batch_size, height, width, channels)`
             while `"channels_first"` corresponds to inputs with shape
             `(batch_size, channels, height, width)`. It defaults to the
             `image_data_format` value found in your Keras config file at

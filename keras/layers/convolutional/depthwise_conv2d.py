@@ -40,10 +40,11 @@ class DepthwiseConv2D(BaseDepthwiseConv):
             output channels will be equal to `input_channel * depth_multiplier`.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, steps, features)`
+            corresponds to inputs with shape `(batch, height, width, channels)`
             while `"channels_first"` corresponds to inputs with shape
-            `(batch, features, steps)`. It defaults to the `image_data_format`
-            value found in your Keras config file at `~/.keras/keras.json`.
+            `(batch, channels, height, width)`. It defaults to the
+            `image_data_format` value found in your Keras config file
+            at `~/.keras/keras.json`.
             If you never set it, then it will be `"channels_last"`.
         dilation_rate: int or tuple/list of 2 integers, specifying the dilation
             rate to use for dilated convolution.
