@@ -89,6 +89,9 @@ class SeedGenerator:
             self.state.assign((seed_state + 1) * 5387 % 933199)
         return new_seed_value
 
+    def get_config(self):
+        return {"_initial_seed": self._initial_seed, "state": self.state}
+
 
 def global_seed_generator():
     if jax_utils.is_in_jax_tracing_scope():
