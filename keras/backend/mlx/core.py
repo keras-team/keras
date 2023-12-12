@@ -68,17 +68,35 @@ def convert_to_tensor(x, dtype=None, sparse=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with mlx backend")
     mlx_dtype = to_mlx_dtype(dtype) if dtype is not None else None
+
     if is_tensor(x):
         if dtype is None:
             return x
         return x.astype(mlx_dtype)
+
     if isinstance(x, Variable):
         if dtype and standardize_dtype(dtype) != x.dtype:
             return x.value.astype(mlx_dtype)
         return x.value
+
     if isinstance(x, np.ndarray):
         if x.dtype == np.int64:
             x = x.astype(np.int32)
+        return mx.array(x, dtype=mlx_dtype)
+
+    if isinstance(x, list):
+        def to_scalar_list(x):
+            if isinstance(x, list):
+                return [to_scalar_list(xi) for xi in x]
+            elif isinstance(x, mx.array):
+                if x.ndim == 0:
+                    return x.item()
+                else:
+                    return x.tolist()
+            else:
+                return x
+        return mx.array(to_scalar_list(x), dtype=mlx_dtype)
+
     return mx.array(x, dtype=mlx_dtype)
 
 

@@ -1,5 +1,6 @@
 
 import mlx.core as mx
+import numpy as np
 import tree
 
 from keras import backend
@@ -22,6 +23,14 @@ class MLXTrainer(base_trainer.Trainer):
         self.train_function = None
         self.test_function = None
         self.predict_function = None
+
+    def _data_to_mlx(self, data):
+        def _transform(x):
+            if isinstance(x, np.ndarray):
+                return mx.array(x)
+            else:
+                return x
+        return tree.map_structure(_transform, data)
 
     def mlx_state_sync(self):
         if not getattr(self, "_mlx_state", None):
@@ -78,6 +87,34 @@ class MLXTrainer(base_trainer.Trainer):
             for v in self.metrics_variables:
                 v._value = None
 
+
+    def _pythonify_logs(self, logs):
+        result = {}
+        for key, value in sorted(logs.items()):
+            if isinstance(value, dict):
+                result.update(self._pythonify_logs(value))
+            else:
+                if (
+                    isinstance(value, mx.array) and
+                    value.size == 1 and
+                    value.dtype in (mx.float32, mx.float16, mx.bfloat16)
+                ):
+                    value = value.item()
+                result[key] = value
+        return result
+
+    def get_metrics_result(self):
+        """Same as the base class but doesn't pythonify the logs to allow for
+        lazy computation."""
+        return_metrics = {}
+        for metric in self.metrics:
+            result = metric.result()
+            if isinstance(result, dict):
+                return_metrics.update(result)
+            else:
+                return_metrics[metric.name] = result
+        return return_metrics
+
     def compute_loss_and_updates(
         self,
         trainable_variables,
@@ -117,9 +154,12 @@ class MLXTrainer(base_trainer.Trainer):
             with backend.StatelessScope(state_mapping=mapping):
                 loss = self.optimizer.scale_loss(loss)
 
+        mx.simplify(loss)
+
         return loss, unscaled_loss, y_pred, non_trainable_variables
 
     def train_step(self, state, data):
+        data = self._data_to_mlx(data)
         (
             trainable_variables,
             non_trainable_variables,
@@ -129,22 +169,34 @@ class MLXTrainer(base_trainer.Trainer):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
         grad_fn = mx.value_and_grad(self.compute_loss_and_updates)
 
-        (loss, unscaled_loss, y_pred, non_trainable_variables), grads = grad_fn(
-            trainable_variables,
-            non_trainable_variables,
-            x,
-            y,
-            sample_weight,
-            training=True,
-            optimizer_variables=optimizer_variables,
-        )
+        if trainable_variables:
+            (loss, unscaled_loss, y_pred, non_trainable_variables), grads = grad_fn(
+                trainable_variables,
+                non_trainable_variables,
+                x,
+                y,
+                sample_weight,
+                training=True,
+                optimizer_variables=optimizer_variables,
+            )
 
-        (
-            trainable_variables,
-            optimizer_variables,
-        ) = self.optimizer.stateless_apply(
-            optimizer_variables, grads, trainable_variables
-        )
+            (
+                trainable_variables,
+                optimizer_variables,
+            ) = self.optimizer.stateless_apply(
+                optimizer_variables, grads, trainable_variables
+            )
+            mx.simplify(loss, trainable_variables, optimizer_variables)
+        else:
+            loss, unscaled_loss, y_pred, non_trainable_variables = self.compute_loss_and_updates(
+                trainable_variables,
+                non_trainable_variables,
+                x,
+                y,
+                sample_weight,
+                training=True,
+                optimizer_variables=optimizer_variables
+            )
 
         with backend.StatelessScope(
             state_mapping=[
@@ -172,6 +224,7 @@ class MLXTrainer(base_trainer.Trainer):
         return logs, state
 
     def test_step(self, state, data):
+        data = self._data_to_mlx(data)
         (
             trainable_variables,
             non_trainable_variables,
@@ -218,6 +271,7 @@ class MLXTrainer(base_trainer.Trainer):
             kwargs["training"] = False
 
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+        x = self._data_to_mlx(x)
         outputs, non_trainable_variables = self.stateless_call(
             trainable_variables, non_trainable_variables, x, **kwargs
         )
@@ -296,7 +350,8 @@ class MLXTrainer(base_trainer.Trainer):
     def _symbolic_build(self, data_batch):
         model_unbuilt = not all(layer.built for layer in self._flatten_layers())
         compile_metrics_unbuilt = (
-            self._compile_metrics is not None
+            hasattr(self, "_compile_metrics")
+            and self._compile_metrics is not None
             and not self._compile_metrics.built
         )
         if model_unbuilt or compile_metrics_unbuilt:
@@ -328,7 +383,7 @@ class MLXTrainer(base_trainer.Trainer):
                     "Exception encountered:\n"
                     f"'{e}'"
                 )
-            if compile_metrics_unbuilt:
+            if compile_metrics_unbuilt and y is not None:
                 # Build all metric state with `backend.compute_output_spec`.
                 backend.compute_output_spec(
                     self.compute_metrics,
@@ -337,7 +392,7 @@ class MLXTrainer(base_trainer.Trainer):
                     y_pred,
                     sample_weight=sample_weight,
                 )
-        if self.optimizer is not None and not self.optimizer.built:
+        if hasattr(self, "optimizer") and self.optimizer is not None and not self.optimizer.built:
             # Build optimizer
             self.optimizer.build(self.trainable_variables)
         self._post_build()
@@ -480,7 +535,7 @@ class MLXTrainer(base_trainer.Trainer):
             self.mlx_state_sync()
 
             # Override with model metrics instead of last step logs
-            epoch_logs = self.get_metrics_result()
+            epoch_logs = self._pythonify_logs(self.get_metrics_result())
 
             # Run validation.
             if validation_data and self._should_eval(epoch, validation_freq):
@@ -620,7 +675,7 @@ class MLXTrainer(base_trainer.Trainer):
                 break
 
         self.mlx_state_sync()
-        logs = self.get_metrics_result()
+        logs = self._pythonify_logs(self.get_metrics_result())
         callbacks.on_test_end(logs)
         self._mlx_state = None
 
@@ -640,6 +695,13 @@ class MLXTrainer(base_trainer.Trainer):
             shuffle=False,
             steps_per_execution=self.steps_per_execution,
         )
+
+        if not all(layer.built for layer in self._flatten_layers()):
+            # Build the model on one batch of data.
+            for _, data in epoch_iterator.enumerate_epoch():
+                data_batch = data[0]
+                self._symbolic_build(data_batch)
+                break
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -681,7 +743,7 @@ class MLXTrainer(base_trainer.Trainer):
         outputs = None
         for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_predict_batch_begin(step)
-            batch_outputs, state = self.predict_function(state, x)
+            batch_outputs, state = self.predict_function(state, data)
             mx.eval(batch_outputs, state)
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
@@ -749,7 +811,7 @@ class MLXTrainer(base_trainer.Trainer):
         }
         self.mlx_state_sync()
 
-        logs = tree.map_structure(lambda x: np.array(x), logs)
+        logs = self._pythonify_logs(logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -793,14 +855,15 @@ class MLXTrainer(base_trainer.Trainer):
         }
         self.mlx_state_sync()
 
-        logs = self.test_function([data])
-        logs = tree.map_structure(lambda x: np.array(x), logs)
+        logs = self._pythonify_logs(logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
 
     def predict_on_batch(self, x):
+        self._symbolic_build(x)
         self.make_predict_function()
+
         trainable_variables = [v.value for v in self.trainable_variables]
         non_trainable_variables = [
             v.value for v in self.non_trainable_variables

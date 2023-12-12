@@ -2,6 +2,7 @@ import math
 
 import mlx.core as mx
 
+from keras.backend import config
 from keras.backend import standardize_dtype
 from keras.backend.mlx.core import cast, convert_to_tensor, to_mlx_dtype
 
