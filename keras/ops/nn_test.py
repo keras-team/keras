@@ -1750,6 +1750,10 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(tuple(output.shape), (2, 3, 3, 5))
 
+    @pytest.mark.skipif(
+        backend.backend() == "jax",
+        reason="CTC loss is not implemented in the JAX backend yet.",
+    )
     def test_ctc_loss(self):
         labels = np.array([[1, 2, 1], [1, 2, 2]])
         outputs = np.array(
