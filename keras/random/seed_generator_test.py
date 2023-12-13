@@ -1,3 +1,5 @@
+import inspect
+
 import numpy as np
 import pytest
 
@@ -81,7 +83,24 @@ class SeedGeneratorTest(testing.TestCase):
     def test_seed_generator_serialization(self):
         random_generator = seed_generator.SeedGenerator(seed=42)
         config = random_generator.get_config()
-        self.assertAllInitParametersAreInConfig(random_generator, config)
+
+        def assertAllInitParametersAreInConfig(
+            self, seed_generator_cls, config
+        ):
+            excluded_name = ["args", "kwargs", "*"]
+            parameter_names = {
+                v
+                for v in inspect.signature(seed_generator_cls).parameters.keys()
+                if v not in excluded_name
+            }
+
+            intersection_with_config = {
+                v for v in config.keys() if v in parameter_names
+            }
+
+            self.assertSetEqual(parameter_names, intersection_with_config)
+
+        assertAllInitParametersAreInConfig(random_generator, config)
 
         reconstructed_random_generator = random_generator.from_config(config)
 
