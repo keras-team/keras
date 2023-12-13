@@ -99,7 +99,7 @@ class SeedGeneratorTest(testing.TestCase):
         reconstructed_random_generator = random_generator.from_config(config)
 
         self.assertTrue(
-            self.config_equals(
+            SeedGeneratorTest.config_equals(
                 random_generator.get_config(),
                 reconstructed_random_generator.get_config(),
             )
