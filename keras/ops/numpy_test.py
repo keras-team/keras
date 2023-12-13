@@ -4082,6 +4082,7 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         "cos",
         "cosh",
         "exp",
+        "isfinite",
         "log",
         "log10",
         "log2",
@@ -4138,10 +4139,8 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         ("maximum", union_sparseness),
         ("minimum", union_sparseness),
         ("multiply", intersection_sparseness),
-        ("mod", division_sparseness),
         ("divide", division_sparseness),
         ("true_divide", division_sparseness),
-        ("floor_divide", division_sparseness),
     ]
     BINARY_OPS_TESTS = [
         {
@@ -4270,9 +4269,6 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
     def test_binary_correctness_sparse_tensor(
         self, x, y, op_function, op_class, np_op, op_sparseness, dtype
     ):
-        if dtype == "int32" and op_function.__name__ in ("floor_divide", "mod"):
-            self.skipTest(f"{op_function.__name__} does not support integers")
-
         x = backend.cast(x, dtype)
         y = backend.cast(y, dtype)
         expected_result = np_op(
@@ -4294,9 +4290,6 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
     def test_binary_correctness_indexed_slices(
         self, x, y, op_function, op_class, np_op, op_sparseness, dtype
     ):
-        if dtype == "int32" and op_function.__name__ in ("floor_divide", "mod"):
-            self.skipTest(f"{op_function.__name__} does not support integers")
-
         x = backend.cast(x, dtype)
         y = backend.cast(y, dtype)
         expected_result = np_op(

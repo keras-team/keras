@@ -807,6 +807,7 @@ def isclose(x1, x2):
     return tfnp.isclose(x1, x2)
 
 
+@sparse.densifying_unary(True)
 def isfinite(x):
     return tfnp.isfinite(x)
 
@@ -824,7 +825,7 @@ def isnan(x):
 def less(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    # tfnp handles the casting internally during comparision, but it lacks
+    # tfnp handles the casting internally during comparison, but it lacks
     # support for bfloat16. Therefore we explicitly cast to the same dtype.
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = tf.cast(x1, dtype)
@@ -1021,7 +1022,6 @@ def minimum(x1, x2):
     return tfnp.minimum(x1, x2)
 
 
-@sparse.elementwise_division
 def mod(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1640,7 +1640,6 @@ def eye(N, M=None, k=0, dtype=None):
     return tfnp.eye(N, M=M, k=k, dtype=dtype)
 
 
-@sparse.elementwise_division
 def floor_divide(x1, x2):
     return tfnp.floor_divide(x1, x2)
 
