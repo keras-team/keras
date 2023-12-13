@@ -974,6 +974,17 @@ class NNOpsStaticShapeTest(testing.TestCase):
             (10, 3, 4, 5),
         )
 
+    @pytest.mark.skipif(
+        backend.backend() == "jax",
+        reason="CTC loss is not implemented in the JAX backend yet.",
+    )
+    def test_ctc_loss(self):
+        x = KerasTensor([10, 3, 4])
+        y = KerasTensor([10, 3], dtype="int32")
+        x_lengths = KerasTensor([10], dtype="int32")
+        y_lengths = KerasTensor([10], dtype="int32")
+        self.assertEqual(knn.ctc_loss(x, y, x_lengths, y_lengths).shape, (10,))
+
 
 class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_relu(self):
