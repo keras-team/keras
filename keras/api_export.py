@@ -21,11 +21,11 @@ def register_internal_serializable(path, symbol):
 
 
 def get_symbol_from_name(name):
-    REGISTERED_NAMES_TO_OBJS.get(name, None)
+    return REGISTERED_NAMES_TO_OBJS.get(name, None)
 
 
 def get_name_from_symbol(symbol):
-    REGISTERED_OBJS_TO_NAMES.get(symbol, None)
+    return REGISTERED_OBJS_TO_NAMES.get(symbol, None)
 
 
 if namex:
