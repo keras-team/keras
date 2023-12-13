@@ -1750,6 +1750,22 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(tuple(output.shape), (2, 3, 3, 5))
 
+    def test_ctc_loss(self):
+        labels = np.array([[1, 2, 1], [1, 2, 2]])
+        outputs = np.array(
+            [
+                [[0.4, 0.8, 0.4], [0.4, 0.8, 0.4]],
+                [[0.2, 0.8, 0.3], [0.2, 0.3, 0.3]],
+                [[0.9, 0.4, 0.5], [0.4, 0.3, 0.2]],
+            ]
+        )
+
+        label_length = np.array([3, 2])
+        output_length = np.array([3, 2])
+
+        result = knn.ctc_loss(labels, outputs, label_length, output_length)
+        self.assertAllClose(result, np.array([3.4411672, 1.91680186]))
+
 
 class TestLogitRecovery(testing.TestCase):
     def test_logit_recovery_binary_crossentropy(self):
