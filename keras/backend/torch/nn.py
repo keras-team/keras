@@ -747,12 +747,12 @@ def batch_normalization(
     return x.permute(order)
 
 
-def ctc_batch_cost(
+def ctc_loss(
     target,
     output,
     target_length,
     output_length,
-    blank_index=0,
+    mask_index=0,
 ):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
@@ -766,6 +766,6 @@ def ctc_batch_cost(
         target,
         output_length,
         target_length,
-        blank=blank_index,
+        blank=mask_index,
         reduction="none",
     )

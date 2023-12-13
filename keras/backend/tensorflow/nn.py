@@ -789,12 +789,12 @@ def batch_normalization(
     )
 
 
-def ctc_batch_cost(
+def ctc_loss(
     target,
     output,
     target_length,
     output_length,
-    blank_index=0,
+    mask_index=0,
 ):
     """Runs CTC (Connectionist Temporal Classification) loss on each
     batch element.
@@ -808,7 +808,7 @@ def ctc_batch_cost(
             for each target sequence in the batch.
         output_length: Tensor `(batch_size,)` containing the sequence length
             for each output sequence in the batch.
-        blank_index: The value in `target` and `output` that represents the
+        mask_index: The value in `target` and `output` that represents the
             blank label.
 
     Returns:
@@ -837,5 +837,5 @@ def ctc_batch_cost(
         logits=output,
         label_length=target_length,
         logit_length=output_length,
-        blank_index=blank_index,
+        blank_index=mask_index,
     )
