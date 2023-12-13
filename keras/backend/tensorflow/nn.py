@@ -796,7 +796,8 @@ def ctc_batch_cost(
     output_length,
     blank_index=0,
 ):
-    """Runs CTC (Connectionist Temporal Classification) loss on each batch element.
+    """Runs CTC (Connectionist Temporal Classification) loss on each 
+    batch element.
 
     Arguments:
         target: Tensor `(batch_size, max_target_length)` containing the
