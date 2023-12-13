@@ -93,8 +93,10 @@ def get(identifier):
     """Retrieve a Keras activation function via an identifier."""
     if identifier is None:
         return linear
-    if isinstance(identifier, (str, dict)):
+    if isinstance(identifier, dict):
         obj = deserialize(identifier)
+    elif isinstance(identifier, str):
+        obj = ALL_OBJECTS_DICT.get(identifier, None)
     else:
         obj = identifier
     if callable(obj):
