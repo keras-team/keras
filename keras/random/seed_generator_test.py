@@ -79,29 +79,5 @@ class SeedGeneratorTest(testing.TestCase):
             traced_function()
 
     def test_seed_generator_serialization(self):
-        seed = 42
-        random_generator = seed_generator.SeedGenerator(seed=seed)
-        config = random_generator.get_config()
-        self.assertEqual(config["seed"], seed)
-
-        reconstructed_random_generator = random_generator.from_config(config)
-
-        def config_equals(config1, config2):
-            # Both `config1` and `config2` are python dicts. So the first check
-            # is to see if both of them have same keys.
-            if config1.keys() != config2.keys():
-                return False
-
-            # Iterate over all keys of the configs and compare each entry.
-            for key in list(config1.keys()):
-                v1, v2 = config1[key], config2[key]
-                if not v1 == v2:
-                    return False
-            return True
-
-        self.assertTrue(
-            config_equals(
-                random_generator.get_config(),
-                reconstructed_random_generator.get_config(),
-            )
-        )
+        random_generator = seed_generator.SeedGenerator(seed=42)
+        self.run_class_serialization_test(random_generator)
