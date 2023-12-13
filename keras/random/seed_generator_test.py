@@ -85,7 +85,7 @@ class SeedGeneratorTest(testing.TestCase):
         config = random_generator.get_config()
 
         def assertAllInitParametersAreInConfig(
-            self, seed_generator_cls, config
+            seed_generator_cls, config
         ):
             excluded_name = ["args", "kwargs", "*"]
             parameter_names = {
