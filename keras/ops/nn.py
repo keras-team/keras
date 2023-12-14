@@ -1777,3 +1777,67 @@ def batch_normalization(
     return backend.nn.batch_normalization(
         x, mean, variance, axis, offset, scale, epsilon
     )
+
+
+class CtcLoss(Operation):
+    def __init__(self, mask_index):
+        super().__init__()
+        self.mask_index = mask_index
+
+    def call(self, target, output, target_length, output_length):
+        return backend.nn.ctc_loss(
+            target, output, target_length, output_length, self.mask_index
+        )
+
+    def _check_shape_first_dim(self, name1, shape1, name2, shape2):
+        if shape1[0] != shape2[0]:
+            raise ValueError(
+                f"Arguments `{name1}` and `{name2}` must have the same "
+                "first dimension. "
+                f"Received shapes: `{shape1}` and `{shape2}`."
+            )
+
+    def compute_output_spec(self, target, output, target_length, output_length):
+        self._check_shape_first_dim(
+            "target", target.shape, "output", output.shape
+        )
+        self._check_shape_first_dim(
+            "target_length", target_length.shape, "target", target.shape
+        )
+        self._check_shape_first_dim(
+            "output_length", output_length.shape, "output", output.shape
+        )
+
+        return KerasTensor((target.shape[0],), dtype=target.dtype)
+
+
+@keras_export(
+    [
+        "keras.ops.ctc_loss",
+        "keras.ops.nn.ctc_loss",
+    ]
+)
+def ctc_loss(target, output, target_length, output_length, mask_index=0):
+    """CTC (Connectionist Temporal Classification) loss.
+
+    Args:
+        target: A tensor of shape `(batch_size, target_max_length)` containing
+            the true labels in integer format.
+        output: A tensor of shape `(batch_size, output_max_length, num_classes)`
+            containing the output from the network.
+        target_length: A tensor of shape `(batch_size,)` containing the
+            true label lengths.
+        output_length: A tensor of shape `(batch_size,)` containing the
+            output lengths.
+        mask_index: The index of the mask character in the vocabulary.
+            Defaults to `0`.
+    """
+
+    if any_symbolic_tensors((target, output, target_length, output_length)):
+        return CtcLoss(mask_index).symbolic_call(
+            target, output, target_length, output_length
+        )
+
+    return backend.nn.ctc_loss(
+        target, output, target_length, output_length, mask_index
+    )

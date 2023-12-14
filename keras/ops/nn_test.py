@@ -974,6 +974,17 @@ class NNOpsStaticShapeTest(testing.TestCase):
             (10, 3, 4, 5),
         )
 
+    @pytest.mark.skipif(
+        backend.backend() not in ["tensorflow", "torch"],
+        reason="Only TF and Torch support CTC loss",
+    )
+    def test_ctc_loss(self):
+        x = KerasTensor([10, 3, 4])
+        y = KerasTensor([10, 3], dtype="int32")
+        x_lengths = KerasTensor([10], dtype="int32")
+        y_lengths = KerasTensor([10], dtype="int32")
+        self.assertEqual(knn.ctc_loss(x, y, x_lengths, y_lengths).shape, (10,))
+
 
 class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_relu(self):
@@ -1749,6 +1760,26 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             scale=np.random.uniform(size=[5]),
         )
         self.assertEqual(tuple(output.shape), (2, 3, 3, 5))
+
+    @pytest.mark.skipif(
+        backend.backend() not in ["tensorflow", "torch"],
+        reason="Only TF and Torch support CTC loss",
+    )
+    def test_ctc_loss(self):
+        labels = np.array([[1, 2, 1], [1, 2, 2]])
+        outputs = np.array(
+            [
+                [[0.4, 0.8, 0.4], [0.4, 0.8, 0.4]],
+                [[0.2, 0.8, 0.3], [0.2, 0.3, 0.3]],
+                [[0.9, 0.4, 0.5], [0.4, 0.3, 0.2]],
+            ]
+        )
+
+        label_length = np.array([3, 2])
+        output_length = np.array([3, 2])
+
+        result = knn.ctc_loss(labels, outputs, label_length, output_length)
+        self.assertAllClose(result, np.array([3.4411672, 1.91680186]))
 
 
 class TestLogitRecovery(testing.TestCase):

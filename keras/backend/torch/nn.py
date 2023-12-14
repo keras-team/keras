@@ -745,3 +745,27 @@ def batch_normalization(
     order.pop(1)
     order.insert(axis, 1)
     return x.permute(order)
+
+
+def ctc_loss(
+    target,
+    output,
+    target_length,
+    output_length,
+    mask_index=0,
+):
+    target = convert_to_tensor(target)
+    output = convert_to_tensor(output)
+    target_length = convert_to_tensor(target_length)
+    output_length = convert_to_tensor(output_length)
+
+    logits = tnn.log_softmax(output, dim=-1)
+
+    return tnn.ctc_loss(
+        logits,
+        target,
+        output_length,
+        target_length,
+        blank=mask_index,
+        reduction="none",
+    )
