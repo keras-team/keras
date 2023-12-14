@@ -1,5 +1,7 @@
 import re
 
+import numpy as np
+
 from keras import activations
 from keras import constraints
 from keras import initializers
@@ -40,6 +42,17 @@ class EinsumDense(Layer):
         kernel_constraint: Constraint function applied to the `kernel` weights
             matrix.
         bias_constraint: Constraint function applied to the bias vector.
+        lora_rank: Optional integer. If set, the layer's forward pass
+            will implement LoRA (Low-Rank Adaptation)
+            with the provided rank. LoRA sets the layer's kernel
+            to non-trainable and replaces it with a delta over the
+            original kernel, obtained via multiplying two lower-rank
+            trainable matrices
+            (the factorization happens on the last dimension).
+            This can be useful to reduce the
+            computation cost of fine-tuning large dense layers.
+            You can also enable LoRA on an existing
+            `EinsumDense` layer by calling `layer.enable_lora(rank)`.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
 
     Examples:
@@ -188,7 +201,14 @@ class EinsumDense(Layer):
         return {**base_config, **config}
 
     def call(self, inputs):
-        x = ops.einsum(self.equation, inputs, self.kernel)
+        if self.lora_enabled:
+            kernel = self.kernel + ops.matmul(
+                self.lora_kernel_a, self.lora_kernel_b
+            )
+        else:
+            kernel = self.kernel
+
+        x = ops.einsum(self.equation, inputs, kernel)
         if self.bias is not None:
             x += self.bias
         if self.activation is not None:
@@ -206,9 +226,43 @@ class EinsumDense(Layer):
             raise ValueError(
                 "Cannot enable lora on a layer that isn't yet built."
             )
-        raise NotImplementedError(
-            "Lora is not yet implemented for the EinsumDense layer."
+
+        self._tracker.locked = False
+        self.lora_kernel_a = self.add_weight(
+            name="lora_kernel_a",
+            shape=(self.kernel.shape[:-1] + (rank,)),
+            initializer="zeros",
+            regularizer=self.kernel_regularizer,
         )
+        self.lora_kernel_b = self.add_weight(
+            name="lora_kernel_b",
+            shape=(rank, self.kernel.shape[-1]),
+            initializer="zeros",
+            regularizer=self.kernel_regularizer,
+        )
+        self.kernel.trainable = False
+        self._tracker.locked = True
+        self.lora_enabled = True
+
+    def save_own_variables(self, store):
+        if not self.lora_enabled:
+            return super().save_own_variables(store)
+
+        kernel_value = ops.convert_to_numpy(
+            self.kernel + ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
+        )
+        store["0"] = kernel_value
+        if self.bias is not None:
+            store["1"] = self.bias.numpy()
+
+    def load_own_variables(self, store):
+        if not self.lora_enabled:
+            return super().load_own_variables(store)
+        self.kernel.assign(store["0"])
+        if self.bias is not None:
+            self.bias.assign(store["1"])
+        self.lora_kernel_a.assign(np.zeros(self.lora_kernel_a.shape))
+        self.lora_kernel_b.assign(np.zeros(self.lora_kernel_b.shape))
 
 
 def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
