@@ -181,6 +181,7 @@ class DenseTest(testing.TestCase):
         layer.build((None, 2))
         self.assertIsInstance(layer.bias.constraint, constraints.NonNeg)
 
+    @pytest.mark.requires_trainable_backend
     def test_enable_lora(self):
         layer = layers.Dense(units=16)
         layer.build((None, 8))
