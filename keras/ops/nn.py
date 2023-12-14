@@ -1792,7 +1792,8 @@ class CtcLoss(Operation):
     def _check_shape_first_dim(self, name1, shape1, name2, shape2):
         if shape1[0] != shape2[0]:
             raise ValueError(
-                f"Arguments `{name1}` and `{name2}` must have the same first dimension. "
+                f"Arguments `{name1}` and `{name2}` must have the same "
+                "first dimension. "
                 f"Received shapes: `{shape1}` and `{shape2}`."
             )
 
