@@ -106,6 +106,7 @@ class EinsumDense(Layer):
         bias_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
+        lora_rank=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -122,6 +123,8 @@ class EinsumDense(Layer):
         self.bias_regularizer = regularizers.get(bias_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
+        self.lora_rank = lora_rank
+        self.lora_enabled = False
 
     def build(self, input_shape):
         shape_data = _analyze_einsum_string(
@@ -155,6 +158,8 @@ class EinsumDense(Layer):
         else:
             self.bias = None
         super().build(input_shape)
+        if self.lora_rank:
+            self.enable_lora(self.lora_rank)
 
     def compute_output_shape(self, _):
         return self.full_output_shape
@@ -189,6 +194,21 @@ class EinsumDense(Layer):
         if self.activation is not None:
             x = self.activation(x)
         return x
+
+    def enable_lora(self, rank):
+        if self.kernel_constraint:
+            raise ValueError(
+                "Lora is incompatible with kernel constraints. "
+                "In order to enable lora on this layer, remove the "
+                "`kernel_constraint` argument."
+            )
+        if not self.built:
+            raise ValueError(
+                "Cannot enable lora on a layer that isn't yet built."
+            )
+        raise NotImplementedError(
+            "Lora is not yet implemented for the EinsumDense layer."
+        )
 
 
 def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
