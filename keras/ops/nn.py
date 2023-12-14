@@ -1810,10 +1810,12 @@ class CtcLoss(Operation):
         return KerasTensor((target.shape[0],), dtype=target.dtype)
 
 
-@keras_export([
-    "keras.ops.ctc_loss",
-    "keras.ops.nn.ctc_loss",
-])
+@keras_export(
+    [
+        "keras.ops.ctc_loss",
+        "keras.ops.nn.ctc_loss",
+    ]
+)
 def ctc_loss(target, output, target_length, output_length, mask_index=0):
     """CTC (Connectionist Temporal Classification) loss.
 
