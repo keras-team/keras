@@ -715,7 +715,7 @@ base_optimizer_keyword_args = """name: String. The name to use
           the EMA of the model's weights:
           `new_average = ema_momentum * old_average + (1 - ema_momentum) *
           current_variable_value`.
-        ema_overwrite_frequency: Int or None, defaults to None. Only used if
+        ema_overwrite_frequency: Int or None. Only used if
           `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations,
           we overwrite the model variable by its moving average.
           If None, the optimizer
@@ -725,7 +725,7 @@ base_optimizer_keyword_args = """name: String. The name to use
           (which updates the model
           variables in-place). When using the built-in `fit()` training loop,
           this happens automatically after the last epoch,
-          and you don't need to do anything.
+          and you don't need to do anything. Defaults to `None`.
         loss_scale_factor: Float or `None`. If a float, the scale factor will
           be multiplied the loss before computing gradients, and the inverse of
           the scale factor will be multiplied by the gradients before updating

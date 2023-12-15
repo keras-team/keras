@@ -83,10 +83,11 @@ class Layer(BackendLayer, Operation):
         dtype: The dtype of the layer's computations and weights. Can also be a
             `keras.mixed_precision.DTypePolicy`,
             which allows the computation and
-            weight dtype to differ. Defaults to `None`. `None` means to use
+            weight dtype to differ. `None` means to use
             `keras.mixed_precision.dtype_policy()`,
             which is a `float32` policy unless set to different value
             (via `keras.mixed_precision.set_dtype_policy()`).
+            Defaults to `None`.
 
     Attributes:
         name: The name of the layer (string).
@@ -459,7 +460,7 @@ class Layer(BackendLayer, Operation):
         Args:
             shape: Shape tuple for the variable.
                 Must be fully-defined (no `None` entries).
-                Defaults to `()` (scalar) if unspecified.
+                (scalar) if unspecified. Defaults to `()`.
             initializer: Initializer object to use to
                 populate the initial variable value,
                 or string name of a built-in initializer

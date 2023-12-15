@@ -350,9 +350,9 @@ def smart_resize(
             or `(batch_size, height, width, channels)`.
         size: Tuple of `(height, width)` integer. Target size.
         interpolation: String, interpolation to use for resizing.
-            Defaults to `'bilinear'`.
-            Supports `bilinear`, `nearest`, `bicubic`,
-            `lanczos3`, `lanczos5`.
+            Supports `"bilinear"`, `"nearest"`, `"bicubic"`,
+            `"lanczos3"`, `"lanczos5"`.
+            Defaults to `"bilinear"`.
         data_format: `"channels_last"` or `"channels_first"`.
         backend_module: Backend module to use (if different from the default
             backend).
