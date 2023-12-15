@@ -86,25 +86,6 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     )
 
 
-def alpha_dropout(inputs, rate, noise_shape=None, seed=None):
-    noise_shape = _get_concrete_noise_shape(inputs, noise_shape)
-
-    alpha = 1.6732632423543772848170429916717
-    scale = 1.0507009873554804934193349852946
-    alpha_p = -alpha * scale
-
-    kept_idx = tf.greater_equal(uniform(noise_shape, seed=seed), rate)
-    kept_idx = tf.cast(kept_idx, inputs.dtype)
-
-    # Compute affine transformation parameters
-    a = ((1 - rate) * (1 + rate * alpha_p**2)) ** -0.5
-    b = -a * alpha_p * rate
-
-    # Apply mask
-    x = inputs * kept_idx + alpha_p * (1 - kept_idx)
-    return a * x + b
-
-
 def shuffle(x, axis=0, seed=None):
     seed = tf_draw_seed(seed)
     if axis == 0:

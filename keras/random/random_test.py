@@ -140,27 +140,6 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(x.shape, (2, 3, 5, 7))
 
-    def test_alpha_dropout(self):
-        x = ops.random.normal((10000,))
-        y = random.alpha_dropout(x, rate=0, seed=0)
-        self.assertAllClose(y, x)
-        self.assertEqual(x.dtype, y.dtype)
-
-        # standard deviation check
-        y = random.alpha_dropout(x, rate=0.8, seed=0)
-        self.assertAllClose(ops.std(y), 1.0, atol=1e-1)
-        y = random.alpha_dropout(x, rate=0.5, seed=0)
-        self.assertAllClose(ops.std(y), 1.0, atol=1e-1)
-        y = random.alpha_dropout(x, rate=0.3, seed=0)
-        self.assertAllClose(ops.std(y), 1.0, atol=1e-1)
-
-    def test_alpha_dropout_noise_shape(self):
-        inputs = ops.ones((2, 3, 5, 7))
-        x = random.alpha_dropout(
-            inputs, rate=0.3, noise_shape=[None, 3, 5, None], seed=0
-        )
-        self.assertEqual(x.shape, (2, 3, 5, 7))
-
     @pytest.mark.skipif(
         keras.backend.backend() != "jax",
         reason="This test requires `jax` as the backend.",

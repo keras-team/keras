@@ -1,4 +1,5 @@
 from keras import backend
+from keras import ops
 from keras.api_export import keras_export
 from keras.layers.layer import Layer
 
@@ -48,16 +49,43 @@ class AlphaDropout(Layer):
 
     def call(self, inputs, training=False):
         if training and self.rate > 0:
-            return backend.random.alpha_dropout(
-                inputs,
-                self.rate,
-                noise_shape=self.noise_shape,
-                seed=self.seed_generator,
+            noise_shape = self._get_concrete_noise_shape(
+                inputs, self.noise_shape
             )
+            alpha = 1.6732632423543772848170429916717
+            scale = 1.0507009873554804934193349852946
+            alpha_p = -alpha * scale
+
+            kept_idx = ops.greater_equal(
+                ops.random.uniform(noise_shape, seed=self.seed_generator),
+                self.rate,
+            )
+            kept_idx = ops.cast(kept_idx, inputs.dtype)
+
+            # Compute affine transformation parameters
+            a = ((1 - self.rate) * (1 + self.rate * alpha_p**2)) ** -0.5
+            b = -a * alpha_p * self.rate
+
+            # Apply mask
+            x = inputs * kept_idx + alpha_p * (1 - kept_idx)
+            return a * x + b
+
         return inputs
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
+    def _get_concrete_noise_shape(self, inputs, noise_shape):
+        if noise_shape is None:
+            return inputs.shape
+
+        concrete_inputs_shape = inputs.shape
+        concrete_noise_shape = []
+        for i, value in enumerate(noise_shape):
+            concrete_noise_shape.append(
+                concrete_inputs_shape[i] if value is None else value
+            )
+        return concrete_noise_shape
 
     def get_config(self):
         base_config = super().get_config()

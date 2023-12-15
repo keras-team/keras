@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from keras import backend
 from keras import layers
 from keras import testing
 
@@ -20,6 +21,14 @@ class AlphaDropoutTest(testing.TestCase):
             expected_num_seed_generators=1,
             expected_num_losses=0,
             supports_masking=True,
+        )
+
+    def test_alpha_dropout_correctness(self):
+        inputs = np.ones((20, 500)).astype("float32")
+        layer = layers.AlphaDropout(0.3, seed=1337)
+        outputs = layer(inputs, training=True)
+        self.assertAllClose(
+            np.std(backend.convert_to_numpy(outputs)), 1.0, atol=1e-1
         )
 
     def test_alpha_dropout_partial_noise_shape_dynamic(self):

@@ -190,13 +190,6 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     )
 
 
-@keras_export("keras.random.alpha_dropout")
-def alpha_dropout(inputs, rate, noise_shape=None, seed=None):
-    return backend.random.alpha_dropout(
-        inputs, rate, noise_shape=noise_shape, seed=seed
-    )
-
-
 @keras_export("keras.random.shuffle")
 def shuffle(x, axis=0, seed=None):
     """Shuffle the elements of a tensor uniformly at random along an axis.
