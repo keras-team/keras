@@ -198,6 +198,8 @@ class EinsumDense(Layer):
             "kernel_constraint": constraints.serialize(self.kernel_constraint),
             "bias_constraint": constraints.serialize(self.bias_constraint),
         }
+        if self.lora_rank:
+            config["lora_rank"] = self.lora_rank
         return {**base_config, **config}
 
     def call(self, inputs):
