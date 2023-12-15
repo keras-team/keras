@@ -22,6 +22,7 @@ class BaseOptimizer:
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
+        use_grad_accum=False,
         name=None,
         **kwargs,
     ):
@@ -43,6 +44,7 @@ class BaseOptimizer:
         self.clipvalue = clipvalue
         self.use_ema = use_ema
         self.loss_scale_factor = loss_scale_factor
+        self.use_grad_accum = use_grad_accum
 
         if use_ema:
             # Verify the arguments related to EMA.
@@ -137,6 +139,13 @@ class BaseOptimizer:
                         "average",
                     )
                 )
+        if self.use_grad_accum:
+            self._accum_grads = [
+                self.add_variable_from_reference(variable, "accum_grad")
+                for variable in variables
+            ]
+        else:
+            self._accum_grads = []
         self._trainable_variables = variables[:]
         self.built = True
 
@@ -147,6 +156,10 @@ class BaseOptimizer:
     @property
     def variables(self):
         return self._variables[:]
+
+    @property
+    def accum_grads(self):
+        return self._accum_grads[:]
 
     def _get_variable_index(self, variable):
         return self._trainable_variables_indices[self._var_key(variable)]

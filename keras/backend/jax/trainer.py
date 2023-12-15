@@ -149,6 +149,66 @@ class JAXTrainer(base_trainer.Trainer):
             non_trainable_variables,
             optimizer_variables,
             metrics_variables,
+        )[:4]
+        return logs, state
+
+    def train_step_grad_accum(self, state, data, optimize):
+        (
+            trainable_variables,
+            non_trainable_variables,
+            optimizer_variables,
+            metrics_variables,
+            accum_grads,
+        ) = state
+        x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
+        grad_fn = jax.value_and_grad(self.compute_loss_and_updates, has_aux=True)
+        (loss, aux), grads = grad_fn(
+            trainable_variables,
+            non_trainable_variables,
+            x,
+            y,
+            sample_weight,
+            training=True,
+            optimizer_variables=optimizer_variables,
+        )
+        (unscaled_loss, y_pred, non_trainable_variables) = aux
+
+        accum_grads = [
+            ops.add(accum_grad, grad) for accum_grad, grad in zip(accum_grads, grads)
+        ]
+
+        if optimize != 0:
+            mean_grads = [ops.divide(accum_grad, optimize) for accum_grad in accum_grads]
+            (
+                trainable_variables,
+                optimizer_variables,
+            ) = self.optimizer.stateless_apply(
+                optimizer_variables, mean_grads, trainable_variables
+            )
+            accum_grads = [ops.zeros_like(accum_grad) for accum_grad in accum_grads]
+
+        with backend.StatelessScope(
+            state_mapping=[
+                (ref_v, v) for ref_v, v in zip(self.metrics_variables, metrics_variables)
+            ]
+        ) as scope:
+            self._loss_tracker.update_state(unscaled_loss)
+            logs = self.compute_metrics(x, y, y_pred, sample_weight)
+
+        new_metrics_variables = []
+        for ref_v in self.metrics_variables:
+            new_v = scope.get_current_value(ref_v)
+            if new_v is None:
+                new_v = ref_v.value
+            new_metrics_variables.append(new_v)
+        metrics_variables = new_metrics_variables
+
+        state = self._enforce_jax_state_sharding(
+            trainable_variables,
+            non_trainable_variables,
+            optimizer_variables,
+            metrics_variables,
+            accum_grads,
         )
         return logs, state
 
@@ -191,11 +251,13 @@ class JAXTrainer(base_trainer.Trainer):
             non_trainable_variables,
             _,
             metrics_variables,
+            _,
         ) = self._enforce_jax_state_sharding(
             trainable_variables=trainable_variables,
             non_trainable_variables=non_trainable_variables,
             optimizer_variables=None,
             metrics_variables=metrics_variables,
+            accum_grads=None,
         )
         state = (
             trainable_variables,
@@ -219,17 +281,23 @@ class JAXTrainer(base_trainer.Trainer):
             non_trainable_variables,
             _,
             _,
+            _,
         ) = self._enforce_jax_state_sharding(
             trainable_variables=trainable_variables,
             non_trainable_variables=non_trainable_variables,
             optimizer_variables=None,
             metrics_variables=None,
+            accum_grads=None,
         )
         return outputs, (trainable_variables, non_trainable_variables)
 
-    def make_train_function(self, force=False):
+    def make_train_function(self, grad_accum_steps, force=False):
         if self.train_function is not None and not force:
             return self.train_function
+
+        def one_train_step_grad_accum(state, data, optimize):
+            data = data[0]
+            return self.train_step_grad_accum(state, data, optimize)
 
         def one_train_step(state, data):
             data = data[0]
@@ -242,20 +310,30 @@ class JAXTrainer(base_trainer.Trainer):
 
         if self.steps_per_execution > 1:
             train_step = multi_train_steps
+        elif grad_accum_steps > 1:
+            train_step = one_train_step_grad_accum
         else:
             train_step = one_train_step
 
         if not self.run_eagerly and self.jit_compile:
-            # Note that we mark the state and data to be donated to jax,
-            # so that jax will reuse the memory buffer for outputs.
-            # This will reduce the memory usage of the training function by
-            # half.
+            # Note that we mark the state and data to be donated to jax, so that
+            # jax will reuse the memory buffer for outputs.
+            # This will reduce the memory usage of the training function by half.
             @partial(jax.jit, donate_argnames="state")
             def compiled_train_step(state, data):
                 return train_step(state, data)
 
-            self.train_function = compiled_train_step
+            # @partial(jax.jit, static_argnums=(2,), donate_argnames="state")
+            # Not sure why using the above results in "Attempt to donate the same
+            # buffer twice in Execute()" error
+            @partial(jax.jit, static_argnums=(2,))
+            def compiled_train_step_grad_accum(state, data, optimize):
+                return one_train_step_grad_accum(state, data, optimize)
 
+            self.train_function = (
+                compiled_train_step_grad_accum
+                if grad_accum_steps > 1 else compiled_train_step
+            )
         else:
             self.train_function = train_step
 
@@ -337,6 +415,7 @@ class JAXTrainer(base_trainer.Trainer):
         y=None,
         batch_size=None,
         epochs=1,
+        grad_accum_steps=1,
         verbose="auto",
         callbacks=None,
         validation_split=0.0,
@@ -398,6 +477,16 @@ class JAXTrainer(base_trainer.Trainer):
                 self._eager_build(data_batch)
                 break
 
+        if grad_accum_steps > 1:
+            if self.steps_per_execution > 1:
+                raise ValueError(
+                    "steps_per_execution > 1 not supported when grad_accum_steps > 1"
+                )
+            if not len(self.optimizer.accum_grads):
+                raise ValueError(
+                    "grad_accum_steps > 1 requires optimizer with use_grad_accum=True"
+                )
+
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
@@ -411,7 +500,7 @@ class JAXTrainer(base_trainer.Trainer):
             )
         self._record_training_state_sharding_spec()
 
-        self.make_train_function()
+        self.make_train_function(grad_accum_steps)
         self.stop_training = False
         callbacks.on_train_begin()
 
@@ -425,6 +514,10 @@ class JAXTrainer(base_trainer.Trainer):
             ]
             optimizer_variables = [v.value for v in self.optimizer.variables]
             metrics_variables = [v.value for v in self.metrics_variables]
+            if hasattr(self.optimizer, 'accum_grads'):
+                accum_grads = [v.value for v in self.optimizer.accum_grads]
+            else:
+                accum_grads = None
 
             self._purge_model_variables()
             for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
@@ -432,20 +525,36 @@ class JAXTrainer(base_trainer.Trainer):
                 callbacks.on_train_batch_begin(step)
 
                 # Train step
+                data = self._distribute_data(data)
                 state = (
                     trainable_variables,
                     non_trainable_variables,
                     optimizer_variables,
                     metrics_variables,
                 )
-                data = self._distribute_data(data)
-                logs, state = self.train_function(state, data)
-                (
-                    trainable_variables,
-                    non_trainable_variables,
-                    optimizer_variables,
-                    metrics_variables,
-                ) = state
+                if grad_accum_steps > 1:
+                    state = (*state, accum_grads)
+                    optimize = (
+                        grad_accum_steps
+                        if (step % grad_accum_steps) == (grad_accum_steps - 1)
+                        else 0
+                    )
+                    logs, state = self.train_function(state, data, optimize)
+                    (
+                        trainable_variables,
+                        non_trainable_variables,
+                        optimizer_variables,
+                        metrics_variables,
+                        accum_grads,
+                    ) = state
+                else:
+                    logs, state = self.train_function(state, data)
+                    (
+                        trainable_variables,
+                        non_trainable_variables,
+                        optimizer_variables,
+                        metrics_variables,
+                    ) = state
 
                 # Setting _jax_state enables callbacks to force a state sync
                 # if they need to.
@@ -454,6 +563,7 @@ class JAXTrainer(base_trainer.Trainer):
                     "non_trainable_variables": non_trainable_variables,
                     "optimizer_variables": optimizer_variables,
                     "metrics_variables": metrics_variables,
+                    "accum_grads": accum_grads,
                 }
 
                 # Callbacks
@@ -590,7 +700,7 @@ class JAXTrainer(base_trainer.Trainer):
         ]
         metrics_variables = [v.value for v in self.metrics_variables]
 
-        self._purge_model_variables(optimizer_variables=False)
+        self._purge_model_variables(optimizer_variables=False, accum_grads=False)
         for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
             callbacks.on_test_batch_begin(step)
 
@@ -878,6 +988,9 @@ class JAXTrainer(base_trainer.Trainer):
             self._optimizer_variable_shardings = [
                 v.value.sharding for v in self.optimizer.variables
             ]
+            self._accum_grads_shardings = [
+                v.value.sharding for v in self.optimizer.accum_grads
+            ]
         else:
             self._optimizer_variable_shardings = []
         self._metrics_variable_shardings = [
@@ -890,6 +1003,7 @@ class JAXTrainer(base_trainer.Trainer):
         non_trainable_variables=None,
         optimizer_variables=None,
         metrics_variables=None,
+        accum_grads=None,
     ):
         """Enforce the sharding spec constraint for all the training state.
 
@@ -907,6 +1021,7 @@ class JAXTrainer(base_trainer.Trainer):
         non_trainable_variables = non_trainable_variables or []
         optimizer_variables = optimizer_variables or []
         metrics_variables = metrics_variables or []
+        accum_grads = accum_grads or []
 
         for i in range(len(trainable_variables)):
             trainable_variables[i] = jax.lax.with_sharding_constraint(
@@ -925,11 +1040,16 @@ class JAXTrainer(base_trainer.Trainer):
             metrics_variables[i] = jax.lax.with_sharding_constraint(
                 metrics_variables[i], self._metrics_variable_shardings[i]
             )
+        for i in range(len(accum_grads)):
+            accum_grads[i] = jax.lax.with_sharding_constraint(
+                accum_grads[i], self._accum_grads_shardings[i]
+            )
         return (
             trainable_variables,
             non_trainable_variables,
             optimizer_variables,
             metrics_variables,
+            accum_grads,
         )
 
     def _purge_model_variables(
@@ -938,6 +1058,7 @@ class JAXTrainer(base_trainer.Trainer):
         non_trainable_variables=True,
         optimizer_variables=True,
         metric_variables=True,
+        accum_grads=True,
     ):
         """Remove all the model variable for memory saving.
 
@@ -960,4 +1081,7 @@ class JAXTrainer(base_trainer.Trainer):
                 v._value = None
         if metric_variables:
             for v in self.metrics_variables:
+                v._value = None
+        if accum_grads:
+            for v in self.optimizer.accum_grads:
                 v._value = None
