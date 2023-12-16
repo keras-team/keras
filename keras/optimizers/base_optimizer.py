@@ -1,5 +1,6 @@
 import re
 import warnings
+import numpy as np
 
 from keras import backend
 from keras import initializers
@@ -22,6 +23,7 @@ class BaseOptimizer:
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
+        gradient_accumulation_steps=None,
         name=None,
         **kwargs,
     ):
@@ -43,6 +45,15 @@ class BaseOptimizer:
         self.clipvalue = clipvalue
         self.use_ema = use_ema
         self.loss_scale_factor = loss_scale_factor
+        self.gradient_accumulation_steps = gradient_accumulation_steps
+
+        if gradient_accumulation_steps:
+            if not gradient_accumulation_steps >= 2:
+                raise ValueError(
+                    "`gradient_accumulation_steps` must be an integer >= 2. "
+                    "Received: gradient_accumulation_steps="
+                    f"{gradient_accumulation_steps}"
+                )
 
         if use_ema:
             # Verify the arguments related to EMA.
@@ -128,6 +139,8 @@ class BaseOptimizer:
         if self.use_ema:
             self._model_variables_moving_average = []
             self._ema_vars_initialized = False
+        if self.gradient_accumulation_steps:
+            self._accumulated_gradients = []
         for i, variable in enumerate(variables):
             self._trainable_variables_indices[self._var_key(variable)] = i
             if self.use_ema:
@@ -135,6 +148,13 @@ class BaseOptimizer:
                     self.add_variable_from_reference(
                         variable,
                         "average",
+                    )
+                )
+            if self.gradient_accumulation_steps:
+                self._accumulated_gradients.append(
+                    self.add_variable_from_reference(
+                        variable,
+                        "gradient_accumulator",
                     )
                 )
         self._trainable_variables = variables[:]
@@ -250,11 +270,13 @@ class BaseOptimizer:
         return self.iterations
 
     def apply(self, grads, trainable_variables=None):
-        """
+        """Update traininable variables according to provided gradient values.
+
         `grads` should be a list of gradient tensors
         with 1:1 mapping to the list of variables the optimizer was built with.
 
-        `variables` can be provided on the first call to build the optimizer.
+        `trainable_variables` can be provided
+        on the first call to build the optimizer.
         """
         if len(grads) == 0:
             # It is possible that the grad is empty. In this case,
@@ -303,20 +325,44 @@ class BaseOptimizer:
             grads = self._clip_gradients(grads)
             self._apply_weight_decay(trainable_variables)
 
-            # Apply gradient updates.
-            self._internal_apply_gradients(
-                list(zip(grads, trainable_variables))
-            )
+            if self.gradient_accumulation_steps:
+                ops.cond(
+                    ops.equal(ops.mod(self.iterations + 1, self.gradient_accumulation_steps), 0),
+                    lambda: self._update_trainable_vars(grads, trainable_variables),
+                    lambda: self._update_gradient_accumulators(grads)
+                )
+            else:
+                self._update_trainable_vars(grads, trainable_variables)
+            self.iterations.assign_add(1)
 
-            # Apply variable constraints after applying gradients.
-            for variable in trainable_variables:
-                if getattr(variable, "constraint", None) is not None:
-                    variable.assign(variable.constraint(variable))
+    def _update_gradient_accumulators(self, grads):
+        if self.gradient_accumulation_steps:
+            for i in range(len(grads)):
+                self._accumulated_gradients[i].assign_add(grads[i])
+
+    def _update_trainable_vars(self, grads, trainable_variables):
+        if self.gradient_accumulation_steps:
+            # Get accumulated gradients.
+            steps = self.gradient_accumulation_steps
+            grads = [(grads[i] + self._accumulated_gradients[i]) / steps for i in range(len(grads))]
+
+        # Apply gradient updates.
+        self._internal_apply_gradients(
+            list(zip(grads, trainable_variables))
+        )
+        # Apply variable constraints after applying gradients.
+        for variable in trainable_variables:
+            if getattr(variable, "constraint", None) is not None:
+                variable.assign(variable.constraint(variable))
+
+        if self.gradient_accumulation_steps:
+            # Reset gradient accumulators.
+            for g_acc in self._accumulated_gradients:
+                g_acc.assign(np.zeros(g_acc.shape, dtype=g_acc.dtype))
 
     def _internal_apply_gradients(self, grads_and_vars):
         for grad, var in grads_and_vars:
             self.update_step(grad, var, self.learning_rate)
-        self.iterations.assign(self.iterations + 1)
 
     def stateless_apply(self, optimizer_variables, grads, trainable_variables):
         self._check_super_called()
@@ -656,6 +702,7 @@ class BaseOptimizer:
             "ema_momentum": self.ema_momentum,
             "ema_overwrite_frequency": self.ema_overwrite_frequency,
             "loss_scale_factor": self.loss_scale_factor,
+            "gradient_accumulation_steps": self.gradient_accumulation_steps,
         }
         return config
 
