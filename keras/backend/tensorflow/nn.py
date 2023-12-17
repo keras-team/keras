@@ -819,7 +819,6 @@ def ctc_loss(
     target = tf.cast(target, dtype="int32")
     output = tf.convert_to_tensor(output)
     output = tf.cast(output, dtype="float32")
-    output = tf.transpose(output, perm=(1, 0, 2))
 
     max_label_len = tf.shape(target)[1]
 
@@ -839,4 +838,5 @@ def ctc_loss(
         label_length=target_length,
         logit_length=output_length,
         blank_index=mask_index,
+        logits_time_major=False
     )
