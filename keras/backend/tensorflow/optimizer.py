@@ -97,25 +97,21 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
             variables,
         )
 
-    def _internal_apply_gradients(self, grads_and_vars):
+    def _backend_update_step(self, grads, trainable_variables, learning_rate):
+        trainable_variables = [
+            v.value if isinstance(v, backend.Variable) else v
+            for v in trainable_variables
+        ]
         tf.__internal__.distribute.interim.maybe_merge_call(
-            self._distributed_apply_gradients_fn,
+            self._distributed_tf_update_step,
             self._distribution_strategy,
-            grads_and_vars,
+            list(zip(grads, trainable_variables)),
+            learning_rate,
         )
 
-    def _distributed_apply_gradients_fn(
-        self, distribution, grads_and_vars, **kwargs
+    def _distributed_tf_update_step(
+        self, distribution, grads_and_vars, learning_rate
     ):
-        """`apply_gradients` using a `DistributionStrategy`."""
-
-        unwrapped_grads_and_vars = []
-        for g, v in grads_and_vars:
-            if isinstance(v, backend.Variable):
-                v = v.value
-            unwrapped_grads_and_vars.append((g, v))
-        grads_and_vars = unwrapped_grads_and_vars
-
         def apply_grad_to_update_var(var, grad):
             learning_rate = self._get_current_learning_rate()
             return self.update_step(grad, var, learning_rate)
@@ -125,25 +121,9 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
                 var, apply_grad_to_update_var, args=(grad,), group=False
             )
 
-        if self.use_ema:
-            _, var_list = zip(*grads_and_vars)
-            self._update_model_variables_moving_average(var_list)
-            if self.ema_overwrite_frequency:
-                # Only when self.ema_overwrite_frequency is not None, we
-                # overwrite the model variables.
-                should_overwrite_model_vars = (
-                    self.iterations + 1
-                ) % self.ema_overwrite_frequency == 0
-                tf.cond(
-                    tf.cast(should_overwrite_model_vars, tf.bool),
-                    true_fn=lambda: self._overwrite_model_variables_with_average_value(  # noqa: E501
-                        var_list
-                    ),
-                    false_fn=lambda: None,
-                )
-        self.iterations.assign_add(1)
-
-    def _overwrite_model_variables_with_average_value(self, var_list):
+    def _overwrite_model_variables_with_average_value(
+        self, trainable_variables
+    ):
         """Overwrite model variables with their moving average values.
 
         This function overwrites variables on each device.
@@ -151,9 +131,13 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
           var_list: list of model variables.
         """
         strategy = self._distribution_strategy
+        trainable_variables = [
+            v.value if isinstance(v, backend.Variable) else v
+            for v in trainable_variables
+        ]
         # Override model variable by the stored average value on all devices.
         for var, average_var in zip(
-            var_list, self._model_variables_moving_average
+            trainable_variables, self._model_variables_moving_average
         ):
             strategy.extended.update(
                 var, lambda a, b: a.assign(b), args=(average_var,)
