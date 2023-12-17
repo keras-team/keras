@@ -1,3 +1,4 @@
+import jax
 from jax import numpy as jnp
 
 from keras.optimizers import base_optimizer
@@ -17,46 +18,57 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
             is_update_step = (
                 self.iterations + 1
             ) % self.gradient_accumulation_steps == 0
-            is_update_step_int = is_update_step.astype("int32")
-            is_not_update_step_int = jnp.logical_not(is_update_step).astype(
-                "int32"
-            )
             steps = self.gradient_accumulation_steps
 
             current_trainable_vars_value = [
                 v.value for v in trainable_variables
             ]
             current_optimizer_vars_value = [v.value for v in self.variables]
-            new_g_accs = [
-                is_not_update_step_int
-                * (grads[i] + self._accumulated_gradients[i])
-                for i in range(len(grads))
-            ]
-            grads = [
-                is_update_step_int
-                * (grads[i] + self._accumulated_gradients[i])
-                / steps
-                for i in range(len(grads))
-            ]
+
+            new_g_accs = jax.lax.cond(
+                is_update_step,
+                lambda: [
+                    jnp.zeros(x.shape, dtype=x.dtype)
+                    for x in self._accumulated_gradients
+                ],
+                lambda: [
+                    grads[i] + self._accumulated_gradients[i]
+                    for i in range(len(grads))
+                ],
+            )
+
+            grads = jax.lax.cond(
+                is_update_step,
+                lambda: [
+                    (grads[i] + self._accumulated_gradients[i]) / steps
+                    for i in range(len(grads))
+                ],
+                lambda: list(grads),
+            )
 
             self._backend_update_step(
                 grads, trainable_variables, self.learning_rate
             )
+            new_trainable_vars = jax.lax.cond(
+                is_update_step,
+                lambda: [v.value for v in trainable_variables],
+                lambda: current_trainable_vars_value,
+            )
+            new_opt_vars = jax.lax.cond(
+                is_update_step,
+                lambda: [v.value for v in self.variables],
+                lambda: current_optimizer_vars_value,
+            )
 
-            for curr_v, v in zip(
-                current_trainable_vars_value, trainable_variables
-            ):
-                v.assign(
-                    v.value * is_update_step_int
-                    + curr_v * is_not_update_step_int
-                )
-            for curr_v, v in zip(current_optimizer_vars_value, self.variables):
-                v.assign(
-                    v.value * is_update_step_int
-                    + curr_v * is_not_update_step_int
-                )
+            for value, v in zip(new_trainable_vars, trainable_variables):
+                v.assign(value)
+
+            for value, v in zip(new_opt_vars, self.variables):
+                v.assign(value)
+
             for n_g_acc, g_acc in zip(new_g_accs, self._accumulated_gradients):
                 g_acc.assign(n_g_acc)
+
         else:
             self._backend_update_step(
                 grads, trainable_variables, self.learning_rate
