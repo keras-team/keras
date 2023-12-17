@@ -567,9 +567,10 @@ def ctc_loss(
     output_length,
     mask_index=0,
 ):
-    _, batch_size, _ = output.shape
+    batch_size, _, _ = output.shape
     batch_size, max_target_length = target.shape
 
+    output = output.transpose((1, 0, 2))
     target = target.transpose((1, 0))
 
     logits = jnn.log_softmax(output)
