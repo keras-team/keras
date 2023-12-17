@@ -384,7 +384,7 @@ def NASNetMobile(
             "at this time due to an outstanding bug. "
             "If interested, please open a PR."
         )
-    if (include_top == False) and (input_shape == None):
+    if not include_top and input_shape is None:
         input_shape = (224, 224, 3)
     return NASNet(
         input_shape,
