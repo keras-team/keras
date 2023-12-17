@@ -1,4 +1,4 @@
-import multiprocessing
+import multiprocessing.dummy
 import queue
 import random
 import threading

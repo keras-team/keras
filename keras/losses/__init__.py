@@ -163,7 +163,7 @@ def get(identifier):
     if isinstance(identifier, dict):
         obj = deserialize(identifier)
     elif isinstance(identifier, str):
-        obj = deserialize(identifier)
+        obj = ALL_OBJECTS_DICT.get(identifier, None)
     else:
         obj = identifier
 

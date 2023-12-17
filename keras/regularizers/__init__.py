@@ -46,8 +46,7 @@ def get(identifier):
     if isinstance(identifier, dict):
         obj = deserialize(identifier)
     elif isinstance(identifier, str):
-        config = {"class_name": str(identifier), "config": {}}
-        obj = deserialize(config)
+        obj = ALL_OBJECTS_DICT.get(identifier, None)
     else:
         obj = identifier
 
