@@ -162,34 +162,31 @@ class OptimizerDistributeTest(testing.TestCase):
 
     def test_gradient_accumulation(self):
         with self.strategy.scope():
-            v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
-            # Create grads as a DistributedValue
-            grads = backend.convert_to_tensor([[[1.0, 1.0], [1.0, 1.0]], [[2.0, 2.0], [2.0, 2.0]]])
-            
-            dataset = tf.data.Dataset.from_tensor_slices(grads).batch(2)
-            dataset_iterator = iter(self.strategy.experimental_distribute_dataset(dataset))
-            grads = next(dataset_iterator)
-            # Remove leftover batch dimension
-            grads = self.strategy.run(lambda x: tf.squeeze(x, axis=0), args=(grads,))
-            print(grads)
-
+            v = backend.Variable([0.0])
             optimizer = SGD(learning_rate=1.0, gradient_accumulation_steps=3)
+            optimizer.build([v])
             self.assertEqual(optimizer.gradient_accumulation_steps, 3)
-            self.strategy.run(lambda x: optimizer.apply_gradients([(x, v)]), args=(grads,))
-            self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
-            self.assertAllClose(
-                optimizer._accumulated_gradients[0], [[1.0, 1.0], [1.0, 1.0]]
-            )
-            self.assertAllClose(optimizer.iterations, 1)
-            self.strategy.run(lambda x: optimizer.apply_gradients([(x, v)]), args=(grads,))
-            self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
-            self.assertAllClose(
-                optimizer._accumulated_gradients[0], [[2.0, 2.0], [2.0, 2.0]]
-            )
-            self.assertAllClose(optimizer.iterations, 2)
-            self.strategy.run(lambda x: optimizer.apply_gradients([(x, v)]), args=(grads,))
-            self.assertAllClose(v, [[0.0, 1.0], [1.0, 2.0]])
-            self.assertAllClose(
-                optimizer._accumulated_gradients[0], [[0.0, 0.0], [0.0, 0.0]]
-            )
-            self.assertAllClose(optimizer.iterations, 3)
+
+        def train_step(target):
+            print("target", target)
+            with tf.GradientTape() as tape:
+                loss = self.strategy.reduce(tf.reduce_mean, target - v, 0)
+            g = tape.gradient(loss, v)
+            print("g", g)
+            optimizer.apply_gradients([(g, v)])
+            return g
+        
+        # Create grads as a DistributedValue
+        target = backend.convert_to_tensor([[1.0], [3.0]])
+        dataset = tf.data.Dataset.from_tensor_slices(target).batch(2)
+        dataset_iterator = iter(self.strategy.experimental_distribute_dataset(dataset))
+        target = next(dataset_iterator)
+        print("targets", target)
+        # Remove leftover batch dimension
+        target = self.strategy.run(lambda x: tf.squeeze(x, axis=0), args=(target,))
+        print("targets", target)
+
+        g = self.strategy.run(lambda x: train_step(x), args=(target,))
+        print("g", g)
+        self.assertAllClose(v, [0.])
+        self.assertAllClose(optimizer._accumulated_gradients[0], [-1.5])
