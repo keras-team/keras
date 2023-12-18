@@ -148,7 +148,7 @@ class EinsumDense(Layer):
         )
         kernel_shape, bias_shape, full_output_shape = shape_data
         self.full_output_shape = tuple(full_output_shape)
-        self.kernel = self.add_weight(
+        self._kernel = self.add_weight(
             name="kernel",
             shape=tuple(kernel_shape),
             initializer=self.kernel_initializer,
@@ -173,6 +173,18 @@ class EinsumDense(Layer):
         super().build(input_shape)
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
+
+    @property
+    def kernel(self):
+        if not self.built:
+            raise AttributeError(
+                "You must build the layer before accessing `kernel`."
+            )
+        if self.lora_enabled:
+            return self._kernel + ops.matmul(
+                self.lora_kernel_a, self.lora_kernel_b
+            )
+        return self._kernel
 
     def compute_output_shape(self, _):
         return self.full_output_shape
@@ -203,14 +215,7 @@ class EinsumDense(Layer):
         return {**base_config, **config}
 
     def call(self, inputs):
-        if self.lora_enabled:
-            kernel = self.kernel + ops.matmul(
-                self.lora_kernel_a, self.lora_kernel_b
-            )
-        else:
-            kernel = self.kernel
-
-        x = ops.einsum(self.equation, inputs, kernel)
+        x = ops.einsum(self.equation, inputs, self.kernel)
         if self.bias is not None:
             x += self.bias
         if self.activation is not None:
@@ -260,7 +265,7 @@ class EinsumDense(Layer):
     def load_own_variables(self, store):
         if not self.lora_enabled:
             return super().load_own_variables(store)
-        self.kernel.assign(store["0"])
+        self._kernel.assign(store["0"])
         if self.bias is not None:
             self.bias.assign(store["1"])
         self.lora_kernel_a.assign(np.zeros(self.lora_kernel_a.shape))

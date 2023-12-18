@@ -91,7 +91,7 @@ class Embedding(Layer):
         self.lora_enabled = False
 
     def build(self, input_shape=None):
-        self.embeddings = self.add_weight(
+        self._embeddings = self.add_weight(
             shape=(self.input_dim, self.output_dim),
             initializer=self.embeddings_initializer,
             name="embeddings",
@@ -103,16 +103,18 @@ class Embedding(Layer):
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
 
+    @property
+    def embeddings(self):
+        if self.lora_enabled:
+            return self._embeddings + ops.matmul(
+                self.lora_embeddings_a, self.lora_embeddings_b
+            )
+        return self._embeddings
+
     def call(self, inputs):
         if inputs.dtype != "int32" and inputs.dtype != "int64":
             inputs = ops.cast(inputs, "int32")
-        if self.lora_enabled:
-            embeddings = self.embeddings + ops.matmul(
-                self.lora_embeddings_a, self.lora_embeddings_b
-            )
-        else:
-            embeddings = self.embeddings
-        outputs = ops.take(embeddings, inputs, axis=0)
+        outputs = ops.take(self.embeddings, inputs, axis=0)
         return ops.cast(outputs, dtype=self.compute_dtype)
 
     def compute_mask(self, inputs, mask=None):
@@ -164,7 +166,7 @@ class Embedding(Layer):
     def load_own_variables(self, store):
         if not self.lora_enabled:
             return super().load_own_variables(store)
-        self.embeddings.assign(store["0"])
+        self._embeddings.assign(store["0"])
         self.lora_embeddings_a.assign(np.zeros(self.lora_embeddings_a.shape))
         self.lora_embeddings_b.assign(np.zeros(self.lora_embeddings_b.shape))
 

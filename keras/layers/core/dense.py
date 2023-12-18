@@ -99,7 +99,7 @@ class Dense(Layer):
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
-        self.kernel = self.add_weight(
+        self._kernel = self.add_weight(
             name="kernel",
             shape=(input_dim, self.units),
             initializer=self.kernel_initializer,
@@ -121,15 +121,20 @@ class Dense(Layer):
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
 
-    def call(self, inputs):
+    @property
+    def kernel(self):
+        if not self.built:
+            raise AttributeError(
+                "You must build the layer before accessing `kernel`."
+            )
         if self.lora_enabled:
-            kernel = self.kernel + ops.matmul(
+            return self._kernel + ops.matmul(
                 self.lora_kernel_a, self.lora_kernel_b
             )
-        else:
-            kernel = self.kernel
+        return self._kernel
 
-        x = ops.matmul(inputs, kernel)
+    def call(self, inputs):
+        x = ops.matmul(inputs, self.kernel)
         if self.bias is not None:
             x = x + self.bias
         if self.activation is not None:
@@ -183,7 +188,7 @@ class Dense(Layer):
     def load_own_variables(self, store):
         if not self.lora_enabled:
             return super().load_own_variables(store)
-        self.kernel.assign(store["0"])
+        self._kernel.assign(store["0"])
         if self.use_bias:
             self.bias.assign(store["1"])
         self.lora_kernel_a.assign(np.zeros(self.lora_kernel_a.shape))
