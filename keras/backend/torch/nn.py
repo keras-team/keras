@@ -759,6 +759,7 @@ def ctc_loss(
     target_length = convert_to_tensor(target_length)
     output_length = convert_to_tensor(output_length)
 
+    output = torch.transpose(output, 1, 0)
     logits = tnn.log_softmax(output, dim=-1)
 
     return tnn.ctc_loss(

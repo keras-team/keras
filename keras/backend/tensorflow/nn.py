@@ -838,4 +838,5 @@ def ctc_loss(
         label_length=target_length,
         logit_length=output_length,
         blank_index=mask_index,
+        logits_time_major=False,
     )

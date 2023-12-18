@@ -975,8 +975,8 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() not in ["tensorflow", "torch"],
-        reason="Only TF and Torch support CTC loss",
+        backend.backend() == "numpy",
+        reason="Numpy does not support CTC loss",
     )
     def test_ctc_loss(self):
         x = KerasTensor([10, 3, 4])
@@ -1762,16 +1762,15 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(tuple(output.shape), (2, 3, 3, 5))
 
     @pytest.mark.skipif(
-        backend.backend() not in ["tensorflow", "torch"],
-        reason="Only TF and Torch support CTC loss",
+        backend.backend() == "numpy",
+        reason="Numpy does not support CTC loss",
     )
     def test_ctc_loss(self):
         labels = np.array([[1, 2, 1], [1, 2, 2]])
         outputs = np.array(
             [
-                [[0.4, 0.8, 0.4], [0.4, 0.8, 0.4]],
-                [[0.2, 0.8, 0.3], [0.2, 0.3, 0.3]],
-                [[0.9, 0.4, 0.5], [0.4, 0.3, 0.2]],
+                [[0.4, 0.8, 0.4], [0.2, 0.8, 0.3], [0.9, 0.4, 0.5]],
+                [[0.4, 0.8, 0.4], [0.2, 0.3, 0.3], [0.4, 0.3, 0.2]],
             ]
         )
 
