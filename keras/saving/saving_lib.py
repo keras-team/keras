@@ -404,12 +404,10 @@ def _load_state(
         else:
             trackable.load_assets(assets_store.get(inner_path))
 
-    if not failure:
-        if visited_trackables is not None:
-            visited_trackables.add(id(trackable))
-        if id(trackable) in failed_trackables:
-            failed_trackables.remove(id(trackable))
-            error_msgs.pop(id(trackable))
+    if failed_trackables is not None:
+        currently_failed = len(failed_trackables)
+    else:
+        currently_failed = 0
 
     # Recursively load states for Keras trackables such as layers/optimizers.
     for child_attr, child_obj in _walk_trackable(trackable):
@@ -439,6 +437,18 @@ def _load_state(
                 failed_trackables=failed_trackables,
                 error_msgs=error_msgs,
             )
+
+    if failed_trackables is not None:
+        newly_failed = len(failed_trackables) - currently_failed
+    else:
+        newly_failed = 0
+
+    if not failure:
+        if visited_trackables is not None and newly_failed <= 0:
+            visited_trackables.add(id(trackable))
+        if id(trackable) in failed_trackables:
+            failed_trackables.remove(id(trackable))
+            error_msgs.pop(id(trackable))
 
 
 def _save_container_state(
