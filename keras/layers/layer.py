@@ -962,12 +962,13 @@ class Layer(BackendLayer, Operation):
         mapping = list(trainable_mapping) + list(non_trainable_mapping)
 
         # Call in stateless scope
+        losses = None
         with backend.StatelessScope(
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
             outputs = self.call(*args, **kwargs)
-            for loss in self._get_regularization_losses():
-                scope.add_loss(loss)
+            if return_losses:
+                losses = self.losses
 
         # Gather updated non-trainable variables
         non_trainable_variables = []
@@ -979,7 +980,7 @@ class Layer(BackendLayer, Operation):
                 non_trainable_variables.append(v)
 
         if return_losses:
-            return outputs, non_trainable_variables, scope.losses[:]
+            return outputs, non_trainable_variables, losses
         return outputs, non_trainable_variables
 
     def compute_output_spec(self, *args, **kwargs):
