@@ -1079,10 +1079,11 @@ class Layer(BackendLayer, Operation):
         weight_regularization_losses = []
         for v in self.trainable_weights:
             regularizer = getattr(v, "regularizer", None)
-            if regularizer:
-                if backend.in_stateless_scope():
-                    v = backend.get_stateless_scope().get_current_value(v)
-                weight_regularization_losses.append(regularizer(v))
+            if regularizer is None:
+                continue
+            if backend.in_stateless_scope():
+                v = backend.get_stateless_scope().get_current_value(v)
+            weight_regularization_losses.append(regularizer(v))
         return weight_regularization_losses
 
     @property
