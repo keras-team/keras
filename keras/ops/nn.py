@@ -1280,8 +1280,8 @@ def one_hot(x, num_classes, axis=-1, dtype=None):
         x: Integer tensor to be encoded. The shape can be
             arbitrary, but the dtype should be integer.
         num_classes: Number of classes for the one-hot encoding.
-        axis: Axis along which the encoding is performed. Defaults to
-            `-1`, which represents the last axis.
+        axis: Axis along which the encoding is performed.
+            `-1` represents the last axis. Defaults to `-1`.
         dtype: (Optional) Data type of the output tensor. If not
             provided, it defaults to the default data type of the backend.
 
@@ -1351,7 +1351,7 @@ def binary_crossentropy(target, output, from_logits=False):
             probabilities.
             Set it to `True` if `output` represents logits; otherwise,
             set it to `False` if `output` represents probabilities.
-            Defaults to`False`.
+            Defaults to `False`.
 
     Returns:
         Integer tensor: The computed binary cross-entropy loss between
@@ -1426,7 +1426,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
             probabilities.
             Set it to `True` if `output` represents logits; otherwise,
             set it to `False` if `output` represents probabilities.
-            Defaults to`False`.
+            Defaults to `False`.
         axis: (optional) The axis along which the categorical cross-entropy
             is computed.
             Defaults to `-1`, which corresponds to the last dimension of
@@ -1514,7 +1514,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             or probabilities.
             Set it to `True` if `output` represents logits; otherwise,
             set it to `False` if `output` represents probabilities.
-            Defaults to`False`.
+            Defaults to `False`.
         axis: (optional) The axis along which the sparse categorical
             cross-entropy is computed.
             Defaults to `-1`, which corresponds to the last dimension

@@ -348,7 +348,7 @@ def all(x, axis=None, keepdims=False):
             for the last to the first axis.
         keepdims: If `True`, axes which are reduced are left in the result as
             dimensions with size one. With this option, the result will
-            broadcast correctly against the input array. Defaults to`False`.
+            broadcast correctly against the input array. Defaults to `False`.
 
     Returns:
         The tensor containing the logical AND reduction over the `axis`.
@@ -412,7 +412,7 @@ def any(x, axis=None, keepdims=False):
             for the last to the first axis.
         keepdims: If `True`, axes which are reduced are left in the result as
             dimensions with size one. With this option, the result will
-            broadcast correctly against the input array. Defaults to`False`.
+            broadcast correctly against the input array. Defaults to `False`.
 
     Returns:
         The tensor containing the logical OR reduction over the `axis`.
@@ -1070,7 +1070,7 @@ def argsort(x, axis=-1):
 
     Args:
         x: Input tensor.
-        axis: Axis along which to sort. Defaults to`-1` (the last axis). If
+        axis: Axis along which to sort. Defaults to `-1` (the last axis). If
             `None`, the flattened tensor is used.
 
     Returns:
@@ -3137,7 +3137,7 @@ def linspace(
         num: Number of samples to generate. Defaults to `50`. Must be
             non-negative.
         endpoint: If `True`, `stop` is the last sample. Otherwise, it is
-            not included. Defaults to`True`.
+            not included. Defaults to `True`.
         retstep: If `True`, return `(samples, step)`, where `step` is the
             spacing between samples.
         dtype: The type of the output tensor.
@@ -3474,7 +3474,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             are returned.
         num: Number of samples to generate. Defaults to `50`.
         endpoint: If `True`, `stop` is the last sample. Otherwise, it is not
-            included. Defaults to`True`.
+            included. Defaults to `True`.
         base: The base of the log space. Defaults to `10`.
         dtype: The type of the output tensor.
         axis: The axis in the result to store the samples. Relevant only
@@ -3575,8 +3575,8 @@ def max(x, axis=None, keepdims=False, initial=None):
         axis: Axis or axes along which to operate. By default, flattened input
             is used.
         keepdims: If this is set to `True`, the axes which are reduced are left
-            in the result as dimensions with size one. Defaults to`False`.
-        initial: The minimum value of an output element. Defaults to`None`.
+            in the result as dimensions with size one. Defaults to `False`.
+        initial: The minimum value of an output element. Defaults to `None`.
 
     Returns:
         Maximum of `x`.
@@ -3768,8 +3768,8 @@ def min(x, axis=None, keepdims=False, initial=None):
         axis: Axis or axes along which to operate. By default, flattened input
             is used.
         keepdims: If this is set to `True`, the axes which are reduced are left
-            in the result as dimensions with size one. Defaults to`False`.
-        initial: The maximum value of an output element. Defaults to`None`.
+            in the result as dimensions with size one. Defaults to `False`.
+        initial: The maximum value of an output element. Defaults to `None`.
 
     Returns:
         Minimum of `x`.
@@ -4179,7 +4179,7 @@ def pad(x, pad_width, mode="constant", constant_values=None):
         mode: One of `"constant"`, `"edge"`, `"linear_ramp"`,
             `"maximum"`, `"mean"`, `"median"`, `"minimum"`,
             `"reflect"`, `"symmetric"`, `"wrap"`, `"empty"`,
-            `"circular"`. Defaults to`"constant"`.
+            `"circular"`. Defaults to `"constant"`.
         constant_values: value to pad with if `mode == "constant"`.
             Defaults to `0`. A `ValueError` is raised if not None and
             `mode != "constant"`.
