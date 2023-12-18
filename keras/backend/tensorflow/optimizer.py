@@ -146,7 +146,16 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
             var.assign(var + grad)
 
         accumulators = [v.value for v in self._accumulated_gradients]
-        for grad, var in zip(grads, accumulators):
-            self._distribution_strategy.extended.update(
-                var, update_accumulator, args=(grad,), group=False
-            )
+
+        def _distributed_tf_increment_grad_acc(distribution, grads, accumulators):
+            for grad, var in zip(grads, accumulators):
+                distribution.extended.update(
+                    var, update_accumulator, args=(grad,), group=False
+                )
+
+        tf.__internal__.distribute.interim.maybe_merge_call(
+            _distributed_tf_increment_grad_acc,
+            self._distribution_strategy,
+            grads,
+            accumulators,
+        )
