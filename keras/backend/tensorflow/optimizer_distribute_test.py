@@ -138,3 +138,49 @@ class OptimizerDistributeTest(testing.TestCase):
         optimizer.build(vars)
         with self.assertRaisesRegex(ValueError, "not supported"):
             optimizer.stateless_apply(optimizer.variables, grads, vars)
+
+    def test_ema(self):
+        with self.strategy.scope():
+            v = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
+            grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+            optimizer = SGD(
+                learning_rate=1.0,
+                use_ema=True,
+                ema_momentum=0.9,
+                ema_overwrite_frequency=3,
+            )
+            self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
+            self.assertAllClose(v, [[2.0, 3.0], [4.0, 5.0]])
+            self.assertAllClose(
+                optimizer._model_variables_moving_average[0],
+                [[2.0, 3.0], [4.0, 5.0]],
+            )
+            self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
+            self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
+            self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
+            self.assertAllClose(v, [[1.71, 2.71], [3.71, 4.71]])
+
+    def test_gradient_accumulation(self):
+        with self.strategy.scope():
+            v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+            grads = backend.convert_to_tensor([[1.0, 1.0], [2.0, 2.0]])
+            optimizer = SGD(learning_rate=1.0, gradient_accumulation_steps=3)
+            self.assertEqual(optimizer.gradient_accumulation_steps, 3)
+            self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
+            self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
+            self.assertAllClose(
+                optimizer._accumulated_gradients[0], [[1.0, 1.0], [2.0, 2.0]]
+            )
+            self.assertAllClose(optimizer.iterations, 1)
+            self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
+            self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
+            self.assertAllClose(
+                optimizer._accumulated_gradients[0], [[2.0, 2.0], [4.0, 4.0]]
+            )
+            self.assertAllClose(optimizer.iterations, 2)
+            self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
+            self.assertAllClose(v, [[0.0, 1.0], [1.0, 2.0]])
+            self.assertAllClose(
+                optimizer._accumulated_gradients[0], [[0.0, 0.0], [0.0, 0.0]]
+            )
+            self.assertAllClose(optimizer.iterations, 3)

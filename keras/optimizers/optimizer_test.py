@@ -7,6 +7,36 @@ from keras import testing
 
 
 class OptimizerTest(testing.TestCase):
+    def test_iterations_counter(self):
+        v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        optimizer = optimizers.Adam(learning_rate=1.0)
+        self.assertAllClose(optimizer.iterations, 0)
+        optimizer.apply_gradients([(grads, v)])
+        self.assertAllClose(optimizer.iterations, 1)
+        optimizer.apply_gradients([(grads, v)])
+        self.assertAllClose(optimizer.iterations, 2)
+
+    def test_ema(self):
+        v = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
+        grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        optimizer = optimizers.SGD(
+            learning_rate=1.0,
+            use_ema=True,
+            ema_momentum=0.9,
+            ema_overwrite_frequency=3,
+        )
+        optimizer.apply_gradients([(grads, v)])
+        self.assertAllClose(v, [[2.0, 3.0], [4.0, 5.0]])
+        self.assertAllClose(
+            optimizer._model_variables_moving_average[0],
+            [[2.0, 3.0], [4.0, 5.0]],
+        )
+        optimizer.apply_gradients([(grads, v)])
+        self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
+        optimizer.apply_gradients([(grads, v)])
+        self.assertAllClose(v, [[1.71, 2.71], [3.71, 4.71]])
+
     def test_constraints_are_applied(self):
         v = backend.Variable(np.random.random((2, 2)) - 1.0)
         v.constraint = constraints.NonNeg()
@@ -50,3 +80,35 @@ class OptimizerTest(testing.TestCase):
                 optimizer_1.variables[i],
                 optimizer_2.variables[i],
             )
+
+    def test_gradient_accumulation(self):
+        v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        optimizer = optimizers.SGD(
+            learning_rate=1.0, gradient_accumulation_steps=3
+        )
+        self.assertEqual(optimizer.gradient_accumulation_steps, 3)
+        optimizer.apply_gradients([(grads, v)])
+        self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
+        self.assertAllClose(
+            optimizer._accumulated_gradients[0], [[1.0, 1.0], [1.0, 1.0]]
+        )
+        self.assertAllClose(optimizer.iterations, 1)
+        optimizer.apply_gradients([(grads, v)])
+        self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
+        self.assertAllClose(
+            optimizer._accumulated_gradients[0], [[2.0, 2.0], [2.0, 2.0]]
+        )
+        self.assertAllClose(optimizer.iterations, 2)
+        optimizer.apply_gradients([(grads, v)])
+        self.assertAllClose(v, [[0.0, 1.0], [2.0, 3.0]])
+        self.assertAllClose(
+            optimizer._accumulated_gradients[0], [[0.0, 0.0], [0.0, 0.0]]
+        )
+        self.assertAllClose(optimizer.iterations, 3)
+        optimizer.apply_gradients([(grads, v)])
+        self.assertAllClose(v, [[0.0, 1.0], [2.0, 3.0]])
+        self.assertAllClose(
+            optimizer._accumulated_gradients[0], [[1.0, 1.0], [1.0, 1.0]]
+        )
+        self.assertAllClose(optimizer.iterations, 4)

@@ -1,6 +1,8 @@
 import re
 import warnings
 
+import numpy as np
+
 from keras import backend
 from keras import initializers
 from keras import ops
@@ -22,6 +24,7 @@ class BaseOptimizer:
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
+        gradient_accumulation_steps=None,
         name=None,
         **kwargs,
     ):
@@ -43,6 +46,15 @@ class BaseOptimizer:
         self.clipvalue = clipvalue
         self.use_ema = use_ema
         self.loss_scale_factor = loss_scale_factor
+        self.gradient_accumulation_steps = gradient_accumulation_steps
+
+        if gradient_accumulation_steps:
+            if not gradient_accumulation_steps >= 2:
+                raise ValueError(
+                    "`gradient_accumulation_steps` must be an integer >= 2. "
+                    "Received: gradient_accumulation_steps="
+                    f"{gradient_accumulation_steps}"
+                )
 
         if use_ema:
             # Verify the arguments related to EMA.
@@ -128,6 +140,8 @@ class BaseOptimizer:
         if self.use_ema:
             self._model_variables_moving_average = []
             self._ema_vars_initialized = False
+        if self.gradient_accumulation_steps:
+            self._accumulated_gradients = []
         for i, variable in enumerate(variables):
             self._trainable_variables_indices[self._var_key(variable)] = i
             if self.use_ema:
@@ -135,6 +149,13 @@ class BaseOptimizer:
                     self.add_variable_from_reference(
                         variable,
                         "average",
+                    )
+                )
+            if self.gradient_accumulation_steps:
+                self._accumulated_gradients.append(
+                    self.add_variable_from_reference(
+                        variable,
+                        "gradient_accumulator",
                     )
                 )
         self._trainable_variables = variables[:]
@@ -250,11 +271,13 @@ class BaseOptimizer:
         return self.iterations
 
     def apply(self, grads, trainable_variables=None):
-        """
+        """Update traininable variables according to provided gradient values.
+
         `grads` should be a list of gradient tensors
         with 1:1 mapping to the list of variables the optimizer was built with.
 
-        `variables` can be provided on the first call to build the optimizer.
+        `trainable_variables` can be provided
+        on the first call to build the optimizer.
         """
         if len(grads) == 0:
             # It is possible that the grad is empty. In this case,
@@ -304,19 +327,100 @@ class BaseOptimizer:
             self._apply_weight_decay(trainable_variables)
 
             # Apply gradient updates.
-            self._internal_apply_gradients(
-                list(zip(grads, trainable_variables))
-            )
-
+            self._backend_apply_gradients(grads, trainable_variables)
             # Apply variable constraints after applying gradients.
             for variable in trainable_variables:
                 if getattr(variable, "constraint", None) is not None:
                     variable.assign(variable.constraint(variable))
 
-    def _internal_apply_gradients(self, grads_and_vars):
-        for grad, var in grads_and_vars:
-            self.update_step(grad, var, self.learning_rate)
-        self.iterations.assign(self.iterations + 1)
+    def _backend_apply_gradients(self, grads, trainable_variables):
+        """Apply method that can be overridden by different backends.
+
+        JAX overrides it in order to deal with statelessness in gradient
+        accumulation and EMA handling.
+
+        The below implementation is intended to be generally backend-agnostic,
+        but may not work with all backends.
+
+        This method does 4 things:
+        - Call the optimizer's update_step() to update trainable variables
+            and optimizer variables.
+        - Update EMA variables, if EMA is configured.
+        - Update gradient accumulators, if gradient accumulation is configured.
+        - Update the iteration counter.
+        """
+        if self.gradient_accumulation_steps:
+            is_update_step = (
+                self.iterations + 1
+            ) % self.gradient_accumulation_steps == 0
+
+            def _update_step_fn(self, grads, trainable_variables):
+                # Run update step with accumulated grads + reset accumulators
+                steps = self.gradient_accumulation_steps
+                grads = [
+                    (grads[i] + self._accumulated_gradients[i]) / steps
+                    for i in range(len(grads))
+                ]
+                self._backend_update_step(
+                    grads, trainable_variables, self.learning_rate
+                )
+                self._backend_reset_gradient_accumulators()
+
+            def _grad_accumulation_fn(self, grads):
+                # Update gradient accumulators
+                self._backend_increment_gradient_accumulators(grads)
+
+            ops.cond(
+                is_update_step,
+                lambda: _update_step_fn(self, grads, trainable_variables),
+                lambda: _grad_accumulation_fn(self, grads),
+            )
+        else:
+            # Run udpate step.
+            self._backend_update_step(
+                grads, trainable_variables, self.learning_rate
+            )
+
+        if self.use_ema:
+            self._update_model_variables_moving_average(
+                self._trainable_variables
+            )
+            if self.ema_overwrite_frequency:
+                # Only when self.ema_overwrite_frequency is not None, we
+                # overwrite the model variables.
+                should_overwrite_model_vars = (
+                    self.iterations + 1
+                ) % self.ema_overwrite_frequency == 0
+                ops.cond(
+                    should_overwrite_model_vars,
+                    lambda: self._overwrite_model_variables_with_average_value(
+                        self._trainable_variables
+                    ),
+                    lambda: None,
+                )
+        # Update iteration counter.
+        self.iterations.assign_add(1)
+
+    def _backend_update_step(self, grads, trainable_variables, learning_rate):
+        """Collective update_step that can be overridden by the backend.
+
+        It is overridden by torch for performance reasons, and
+        by TF to support tf.distribute.
+        """
+        for grad, var in zip(grads, trainable_variables):
+            self.update_step(grad, var, learning_rate)
+
+    def _backend_reset_gradient_accumulators(self):
+        for g_acc in self._accumulated_gradients:
+            g_acc.assign(np.zeros(g_acc.shape, dtype=g_acc.dtype))
+
+    def _backend_increment_gradient_accumulators(self, grads):
+        new_g_accs = [
+            (grads[i] + self._accumulated_gradients[i])
+            for i in range(len(grads))
+        ]
+        for n_g_acc, g_acc in zip(new_g_accs, self._accumulated_gradients):
+            g_acc.assign(n_g_acc)
 
     def stateless_apply(self, optimizer_variables, grads, trainable_variables):
         self._check_super_called()
@@ -566,11 +670,11 @@ class BaseOptimizer:
                 "Go add it!"
             )
 
-    def _update_model_variables_moving_average(self, var_list):
+    def _update_model_variables_moving_average(self, trainable_variables):
         """Update the stored moving average using the latest value."""
         if self.use_ema:
             for var, average in zip(
-                var_list, self._model_variables_moving_average
+                trainable_variables, self._model_variables_moving_average
             ):
                 if self._ema_vars_initialized:
                     average.assign(
@@ -581,22 +685,22 @@ class BaseOptimizer:
                     average.assign(var)
             self._ema_vars_initialized = True
 
-    def _overwrite_model_variables_with_average_value(self, var_list):
+    def _overwrite_model_variables_with_average_value(
+        self, trainable_variables
+    ):
         """Overwrite model variables with its moving average."""
-        if len(var_list) != len(self._model_variables_moving_average):
+        if len(trainable_variables) != len(
+            self._model_variables_moving_average
+        ):
             raise ValueError(
-                f"The length of model variables ({len(var_list)}) to "
-                "override does not match the length of model variables "
+                f"The length of model variables ({len(trainable_variables)}) "
+                "to override does not match the length of model variables "
                 "stored in the optimizer "
                 f"({len(self._model_variables_moving_average)}). Please "
                 "check if the optimizer was called on your model."
             )
-        self._overwrite_model_variables_with_average_value_helper(var_list)
-
-    def _overwrite_model_variables_with_average_value_helper(self, var_list):
-        """Helper function that overwrites model variables."""
         for var, average_var in zip(
-            var_list, self._model_variables_moving_average
+            trainable_variables, self._model_variables_moving_average
         ):
             var.assign(average_var)
 
@@ -656,6 +760,7 @@ class BaseOptimizer:
             "ema_momentum": self.ema_momentum,
             "ema_overwrite_frequency": self.ema_overwrite_frequency,
             "loss_scale_factor": self.loss_scale_factor,
+            "gradient_accumulation_steps": self.gradient_accumulation_steps,
         }
         return config
 
@@ -696,42 +801,50 @@ class BaseOptimizer:
 
 
 base_optimizer_keyword_args = """name: String. The name to use
-          for momentum accumulator weights created by
-          the optimizer.
+            for momentum accumulator weights created by
+            the optimizer.
         weight_decay: Float. If set, weight decay is applied.
         clipnorm: Float. If set, the gradient of each weight is individually
-          clipped so that its norm is no higher than this value.
+            clipped so that its norm is no higher than this value.
         clipvalue: Float. If set, the gradient of each weight is clipped to be
-          no higher than this value.
+            no higher than this value.
         global_clipnorm: Float. If set, the gradient of all weights is clipped
-          so that their global norm is no higher than this value.
+            so that their global norm is no higher than this value.
         use_ema: Boolean, defaults to False. If True, exponential moving average
-          (EMA) is applied. EMA consists of computing an exponential moving
-          average of the weights of the model (as the weight values change after
-          each training batch), and periodically overwriting the weights with
-          their moving average.
+            (EMA) is applied. EMA consists of computing an exponential moving
+            average of the weights of the model (as the weight values change
+            after each training batch), and periodically overwriting the
+            weights with their moving average.
         ema_momentum: Float, defaults to 0.99. Only used if `use_ema=True`.
-          This is the momentum to use when computing
-          the EMA of the model's weights:
-          `new_average = ema_momentum * old_average + (1 - ema_momentum) *
-          current_variable_value`.
+            This is the momentum to use when computing
+            the EMA of the model's weights:
+            `new_average = ema_momentum * old_average + (1 - ema_momentum) *
+            current_variable_value`.
         ema_overwrite_frequency: Int or None, defaults to None. Only used if
-          `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations,
-          we overwrite the model variable by its moving average.
-          If None, the optimizer
-          does not overwrite model variables in the middle of training, and you
-          need to explicitly overwrite the variables at the end of training
-          by calling `optimizer.finalize_variable_values()`
-          (which updates the model
-          variables in-place). When using the built-in `fit()` training loop,
-          this happens automatically after the last epoch,
-          and you don't need to do anything.
+            `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations,
+            we overwrite the model variable by its moving average.
+            If None, the optimizer
+            does not overwrite model variables in the middle of training,
+            and you need to explicitly overwrite the variables
+            at the end of training by calling
+            `optimizer.finalize_variable_values()` (which updates the model
+            variables in-place). When using the built-in `fit()` training loop,
+            this happens automatically after the last epoch,
+            and you don't need to do anything.
         loss_scale_factor: Float or `None`. If a float, the scale factor will
-          be multiplied the loss before computing gradients, and the inverse of
-          the scale factor will be multiplied by the gradients before updating
-          variables. Useful for preventing underflow during mixed precision
-          training. Alternately, `keras.optimizers.LossScaleOptimizer` will
-          automatically set a loss scale factor.
+            be multiplied the loss before computing gradients, and the inverse
+            of the scale factor will be multiplied by the gradients before
+            updating variables. Useful for preventing underflow during
+            mixed precision training. Alternately,
+            `keras.optimizers.LossScaleOptimizer` will
+            automatically set a loss scale factor.
+        gradient_accumulation_steps: Int or `None`. If an int, model & optimizer
+            variables will not be updated at every step; instead they will be
+            updated every `gradient_accumulation_steps` steps, using the average
+            value of the gradients since the last update. This is known as
+            "gradient accumulation". This can be useful
+            when your batch size is very small, in order to reduce gradient
+            noise at each update step.
 """
 
 
