@@ -113,7 +113,6 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
         self, distribution, grads_and_vars, learning_rate
     ):
         def apply_grad_to_update_var(var, grad):
-            learning_rate = self._get_current_learning_rate()
             return self.update_step(grad, var, learning_rate)
 
         for grad, var in grads_and_vars:
@@ -130,7 +129,6 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
         Args:
           var_list: list of model variables.
         """
-        strategy = self._distribution_strategy
         trainable_variables = [
             v.value if isinstance(v, backend.Variable) else v
             for v in trainable_variables
@@ -139,6 +137,6 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
         for var, average_var in zip(
             trainable_variables, self._model_variables_moving_average
         ):
-            strategy.extended.update(
+            self._distribution_strategy.extended.update(
                 var, lambda a, b: a.assign(b), args=(average_var,)
             )
