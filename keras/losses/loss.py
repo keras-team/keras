@@ -76,7 +76,7 @@ def standardize_reduction(reduction):
     if reduction not in allowed:
         raise ValueError(
             "Invalid value for argument `reduction`. "
-            f"Expected on of {allowed}. Received: "
+            f"Expected one of {allowed}. Received: "
             f"reduction={reduction}"
         )
     return reduction
