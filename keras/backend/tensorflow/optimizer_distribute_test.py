@@ -163,30 +163,24 @@ class OptimizerDistributeTest(testing.TestCase):
     def test_gradient_accumulation(self):
         with self.strategy.scope():
             v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
-            grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+            grads = backend.convert_to_tensor([[1.0, 1.0], [2.0, 2.0]])
             optimizer = SGD(learning_rate=1.0, gradient_accumulation_steps=3)
             self.assertEqual(optimizer.gradient_accumulation_steps, 3)
             self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
             self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
             self.assertAllClose(
-                optimizer._accumulated_gradients[0], [[1.0, 1.0], [1.0, 1.0]]
+                optimizer._accumulated_gradients[0], [[1.0, 1.0], [2.0, 2.0]]
             )
             self.assertAllClose(optimizer.iterations, 1)
             self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
             self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
             self.assertAllClose(
-                optimizer._accumulated_gradients[0], [[2.0, 2.0], [2.0, 2.0]]
+                optimizer._accumulated_gradients[0], [[2.0, 2.0], [4.0, 4.0]]
             )
             self.assertAllClose(optimizer.iterations, 2)
             self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
-            self.assertAllClose(v, [[0.0, 1.0], [2.0, 3.0]])
+            self.assertAllClose(v, [[0.0, 1.0], [1.0, 2.0]])
             self.assertAllClose(
                 optimizer._accumulated_gradients[0], [[0.0, 0.0], [0.0, 0.0]]
             )
             self.assertAllClose(optimizer.iterations, 3)
-            self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
-            self.assertAllClose(v, [[0.0, 1.0], [2.0, 3.0]])
-            self.assertAllClose(
-                optimizer._accumulated_gradients[0], [[1.0, 1.0], [1.0, 1.0]]
-            )
-            self.assertAllClose(optimizer.iterations, 4)

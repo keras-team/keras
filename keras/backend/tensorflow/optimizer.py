@@ -140,3 +140,13 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
             self._distribution_strategy.extended.update(
                 var, lambda a, b: a.assign(b), args=(average_var,)
             )
+
+    def _backend_increment_gradient_accumulators(self, grads):
+        def update_accumulator(var, grad):
+            var.assign(var + grad)
+
+        accumulators = [v.value for v in self._accumulated_gradients]
+        for grad, var in zip(grads, accumulators):
+            self._distribution_strategy.extended.update(
+                var, update_accumulator, args=(grad,), group=False
+            )
