@@ -1867,3 +1867,25 @@ def binary_focal_crossentropy(
         focal_bce = weight * focal_bce
 
     return ops.mean(focal_bce, axis=axis)
+
+
+@keras_export("keras.losses.ctc")
+def ctc(y_true, y_pred, mask_index=0):
+    """CTC (Connectionist Temporal Classification) loss.
+
+    Args:
+        y_true: A tensor of shape `(batch_size, target_max_length)` containing
+            the true labels in integer format.
+        y_pred: A tensor of shape `(batch_size, output_max_length, num_classes)`
+            containing logits (the output of your model).
+        mask_index: The index of the mask character in the vocabulary.
+            Defaults to `0`.
+    """
+    batch_len = ops.cast(ops.shape(y_true)[0], dtype="int32")
+    input_length = ops.cast(ops.shape(y_pred)[1], dtype="int32")
+    label_length = ops.cast(ops.shape(y_true)[1], dtype="int32")
+
+    input_length = input_length * ops.ones(shape=(batch_len, 1), dtype="int32")
+    label_length = label_length * ops.ones(shape=(batch_len, 1), dtype="int32")
+
+    loss = ops.ctc_loss(y_true, y_pred, label_length, input_length, mask_index)
