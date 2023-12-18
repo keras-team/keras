@@ -412,16 +412,8 @@ def flip(x, axis=None):
 
 
 def floor(x):
-    # TODO: This is not a proper floor we need a floor
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
-    x = x.astype(mx.int64)
-    x = cast(x, dtype)
-    return x
+    return mx.floor(x)
 
 
 def full(shape, fill_value, dtype=None):
