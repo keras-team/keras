@@ -4,7 +4,9 @@ import mlx.core as mx
 
 from keras.backend import config
 from keras.backend import standardize_dtype
-from keras.backend.mlx.core import cast, convert_to_tensor, to_mlx_dtype
+from keras.backend.mlx.core import cast
+from keras.backend.mlx.core import convert_to_tensor
+from keras.backend.mlx.core import to_mlx_dtype
 
 
 def add(x1, x2):

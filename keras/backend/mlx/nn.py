@@ -1,9 +1,9 @@
 import mlx.core as mx
 import mlx.nn as nn
 
+from keras.backend.config import epsilon
 from keras.backend.mlx.core import convert_to_tensor
 from keras.backend.mlx.numpy import clip
-from keras.backend.config import epsilon
 
 
 def relu(x):

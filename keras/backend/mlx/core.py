@@ -1,5 +1,4 @@
 import mlx.core as mx
-
 import numpy as np
 import tree
 
@@ -11,7 +10,6 @@ from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.config import floatx
 from keras.utils.nest import pack_sequence_as
-
 
 SUPPORTS_SPARSE_TENSORS = False
 
