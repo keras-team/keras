@@ -966,6 +966,8 @@ class Layer(BackendLayer, Operation):
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
             outputs = self.call(*args, **kwargs)
+            for loss in self._get_regularization_losses():
+                scope.add_loss(loss)
 
         # Gather updated non-trainable variables
         non_trainable_variables = []
@@ -977,9 +979,7 @@ class Layer(BackendLayer, Operation):
                 non_trainable_variables.append(v)
 
         if return_losses:
-            losses = scope.losses[:]
-            losses.extend(self._get_regularization_losses())
-            return outputs, non_trainable_variables, losses
+            return outputs, non_trainable_variables, scope.losses[:]
         return outputs, non_trainable_variables
 
     def compute_output_spec(self, *args, **kwargs):
@@ -1562,4 +1562,3 @@ def is_shape_tuple(s):
 
 def might_have_unbuilt_state(layer):
     return any(not lr.built for lr in layer._layers)
-
