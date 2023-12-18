@@ -503,7 +503,7 @@ class Layer(BackendLayer, Operation):
                 name=name,
             )
         # Will be added to layer.losses
-        variable.regularizer = regularizer
+        variable.regularizer = regularizers.get(regularizer)
         variable.constraint = constraints.get(constraint)
         self._track_variable(variable)
         return variable
@@ -977,7 +977,9 @@ class Layer(BackendLayer, Operation):
                 non_trainable_variables.append(v)
 
         if return_losses:
-            return outputs, non_trainable_variables, scope.losses[:]
+            losses = scope.losses[:]
+            losses.extend(self._get_regularization_losses())
+            return outputs, non_trainable_variables, losses
         return outputs, non_trainable_variables
 
     def compute_output_spec(self, *args, **kwargs):
@@ -1072,12 +1074,7 @@ class Layer(BackendLayer, Operation):
         else:
             return self._losses[:]
 
-    @property
-    def losses(self):
-        """List of scalar losses from `add_loss`, regularizers and sublayers."""
-        losses = self._get_own_losses()
-        for layer in self._flatten_layers(include_self=False):
-            losses.extend(layer._get_own_losses())
+    def _get_regularization_losses(self):
         weight_regularization_losses = []
         for v in self.trainable_weights:
             if backend.in_stateless_scope():
@@ -1085,6 +1082,15 @@ class Layer(BackendLayer, Operation):
             regularizer = getattr(v, "regularizer", None)
             if regularizer:
                 weight_regularization_losses.append(regularizer(v))
+        return weight_regularization_losses
+
+    @property
+    def losses(self):
+        """List of scalar losses from `add_loss`, regularizers and sublayers."""
+        losses = self._get_own_losses()
+        for layer in self._flatten_layers(include_self=False):
+            losses.extend(layer._get_own_losses())
+        weight_regularization_losses = self._get_regularization_losses()
         losses.extend(weight_regularization_losses)
         return losses
 
@@ -1556,3 +1562,4 @@ def is_shape_tuple(s):
 
 def might_have_unbuilt_state(layer):
     return any(not lr.built for lr in layer._layers)
+

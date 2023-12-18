@@ -581,6 +581,7 @@ class LayerTest(testing.TestCase):
                     shape=(),
                     initializer="zeros",
                     trainable=True,
+                    regularizer="l1",
                 )
                 self.built = True
 
@@ -632,6 +633,7 @@ class LayerTest(testing.TestCase):
             layer1.non_trainable_variables, non_trainable_variables
         ):
             self.assertAllClose(ref_v, v)
+        self.assertLen(losses, 2)
         for ref_loss, loss in zip(layer1.losses, losses):
             self.assertAllClose(ref_loss, loss)
 
