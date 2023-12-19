@@ -1,8 +1,8 @@
-import pytest
 import numpy as np
+import pytest
 
-from keras import testing
 from keras import backend
+from keras import testing
 from keras.losses import losses
 
 
