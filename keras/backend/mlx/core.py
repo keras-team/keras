@@ -11,6 +11,10 @@ from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.config import floatx
 from keras.utils.nest import pack_sequence_as
 
+# Monkey patch mx.array.shape to return tuples
+mx.array._og_shape = mx.array.shape
+mx.array.shape = property(lambda a: tuple(a._og_shape))
+
 SUPPORTS_SPARSE_TENSORS = False
 
 MLX_DTYPES = {
@@ -50,10 +54,6 @@ class Variable(KerasVariable):
 
     def __mlx_array__(self):
         return self.value
-
-    @property
-    def shape(self):
-        return list(self._shape)
 
     def __array__(self, dtype=None):
         value = convert_to_numpy(self._value)

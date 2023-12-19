@@ -219,7 +219,8 @@ def broadcast_to(x, shape):
 
 
 def ceil(x):
-    raise NotImplementedError("The MLX backend doesn't support ceil yet")
+    x = convert_to_tensor(x)
+    return mx.ceil(x)
 
 
 def clip(x, x_min, x_max):
@@ -949,7 +950,7 @@ def sum(x, axis=None, keepdims=False):
 
 
 def eye(N, M=None, k=None, dtype=None):
-    dtype = to_torch_dtype(dtype or config.floatx())
+    dtype = to_mlx_dtype(dtype or config.floatx())
     M = N if M is None else M
     k = 0 if k is None else k
     diag_length = builtins.max(N, M)
@@ -958,9 +959,10 @@ def eye(N, M=None, k=None, dtype=None):
 
 
 def floor_divide(x1, x2):
-    raise NotImplementedError(
-        "The MLX backend doesn't support floor_divide yet."
-    )
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    return mx.floor(x1 // x2)
 
 
 def logical_xor(x1, x2):
