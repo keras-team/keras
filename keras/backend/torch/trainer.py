@@ -12,7 +12,6 @@ from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.torch.core import is_tensor
 from keras.trainers import data_adapters
-from keras.trainers import epoch_iterator
 from keras.trainers import trainer as base_trainer
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.epoch_iterator import EpochIterator
@@ -259,7 +258,7 @@ class TorchTrainer(base_trainer.Trainer):
             ) = data_adapter_utils.unpack_x_y_sample_weight(validation_data)
 
         # Create an iterator that yields batches for one epoch.
-        epoch_iterator = EpochIterator(
+        epoch_iterator = TorchEpochIterator(
             x=x,
             y=y,
             sample_weight=sample_weight,
@@ -328,9 +327,9 @@ class TorchTrainer(base_trainer.Trainer):
 
             # Run validation.
             if validation_data and self._should_eval(epoch, validation_freq):
-                # Create EpochIterator for evaluation and cache it.
+                # Create TorchEpochIterator for evaluation and cache it.
                 if getattr(self, "_eval_epoch_iterator", None) is None:
-                    self._eval_epoch_iterator = EpochIterator(
+                    self._eval_epoch_iterator = TorchEpochIterator(
                         x=val_x,
                         y=val_y,
                         sample_weight=val_sample_weight,
@@ -393,7 +392,7 @@ class TorchTrainer(base_trainer.Trainer):
             epoch_iterator = self._eval_epoch_iterator
         else:
             # Create an iterator that yields batches of input/target data.
-            epoch_iterator = EpochIterator(
+            epoch_iterator = TorchEpochIterator(
                 x=x,
                 y=y,
                 sample_weight=sample_weight,
@@ -564,7 +563,7 @@ class TorchTrainer(base_trainer.Trainer):
         return batch_outputs
 
 
-class TorchEpochIterator(epoch_iterator.EpochIterator):
+class TorchEpochIterator(EpochIterator):
     def _get_iterator(self, return_type="auto"):
         if return_type == "auto" and isinstance(
             self.data_adapter, data_adapters.TorchDataLoaderAdapter
