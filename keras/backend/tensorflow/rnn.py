@@ -90,7 +90,9 @@ def rnn(
 
     flattened_inputs = tree.flatten(inputs)
     time_steps = flattened_inputs[0].shape[0]
-    time_steps_t = tf.shape(flattened_inputs[0])[0]
+    time_steps_t = (
+        tf.shape(flattened_inputs[0])[0] if time_steps is None else time_steps
+    )
 
     for input_ in flattened_inputs:
         input_.shape.with_rank_at_least(3)
