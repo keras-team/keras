@@ -83,6 +83,7 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         return mx.array(x, dtype=mlx_dtype)
 
     if isinstance(x, list):
+
         def to_scalar_list(x):
             if isinstance(x, list):
                 return [to_scalar_list(xi) for xi in x]
@@ -93,6 +94,7 @@ def convert_to_tensor(x, dtype=None, sparse=None):
                     return x.tolist()
             else:
                 return x
+
         return mx.array(to_scalar_list(x), dtype=mlx_dtype)
 
     return mx.array(x, dtype=mlx_dtype)
@@ -254,6 +256,7 @@ def fori_loop(lower, upper, body_fun, init_val):
     for i in range(lower, upper):
         val = body_fun(i, val)
     return val
+
 
 def stop_gradient(variable):
     return mx.stop_gradient(variable)

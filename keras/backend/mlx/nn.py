@@ -3,7 +3,8 @@ import mlx.nn as nn
 
 from keras.backend import standardize_dtype
 from keras.backend.config import epsilon
-from keras.backend.mlx.core import convert_to_tensor, to_mlx_dtype
+from keras.backend.mlx.core import convert_to_tensor
+from keras.backend.mlx.core import to_mlx_dtype
 from keras.backend.mlx.numpy import clip
 
 
@@ -108,16 +109,28 @@ def log_softmax(x, axis=-1):
     return x - mx.logsumexp(x, axis=axis, keepdims=True)
 
 
-def max_pool(inputs, pool_size, strides=None, padding="valid", data_format=None):
+def max_pool(
+    inputs, pool_size, strides=None, padding="valid", data_format=None
+):
     raise NotImplementedError("MLX backend doesn't support max pooling yet")
 
 
-def average_pool(inputs, pool_size, strides=None, padding="valid", data_format=None):
+def average_pool(
+    inputs, pool_size, strides=None, padding="valid", data_format=None
+):
     raise NotImplementedError("MLX backend doesn't support average pooling yet")
 
 
-def conv(inputs, kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
+def conv(
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
+):
     raise NotImplementedError("MLX backend doesn't support conv yet")
+
 
 def depthwise_conv(
     inputs,
@@ -171,7 +184,9 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
 def multi_hot(x, num_classes, axis=-1, dtype="float32"):
     x = convert_to_tensor(x)
     reduction_axis = 1 if x.ndim > 1 else 0
-    return one_hot(x, num_classes, axis=axis, dtype=dtype).max(axis=reduction_axis)
+    return one_hot(x, num_classes, axis=axis, dtype=dtype).max(
+        axis=reduction_axis
+    )
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
@@ -195,7 +210,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = output - mx.logsumexp(output, axis=axis)
     else:
         output = output / output.sum(axis=axis, keepdims=True)
-        output = clip(output, epsilon(), 1-epsilon())
+        output = clip(output, epsilon(), 1 - epsilon())
         log_prob = mx.log(output)
 
     return -(target * log_prob).sum(axis=axis)
@@ -206,7 +221,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     output = convert_to_tensor(output)
 
     if axis != -1:
-        raise ValueError("Only axis=-1 is supported in sparse_categorical_crossentropy")
+        raise ValueError(
+            "Only axis=-1 is supported in sparse_categorical_crossentropy"
+        )
 
     if target.ndim == output.ndim and target.shape[-1] == 1:
         target = target.squeeze(-1)
@@ -270,8 +287,8 @@ def moments(x, axes, keepdims=False, synchronized=False):
         x = x.astype(mx.float32)
 
     mean = mx.mean(x, axis=axes, keepdims=True)
-    variance = (
-        x.square().mean(axis=axes, keepdims=True) - mx.stop_gradient(mean.square())
+    variance = x.square().mean(axis=axes, keepdims=True) - mx.stop_gradient(
+        mean.square()
     )
 
     if not keepdims:
@@ -289,7 +306,9 @@ def moments(x, axes, keepdims=False, synchronized=False):
 def batch_normalization(
     x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
 ):
-    raise NotImplementedError("MLX backend doesn't support batch normalization yet.")
+    raise NotImplementedError(
+        "MLX backend doesn't support batch normalization yet."
+    )
 
 
 def ctc_loss(

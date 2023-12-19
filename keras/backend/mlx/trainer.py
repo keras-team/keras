@@ -1,4 +1,3 @@
-
 import mlx.core as mx
 import numpy as np
 import tree
@@ -30,6 +29,7 @@ class MLXTrainer(base_trainer.Trainer):
                 return mx.array(x)
             else:
                 return x
+
         return tree.map_structure(_transform, data)
 
     def mlx_state_sync(self):
@@ -87,7 +87,6 @@ class MLXTrainer(base_trainer.Trainer):
             for v in self.metrics_variables:
                 v._value = None
 
-
     def _pythonify_logs(self, logs):
         result = {}
         for key, value in sorted(logs.items()):
@@ -95,9 +94,9 @@ class MLXTrainer(base_trainer.Trainer):
                 result.update(self._pythonify_logs(value))
             else:
                 if (
-                    isinstance(value, mx.array) and
-                    value.size == 1 and
-                    value.dtype in (mx.float32, mx.float16, mx.bfloat16)
+                    isinstance(value, mx.array)
+                    and value.size == 1
+                    and value.dtype in (mx.float32, mx.float16, mx.bfloat16)
                 ):
                     value = value.item()
                 result[key] = value
@@ -170,7 +169,12 @@ class MLXTrainer(base_trainer.Trainer):
         grad_fn = mx.value_and_grad(self.compute_loss_and_updates)
 
         if trainable_variables:
-            (loss, unscaled_loss, y_pred, non_trainable_variables), grads = grad_fn(
+            (
+                loss,
+                unscaled_loss,
+                y_pred,
+                non_trainable_variables,
+            ), grads = grad_fn(
                 trainable_variables,
                 non_trainable_variables,
                 x,
@@ -188,14 +192,19 @@ class MLXTrainer(base_trainer.Trainer):
             )
             mx.simplify(loss, trainable_variables, optimizer_variables)
         else:
-            loss, unscaled_loss, y_pred, non_trainable_variables = self.compute_loss_and_updates(
+            (
+                loss,
+                unscaled_loss,
+                y_pred,
+                non_trainable_variables,
+            ) = self.compute_loss_and_updates(
                 trainable_variables,
                 non_trainable_variables,
                 x,
                 y,
                 sample_weight,
                 training=True,
-                optimizer_variables=optimizer_variables
+                optimizer_variables=optimizer_variables,
             )
 
         with backend.StatelessScope(
@@ -231,7 +240,12 @@ class MLXTrainer(base_trainer.Trainer):
             metrics_variables,
         ) = state
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
-        loss, unscaled_loss, y_pred, non_trainable_variables = self.compute_loss_and_updates(
+        (
+            loss,
+            unscaled_loss,
+            y_pred,
+            non_trainable_variables,
+        ) = self.compute_loss_and_updates(
             trainable_variables,
             non_trainable_variables,
             x,
@@ -392,7 +406,11 @@ class MLXTrainer(base_trainer.Trainer):
                     y_pred,
                     sample_weight=sample_weight,
                 )
-        if hasattr(self, "optimizer") and self.optimizer is not None and not self.optimizer.built:
+        if (
+            hasattr(self, "optimizer")
+            and self.optimizer is not None
+            and not self.optimizer.built
+        ):
             # Build optimizer
             self.optimizer.build(self.trainable_variables)
         self._post_build()
@@ -750,7 +768,9 @@ class MLXTrainer(base_trainer.Trainer):
             if self.stop_predicting:
                 break
         callbacks.on_predict_end()
-        outputs = tree.map_structure(backend.convert_to_numpy, outputs)  # TODO: This copies but we could avoid it
+        outputs = tree.map_structure(
+            backend.convert_to_numpy, outputs
+        )  # TODO: This copies but we could avoid it
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
 
     def train_on_batch(

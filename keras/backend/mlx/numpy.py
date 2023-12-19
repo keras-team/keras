@@ -41,7 +41,7 @@ def mean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
 
-    #TODO: decide if we need special low precision handling
+    # TODO: decide if we need special low precision handling
 
     return mx.mean(x, axis=axis, keepdims=keepdims)
 
@@ -201,7 +201,9 @@ def average(x, axis=None, weights=None):
 
         # TODO: mean(a * b) / mean(b) is more numerically stable in case a is
         #       large
-        return mx.sum(mx.multiply(x, weights), axis=axis) / mx.sum(weights, axis=axis)
+        return mx.sum(mx.multiply(x, weights), axis=axis) / mx.sum(
+            weights, axis=axis
+        )
 
     # Plain average
     return mx.mean(x, axis=axis)
@@ -261,7 +263,9 @@ def count_nonzero(x, axis=None):
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     # TODO: Write it inline if necessary
-    raise NotImplementedError("The MLX backend doesn't support cross product yet")
+    raise NotImplementedError(
+        "The MLX backend doesn't support cross product yet"
+    )
 
 
 def cumprod(x, axis=None, dtype=None):
@@ -282,11 +286,11 @@ def _diagonal_indices(H, W, k):
     if k >= 0:
         N = min(W - k, H)
         idx1 = mx.arange(0, N)
-        idx2 = mx.arange(k, k+N)
+        idx2 = mx.arange(k, k + N)
     elif k < 0:
         N = min(H + k, W)
         idx1 = mx.arange(-k, N)
-        idx2 = mx.arange(-k, -k+N)
+        idx2 = mx.arange(-k, -k + N)
     return idx1, idx2
 
 
@@ -314,8 +318,10 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     axis2 = (ndim + axis2) % ndim
 
     max_axis = builtins.max(axis1, axis2)
-    indices = [slice(None) for _ in range(max_axis+1)]
-    indices[axis1], indices[axis2] = _diagonal_indices(x.shape[axis1], x.shape[axis2], offset)
+    indices = [slice(None) for _ in range(max_axis + 1)]
+    indices[axis1], indices[axis2] = _diagonal_indices(
+        x.shape[axis1], x.shape[axis2], offset
+    )
 
     return x[indices]
 
@@ -363,7 +369,7 @@ def dot(x, y):
         return r.squeeze(-1)
 
     if ndimy >= 2:
-        x = x.reshape(x.shape + [1] * ndimy-1)
+        x = x.reshape(x.shape + [1] * ndimy - 1)
         r = x @ y
         return r.squeeze(-2)
 
@@ -508,9 +514,9 @@ def linspace(
         )
     start = convert_to_tensor(start)
     stop = convert_to_tensor(stop)
-    zero_one = mx.arange(num) / ((num-1) if endpoint else num)
+    zero_one = mx.arange(num) / ((num - 1) if endpoint else num)
     direction = stop - start
-    zero_one = zero_one.reshape([-1] + [1]*direction.ndim)
+    zero_one = zero_one.reshape([-1] + [1] * direction.ndim)
     rs = zero_one * direction[None] + start[None]
 
     if retstep:
@@ -709,11 +715,11 @@ def repeat(x, repeats, axis=None):
         axis = 0
 
     shape = x.shape
-    shape.insert(axis+1, 1)
+    shape.insert(axis + 1, 1)
     x = x.reshape(shape)
-    shape[axis+1] = repeats
+    shape[axis + 1] = repeats
     x = mx.broadcast_to(x, shape)
-    shape.pop(axis+1)
+    shape.pop(axis + 1)
     shape[axis] *= repeats
     x = x.reshape(shape)
 
@@ -828,7 +834,7 @@ def tile(x, repeats):
         shape.append(1)
     x = x.reshape(shape)
     for i, r in enumerate(repeats):
-        shape[2*i] = r
+        shape[2 * i] = r
     x = mx.broadcast_to(x, shape)
     final_shape = []
     for i in range(len(shape) // 2):
@@ -952,7 +958,9 @@ def eye(N, M=None, k=None, dtype=None):
 
 
 def floor_divide(x1, x2):
-    raise NotImplementedError("The MLX backend doesn't support floor_divide yet.")
+    raise NotImplementedError(
+        "The MLX backend doesn't support floor_divide yet."
+    )
 
 
 def logical_xor(x1, x2):

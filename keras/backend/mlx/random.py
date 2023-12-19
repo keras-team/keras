@@ -84,9 +84,11 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
 def shuffle(x, axis=0, seed=None):
     seed = mlx_draw_seed(seed)
     order = mx.argsort(mx.random.uniform(shape=(x.shape[axis],), key=seed))
-    index = [slice(None)]*axis + [order]
+    index = [slice(None)] * axis + [order]
     return x[index]
 
 
 def gamma(shape, alpha, dtype=None, seed=None):
-    raise NotImplementedError("Sampling from Gamma distribution is not implemented in mlx")
+    raise NotImplementedError(
+        "Sampling from Gamma distribution is not implemented in mlx"
+    )
