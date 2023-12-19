@@ -1,6 +1,8 @@
+import pytest
 import numpy as np
 
 from keras import testing
+from keras import backend
 from keras.losses import losses
 
 
@@ -1370,6 +1372,10 @@ class CTCTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(losses.CTC(name="myctc"))
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy does not support CTC loss",
+    )
     def test_correctness(self):
         logits = (np.arange(24).reshape((2, 4, 3)).astype("float32") - 12) / 100
         y_true = np.array(([[1, 2, 1, 0], [1, 2, 0, 2]]))
