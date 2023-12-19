@@ -62,6 +62,11 @@ class Cropping3D(Layer):
         super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
         if isinstance(cropping, int):
+            if cropping < 0:
+                raise ValueError(
+                    "`cropping` cannot be negative. "
+                    f"Received: cropping={cropping}."
+                )
             self.cropping = (
                 (cropping, cropping),
                 (cropping, cropping),
