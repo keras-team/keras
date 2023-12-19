@@ -800,9 +800,9 @@ def ctc_loss(
     batch element.
 
     Arguments:
-        target: Tensor `(batch_size, max_target_length)` containing the
+        target: Tensor `(batch_size, max_length)` containing the
             target sequences in integer format.
-        output: Tensor `(batch_size, max_output_length, num_classes)`
+        output: Tensor `(batch_size, max_length, num_classes)`
             containing the output of the softmax.
         target_length: Tensor `(batch_size,)` containing the sequence length
             for each target sequence in the batch.
@@ -819,21 +819,8 @@ def ctc_loss(
     target = tf.cast(target, dtype="int32")
     output = tf.convert_to_tensor(output)
     output = tf.cast(output, dtype="float32")
-
-    max_label_len = tf.shape(target)[1]
-
-    mask = tf.sequence_mask(target_length, max_label_len)
-    indices = tf.where(mask)
-    values = tf.boolean_mask(target, mask)
-
-    sparse_target = tf.SparseTensor(
-        indices=indices,
-        values=values,
-        dense_shape=tf.cast(tf.shape(target), dtype="int64"),
-    )
-
     return tf.nn.ctc_loss(
-        labels=sparse_target,
+        labels=target,
         logits=output,
         label_length=target_length,
         logit_length=output_length,
