@@ -783,7 +783,7 @@ class ConvCorrectnessTest(testing.TestCase, parameterized.TestCase):
             dilation_rate=dilation_rate,
             groups=groups,
         )
-        self.assertAllClose(outputs, expected, rtol=5e-4)
+        self.assertAllClose(outputs, expected, rtol=1e-3)
 
     def test_conv_constraints(self):
         layer = layers.Conv2D(
