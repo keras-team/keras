@@ -571,7 +571,7 @@ def ctc_loss(
     batch_size, max_target_length = target.shape
 
     output = output.transpose((1, 0, 2))
-    target = target.transpose((1, 0))
+    target = target.transpose((1, 0)).astype("int32")
 
     logits = jnn.log_softmax(output)
     mgrid_t, mgrid_b = jnp.meshgrid(

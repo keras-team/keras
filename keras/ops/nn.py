@@ -1821,10 +1821,10 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     """CTC (Connectionist Temporal Classification) loss.
 
     Args:
-        target: A tensor of shape `(batch_size, target_max_length)` containing
+        target: A tensor of shape `(batch_size, max_length)` containing
             the true labels in integer format.
-        output: A tensor of shape `(batch_size, output_max_length, num_classes)`
-            containing the output from the network.
+        output: A tensor of shape `(batch_size, max_length, num_classes)`
+            containing logits (the output of your model).
         target_length: A tensor of shape `(batch_size,)` containing the
             true label lengths.
         output_length: A tensor of shape `(batch_size,)` containing the
@@ -1837,7 +1837,6 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
         return CtcLoss(mask_index).symbolic_call(
             target, output, target_length, output_length
         )
-
     return backend.nn.ctc_loss(
         target, output, target_length, output_length, mask_index
     )
