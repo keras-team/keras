@@ -202,7 +202,9 @@ class BaseOptimizer:
         if initializer is not None:
             initializer = initializers.get(initializer)
         else:
-            initializer = lambda _: reference_variable.value  # noqa: E731
+            initializer = (
+                lambda shape, dtype: reference_variable.value
+            )  # noqa: E731
         name = name or "var"
         if hasattr(reference_variable, "path"):
             name = reference_variable.path.replace("/", "_") + "_" + name
