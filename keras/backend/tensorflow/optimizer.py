@@ -19,6 +19,23 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
         super().__init__(*args, **kwargs)
         self._distribution_strategy = tf.distribute.get_strategy()
 
+    def build(self, variables):
+        super().build(variables)
+        if hasattr(self, "_ema_vars_initialized"):
+            # We must use `backend.Variable` in
+            # `self._update_model_variables_moving_average` to correctly
+            # initialize moving averages with the same value as
+            # `trainable_variables` during the first `self.apply`.
+            with backend.name_scope(self.name, caller=self):
+                _ema_vars_initialized = backend.Variable(
+                    False,
+                    name="_ema_vars_initialized",
+                    dtype="bool",
+                    trainable=False,
+                )
+                self._track_variable(_ema_vars_initialized)
+                self._ema_vars_initialized = _ema_vars_initialized
+
     def add_variable_from_reference(self, reference_variable, name=None):
         if isinstance(reference_variable, backend.Variable):
             colocate_var = reference_variable.value
