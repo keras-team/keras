@@ -19,24 +19,9 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
         super().__init__(*args, **kwargs)
         self._distribution_strategy = tf.distribute.get_strategy()
 
-    def build(self, variables):
-        super().build(variables)
-        if hasattr(self, "_ema_vars_initialized"):
-            # We must use `backend.Variable` in
-            # `self._update_model_variables_moving_average` to correctly
-            # initialize moving averages with the same value as
-            # `trainable_variables` during the first `self.apply`.
-            with backend.name_scope(self.name, caller=self):
-                _ema_vars_initialized = backend.Variable(
-                    False,
-                    name="_ema_vars_initialized",
-                    dtype="bool",
-                    trainable=False,
-                )
-                self._track_variable(_ema_vars_initialized)
-                self._ema_vars_initialized = _ema_vars_initialized
-
-    def add_variable_from_reference(self, reference_variable, name=None):
+    def add_variable_from_reference(
+        self, reference_variable, name=None, initializer="zeros"
+    ):
         if isinstance(reference_variable, backend.Variable):
             colocate_var = reference_variable.value
         else:
@@ -46,7 +31,7 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
             colocate_var
         ):
             return super().add_variable_from_reference(
-                reference_variable, name=name
+                reference_variable, name=name, initializer=initializer
             )
 
     def stateless_apply(self, optimizer_variables, grads, trainable_variables):
@@ -178,26 +163,3 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
             grads,
             accumulators,
         )
-
-    def _update_model_variables_moving_average(self, trainable_variables):
-        """Update the stored moving average using the latest value."""
-        if self.use_ema:
-            for var, average in zip(
-                trainable_variables, self._model_variables_moving_average
-            ):
-
-                def _update_fn(var, average):
-                    average.assign(
-                        self.ema_momentum * average
-                        + (1 - self.ema_momentum) * var
-                    )
-
-                def _assign_fn(var, average):
-                    average.assign(var)
-
-                tf.cond(
-                    self._ema_vars_initialized,
-                    lambda: _update_fn(var, average),
-                    lambda: _assign_fn(var, average),
-                )
-            self._ema_vars_initialized.assign(True)
