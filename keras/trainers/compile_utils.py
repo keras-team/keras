@@ -468,6 +468,8 @@ class CompileLoss(losses_module.Loss):
                     "must be a callable. "
                     f"Received instead:\nloss={loss} of type {type(loss)}"
                 )
+            if isinstance(y_pred, list) and len(y_pred) == 1:
+                y_pred = y_pred[0]
 
         if is_function_like(loss) and tree.is_nested(y_pred):
             # The model has multiple outputs but only one loss fn
