@@ -161,3 +161,26 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
             grads,
             accumulators,
         )
+
+    def _update_model_variables_moving_average(self, trainable_variables):
+        """Update the stored moving average using the latest value."""
+        if self.use_ema:
+            for var, average in zip(
+                trainable_variables, self._model_variables_moving_average
+            ):
+
+                def _update_fn(var, average):
+                    average.assign(
+                        self.ema_momentum * average
+                        + (1 - self.ema_momentum) * var
+                    )
+
+                def _assign_fn(var, average):
+                    average.assign(var)
+
+                tf.cond(
+                    self._ema_vars_initialized > 0,
+                    lambda: _update_fn(var, average),
+                    lambda: _assign_fn(var, average),
+                )
+            self._ema_vars_initialized.assign_add(True)

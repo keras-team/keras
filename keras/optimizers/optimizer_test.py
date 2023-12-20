@@ -1,9 +1,13 @@
 import numpy as np
+import pytest
 
 from keras import backend
 from keras import constraints
+from keras import layers
+from keras import models
 from keras import optimizers
 from keras import testing
+from keras.utils import numerical_utils
 
 
 class OptimizerTest(testing.TestCase):
@@ -34,8 +38,33 @@ class OptimizerTest(testing.TestCase):
         )
         optimizer.apply_gradients([(grads, v)])
         self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
+        self.assertAllClose(
+            optimizer._model_variables_moving_average[0],
+            [[1.9, 2.9], [3.9, 4.9]],
+        )
         optimizer.apply_gradients([(grads, v)])
         self.assertAllClose(v, [[1.71, 2.71], [3.71, 4.71]])
+        self.assertAllClose(
+            optimizer._model_variables_moving_average[0],
+            [[1.71, 2.71], [3.71, 4.71]],
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_ema_with_model_fit(self):
+        x_train = np.ones((10, 3)).astype("float32")
+        y_train = np.zeros((10,)).astype("float32")
+        y_train = numerical_utils.to_categorical(y_train)
+        optimizer = optimizers.SGD(use_ema=True, ema_momentum=0.9999)
+        model = models.Sequential(
+            [layers.Dense(2, use_bias=False, kernel_initializer="ones")]
+        )
+        model.compile(loss="mse", optimizer=optimizer)
+        model.fit(x_train, y_train, batch_size=10, epochs=1)
+        self.assertAllClose(
+            model.trainable_variables[0].numpy(),
+            [[0.98, 0.98], [0.98, 0.98], [0.98, 0.98]],
+            atol=1e-5,
+        )
 
     def test_constraints_are_applied(self):
         v = backend.Variable(np.random.random((2, 2)) - 1.0)

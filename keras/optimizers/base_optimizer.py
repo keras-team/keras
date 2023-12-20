@@ -139,7 +139,23 @@ class BaseOptimizer:
     def build(self, variables):
         if self.use_ema:
             self._model_variables_moving_average = []
-            self._ema_vars_initialized = False
+            # When using tensorflow backend, we must use `backend.Variable` in
+            # `self._update_model_variables_moving_average`` to correctly
+            # initialize `self._model_variables_moving_average` with the same
+            # value as `trainable_variables` when the first `self.apply` is
+            # called.
+            if backend.backend() == "tensorflow":
+                with backend.name_scope(self.name, caller=self):
+                    _ema_vars_initialized = backend.Variable(
+                        0,
+                        name="_ema_vars_initialized",
+                        dtype="int",
+                        trainable=False,
+                    )
+                    self._track_variable(_ema_vars_initialized)
+                    self._ema_vars_initialized = _ema_vars_initialized
+            else:
+                self._ema_vars_initialized = False
         if self.gradient_accumulation_steps:
             self._accumulated_gradients = []
         for i, variable in enumerate(variables):
