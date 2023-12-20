@@ -264,6 +264,9 @@ class LossScaleOptimizer(optimizer.Optimizer):
         scale = self.dynamic_scale if self.built else self.initial_scale
         return loss * scale
 
+    def swap_ema_weights(self, var_list):
+        self.inner_optimizer.swap_ema_weights(var_list)
+
     def finalize_variable_values(self, var_list):
         self.inner_optimizer.finalize_variable_values(var_list)
 

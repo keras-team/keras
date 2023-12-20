@@ -704,6 +704,28 @@ class BaseOptimizer:
         ):
             var.assign(average_var)
 
+    def swap_ema_weights(self, var_list):
+        """Swap the value of model's trainable variables with the EMA averages.
+
+        Args:
+            var_list: list of model variables.
+        """
+        if self.use_ema:
+            if len(var_list) != len(self._model_variables_moving_average):
+                raise ValueError(
+                    f"The length of model variables ({len(var_list)}) "
+                    "to swap does not match the length of model variables "
+                    "stored in the optimizer "
+                    f"({len(self._model_variables_moving_average)}). Please "
+                    "check if the optimizer was called on your model."
+                )
+            for var, average_var in zip(
+                var_list, self._model_variables_moving_average
+            ):
+                temp = ops.convert_to_numpy(var)
+                var.assign(average_var)
+                average_var.assign(temp)
+
     def finalize_variable_values(self, var_list):
         """Set the final value of model's trainable variables.
 
