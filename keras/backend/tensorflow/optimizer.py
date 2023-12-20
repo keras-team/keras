@@ -179,8 +179,8 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
                     average.assign(var)
 
                 tf.cond(
-                    self._ema_vars_initialized > 0,
+                    self._ema_vars_initialized,
                     lambda: _update_fn(var, average),
                     lambda: _assign_fn(var, average),
                 )
-            self._ema_vars_initialized.assign_add(True)
+            self._ema_vars_initialized.assign(True)

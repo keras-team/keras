@@ -147,9 +147,9 @@ class BaseOptimizer:
             if backend.backend() == "tensorflow":
                 with backend.name_scope(self.name, caller=self):
                     _ema_vars_initialized = backend.Variable(
-                        0,
+                        False,
                         name="_ema_vars_initialized",
-                        dtype="int",
+                        dtype="bool",
                         trainable=False,
                     )
                     self._track_variable(_ema_vars_initialized)
