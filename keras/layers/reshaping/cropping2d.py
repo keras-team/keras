@@ -91,7 +91,7 @@ class Cropping2D(Layer):
                 and sum(self.cropping[1]) >= input_shape[3]
             ):
                 raise ValueError(
-                    "Values in `cropping` argument should be greater than the "
+                    "Values in `cropping` argument should be smaller than the "
                     "corresponding spatial dimension of the input. Received: "
                     f"input_shape={input_shape}, cropping={self.cropping}"
                 )
@@ -114,7 +114,7 @@ class Cropping2D(Layer):
                 and sum(self.cropping[1]) >= input_shape[2]
             ):
                 raise ValueError(
-                    "Values in `cropping` argument should be greater than the "
+                    "Values in `cropping` argument should be smaller than the "
                     "corresponding spatial dimension of the input. Received: "
                     f"input_shape={input_shape}, cropping={self.cropping}"
                 )
@@ -139,7 +139,7 @@ class Cropping2D(Layer):
                 and sum(self.cropping[1]) >= inputs.shape[3]
             ):
                 raise ValueError(
-                    "Values in `cropping` argument should be greater than the "
+                    "Values in `cropping` argument should be smaller than the "
                     "corresponding spatial dimension of the input. Received: "
                     f"inputs.shape={inputs.shape}, cropping={self.cropping}"
                 )
@@ -176,7 +176,7 @@ class Cropping2D(Layer):
                 and sum(self.cropping[1]) >= inputs.shape[2]
             ):
                 raise ValueError(
-                    "Values in `cropping` argument should be greater than the "
+                    "Values in `cropping` argument should be smaller than the "
                     "corresponding spatial dimension of the input. Received: "
                     f"inputs.shape={inputs.shape}, cropping={self.cropping}"
                 )
