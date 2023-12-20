@@ -59,7 +59,7 @@ class OptimizerTest(testing.TestCase):
         model = models.Sequential(
             [layers.Dense(2, kernel_initializer="ones", use_bias=False)]
         )
-        model.compile(loss="mse", optimizer=optimizer, run_eagerly=True)
+        model.compile(loss="mse", optimizer=optimizer)
         model.fit(x_train, y_train, batch_size=1, epochs=2)
         self.assertAllClose(
             optimizer._model_variables_moving_average[0].numpy(),
