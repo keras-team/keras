@@ -140,10 +140,9 @@ class BaseOptimizer:
         if self.use_ema:
             self._model_variables_moving_average = []
             # When using tensorflow backend, we must use `backend.Variable` in
-            # `self._update_model_variables_moving_average`` to correctly
-            # initialize `self._model_variables_moving_average` with the same
-            # value as `trainable_variables` when the first `self.apply` is
-            # called.
+            # `self._update_model_variables_moving_average` to correctly
+            # initialize moving averages with the same value as
+            # `trainable_variables` during the first `self.apply`.
             if backend.backend() == "tensorflow":
                 with backend.name_scope(self.name, caller=self):
                     _ema_vars_initialized = backend.Variable(
