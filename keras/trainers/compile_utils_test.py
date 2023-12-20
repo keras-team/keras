@@ -251,7 +251,7 @@ class TestCompileLoss(testing.TestCase, parameterized.TestCase):
         value = compile_loss(y_true, y_pred)
         self.assertAllClose(value, 0.068333, atol=1e-5)
 
-    def test_single_output_case_with_crossentropy(self):
+    def test_single_output_case_with_crossentropy_loss(self):
         compile_loss = CompileLoss(loss="crossentropy")
 
         # Test symbolic build
