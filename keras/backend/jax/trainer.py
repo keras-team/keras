@@ -62,42 +62,6 @@ class JAXTrainer(base_trainer.Trainer):
                 loss = self.optimizer.scale_loss(loss)
         return loss, (unscaled_loss, y_pred, non_trainable_variables)
 
-    def _eager_build(self, data_batch):
-        model_unbuilt = not all(layer.built for layer in self._flatten_layers())
-        compile_metrics_unbuilt = (
-            self._compile_metrics is not None
-            and not self._compile_metrics.built
-        )
-        if model_unbuilt or compile_metrics_unbuilt:
-
-            def _convert_data_to_spec(d):
-                if d is None:
-                    return None
-                return backend.KerasTensor(d.shape, d.dtype)
-
-            data_spec = tree.map_structure(_convert_data_to_spec, data_batch)
-            (
-                x_spec,
-                y_spec,
-                sample_weight_spec,
-            ) = data_adapter_utils.unpack_x_y_sample_weight(data_spec)
-            # Note that this __call__ run the forward path and trigger variable
-            # creation.
-            y_pred_spec = backend.compute_output_spec(self.__call__, x_spec)
-            if compile_metrics_unbuilt:
-                # This will trigger the metric variable creation.
-                backend.compute_output_spec(
-                    self.compute_metrics,
-                    x_spec,
-                    y_spec,
-                    y_pred_spec,
-                    sample_weight=sample_weight_spec,
-                )
-
-        if self.optimizer is not None and not self.optimizer.built:
-            # Build optimizer
-            self.optimizer.build(self.trainable_variables)
-
     def train_step(self, state, data):
         (
             trainable_variables,
@@ -383,20 +347,7 @@ class JAXTrainer(base_trainer.Trainer):
             steps_per_execution=self.steps_per_execution,
         )
 
-        needs_building = (
-            not all(layer.built for layer in self._flatten_layers())
-            or not self.optimizer.built
-            or (
-                self._compile_metrics is not None
-                and not self._compile_metrics.built
-            )
-        )
-        if needs_building:
-            # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
-                data_batch = data[0]
-                self._eager_build(data_batch)
-                break
+        self._symbolic_build(iterator=epoch_iterator)
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -552,18 +503,7 @@ class JAXTrainer(base_trainer.Trainer):
                 steps_per_execution=self.steps_per_execution,
             )
 
-        needs_building = not all(
-            layer.built for layer in self._flatten_layers()
-        ) or (
-            self._compile_metrics is not None
-            and not self._compile_metrics.built
-        )
-        if needs_building:
-            # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
-                data_batch = data[0]
-                self._eager_build(data_batch)
-                break
+        self._symbolic_build(iterator=epoch_iterator)
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -729,7 +669,7 @@ class JAXTrainer(base_trainer.Trainer):
         data = self._distribute_data(data)
 
         # Maybe build model
-        self._eager_build(data)
+        self._symbolic_build(data_batch=data)
         self._record_training_state_sharding_spec()
         self.make_train_function()
 
@@ -781,7 +721,7 @@ class JAXTrainer(base_trainer.Trainer):
         data = (x, y, sample_weight)
         data = self._distribute_data(data)
         # Maybe build model
-        self._eager_build(data)
+        self._symbolic_build(data_batch=data)
         self._record_training_state_sharding_spec()
         self.make_test_function()
 
