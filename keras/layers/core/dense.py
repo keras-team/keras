@@ -157,6 +157,11 @@ class Dense(Layer):
             raise ValueError(
                 "Cannot enable lora on a layer that isn't yet built."
             )
+        if self.lora_enabled:
+            raise ValueError(
+                "lora is already enabled. "
+                "This can only be done once per layer."
+            )
         self._tracker.locked = False
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",

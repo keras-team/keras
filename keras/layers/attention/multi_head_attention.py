@@ -136,6 +136,35 @@ class MultiHeadAttention(Layer):
                 f"Received: attention_axes={attention_axes}"
             )
         self._attention_axes = attention_axes
+        self.lora_enabled = False
+    
+    @property
+    def num_heads(self):
+        return self._num_heads
+    
+    @property
+    def key_dim(self):
+        return self._key_dim
+    
+    @property
+    def value_dim(self):
+        return self._value_dim
+    
+    @property
+    def dropout(self):
+        return self._dropout
+    
+    @property
+    def use_bias(self):
+        return self._use_bias
+    
+    @property
+    def use_bias(self):
+        return self._use_bias
+    
+    @property
+    def output_shape(self):
+        return self._use_bias
 
     def get_config(self):
         base_config = super().get_config()
@@ -236,6 +265,40 @@ class MultiHeadAttention(Layer):
         self._output_dense.build(tuple(output_dense_input_shape))
         self.built = True
 
+    def enable_lora(self, query_rank=None, value_rank=None, key_rank=None):
+        if not self.built:
+            if not self.built:
+                raise ValueError(
+                    "Cannot enable lora on a layer that isn't yet built."
+                )
+        if self.lora_enabled:
+            raise ValueError(
+                "lora is already enabled. "
+                "This can only be done once per layer."
+            )
+        if query_rank is not None:
+            if query_rank <= 0:
+                raise ValueError(
+                    "Argument `query_rank` must be > 0. "
+                    f"Received: query_rank={query_rank}"
+                )
+            self._query_dense.enable_lora(query_rank)
+        if value_rank is not None:
+            if value_rank <= 0:
+                raise ValueError(
+                    "Argument `value_rank` must be > 0. "
+                    f"Received: value_rank={value_rank}"
+                )
+            self._value_dense.enable_lora(value_rank)
+        if key_rank is not None:
+            if key_rank <= 0:
+                raise ValueError(
+                    "Argument `key_rank` must be > 0. "
+                    f"Received: key_rank={key_rank}"
+                )
+            self._key_dense.enable_lora(key_rank)
+        self.lora_enabled = True
+
     def _get_common_kwargs_for_sublayer(self):
         common_kwargs = dict(
             kernel_regularizer=self._kernel_regularizer,
@@ -313,9 +376,10 @@ class MultiHeadAttention(Layer):
             )
         )
         self._softmax = Softmax(axis=norm_axes, dtype=self.dtype_policy)
-        self._dropout_layer = Dropout(
-            rate=self._dropout, dtype=self.dtype_policy
-        )
+        if self.dropout:
+            self._dropout_layer = Dropout(
+                rate=self._dropout, dtype=self.dtype_policy
+            )
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
 
     def _masked_softmax(self, attention_scores, attention_mask=None):
@@ -375,13 +439,16 @@ class MultiHeadAttention(Layer):
 
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
-        attention_scores_dropout = self._dropout_layer(
-            attention_scores, training=training
-        )
+        if self.dropout:
+            final_attn_scores = self._dropout_layer(
+                attention_scores, training=training
+            )
+        else:
+            final_attn_scores = attention_scores
 
         # `context_layer` = [B, T, N, H]
         attention_output = ops.einsum(
-            self._combine_equation, attention_scores_dropout, value
+            self._combine_equation, final_attn_scores, value
         )
         return attention_output, attention_scores
 
