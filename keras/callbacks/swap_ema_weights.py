@@ -1,3 +1,4 @@
+from keras import ops
 from keras.api_export import keras_export
 from keras.callbacks.callback import Callback
 
@@ -29,22 +30,31 @@ class SwapEMAWeights(Callback):
         super().__init__()
         self.swap_on_epoch = swap_on_epoch
 
+    def _swap_variables(self):
+        for var, average_var in zip(
+            self.model.trainable_variables,
+            self.model.optimizer._model_variables_moving_average,
+        ):
+            temporary_variable = ops.convert_to_numpy(var)
+            var.assign(average_var)
+            average_var.assign(temporary_variable)
+
     def on_epoch_begin(self, logs=None):
         if self.swap_on_epoch:
-            self.model.optimizer.swap_ema_weights(self.model.trainable_weights)
+            self._swap_variables()
 
     def on_epoch_end(self, epoch, logs=None):
         if self.swap_on_epoch:
-            self.model.optimizer.swap_ema_weights(self.model.trainable_weights)
+            self._swap_variables()
 
     def on_test_begin(self, logs=None):
-        self.model.optimizer.swap_ema_weights(self.model.trainable_weights)
+        self._swap_variables()
 
     def on_test_end(self, logs=None):
-        self.model.optimizer.swap_ema_weights(self.model.trainable_weights)
+        self._swap_variables()
 
     def on_predict_begin(self, logs=None):
-        self.model.optimizer.swap_ema_weights(self.model.trainable_weights)
+        self._swap_variables()
 
     def on_predict_end(self, logs=None):
-        self.model.optimizer.swap_ema_weights(self.model.trainable_weights)
+        self._swap_variables()

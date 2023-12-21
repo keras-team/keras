@@ -22,7 +22,7 @@ class SwapEMAWeightsTest(testing.TestCase):
         y_train = numerical_utils.to_categorical(y_train)
 
         # use ema_momentum=0.1 to distinguish ema weights and model weights
-        optimizer = optimizers.SGD(use_ema=True, ema_momentum=0.999)
+        optimizer = optimizers.SGD(use_ema=True, ema_momentum=0.9)
         model = Sequential(
             [layers.Dense(2, kernel_initializer="ones", use_bias=False)]
         )
