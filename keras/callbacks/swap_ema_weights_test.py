@@ -1,9 +1,13 @@
+import tempfile
+
 import pytest
 
 from keras import callbacks
 from keras import layers
-from keras import ops
+from keras import losses
+from keras import metrics
 from keras import optimizers
+from keras import saving
 from keras import testing
 from keras.models import Sequential
 from keras.testing import test_utils
@@ -24,65 +28,86 @@ class SwapEMAWeightsTest(testing.TestCase):
         self.x_train = x_train
         self.y_train = y_train
 
-    def _get_numpy_trainable_variables(self, var_list):
-        result = []
-        for v in var_list:
-            result.append(ops.convert_to_numpy(v))
-        return result
+    def _get_compiled_model(self, use_ema=True):
+        model = Sequential(
+            [layers.Dense(2, kernel_initializer="ones", use_bias=False)]
+        )
+        model.compile(
+            optimizer=optimizers.SGD(use_ema=use_ema, ema_momentum=0.9),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+        )
+        return model
+
+    @pytest.mark.requires_trainable_backend
+    def test_swap_ema_weights_with_invalid_optimizer(self):
+        model = self._get_compiled_model(use_ema=False)
+        with self.assertRaisesRegex(
+            ValueError,
+            "SwapEMAWeights must be used with `use_ema=True`",
+        ):
+            model.fit(
+                self.x_train,
+                self.y_train,
+                epochs=2,
+                callbacks=[callbacks.SwapEMAWeights()],
+                validation_data=(self.x_train, self.y_train),
+            )
 
     @pytest.mark.requires_trainable_backend
     def test_swap_ema_weights(self):
-        optimizer = optimizers.SGD(use_ema=True, ema_momentum=0.9)
-        model = Sequential(
-            [layers.Dense(2, kernel_initializer="ones", use_bias=False)]
+        # not using SwapEMAWeights
+        model = self._get_compiled_model()
+        history = model.fit(
+            self.x_train,
+            self.y_train,
+            epochs=2,
+            validation_data=(self.x_train, self.y_train),
         )
-        model.compile(loss="mse", optimizer=optimizer)
-        swap_ema_weights = callbacks.SwapEMAWeights()
-        swap_ema_weights.set_model(model)
+        logs = model.evaluate(self.x_train, self.y_train, return_dict=True)
+        # final metric during fitting is different from the evaluation
+        self.assertNotEqual(
+            history.history["val_mean_squared_error"][-1],
+            logs["mean_squared_error"],
+        )
 
-        # train_on_batch to make ema work
-        for _ in range(5):
-            model.train_on_batch(self.x_train, self.y_train)
-        model_variables = ops.convert_to_numpy(model.trainable_variables[0])
-
-        # test stage
-        swap_ema_weights.on_test_begin()
-        ema_variables = ops.convert_to_numpy(model.trainable_variables[0])
-        self.assertNotAllClose(ema_variables, model_variables)
-
-        swap_ema_weights.on_test_end()
-        restored_variables = ops.convert_to_numpy(model.trainable_variables[0])
-        self.assertAllClose(restored_variables, model_variables)
-
-        # predict stage
-        swap_ema_weights.on_predict_begin()
-        ema_variables = ops.convert_to_numpy(model.trainable_variables[0])
-        self.assertNotAllClose(ema_variables, model_variables)
-
-        swap_ema_weights.on_predict_end()
-        restored_variables = ops.convert_to_numpy(model.trainable_variables[0])
-        self.assertAllClose(restored_variables, model_variables)
+        # using SwapEMAWeights
+        model = self._get_compiled_model()
+        history = model.fit(
+            self.x_train,
+            self.y_train,
+            epochs=2,
+            callbacks=[callbacks.SwapEMAWeights()],
+            validation_data=(self.x_train, self.y_train),
+        )
+        logs = model.evaluate(self.x_train, self.y_train, return_dict=True)
+        # final metric during fitting is same as the evaluation
+        self.assertEqual(
+            history.history["val_mean_squared_error"][-1],
+            logs["mean_squared_error"],
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_swap_ema_weights_on_epoch(self):
-        optimizer = optimizers.SGD(use_ema=True, ema_momentum=0.9)
-        model = Sequential(
-            [layers.Dense(2, kernel_initializer="ones", use_bias=False)]
+        # using SwapEMAWeights together with ModelCheckpoint
+        model = self._get_compiled_model()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            model.fit(
+                self.x_train,
+                self.y_train,
+                epochs=2,
+                callbacks=[
+                    callbacks.ModelCheckpoint(temp_dir + "/{epoch:1d}.keras"),
+                    callbacks.SwapEMAWeights(swap_on_epoch=True),
+                ],
+                validation_data=(self.x_train, self.y_train),
+            )
+            model2 = saving.load_model(temp_dir + "/2.keras")
+
+        logs = model.evaluate(self.x_train, self.y_train, return_dict=True)
+        logs2 = model2.evaluate(self.x_train, self.y_train, return_dict=True)
+        # saved checkpoint will be applied by EMA weights
+        self.assertEqual(
+            logs["mean_squared_error"],
+            logs2["mean_squared_error"],
         )
-        model.compile(loss="mse", optimizer=optimizer)
-        swap_ema_weights = callbacks.SwapEMAWeights(swap_on_epoch=True)
-        swap_ema_weights.set_model(model)
-
-        # train_on_batch to make ema work
-        for _ in range(5):
-            model.train_on_batch(self.x_train, self.y_train)
-        model_variables = ops.convert_to_numpy(model.trainable_variables[0])
-
-        # epoch stage
-        swap_ema_weights.on_epoch_begin()
-        ema_variables = ops.convert_to_numpy(model.trainable_variables[0])
-        self.assertNotAllClose(ema_variables, model_variables)
-
-        swap_ema_weights.on_epoch_end(epoch=1)
-        restored_variables = ops.convert_to_numpy(model.trainable_variables[0])
-        self.assertAllClose(restored_variables, model_variables)

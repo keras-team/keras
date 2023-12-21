@@ -15,14 +15,23 @@ class SwapEMAWeights(Callback):
     ```python
     optimizer = SGD(use_ema=True)
     model.compile(optimizer=optimizer, loss=..., metrics=...)
-    swap_ema_weights = SwapEMAWeights()
-    model.fit(X_train, Y_train, callbacks=[swap_ema_weights])
+
+    # Metrics will be computed with EMA weights
+    model.fit(X_train, Y_train, callbacks=[SwapEMAWeights()])
+
+    # If you want to save model checkpoint with EMA weights, you can set
+    # `swap_on_epoch=True` and it before SwapEMAWeights.
+    model.fit(
+        X_train,
+        Y_train,
+        callbacks=[ModelCheckpoint(...), SwapEMAWeights(swap_on_epoch=True)]
+    )
     ```
 
     Args:
         swap_on_epoch: whether to perform swapping `on_epoch_begin` and
             `on_epoch_end`. This is useful if you want to use EMA weights for
-            other callbacks. Defaults to `False`.
+            other callbacks such as `ModelCheckpoint`. Defaults to `False`.
 
     """
 
@@ -31,6 +40,11 @@ class SwapEMAWeights(Callback):
         self.swap_on_epoch = swap_on_epoch
 
     def _swap_variables(self):
+        if self.model.optimizer.use_ema is False:
+            raise ValueError(
+                "SwapEMAWeights must be used with `use_ema=True`. "
+                f"Got use_ema={self.model.optimizer.use_ema}"
+            )
         for var, average_var in zip(
             self.model.trainable_variables,
             self.model.optimizer._model_variables_moving_average,
@@ -39,8 +53,11 @@ class SwapEMAWeights(Callback):
             var.assign(average_var)
             average_var.assign(temporary_variable)
 
-    def on_epoch_begin(self, logs=None):
-        if self.swap_on_epoch:
+    def on_epoch_begin(self, epoch, logs=None):
+        if (
+            hasattr(self.model.optimizer, "_model_variables_moving_average")
+            and self.swap_on_epoch
+        ):
             self._swap_variables()
 
     def on_epoch_end(self, epoch, logs=None):
