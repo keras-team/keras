@@ -153,20 +153,20 @@ class OptimizerDistributeTest(testing.TestCase):
             self.assertAllClose(v, [[2.0, 3.0], [4.0, 5.0]])
             self.assertAllClose(
                 optimizer._model_variables_moving_average[0],
-                [[2.9, 3.9], [4.9, 5.9]],  # avg of initial v + current v
+                [[2.0, 3.0], [4.0, 5.0]],  # initialized after first step
             )
             self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
             self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
             self.assertAllClose(
                 optimizer._model_variables_moving_average[0],
-                [[2.71, 3.71], [4.71, 5.71]],
+                [[1.9, 2.9], [3.9, 4.9]],
             )
             self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
             # Variables were overwritten with EMA
-            self.assertAllClose(v, [[2.439, 3.439], [4.439, 5.439]])
+            self.assertAllClose(v, [[1.71, 2.71], [3.71, 4.71]])
             self.assertAllClose(
                 optimizer._model_variables_moving_average[0],
-                [[2.439, 3.439], [4.439, 5.439]],
+                [[1.71, 2.71], [3.71, 4.71]],
             )
 
     def test_gradient_accumulation(self):
