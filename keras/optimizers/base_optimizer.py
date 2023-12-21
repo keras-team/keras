@@ -139,7 +139,6 @@ class BaseOptimizer:
     def build(self, variables):
         if self.use_ema:
             self._model_variables_moving_average = []
-            self._ema_vars_initialized = False
         if self.gradient_accumulation_steps:
             self._accumulated_gradients = []
         for i, variable in enumerate(variables):
@@ -148,14 +147,14 @@ class BaseOptimizer:
                 self._model_variables_moving_average.append(
                     self.add_variable_from_reference(
                         variable,
-                        "average",
+                        name="average",
                     )
                 )
             if self.gradient_accumulation_steps:
                 self._accumulated_gradients.append(
                     self.add_variable_from_reference(
                         variable,
-                        "gradient_accumulator",
+                        name="gradient_accumulator",
                     )
                 )
         self._trainable_variables = variables[:]
@@ -192,11 +191,12 @@ class BaseOptimizer:
         self._track_variable(variable)
         return variable
 
-    def add_variable_from_reference(self, reference_variable, name=None):
+    def add_variable_from_reference(
+        self, reference_variable, name=None, initializer="zeros"
+    ):
         """Add an all-zeros variable with the shape and dtype of a reference
         variable.
         """
-        initializer = initializers.Zeros()
         name = name or "var"
         if hasattr(reference_variable, "path"):
             name = reference_variable.path.replace("/", "_") + "_" + name
@@ -676,14 +676,11 @@ class BaseOptimizer:
             for var, average in zip(
                 trainable_variables, self._model_variables_moving_average
             ):
-                if self._ema_vars_initialized:
-                    average.assign(
-                        self.ema_momentum * average
-                        + (1 - self.ema_momentum) * var
-                    )
-                else:
-                    average.assign(var)
-            self._ema_vars_initialized = True
+                not_first_step = ops.not_equal(self.iterations, 0)
+                momentum = (
+                    ops.cast(not_first_step, var.dtype) * self.ema_momentum
+                )
+                average.assign(momentum * average + (1 - momentum) * var)
 
     def _overwrite_model_variables_with_average_value(
         self, trainable_variables

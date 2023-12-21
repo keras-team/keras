@@ -19,7 +19,9 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
         super().__init__(*args, **kwargs)
         self._distribution_strategy = tf.distribute.get_strategy()
 
-    def add_variable_from_reference(self, reference_variable, name=None):
+    def add_variable_from_reference(
+        self, reference_variable, name=None, initializer="zeros"
+    ):
         if isinstance(reference_variable, backend.Variable):
             colocate_var = reference_variable.value
         else:
@@ -29,7 +31,7 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
             colocate_var
         ):
             return super().add_variable_from_reference(
-                reference_variable, name=name
+                reference_variable, name=name, initializer=initializer
             )
 
     def stateless_apply(self, optimizer_variables, grads, trainable_variables):
