@@ -126,7 +126,7 @@ class Cropping2DTest(testing.TestCase, parameterized.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "Values in `cropping` argument should be greater than the "
+            "Values in `cropping` argument should be smaller than the "
             "corresponding spatial dimension of the input.",
         ):
             layer = layers.Cropping2D(

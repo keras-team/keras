@@ -112,7 +112,7 @@ class Cropping3D(Layer):
             spatial_dims[index] -= sum(self.cropping[index])
             if spatial_dims[index] <= 0:
                 raise ValueError(
-                    "Values in `cropping` argument should be greater than the "
+                    "Values in `cropping` argument should be smaller than the "
                     "corresponding spatial dimension of the input. Received: "
                     f"input_shape={input_shape}, cropping={self.cropping}"
                 )
@@ -134,7 +134,7 @@ class Cropping3D(Layer):
             spatial_dims[index] -= sum(self.cropping[index])
             if spatial_dims[index] <= 0:
                 raise ValueError(
-                    "Values in `cropping` argument should be greater than the "
+                    "Values in `cropping` argument should be smaller than the "
                     "corresponding spatial dimension of the input. Received: "
                     f"inputs.shape={inputs.shape}, cropping={self.cropping}"
                 )
