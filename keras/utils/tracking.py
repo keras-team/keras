@@ -135,7 +135,7 @@ class TrackedList(list):
             super().remove(value)
         except ValueError:
             python_utils.remove_by_id(self, value)
-    
+
     def pop(self, index=-1):
         if self.tracker:
             value = self[index]
@@ -173,7 +173,7 @@ class TrackedDict(dict):
         if self.tracker:
             mapping = {k: self.tracker.track(v) for k, v in mapping.items()}
         super().update(mapping)
-    
+
     def pop(self, key, default=None):
         if self.tracker:
             value = super().pop(key, default)
@@ -217,7 +217,7 @@ class TrackedSet(set):
         if self.tracker:
             self.tracker.untrack(value)
         super().remove(value)
-    
+
     def pop(self):
         value = super().pop()
         if self.tracker:

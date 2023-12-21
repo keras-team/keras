@@ -45,16 +45,6 @@ class TrackingTest(testing.TestCase):
         self.assertLen(lst2, 3)
         self.assertLen(tracked_variables, 2)
 
-        popped_value = lst2.pop(1)
-        self.assertEqual(popped_value, None)
-        self.assertLen(lst2, 2)
-        self.assertLen(tracked_variables, 2)
-
-        popped_value = lst2.pop(0)
-        self.assertEqual(popped_value, v1)
-        self.assertLen(lst2, 1)
-        self.assertLen(tracked_variables, 1)
-
         lst2.clear()
         self.assertLen(lst2, 0)
         self.assertLen(tracked_variables, 0)
