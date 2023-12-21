@@ -123,7 +123,8 @@ class TextVectorization(Layer):
             have its time dimension padded or truncated to exactly
             `output_sequence_length` values, resulting in a tensor of shape
             `(batch_size, output_sequence_length)` regardless of how many tokens
-            resulted from the splitting step. Defaults to `None`.
+            resulted from the splitting step. Defaults to `None`. If `ragged`
+            is `True` then `output_sequence_length` may truncate the output.
         pad_to_max_tokens: Only valid in  `"multi_hot"`, `"count"`,
             and `"tf_idf"` modes. If `True`, the output will have
             its feature axis padded to `max_tokens` even if the number
@@ -313,13 +314,6 @@ class TextVectorization(Layer):
                 "`ragged` must not be true if `output_mode` is "
                 f"`'int'`. Received: ragged={ragged} and "
                 f"output_mode={output_mode}"
-            )
-
-        if ragged and output_sequence_length is not None:
-            raise ValueError(
-                "`output_sequence_length` must not be set if ragged "
-                f"is True. Received: ragged={ragged} and "
-                f"output_sequence_length={output_sequence_length}"
             )
 
         self._max_tokens = max_tokens
