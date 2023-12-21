@@ -148,7 +148,6 @@ class BaseOptimizer:
                     self.add_variable_from_reference(
                         variable,
                         name="average",
-                        initializer=None,  # Initialize with var value
                     )
                 )
             if self.gradient_accumulation_steps:
@@ -156,7 +155,6 @@ class BaseOptimizer:
                     self.add_variable_from_reference(
                         variable,
                         name="gradient_accumulator",
-                        initializer="zeros",
                     )
                 )
         self._trainable_variables = variables[:]
@@ -199,13 +197,6 @@ class BaseOptimizer:
         """Add an all-zeros variable with the shape and dtype of a reference
         variable.
         """
-        if initializer is not None:
-            initializer = initializers.get(initializer)
-        else:
-
-            def initializer(shape, dtype):
-                return ops.copy(reference_variable.value)
-
         name = name or "var"
         if hasattr(reference_variable, "path"):
             name = reference_variable.path.replace("/", "_") + "_" + name
@@ -685,9 +676,11 @@ class BaseOptimizer:
             for var, average in zip(
                 trainable_variables, self._model_variables_moving_average
             ):
-                average.assign(
-                    self.ema_momentum * average + (1 - self.ema_momentum) * var
+                not_first_step = ops.not_equal(self.iterations, 0)
+                momentum = (
+                    ops.cast(not_first_step, var.dtype) * self.ema_momentum
                 )
+                average.assign(momentum * average + (1 - momentum) * var)
 
     def _overwrite_model_variables_with_average_value(
         self, trainable_variables
