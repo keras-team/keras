@@ -13,14 +13,14 @@ class SwapEMAWeights(Callback):
     Example:
 
     ```python
-    optimizer = SGD(use_ema=True)
-    model.compile(optimizer=optimizer, loss=..., metrics=...)
+    # Remember to set `use_ema=True`
+    model.compile(optimizer=SGD(use_ema=True), loss=..., metrics=...)
 
     # Metrics will be computed with EMA weights
     model.fit(X_train, Y_train, callbacks=[SwapEMAWeights()])
 
     # If you want to save model checkpoint with EMA weights, you can set
-    # `swap_on_epoch=True` and it before SwapEMAWeights.
+    # `swap_on_epoch=True` and place ModelCheckpoint before SwapEMAWeights.
     model.fit(
         X_train,
         Y_train,
