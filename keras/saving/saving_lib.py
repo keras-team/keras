@@ -314,6 +314,12 @@ def _walk_trackable(trackable):
         raise ValueError(f"Invalid obj_type: {obj_type}")
     attr_skiplist = get_attr_skiplist(obj_type)
 
+    # Save all layers directly tracked by Sequential and Functional first.
+    # This helps avoid ordering concerns for subclassed Sequential or Functional
+    # models with extra attributes--the internal Keras state take precedence.
+    if obj_type in ("Sequential", "Functional"):
+        yield "layers", trackable.layers
+
     for child_attr in sorted(dir(trackable), key=lambda x: _name_key(x)):
         if child_attr.startswith("__") or child_attr in attr_skiplist:
             continue
