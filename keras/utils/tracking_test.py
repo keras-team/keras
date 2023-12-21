@@ -33,3 +33,34 @@ class TrackingTest(testing.TestCase):
         lst.remove(v2)
         self.assertLen(lst, 2)
         self.assertLen(tracked_variables, 0)
+
+        lst2 = tracking.TrackedList([], tracker)
+        lst2.append(v1)
+        lst2.append(None)
+        lst2.append(v2)
+        lst2.append(0)
+
+        popped_value = lst2.pop()
+        self.assertEqual(popped_value, 0)
+        self.assertLen(lst2, 3)
+        self.assertLen(tracked_variables, 2)
+
+        popped_value = lst2.pop(1)
+        self.assertEqual(popped_value, None)
+        self.assertLen(lst2, 2)
+        self.assertLen(tracked_variables, 2)
+
+        popped_value = lst2.pop(0)
+        self.assertEqual(popped_value, v1)
+        self.assertLen(lst2, 1)
+        self.assertLen(tracked_variables, 1)
+
+        lst2.clear()
+        self.assertLen(lst2, 0)
+        self.assertLen(tracked_variables, 0)
+
+        lst2.append(v1)
+        lst2.append(v2)
+        del lst2[0]
+        self.assertLen(lst2, 1)
+        self.assertLen(tracked_variables, 1)
