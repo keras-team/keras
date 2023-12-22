@@ -44,7 +44,10 @@ class SwapEMAWeightsTest(testing.TestCase):
         model = self._get_compiled_model(use_ema=False)
         with self.assertRaisesRegex(
             ValueError,
-            "SwapEMAWeights must be used with `use_ema=True`",
+            (
+                "SwapEMAWeights must be used when "
+                "`_model_variables_moving_average` exists in the optimizer. "
+            ),
         ):
             model.fit(
                 self.x_train,
@@ -97,8 +100,8 @@ class SwapEMAWeightsTest(testing.TestCase):
                 self.y_train,
                 epochs=2,
                 callbacks=[
-                    callbacks.ModelCheckpoint(temp_dir + "/{epoch:1d}.keras"),
                     callbacks.SwapEMAWeights(swap_on_epoch=True),
+                    callbacks.ModelCheckpoint(temp_dir + "/{epoch:1d}.keras"),
                 ],
                 validation_data=(self.x_train, self.y_train),
             )
