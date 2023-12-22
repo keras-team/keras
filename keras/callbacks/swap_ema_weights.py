@@ -1,3 +1,4 @@
+from keras import backend
 from keras import ops
 from keras.api_export import keras_export
 from keras.callbacks.callback import Callback
@@ -44,6 +45,58 @@ class SwapEMAWeights(Callback):
 
         self._ema_weights_in_model = False
 
+    def _tf_swap_variables(self):
+        for var, average_var in zip(
+            self.model.trainable_variables,
+            self.model.optimizer._model_variables_moving_average,
+        ):
+            if isinstance(var, backend.Variable):
+                var = var.value
+            if isinstance(average_var, backend.Variable):
+                average_var = average_var.value
+            temporary_variable = ops.copy(var)
+            self.model.optimizer._distribution_strategy.extended.update(
+                var,
+                lambda a, b: a.assign(b),
+                args=(average_var,),
+            )
+            self.model.optimizer._distribution_strategy.extended.update(
+                average_var,
+                lambda a, b: a.assign(b),
+                args=(temporary_variable,),
+            )
+
+    def _backend_swap_variables(self):
+        for var, average_var in zip(
+            self.model.trainable_variables,
+            self.model.optimizer._model_variables_moving_average,
+        ):
+            temporary_variable = ops.convert_to_numpy(var)
+            var.assign(average_var)
+            average_var.assign(temporary_variable)
+
+    def _tf_finalize_ema_values(self):
+        for var, average_var in zip(
+            self.model.trainable_variables,
+            self.model.optimizer._model_variables_moving_average,
+        ):
+            if isinstance(var, backend.Variable):
+                var = var.value
+            if isinstance(average_var, backend.Variable):
+                average_var = average_var.value
+            self.model.optimizer._distribution_strategy.extended.update(
+                average_var,
+                lambda a, b: a.assign(b),
+                args=(var,),
+            )
+
+    def _backend_finalize_ema_values(self):
+        for var, average_var in zip(
+            self.model.trainable_variables,
+            self.model.optimizer._model_variables_moving_average,
+        ):
+            average_var.assign(var)
+
     def _swap_variables(self):
         if not hasattr(self.model.optimizer, "_model_variables_moving_average"):
             raise ValueError(
@@ -52,13 +105,10 @@ class SwapEMAWeights(Callback):
                 "Please verify if you have set `use_ema=True` in your "
                 f"optimizer. Received: use_ema={self.model.optimizer.use_ema}"
             )
-        for var, average_var in zip(
-            self.model.trainable_variables,
-            self.model.optimizer._model_variables_moving_average,
-        ):
-            temporary_variable = ops.convert_to_numpy(var)
-            var.assign(average_var)
-            average_var.assign(temporary_variable)
+        if backend.backend() == "tensorflow":
+            self._tf_swap_variables()
+        else:
+            self._backend_swap_variables()
 
     def _finalize_ema_values(self):
         if not hasattr(self.model.optimizer, "_model_variables_moving_average"):
@@ -68,11 +118,10 @@ class SwapEMAWeights(Callback):
                 "Please verify if you have set `use_ema=True` in the "
                 f"optimizer. Received: use_ema={self.model.optimizer.use_ema}"
             )
-        for var, average_var in zip(
-            self.model.trainable_variables,
-            self.model.optimizer._model_variables_moving_average,
-        ):
-            average_var.assign(var)
+        if backend.backend() == "tensorflow":
+            self._tf_finalize_ema_values()
+        else:
+            self._backend_finalize_ema_values()
 
     def on_epoch_begin(self, epoch, logs=None):
         if (

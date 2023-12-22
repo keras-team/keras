@@ -1,7 +1,10 @@
 import tempfile
 
 import pytest
+import tensorflow as tf
+from tensorflow.python.eager import context
 
+from keras import backend
 from keras import callbacks
 from keras import layers
 from keras import losses
@@ -38,6 +41,18 @@ class SwapEMAWeightsTest(testing.TestCase):
             metrics=[metrics.MeanSquaredError()],
         )
         return model
+
+    def _tf_distribute_setup(self):
+        # Need at least 2 devices for distribution related tests.
+        cpus = tf.config.list_physical_devices("CPU")
+        context._reset_context()
+        tf.config.set_logical_device_configuration(
+            cpus[0],
+            [
+                tf.config.LogicalDeviceConfiguration(),
+                tf.config.LogicalDeviceConfiguration(),
+            ],
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_swap_ema_weights_with_invalid_optimizer(self):
@@ -107,6 +122,37 @@ class SwapEMAWeightsTest(testing.TestCase):
             )
             model2 = saving.load_model(temp_dir + "/2.keras")
 
+        logs = model.evaluate(self.x_train, self.y_train, return_dict=True)
+        logs2 = model2.evaluate(self.x_train, self.y_train, return_dict=True)
+        # saved checkpoint will be applied by EMA weights
+        self.assertEqual(
+            logs["mean_squared_error"],
+            logs2["mean_squared_error"],
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="The distribute test can only run with TF backend.",
+    )
+    def test_swap_ema_weights_with_tf_distribute(self):
+        self._tf_distribute_setup()
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
+        with strategy.scope():
+            model = self._get_compiled_model()
+            with tempfile.TemporaryDirectory() as temp_dir:
+                model.fit(
+                    self.x_train,
+                    self.y_train,
+                    epochs=2,
+                    callbacks=[
+                        callbacks.SwapEMAWeights(swap_on_epoch=True),
+                        callbacks.ModelCheckpoint(
+                            temp_dir + "/distributed_{epoch:1d}.keras"
+                        ),
+                    ],
+                    validation_data=(self.x_train, self.y_train),
+                )
+                model2 = saving.load_model(temp_dir + "/distributed_2.keras")
         logs = model.evaluate(self.x_train, self.y_train, return_dict=True)
         logs2 = model2.evaluate(self.x_train, self.y_train, return_dict=True)
         # saved checkpoint will be applied by EMA weights
