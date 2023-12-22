@@ -31,7 +31,7 @@ class SwapEMAWeightsTest(testing.TestCase):
         self.x_train = x_train
         self.y_train = y_train
 
-    def _get_compiled_model(self, use_ema=True):
+    def _get_compiled_model(self, use_ema=True, jit_compile=True):
         model = Sequential(
             [layers.Dense(2, kernel_initializer="ones", use_bias=False)]
         )
@@ -39,20 +39,9 @@ class SwapEMAWeightsTest(testing.TestCase):
             optimizer=optimizers.SGD(use_ema=use_ema, ema_momentum=0.9),
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
+            jit_compile=jit_compile,
         )
         return model
-
-    def _tf_distribute_setup(self):
-        # Need at least 2 devices for distribution related tests.
-        cpus = tf.config.list_physical_devices("CPU")
-        context._reset_context()
-        tf.config.set_logical_device_configuration(
-            cpus[0],
-            [
-                tf.config.LogicalDeviceConfiguration(),
-                tf.config.LogicalDeviceConfiguration(),
-            ],
-        )
 
     @pytest.mark.requires_trainable_backend
     def test_swap_ema_weights_with_invalid_optimizer(self):
@@ -135,27 +124,25 @@ class SwapEMAWeightsTest(testing.TestCase):
         reason="The distribute test can only run with TF backend.",
     )
     def test_swap_ema_weights_with_tf_distribute(self):
-        self._tf_distribute_setup()
+        # Need at least 2 devices for distribution related tests.
+        cpus = tf.config.list_physical_devices("CPU")
+        context._reset_context()
+        tf.config.set_logical_device_configuration(
+            cpus[0],
+            [
+                tf.config.LogicalDeviceConfiguration(),
+                tf.config.LogicalDeviceConfiguration(),
+            ],
+        )
         strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
         with strategy.scope():
-            x_train = tf.data.Dataset.from_tensor_slices(
-                (self.x_train, self.y_train)
-            )
-            x_train = x_train.batch(10)
-            model = Sequential(
-                [layers.Dense(2, kernel_initializer="ones", use_bias=False)]
-            )
-            model.build([None, 3])
-            optimizer = optimizers.SGD(use_ema=True, ema_momentum=0.9)
-            optimizer.build(model.trainable_variables)
-            model.compile(
-                optimizer=optimizer,
-                loss=losses.MeanSquaredError(),
-                metrics=[metrics.MeanSquaredError()],
-            )
+            # TODO: set jit_compile=True once the issue is resolved in
+            # integration_tests/tf_distribute_training_test.py#L52
+            model = self._get_compiled_model(jit_compile=False)
             with tempfile.TemporaryDirectory() as temp_dir:
                 model.fit(
-                    x_train,
+                    self.x_train,
+                    self.y_train,
                     epochs=2,
                     callbacks=[
                         callbacks.SwapEMAWeights(swap_on_epoch=True),
@@ -163,11 +150,11 @@ class SwapEMAWeightsTest(testing.TestCase):
                             temp_dir + "/distributed_{epoch:1d}.keras"
                         ),
                     ],
-                    validation_data=x_train,
+                    validation_data=(self.x_train, self.y_train),
                 )
                 model2 = saving.load_model(temp_dir + "/distributed_2.keras")
-        logs = model.evaluate(x_train, return_dict=True)
-        logs2 = model2.evaluate(x_train, return_dict=True)
+        logs = model.evaluate(self.x_train, self.y_train, return_dict=True)
+        logs2 = model2.evaluate(self.x_train, self.y_train, return_dict=True)
         # saved checkpoint will be applied by EMA weights
         self.assertEqual(
             logs["mean_squared_error"],
