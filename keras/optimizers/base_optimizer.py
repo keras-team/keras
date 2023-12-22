@@ -847,12 +847,12 @@ base_optimizer_keyword_args = """name: String. The name to use
 
 def clip_by_norm(values, clip_norm, axes=None):
     # Calculate L2-norm, clip elements by ratio of clip_norm to L2-norm
-    l2sum = ops.sum(values * values, axes, keepdims=True)
+    l2sum = ops.sum(ops.square(values), axes, keepdims=True)
     pred = l2sum > 0
     # Two-tap tf.where trick to bypass NaN gradients
     l2sum_safe = ops.where(pred, l2sum, ops.ones_like(l2sum))
     l2norm = ops.where(pred, ops.sqrt(l2sum_safe), l2sum)
-    intermediate = values * clip_norm
+    intermediate = ops.multiply(values, clip_norm)
     values_clip = ops.convert_to_tensor(intermediate) / ops.maximum(
         l2norm, clip_norm
     )
