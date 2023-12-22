@@ -138,11 +138,24 @@ class SwapEMAWeightsTest(testing.TestCase):
         self._tf_distribute_setup()
         strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
         with strategy.scope():
-            model = self._get_compiled_model()
+            x_train = tf.data.Dataset.from_tensor_slices(
+                (self.x_train, self.y_train)
+            )
+            x_train = x_train.batch(10)
+            model = Sequential(
+                [layers.Dense(2, kernel_initializer="ones", use_bias=False)]
+            )
+            model.build([None, 3])
+            optimizer = optimizers.SGD(use_ema=True, ema_momentum=0.9)
+            optimizer.build(model.trainable_variables)
+            model.compile(
+                optimizer=optimizer,
+                loss=losses.MeanSquaredError(),
+                metrics=[metrics.MeanSquaredError()],
+            )
             with tempfile.TemporaryDirectory() as temp_dir:
                 model.fit(
-                    self.x_train,
-                    self.y_train,
+                    x_train,
                     epochs=2,
                     callbacks=[
                         callbacks.SwapEMAWeights(swap_on_epoch=True),
@@ -150,11 +163,11 @@ class SwapEMAWeightsTest(testing.TestCase):
                             temp_dir + "/distributed_{epoch:1d}.keras"
                         ),
                     ],
-                    validation_data=(self.x_train, self.y_train),
+                    validation_data=x_train,
                 )
                 model2 = saving.load_model(temp_dir + "/distributed_2.keras")
-        logs = model.evaluate(self.x_train, self.y_train, return_dict=True)
-        logs2 = model2.evaluate(self.x_train, self.y_train, return_dict=True)
+        logs = model.evaluate(x_train, return_dict=True)
+        logs2 = model2.evaluate(x_train, return_dict=True)
         # saved checkpoint will be applied by EMA weights
         self.assertEqual(
             logs["mean_squared_error"],

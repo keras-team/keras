@@ -54,16 +54,21 @@ class SwapEMAWeights(Callback):
                 var = var.value
             if isinstance(average_var, backend.Variable):
                 average_var = average_var.value
-            temporary_variable = ops.copy(var)
+            # swap using addition to prevent variable creation
             self.model.optimizer._distribution_strategy.extended.update(
                 var,
-                lambda a, b: a.assign(b),
+                lambda a, b: a.assign_add(b),
                 args=(average_var,),
             )
             self.model.optimizer._distribution_strategy.extended.update(
-                average_var,
-                lambda a, b: a.assign(b),
-                args=(temporary_variable,),
+                var,
+                lambda a, b: b.assign(a - b),
+                args=(average_var,),
+            )
+            self.model.optimizer._distribution_strategy.extended.update(
+                var,
+                lambda a, b: a.assign(a - b),
+                args=(average_var,),
             )
 
     def _backend_swap_variables(self):
