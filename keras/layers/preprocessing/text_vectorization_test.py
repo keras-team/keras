@@ -115,7 +115,12 @@ class TextVectorizationTest(testing.TestCase):
             vocabulary=["baz", "bar", "foo"],
             ragged=True,
         )
-        input_data = [["foo baz baz bar"], ["foo baz bar"], ["foo baz"], ["foo"]]
+        input_data = [
+            ["foo baz baz bar"],
+            ["foo baz bar"],
+            ["foo baz"],
+            ["foo"],
+        ]
         output = layer(input_data)
         assert isinstance(output, tf.RaggedTensor)
-        assert output.shape == (4,None)
+        assert output.shape == (4, None)
