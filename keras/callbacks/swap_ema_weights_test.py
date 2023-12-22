@@ -31,12 +31,17 @@ class SwapEMAWeightsTest(testing.TestCase):
         self.x_train = x_train
         self.y_train = y_train
 
-    def _get_compiled_model(self, use_ema=True, jit_compile=True):
+    def _get_compiled_model(
+        self, use_ema=True, jit_compile=True, loss_scale=False
+    ):
+        optimizer = optimizers.SGD(use_ema=use_ema, ema_momentum=0.9)
+        if loss_scale:
+            optimizer = optimizers.LossScaleOptimizer(optimizer)
         model = Sequential(
             [layers.Dense(2, kernel_initializer="ones", use_bias=False)]
         )
         model.compile(
-            optimizer=optimizers.SGD(use_ema=use_ema, ema_momentum=0.9),
+            optimizer=optimizer,
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
             jit_compile=jit_compile,
@@ -117,6 +122,23 @@ class SwapEMAWeightsTest(testing.TestCase):
         self.assertEqual(
             logs["mean_squared_error"],
             logs2["mean_squared_error"],
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_swap_ema_weights_with_loss_scale_optimizer(self):
+        model = self._get_compiled_model(loss_scale=True)
+        history = model.fit(
+            self.x_train,
+            self.y_train,
+            epochs=2,
+            callbacks=[callbacks.SwapEMAWeights()],
+            validation_data=(self.x_train, self.y_train),
+        )
+        logs = model.evaluate(self.x_train, self.y_train, return_dict=True)
+        # final metric during fitting is same as the evaluation
+        self.assertEqual(
+            history.history["val_mean_squared_error"][-1],
+            logs["mean_squared_error"],
         )
 
     @pytest.mark.skipif(
