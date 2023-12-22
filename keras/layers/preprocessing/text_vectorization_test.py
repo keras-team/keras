@@ -1,6 +1,6 @@
 import numpy as np
-import tensorflow as tf
 import pytest
+import tensorflow as tf
 from tensorflow import data as tf_data
 
 from keras import backend
