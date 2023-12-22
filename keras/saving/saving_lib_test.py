@@ -126,6 +126,32 @@ class CompileOverridingSequential(keras.Sequential):
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
+class SubclassFunctional(keras.Model):
+    """Subclassed functional identical to `_get_basic_functional_model`."""
+
+    def __init__(self, **kwargs):
+        inputs = keras.Input(shape=(4,), batch_size=2)
+        dense = keras.layers.Dense(1, name="first_dense")
+        x = dense(inputs)
+        outputs = keras.layers.Dense(1, name="second_dense")(x)
+        super().__init__(inputs=inputs, outputs=outputs, **kwargs)
+        # Attrs for layers in the functional graph should not affect saving
+        self.layer_attr = dense
+
+    @property
+    def layer_property(self):
+        # Properties for layers in the functional graph should not affect saving
+        return self.layer_attr
+
+    def get_config(self):
+        return {}
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
 def my_mean_squared_error(y_true, y_pred):
     """Identical to built-in `mean_squared_error`, but as a custom fn."""
     return ops.mean(ops.square(y_pred - y_true), axis=-1)
@@ -200,6 +226,17 @@ def _get_basic_functional_model(compile=True):
     return functional_model
 
 
+def _get_subclassed_functional_model(compile=True):
+    functional_model = SubclassFunctional()
+    if compile:
+        functional_model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras.metrics.Hinge(), "mse"],
+        )
+    return functional_model
+
+
 @pytest.mark.requires_trainable_backend
 class SavingTest(testing.TestCase):
     def _test_inference_after_instantiation(self, model):
@@ -232,6 +269,10 @@ class SavingTest(testing.TestCase):
 
     def test_inference_after_instantiation_custom_functional(self):
         model = _get_custom_functional_model(compile=False)
+        self._test_inference_after_instantiation(model)
+
+    def test_inference_after_instantiation_subclassed_functional(self):
+        model = _get_subclassed_functional_model(compile=False)
         self._test_inference_after_instantiation(model)
 
     def _test_compile_preserved(self, model):
@@ -284,6 +325,10 @@ class SavingTest(testing.TestCase):
 
     def test_compile_preserved_custom_functional(self):
         model = _get_custom_functional_model(compile=True)
+        self._test_compile_preserved(model)
+
+    def test_compile_preserved_subclassed_functional(self):
+        model = _get_subclassed_functional_model(compile=True)
         self._test_compile_preserved(model)
 
     def test_saving_preserve_unbuilt_state(self):
@@ -430,6 +475,26 @@ class SavingTest(testing.TestCase):
         # Test with Model method
         model = _get_basic_functional_model()
         model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
+    def test_save_weights_subclassed_functional(self):
+        # The subclassed and basic functional model should have the same
+        # weights structure.
+        temp_filepath = Path(
+            os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        )
+        model = _get_basic_functional_model()
+        ref_input = np.random.random((2, 4))
+        ref_output = model.predict(ref_input)
+        # Test saving basic, loading subclassed.
+        saving_lib.save_weights_only(model, temp_filepath)
+        model = _get_subclassed_functional_model()
+        saving_lib.load_weights_only(model, temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+        # Test saving subclassed, loading basic.
+        saving_lib.save_weights_only(model, temp_filepath)
+        model = _get_basic_functional_model()
+        saving_lib.load_weights_only(model, temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
     def test_compile_arg(self):
