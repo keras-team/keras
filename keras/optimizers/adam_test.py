@@ -101,4 +101,4 @@ class AdamTest(testing.TestCase):
         model.compile(optimizer=Adam(clipnorm=100), loss="mse")
         x = keras.ops.ones((8, 5))
         y = keras.ops.zeros((8, 2))
-        model.fit(x, y)
+        model.fit(x, y, verbose=0)
