@@ -92,7 +92,11 @@ class AdamTest(testing.TestCase):
     def test_clipnorm_indexed_slices(self):
         # https://github.com/keras-team/keras/issues/18985
         model = keras.Sequential(
-            [keras.layers.Embedding(10, 4), keras.layers.Dense(2)]
+            [
+                keras.layers.Embedding(10, 4),
+                keras.layers.Flatten(),
+                keras.layers.Dense(2),
+            ]
         )
         model.compile(optimizer=Adam(clipnorm=100), loss="mse")
         x = keras.ops.ones((8, 5))
