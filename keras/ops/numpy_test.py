@@ -3740,6 +3740,37 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(len(knp.split(x, 2)), 2)
         self.assertEqual(len(knp.Split(2)(x)), 2)
 
+        # test indices_or_sections as tensor
+        x = knp.array([[1, 2, 3], [3, 2, 1]])
+        indices_or_sections = knp.array([1, 2])
+        x_np = np.array([[1, 2, 3], [3, 2, 1]])
+        indices_or_sections_np = np.array([1, 2])
+        self.assertAllClose(
+            knp.split(x, indices_or_sections, axis=1),
+            np.split(x_np, indices_or_sections_np, axis=1),
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Only test tensorflow backend",
+    )
+    def test_split_with_jit_in_tf(self):
+        import tensorflow as tf
+
+        x = knp.array([[1, 2, 3], [3, 2, 1]])
+        indices = knp.array([1, 2])
+        x_np = np.array([[1, 2, 3], [3, 2, 1]])
+        indices_np = np.array([1, 2])
+
+        @tf.function(jit_compile=True)
+        def fn(x, indices, axis):
+            return knp.split(x, indices, axis=axis)
+
+        self.assertAllClose(
+            fn(x, indices, axis=1),
+            np.split(x_np, indices_np, axis=1),
+        )
+
     def test_sqrt(self):
         x = np.array([[1, 4, 9], [16, 25, 36]], dtype="float32")
         ref_y = np.sqrt(x)
