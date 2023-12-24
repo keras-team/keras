@@ -163,3 +163,8 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
             grads,
             accumulators,
         )
+
+    def _clip_by_norm(self, values, axes=None):
+        # We need to use TF-specific OP to support the case,
+        # when `values` are `tf.IndexedSlices`.
+        return tf.clip_by_norm(values, self.clipnorm, axes)

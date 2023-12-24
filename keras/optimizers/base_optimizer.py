@@ -589,7 +589,7 @@ class BaseOptimizer:
                 if g is None:
                     clipped_grads.append(g)
                 else:
-                    clipped_grads.append(clip_by_norm(g, self.clipnorm))
+                    clipped_grads.append(self._clip_by_norm(g))
             return clipped_grads
 
         if self.global_clipnorm and self.global_clipnorm > 0:
@@ -796,6 +796,19 @@ class BaseOptimizer:
             value = self._tracker.track(value)
         return super().__setattr__(name, value)
 
+    def _clip_by_norm(self, values, axes=None):
+        # Calculate L2-norm, clip elements by ratio of clip_norm to L2-norm
+        l2sum = ops.sum(ops.square(values), axes, keepdims=True)
+        pred = l2sum > 0
+        # Two-tap tf.where trick to bypass NaN gradients
+        l2sum_safe = ops.where(pred, l2sum, ops.ones_like(l2sum))
+        l2norm = ops.where(pred, ops.sqrt(l2sum_safe), l2sum)
+        intermediate = ops.multiply(values, self.clipnorm)
+        values_clip = ops.convert_to_tensor(intermediate) / ops.maximum(
+            l2norm, self.clipnorm
+        )
+        return values_clip
+
 
 base_optimizer_keyword_args = """name: String. The name to use
             for momentum accumulator weights created by
@@ -843,20 +856,6 @@ base_optimizer_keyword_args = """name: String. The name to use
             when your batch size is very small, in order to reduce gradient
             noise at each update step.
 """
-
-
-def clip_by_norm(values, clip_norm, axes=None):
-    # Calculate L2-norm, clip elements by ratio of clip_norm to L2-norm
-    l2sum = ops.sum(values * values, axes, keepdims=True)
-    pred = l2sum > 0
-    # Two-tap tf.where trick to bypass NaN gradients
-    l2sum_safe = ops.where(pred, l2sum, ops.ones_like(l2sum))
-    l2norm = ops.where(pred, ops.sqrt(l2sum_safe), l2sum)
-    intermediate = values * clip_norm
-    values_clip = ops.convert_to_tensor(intermediate) / ops.maximum(
-        l2norm, clip_norm
-    )
-    return values_clip
 
 
 def global_norm(value_list):
