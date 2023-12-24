@@ -49,9 +49,6 @@ def test_model_fit():
             ),
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
-            # TODO(scottzhu): Find out where is the variable
-            #  that is not created eagerly and break the usage of XLA.
-            jit_compile=False,
         )
         history = model.fit(
             x,

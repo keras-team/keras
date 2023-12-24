@@ -222,6 +222,10 @@ class Trainer:
                 # Disable XLA on CPU-only machines.
                 return False
 
+            if self._distribute_strategy:
+                # Disable XLA with tf.distribute
+                return False
+
         if model_supports_jit(self):
             return True
         return False
