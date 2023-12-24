@@ -53,10 +53,7 @@ class SwapEMAWeightsTest(testing.TestCase):
         model = self._get_compiled_model(use_ema=False)
         with self.assertRaisesRegex(
             ValueError,
-            (
-                "SwapEMAWeights must be used when "
-                "`_model_variables_moving_average` exists in the optimizer. "
-            ),
+            ("SwapEMAWeights must be used when " "`use_ema=True` is set"),
         ):
             model.fit(
                 self.x_train,
