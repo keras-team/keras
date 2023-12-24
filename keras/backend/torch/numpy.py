@@ -1168,15 +1168,15 @@ def sort(x, axis=-1):
 def split(x, indices_or_sections, axis=0):
     x = convert_to_tensor(x)
     dim = x.shape[axis]
-    if isinstance(indices_or_sections, (list, tuple)):
-        idxs = convert_to_tensor(indices_or_sections)
-        start_size = indices_or_sections[0]
-        end_size = dim - indices_or_sections[-1]
-        chunk_sizes = (
-            [start_size]
-            + torch.diff(idxs).type(torch.int).tolist()
-            + [end_size]
+    if not isinstance(indices_or_sections, int):
+        indices_or_sections = convert_to_tensor(indices_or_sections)
+        start_size = indices_or_sections[0:1]
+        end_size = dim - indices_or_sections[-1:]
+        chunk_sizes = torch.concat(
+            [start_size, torch.diff(indices_or_sections), end_size], dim=0
         )
+        # torch.split doesn't support tensor input for `split_size_or_sections`
+        chunk_sizes = chunk_sizes.tolist()
     else:
         if dim % indices_or_sections != 0:
             raise ValueError(

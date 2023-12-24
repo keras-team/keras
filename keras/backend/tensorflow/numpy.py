@@ -1331,7 +1331,21 @@ def sort(x, axis=-1):
 
 
 def split(x, indices_or_sections, axis=0):
-    return tfnp.split(x, indices_or_sections, axis=axis)
+    if not isinstance(indices_or_sections, int):
+        # `tf.split` requires `num_or_size_splits`, so we need to convert
+        # `indices_or_sections` to the appropriate format.
+        # The following implementation offers better compatibility for the
+        # tensor argument `indices_or_sections` than original `tfnp.split`.
+        total_size = x.shape[axis]
+        indices_or_sections = convert_to_tensor(indices_or_sections)
+        start_size = indices_or_sections[0:1]
+        end_size = total_size - indices_or_sections[-1:]
+        num_or_size_splits = tf.concat(
+            [start_size, tfnp.diff(indices_or_sections), end_size], axis=0
+        )
+    else:
+        num_or_size_splits = indices_or_sections
+    return tf.split(x, num_or_size_splits, axis=axis)
 
 
 def stack(x, axis=0):
