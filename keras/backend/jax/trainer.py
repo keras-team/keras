@@ -900,19 +900,17 @@ def _distribute_data(data):
 
         return jax.tree_util.tree_map(distribute_single_value, data)
     else:
-        return data
+        return jax.tree_util.tree_map(jax.device_put, data)
 
 
 class JAXEpochIterator(EpochIterator):
     def _get_iterator(self, return_type="np"):
         if return_type == "np":
-            return self._prefetch_numpy_iterator(
-                super()._get_iterator(return_type)
-            )
+            return self._prefetch_to_device(super()._get_iterator(return_type))
         else:
             return super()._get_iterator(return_type)
 
-    def _prefetch_numpy_iterator(self, numpy_iterator):
+    def _prefetch_to_device(self, numpy_iterator):
         """Shard and prefetch batches on device.
 
         Most of the implementation has been borrowed from
@@ -932,7 +930,7 @@ class JAXEpochIterator(EpochIterator):
             for data in itertools.islice(numpy_iterator, n):
                 queue.append(_distribute_data(data))
 
-        enqueue(2)  # TODO: should we make `n` configurable?
+        enqueue(n=2)  # TODO: should we make `n` configurable?
         while queue:
             yield queue.popleft()
             enqueue(1)
