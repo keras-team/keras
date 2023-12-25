@@ -1,3 +1,4 @@
+import numpy as np
 import tree
 
 from keras.trainers.data_adapters.data_adapter import DataAdapter
@@ -22,7 +23,10 @@ class TorchDataLoaderAdapter(DataAdapter):
 
     def get_numpy_iterator(self):
         for batch in self._dataloader:
-            yield tuple(tree.map_structure(lambda x: x.cpu().numpy(), batch))
+            # shared memory using `np.asarray`
+            yield tuple(
+                tree.map_structure(lambda x: np.asarray(x.cpu()), batch)
+            )
 
     def get_torch_dataloader(self):
         return self._dataloader
