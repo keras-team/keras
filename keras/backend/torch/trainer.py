@@ -502,14 +502,9 @@ class TorchEpochIterator(EpochIterator):
             self.data_adapter, data_adapters.TorchDataLoaderAdapter
         ):
             return self.data_adapter.get_torch_dataloader()
-        else:
-            # defaults to `np` if not `TorchDataLoaderAdapter`
-            return_type = "np"
-
-        if return_type == "np":
-            return self._prefetch_numpy_iterator(
-                super()._get_iterator(return_type)
-            )
+        elif return_type in ("np", "auto"):
+            # enable prefetching when using numpy_iterator
+            return self._prefetch_numpy_iterator(super()._get_iterator("np"))
         return super()._get_iterator(return_type)
 
     def _prefetch_numpy_data(self, data):

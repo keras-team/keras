@@ -380,7 +380,7 @@ class JAXTrainer(base_trainer.Trainer):
             metrics_variables = [v.value for v in self.metrics_variables]
 
             self._purge_model_variables()
-            for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
+            for step, data in epoch_iterator.enumerate_epoch():
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
 
@@ -532,7 +532,7 @@ class JAXTrainer(base_trainer.Trainer):
         metrics_variables = [v.value for v in self.metrics_variables]
 
         self._purge_model_variables(optimizer_variables=False)
-        for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
+        for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_test_batch_begin(step)
 
             state = (
@@ -589,7 +589,7 @@ class JAXTrainer(base_trainer.Trainer):
 
         if not all(layer.built for layer in self._flatten_layers()):
             # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
+            for _, data in epoch_iterator.enumerate_epoch():
                 # Build model
                 x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data[0])
                 with backend.StatelessScope():
@@ -634,7 +634,7 @@ class JAXTrainer(base_trainer.Trainer):
         ]
         state = (trainable_variables, non_trainable_variables)
         outputs = None
-        for step, x in epoch_iterator.enumerate_epoch(return_type="np"):
+        for step, x in epoch_iterator.enumerate_epoch():
             callbacks.on_predict_batch_begin(step)
             batch_outputs, state = self.predict_function(state, x)
             outputs = append_to_outputs(batch_outputs, outputs)
@@ -904,13 +904,11 @@ def _distribute_data(data):
 
 
 class JAXEpochIterator(EpochIterator):
-    def _get_iterator(self, return_type="np"):
-        if return_type == "np":
-            return self._prefetch_numpy_iterator(
-                super()._get_iterator(return_type)
-            )
-        else:
-            return super()._get_iterator(return_type)
+    def _get_iterator(self, return_type="auto"):
+        if return_type in ("np", "auto"):
+            # enable prefetching when using numpy_iterator
+            return self._prefetch_numpy_iterator(super()._get_iterator("np"))
+        return super()._get_iterator(return_type)
 
     def _prefetch_numpy_iterator(self, numpy_iterator):
         """Shard and prefetch batches on device.
