@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 from absl.testing import parameterized
-from tensorflow.python.ops.numpy_ops import np_config
 
 from keras import backend
 from keras import layers
@@ -24,9 +23,6 @@ from keras.layers.pooling.max_pooling_test import np_maxpool2d
 from keras.ops import nn as knn
 from keras.ops import numpy as knp
 from keras.testing.test_utils import named_product
-
-# TODO: remove reliance on this (or alternatively, turn it on by default).
-np_config.enable_numpy_behavior()
 
 
 class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):

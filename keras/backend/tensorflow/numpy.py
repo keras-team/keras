@@ -809,17 +809,30 @@ def isclose(x1, x2):
 
 @sparse.densifying_unary(True)
 def isfinite(x):
-    return tfnp.isfinite(x)
+    # `tfnp.isfinite` requires `enable_numpy_behavior`, so we reimplement it.
+    x = convert_to_tensor(x)
+    dtype_as_dtype = tf.as_dtype(x.dtype)
+    if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
+        return tf.ones(x.shape, tf.bool)
+    return tf.math.is_finite(x)
 
 
 def isinf(x):
-    # TODO: tfnp.isinf will get python bool when input is a scalar, so we
-    # need the extra `convert_to_tensor`
-    return convert_to_tensor(tfnp.isinf(x))
+    # `tfnp.isinf` requires `enable_numpy_behavior`, so we reimplement it.
+    x = convert_to_tensor(x)
+    dtype_as_dtype = tf.as_dtype(x.dtype)
+    if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
+        return tf.zeros(x.shape, tf.bool)
+    return tf.math.is_inf(x)
 
 
 def isnan(x):
-    return tfnp.isnan(x)
+    # `tfnp.isnan` requires `enable_numpy_behavior`, so we reimplement it.
+    x = convert_to_tensor(x)
+    dtype_as_dtype = tf.as_dtype(x.dtype)
+    if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
+        return tf.zeros(x.shape, tf.bool)
+    return tf.math.is_nan(x)
 
 
 def less(x1, x2):
@@ -1039,23 +1052,20 @@ def moveaxis(x, source, destination):
 
 def nan_to_num(x):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
 
-    # tf.bool doesn't support max and min
-    if dtype == "bool":
-        x = tf.where(tfnp.isnan(x), tf.constant(False, x.dtype), x)
-        x = tf.where(tfnp.isinf(x) & (x > 0), tf.constant(True, x.dtype), x)
-        x = tf.where(tfnp.isinf(x) & (x < 0), tf.constant(False, x.dtype), x)
+    dtype = x.dtype
+    dtype_as_dtype = tf.as_dtype(dtype)
+    if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
         return x
 
     # Replace NaN with 0
-    x = tf.where(tfnp.isnan(x), tf.constant(0, x.dtype), x)
+    x = tf.where(tf.math.is_nan(x), tf.constant(0, dtype), x)
 
     # Replace positive infinitiy with dtype.max
-    x = tf.where(tfnp.isinf(x) & (x > 0), tf.constant(x.dtype.max, x.dtype), x)
+    x = tf.where(tf.math.is_inf(x) & (x > 0), tf.constant(dtype.max, dtype), x)
 
     # Replace negative infinity with dtype.min
-    x = tf.where(tfnp.isinf(x) & (x < 0), tf.constant(x.dtype.min, x.dtype), x)
+    x = tf.where(tf.math.is_inf(x) & (x < 0), tf.constant(dtype.min, dtype), x)
 
     return x
 
@@ -1439,7 +1449,24 @@ def tensordot(x1, x2, axes=2):
 
 @sparse.elementwise_unary
 def round(x, decimals=0):
-    return tfnp.round(x, decimals=decimals)
+    # `tfnp.round` requires `enable_numpy_behavior`, so we reimplement it.
+    if decimals == 0:
+        return tf.round(x)
+    x_dtype = x.dtype
+    if tf.as_dtype(x_dtype).is_integer:
+        # int
+        if decimals > 0:
+            return x
+        # temporarilaly convert to floats
+        factor = tf.cast(math.pow(10, decimals), config.floatx())
+        x = tf.cast(x, config.floatx())
+    else:
+        # float
+        factor = tf.cast(math.pow(10, decimals), x.dtype)
+    x = tf.multiply(x, factor)
+    x = tf.round(x)
+    x = tf.divide(x, factor)
+    return tf.cast(x, x_dtype)
 
 
 def tile(x, repeats):
