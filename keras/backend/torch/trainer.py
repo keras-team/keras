@@ -209,7 +209,7 @@ class TorchTrainer(base_trainer.Trainer):
             ) = data_adapter_utils.unpack_x_y_sample_weight(validation_data)
 
         # Create an iterator that yields batches for one epoch.
-        epoch_iterator = EpochIterator(
+        epoch_iterator = TorchEpochIterator(
             x=x,
             y=y,
             sample_weight=sample_weight,
