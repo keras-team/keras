@@ -1,10 +1,10 @@
 import contextlib
 import itertools
+import math
 
 import numpy as np
 import pytest
 from absl.testing import parameterized
-from tensorflow.python.ops.numpy_ops import np_config
 
 import keras
 from keras import backend
@@ -14,9 +14,6 @@ from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import numpy as knp
 from keras.testing.test_utils import named_product
-
-# TODO: remove reliance on this (or alternatively, turn it on by default).
-np_config.enable_numpy_behavior()
 
 
 class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
@@ -4013,7 +4010,8 @@ def create_sparse_tensor(x, indices_from=None, start=0, delta=2):
     if indices_from is not None:
         indices = indices_from.indices
     else:
-        flat_indices = np.arange(start, x.size, delta)
+        size = math.prod(x.shape)
+        flat_indices = np.arange(start, size, delta)
         indices = np.stack(np.where(np.ones_like(x)), axis=1)[flat_indices]
 
     if backend.backend() == "tensorflow":

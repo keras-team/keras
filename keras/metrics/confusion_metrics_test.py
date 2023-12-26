@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 from absl import logging
 from absl.testing import parameterized
-from tensorflow.python.ops.numpy_ops import np_config
 
 from keras import layers
 from keras import metrics
@@ -12,10 +11,6 @@ from keras import models
 from keras import ops
 from keras import testing
 from keras.metrics import metrics_utils
-
-# TODO: remove reliance on this (or alternatively, turn it on by default).
-# This is no longer needed with tf-nightly.
-np_config.enable_numpy_behavior()
 
 
 class FalsePositivesTest(testing.TestCase):
