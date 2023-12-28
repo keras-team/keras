@@ -269,7 +269,7 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.where(condition, x, y).shape, (2, None, 3))
         self.assertEqual(knp.where(condition).shape, (2, None, 1))
 
-    def test_floordiv(self):
+    def test_floor_divide(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
         self.assertEqual(knp.floor_divide(x, y).shape, (2, 3))
@@ -796,7 +796,7 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.where(condition, x, y).shape, (2, 3))
         self.assertAllEqual(knp.where(condition).shape, (2, 3))
 
-    def test_floordiv(self):
+    def test_floor_divide(self):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.floor_divide(x, y).shape, (2, 3))
@@ -3923,7 +3923,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.vstack([x, y]), np.vstack([x, y]))
         self.assertAllClose(knp.Vstack()([x, y]), np.vstack([x, y]))
 
-    def test_floordiv(self):
+    def test_floor_divide(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         z = np.array([[[1, 2, 3], [3, 2, 1]]])
@@ -5610,6 +5610,29 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(standardize_dtype(knp.floor(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Floor().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_floor_divide(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.floor_divide(x1_jax, x2_jax).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.floor_divide(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.FloorDivide().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 
