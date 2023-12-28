@@ -1450,8 +1450,15 @@ def eye(N, M=None, k=None, dtype=None):
 
 
 def floor_divide(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return torch.floor_divide(x1, x2)
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    return cast(torch.floor_divide(x1, x2), dtype)
 
 
 def logical_xor(x1, x2):
