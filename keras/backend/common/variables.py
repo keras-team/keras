@@ -403,6 +403,10 @@ def standardize_shape(shape):
             raise ValueError("Undefined shapes are not supported.")
         if not hasattr(shape, "__iter__"):
             raise ValueError(f"Cannot convert '{shape}' to a shape.")
+        if config.backend() == "tensorflow":
+            # `shape` should be `tf.TensorShape` and may contain `Dimension` objects.
+            # We need to convert the items in it to either int or `None`
+            shape = shape.as_list()
         shape = tuple(shape)
 
     if config.backend() == "torch":
