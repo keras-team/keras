@@ -269,7 +269,7 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.where(condition, x, y).shape, (2, None, 3))
         self.assertEqual(knp.where(condition).shape, (2, None, 1))
 
-    def test_floordiv(self):
+    def test_floor_divide(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
         self.assertEqual(knp.floor_divide(x, y).shape, (2, 3))
@@ -796,7 +796,7 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.where(condition, x, y).shape, (2, 3))
         self.assertAllEqual(knp.where(condition).shape, (2, 3))
 
-    def test_floordiv(self):
+    def test_floor_divide(self):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.floor_divide(x, y).shape, (2, 3))
@@ -1984,11 +1984,14 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         x = np.ones([2, 3, 4, 5])
         y = np.ones([2, 3, 5, 6])
         z = np.ones([5, 6])
+        p = np.ones([4])
         self.assertAllClose(knp.matmul(x, y), np.matmul(x, y))
         self.assertAllClose(knp.matmul(x, z), np.matmul(x, z))
+        self.assertAllClose(knp.matmul(p, x), np.matmul(p, x))
 
         self.assertAllClose(knp.Matmul()(x, y), np.matmul(x, y))
         self.assertAllClose(knp.Matmul()(x, z), np.matmul(x, z))
+        self.assertAllClose(knp.Matmul()(p, x), np.matmul(p, x))
 
     @parameterized.named_parameters(
         named_product(
@@ -2570,6 +2573,11 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.where(x > 1), np.where(x > 1))
         self.assertAllClose(knp.Where()(x > 1), np.where(x > 1))
 
+        with self.assertRaisesRegexp(
+            ValueError, "`x1` and `x2` either both should be `None`"
+        ):
+            knp.where(x > 1, x, None)
+
     def test_digitize(self):
         x = np.array([0.0, 1.0, 3.0, 1.6])
         bins = np.array([0.0, 3.0, 4.5, 7.0])
@@ -2926,6 +2934,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Argsort()(x), np.argsort(x))
         self.assertAllClose(knp.Argsort(axis=1)(x), np.argsort(x, axis=1))
         self.assertAllClose(knp.Argsort(axis=None)(x), np.argsort(x, axis=None))
+
+        x = np.array(1)  # rank == 0
+        self.assertAllClose(knp.argsort(x), np.argsort(x))
+        self.assertAllClose(knp.Argsort()(x), np.argsort(x))
 
     def test_array(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -3923,7 +3935,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.vstack([x, y]), np.vstack([x, y]))
         self.assertAllClose(knp.Vstack()([x, y]), np.vstack([x, y]))
 
-    def test_floordiv(self):
+    def test_floor_divide(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         z = np.array([[[1, 2, 3], [3, 2, 1]]])
@@ -5612,6 +5624,74 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(knp.Floor().symbolic_call(x).dtype),
             expected_dtype,
         )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_floor_divide(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.floor_divide(x1_jax, x2_jax).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.floor_divide(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.FloorDivide().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_floor_divide_python_types(self, dtype):
+        import jax.experimental
+        import jax.numpy as jnp
+
+        # We have to disable x64 for jax since jnp.floor_divide doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
+        # the expected dtype from 64 bit to 32 bit when using jax backend.
+        with jax.experimental.disable_x64():
+            x = knp.ones((), dtype=dtype)
+            x_jax = jnp.ones((), dtype=dtype)
+
+            # python int
+            expected_dtype = standardize_dtype(jnp.floor_divide(x_jax, 1).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            elif dtype == "int64":
+                expected_dtype = "int64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.floor_divide(x, 1).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.FloorDivide().symbolic_call(x, 1).dtype, expected_dtype
+            )
+
+            # python float
+            expected_dtype = standardize_dtype(
+                jnp.floor_divide(x_jax, 1.0).dtype
+            )
+            if dtype == "float64":
+                expected_dtype = "float64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.floor_divide(x, 1.0).dtype),
+                expected_dtype,
+            )
+            self.assertEqual(
+                knp.FloorDivide().symbolic_call(x, 1.0).dtype, expected_dtype
+            )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_full(self, dtype):
