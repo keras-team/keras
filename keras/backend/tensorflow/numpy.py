@@ -364,7 +364,7 @@ def absolute(x):
 
 @sparse.elementwise_unary
 def abs(x):
-    return tf.abs(x)
+    return absolute(x)
 
 
 def all(x, axis=None, keepdims=False):
@@ -1627,8 +1627,8 @@ def where(condition, x1, x2):
     if x1 is None and x2 is None:
         return nonzero(condition)
     raise ValueError(
-        "Both x1 and x2 must be tensor, or both must be None. "
-        f"Received: x1={x1}, x2={x2}"
+        "`x1` and `x2` either both should be `None`"
+        " or both should have non-None value."
     )
 
 
