@@ -194,12 +194,44 @@ def shuffle(x, axis=0, seed=None):
 def gamma(shape, alpha, dtype=None, seed=None):
     dtype = dtype or floatx()
     dtype = to_torch_dtype(dtype)
-    alpha = torch.ones(shape) * torch.tensor(alpha)
-    beta = torch.ones(shape)
+    alpha = torch.broadcast_to(convert_to_tensor(alpha), shape)
+    beta = torch.ones(shape, device=get_device())
     prev_rng_state = torch.random.get_rng_state()
     first_seed, second_seed = draw_seed(seed)
     torch.manual_seed(first_seed + second_seed)
     gamma_distribution = torch.distributions.gamma.Gamma(alpha, beta)
     sample = gamma_distribution.sample().type(dtype)
+    torch.random.set_rng_state(prev_rng_state)
+    return sample
+
+
+def binomial(shape, counts, probabilities, dtype=None, seed=None):
+    dtype = dtype or floatx()
+    dtype = to_torch_dtype(dtype)
+    counts = torch.broadcast_to(convert_to_tensor(counts), shape)
+    probabilities = torch.broadcast_to(convert_to_tensor(probabilities), shape)
+    prev_rng_state = torch.random.get_rng_state()
+    first_seed, second_seed = draw_seed(seed)
+    torch.manual_seed(first_seed + second_seed)
+    binomial_distribution = torch.distributions.binomial.Binomial(
+        total_count=counts, probs=probabilities
+    )
+    sample = binomial_distribution.sample().type(dtype)
+    torch.random.set_rng_state(prev_rng_state)
+    return sample
+
+
+def beta(shape, alpha, beta, dtype=None, seed=None):
+    dtype = dtype or floatx()
+    dtype = to_torch_dtype(dtype)
+    alpha = torch.broadcast_to(convert_to_tensor(alpha), shape)
+    beta = torch.broadcast_to(convert_to_tensor(beta), shape)
+    prev_rng_state = torch.random.get_rng_state()
+    first_seed, second_seed = draw_seed(seed)
+    torch.manual_seed(first_seed + second_seed)
+    beta_distribution = torch.distributions.beta.Beta(
+        concentration1=alpha, concentration0=beta
+    )
+    sample = beta_distribution.sample().type(dtype)
     torch.random.set_rng_state(prev_rng_state)
     return sample

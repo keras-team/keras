@@ -5,6 +5,8 @@ from absl.testing import parameterized
 from keras import backend
 from keras import layers
 from keras import testing
+from keras.losses import MeanSquaredError
+from keras.models import Model
 
 
 class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
@@ -112,6 +114,68 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
         training_out = layer(x, training=True)
         inference_out = layer(x, training=False)
         self.assertAllClose(inference_out, training_out)
+
+        # Masked result with no training should not differ
+        x[:, 1, :] = 0.0
+        unmasked_out = layer(x, training=False)
+        masked = layers.Masking()(x)
+        masked_out = layer(masked, training=False)
+        self.assertAllClose(unmasked_out, masked_out)
+
+        # Masked result should differ from unmasked result
+        unmasked_out = layer(x, training=False)
+        x[:, 1, :] = 0.0
+        masked = layers.Masking()(x)
+        masked_out = layer(masked, training=True)
+        self.assertNotAllClose(unmasked_out, masked_out)
+
+    @parameterized.product(
+        synchronized=(False, True)
+        if backend.backend == "tensorflow"
+        else (False,),
+    )
+    def test_input_fully_masked(self, synchronized):
+        norm = layers.BatchNormalization(
+            scale=False,
+            center=False,
+            synchronized=synchronized,
+        )
+        x = np.zeros((4, 5))
+        mask = np.zeros((4,), dtype=np.float32)
+        y = norm(x, mask=mask, training=True)
+        self.assertAllClose(y, np.zeros_like(x, dtype=np.float32))
+
+    @parameterized.product(run_eagerly=(True, False), mask_value=(0.0, 0.1, 1))
+    @pytest.mark.requires_trainable_backend
+    def test_bachnorm_ignore_masked_values(self, run_eagerly, mask_value):
+        padded_data = np.array(
+            [
+                [
+                    [1, 5],
+                    [2, 5],
+                    [mask_value, mask_value],
+                    [mask_value, mask_value],
+                ]
+                for _ in range(10)
+            ],
+            dtype="float32",
+        )
+
+        inputs = layers.Input((None, 2))
+        masked = layers.Masking(mask_value=mask_value)(inputs)
+        normed = layers.BatchNormalization(momentum=0.0)(masked)
+        model = Model(inputs, normed)
+        loss = MeanSquaredError()
+        model.compile(
+            "rmsprop",
+            loss=loss,
+            run_eagerly=run_eagerly,
+        )
+        model.fit(x=padded_data, y=padded_data, batch_size=10, epochs=5)
+        self.assertAllClose(model.layers[2].moving_mean.numpy(), [1.5, 5.0])
+        self.assertAllClose(
+            model.layers[2].moving_variance.numpy(), [0.25, 0.0]
+        )
 
     def test_trainable_behavior(self):
         layer = layers.BatchNormalization(axis=-1, momentum=0.8, epsilon=1e-7)

@@ -207,6 +207,9 @@ def argmin(x, axis=None):
 
 
 def argsort(x, axis=-1):
+    x = convert_to_tensor(x)
+    if x.ndim == 0:
+        return jnp.argsort(x, axis=None)
     return jnp.argsort(x, axis=axis)
 
 

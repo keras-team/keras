@@ -1,15 +1,24 @@
+import torch
+
 from keras.optimizers.base_optimizer import BaseOptimizer
 from keras.utils import torch_utils
 
 
 class TorchParallelOptimizer(BaseOptimizer):
     @torch_utils.no_grad
-    def _internal_apply_gradients(self, grads_and_vars):
-        grads, trainable_variables = zip(*grads_and_vars)
-
+    def _backend_update_step(self, grads, trainable_variables, learning_rate):
         self._parallel_update_step(
             grads,
             trainable_variables,
-            self._get_current_learning_rate(),
+            learning_rate,
         )
-        self.iterations.assign(self.iterations + 1)
+
+    @torch_utils.no_grad
+    def _backend_reset_gradient_accumulators(self):
+        acc_list = [v.value for v in self._accumulated_gradients]
+        torch._foreach_mul_(acc_list, 0.0)
+
+    @torch_utils.no_grad
+    def _backend_increment_gradient_accumulators(self, grads):
+        acc_list = [v.value for v in self._accumulated_gradients]
+        torch._foreach_add_(acc_list, grads, alpha=1.0)

@@ -190,7 +190,7 @@ class Cropping3DTest(testing.TestCase, parameterized.TestCase):
             input_layer = layers.Input(batch_shape=shape)
 
         expected_error_msg = (
-            "Values in `cropping` argument should be greater than the"
+            "Values in `cropping` argument should be smaller than the"
         )
 
         with self.assertRaisesRegex(ValueError, expected_error_msg):

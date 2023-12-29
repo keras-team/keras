@@ -446,6 +446,7 @@ def conv_transpose(
 
 
 def one_hot(x, num_classes, axis=-1, dtype="float32"):
+    x = convert_to_tensor(x)
     input_shape = x.shape
 
     # Shrink the last dimension if the shape is (..., 1).
@@ -473,6 +474,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
 
 
 def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+    x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
     outputs = np.max(
         one_hot(cast(x, "int32"), num_classes, axis=axis, dtype=dtype),

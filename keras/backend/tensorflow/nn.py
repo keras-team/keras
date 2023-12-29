@@ -445,10 +445,12 @@ def conv_transpose(
 
 
 def one_hot(x, num_classes, axis=-1, dtype="float32"):
+    x = convert_to_tensor(x)
     return tf.one_hot(x, num_classes, axis=axis, dtype=dtype)
 
 
 def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+    x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
     outputs = tf.reduce_max(
         one_hot(cast(x, "int32"), num_classes, axis=axis, dtype=dtype),
@@ -784,4 +786,44 @@ def batch_normalization(
         offset=offset,
         scale=scale,
         variance_epsilon=epsilon,
+    )
+
+
+def ctc_loss(
+    target,
+    output,
+    target_length,
+    output_length,
+    mask_index=0,
+):
+    """Runs CTC (Connectionist Temporal Classification) loss on each
+    batch element.
+
+    Arguments:
+        target: Tensor `(batch_size, max_length)` containing the
+            target sequences in integer format.
+        output: Tensor `(batch_size, max_length, num_classes)`
+            containing the output of the softmax.
+        target_length: Tensor `(batch_size,)` containing the sequence length
+            for each target sequence in the batch.
+        output_length: Tensor `(batch_size,)` containing the sequence length
+            for each output sequence in the batch.
+        mask_index: The value in `target` and `output` that represents the
+            blank label.
+
+    Returns:
+        A tensor of shape `(batch_size,)` containing the CTC loss for each
+        sample in the batch.
+    """
+    target = tf.convert_to_tensor(target)
+    target = tf.cast(target, dtype="int32")
+    output = tf.convert_to_tensor(output)
+    output = tf.cast(output, dtype="float32")
+    return tf.nn.ctc_loss(
+        labels=target,
+        logits=output,
+        label_length=target_length,
+        logit_length=output_length,
+        blank_index=mask_index,
+        logits_time_major=False,
     )

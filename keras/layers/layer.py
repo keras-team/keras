@@ -503,7 +503,7 @@ class Layer(BackendLayer, Operation):
                 name=name,
             )
         # Will be added to layer.losses
-        variable.regularizer = regularizer
+        variable.regularizer = regularizers.get(regularizer)
         variable.constraint = constraints.get(constraint)
         self._track_variable(variable)
         return variable
@@ -962,10 +962,13 @@ class Layer(BackendLayer, Operation):
         mapping = list(trainable_mapping) + list(non_trainable_mapping)
 
         # Call in stateless scope
+        losses = None
         with backend.StatelessScope(
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
             outputs = self.call(*args, **kwargs)
+            if return_losses:
+                losses = self.losses
 
         # Gather updated non-trainable variables
         non_trainable_variables = []
@@ -977,7 +980,7 @@ class Layer(BackendLayer, Operation):
                 non_trainable_variables.append(v)
 
         if return_losses:
-            return outputs, non_trainable_variables, scope.losses[:]
+            return outputs, non_trainable_variables, losses
         return outputs, non_trainable_variables
 
     def compute_output_spec(self, *args, **kwargs):
@@ -1072,19 +1075,24 @@ class Layer(BackendLayer, Operation):
         else:
             return self._losses[:]
 
+    def _get_regularization_losses(self):
+        weight_regularization_losses = []
+        for v in self.trainable_weights:
+            regularizer = getattr(v, "regularizer", None)
+            if regularizer is None:
+                continue
+            if backend.in_stateless_scope():
+                v = backend.get_stateless_scope().get_current_value(v)
+            weight_regularization_losses.append(regularizer(v))
+        return weight_regularization_losses
+
     @property
     def losses(self):
         """List of scalar losses from `add_loss`, regularizers and sublayers."""
         losses = self._get_own_losses()
         for layer in self._flatten_layers(include_self=False):
             losses.extend(layer._get_own_losses())
-        weight_regularization_losses = []
-        for v in self.trainable_weights:
-            if backend.in_stateless_scope():
-                v = backend.get_stateless_scope().get_current_value(v)
-            regularizer = getattr(v, "regularizer", None)
-            if regularizer:
-                weight_regularization_losses.append(regularizer(v))
+        weight_regularization_losses = self._get_regularization_losses()
         losses.extend(weight_regularization_losses)
         return losses
 

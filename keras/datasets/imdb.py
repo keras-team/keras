@@ -104,6 +104,9 @@ def load_data(
     elif index_from:
         x_train = [[w + index_from for w in x] for x in x_train]
         x_test = [[w + index_from for w in x] for x in x_test]
+    else:
+        x_train = [[w for w in x] for x in x_train]
+        x_test = [[w for w in x] for x in x_test]
 
     if maxlen:
         x_train, labels_train = remove_long_seq(maxlen, x_train, labels_train)
@@ -132,8 +135,8 @@ def load_data(
         xs = [[w for w in x if skip_top <= w < num_words] for x in xs]
 
     idx = len(x_train)
-    x_train, y_train = np.array(xs[:idx], dtype="object"), labels[:idx]
-    x_test, y_test = np.array(xs[idx:], dtype="object"), labels[idx:]
+    x_train, y_train = xs[:idx], labels[:idx]
+    x_test, y_test = xs[idx:], labels[idx:]
     return (x_train, y_train), (x_test, y_test)
 
 

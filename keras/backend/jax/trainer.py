@@ -1,3 +1,5 @@
+import collections
+import itertools
 from functools import partial
 
 import jax
@@ -61,42 +63,6 @@ class JAXTrainer(base_trainer.Trainer):
             with backend.StatelessScope(state_mapping=mapping):
                 loss = self.optimizer.scale_loss(loss)
         return loss, (unscaled_loss, y_pred, non_trainable_variables)
-
-    def _eager_build(self, data_batch):
-        model_unbuilt = not all(layer.built for layer in self._flatten_layers())
-        compile_metrics_unbuilt = (
-            self._compile_metrics is not None
-            and not self._compile_metrics.built
-        )
-        if model_unbuilt or compile_metrics_unbuilt:
-
-            def _convert_data_to_spec(d):
-                if d is None:
-                    return None
-                return backend.KerasTensor(d.shape, d.dtype)
-
-            data_spec = tree.map_structure(_convert_data_to_spec, data_batch)
-            (
-                x_spec,
-                y_spec,
-                sample_weight_spec,
-            ) = data_adapter_utils.unpack_x_y_sample_weight(data_spec)
-            # Note that this __call__ run the forward path and trigger variable
-            # creation.
-            y_pred_spec = backend.compute_output_spec(self.__call__, x_spec)
-            if compile_metrics_unbuilt:
-                # This will trigger the metric variable creation.
-                backend.compute_output_spec(
-                    self.compute_metrics,
-                    x_spec,
-                    y_spec,
-                    y_pred_spec,
-                    sample_weight=sample_weight_spec,
-                )
-
-        if self.optimizer is not None and not self.optimizer.built:
-            # Build optimizer
-            self.optimizer.build(self.trainable_variables)
 
     def train_step(self, state, data):
         (
@@ -372,7 +338,7 @@ class JAXTrainer(base_trainer.Trainer):
             ) = data_adapter_utils.unpack_x_y_sample_weight(validation_data)
 
         # Create an iterator that yields batches for one epoch.
-        epoch_iterator = EpochIterator(
+        epoch_iterator = JAXEpochIterator(
             x=x,
             y=y,
             sample_weight=sample_weight,
@@ -383,20 +349,7 @@ class JAXTrainer(base_trainer.Trainer):
             steps_per_execution=self.steps_per_execution,
         )
 
-        needs_building = (
-            not all(layer.built for layer in self._flatten_layers())
-            or not self.optimizer.built
-            or (
-                self._compile_metrics is not None
-                and not self._compile_metrics.built
-            )
-        )
-        if needs_building:
-            # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
-                data_batch = data[0]
-                self._eager_build(data_batch)
-                break
+        self._symbolic_build(iterator=epoch_iterator)
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -428,7 +381,7 @@ class JAXTrainer(base_trainer.Trainer):
             metrics_variables = [v.value for v in self.metrics_variables]
 
             self._purge_model_variables()
-            for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
+            for step, data in epoch_iterator.enumerate_epoch():
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
 
@@ -439,7 +392,6 @@ class JAXTrainer(base_trainer.Trainer):
                     optimizer_variables,
                     metrics_variables,
                 )
-                data = self._distribute_data(data)
                 logs, state = self.train_function(state, data)
                 (
                     trainable_variables,
@@ -476,9 +428,9 @@ class JAXTrainer(base_trainer.Trainer):
 
             # Run validation.
             if validation_data and self._should_eval(epoch, validation_freq):
-                # Create EpochIterator for evaluation and cache it.
+                # Create JAXEpochIterator for evaluation and cache it.
                 if getattr(self, "_eval_epoch_iterator", None) is None:
-                    self._eval_epoch_iterator = EpochIterator(
+                    self._eval_epoch_iterator = JAXEpochIterator(
                         x=val_x,
                         y=val_y,
                         sample_weight=val_sample_weight,
@@ -543,7 +495,7 @@ class JAXTrainer(base_trainer.Trainer):
             epoch_iterator = self._eval_epoch_iterator
         else:
             # Create an iterator that yields batches of input/target data.
-            epoch_iterator = EpochIterator(
+            epoch_iterator = JAXEpochIterator(
                 x=x,
                 y=y,
                 sample_weight=sample_weight,
@@ -553,18 +505,7 @@ class JAXTrainer(base_trainer.Trainer):
                 steps_per_execution=self.steps_per_execution,
             )
 
-        needs_building = not all(
-            layer.built for layer in self._flatten_layers()
-        ) or (
-            self._compile_metrics is not None
-            and not self._compile_metrics.built
-        )
-        if needs_building:
-            # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
-                data_batch = data[0]
-                self._eager_build(data_batch)
-                break
+        self._symbolic_build(iterator=epoch_iterator)
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -592,7 +533,7 @@ class JAXTrainer(base_trainer.Trainer):
         metrics_variables = [v.value for v in self.metrics_variables]
 
         self._purge_model_variables(optimizer_variables=False)
-        for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
+        for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_test_batch_begin(step)
 
             state = (
@@ -600,7 +541,6 @@ class JAXTrainer(base_trainer.Trainer):
                 non_trainable_variables,
                 metrics_variables,
             )
-            data = self._distribute_data(data)
             logs, state = self.test_function(state, data)
             (
                 trainable_variables,
@@ -640,7 +580,7 @@ class JAXTrainer(base_trainer.Trainer):
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         # Create an iterator that yields batches of input data.
-        epoch_iterator = EpochIterator(
+        epoch_iterator = JAXEpochIterator(
             x=x,
             batch_size=batch_size,
             steps_per_epoch=steps,
@@ -650,7 +590,7 @@ class JAXTrainer(base_trainer.Trainer):
 
         if not all(layer.built for layer in self._flatten_layers()):
             # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
+            for _, data in epoch_iterator.enumerate_epoch():
                 # Build model
                 x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data[0])
                 with backend.StatelessScope():
@@ -695,9 +635,8 @@ class JAXTrainer(base_trainer.Trainer):
         ]
         state = (trainable_variables, non_trainable_variables)
         outputs = None
-        for step, x in epoch_iterator.enumerate_epoch(return_type="np"):
+        for step, x in epoch_iterator.enumerate_epoch():
             callbacks.on_predict_batch_begin(step)
-            x = self._distribute_data(x)
             batch_outputs, state = self.predict_function(state, x)
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
@@ -727,10 +666,10 @@ class JAXTrainer(base_trainer.Trainer):
                 y, class_weight
             )
         data = (x, y, sample_weight)
-        data = self._distribute_data(data)
+        data = _distribute_data(data)
 
         # Maybe build model
-        self._eager_build(data)
+        self._symbolic_build(data_batch=data)
         self._record_training_state_sharding_spec()
         self.make_train_function()
 
@@ -780,9 +719,9 @@ class JAXTrainer(base_trainer.Trainer):
         self._assert_compile_called("test_on_batch")
 
         data = (x, y, sample_weight)
-        data = self._distribute_data(data)
+        data = _distribute_data(data)
         # Maybe build model
-        self._eager_build(data)
+        self._symbolic_build(data_batch=data)
         self._record_training_state_sharding_spec()
         self.make_test_function()
 
@@ -855,18 +794,6 @@ class JAXTrainer(base_trainer.Trainer):
         if metrics_variables:
             for ref_v, v in zip(self.metrics_variables, metrics_variables):
                 ref_v.assign(v)
-
-    def _distribute_data(self, data):
-        distribution = distribution_lib.distribution()
-        if distribution is not None:
-
-            def distribute_single_value(d):
-                layout = distribution.get_data_layout(d.shape)
-                return jax_distribution_lib.distribute_data_input(d, layout)
-
-            return jax.tree_util.tree_map(distribute_single_value, data)
-        else:
-            return data
 
     def _record_training_state_sharding_spec(self):
         self._trainable_variable_shardings = [
@@ -962,3 +889,49 @@ class JAXTrainer(base_trainer.Trainer):
         if metric_variables:
             for v in self.metrics_variables:
                 v._value = None
+
+
+def _distribute_data(data):
+    distribution = distribution_lib.distribution()
+    if distribution is not None:
+
+        def distribute_single_value(d):
+            layout = distribution.get_data_layout(d.shape)
+            return jax_distribution_lib.distribute_data_input(d, layout)
+
+        return jax.tree_util.tree_map(distribute_single_value, data)
+    else:
+        return jax.tree_util.tree_map(jax.device_put, data)
+
+
+class JAXEpochIterator(EpochIterator):
+    def _get_iterator(self, return_type="auto"):
+        if return_type in ("np", "auto"):
+            # enable prefetching when using numpy_iterator
+            return self._prefetch_numpy_iterator(super()._get_iterator("np"))
+        return super()._get_iterator(return_type)
+
+    def _prefetch_numpy_iterator(self, numpy_iterator):
+        """Shard and prefetch batches on device.
+
+        Most of the implementation has been borrowed from
+        `flax.jax_utils.prefetch_to_device`
+
+        This utility takes an iterator and returns a new iterator which fills an
+        on device prefetch buffer. Eager prefetching can improve the performance
+        of training loops significantly by overlapping compute and data
+        transfer.
+        """
+        queue = collections.deque()
+
+        # If you're training on GPUs, 2 is generally the best choice because
+        # this guarantees that you can overlap a training step on GPU with a
+        # data prefetch step on CPU.
+        def enqueue(n=2):
+            for data in itertools.islice(numpy_iterator, n):
+                queue.append(_distribute_data(data))
+
+        enqueue(n=2)  # TODO: should we make `n` configurable?
+        while queue:
+            yield queue.popleft()
+            enqueue(1)

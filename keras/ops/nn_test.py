@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 from absl.testing import parameterized
-from tensorflow.python.ops.numpy_ops import np_config
 
 from keras import backend
 from keras import layers
@@ -24,9 +23,6 @@ from keras.layers.pooling.max_pooling_test import np_maxpool2d
 from keras.ops import nn as knn
 from keras.ops import numpy as knp
 from keras.testing.test_utils import named_product
-
-# TODO: remove reliance on this (or alternatively, turn it on by default).
-np_config.enable_numpy_behavior()
 
 
 class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
@@ -974,6 +970,17 @@ class NNOpsStaticShapeTest(testing.TestCase):
             (10, 3, 4, 5),
         )
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy does not support CTC loss",
+    )
+    def test_ctc_loss(self):
+        x = KerasTensor([10, 3, 4])
+        y = KerasTensor([10, 3], dtype="int32")
+        x_lengths = KerasTensor([10], dtype="int32")
+        y_lengths = KerasTensor([10], dtype="int32")
+        self.assertEqual(knn.ctc_loss(x, y, x_lengths, y_lengths).shape, (10,))
+
 
 class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_relu(self):
@@ -1460,6 +1467,14 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np.eye(4)[indices_1d],
         )
 
+        # Test 1D list one-hot.
+        indices_1d = [0, 1, 2, 3]
+        self.assertAllClose(knn.one_hot(indices_1d, 4), np.eye(4)[indices_1d])
+        self.assertAllClose(
+            knn.one_hot(indices_1d, 4, axis=0),
+            np.eye(4)[indices_1d],
+        )
+
         # Test 2D one-hot.
         indices_2d = np.array([[0, 1], [2, 3]])
         self.assertAllClose(knn.one_hot(indices_2d, 4), np.eye(4)[indices_2d])
@@ -1741,6 +1756,25 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             scale=np.random.uniform(size=[5]),
         )
         self.assertEqual(tuple(output.shape), (2, 3, 3, 5))
+
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy does not support CTC loss",
+    )
+    def test_ctc_loss(self):
+        labels = np.array([[1, 2, 1], [1, 2, 2]])
+        outputs = np.array(
+            [
+                [[0.4, 0.8, 0.4], [0.2, 0.8, 0.3], [0.9, 0.4, 0.5]],
+                [[0.4, 0.8, 0.4], [0.2, 0.3, 0.3], [0.4, 0.3, 0.2]],
+            ]
+        )
+
+        label_length = np.array([3, 2])
+        output_length = np.array([3, 2])
+
+        result = knn.ctc_loss(labels, outputs, label_length, output_length)
+        self.assertAllClose(result, np.array([3.4411672, 1.91680186]))
 
 
 class TestLogitRecovery(testing.TestCase):

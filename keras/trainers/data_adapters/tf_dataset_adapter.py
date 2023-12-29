@@ -1,3 +1,4 @@
+import numpy as np
 import tree
 
 from keras.trainers.data_adapters import data_adapter_utils
@@ -41,7 +42,8 @@ class TFDatasetAdapter(DataAdapter):
         def convert_to_numpy(x):
             if isinstance(x, tf.SparseTensor):
                 x = tf.sparse.to_dense(x)
-            return x.numpy()
+            # shared memory using `np.asarray`
+            return np.asarray(x)
 
         for batch in self._dataset:
             yield tree.map_structure(convert_to_numpy, batch)

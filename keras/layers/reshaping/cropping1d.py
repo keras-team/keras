@@ -54,7 +54,7 @@ class Cropping1D(Layer):
             if length <= 0:
                 raise ValueError(
                     "`cropping` parameter of `Cropping1D` layer must be "
-                    "greater than the input length. Received: input_shape="
+                    "smaller than the input length. Received: input_shape="
                     f"{input_shape}, cropping={self.cropping}"
                 )
         else:
@@ -68,7 +68,7 @@ class Cropping1D(Layer):
         ):
             raise ValueError(
                 "`cropping` parameter of `Cropping1D` layer must be "
-                "greater than the input length. Received: inputs.shape="
+                "smaller than the input length. Received: inputs.shape="
                 f"{inputs.shape}, cropping={self.cropping}"
             )
         if self.cropping[1] == 0:

@@ -172,16 +172,23 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         else:
             asset_store = None
 
+        failed_trackables = set()
+        error_msgs = {}
         _load_state(
             model,
             weights_store=weights_store,
             assets_store=asset_store,
             inner_path="",
             visited_trackables=set(),
+            failed_trackables=failed_trackables,
+            error_msgs=error_msgs,
         )
         weights_store.close()
         if asset_store:
             asset_store.close()
+
+        if failed_trackables:
+            _raise_loading_failure(error_msgs)
     return model
 
 
@@ -232,6 +239,8 @@ def load_weights_only(model, filepath, skip_mismatch=False):
             )
         )
 
+    failed_trackables = set()
+    error_msgs = {}
     _load_state(
         model,
         weights_store=weights_store,
@@ -239,12 +248,34 @@ def load_weights_only(model, filepath, skip_mismatch=False):
         inner_path="",
         skip_mismatch=skip_mismatch,
         visited_trackables=set(),
+        failed_trackables=failed_trackables,
+        error_msgs=error_msgs,
     )
     weights_store.close()
     if temp_dir and file_utils.exists(temp_dir):
         file_utils.rmtree(temp_dir)
     if archive:
         archive.close()
+
+    if failed_trackables:
+        _raise_loading_failure(error_msgs, warn_only=skip_mismatch)
+
+
+def _raise_loading_failure(error_msgs, warn_only=False):
+    first_key = list(error_msgs.keys())[0]
+    ex_trackable, ex_error = error_msgs[first_key]
+    msg = (
+        f"A total of {len(error_msgs)} objects could not "
+        "be loaded. Example error message for "
+        f"object {ex_trackable}:\n\n"
+        f"{ex_error}\n\n"
+        "List of objects that could not be loaded:\n"
+        f"{[x[0] for x in error_msgs.values()]}"
+    )
+    if warn_only:
+        warnings.warn(msg)
+    else:
+        raise ValueError(msg)
 
 
 def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
@@ -261,6 +292,13 @@ def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
             _write_to_zip_recursively(
                 zipfile_to_save, system_file_path, zip_file_path
             )
+
+
+def _name_key(name):
+    """Make sure that private attributes are visited last."""
+    if name.startswith("_"):
+        return "~" + name
+    return name
 
 
 def _walk_trackable(trackable):
@@ -283,7 +321,13 @@ def _walk_trackable(trackable):
         raise ValueError(f"Invalid obj_type: {obj_type}")
     attr_skiplist = get_attr_skiplist(obj_type)
 
-    for child_attr in sorted(dir(trackable)):
+    # Save all layers directly tracked by Sequential and Functional first.
+    # This helps avoid ordering concerns for subclassed Sequential or Functional
+    # models with extra attributes--the internal Keras state take precedence.
+    if obj_type in ("Sequential", "Functional"):
+        yield "layers", trackable.layers
+
+    for child_attr in sorted(dir(trackable), key=lambda x: _name_key(x)):
         if child_attr.startswith("__") or child_attr in attr_skiplist:
             continue
         try:
@@ -343,40 +387,40 @@ def _load_state(
     inner_path,
     skip_mismatch=False,
     visited_trackables=None,
+    failed_trackables=None,
+    error_msgs=None,
 ):
     if visited_trackables and id(trackable) in visited_trackables:
         return
 
+    failure = False
+
     if hasattr(trackable, "load_own_variables") and weights_store:
-        if skip_mismatch:
+        if skip_mismatch or failed_trackables is not None:
             try:
                 trackable.load_own_variables(weights_store.get(inner_path))
             except Exception as e:
-                warnings.warn(
-                    f"Could not load weights in object {trackable}. "
-                    "Skipping object. "
-                    f"Exception encountered: {e}",
-                    stacklevel=2,
-                )
+                failed_trackables.add(id(trackable))
+                error_msgs[id(trackable)] = trackable, e
+                failure = True
         else:
             trackable.load_own_variables(weights_store.get(inner_path))
 
     if hasattr(trackable, "load_assets") and assets_store:
-        if skip_mismatch:
+        if skip_mismatch or failed_trackables is not None:
             try:
                 trackable.load_assets(assets_store.get(inner_path))
             except Exception as e:
-                warnings.warn(
-                    f"Could not load assets in object {trackable}. "
-                    "Skipping object. "
-                    f"Exception encountered: {e}",
-                    stacklevel=2,
-                )
+                failed_trackables.add(id(trackable))
+                error_msgs[id(trackable)] = trackable, e
+                failure = True
         else:
             trackable.load_assets(assets_store.get(inner_path))
 
-    if visited_trackables is not None:
-        visited_trackables.add(id(trackable))
+    if failed_trackables is not None:
+        currently_failed = len(failed_trackables)
+    else:
+        currently_failed = 0
 
     # Recursively load states for Keras trackables such as layers/optimizers.
     for child_attr, child_obj in _walk_trackable(trackable):
@@ -390,6 +434,8 @@ def _load_state(
                 ),
                 skip_mismatch=skip_mismatch,
                 visited_trackables=visited_trackables,
+                failed_trackables=failed_trackables,
+                error_msgs=error_msgs,
             )
         elif isinstance(child_obj, (list, dict, tuple, set)):
             _load_container_state(
@@ -401,7 +447,21 @@ def _load_state(
                 ),
                 skip_mismatch=skip_mismatch,
                 visited_trackables=visited_trackables,
+                failed_trackables=failed_trackables,
+                error_msgs=error_msgs,
             )
+
+    if failed_trackables is not None:
+        newly_failed = len(failed_trackables) - currently_failed
+    else:
+        newly_failed = 0
+
+    if not failure:
+        if visited_trackables is not None and newly_failed <= 0:
+            visited_trackables.add(id(trackable))
+        if id(trackable) in failed_trackables:
+            failed_trackables.remove(id(trackable))
+            error_msgs.pop(id(trackable))
 
 
 def _save_container_state(
@@ -438,6 +498,8 @@ def _load_container_state(
     inner_path,
     skip_mismatch,
     visited_trackables,
+    failed_trackables,
+    error_msgs,
 ):
     used_names = {}
     if isinstance(container, dict):
@@ -458,6 +520,8 @@ def _load_container_state(
                 inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
                 skip_mismatch=skip_mismatch,
                 visited_trackables=visited_trackables,
+                failed_trackables=failed_trackables,
+                error_msgs=error_msgs,
             )
 
 
@@ -554,6 +618,12 @@ class H5IOStore:
             return self.h5_file["vars"]
         if path in self.h5_file and "vars" in self.h5_file[path]:
             return self.h5_file[path]["vars"]
+        # No hit.
+        # Fix for 2.13 compatibility
+        if "_layer_checkpoint_dependencies" in self.h5_file:
+            path = path.replace("layers", "_layer_checkpoint_dependencies")
+            if path in self.h5_file and "vars" in self.h5_file[path]:
+                return self.h5_file[path]["vars"]
         return {}
 
     def close(self):

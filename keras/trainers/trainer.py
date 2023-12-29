@@ -1,6 +1,8 @@
 import platform
 import warnings
 
+import tree
+
 from keras import backend
 from keras import metrics as metrics_module
 from keras import ops
@@ -9,6 +11,7 @@ from keras.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.saving import serialization_lib
 from keras.trainers.compile_utils import CompileLoss
 from keras.trainers.compile_utils import CompileMetrics
+from keras.trainers.data_adapters import data_adapter_utils
 from keras.utils import traceback_utils
 from keras.utils import tracking
 
@@ -219,6 +222,10 @@ class Trainer:
                 # Disable XLA on CPU-only machines.
                 return False
 
+            if self._distribute_strategy:
+                # Disable XLA with tf.distribute
+                return False
+
         if model_supports_jit(self):
             return True
         return False
@@ -410,16 +417,16 @@ class Trainer:
 
         Args:
             x: Input data. It could be:
-              - A NumPy array (or array-like), or a list of arrays
+                - A NumPy array (or array-like), or a list of arrays
                 (in case the model has multiple inputs).
-              - A tensor, or a list of tensors
+                - A tensor, or a list of tensors
                 (in case the model has multiple inputs).
-              - A dict mapping input names to the corresponding array/tensors,
+                - A dict mapping input names to the corresponding array/tensors,
                 if the model has named inputs.
-              - A `tf.data.Dataset`. Should return a tuple
+                - A `tf.data.Dataset`. Should return a tuple
                 of either `(inputs, targets)` or
                 `(inputs, targets, sample_weights)`.
-              - A `keras.utils.PyDataset` returning `(inputs,
+                - A `keras.utils.PyDataset` returning `(inputs,
                 targets)` or `(inputs, targets, sample_weights)`.
             y: Target data. Like the input data `x`,
                 it could be either NumPy array(s) or backend-native tensor(s).
@@ -476,13 +483,13 @@ class Trainer:
                 `validation_split` or `validation_data` is not affected by
                 regularization layers like noise and dropout.
                 `validation_data` will override `validation_split`.
-                `validation_data` could be:
-                  - A tuple `(x_val, y_val)` of NumPy arrays or tensors.
-                  - A tuple `(x_val, y_val, val_sample_weights)` of NumPy
-                    arrays.
-                  - A `tf.data.Dataset`.
-                  - A Python generator or `keras.utils.PyDataset` returning
-                  `(inputs, targets)` or `(inputs, targets, sample_weights)`.
+                It could be:
+                - A tuple `(x_val, y_val)` of NumPy arrays or tensors.
+                - A tuple `(x_val, y_val, val_sample_weights)` of NumPy
+                arrays.
+                - A `tf.data.Dataset`.
+                - A Python generator or `keras.utils.PyDataset` returning
+                `(inputs, targets)` or `(inputs, targets, sample_weights)`.
             shuffle: Boolean, whether to shuffle the training data
                 before each epoch. This argument is
                 ignored when `x` is a generator or a `tf.data.Dataset`.
@@ -545,9 +552,9 @@ class Trainer:
                 the form of datasets or `keras.utils.PyDataset`
                 instances (since they generate batches).
             validation_freq: Only relevant if validation data is provided.
-              Specifies how many training epochs to run
-              before a new validation run is performed, e.g. `validation_freq=2`
-              runs validation every 2 epochs.
+                Specifies how many training epochs to run
+                before a new validation run is performed,
+                e.g. `validation_freq=2` runs validation every 2 epochs.
 
         Unpacking behavior for iterator-like inputs:
             A common pattern is to pass an iterator like object such as a
@@ -877,6 +884,66 @@ class Trainer:
             else:
                 msg += f"calling `{method_name}()`."
             raise ValueError(msg)
+
+    def _symbolic_build(self, iterator=None, data_batch=None):
+        model_unbuilt = not all(layer.built for layer in self._flatten_layers())
+        compile_metrics_unbuilt = (
+            self._compile_metrics is not None
+            and not self._compile_metrics.built
+        )
+        optimizer_unbuilt = (
+            self.optimizer is not None and not self.optimizer.built
+        )
+        if model_unbuilt or compile_metrics_unbuilt or optimizer_unbuilt:
+            if data_batch is None:
+                for _, data in iterator.enumerate_epoch():
+                    data_batch = data[0]
+                    break
+
+        if model_unbuilt or compile_metrics_unbuilt:
+            # Create symbolic tensors matching an input batch.
+
+            def to_symbolic_input(v):
+                if v is None:
+                    return None
+                return backend.KerasTensor(
+                    v.shape, backend.standardize_dtype(v.dtype)
+                )
+
+            data_batch = tree.map_structure(to_symbolic_input, data_batch)
+            (
+                x,
+                y,
+                sample_weight,
+            ) = data_adapter_utils.unpack_x_y_sample_weight(data_batch)
+            # Build all model state with `backend.compute_output_spec`.
+            try:
+                y_pred = backend.compute_output_spec(self, x)
+            except Exception as e:
+                raise RuntimeError(
+                    "Unable to automatically build the model. "
+                    "Please build it yourself before calling "
+                    "fit/evaluate/predict. "
+                    "A model is 'built' when its variables have "
+                    "been created and its `self.built` attribute "
+                    "is True. Usually, calling the model on a batch "
+                    "of data is the right way to build it.\n"
+                    "Exception encountered:\n"
+                    f"'{e}'"
+                )
+            if compile_metrics_unbuilt:
+                # Build all metric state with `backend.compute_output_spec`.
+                backend.compute_output_spec(
+                    self.compute_metrics,
+                    x,
+                    y,
+                    y_pred,
+                    sample_weight=sample_weight,
+                )
+        if optimizer_unbuilt:
+            # Build optimizer
+            self.optimizer.build(self.trainable_variables)
+        self._post_build()
 
 
 def model_supports_jit(model):

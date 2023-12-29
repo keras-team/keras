@@ -1,11 +1,12 @@
 import contextlib
 import itertools
+import math
 
 import numpy as np
 import pytest
 from absl.testing import parameterized
-from tensorflow.python.ops.numpy_ops import np_config
 
+import keras
 from keras import backend
 from keras import testing
 from keras.backend.common import standardize_dtype
@@ -13,9 +14,6 @@ from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import numpy as knp
 from keras.testing.test_utils import named_product
-
-# TODO: remove reliance on this (or alternatively, turn it on by default).
-np_config.enable_numpy_behavior()
 
 
 class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
@@ -271,7 +269,7 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.where(condition, x, y).shape, (2, None, 3))
         self.assertEqual(knp.where(condition).shape, (2, None, 1))
 
-    def test_floordiv(self):
+    def test_floor_divide(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
         self.assertEqual(knp.floor_divide(x, y).shape, (2, 3))
@@ -798,7 +796,7 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.where(condition, x, y).shape, (2, 3))
         self.assertAllEqual(knp.where(condition).shape, (2, 3))
 
-    def test_floordiv(self):
+    def test_floor_divide(self):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.floor_divide(x, y).shape, (2, 3))
@@ -1986,11 +1984,14 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         x = np.ones([2, 3, 4, 5])
         y = np.ones([2, 3, 5, 6])
         z = np.ones([5, 6])
+        p = np.ones([4])
         self.assertAllClose(knp.matmul(x, y), np.matmul(x, y))
         self.assertAllClose(knp.matmul(x, z), np.matmul(x, z))
+        self.assertAllClose(knp.matmul(p, x), np.matmul(p, x))
 
         self.assertAllClose(knp.Matmul()(x, y), np.matmul(x, y))
         self.assertAllClose(knp.Matmul()(x, z), np.matmul(x, z))
+        self.assertAllClose(knp.Matmul()(p, x), np.matmul(p, x))
 
     @parameterized.named_parameters(
         named_product(
@@ -2572,6 +2573,11 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.where(x > 1), np.where(x > 1))
         self.assertAllClose(knp.Where()(x > 1), np.where(x > 1))
 
+        with self.assertRaisesRegexp(
+            ValueError, "`x1` and `x2` either both should be `None`"
+        ):
+            knp.where(x > 1, x, None)
+
     def test_digitize(self):
         x = np.array([0.0, 1.0, 3.0, 1.6])
         bins = np.array([0.0, 3.0, 4.5, 7.0])
@@ -2928,6 +2934,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Argsort()(x), np.argsort(x))
         self.assertAllClose(knp.Argsort(axis=1)(x), np.argsort(x, axis=1))
         self.assertAllClose(knp.Argsort(axis=None)(x), np.argsort(x, axis=None))
+
+        x = np.array(1)  # rank == 0
+        self.assertAllClose(knp.argsort(x), np.argsort(x))
+        self.assertAllClose(knp.Argsort()(x), np.argsort(x))
 
     def test_array(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -3739,6 +3749,37 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(len(knp.split(x, 2)), 2)
         self.assertEqual(len(knp.Split(2)(x)), 2)
 
+        # test indices_or_sections as tensor
+        x = knp.array([[1, 2, 3], [3, 2, 1]])
+        indices_or_sections = knp.array([1, 2])
+        x_np = np.array([[1, 2, 3], [3, 2, 1]])
+        indices_or_sections_np = np.array([1, 2])
+        self.assertAllClose(
+            knp.split(x, indices_or_sections, axis=1),
+            np.split(x_np, indices_or_sections_np, axis=1),
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Only test tensorflow backend",
+    )
+    def test_split_with_jit_in_tf(self):
+        import tensorflow as tf
+
+        x = knp.array([[1, 2, 3], [3, 2, 1]])
+        indices = knp.array([1, 2])
+        x_np = np.array([[1, 2, 3], [3, 2, 1]])
+        indices_np = np.array([1, 2])
+
+        @tf.function(jit_compile=True)
+        def fn(x, indices, axis):
+            return knp.split(x, indices, axis=axis)
+
+        self.assertAllClose(
+            fn(x, indices, axis=1),
+            np.split(x_np, indices_np, axis=1),
+        )
+
     def test_sqrt(self):
         x = np.array([[1, 4, 9], [16, 25, 36]], dtype="float32")
         ref_y = np.sqrt(x)
@@ -3840,11 +3881,53 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.tril(x, -1), np.tril(x, -1))
         self.assertAllClose(knp.Tril(-1)(x), np.tril(x, -1))
 
+    def test_tril_in_layer(self):
+        # https://github.com/keras-team/keras/issues/18890
+        x = keras.Input((None, 3))
+        y1 = keras.layers.Lambda(
+            lambda x: keras.ops.tril(
+                keras.ops.ones((keras.ops.shape(x)[1], keras.ops.shape(x)[1]))
+            )
+        )(x)
+        y2 = keras.layers.Lambda(
+            lambda x: keras.ops.tril(
+                keras.ops.ones((keras.ops.shape(x)[1], keras.ops.shape(x)[1])),
+                k=-1,
+            )
+        )(x)
+        model = keras.Model(x, [y1, y2])
+
+        result = model(np.ones((1, 2, 3), "float32"))
+        self.assertAllClose(
+            result, [np.tril(np.ones((2, 2))), np.tril(np.ones((2, 2)), k=-1)]
+        )
+
     def test_triu(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
         self.assertAllClose(knp.triu(x), np.triu(x))
         self.assertAllClose(knp.triu(x, -1), np.triu(x, -1))
         self.assertAllClose(knp.Triu(-1)(x), np.triu(x, -1))
+
+    def test_triu_in_layer(self):
+        # https://github.com/keras-team/keras/issues/18890
+        x = keras.Input((None, 3))
+        y1 = keras.layers.Lambda(
+            lambda x: keras.ops.triu(
+                keras.ops.ones((keras.ops.shape(x)[1], keras.ops.shape(x)[1]))
+            )
+        )(x)
+        y2 = keras.layers.Lambda(
+            lambda x: keras.ops.triu(
+                keras.ops.ones((keras.ops.shape(x)[1], keras.ops.shape(x)[1])),
+                k=-1,
+            )
+        )(x)
+        model = keras.Model(x, [y1, y2])
+
+        result = model(np.ones((1, 2, 3), "float32"))
+        self.assertAllClose(
+            result, [np.triu(np.ones((2, 2))), np.triu(np.ones((2, 2)), k=-1)]
+        )
 
     def test_vstack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -3852,7 +3935,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.vstack([x, y]), np.vstack([x, y]))
         self.assertAllClose(knp.Vstack()([x, y]), np.vstack([x, y]))
 
-    def test_floordiv(self):
+    def test_floor_divide(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         z = np.array([[[1, 2, 3], [3, 2, 1]]])
@@ -3939,7 +4022,8 @@ def create_sparse_tensor(x, indices_from=None, start=0, delta=2):
     if indices_from is not None:
         indices = indices_from.indices
     else:
-        flat_indices = np.arange(start, x.size, delta)
+        size = math.prod(x.shape)
+        flat_indices = np.arange(start, size, delta)
         indices = np.stack(np.where(np.ones_like(x)), axis=1)[flat_indices]
 
     if backend.backend() == "tensorflow":
@@ -4039,6 +4123,7 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         "cos",
         "cosh",
         "exp",
+        "isfinite",
         "log",
         "log10",
         "log2",
@@ -4095,10 +4180,8 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         ("maximum", union_sparseness),
         ("minimum", union_sparseness),
         ("multiply", intersection_sparseness),
-        ("mod", division_sparseness),
         ("divide", division_sparseness),
         ("true_divide", division_sparseness),
-        ("floor_divide", division_sparseness),
     ]
     BINARY_OPS_TESTS = [
         {
@@ -4227,9 +4310,6 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
     def test_binary_correctness_sparse_tensor(
         self, x, y, op_function, op_class, np_op, op_sparseness, dtype
     ):
-        if dtype == "int32" and op_function.__name__ in ("floor_divide", "mod"):
-            self.skipTest(f"{op_function.__name__} does not support integers")
-
         x = backend.cast(x, dtype)
         y = backend.cast(y, dtype)
         expected_result = np_op(
@@ -4251,9 +4331,6 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
     def test_binary_correctness_indexed_slices(
         self, x, y, op_function, op_class, np_op, op_sparseness, dtype
     ):
-        if dtype == "int32" and op_function.__name__ in ("floor_divide", "mod"):
-            self.skipTest(f"{op_function.__name__} does not support integers")
-
         x = backend.cast(x, dtype)
         y = backend.cast(y, dtype)
         expected_result = np_op(
@@ -5547,6 +5624,74 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(knp.Floor().symbolic_call(x).dtype),
             expected_dtype,
         )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_floor_divide(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.floor_divide(x1_jax, x2_jax).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.floor_divide(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.FloorDivide().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_floor_divide_python_types(self, dtype):
+        import jax.experimental
+        import jax.numpy as jnp
+
+        # We have to disable x64 for jax since jnp.floor_divide doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
+        # the expected dtype from 64 bit to 32 bit when using jax backend.
+        with jax.experimental.disable_x64():
+            x = knp.ones((), dtype=dtype)
+            x_jax = jnp.ones((), dtype=dtype)
+
+            # python int
+            expected_dtype = standardize_dtype(jnp.floor_divide(x_jax, 1).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            elif dtype == "int64":
+                expected_dtype = "int64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.floor_divide(x, 1).dtype), expected_dtype
+            )
+            self.assertEqual(
+                knp.FloorDivide().symbolic_call(x, 1).dtype, expected_dtype
+            )
+
+            # python float
+            expected_dtype = standardize_dtype(
+                jnp.floor_divide(x_jax, 1.0).dtype
+            )
+            if dtype == "float64":
+                expected_dtype = "float64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.floor_divide(x, 1.0).dtype),
+                expected_dtype,
+            )
+            self.assertEqual(
+                knp.FloorDivide().symbolic_call(x, 1.0).dtype, expected_dtype
+            )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_full(self, dtype):

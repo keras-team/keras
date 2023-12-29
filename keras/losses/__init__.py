@@ -20,6 +20,7 @@ from keras.losses.losses import binary_crossentropy
 from keras.losses.losses import categorical_crossentropy
 from keras.losses.losses import categorical_hinge
 from keras.losses.losses import cosine_similarity
+from keras.losses.losses import ctc
 from keras.losses.losses import hinge
 from keras.losses.losses import huber
 from keras.losses.losses import kl_divergence
@@ -163,7 +164,7 @@ def get(identifier):
     if isinstance(identifier, dict):
         obj = deserialize(identifier)
     elif isinstance(identifier, str):
-        obj = deserialize(identifier)
+        obj = ALL_OBJECTS_DICT.get(identifier, None)
     else:
         obj = identifier
 
