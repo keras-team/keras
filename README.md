@@ -1,6 +1,6 @@
 # Keras 3: A new multi-backend Keras
 
-Keras 3 is a new multi-backend implementation of the Keras API, with support for TensorFlow, JAX, and PyTorch.
+Keras 3 is a new multi-backend implementation of the Keras API, with support for TensorFlow, JAX and PyTorch.
 
 ## Installation
 
@@ -16,7 +16,7 @@ pip install keras --upgrade
 
 2. Install backend package(s).
 
-To use `keras`, you should also install the backend of choice: `tensorflow`, `jax`, or `torch`.
+To use `keras`, you should also install the backend of choice: `tensorflow`, `jax` or `torch`.
 Note that `tensorflow` is required for using certain Keras 3 features: certain preprocessing layers
 as well as `tf.data` pipelines.
 
@@ -90,8 +90,8 @@ you can train your models with your existing `tf.data.Dataset` pipelines or PyTo
 
 ## Why use Keras 3?
 
-- Run your high-level Keras workflows on top of any framework -- benefiting at will from the advantages of each framework,
-e.g. the scalability and performance of JAX or the production ecosystem options of TensorFlow.
+- Run your high-level Keras workflows on top of any framework -- benefiting from the advantages of each framework,
+(e.g., the scalability and performance of JAX or the production ecosystem options of TensorFlow).
 - Write custom components (e.g. layers, models, metrics) that you can use in low-level workflows in any framework.
     - You can take a Keras model and train it in a training loop written from scratch in native TF, JAX, or PyTorch.
     - You can take a Keras model and use it as part of a PyTorch-native `Module` or as part of a JAX-native model function.
