@@ -49,6 +49,7 @@ def test_model_fit():
             ),
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
+            jit_compile=True,
         )
         history = model.fit(
             x,
