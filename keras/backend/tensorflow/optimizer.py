@@ -33,7 +33,7 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
             return super().add_variable_from_reference(
                 reference_variable, name=name, initializer=initializer
             )
-        
+
     def add_variable(self, shape, initializer="zeros", dtype=None, name=None):
         with tf.init_scope():
             return super().add_variable(shape, initializer, dtype, name)
