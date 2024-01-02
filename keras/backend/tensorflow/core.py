@@ -28,9 +28,13 @@ class Variable(
         return self.value.handle
 
     def _initialize(self, value):
-        self._value = tf.Variable(
-            value, dtype=self._dtype, trainable=self.trainable, name=self.name
-        )
+        with tf.init_scope():
+            self._value = tf.Variable(
+                value,
+                dtype=self._dtype,
+                trainable=self.trainable,
+                name=self.name,
+            )
 
     def _deferred_initialize(self):
         if self._value is not None:
