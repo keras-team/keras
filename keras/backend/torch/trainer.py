@@ -508,10 +508,7 @@ class TorchEpochIterator(EpochIterator):
         return super()._get_iterator(return_type)
 
     def _prefetch_numpy_data(self, data):
-        def to_device(d):
-            return torch.as_tensor(d, device=get_device())
-
-        return tree.map_structure(to_device, data)
+        return tree.map_structure(backend.convert_to_tensor, data)
 
     def _prefetch_numpy_iterator(self, numpy_iterator):
         """Prefetch batches on device.
