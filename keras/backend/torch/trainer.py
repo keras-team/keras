@@ -10,7 +10,6 @@ from packaging.version import parse
 from keras import backend
 from keras import callbacks as callbacks_module
 from keras import optimizers as optimizers_module
-from keras.backend.torch.core import get_device
 from keras.trainers import data_adapters
 from keras.trainers import trainer as base_trainer
 from keras.trainers.data_adapters import data_adapter_utils
@@ -508,10 +507,7 @@ class TorchEpochIterator(EpochIterator):
         return super()._get_iterator(return_type)
 
     def _prefetch_numpy_data(self, data):
-        def to_device(d):
-            return torch.as_tensor(d, device=get_device())
-
-        return tree.map_structure(to_device, data)
+        return tree.map_structure(backend.convert_to_tensor, data)
 
     def _prefetch_numpy_iterator(self, numpy_iterator):
         """Prefetch batches on device.
