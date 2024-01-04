@@ -1,5 +1,4 @@
 # Tensorflow with cuda support.
---extra-index-url https://pypi.nvidia.com
 tf-nightly[and-cuda]==2.16.0.dev20240101  # Pin a working nightly until rc0.
 
 # Torch cpu-only version (needed for testing).
