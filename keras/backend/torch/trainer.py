@@ -10,7 +10,6 @@ from packaging.version import parse
 from keras import backend
 from keras import callbacks as callbacks_module
 from keras import optimizers as optimizers_module
-from keras.backend.torch.core import get_device
 from keras.trainers import data_adapters
 from keras.trainers import trainer as base_trainer
 from keras.trainers.data_adapters import data_adapter_utils
