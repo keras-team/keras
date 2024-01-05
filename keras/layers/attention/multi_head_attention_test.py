@@ -302,10 +302,10 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
             use_bias=False,
         )
         layer.build(query.shape, key.shape, value.shape)
-        layer.enable_lora(query_rank=2, key_rank=2, value_rank=2)
-        
-        print("trainable_variables", [v.path for v in layer.trainable_variables])
-        print("non_trainable_variables", [v.path for v in layer.non_trainable_variables])
+        layer.query_dense.enable_lora(2)
+        layer.key_dense.enable_lora(2)
+        layer.value_dense.enable_lora(2)
+
         self.assertLen(layer.trainable_variables, 7)
         self.assertLen(layer.non_trainable_variables, 3)
 
@@ -334,7 +334,6 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
         model.save(temp_filepath)
 
         new_model = saving.load_model(temp_filepath)
-        self.assertFalse(new_model.layers[-1].lora_enabled)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
         # Try saving and reloading the model's weights only

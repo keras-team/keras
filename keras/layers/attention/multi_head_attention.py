@@ -136,35 +136,34 @@ class MultiHeadAttention(Layer):
                 f"Received: attention_axes={attention_axes}"
             )
         self._attention_axes = attention_axes
-        self.lora_enabled = False
-    
+
     @property
     def num_heads(self):
         return self._num_heads
-    
+
     @property
     def key_dim(self):
         return self._key_dim
-    
+
     @property
     def value_dim(self):
         return self._value_dim
-    
+
     @property
     def dropout(self):
         return self._dropout
-    
+
     @property
     def use_bias(self):
         return self._use_bias
-    
-    @property
-    def use_bias(self):
-        return self._use_bias
-    
+
     @property
     def output_shape(self):
-        return self._use_bias
+        return self._output_shape
+
+    @property
+    def attention_axes(self):
+        return self._attention_axes
 
     def get_config(self):
         base_config = super().get_config()
@@ -265,39 +264,21 @@ class MultiHeadAttention(Layer):
         self._output_dense.build(tuple(output_dense_input_shape))
         self.built = True
 
-    def enable_lora(self, query_rank=None, value_rank=None, key_rank=None):
-        if not self.built:
-            if not self.built:
-                raise ValueError(
-                    "Cannot enable lora on a layer that isn't yet built."
-                )
-        if self.lora_enabled:
-            raise ValueError(
-                "lora is already enabled. "
-                "This can only be done once per layer."
-            )
-        if query_rank is not None:
-            if query_rank <= 0:
-                raise ValueError(
-                    "Argument `query_rank` must be > 0. "
-                    f"Received: query_rank={query_rank}"
-                )
-            self._query_dense.enable_lora(query_rank)
-        if value_rank is not None:
-            if value_rank <= 0:
-                raise ValueError(
-                    "Argument `value_rank` must be > 0. "
-                    f"Received: value_rank={value_rank}"
-                )
-            self._value_dense.enable_lora(value_rank)
-        if key_rank is not None:
-            if key_rank <= 0:
-                raise ValueError(
-                    "Argument `key_rank` must be > 0. "
-                    f"Received: key_rank={key_rank}"
-                )
-            self._key_dense.enable_lora(key_rank)
-        self.lora_enabled = True
+    @property
+    def query_dense(self):
+        return self._query_dense
+
+    @property
+    def key_dense(self):
+        return self._key_dense
+
+    @property
+    def value_dense(self):
+        return self._value_dense
+
+    @property
+    def output_dense(self):
+        return self._output_dense
 
     def _get_common_kwargs_for_sublayer(self):
         common_kwargs = dict(
