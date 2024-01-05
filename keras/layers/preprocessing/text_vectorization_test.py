@@ -119,6 +119,23 @@ class TextVectorizationTest(testing.TestCase):
         output = layer(input_data)
         self.assertIsInstance(output, tf.RaggedTensor)
         self.assertEqual(output.shape, (3, None))
+        self.assertEqual(output.to_list(), [[4, 1, 3], [1, 2], [4]])
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires ragged tensors."
+    )
+    def test_ragged_tensor_output_length(self):
+        layer = layers.TextVectorization(
+            output_mode="int",
+            vocabulary=["baz", "bar", "foo"],
+            ragged=True,
+            output_sequence_length=2,
+        )
+        input_data = [["foo qux bar"], ["qux baz"], ["foo"]]
+        output = layer(input_data)
+        self.assertIsInstance(output, tf.RaggedTensor)
+        self.assertEqual(output.shape, (3, None))
+        self.assertEqual(output.to_list(), [[4, 1], [1, 2], [4]])
 
     @pytest.mark.skipif(
         backend.backend() == "tensorflow",
