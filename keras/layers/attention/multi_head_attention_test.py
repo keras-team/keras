@@ -292,6 +292,7 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
             layer._key_dense.bias.constraint, constraints.NonNeg
         )
 
+    @pytest.mark.requires_trainable_backend
     def test_lora(self):
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
         key = np.array([[[0.0, 1.0], [1.0, 0.0]]])
