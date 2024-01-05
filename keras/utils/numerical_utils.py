@@ -120,8 +120,10 @@ def encode_categorical_inputs(
     if output_mode == "int":
         return backend_module.cast(inputs, dtype=dtype)
 
+    binary_output = output_mode in ("multi_hot", "one_hot")
     original_shape = backend_module.shape(inputs)
     rank_of_inputs = len(original_shape)
+
     # In all cases, we should uprank scalar input to a single sample.
     if rank_of_inputs == 0:
         # We need to update `rank_of_inputs`
@@ -129,7 +131,7 @@ def encode_categorical_inputs(
         inputs = backend_module.numpy.expand_dims(inputs, -1)
     elif rank_of_inputs > 2:
         # The `count` mode does not support inputs with a rank greater than 2.
-        if output_mode not in ("multi_hot", "one_hot", "int"):
+        if not binary_output:
             raise ValueError(
                 "When output_mode is anything other than "
                 "`'multi_hot', 'one_hot', or 'int'`, "
@@ -139,7 +141,6 @@ def encode_categorical_inputs(
                 f"which would result in output rank {rank_of_inputs}."
             )
 
-    binary_output = output_mode in ("multi_hot", "one_hot")
     if binary_output:
         if output_mode == "one_hot":
             bincounts = backend_module.nn.one_hot(inputs, depth)
