@@ -226,12 +226,7 @@ class Hashing(Layer):
             sparse=self.sparse,
             dtype=self.dtype,
         )
-        if (
-            backend.backend() != "tensorflow"
-            and not backend_utils.in_tf_graph()
-        ):
-            outputs = backend.convert_to_tensor(outputs)
-        return outputs
+        return backend_utils.convert_tf_tensor(outputs)
 
     def _hash_values_to_bins(self, values):
         """Converts a non-sparse tensor of values to bin indices."""

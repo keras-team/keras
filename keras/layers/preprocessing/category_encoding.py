@@ -1,4 +1,3 @@
-from keras import backend
 from keras.api_export import keras_export
 from keras.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras.utils import backend_utils
@@ -150,10 +149,4 @@ class CategoryEncoding(TFDataLayer):
 
     def call(self, inputs):
         outputs = self._encode(inputs)
-
-        if (
-            self.backend._backend != "tensorflow"
-            and not backend_utils.in_tf_graph()
-        ):
-            outputs = backend.convert_to_tensor(outputs)
-        return outputs
+        return backend_utils.convert_tf_tensor(outputs)
