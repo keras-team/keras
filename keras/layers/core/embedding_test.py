@@ -1,9 +1,13 @@
+import os
+
 import numpy as np
 import pytest
 
 from keras import backend
 from keras import constraints
 from keras import layers
+from keras import models
+from keras import saving
 from keras.testing import test_case
 
 
@@ -100,3 +104,68 @@ class EmbeddingTest(test_case.TestCase):
         layer = layers.Embedding(3, 2, embeddings_constraint="non_neg")
         layer.build((None, 2))
         self.assertIsInstance(layer.embeddings.constraint, constraints.NonNeg)
+
+    @pytest.mark.requires_trainable_backend
+    def test_enable_lora(self):
+        layer = layers.Embedding(10, 16)
+        layer.build()
+        layer.enable_lora(4)
+        self.assertLen(layer.trainable_weights, 2)
+        self.assertLen(layer.non_trainable_weights, 1)
+        # Try eager call
+        x = np.random.randint(0, 9, size=(64, 3))
+        y = np.random.random((64, 3, 16))
+        _ = layer(x[:2])
+
+        # Try calling fit()
+        model = models.Sequential(
+            [
+                layer,
+            ]
+        )
+        model.compile(optimizer="sgd", loss="mse")
+        model.fit(x, y)
+
+        # Try saving and reloading the model
+        temp_filepath = os.path.join(self.get_temp_dir(), "lora_model.keras")
+        model.save(temp_filepath)
+
+        new_model = saving.load_model(temp_filepath)
+        self.assertFalse(new_model.layers[0].lora_enabled)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Try saving and reloading the model's weights only
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "lora_model.weights.h5"
+        )
+        model.save_weights(temp_filepath)
+
+        # Load the file into a fresh, non-lora model
+        new_model = models.Sequential(
+            [
+                layers.Input((3,), dtype="int32"),
+                layers.Embedding(10, 16),
+            ]
+        )
+        new_model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Try loading a normal checkpoint into a lora model
+        new_model.save_weights(temp_filepath)
+        model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+    @pytest.mark.requires_trainable_backend
+    def test_lora_rank_argument(self):
+        self.run_layer_test(
+            layers.Embedding,
+            init_kwargs={"input_dim": 5, "output_dim": 4, "lora_rank": 2},
+            input_shape=(2, 3),
+            input_dtype="int32",
+            expected_output_shape=(2, 3, 4),
+            expected_num_trainable_weights=2,
+            expected_num_non_trainable_weights=1,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=False,
+        )

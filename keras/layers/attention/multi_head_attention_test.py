@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -6,6 +8,8 @@ from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import layers
+from keras import models
+from keras import saving
 from keras import testing
 
 
@@ -287,3 +291,75 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
         self.assertIsInstance(
             layer._key_dense.bias.constraint, constraints.NonNeg
         )
+
+    @pytest.mark.requires_trainable_backend
+    def test_lora(self):
+        query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
+        key = np.array([[[0.0, 1.0], [1.0, 0.0]]])
+        value = np.array([[[1.0, 2.0], [3.0, 4.0]]])
+        layer = layers.MultiHeadAttention(
+            num_heads=3,
+            key_dim=8,
+            use_bias=False,
+        )
+        layer.build(query.shape, key.shape, value.shape)
+        layer.query_dense.enable_lora(2)
+        layer.key_dense.enable_lora(2)
+        layer.value_dense.enable_lora(2)
+
+        self.assertLen(layer.trainable_variables, 7)
+        self.assertLen(layer.non_trainable_variables, 3)
+
+        # Try eager call
+        x = {
+            "query": query,
+            "key": key,
+            "value": value,
+        }
+        y = np.random.random((1, 2, 2))
+        _ = layer(**x)
+
+        # Try calling fit()
+        inputs = {
+            "query": layers.Input((2, 2)),
+            "key": layers.Input((2, 2)),
+            "value": layers.Input((2, 2)),
+        }
+        outputs = layer(inputs["query"], inputs["key"], inputs["value"])
+        model = models.Model(inputs, outputs)
+        model.compile(optimizer="sgd", loss="mse")
+        model.fit(x, y)
+
+        # Try saving and reloading the model
+        temp_filepath = os.path.join(self.get_temp_dir(), "lora_model.keras")
+        model.save(temp_filepath)
+
+        new_model = saving.load_model(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Try saving and reloading the model's weights only
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "lora_model.weights.h5"
+        )
+        model.save_weights(temp_filepath)
+
+        # Load the file into a fresh, non-lora model
+        inputs = {
+            "query": layers.Input((2, 2)),
+            "key": layers.Input((2, 2)),
+            "value": layers.Input((2, 2)),
+        }
+        outputs = layers.MultiHeadAttention(
+            num_heads=3,
+            key_dim=8,
+            use_bias=False,
+        )(inputs["query"], inputs["key"], inputs["value"])
+        new_model = models.Model(inputs, outputs)
+
+        new_model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Try loading a normal checkpoint into a lora model
+        new_model.save_weights(temp_filepath)
+        model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))

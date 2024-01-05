@@ -1,3 +1,5 @@
+import numpy as np
+
 from keras import constraints
 from keras import initializers
 from keras import ops
@@ -48,6 +50,15 @@ class Embedding(Layer):
             If mask_zero is set to True, as a consequence,
             index 0 cannot be used in the vocabulary (input_dim should
             equal size of vocabulary + 1).
+        lora_rank: Optional integer. If set, the layer's forward pass
+            will implement LoRA (Low-Rank Adaptation)
+            with the provided rank. LoRA sets the layer's embeddings
+            matrix to non-trainable and replaces it with a delta over the
+            original matrix, obtained via multiplying two lower-rank
+            trainable matrices. This can be useful to reduce the
+            computation cost of fine-tuning large embedding layers.
+            You can also enable LoRA on an existing
+            `Embedding` layer by calling `layer.enable_lora(rank)`.
 
     Input shape:
         2D tensor with shape: `(batch_size, input_length)`.
@@ -64,6 +75,7 @@ class Embedding(Layer):
         embeddings_regularizer=None,
         embeddings_constraint=None,
         mask_zero=False,
+        lora_rank=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -75,9 +87,11 @@ class Embedding(Layer):
         self.mask_zero = mask_zero
         self.supports_masking = mask_zero
         self.autocast = False
+        self.lora_rank = lora_rank
+        self.lora_enabled = False
 
     def build(self, input_shape=None):
-        self.embeddings = self.add_weight(
+        self._embeddings = self.add_weight(
             shape=(self.input_dim, self.output_dim),
             initializer=self.embeddings_initializer,
             name="embeddings",
@@ -86,6 +100,16 @@ class Embedding(Layer):
             trainable=True,
         )
         self.built = True
+        if self.lora_rank:
+            self.enable_lora(self.lora_rank)
+
+    @property
+    def embeddings(self):
+        if self.lora_enabled:
+            return self._embeddings + ops.matmul(
+                self.lora_embeddings_a, self.lora_embeddings_b
+            )
+        return self._embeddings
 
     def call(self, inputs):
         if inputs.dtype != "int32" and inputs.dtype != "int64":
@@ -100,6 +124,56 @@ class Embedding(Layer):
 
     def compute_output_shape(self, input_shape):
         return input_shape + (self.output_dim,)
+
+    def enable_lora(self, rank):
+        if self.embeddings_constraint:
+            raise ValueError(
+                "Lora is incompatible with embedding constraints. "
+                "In order to enable lora on this layer, remove the "
+                "`embeddings_constraint` argument."
+            )
+        if not self.built:
+            raise ValueError(
+                "Cannot enable lora on a layer that isn't yet built."
+            )
+        if self.lora_enabled:
+            raise ValueError(
+                "lora is already enabled. "
+                "This can only be done once per layer."
+            )
+        self._tracker.locked = False
+        self.lora_embeddings_a = self.add_weight(
+            name="lora_embeddings_a",
+            shape=(self.embeddings.shape[0], rank),
+            initializer="zeros",
+            regularizer=self.embeddings_regularizer,
+        )
+        self.lora_embeddings_b = self.add_weight(
+            name="lora_embeddings_b",
+            shape=(rank, self.embeddings.shape[1]),
+            initializer="zeros",
+            regularizer=self.embeddings_regularizer,
+        )
+        self.embeddings.trainable = False
+        self._tracker.locked = True
+        self.lora_enabled = True
+
+    def save_own_variables(self, store):
+        if not self.lora_enabled:
+            return super().save_own_variables(store)
+
+        embeddings_value = ops.convert_to_numpy(
+            self.embeddings
+            + ops.matmul(self.lora_embeddings_a, self.lora_embeddings_b)
+        )
+        store["0"] = embeddings_value
+
+    def load_own_variables(self, store):
+        if not self.lora_enabled:
+            return super().load_own_variables(store)
+        self._embeddings.assign(store["0"])
+        self.lora_embeddings_a.assign(np.zeros(self.lora_embeddings_a.shape))
+        self.lora_embeddings_b.assign(np.zeros(self.lora_embeddings_b.shape))
 
     def get_config(self):
         base_config = super().get_config()
@@ -120,4 +194,6 @@ class Embedding(Layer):
             ),
             "mask_zero": self.mask_zero,
         }
+        if self.lora_rank:
+            config["lora_rank"] = self.lora_rank
         return {**base_config, **config}
