@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from absl.testing import parameterized
 from tensorflow import data as tf_data
 
 from keras import backend
@@ -10,7 +11,7 @@ from keras import testing
 from keras.saving import saving_api
 
 
-class DicretizationTest(testing.TestCase):
+class DicretizationTest(testing.TestCase, parameterized.TestCase):
     def test_discretization_basics(self):
         self.run_layer_test(
             layers.Discretization,
@@ -35,38 +36,39 @@ class DicretizationTest(testing.TestCase):
         output = layer(np.array([[0.0, 0.1, 0.3]]))
         self.assertTrue(output.dtype, "int32")
 
-    def test_correctness(self):
-        # int mode
-        layer = layers.Discretization(
-            bin_boundaries=[0.0, 0.5, 1.0], output_mode="int"
-        )
-        output = layer(np.array([[-1.0, 0.0, 0.1, 0.8, 1.2]]))
-        self.assertTrue(backend.is_tensor(output))
-        self.assertAllClose(output, np.array([[0, 1, 1, 2, 3]]))
+    @parameterized.parameters(
+        [
+            ("int", [[-1.0, 0.0, 0.1, 0.8, 1.2]], [[0, 1, 1, 2, 3]]),
+            ("one_hot", [0.1, 0.8], [[0, 1, 0, 0], [0, 0, 1, 0]]),
+            ("multi_hot", [[0.1, 0.8]], [[0, 1, 1, 0]]),
+            (
+                "one_hot",
+                [[[0.15, 0.75], [0.85, 0.45]]],
+                [
+                    [
+                        [[0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]],
+                        [[0.0, 0.0, 1.0, 0.0], [0.0, 1.0, 0.0, 0.0]],
+                    ]
+                ],
+            ),
+            (
+                "multi_hot",
+                [[[0.15, 0.75], [0.85, 0.45]]],
+                [[[0.0, 1.0, 1.0, 0.0], [0.0, 1.0, 1.0, 0.0]]],
+            ),
+            ("count", [[0.1, 0.8, 0.9]], [[0, 1, 2, 0]]),
+        ]
+    )
+    def test_correctness(self, output_mode, input_array, expected_output):
+        input_array = np.array(input_array)
+        expected_output = np.array(expected_output)
 
-        # one_hot mode
         layer = layers.Discretization(
-            bin_boundaries=[0.0, 0.5, 1.0], output_mode="one_hot"
+            bin_boundaries=[0.0, 0.5, 1.0], output_mode=output_mode
         )
-        output = layer(np.array([0.1, 0.8]))
+        output = layer(input_array)
         self.assertTrue(backend.is_tensor(output))
-        self.assertAllClose(output, np.array([[0, 1, 0, 0], [0, 0, 1, 0]]))
-
-        # multi_hot mode
-        layer = layers.Discretization(
-            bin_boundaries=[0.0, 0.5, 1.0], output_mode="multi_hot"
-        )
-        output = layer(np.array([[0.1, 0.8]]))
-        self.assertTrue(backend.is_tensor(output))
-        self.assertAllClose(output, np.array([[0, 1, 1, 0]]))
-
-        # count mode
-        layer = layers.Discretization(
-            bin_boundaries=[0.0, 0.5, 1.0], output_mode="count"
-        )
-        output = layer(np.array([[0.1, 0.8, 0.9]]))
-        self.assertTrue(backend.is_tensor(output))
-        self.assertAllClose(output, np.array([[0, 1, 2, 0]]))
+        self.assertAllClose(output, expected_output)
 
     def test_tf_data_compatibility(self):
         # With fixed bins

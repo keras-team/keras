@@ -120,20 +120,27 @@ def encode_categorical_inputs(
     if output_mode == "int":
         return backend_module.cast(inputs, dtype=dtype)
 
-    original_shape = inputs.shape
-    # In all cases, we should uprank scalar input to a single sample.
-    if len(backend_module.shape(inputs)) == 0:
-        inputs = backend_module.numpy.expand_dims(inputs, -1)
-
-    if len(backend_module.shape(inputs)) > 2:
-        raise ValueError(
-            "When output_mode is not `'int'`, maximum supported output rank "
-            f"is 2. Received output_mode {output_mode} and input shape "
-            f"{original_shape}, "
-            f"which would result in output rank {inputs.shape.rank}."
-        )
-
     binary_output = output_mode in ("multi_hot", "one_hot")
+    original_shape = backend_module.shape(inputs)
+    rank_of_inputs = len(original_shape)
+
+    # In all cases, we should uprank scalar input to a single sample.
+    if rank_of_inputs == 0:
+        # We need to update `rank_of_inputs`
+        # If necessary.
+        inputs = backend_module.numpy.expand_dims(inputs, -1)
+    elif rank_of_inputs > 2:
+        # The `count` mode does not support inputs with a rank greater than 2.
+        if not binary_output:
+            raise ValueError(
+                "When output_mode is anything other than "
+                "`'multi_hot', 'one_hot', or 'int'`, "
+                "the rank must be 2 or less. "
+                f"Received output_mode: {output_mode} "
+                f"and input shape: {original_shape}, "
+                f"which would result in output rank {rank_of_inputs}."
+            )
+
     if binary_output:
         if output_mode == "one_hot":
             bincounts = backend_module.nn.one_hot(inputs, depth)
