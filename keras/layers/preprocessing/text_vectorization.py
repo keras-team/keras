@@ -582,13 +582,12 @@ class TextVectorization(Layer):
 
         lookup_data = self._lookup_layer.call(inputs)
 
-        # For any non-int output, we can return directly from the underlying
-        # layer.
+        # For non-int output, we can return directly from the underlying layer.
         if self._output_mode != "int":
-            outputs = lookup_data
+            return backend_utils.convert_tf_tensor(lookup_data)
 
         if self._ragged:
-            outputs = lookup_data
+            return backend_utils.convert_tf_tensor(lookup_data)
 
         # If we have a ragged tensor, we can pad during the conversion to dense.
         if isinstance(lookup_data, tf.RaggedTensor):
@@ -597,6 +596,8 @@ class TextVectorization(Layer):
             # dimension to the bounding shape of the ragged dimension.
             shape[-1] = self._output_sequence_length
             outputs = lookup_data.to_tensor(default_value=0, shape=shape)
+        else:
+            outputs = lookup_data
 
         # If we have a dense tensor, we need to pad/trim directly.
         if self._output_sequence_length is not None:
@@ -615,12 +616,7 @@ class TextVectorization(Layer):
             )
             outputs = tf.pad(outputs, padding)
 
-        if (
-            backend.backend() != "tensorflow"
-            and not backend_utils.in_tf_graph()
-        ):
-            outputs = backend.convert_to_tensor(outputs)
-        return outputs
+        return backend_utils.convert_tf_tensor(outputs)
 
     def save_own_variables(self, store):
         self._lookup_layer.save_own_variables(store)

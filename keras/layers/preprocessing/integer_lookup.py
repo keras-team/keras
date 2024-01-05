@@ -403,9 +403,4 @@ class IntegerLookup(IndexLookup):
         ):
             inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
         outputs = super().call(inputs)
-        if (
-            backend.backend() != "tensorflow"
-            and not backend_utils.in_tf_graph()
-        ):
-            outputs = backend.convert_to_tensor(outputs)
-        return outputs
+        return backend_utils.convert_tf_tensor(outputs)

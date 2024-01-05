@@ -15,6 +15,12 @@ def in_tf_graph():
     return False
 
 
+def convert_tf_tensor(outputs, dtype=None):
+    if backend_module.backend() != "tensorflow" and not in_tf_graph():
+        outputs = backend_module.convert_to_tensor(outputs, dtype=dtype)
+    return outputs
+
+
 class TFGraphScope:
     def __init__(self):
         self._original_value = global_state.get_global_attribute(
