@@ -79,11 +79,11 @@ def to_categorical(x, num_classes=None):
     ...               .04, .01, .94, .05,
     ...               .12, .21, .5, .17],
     ...               shape=[4, 4])
-    >>> loss = keras.backend.categorical_crossentropy(a, b)
+    >>> loss = keras.ops.categorical_crossentropy(a, b)
     >>> print(np.around(loss, 5))
     [0.10536 0.82807 0.1011  1.77196]
 
-    >>> loss = keras.backend.categorical_crossentropy(a, a)
+    >>> loss = keras.ops.categorical_crossentropy(a, a)
     >>> print(np.around(loss, 5))
     [0. 0. 0. 0.]
     """
