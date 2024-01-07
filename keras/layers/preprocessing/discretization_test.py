@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
@@ -125,6 +126,15 @@ class DicretizationTest(testing.TestCase, parameterized.TestCase):
         model = saving_api.load_model(fpath)
         self.assertAllClose(layer(ref_input), ref_output)
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Sparse tensor only works in TensorFlow",
+    )
     def test_sparse_inputs(self):
-        # TODO
-        pass
+        from keras.utils.module_utils import tensorflow as tf
+
+        x = tf.sparse.from_dense(np.array([[-1.0, 0.2, 0.7, 1.2]]))
+        layer = layers.Discretization(bin_boundaries=[0.0, 0.5, 1.0])
+        output = layer(x)
+        self.assertTrue(backend.is_tensor(output))
+        self.assertAllClose(output, np.array([[0, 1, 2, 3]]))
