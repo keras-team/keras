@@ -6,6 +6,7 @@ from keras.backend.common import global_state
 from keras.backend.common.name_scope import current_path
 from keras.backend.common.stateless_scope import get_stateless_scope
 from keras.backend.common.stateless_scope import in_stateless_scope
+from keras.utils.module_utils import tensorflow as tf
 from keras.utils.naming import auto_name
 
 
@@ -403,6 +404,11 @@ def standardize_shape(shape):
             raise ValueError("Undefined shapes are not supported.")
         if not hasattr(shape, "__iter__"):
             raise ValueError(f"Cannot convert '{shape}' to a shape.")
+        if config.backend() == "tensorflow":
+            if isinstance(shape, tf.TensorShape):
+                # `tf.TensorShape` may contain `Dimension` objects.
+                # We need to convert the items in it to either int or `None`
+                shape = shape.as_list()
         shape = tuple(shape)
 
     if config.backend() == "torch":
