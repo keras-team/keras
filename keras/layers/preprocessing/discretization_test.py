@@ -12,7 +12,7 @@ from keras import testing
 from keras.saving import saving_api
 
 
-class DicretizationTest(testing.TestCase, parameterized.TestCase):
+class DiscretizationTest(testing.TestCase, parameterized.TestCase):
     def test_discretization_basics(self):
         self.run_layer_test(
             layers.Discretization,
