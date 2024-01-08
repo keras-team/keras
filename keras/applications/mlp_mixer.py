@@ -3,6 +3,9 @@ from keras import layers, ops
 from functools import partial
 from keras.api_export import keras_export
 from keras.applications import imagenet_utils
+from keras.utils import file_utils, get_file
+from keras import backend
+
 
 BASE_WEIGHTS_PATH = "https://huggingface.co/anasrz/kimm/resolve/main"
 
@@ -24,24 +27,7 @@ MODEL_CONFIGS = {
         "num_blocks": 12,
         "embed_dim": 768,
         "img_size": 224,
-    },
-    "mixer_b32_224": {
-        "patch_size": 32,
-        "num_blocks": 12,
-        "embed_dim": 768,
-        "img_size": 224,
-    },
-    "mixer_s16_224": {
-        "patch_size": 16,
-        "num_blocks": 8,
-        "embed_dim": 512,
-        "img_size": 224,
-    },
-    "mixer_s32_224": {
-        "patch_size": 32,
-        "num_blocks": 8,
-        "embed_dim": 512,
-    },
+    }
 }
 
 
@@ -68,12 +54,9 @@ For Mlp Mixer, preprocessing is not included in the model using a `Normalization
 layer.  Mlp Mixer models expect their inputs to be float or uint8 tensors of
 pixels with values in the [0-255] range.
 
-When calling the `summary()` method after instantiating a ConvNeXt model,
-prefer setting the `expand_nested` argument `summary()` to `True` to better
-investigate the instantiated model.
 
 Args:
-    num_classes:Optional number of classes to classify images
+    classes:Optional number of classes to classify images
             into, only to be specified if `include_top` is `True`, and
             if no `weights` argument is specified. Defaults to 1000 (number of
             ImageNet classes)., Set None or 0 for extracting features
@@ -92,7 +75,7 @@ Args:
     proj_drop_rate: dropout rate fro projection defaults to 0.,
     drop_path_rate: dropout rate for DropPath layer defaults to 0.,
     stem_norm: Normalization after extracting patches, defaults to False,
-    global_pool: Pooling after patches defaults to `avg`, For now, only avg is supported
+    pooling: Pooling after patches defaults to `avg`, in {'avg', 'max'}
 Returns:
     A model instance.
 """
@@ -103,6 +86,18 @@ def pair(t):
 
 
 class DropPath(layers.Layer):
+    """Implements DropPath regularization for stochastic depth.
+
+    DropPath is a regularization technique for neural networks that randomly
+    drops entire layers or blocks of layers during training. This helps to
+    prevent overfitting and encourages the network to learn more robust
+    representations.
+
+    Args:
+    rate: Probability of dropping a unit.
+    seed: Seed for random number generation.
+    **kwargs: Additional keyword arguments passed to the Layer constructor.
+    """
     def __init__(self, rate=0.5, seed=None, **kwargs):
         super().__init__(**kwargs)
         self.rate = rate
@@ -135,7 +130,27 @@ def Mlp(
     use_conv=False,
     name="mlp",
 ):
-    """MLP as used in Vision Transformer, MLP-Mixer and related networks"""
+    """Creates a multi-layer perceptron (MLP) layer.
+
+    This MLP layer is designed for use in Vision Transformer, MLP-Mixer,
+    and related architectures. It offers flexibility in terms of activation
+    function, normalization, dropout, and the use of convolutional or dense
+    layers for internal computations.
+
+    Args:
+    hidden_features: Number of hidden units in the first layer.
+                    If None, defaults to the input features.
+    out_features: Number of output units. If None, defaults to the input features.
+    act_layer: Activation layer to use. Defaults to ops.gelu.
+    norm_layer: Normalization layer to apply after each linear layer.
+    bias: Whether to include bias terms in the linear layers.
+    drop: Dropout rate to apply.
+    use_conv: Whether to use convolutional layers instead of dense layers.
+    name: Name of the layer.
+
+    Returns:
+    A callable that accepts an input tensor and returns the output of the MLP.
+    """
     if not name:
         name = ""
     bias = pair(bias)
@@ -178,6 +193,28 @@ def MixerBlock(
     drop_path=0.0,
     name="block",
 ):
+    """Creates a Mixer block for MLP-Mixer models.
+
+    This block consists of two MLP layers applied to tokens and channels,
+    respectively, with residual connections and optional layer normalization
+    and dropout. It's a core component of the MLP-Mixer architecture for
+    vision and other tasks.
+
+    Args:
+    dim: Dimensionality of the input features.
+    seq_len: Sequence length of the input.
+    mlp_ratio: Ratio of hidden dimensions in the MLP layers,
+                    specified as a tuple of two values.
+    mlp_layer: Type of MLP layer to use. Defaults to Mlp.
+    norm_layer: Normalization layer to apply after each MLP layer.
+    act_layer: Activation layer to use. Defaults to ops.gelu.
+    drop: Dropout rate to apply.
+    drop_path: Drop path rate for stochastic depth.
+    name: Name of the block.
+
+    Returns:
+    A callable that accepts an input tensor and returns the output of the block.
+    """
     tokens_dim, channels_dim = [int(x * dim) for x in pair(mlp_ratio)]
     drop_path = DropPath(drop_path) if drop_path > 0.0 else layers.Identity()
 
@@ -209,15 +246,30 @@ def MixerBlock(
 
 
 def PatchEmbed(
-    img_size=224,
     patch_size=16,
-    in_chans=3,
     embed_dim=768,
     norm_layer=None,
-    flatten=True,
     bias=True,
     name=None,
 ):
+    """Creates a patch embedding layer for ViT architectures.
+
+    This layer divides an input image into patches, embeds each patch into
+    an embedding vector, and optionally applies normalization. It's commonly
+    used as the first layer in ViT models to prepare image inputs for
+    transformer-based processing.
+
+    Args:
+    patch_size: Size of the patches to extract from the input image.
+                    Should be a single integer or a pair of integers.
+    embed_dim: Dimensionality of the embedding vectors.
+    norm_layer: Normalization layer to apply after embedding. Defaults to None.
+    bias: Whether to include a bias term in the convolutional projection.
+    name: Name of the layer.
+
+    Returns:
+    A callable that accepts an input tensor and returns the embedded patches.
+    """
     patch_size = pair(patch_size)
     norm = norm_layer() if norm_layer else layers.Identity()
 
@@ -237,7 +289,8 @@ def PatchEmbed(
 
 
 def MlpMixer(
-    num_classes=1000,
+    classes=1000,
+    input_shape=None,
     img_size=224,
     in_chans=3,
     patch_size=16,
@@ -246,25 +299,59 @@ def MlpMixer(
     mlp_ratio=(0.5, 4.0),
     block_layer=MixerBlock,
     mlp_layer=Mlp,
+    include_top=True,
     norm_layer=partial(layers.LayerNormalization, epsilon=1e-6),
     act_layer=ops.gelu,
     drop_rate=0.0,
     proj_drop_rate=0.0,
     drop_path_rate=0.0,
     stem_norm=False,
-    global_pool="avg",
-    data_format="channels_last",
+    pooling="avg",
 ):
-    assert (
-        keras.config.image_data_format() == "channels_last"
-    ), "Mixer only supports `channels_last` data_format"
+    """Creates an MLP-Mixer model for image classification.
+
+    MLP-Mixer is an architecture that uses multi-layer perceptrons (MLPs)
+    instead of attention or convolutions for image processing. It achieves
+    competitive results on image classification benchmarks while being
+    more efficient and easier to train.
+
+    Args:
+    classes: Number of output classes for classification.
+    input_shape: Shape of the input image tensor.
+    img_size: Size of the input image.
+    in_chans: Number of input channels.
+    patch_size: Size of the patches to extract from the image.
+    num_blocks: Number of Mixer blocks in the model.
+    embed_dim: Dimensionality of the embedding vectors.
+    mlp_ratio: Ratio of hidden dimensions in the MLP layers.
+    block_layer: Type of block layer to use. Defaults to MixerBlock.
+    mlp_layer: Type of MLP layer to use. Defaults to Mlp.
+    include_top: Whether to include the final classification head.
+    norm_layer: Normalization layer to use.
+    act_layer: Activation layer to use.
+    drop_rate: Dropout rate to apply.
+    proj_drop_rate: Dropout rate to apply to projection layers.
+    drop_path_rate: Drop path rate for stochastic depth.
+    stem_norm: Whether to apply normalization in the stem.
+    pooling: Type of pooling to apply before the classification head.
+    weights: Optional weights to load into the model.
+
+    Returns:
+    A Keras model instance.
+    """
+    if backend.image_data_format() == "channels_first":
+        raise ValueError(
+            "Mlp Mixer does not support the `channels_first` image data "
+            "format. Switch to `channels_last` by editing your local "
+            "config file at ~/.keras/keras.json"
+        )
+    
     img_size = pair(img_size)
-    input_shape = (img_size[0], img_size[1], in_chans)
+    if not input_shape:
+       input_shape = (img_size[0], img_size[1], in_chans)
     inputs = layers.Input(input_shape)
     x = PatchEmbed(
-        img_size=img_size,
         patch_size=patch_size,
-        in_chans=in_chans,
         embed_dim=embed_dim,
         norm_layer=norm_layer if stem_norm else None,
         name="stem",
@@ -285,29 +372,48 @@ def MlpMixer(
             name=f"blocks.{i}",
         )(x)
     x = norm_layer(name="norm")(x)
-
-    if global_pool == "avg":
-        x = ops.mean(x, axis=1)
     x = layers.Dropout(drop_rate)(x)
-    if num_classes > 0:
-        head = layers.Dense(num_classes, name="head")
-    else:
-        head = layers.Identity()
-    out = head(x)
-    return keras.Model(inputs=inputs, outputs=out)
+    if pooling == "avg":
+        x = ops.mean(x, axis=1)
+    elif pooling == "max":
+        x = layers.GlobalMaxPooling2D()(x)
+    if include_top:
+        head = layers.Dense(classes, name="head")
+        x = head(x)
+    return keras.Model(inputs=inputs, outputs=x)
 
 
-def get_weights_pretrained(model, model_name):
-    print(WEIGHTS_NAMES.keys())
-    assert (
-        model_name in WEIGHTS_NAMES.keys()
-    ), f"Weights not available for model {model_name}"
-    weights_path = keras.utils.get_file(
-        origin=f"{BASE_WEIGHTS_PATH}/{WEIGHTS_NAMES[model_name]}",
+def get_weights_pretrained(model, name):
+    weights_path = get_file(
+        origin=f"{BASE_WEIGHTS_PATH}/{WEIGHTS_NAMES[name]}",
     )
     model.load_weights(weights_path)
     return True
 
+def get_mixer(name, weights=None, include_top=False, classes=1000,  **kwargs):
+    if not (weights in {"imagenet", None} or file_utils.exists(weights)):
+        raise ValueError(
+            "The `weights` argument should be either "
+            "`None` (random initialization), `imagenet` "
+            "(pre-training on ImageNet), "
+            "or the path to the weights file to be loaded."
+        )
+
+    if weights == "imagenet" and include_top and classes != 1000:
+        raise ValueError(
+            'If using `weights="imagenet"` with `include_top=True`, '
+            "`classes` should be 1000. "
+            f"Received classes={classes}"
+        )
+    MODEL_CONFIGS[name]['classes'] = classes 
+    model = MlpMixer(include_top=include_top, **MODEL_CONFIGS[name], **kwargs)
+    if weights == 'imagenet':
+        get_weights_pretrained(model, name)
+        
+    elif weights is not None and file_utils.exists(weights):
+        model.load_weights(weights)
+    
+    return model
 
 @keras_export(
     [
@@ -315,11 +421,8 @@ def get_weights_pretrained(model, model_name):
         "keras.applications.Mixer_L16_224",
     ]
 )
-def Mixer_L16_224(pretrained=False, **kwargs):
-    model = MlpMixer(**MODEL_CONFIGS["mixer_l16_224"], **kwargs)
-    if pretrained:
-        get_weights_pretrained(model, "mixer_l16_224")
-    return model
+def Mixer_L16_224(**kwargs):
+    return get_mixer("mixer_l16_224", **kwargs)
 
 
 @keras_export(
@@ -328,57 +431,14 @@ def Mixer_L16_224(pretrained=False, **kwargs):
         "keras.applications.Mixer_B16_224",
     ]
 )
-def Mixer_B16_224(pretrained=False, **kwargs):
-    model = MlpMixer(**MODEL_CONFIGS["mixer_b16_224"], **kwargs)
-    if pretrained:
-        get_weights_pretrained(model, "mixer_b16_224")
-    return model
 
+def Mixer_B16_224(**kwargs):
+    return get_mixer("mixer_b16_224", **kwargs)
 
-@keras_export(
-    [
-        "keras.applications.mlp_mixer.Mixer_B32_224",
-        "keras.applications.Mixer_B32_224",
-    ]
-)
-def Mixer_B32_224(pretrained=False, **kwargs):
-    model = MlpMixer(**MODEL_CONFIGS["mixer_b32_224"], **kwargs)
-    if pretrained:
-        get_weights_pretrained(model, "mixer_b32_224")
-    return model
-
-
-@keras_export(
-    [
-        "keras.applications.mlp_mixer.Mixer_S16_224",
-        "keras.applications.Mixer_S16_224",
-    ]
-)
-def Mixer_S16_224(pretrained=False, **kwargs):
-    model = MlpMixer(**MODEL_CONFIGS["mixer_s16_224"], **kwargs)
-    if pretrained:
-        get_weights_pretrained(model, "mixer_s16_224")
-    return model
-
-
-@keras_export(
-    [
-        "keras.applications.mlp_mixer.Mixer_S16_224",
-        "keras.applications.Mixer_S16_224",
-    ]
-)
-def Mixer_S32_224(pretrained=False, **kwargs):
-    model = MlpMixer(**MODEL_CONFIGS["mixer_s32_224"], **kwargs)
-    if pretrained:
-        get_weights_pretrained(model, "mixer_s32_224")
-    return model
 
 
 Mixer_L16_224.__doc__ = BASE_DOCSTRING.format(name="Mixer_L16_224")
 Mixer_B16_224.__doc__ = BASE_DOCSTRING.format(name="Mixer_B16_224")
-Mixer_B32_224.__doc__ = BASE_DOCSTRING.format(name="Mixer_B32_224")
-Mixer_S16_224.__doc__ = BASE_DOCSTRING.format(name="Mixer_S16_224")
-Mixer_S32_224.__doc__ = BASE_DOCSTRING.format(name="Mixer_S32_224")
 
 
 @keras_export("keras.applications.mlp_mixer.decode_predictions")
