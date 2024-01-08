@@ -357,10 +357,9 @@ class MultiHeadAttention(Layer):
             )
         )
         self._softmax = Softmax(axis=norm_axes, dtype=self.dtype_policy)
-        if self.dropout:
-            self._dropout_layer = Dropout(
-                rate=self._dropout, dtype=self.dtype_policy
-            )
+        self._dropout_layer = Dropout(
+            rate=self._dropout, dtype=self.dtype_policy
+        )
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
 
     def _masked_softmax(self, attention_scores, attention_mask=None):
