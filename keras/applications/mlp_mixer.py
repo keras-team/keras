@@ -27,7 +27,7 @@ MODEL_CONFIGS = {
         "num_blocks": 12,
         "embed_dim": 768,
         "img_size": 224,
-    }
+    },
 }
 
 
@@ -98,6 +98,7 @@ class DropPath(layers.Layer):
     seed: Seed for random number generation.
     **kwargs: Additional keyword arguments passed to the Layer constructor.
     """
+
     def __init__(self, rate=0.5, seed=None, **kwargs):
         super().__init__(**kwargs)
         self.rate = rate
@@ -345,10 +346,10 @@ def MlpMixer(
             "format. Switch to `channels_last` by editing your local "
             "config file at ~/.keras/keras.json"
         )
-    
+
     img_size = pair(img_size)
     if not input_shape:
-       input_shape = (img_size[0], img_size[1], in_chans)
+        input_shape = (img_size[0], img_size[1], in_chans)
     inputs = layers.Input(input_shape)
     x = PatchEmbed(
         patch_size=patch_size,
@@ -390,7 +391,8 @@ def get_weights_pretrained(model, name):
     model.load_weights(weights_path)
     return True
 
-def get_mixer(name, weights=None, include_top=False, classes=1000,  **kwargs):
+
+def get_mixer(name, weights=None, include_top=False, classes=1000, **kwargs):
     if not (weights in {"imagenet", None} or file_utils.exists(weights)):
         raise ValueError(
             "The `weights` argument should be either "
@@ -405,15 +407,16 @@ def get_mixer(name, weights=None, include_top=False, classes=1000,  **kwargs):
             "`classes` should be 1000. "
             f"Received classes={classes}"
         )
-    MODEL_CONFIGS[name]['classes'] = classes 
+    MODEL_CONFIGS[name]["classes"] = classes
     model = MlpMixer(include_top=include_top, **MODEL_CONFIGS[name], **kwargs)
-    if weights == 'imagenet':
+    if weights == "imagenet":
         get_weights_pretrained(model, name)
-        
+
     elif weights is not None and file_utils.exists(weights):
         model.load_weights(weights)
-    
+
     return model
+
 
 @keras_export(
     [
@@ -431,10 +434,8 @@ def Mixer_L16_224(**kwargs):
         "keras.applications.Mixer_B16_224",
     ]
 )
-
 def Mixer_B16_224(**kwargs):
     return get_mixer("mixer_b16_224", **kwargs)
-
 
 
 Mixer_L16_224.__doc__ = BASE_DOCSTRING.format(name="Mixer_L16_224")
