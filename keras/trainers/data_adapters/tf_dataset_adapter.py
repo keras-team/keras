@@ -1,4 +1,3 @@
-import numpy as np
 import tree
 
 from keras.trainers.data_adapters import data_adapter_utils
@@ -37,19 +36,21 @@ class TFDatasetAdapter(DataAdapter):
         self._dataset = dataset
 
     def get_numpy_iterator(self):
-        from keras.utils.module_utils import tensorflow as tf
-
-        def convert_to_numpy(x):
-            if isinstance(x, tf.SparseTensor):
-                x = tf.sparse.to_dense(x)
-            # shared memory using `np.asarray`
-            return np.asarray(x)
+        from keras.backend.tensorflow.core import convert_to_numpy
 
         for batch in self._dataset:
             yield tree.map_structure(convert_to_numpy, batch)
 
+    def get_jax_iterator(self):
+        # We use numpy as an intermediary because the conversion
+        # tf -> numpy -> jax is more than 2x faster than tf -> jax.
+        return data_adapter_utils.get_jax_iterator(self.get_numpy_iterator())
+
     def get_tf_dataset(self):
         return self._dataset
+
+    def get_torch_dataloader(self):
+        return data_adapter_utils.get_torch_dataloader(self._dataset)
 
     @property
     def num_batches(self):

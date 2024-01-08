@@ -1,11 +1,14 @@
 import math
 import time
 
+import jax
 import numpy as np
 import tensorflow as tf
+import torch
 from absl.testing import parameterized
 
 from keras import testing
+from keras.testing.test_utils import named_product
 from keras.trainers.data_adapters import py_dataset_adapter
 from keras.utils.rng_utils import set_random_seed
 
@@ -61,22 +64,51 @@ class DictPyDataset(py_dataset_adapter.PyDataset):
 
 
 class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
-    @parameterized.parameters(
-        [
-            (True, 2, True, 10),
-            (False, 2, True, 10),
-            (True, 2, False, 10),
-            (False, 2, False, 10),
-            (True, 0, False, 0),
-            (False, 0, False, 0),
-        ]
+    @parameterized.named_parameters(
+        named_product(
+            [
+                {
+                    "testcase_name": "multi_on",
+                    "workers": 2,
+                    "use_multiprocessing": True,
+                    "max_queue_size": 10,
+                },
+                {
+                    "testcase_name": "multi_off",
+                    "workers": 2,
+                    "use_multiprocessing": False,
+                    "max_queue_size": 10,
+                },
+                {
+                    "testcase_name": "multi_off_zero",
+                    "workers": 0,
+                    "use_multiprocessing": False,
+                    "max_queue_size": 0,
+                },
+            ],
+            shuffle=[True, False],
+            dataset_type=["np", "tf", "jax", "torch"],
+            iterator_type=["np", "tf", "jax", "torch"],
+        )
     )
     def test_basic_flow(
-        self, shuffle, workers, use_multiprocessing, max_queue_size
+        self,
+        shuffle,
+        workers,
+        use_multiprocessing,
+        max_queue_size,
+        dataset_type,
+        iterator_type,
     ):
         set_random_seed(1337)
-        x = np.random.random((64, 4))
-        y = np.array([[i, i] for i in range(64)], dtype="float64")
+        x = np.random.random((64, 4)).astype("float32")
+        y = np.array([[i, i] for i in range(64)], dtype="float32")
+        if dataset_type == "tf":
+            x, y = tf.constant(x), tf.constant(y)
+        elif dataset_type == "jax":
+            x, y = jax.numpy.array(x), jax.numpy.array(y)
+        elif dataset_type == "torch":
+            x, y = torch.as_tensor(x), torch.as_tensor(y)
         py_dataset = ExamplePyDataset(
             x,
             y,
@@ -89,37 +121,33 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
             py_dataset, shuffle=shuffle
         )
 
-        gen = adapter.get_numpy_iterator()
+        if iterator_type == "np":
+            it = adapter.get_numpy_iterator()
+            expected_class = np.ndarray
+        elif iterator_type == "tf":
+            it = adapter.get_tf_dataset()
+            expected_class = tf.Tensor
+        elif iterator_type == "jax":
+            it = adapter.get_jax_iterator()
+            expected_class = jax.Array
+        elif iterator_type == "torch":
+            it = adapter.get_torch_dataloader()
+            expected_class = torch.Tensor
+
         sample_order = []
-        for batch in gen:
+        for batch in it:
             self.assertEqual(len(batch), 2)
             bx, by = batch
-            self.assertIsInstance(bx, np.ndarray)
-            self.assertIsInstance(by, np.ndarray)
+            self.assertIsInstance(bx, expected_class)
+            self.assertIsInstance(by, expected_class)
             self.assertEqual(bx.dtype, by.dtype)
+            self.assertContainsExactSubsequence(str(bx.dtype), "float32")
             self.assertEqual(bx.shape, (16, 4))
             self.assertEqual(by.shape, (16, 2))
             for i in range(by.shape[0]):
                 sample_order.append(by[i, 0])
         if shuffle:
-            self.assertFalse(sample_order == list(range(64)))
-        else:
-            self.assertAllClose(sample_order, list(range(64)))
-
-        ds = adapter.get_tf_dataset()
-        sample_order = []
-        for batch in ds:
-            self.assertEqual(len(batch), 2)
-            bx, by = batch
-            self.assertIsInstance(bx, tf.Tensor)
-            self.assertIsInstance(by, tf.Tensor)
-            self.assertEqual(bx.dtype, by.dtype)
-            self.assertEqual(tuple(bx.shape), (16, 4))
-            self.assertEqual(tuple(by.shape), (16, 2))
-            for i in range(by.shape[0]):
-                sample_order.append(by[i, 0])
-        if shuffle:
-            self.assertFalse(sample_order == list(range(64)))
+            self.assertNotAllClose(sample_order, list(range(64)))
         else:
             self.assertAllClose(sample_order, list(range(64)))
 

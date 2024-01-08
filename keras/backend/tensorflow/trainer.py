@@ -629,13 +629,16 @@ class TFEpochIterator(EpochIterator):
     def __init__(self, distribute_strategy=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._distribute_strategy = distribute_strategy
-        dataset = self.data_adapter.get_tf_dataset()
+        dataset = self._get_iterator()
         if not isinstance(dataset, tf.distribute.DistributedDataset):
             dataset = self._distribute_strategy.experimental_distribute_dataset(
                 dataset
             )
         self._distributed_dataset = dataset
         self._steps_seen = 0
+
+    def _get_iterator(self):
+        return self.data_adapter.get_tf_dataset()
 
     def enumerate_epoch(self):
         if self.steps_per_epoch:
