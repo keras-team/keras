@@ -12,6 +12,7 @@ from keras.applications import efficientnet
 from keras.applications import efficientnet_v2
 from keras.applications import inception_resnet_v2
 from keras.applications import inception_v3
+from keras.applications import mlp_mixer
 from keras.applications import mobilenet
 from keras.applications import mobilenet_v2
 from keras.applications import mobilenet_v3
@@ -39,6 +40,9 @@ MODEL_LIST = [
     # inception
     (inception_v3.InceptionV3, 2048, inception_v3),
     (inception_resnet_v2.InceptionResNetV2, 1536, inception_resnet_v2),
+    #mlp mixer
+    (mlp_mixer.Mixer_L16_224, 1024, mlp_mixer),
+    (mlp_mixer.Mixer_B16_224, 768, mlp_mixer),
     # mobilenet
     (mobilenet.MobileNet, 1024, mobilenet),
     (mobilenet_v2.MobileNetV2, 1280, mobilenet_v2),
@@ -80,8 +84,9 @@ MODEL_LIST = [
     (resnet_v2.ResNet50V2, 2048, resnet_v2),
     (resnet_v2.ResNet101V2, 2048, resnet_v2),
     (resnet_v2.ResNet152V2, 2048, resnet_v2),
+    ()
 ]
-MODELS_UNSUPPORTED_CHANNELS_FIRST = ["ConvNeXt", "DenseNet", "NASNet"]
+MODELS_UNSUPPORTED_CHANNELS_FIRST = ["ConvNeXt", "DenseNet", "NASNet", "mlp_mixer"]
 
 # Add names for `named_parameters`, and add each data format for each model
 test_parameters = [
