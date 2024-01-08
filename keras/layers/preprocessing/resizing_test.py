@@ -186,8 +186,7 @@ class ResizingTest(testing.TestCase, parameterized.TestCase):
         layer = layers.Resizing(8, 9)
         input_data = np.random.random(input_shape)
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertEqual(tuple(output.shape), output_shape)
 
     @pytest.mark.skipif(
@@ -210,6 +209,5 @@ class ResizingTest(testing.TestCase, parameterized.TestCase):
             .batch(2)
             .map(Sequential([layer]))
         )
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertEqual(tuple(output.shape), output_shape)

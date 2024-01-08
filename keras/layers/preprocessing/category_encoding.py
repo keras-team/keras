@@ -128,6 +128,8 @@ class CategoryEncoding(TFDataLayer):
             )
         elif self.output_mode == "count":
             outputs = self._count(inputs)
+        else:
+            raise ValueError("_encode outputs not calculated")
 
         return outputs
 

@@ -164,6 +164,5 @@ class CategoryEncodingTest(testing.TestCase):
             ]
         )
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(4).map(layer)
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertAllClose(output, expected_output)

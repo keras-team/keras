@@ -101,9 +101,11 @@ def extract_archive(file_path, path=".", archive_format="auto"):
         if archive_type == "tar":
             open_fn = tarfile.open
             is_match_fn = tarfile.is_tarfile
-        if archive_type == "zip":
+        elif archive_type == "zip":
             open_fn = zipfile.ZipFile
             is_match_fn = zipfile.is_zipfile
+        else:
+            raise NotImplementedError(archive_type)
 
         if is_match_fn(file_path):
             with open_fn(file_path) as archive:

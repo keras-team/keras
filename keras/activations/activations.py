@@ -83,6 +83,8 @@ class ReLU(ops.Operation):
                 negative_part = backend.nn.relu(-x + threshold)
             else:
                 negative_part = backend.nn.relu(-x)
+        else:
+            negative_part = 1
 
         clip_max = max_value is not None
         if threshold != 0:

@@ -90,6 +90,7 @@ class EpochIterator:
                 self._current_iterator = self._get_iterator(return_type)
                 self._insufficient_data = False
 
+            step = 0
             for step in range(self.steps_per_epoch):
                 if self._insufficient_data:
                     break
@@ -114,6 +115,7 @@ class EpochIterator:
             if buffer:
                 yield step - len(buffer) + 1, buffer
         else:
+            step = 0
             for step, data in enumerate(self._get_iterator(return_type)):
                 buffer.append(data)
                 if len(buffer) == self.steps_per_execution:

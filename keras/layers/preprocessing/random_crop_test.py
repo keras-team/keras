@@ -92,12 +92,9 @@ class RandomCropTest(testing.TestCase):
         layer = layers.RandomCrop(8, 9)
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 10, 12, 3)
-            output_shape = (2, 8, 9, 3)
         else:
             input_shape = (2, 3, 10, 12)
-            output_shape = (2, 3, 8, 9)
         input_data = np.random.random(input_shape)
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
-        for output in ds.take(1):
-            output = output.numpy()
-        self.assertEqual(tuple(output.shape), output_shape)
+        output = next(iter(ds)).numpy()
+        self.assertEqual(list(output.shape), [2, 8, 9, 3])

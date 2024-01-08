@@ -327,5 +327,4 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
         layer = layers.RandomTranslation(0.2, 0.1)
         input_data = np.random.random((1, 4, 4, 3))
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(1).map(layer)
-        for output in ds.take(1):
-            output.numpy()
+        next(iter(ds)).numpy()

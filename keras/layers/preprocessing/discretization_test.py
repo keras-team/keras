@@ -79,8 +79,7 @@ class DiscretizationTest(testing.TestCase, parameterized.TestCase):
         x = np.array([[-1.0, 0.0, 0.1, 0.2, 0.4, 0.5, 1.0, 1.2, 0.98]])
         self.assertAllClose(layer(x), np.array([[0, 1, 1, 1, 2, 3, 4, 4, 3]]))
         ds = tf_data.Dataset.from_tensor_slices(x).batch(1).map(layer)
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertAllClose(output, np.array([[0, 1, 1, 1, 2, 3, 4, 4, 3]]))
 
         # With adapt flow
@@ -90,8 +89,8 @@ class DiscretizationTest(testing.TestCase, parameterized.TestCase):
         )
         x = np.array([[0.0, 0.1, 0.3]])
         ds = tf_data.Dataset.from_tensor_slices(x).batch(1).map(layer)
-        for output in ds.take(1):
-            output.numpy()
+        next(iter(ds)).numpy()
+        # self.assertAllClose(output, x)
 
     def test_saving(self):
         # With fixed bins
