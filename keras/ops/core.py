@@ -252,7 +252,7 @@ def scan(f, init, xs, length=None, reverse=False, unroll=1):
         A scanned array and a carry element.
     """
     if any_symbolic_tensors((init, xs)):
-        return SliceUpdate().symbolic_call(f, init, xs, length, reverse, unroll)
+        return Scan().symbolic_call(f, init, xs, length, reverse, unroll)
     return backend.core.scan(f, init, xs, length, reverse, unroll)
 
 

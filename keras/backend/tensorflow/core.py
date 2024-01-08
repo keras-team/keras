@@ -248,9 +248,6 @@ def scan(f, init, xs, length=None, reverse=False, unroll=False):
 
     carry, ys = tf.scan(f, xs, initializer=init)
 
-    # if carry[0].dtype is tf.float64:
-    #    return tf.cast(carry[0], dtype=tf.float32), ys.numpy()
-    # carry = tf.cast(carry[0], dtype=tf.int64)
     if ys.dtype == tf.int64:
         ys = tf.cast(ys, dtype=tf.int32)
     if ys.dtype == tf.double:
