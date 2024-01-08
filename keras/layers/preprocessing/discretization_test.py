@@ -126,15 +126,55 @@ class DiscretizationTest(testing.TestCase, parameterized.TestCase):
         model = saving_api.load_model(fpath)
         self.assertAllClose(layer(ref_input), ref_output)
 
+    @parameterized.parameters(
+        [
+            (
+                "one_hot",
+                [[-1.0, 0.2, 0.7, 1.2]],
+                [
+                    [
+                        [1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+                ],
+            ),
+            (
+                "multi_hot",
+                [[[-1.0], [0.2], [0.7], [1.2]]],
+                [
+                    [
+                        [1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+                ],
+            ),
+            (
+                "count",
+                [[-1.0], [0.2], [0.7], [1.2]],
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ],
+            ),
+        ]
+    )
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
         reason="Sparse tensor only works in TensorFlow",
     )
-    def test_sparse_inputs(self):
+    def test_sparse_output(self, output_mode, input_array, expected_output):
         from keras.utils.module_utils import tensorflow as tf
 
-        x = tf.sparse.from_dense(np.array([[-1.0, 0.2, 0.7, 1.2]]))
-        layer = layers.Discretization(bin_boundaries=[0.0, 0.5, 1.0])
+        x = np.array(input_array)
+        layer = layers.Discretization(
+            bin_boundaries=[0.0, 0.5, 1.0], sparse=True, output_mode=output_mode
+        )
         output = layer(x)
-        self.assertTrue(backend.is_tensor(output))
-        self.assertAllClose(output, np.array([[0, 1, 2, 3]]))
+        self.assertTrue(isinstance(output, tf.SparseTensor))
+        self.assertAllClose(output, np.array(expected_output))
