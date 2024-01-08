@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
@@ -11,7 +12,7 @@ from keras import testing
 from keras.saving import saving_api
 
 
-class DicretizationTest(testing.TestCase, parameterized.TestCase):
+class DiscretizationTest(testing.TestCase, parameterized.TestCase):
     def test_discretization_basics(self):
         self.run_layer_test(
             layers.Discretization,
@@ -125,6 +126,55 @@ class DicretizationTest(testing.TestCase, parameterized.TestCase):
         model = saving_api.load_model(fpath)
         self.assertAllClose(layer(ref_input), ref_output)
 
-    def test_sparse_inputs(self):
-        # TODO
-        pass
+    @parameterized.parameters(
+        [
+            (
+                "one_hot",
+                [[-1.0, 0.2, 0.7, 1.2]],
+                [
+                    [
+                        [1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+                ],
+            ),
+            (
+                "multi_hot",
+                [[[-1.0], [0.2], [0.7], [1.2]]],
+                [
+                    [
+                        [1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+                ],
+            ),
+            (
+                "count",
+                [[-1.0], [0.2], [0.7], [1.2]],
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ],
+            ),
+        ]
+    )
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Sparse tensor only works in TensorFlow",
+    )
+    def test_sparse_output(self, output_mode, input_array, expected_output):
+        from keras.utils.module_utils import tensorflow as tf
+
+        x = np.array(input_array)
+        layer = layers.Discretization(
+            bin_boundaries=[0.0, 0.5, 1.0], sparse=True, output_mode=output_mode
+        )
+        output = layer(x)
+        self.assertTrue(isinstance(output, tf.SparseTensor))
+        self.assertAllClose(output, np.array(expected_output))

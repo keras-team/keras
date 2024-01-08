@@ -235,6 +235,8 @@ class Discretization(TFDataLayer):
             dtype=self.compute_dtype,
             backend_module=self.backend,
         )
+        if self.sparse:
+            return tf.sparse.from_dense(outputs)
         return outputs
 
     def get_config(self):

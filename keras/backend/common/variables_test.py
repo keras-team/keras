@@ -238,7 +238,7 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
         self.assertAllClose(v.numpy(), np.array([1, 2, 3]))
 
     @pytest.mark.skipif(
-        backend.backend() != "tf",
+        backend.backend() != "tensorflow",
         reason="Tests for MirroredVariable under tf backend",
     )
     def test_variable_numpy_scalar(self):
