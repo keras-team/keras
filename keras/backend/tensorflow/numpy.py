@@ -1567,27 +1567,61 @@ def tri(N, M=None, k=0, dtype=None):
 
 
 def tril(x, k=0):
-    x = convert_to_tensor(x)
-    if k >= 0:
-        return tf.linalg.band_part(x, -1, k)
+    """
+    Generate a lower triangular matrix from the given matrix `x`.
 
-    # deal with negative k using mask
-    k = -k - 1
-    mask = tf.ones_like(x, dtype="bool")
-    mask = tf.logical_not(tf.linalg.band_part(mask, k, -1))
-    return tf.where(mask, x, tf.constant(0, x.dtype))
+    Parameters:
+    x (Tensor): A Tensor.
+    k (int): A diagonal offset
+             Default is 0, which includes the main diagonal.
+
+    Example:
+    >>> x = tf.constant([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=tf.float32)
+    >>> keras.ops.tril(x)
+    <tf.Tensor(
+        [[1. 0. 0.]
+         [4. 5. 0.]
+         [7. 8. 9.]], shape=(3, 3), dtype=float32)>
+    """
+    x = convert_to_tensor(x)
+
+    shape = tf.shape(x)
+    rows, cols = shape[-2], shape[-1]
+
+    i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
+
+    mask = i >= j - k
+
+    return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
 
 def triu(x, k=0):
-    x = convert_to_tensor(x)
-    if k >= 0:
-        return tf.linalg.band_part(x, k, -1)
+    """
+    Generate an upper triangular matrix from the given matrix `x`.
 
-    # deal with negative k using mask
-    k = -k
-    mask = tf.ones_like(x, dtype="bool")
-    mask = tf.logical_not(tf.linalg.band_part(mask, k, -1))
-    return tf.where(mask, tf.constant(0, x.dtype), x)
+    Parameters:
+    x (Tensor): A Tensor.
+    k (int): A diagonal offset
+             Default is 0, which includes the main diagonal.
+
+    Example:
+    >>> x = tf.constant([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=tf.float32)
+    >>> keras.ops.triu(x)
+    <tf.Tensor(
+        [[1. 2. 3.]
+         [0. 5. 6.]
+         [0. 0. 9.]], shape=(3, 3), dtype=float32)>
+    """
+    x = convert_to_tensor(x)
+
+    shape = tf.shape(x)
+    rows, cols = shape[-2], shape[-1]
+
+    i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
+
+    mask = i <= j - k
+
+    return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
 
 def vdot(x1, x2):
