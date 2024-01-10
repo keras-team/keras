@@ -3881,6 +3881,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.tril(x, -1), np.tril(x, -1))
         self.assertAllClose(knp.Tril(-1)(x), np.tril(x, -1))
 
+        x = np.ones([5, 5])
+        self.assertAllClose(knp.tril(x), np.tril(x))
+        self.assertAllClose(knp.tril(x, -1), np.tril(x, -1))
+        self.assertAllClose(knp.Tril(-1)(x), np.tril(x, -1))
+
     def test_tril_in_layer(self):
         # https://github.com/keras-team/keras/issues/18890
         x = keras.Input((None, 3))
@@ -3904,6 +3909,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     def test_triu(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
+        self.assertAllClose(knp.triu(x), np.triu(x))
+        self.assertAllClose(knp.triu(x, -1), np.triu(x, -1))
+        self.assertAllClose(knp.Triu(-1)(x), np.triu(x, -1))
+
+        x = np.ones([5, 5])
         self.assertAllClose(knp.triu(x), np.triu(x))
         self.assertAllClose(knp.triu(x, -1), np.triu(x, -1))
         self.assertAllClose(knp.Triu(-1)(x), np.triu(x, -1))

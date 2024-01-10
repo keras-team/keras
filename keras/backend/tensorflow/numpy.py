@@ -1568,26 +1568,34 @@ def tri(N, M=None, k=0, dtype=None):
 
 def tril(x, k=0):
     x = convert_to_tensor(x)
+
     if k >= 0:
         return tf.linalg.band_part(x, -1, k)
 
-    # deal with negative k using mask
-    k = -k - 1
-    mask = tf.ones_like(x, dtype="bool")
-    mask = tf.logical_not(tf.linalg.band_part(mask, k, -1))
-    return tf.where(mask, x, tf.constant(0, x.dtype))
+    shape = tf.shape(x)
+    rows, cols = shape[-2], shape[-1]
+
+    i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
+
+    mask = i >= j - k
+
+    return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
 
 def triu(x, k=0):
     x = convert_to_tensor(x)
-    if k >= 0:
-        return tf.linalg.band_part(x, k, -1)
 
-    # deal with negative k using mask
-    k = -k
-    mask = tf.ones_like(x, dtype="bool")
-    mask = tf.logical_not(tf.linalg.band_part(mask, k, -1))
-    return tf.where(mask, tf.constant(0, x.dtype), x)
+    if k <= 0:
+        return tf.linalg.band_part(x, -k, -1)
+
+    shape = tf.shape(x)
+    rows, cols = shape[-2], shape[-1]
+
+    i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
+
+    mask = i <= j - k
+
+    return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
 
 def vdot(x1, x2):
