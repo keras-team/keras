@@ -1569,6 +1569,9 @@ def tri(N, M=None, k=0, dtype=None):
 def tril(x, k=0):
     x = convert_to_tensor(x)
 
+    if k >= 0:
+        return tf.linalg.band_part(x, -1, k)
+
     shape = tf.shape(x)
     rows, cols = shape[-2], shape[-1]
 
@@ -1581,6 +1584,9 @@ def tril(x, k=0):
 
 def triu(x, k=0):
     x = convert_to_tensor(x)
+
+    if k <= 0:
+        return tf.linalg.band_part(x, -k, -1)
 
     shape = tf.shape(x)
     rows, cols = shape[-2], shape[-1]
