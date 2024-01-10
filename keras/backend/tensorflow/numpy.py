@@ -1567,22 +1567,6 @@ def tri(N, M=None, k=0, dtype=None):
 
 
 def tril(x, k=0):
-    """
-    Generate a lower triangular matrix from the given matrix `x`.
-
-    Parameters:
-    x (Tensor): A Tensor.
-    k (int): A diagonal offset
-             Default is 0, which includes the main diagonal.
-
-    Example:
-    >>> x = tf.constant([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=tf.float32)
-    >>> keras.ops.tril(x)
-    <tf.Tensor(
-        [[1. 0. 0.]
-         [4. 5. 0.]
-         [7. 8. 9.]], shape=(3, 3), dtype=float32)>
-    """
     x = convert_to_tensor(x)
 
     shape = tf.shape(x)
@@ -1596,22 +1580,6 @@ def tril(x, k=0):
 
 
 def triu(x, k=0):
-    """
-    Generate an upper triangular matrix from the given matrix `x`.
-
-    Parameters:
-    x (Tensor): A Tensor.
-    k (int): A diagonal offset
-             Default is 0, which includes the main diagonal.
-
-    Example:
-    >>> x = tf.constant([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=tf.float32)
-    >>> keras.ops.triu(x)
-    <tf.Tensor(
-        [[1. 2. 3.]
-         [0. 5. 6.]
-         [0. 0. 9.]], shape=(3, 3), dtype=float32)>
-    """
     x = convert_to_tensor(x)
 
     shape = tf.shape(x)
