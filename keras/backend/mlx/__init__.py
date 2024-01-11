@@ -1,6 +1,8 @@
 """MLX backend APIs."""
 
 from keras.backend.mlx import core
+from keras.backend.mlx import image
+from keras.backend.mlx import math
 from keras.backend.mlx import nn
 from keras.backend.mlx import numpy
 from keras.backend.mlx import random
