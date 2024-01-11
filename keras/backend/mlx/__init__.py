@@ -19,3 +19,7 @@ from keras.backend.mlx.core import shape
 from keras.backend.mlx.core import stop_gradient
 from keras.backend.mlx.core import to_mlx_dtype
 from keras.backend.mlx.core import vectorized_map
+from keras.backend.mlx.rnn import cudnn_ok
+from keras.backend.mlx.rnn import gru
+from keras.backend.mlx.rnn import lstm
+from keras.backend.mlx.rnn import rnn
