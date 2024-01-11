@@ -24,10 +24,11 @@ MLX_DTYPES = {
     "uint8": mx.uint8,
     "uint16": mx.uint16,
     "uint32": mx.uint32,
+    "uint64": mx.uint64,  # some things may not be well supported
     "int8": mx.int8,
     "int16": mx.int16,
     "int32": mx.int32,
-    "int64": mx.int32,  # we only support int64 on cpu
+    "int64": mx.int64,  # some things may not be well supported
     "bfloat16": mx.bfloat16,
     "bool": mx.bool_,
 }
