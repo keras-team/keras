@@ -92,3 +92,14 @@ def gamma(shape, alpha, dtype=None, seed=None):
     raise NotImplementedError(
         "Sampling from Gamma distribution is not implemented in mlx"
     )
+
+
+def binomial(shape, counts, probabilities, dtype=None, seed=None):
+    raise NotImplementedError(
+        "Sampling from a Binomial distribution is not implemented in mlx"
+    )
+
+def beta(shape, alpha, beta, dtype=None, seed=None):
+    raise NotImplementedError(
+        "Sampling from a Beta distribution is not implemented in mlx"
+    )

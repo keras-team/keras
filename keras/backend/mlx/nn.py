@@ -287,9 +287,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
         x = x.astype(mx.float32)
 
     mean = mx.mean(x, axis=axes, keepdims=True)
-    variance = x.square().mean(axis=axes, keepdims=True) - mx.stop_gradient(
-        mean.square()
-    )
+    variance = x.square().mean(axis=axes, keepdims=True) - mean.square()
 
     if not keepdims:
         mean = mean.squeeze(axes)

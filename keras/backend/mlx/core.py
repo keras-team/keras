@@ -80,6 +80,7 @@ def convert_to_tensor(x, dtype=None, sparse=None):
     if isinstance(x, np.ndarray):
         if x.dtype == np.int64:
             x = x.astype(np.int32)
+        x = x.astype(standardize_dtype(x.dtype))
         return mx.array(x, dtype=mlx_dtype)
 
     if isinstance(x, list):
@@ -186,7 +187,6 @@ def vectorized_map(function, elements):
 
 
 def scatter(indices, values, shape):
-    # TODO: Expose mlx scatter to make this more efficient
     indices = convert_to_tensor(indices)
     values = convert_to_tensor(values)
     zeros = mx.zeros(shape, dtype=values.dtype)
