@@ -192,7 +192,7 @@ def scatter(indices, values, shape):
     values = convert_to_tensor(values)
     zeros = mx.zeros(shape, dtype=values.dtype)
     indices = tuple(indices[..., i] for i in range(indices.shape[-1]))
-    zeros[indices] = values
+    zeros = zeros.at[indices].add(values)
 
     return zeros
 
@@ -212,7 +212,7 @@ def slice(inputs, start_indices, shape):
 
     python_slice = __builtins__["slice"]
     slices = tuple(
-        python_slice(start_index, start_index + length)
+        python_slice(int(start_index), int(start_index + length))
         for start_index, length in zip(start_indices, shape)
     )
     return inputs[slices]
@@ -223,8 +223,8 @@ def slice_update(inputs, start_indices, updates):
     updates = convert_to_tensor(updates)
 
     python_slice = __builtins__["slice"]
-    slices = (
-        python_slice(start_index, start_index + update_length)
+    slices = tuple(
+        python_slice(int(start_index), int(start_index + update_length))
         for start_index, update_length in zip(start_indices, updates.shape)
     )
     inputs[slices] = updates
@@ -264,4 +264,5 @@ def stop_gradient(variable):
 
 
 def unstack(x, num=None, axis=0):
-    return x.split(axis=axis)
+    y = x.split(num or x.shape[axis], axis=axis)
+    return [yi.squeeze(axis) for yi in y]

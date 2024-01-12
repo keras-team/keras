@@ -1,4 +1,5 @@
 import math
+import builtins
 
 import mlx.core as mx
 
@@ -679,8 +680,11 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             f"Received: mode={mode}"
         )
 
+    if isinstance(pad_width, mx.array):
+        pad_width = pad_width.tolist()
+
     x = convert_to_tensor(x)
-    return mx.pad(x, pad_width, constant_values=constant_values)
+    return mx.pad(x, pad_width, constant_values=constant_values or 0)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
@@ -953,9 +957,7 @@ def eye(N, M=None, k=None, dtype=None):
     dtype = to_mlx_dtype(dtype or config.floatx())
     M = N if M is None else M
     k = 0 if k is None else k
-    diag_length = builtins.max(N, M)
-    diag = mx.ones(diag_length, dtype=dtype)
-    return diag(diag, diagonal=k)[:N, :M]
+    return mx.eye(N, M, k)
 
 
 def floor_divide(x1, x2):

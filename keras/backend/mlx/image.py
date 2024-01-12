@@ -5,6 +5,7 @@ import operator
 import mlx.core as mx
 
 from keras.backend.mlx.core import convert_to_tensor
+from keras.backend.mlx.core import to_mlx_dtype
 
 
 def _mirror_index_fixer(index, size):
@@ -31,7 +32,7 @@ _INDEX_FIXERS = {
 
 def _is_integer(a):
     # Should we add bool?
-    return a.dtype in (
+    return to_mlx_dtype(a.dtype) in (
         mx.int32,
         mx.uint32,
         mx.int64,
@@ -139,7 +140,7 @@ def map_coordinates(
         raise NotImplementedError("map_coordinates currently requires order<=1")
 
     return _extract_coordinates(
-        src=input,
+        src=input_arr,
         coordinates=coordinate_arrs,
         interpolation_function=interp_fun,
         index_fixer=index_fixer,
@@ -263,7 +264,7 @@ def affine_transform(
         result = (
             result.transpose(0, 3, 1, 2)
             if image.ndim == 4
-            else image.transpose(2, 0, 1)
+            else result.transpose(2, 0, 1)
         )
 
     return result
@@ -276,6 +277,9 @@ def resize(
     antialias=False,
     data_format="channels_last",
 ):
+    if antialias == True:
+        raise NotImplementedError("Antialiasing not implemented for the MLX backend")
+
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -318,7 +322,7 @@ def resize(
         result = (
             result.transpose(0, 3, 1, 2)
             if image.ndim == 4
-            else image.transpose(2, 0, 1)
+            else result.transpose(2, 0, 1)
         )
 
     return result
