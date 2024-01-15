@@ -290,9 +290,10 @@ def _diagonal_indices(H, W, k):
         idx1 = mx.arange(0, N)
         idx2 = mx.arange(k, k + N)
     elif k < 0:
-        N = min(H + k, W)
-        idx1 = mx.arange(-k, N)
-        idx2 = mx.arange(-k, -k + N)
+        k = -k
+        N = min(H - k, W)
+        idx1 = mx.arange(k, k + N)
+        idx2 = mx.arange(0, N)
     return idx1, idx2
 
 
@@ -510,7 +511,7 @@ def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
     if axis != 0:
-        raise ValueError(
+        raise NotImplementedError(
             "MLX doesn't support linspace with an `axis` argument. "
             f"Received axis={axis}"
         )
@@ -570,7 +571,7 @@ def logical_or(x1, x2):
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     if axis != 0:
-        raise ValueError(
+        raise NotImplementedError(
             "MLX logspace does not support an `axis` argument. "
             f"Received axis={axis}"
         )
@@ -675,7 +676,7 @@ def outer(x1, x2):
 
 def pad(x, pad_width, mode="constant", constant_values=None):
     if mode != "constant":
-        raise ValueError(
+        raise NotImplementedError(
             "MLX pad supports only `mode == 'constant'`"
             f"Received: mode={mode}"
         )
@@ -896,7 +897,7 @@ def vstack(xs):
 def where(condition, x1, x2):
     # TODO: Trivial to implement with masking but it would be incorrect for
     #       instance in the presence of nans or infs
-    raise ValueError("The MLX backend doesn't support where yet")
+    raise NotImplementedError("The MLX backend doesn't support where yet")
 
 
 def divide(x1, x2):
