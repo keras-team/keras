@@ -9,5 +9,10 @@ torchvision>=0.16.0
 # Jax.
 jax[cpu]
 
+# MLX
+pybind11[global]
+cmake
+mlx @ git+https://github.com/ml-explore/mlx.git@v0.0.9
+
 # Common deps.
 -r requirements-common.txt
