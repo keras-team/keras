@@ -136,8 +136,8 @@ def compute_pooling_output_shape(
         output_spatial_shape = np.floor((spatial_shape - 1) / strides) + 1
     else:
         raise ValueError(
-            "`padding` must be either `'valid'` or `'same'`. Received "
-            f"{padding}."
+            "Argument `padding` must be either 'valid' or 'same'. Received: "
+            f"padding={padding}"
         )
     output_spatial_shape = [int(i) for i in output_spatial_shape]
     for i in none_dims:
