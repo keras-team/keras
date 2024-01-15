@@ -219,6 +219,11 @@ def compute_conv_output_shape(
                 )
     elif padding == "same" or padding == "causal":
         output_spatial_shape = np.floor((spatial_shape - 1) / strides) + 1
+    else:
+        raise ValueError(
+            "`padding` must be either `'valid'` or `'same'`. Received "
+            f"{padding}."
+        )
     output_spatial_shape = [int(i) for i in output_spatial_shape]
     for i in none_dims:
         output_spatial_shape[i] = None
