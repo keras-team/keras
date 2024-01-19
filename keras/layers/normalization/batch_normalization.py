@@ -261,8 +261,9 @@ class BatchNormalization(Layer):
             scale=gamma,
             epsilon=self.epsilon,
         )
-
-        return ops.cast(outputs, input_dtype)
+        if input_dtype in ("float16", "bfloat16"):
+            outputs = ops.cast(outputs, input_dtype)
+        return outputs
 
     def get_config(self):
         base_config = super().get_config()

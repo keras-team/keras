@@ -683,26 +683,37 @@ def binary_crossentropy(target, output, from_logits=False):
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
+    # The dynamic range of float16 is too limited for statistics. As a
+    # workaround, we simply perform the operations on float32 and convert back
+    # to float16
+    need_cast = False
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype in ("float16", "bfloat16"):
+        need_cast = True
+        x = cast(x, "float32")
+
     if synchronized:
-        return _compute_moments_sync(x, axes, keepdims)
+        mean, variance = _compute_moments_sync(x, axes, keepdims)
     else:
-        return _compute_moments(x, axes, keepdims)
+        mean, variance = _compute_moments(x, axes, keepdims)
+    if need_cast:
+        # avoid overflow and underflow when casting from float16 to float32
+        mean = tf.clip_by_value(mean, tf.float16.min, tf.float16.max)
+        variance = tf.clip_by_value(variance, tf.float16.min, tf.float16.max)
+        mean = cast(mean, ori_dtype)
+        variance = cast(variance, ori_dtype)
+    return mean, variance
 
 
 def _compute_moments_sync(x, axes, keepdims):
-    # The dynamic range of fp16 is too limited to support the collection
-    # of sufficient statistics. As a workaround we simply perform the
-    # operations on 32-bit floats before converting the mean and
-    # variance back to fp16
-    y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
     replica_ctx = tf.distribute.get_replica_context()
     if not replica_ctx:
         return _compute_moments(x, axes, keepdims)
 
-    local_count = tf.ones_like(y, name="count")
+    local_count = tf.ones_like(x, name="count")
 
-    local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
-    local_squared_sum = tf.reduce_sum(tf.square(y), axis=axes, keepdims=True)
+    local_sum = tf.reduce_sum(x, axis=axes, keepdims=True)
+    local_squared_sum = tf.reduce_sum(tf.square(x), axis=axes, keepdims=True)
     local_count = tf.reduce_sum(local_count, axis=axes, keepdims=True)
 
     # TODO(b/163099951): batch the all-reduces once we sort out the
@@ -722,48 +733,12 @@ def _compute_moments_sync(x, axes, keepdims):
     if not keepdims:
         mean = tf.squeeze(mean, axes)
         variance = tf.squeeze(variance, axes)
-    if x.dtype == tf.float16:
-        return (
-            tf.cast(mean, tf.float16),
-            tf.cast(variance, tf.float16),
-        )
+
     return mean, variance
 
 
 def _compute_moments(x, axes, keepdims):
-    # The dynamic range of float16 is too limited for statistics. As a
-    # workaround, we simply perform the operations on float32 and convert back
-    # to float16
-    need_cast = False
-    ori_dtype = standardize_dtype(x.dtype)
-    if ori_dtype == "float16":
-        need_cast = True
-        x = cast(x, "float32")
-
-    mean = tf.reduce_mean(x, axes, keepdims=True)
-
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    # Note: stop_gradient does not change the gradient to the mean, because that
-    # gradient is zero.
-    # The substraction operation does not guarantee a non-negative
-    # result given float precision, so we clamp it to 0.
-    variance = tf.maximum(
-        tf.reduce_mean(tf.square(x), axis=axes, keepdims=True)
-        - tf.square(tf.stop_gradient(mean)),
-        0.0,
-    )
-
-    if not keepdims:
-        mean = tf.squeeze(mean, axes)
-        variance = tf.squeeze(variance, axes)
-    if need_cast:
-        # avoid overflow and underflow when casting from float16 to float32
-        mean = tf.clip_by_value(mean, tf.float16.min, tf.float16.max)
-        variance = tf.clip_by_value(variance, tf.float16.min, tf.float16.max)
-        mean = cast(mean, ori_dtype)
-        variance = cast(variance, ori_dtype)
-    return mean, variance
+    return tf.nn.moments(x, axes, keepdims=keepdims)
 
 
 def batch_normalization(

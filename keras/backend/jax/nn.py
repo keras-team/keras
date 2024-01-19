@@ -505,23 +505,12 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # to float16
     need_cast = False
     ori_dtype = standardize_dtype(x.dtype)
-    if ori_dtype == "float16":
+    if ori_dtype in ("float16", "bfloat16"):
         need_cast = True
         x = cast(x, "float32")
 
     mean = jnp.mean(x, axes, keepdims=True)
-
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    # Note: stop_gradient does not change the gradient to the mean, because that
-    # gradient is zero.
-    # The substraction operation does not guarantee a non-negative
-    # result given float precision, so we clamp it to 0.
-    variance = jnp.maximum(
-        jnp.mean(jnp.square(x), axis=axes, keepdims=True)
-        - jnp.square(jax.lax.stop_gradient(mean)),
-        0.0,
-    )
+    variance = jnp.var(x, axis=axes, keepdims=True)
 
     if not keepdims:
         mean = jnp.squeeze(mean, axes)

@@ -714,8 +714,12 @@ def batch_normalization(
     variance = convert_to_tensor(variance).detach()
     if offset is not None:
         offset = convert_to_tensor(offset)
+    else:
+        offset = torch.zeros_like(mean)
     if scale is not None:
         scale = convert_to_tensor(scale)
+    else:
+        scale = torch.ones_like(variance)
 
     def _batch_norm():
         return tnn.batch_norm(
