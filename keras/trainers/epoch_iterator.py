@@ -71,23 +71,14 @@ class EpochIterator:
         )
         self._num_batches = self.data_adapter.num_batches
 
-    def _get_iterator(self, return_type="auto"):
-        if return_type not in ("np", "tf", "auto"):
-            raise ValueError(
-                "Argument `return_type` must be one of `{'np', 'tf', 'auto'}`. "
-                f"Received instead: return_type={return_type}"
-            )
-        if return_type == "tf":
-            iterator = self.data_adapter.get_tf_dataset()
-        else:
-            iterator = self.data_adapter.get_numpy_iterator()
-        return iterator
+    def _get_iterator(self):
+        return self.data_adapter.get_numpy_iterator()
 
-    def enumerate_epoch(self, return_type="auto"):
+    def enumerate_epoch(self):
         buffer = []
         if self.steps_per_epoch:
-            if not self._current_iterator:
-                self._current_iterator = self._get_iterator(return_type)
+            if self._current_iterator is None:
+                self._current_iterator = iter(self._get_iterator())
                 self._insufficient_data = False
 
             for step in range(self.steps_per_epoch):
@@ -114,7 +105,7 @@ class EpochIterator:
             if buffer:
                 yield step - len(buffer) + 1, buffer
         else:
-            for step, data in enumerate(self._get_iterator(return_type)):
+            for step, data in enumerate(self._get_iterator()):
                 buffer.append(data)
                 if len(buffer) == self.steps_per_execution:
                     yield step - len(buffer) + 1, buffer

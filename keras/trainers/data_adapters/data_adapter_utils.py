@@ -5,6 +5,7 @@ import tree
 
 from keras import backend
 from keras.api_export import keras_export
+from keras.utils.dataset_utils import is_torch_tensor
 
 try:
     import pandas
@@ -215,3 +216,44 @@ def class_weight_to_sample_weights(y, class_weight):
     for i in range(y.shape[0]):
         sample_weight[i] = class_weight.get(int(y[i]), 1.0)
     return sample_weight
+
+
+def get_jax_iterator(iterable):
+    from keras.backend.jax.core import convert_to_tensor
+
+    for batch in iterable:
+        yield tree.map_structure(convert_to_tensor, batch)
+
+
+def get_numpy_iterator(iterable):
+    def convert_to_numpy(x):
+        if not isinstance(x, np.ndarray):
+            # Using `__array__` should handle `tf.Tensor`, `jax.np.ndarray`,
+            # `torch.Tensor`, as well as any other tensor-like object that
+            # has added numpy support.
+            if hasattr(x, "__array__"):
+                if is_torch_tensor(x):
+                    x = x.cpu()
+                x = np.asarray(x)
+        return x
+
+    for batch in iterable:
+        yield tree.map_structure(convert_to_numpy, batch)
+
+
+def get_torch_dataloader(iterable):
+    import torch.utils.data as torch_data
+
+    from keras.backend.torch.core import convert_to_tensor
+
+    class ConverterIterableDataset(torch_data.IterableDataset):
+        def __init__(self, iterable):
+            self.iterable = iterable
+
+        def __iter__(self):
+            for batch in self.iterable:
+                yield tree.map_structure(convert_to_tensor, batch)
+
+    dataset = ConverterIterableDataset(iterable)
+    # `batch_size=None` indicates that we should not re-batch
+    return torch_data.DataLoader(dataset, batch_size=None)

@@ -3,6 +3,8 @@ import itertools
 import numpy as np
 import tree
 
+from keras import backend
+from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.data_adapters.data_adapter import DataAdapter
 
 
@@ -10,23 +12,21 @@ class GeneratorDataAdapter(DataAdapter):
     """Adapter for Python generators."""
 
     def __init__(self, generator):
-        data, generator = peek_and_restore(generator)
+        first_batch, generator = peek_and_restore(generator)
         self.generator = generator
+        self._first_batch = first_batch
         self._output_signature = None
-        if not isinstance(data, tuple):
+        if not isinstance(first_batch, tuple):
             raise ValueError(
                 "When passing a Python generator to a Keras model, "
                 "the generator must return a tuple, either "
                 "(input,) or (inputs, targets) or "
                 "(inputs, targets, sample_weights). "
-                f"Received: {data}"
+                f"Received: {first_batch}"
             )
 
     def _set_tf_output_signature(self):
         from keras.utils.module_utils import tensorflow as tf
-
-        data, generator = peek_and_restore(self.generator)
-        self.generator = generator
 
         def get_tensor_spec(x):
             shape = x.shape
@@ -39,18 +39,23 @@ class GeneratorDataAdapter(DataAdapter):
                 )
             shape = list(shape)
             shape[0] = None  # The batch size is not guaranteed to be static.
+            dtype = backend.standardize_dtype(x.dtype)
             if isinstance(x, tf.RaggedTensor):
-                return tf.RaggedTensorSpec(shape=shape, dtype=x.dtype.name)
+                return tf.RaggedTensorSpec(shape=shape, dtype=dtype)
             if isinstance(x, tf.SparseTensor) or is_scipy_sparse(x):
-                return tf.SparseTensorSpec(shape=shape, dtype=x.dtype.name)
+                return tf.SparseTensorSpec(shape=shape, dtype=dtype)
             else:
-                return tf.TensorSpec(shape=shape, dtype=x.dtype.name)
+                return tf.TensorSpec(shape=shape, dtype=dtype)
 
-        self._output_signature = tree.map_structure(get_tensor_spec, data)
+        self._output_signature = tree.map_structure(
+            get_tensor_spec, self._first_batch
+        )
 
     def get_numpy_iterator(self):
-        for batch in self.generator:
-            yield batch
+        return data_adapter_utils.get_numpy_iterator(self.generator)
+
+    def get_jax_iterator(self):
+        return data_adapter_utils.get_jax_iterator(self.generator)
 
     def get_tf_dataset(self):
         from keras.utils.module_utils import tensorflow as tf
@@ -73,6 +78,9 @@ class GeneratorDataAdapter(DataAdapter):
         )
         ds = ds.prefetch(tf.data.AUTOTUNE)
         return ds
+
+    def get_torch_dataloader(self):
+        return data_adapter_utils.get_torch_dataloader(self.generator)
 
     @property
     def num_batches(self):

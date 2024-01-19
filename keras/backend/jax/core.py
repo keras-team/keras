@@ -61,11 +61,11 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         if dtype and dtype != x.dtype:
             return x.value.astype(dtype)
         return x.value
-    return jnp.array(x, dtype=dtype)
+    return jnp.asarray(x, dtype=dtype)
 
 
 def convert_to_numpy(x):
-    return np.array(x)
+    return np.asarray(x)
 
 
 def is_tensor(x):

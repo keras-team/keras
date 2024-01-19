@@ -126,7 +126,7 @@ def convert_to_numpy(x):
         x.set_shape(x_shape)
     elif isinstance(x, tf.IndexedSlices):
         x = tf.convert_to_tensor(x)
-    return np.array(x)
+    return np.asarray(x)
 
 
 def is_tensor(x):
