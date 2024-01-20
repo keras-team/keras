@@ -3429,6 +3429,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.min(x), np.min(x))
         self.assertAllClose(knp.Min()(x), np.min(x))
 
+        self.assertAllClose(knp.min(x, axis=(0, 1)), np.min(x, (0, 1)))
+        self.assertAllClose(knp.Min((0, 1))(x), np.min(x, (0, 1)))
+
+        self.assertAllClose(knp.min(x, axis=()), np.min(x, axis=()))
+        self.assertAllClose(knp.Min(())(x), np.min(x, axis=()))
+
         self.assertAllClose(knp.min(x, 0), np.min(x, 0))
         self.assertAllClose(knp.Min(0)(x), np.min(x, 0))
 
