@@ -892,9 +892,7 @@ def min(x, axis=None, keepdims=False, initial=None):
     if axis is None:
         result = torch.min(x)
     else:
-        if isinstance(axis, list):
-            axis = axis[-1]
-        result = torch.min(x, dim=axis, keepdim=keepdims)
+        result = amin(x, axis=axis, keepdims=keepdims)
 
     if isinstance(getattr(result, "values", None), torch.Tensor):
         result = result.values
