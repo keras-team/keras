@@ -153,11 +153,11 @@ We use [pytest](https://pytest.org/) to run the tests.
 
 ### Run a test file
 
-To run the tests in `pytest keras/losses/losses_test.py`, use following command
+To run the tests in `keras/losses/losses_test.py`, use the following command
 at the root directory of the repo.
 
 ```shell
-pytest pytest keras/losses/losses_test.py
+pytest keras/losses/losses_test.py
 ```
 
 ### Run a single test case
