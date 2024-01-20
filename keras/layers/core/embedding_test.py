@@ -117,6 +117,9 @@ class EmbeddingTest(test_case.TestCase):
         y = np.random.random((64, 3, 16))
         _ = layer(x[:2])
 
+        init_lora_a_embeddings_value = layer.lora_embeddings_a.numpy()
+        init_lora_b_embeddings_value = layer.lora_embeddings_b.numpy()
+
         # Try calling fit()
         model = models.Sequential(
             [
@@ -125,6 +128,17 @@ class EmbeddingTest(test_case.TestCase):
         )
         model.compile(optimizer="sgd", loss="mse")
         model.fit(x, y)
+
+        final_lora_a_embeddings_value = layer.lora_embeddings_a.numpy()
+        final_lora_b_embeddings_value = layer.lora_embeddings_b.numpy()
+        diff_a = np.max(
+            np.abs(init_lora_a_embeddings_value - final_lora_a_embeddings_value)
+        )
+        diff_b = np.max(
+            np.abs(init_lora_b_embeddings_value - final_lora_b_embeddings_value)
+        )
+        self.assertGreater(diff_a, 0.0)
+        self.assertGreater(diff_b, 0.0)
 
         # Try saving and reloading the model
         temp_filepath = os.path.join(self.get_temp_dir(), "lora_model.keras")
