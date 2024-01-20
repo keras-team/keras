@@ -146,7 +146,9 @@ class Dense(Layer):
         output_shape[-1] = self.units
         return tuple(output_shape)
 
-    def enable_lora(self, rank):
+    def enable_lora(
+        self, rank, a_initializer="he_uniform", b_initializer="zeros"
+    ):
         if self.kernel_constraint:
             raise ValueError(
                 "Lora is incompatible with kernel constraints. "
@@ -166,11 +168,11 @@ class Dense(Layer):
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",
             shape=(self.kernel.shape[0], rank),
-            initializer="zeros",
+            initializer=initializers.get(a_initializer),
             regularizer=self.kernel_regularizer,
         )
         self.lora_kernel_b = self.add_weight(
-            name="lora_kernel_b",
+            name=initializers.get(b_initializer),
             shape=(rank, self.kernel.shape[1]),
             initializer="zeros",
             regularizer=self.kernel_regularizer,

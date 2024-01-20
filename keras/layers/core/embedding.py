@@ -125,7 +125,9 @@ class Embedding(Layer):
     def compute_output_shape(self, input_shape):
         return input_shape + (self.output_dim,)
 
-    def enable_lora(self, rank):
+    def enable_lora(
+        self, rank, a_initializer="he_uniform", b_initializer="zeros"
+    ):
         if self.embeddings_constraint:
             raise ValueError(
                 "Lora is incompatible with embedding constraints. "
@@ -145,13 +147,13 @@ class Embedding(Layer):
         self.lora_embeddings_a = self.add_weight(
             name="lora_embeddings_a",
             shape=(self.embeddings.shape[0], rank),
-            initializer="zeros",
+            initializer=initializers.get(a_initializer),
             regularizer=self.embeddings_regularizer,
         )
         self.lora_embeddings_b = self.add_weight(
             name="lora_embeddings_b",
             shape=(rank, self.embeddings.shape[1]),
-            initializer="zeros",
+            initializer=initializers.get(b_initializer),
             regularizer=self.embeddings_regularizer,
         )
         self.embeddings.trainable = False

@@ -222,7 +222,9 @@ class EinsumDense(Layer):
             x = self.activation(x)
         return x
 
-    def enable_lora(self, rank):
+    def enable_lora(
+        self, rank, a_initializer="he_uniform", b_initializer="zeros"
+    ):
         if self.kernel_constraint:
             raise ValueError(
                 "Lora is incompatible with kernel constraints. "
@@ -243,13 +245,13 @@ class EinsumDense(Layer):
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",
             shape=(self.kernel.shape[:-1] + (rank,)),
-            initializer="zeros",
+            initializer=initializers.get(a_initializer),
             regularizer=self.kernel_regularizer,
         )
         self.lora_kernel_b = self.add_weight(
             name="lora_kernel_b",
             shape=(rank, self.kernel.shape[-1]),
-            initializer="zeros",
+            initializer=initializers.get(b_initializer),
             regularizer=self.kernel_regularizer,
         )
         self.kernel.trainable = False
