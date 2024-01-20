@@ -6,6 +6,7 @@ import tree
 from keras import backend
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.data_adapters.data_adapter import DataAdapter
+from keras.utils.dataset_utils import is_torch_tensor
 from keras.utils.nest import lists_to_tuples
 
 try:
@@ -98,13 +99,23 @@ class ArrayDataAdapter(DataAdapter):
 
     def get_numpy_iterator(self):
         inputs = self._inputs
-        if self._shuffle:
+        if self._shuffle and self._shuffle != "batch":
             inputs = data_adapter_utils.sync_shuffle(
                 inputs, num_samples=self._num_samples
             )
         for i in range(self._size):
-            start, stop = i * self._batch_size, (i + 1) * self._batch_size
-            yield tree.map_structure(lambda x: x[start:stop], inputs)
+            start = i * self._batch_size
+            stop = min((i + 1) * self._batch_size, self._num_samples)
+            if self._shuffle == "batch":
+
+                def slice_and_shuffle(x):
+                    return data_adapter_utils.sync_shuffle(
+                        x[start:stop], num_samples=(stop - start)
+                    )
+
+                yield tree.map_structure(slice_and_shuffle, inputs)
+            else:
+                yield tree.map_structure(lambda x: x[start:stop], inputs)
 
     def get_tf_dataset(self):
         from keras.utils.module_utils import tensorflow as tf
@@ -237,6 +248,62 @@ class ArrayDataAdapter(DataAdapter):
         dataset = dataset.with_options(options)
         return dataset.prefetch(tf.data.AUTOTUNE)
 
+    def get_jax_iterator(self):
+        return data_adapter_utils.get_jax_iterator(self.get_numpy_iterator())
+
+    def get_torch_dataloader(self):
+        import torch
+
+        from keras.backend.torch.core import convert_to_tensor
+
+        class ArrayDataset(torch.utils.data.Dataset):
+            def __init__(self, array):
+                self.array = array
+
+            def __getitem__(self, index):
+                def slice_and_convert(x):
+                    return convert_to_tensor(x[index])
+
+                return tree.map_structure(slice_and_convert, self.array)
+
+            def __len__(self):
+                return len(self.array[0])
+
+        class RandomBatchSampler(torch.utils.data.Sampler):
+            def __init__(self, sampler):
+                self.sampler = sampler
+
+            def __iter__(self):
+                for batch in self.sampler:
+                    yield [batch[i] for i in torch.randperm(len(batch))]
+
+            def __len__(self):
+                return len(self.sampler)
+
+        if self._shuffle == "batch":
+            batch_sampler = RandomBatchSampler(
+                torch.utils.data.BatchSampler(
+                    range(self._num_samples),
+                    batch_size=self._batch_size,
+                    drop_last=False,
+                )
+            )
+        elif self._shuffle:
+            batch_sampler = torch.utils.data.BatchSampler(
+                torch.utils.data.RandomSampler(range(self._num_samples)),
+                batch_size=self._batch_size,
+                drop_last=False,
+            )
+        else:
+            batch_sampler = torch.utils.data.BatchSampler(
+                torch.utils.data.SequentialSampler(range(self._num_samples)),
+                batch_size=self._batch_size,
+                drop_last=False,
+            )
+
+        dataset = ArrayDataset(self._inputs)
+        return torch.utils.data.DataLoader(dataset, batch_sampler=batch_sampler)
+
     @property
     def num_batches(self):
         return self._size
@@ -315,7 +382,9 @@ def convert_to_arrays(arrays):
             # `torch.Tensor`, as well as any other tensor-like object that has
             # added numpy support.
             if hasattr(x, "__array__"):
-                x = backend.convert_to_numpy(x)
+                if is_torch_tensor(x):
+                    x = x.cpu()
+                x = np.asarray(x)
             else:
                 raise ValueError(
                     "Expected a NumPy array, tf.Tensor, tf.RaggedTensor, "

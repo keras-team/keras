@@ -904,11 +904,10 @@ def _distribute_data(data):
 
 
 class JAXEpochIterator(EpochIterator):
-    def _get_iterator(self, return_type="auto"):
-        if return_type in ("np", "auto"):
-            # enable prefetching when using numpy_iterator
-            return self._prefetch_numpy_iterator(super()._get_iterator("np"))
-        return super()._get_iterator(return_type)
+    def _get_iterator(self):
+        return self._prefetch_numpy_iterator(
+            self.data_adapter.get_jax_iterator()
+        )
 
     def _prefetch_numpy_iterator(self, numpy_iterator):
         """Shard and prefetch batches on device.

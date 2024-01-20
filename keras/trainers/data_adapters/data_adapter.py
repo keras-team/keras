@@ -7,7 +7,8 @@ class DataAdapter(object):
     """
 
     def get_numpy_iterator(self):
-        """Get a Python iterable for the DataAdapter, that yields NumPy arrays.
+        """Get a Python iterable for the `DataAdapter`, that yields NumPy
+        arrays.
 
         Returns:
             A Python iterator.
@@ -25,6 +26,22 @@ class DataAdapter(object):
             A `tf.data.Dataset`. Caller might use the dataset in different
             context, e.g. iter(dataset) in eager to get the value directly, or
             in graph mode, provide the iterator tensor to Keras model function.
+        """
+        raise NotImplementedError
+
+    def get_jax_iterator(self):
+        """Get a Python iterable for the `DataAdapter`, that yields JAX arrays.
+
+        Returns:
+            A Python iterator.
+        """
+        raise NotImplementedError
+
+    def get_torch_dataloader(self):
+        """Get a Torch `DataLoader` for the `DataAdapter`.
+
+        Returns:
+            A Torch `DataLoader`.
         """
         raise NotImplementedError
 
