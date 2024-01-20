@@ -1,6 +1,6 @@
-# Keras 3: A new multi-backend Keras
+# Keras 3: Deep Learning for Humans
 
-Keras 3 is a new multi-backend implementation of the Keras API, with support for TensorFlow, JAX, and PyTorch.
+Keras 3 is a multi-backend deep learning framework, with support for TensorFlow, JAX, and PyTorch.
 
 ## Installation
 
