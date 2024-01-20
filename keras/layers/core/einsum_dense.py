@@ -262,9 +262,7 @@ class EinsumDense(Layer):
         if not self.lora_enabled:
             return super().save_own_variables(store)
 
-        kernel_value = ops.convert_to_numpy(
-            self.kernel + ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
-        )
+        kernel_value = ops.convert_to_numpy(self.kernel)
         store["0"] = kernel_value
         if self.bias is not None:
             store["1"] = self.bias.numpy()

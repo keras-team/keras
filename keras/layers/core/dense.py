@@ -172,9 +172,9 @@ class Dense(Layer):
             regularizer=self.kernel_regularizer,
         )
         self.lora_kernel_b = self.add_weight(
-            name=initializers.get(b_initializer),
+            name="lora_kernel_b",
             shape=(rank, self.kernel.shape[1]),
-            initializer="zeros",
+            initializer=initializers.get(b_initializer),
             regularizer=self.kernel_regularizer,
         )
         self.kernel.trainable = False
@@ -185,9 +185,7 @@ class Dense(Layer):
         if not self.lora_enabled:
             return super().save_own_variables(store)
 
-        kernel_value = ops.convert_to_numpy(
-            self.kernel + ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
-        )
+        kernel_value = ops.convert_to_numpy(self.kernel)
         store["0"] = kernel_value
         if self.use_bias:
             store["1"] = self.bias.numpy()
