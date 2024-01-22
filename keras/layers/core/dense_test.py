@@ -263,3 +263,24 @@ class DenseTest(testing.TestCase):
             expected_num_losses=2,  # we have 2 regularizers.
             supports_masking=True,
         )
+
+    def test_enable_lora_with_kernel_constraint(self):
+        layer = layers.Dense(units=2, kernel_constraint="max_norm")
+        with self.assertRaisesRegex(
+            ValueError, "incompatible with kernel constraints"
+        ):
+            layer.enable_lora(rank=2)
+
+    def test_enable_lora_on_unbuilt_layer(self):
+        layer = layers.Dense(units=2)
+        with self.assertRaisesRegex(
+            ValueError, "Cannot enable lora on a layer that isn't yet built"
+        ):
+            layer.enable_lora(rank=2)
+
+    def test_enable_lora_when_already_enabled(self):
+        layer = layers.Dense(units=2)
+        layer.build((None, 2))
+        layer.enable_lora(rank=2)
+        with self.assertRaisesRegex(ValueError, "lora is already enabled"):
+            layer.enable_lora(rank=2)

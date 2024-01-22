@@ -183,3 +183,26 @@ class EmbeddingTest(test_case.TestCase):
             expected_num_losses=0,
             supports_masking=False,
         )
+
+    def test_enable_lora_with_embeddings_constraint(self):
+        layer = layers.Embedding(
+            input_dim=10, output_dim=16, embeddings_constraint="max_norm"
+        )
+        with self.assertRaisesRegex(
+            ValueError, "incompatible with embedding constraints"
+        ):
+            layer.enable_lora(rank=2)
+
+    def test_enable_lora_on_unbuilt_layer(self):
+        layer = layers.Embedding(input_dim=10, output_dim=16)
+        with self.assertRaisesRegex(
+            ValueError, "Cannot enable lora on a layer that isn't yet built"
+        ):
+            layer.enable_lora(rank=2)
+
+    def test_enable_lora_when_already_enabled(self):
+        layer = layers.Embedding(input_dim=10, output_dim=16)
+        layer.build()
+        layer.enable_lora(rank=2)
+        with self.assertRaisesRegex(ValueError, "lora is already enabled"):
+            layer.enable_lora(rank=2)
