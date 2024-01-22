@@ -381,6 +381,10 @@ def extract_sequences(x, sequence_length, sequence_stride):
 
 
 class FFT(Operation):
+    def __init__(self, axis=-1):
+        super().__init__()
+        self.axis = axis
+
     def compute_output_spec(self, x):
         if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
@@ -449,6 +453,10 @@ def fft(x):
 
 
 class FFT2(Operation):
+    def __init__(self):
+        super().__init__()
+        self.axes = (-2, -1)
+
     def compute_output_spec(self, x):
         if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
@@ -473,8 +481,8 @@ class FFT2(Operation):
             )
 
         # The axes along which we are calculating FFT should be fully-defined.
-        m = real.shape[-1]
-        n = real.shape[-2]
+        m = real.shape[self.axes[0]]
+        n = real.shape[self.axes[1]]
         if m is None or n is None:
             raise ValueError(
                 f"Input should have its {self.axes} axes fully-defined. "
