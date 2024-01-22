@@ -381,6 +381,10 @@ def extract_sequences(x, sequence_length, sequence_stride):
 
 
 class FFT(Operation):
+    def __init__(self, axis=-1):
+        super().__init__()
+        self.axis = axis
+
     def compute_output_spec(self, x):
         if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
