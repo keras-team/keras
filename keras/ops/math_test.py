@@ -1099,7 +1099,7 @@ class SolveTest(testing.TestCase):
         b = np.array([[9, 8], [5, 4]], dtype=np.float32)
         output = solve_op.call(a, b)
         expected_output = np.linalg.solve(a, b)
-        np.testing.assert_allclose(output, expected_output, atol=1e-6)
+        self.assertAllClose(output, expected_output, atol=1e-6)
 
 
 class FFT2Test(testing.TestCase):
