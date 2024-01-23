@@ -2476,6 +2476,12 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             knp.take(x, indices, axis=-2),
             np.take(x, indices, axis=-2),
         )
+        # test with axis=None & x.ndim=2
+        x = np.array(([1, 2], [3, 4]))
+        indices = np.array([2, 3])
+        self.assertAllClose(
+            knp.take(x, indices, axis=None), np.take(x, indices, axis=None)
+        )
 
     @parameterized.named_parameters(
         named_product(
