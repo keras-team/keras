@@ -55,7 +55,7 @@ class UpSampling3D(Layer):
 
     def __init__(self, size=(2, 2, 2), data_format=None, **kwargs):
         super().__init__(**kwargs)
-        self.data_format = backend.config.standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
         self.size = argument_validation.standardize_tuple(size, 3, "size")
         self.input_spec = InputSpec(ndim=5)
 

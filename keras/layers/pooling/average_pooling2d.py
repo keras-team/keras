@@ -91,7 +91,7 @@ class AveragePooling2D(BasePooling):
         pool_size,
         strides=None,
         padding="valid",
-        data_format="channels_last",
+        data_format=None,
         name=None,
         **kwargs
     ):
