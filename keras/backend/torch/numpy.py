@@ -1217,9 +1217,12 @@ def swapaxes(x, axis1, axis2):
 def take(x, indices, axis=None):
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices).long()
-    if x.ndim == 2 and (axis is None or axis == 0):
+    if x.ndim == 2 and axis == 0:
         # This case is equivalent to embedding lookup.
         return torch.nn.functional.embedding(indices, x)
+    if axis is None:
+        x = torch.reshape(x, (-1,))
+        axis = 0
     if axis is not None:
         # make sure axis is non-negative
         axis = len(x.shape) + axis if axis < 0 else axis
