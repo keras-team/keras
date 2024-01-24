@@ -1153,3 +1153,24 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertGreaterEqual(
             np.min(backend.convert_to_numpy(model.layers[0].kernel)), 0.0
         )
+
+    @pytest.mark.requires_trainable_backend
+    def test_rng_updated_during_predict(self):
+
+        class TestTimeDropout(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.random_generator = keras.random.SeedGenerator()
+
+            def call(self, x):
+                return keras.random.dropout(x, rate=0.5, seed=self.random_generator)
+
+        inputs = layers.Input((20,))
+        outputs = TestTimeDropout()(inputs)
+        model = keras.Model(inputs, outputs)
+        model.compile(optimizer="rmsprop", loss="mse")
+
+        x = np.ones((32, 20))
+        out_1 = model.predict(x)
+        out_2 = model.predict(x)
+        self.assertGreater(np.mean(np.abs(out_1 - out_2)), 0.01)

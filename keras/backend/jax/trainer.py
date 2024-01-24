@@ -181,17 +181,17 @@ class JAXTrainer(base_trainer.Trainer):
             trainable_variables, non_trainable_variables, x, **kwargs
         )
         (
-            trainable_variables,
+            _,
             non_trainable_variables,
             _,
             _,
         ) = self._enforce_jax_state_sharding(
-            trainable_variables=trainable_variables,
+            trainable_variables=None,
             non_trainable_variables=non_trainable_variables,
             optimizer_variables=None,
             metrics_variables=None,
         )
-        return outputs, (trainable_variables, non_trainable_variables)
+        return outputs, non_trainable_variables
 
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:
@@ -266,10 +266,10 @@ class JAXTrainer(base_trainer.Trainer):
             return self.predict_step(state, data)
 
         def multi_predict_steps(state, data):
-            outputs, state = one_predict_step(state, data[:1])
+            outputs, trainable_variables = one_predict_step(state, data[:1])
 
             for single_step_data in data[1:]:
-                step_outputs, state = one_predict_step(
+                step_outputs, trainable_variables = one_predict_step(
                     state,
                     [single_step_data],
                 )
@@ -278,7 +278,7 @@ class JAXTrainer(base_trainer.Trainer):
                     outputs,
                     step_outputs,
                 )
-            return outputs, state
+            return outputs, trainable_variables
 
         if self.steps_per_execution > 1:
             predict_step = multi_predict_steps
@@ -633,13 +633,13 @@ class JAXTrainer(base_trainer.Trainer):
             v.value for v in self.non_trainable_variables
         ]
         self._purge_model_variables(
-            optimizer_variables=False, metric_variables=False
+            trainable_variables=False, optimizer_variables=False, metric_variables=False
         )
-        state = (trainable_variables, non_trainable_variables)
         outputs = None
         for step, x in epoch_iterator.enumerate_epoch():
+            state = (trainable_variables, non_trainable_variables)
             callbacks.on_predict_batch_begin(step)
-            batch_outputs, state = self.predict_function(state, x)
+            batch_outputs, non_trainable_variables = self.predict_function(state, x)
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
             if self.stop_predicting:
@@ -648,8 +648,7 @@ class JAXTrainer(base_trainer.Trainer):
         self._jax_state = {
             # I wouldn't recommend modifying non-trainable model state
             # during predict(), but it's allowed.
-            "trainable_variables": state[0],
-            "non_trainable_variables": state[1],
+            "non_trainable_variables": non_trainable_variables,
         }
         self.jax_state_sync()
         callbacks.on_predict_end()
@@ -777,7 +776,11 @@ class JAXTrainer(base_trainer.Trainer):
             v.value for v in self.non_trainable_variables
         ]
         state = (trainable_variables, non_trainable_variables)
-        batch_outputs, state = self.predict_function(state, [(x,)])
+        batch_outputs, non_trainable_variables = self.predict_function(state, [(x,)])
+        self._jax_state = {
+            "non_trainable_variables": non_trainable_variables,
+        }
+        self.jax_state_sync()
         batch_outputs = tree.map_structure(lambda x: np.array(x), batch_outputs)
         return batch_outputs
 
