@@ -3,11 +3,13 @@ import unittest.mock as mock
 
 import numpy as np
 from absl import logging
+from absl.testing import parameterized
 
 from keras import layers
 from keras.models import Sequential
 from keras.saving import saving_api
 from keras.testing import test_case
+from keras.testing.test_utils import named_product
 
 
 class SaveModelTests(test_case.TestCase):
@@ -63,23 +65,32 @@ class SaveModelTests(test_case.TestCase):
             saving_api.save_model(model, "model.png")
 
 
-class LoadModelTests(test_case.TestCase):
-    def get_model(self):
+class LoadModelTests(test_case.TestCase, parameterized.TestCase):
+    def get_model(self, dtype=None):
         return Sequential(
             [
-                layers.Dense(5, input_shape=(3,)),
+                layers.Dense(5, input_shape=(3,), dtype=dtype),
                 layers.Softmax(),
             ]
         )
 
-    def test_basic_load(self):
+    @parameterized.named_parameters(
+        [
+            {"testcase_name": "bfloat16", "dtype": "bfloat16"},
+            {"testcase_name": "float16", "dtype": "float16"},
+            {"testcase_name": "float32", "dtype": "float32"},
+            {"testcase_name": "float64", "dtype": "float64"},
+        ]
+    )
+    def test_basic_load(self, dtype):
         """Test basic model loading."""
-        model = self.get_model()
+        model = self.get_model(dtype)
         filepath = os.path.join(self.get_temp_dir(), "test_model.keras")
         saving_api.save_model(model, filepath)
 
         loaded_model = saving_api.load_model(filepath)
         x = np.random.uniform(size=(10, 3))
+        self.assertEqual(loaded_model.weights[0].dtype, dtype)
         self.assertTrue(np.allclose(model.predict(x), loaded_model.predict(x)))
 
     def test_load_unsupported_format(self):
@@ -119,25 +130,37 @@ class LoadModelTests(test_case.TestCase):
         os.remove(filepath)
 
 
-class LoadWeightsTests(test_case.TestCase):
-    def get_model(self):
+class LoadWeightsTests(test_case.TestCase, parameterized.TestCase):
+    def get_model(self, dtype=None):
         return Sequential(
             [
-                layers.Dense(5, input_shape=(3,)),
+                layers.Dense(5, input_shape=(3,), dtype=dtype),
                 layers.Softmax(),
             ]
         )
 
-    def test_load_keras_weights(self):
+    @parameterized.named_parameters(
+        named_product(
+            source_dtype=["float64", "float32", "float16", "bfloat16"],
+            dest_dtype=["float64", "float32", "float16", "bfloat16"],
+        )
+    )
+    def test_load_keras_weights(self, source_dtype, dest_dtype):
         """Test loading keras weights."""
-        model = self.get_model()
+        src_model = self.get_model(dtype=source_dtype)
         filepath = os.path.join(self.get_temp_dir(), "test_weights.weights.h5")
-        model.save_weights(filepath)
-        original_weights = model.get_weights()
-        model.load_weights(filepath)
-        loaded_weights = model.get_weights()
-        for orig, loaded in zip(original_weights, loaded_weights):
-            self.assertTrue(np.array_equal(orig, loaded))
+        src_model.save_weights(filepath)
+        src_weights = src_model.get_weights()
+        dest_model = self.get_model(dtype=dest_dtype)
+        dest_model.load_weights(filepath)
+        dest_weights = dest_model.get_weights()
+        for orig, loaded in zip(src_weights, dest_weights):
+            self.assertAllClose(
+                orig.astype("float32"),
+                loaded.astype("float32"),
+                atol=0.001,
+                rtol=0.01,
+            )
 
     def test_load_h5_weights_by_name(self):
         """Test loading h5 weights by name."""
