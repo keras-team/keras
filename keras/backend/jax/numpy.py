@@ -647,8 +647,8 @@ def repeat(x, repeats, axis=None):
     return jnp.repeat(x, repeats, axis=axis)
 
 
-def reshape(x, new_shape):
-    return jnp.reshape(x, new_shape)
+def reshape(x, newshape):
+    return jnp.reshape(x, newshape)
 
 
 def roll(x, shift, axis=None):
