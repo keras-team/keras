@@ -4463,28 +4463,28 @@ def repeat(x, repeats, axis=None):
 
 
 class Reshape(Operation):
-    def __init__(self, new_shape):
+    def __init__(self, newshape):
         super().__init__()
-        self.new_shape = new_shape
+        self.newshape = newshape
 
     def call(self, x):
-        return backend.numpy.reshape(x, self.new_shape)
+        return backend.numpy.reshape(x, self.newshape)
 
     def compute_output_spec(self, x):
         output_shape = operation_utils.compute_reshape_output_shape(
-            x.shape, self.new_shape, "new_shape"
+            x.shape, self.newshape, "newshape"
         )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.reshape", "keras.ops.numpy.reshape"])
-def reshape(x, new_shape):
+def reshape(x, newshape):
     """Gives a new shape to a tensor without changing its data.
 
     Args:
         x: Input tensor.
-        new_shape: The new shape should be compatible with the original shape.
+        newshape: The new shape should be compatible with the original shape.
             One shape dimension can be -1 in which case the value is
             inferred from the length of the array and remaining dimensions.
 
@@ -4492,8 +4492,8 @@ def reshape(x, new_shape):
         The reshaped tensor.
     """
     if any_symbolic_tensors((x,)):
-        return Reshape(new_shape).symbolic_call(x)
-    return backend.numpy.reshape(x, new_shape)
+        return Reshape(newshape).symbolic_call(x)
+    return backend.numpy.reshape(x, newshape)
 
 
 class Roll(Operation):

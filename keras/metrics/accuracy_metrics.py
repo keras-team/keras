@@ -165,7 +165,7 @@ def categorical_accuracy(y_true, y_pred):
         y_pred = ops.cast(y_pred, dtype=y_true.dtype)
     matches = ops.cast(ops.equal(y_true, y_pred), backend.floatx())
     if reshape_matches:
-        matches = ops.reshape(matches, new_shape=y_true_org_shape)
+        matches = ops.reshape(matches, y_true_org_shape)
     return matches
 
 
@@ -251,7 +251,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
         y_pred = ops.cast(y_pred, y_true.dtype)
     matches = ops.cast(ops.equal(y_true, y_pred), backend.floatx())
     if reshape_matches:
-        matches = ops.reshape(matches, new_shape=y_true_org_shape)
+        matches = ops.reshape(matches, y_true_org_shape)
     # if shape is (num_samples, 1) squeeze
     if len(matches.shape) > 1 and matches.shape[-1] == 1:
         matches = ops.squeeze(matches, -1)
@@ -337,7 +337,7 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
 
     # returned matches is expected to have same shape as y_true input
     if reshape_matches:
-        matches = ops.reshape(matches, new_shape=y_true_org_shape)
+        matches = ops.reshape(matches, y_true_org_shape)
 
     return matches
 
@@ -415,7 +415,7 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
 
     # returned matches is expected to have same shape as y_true input
     if reshape_matches:
-        matches = ops.reshape(matches, new_shape=y_true_org_shape)
+        matches = ops.reshape(matches, y_true_org_shape)
 
     return matches
 

@@ -770,8 +770,8 @@ def repeat(x, repeats, axis=None):
     return np.repeat(x, repeats, axis=axis)
 
 
-def reshape(x, new_shape):
-    return np.reshape(x, new_shape)
+def reshape(x, newshape):
+    return np.reshape(x, newshape)
 
 
 def roll(x, shift, axis=None):

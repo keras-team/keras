@@ -1339,18 +1339,18 @@ def repeat(x, repeats, axis=None):
     return tf.repeat(x, repeats, axis=axis)
 
 
-def reshape(x, new_shape):
+def reshape(x, newshape):
     x = convert_to_tensor(x)
     if isinstance(x, tf.SparseTensor):
         from keras.ops.operation_utils import compute_reshape_output_shape
 
         output_shape = compute_reshape_output_shape(
-            x.shape, new_shape, "new_shape"
+            x.shape, newshape, "newshape"
         )
-        output = tf.sparse.reshape(x, new_shape)
+        output = tf.sparse.reshape(x, newshape)
         output.set_shape(output_shape)
         return output
-    return tf.reshape(x, new_shape)
+    return tf.reshape(x, newshape)
 
 
 def roll(x, shift, axis=None):

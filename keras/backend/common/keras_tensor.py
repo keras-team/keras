@@ -48,10 +48,10 @@ class KerasTensor:
     def ndim(self):
         return len(self.shape)
 
-    def reshape(self, new_shape):
+    def reshape(self, newshape):
         from keras import ops
 
-        return ops.Reshape(new_shape)(self)
+        return ops.Reshape(newshape)(self)
 
     def squeeze(self, axis=None):
         from keras import ops

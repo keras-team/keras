@@ -1122,11 +1122,11 @@ def repeat(x, repeats, axis=None):
     return torch.repeat_interleave(x, repeats, dim=axis)
 
 
-def reshape(x, new_shape):
-    if not isinstance(new_shape, (list, tuple)):
-        new_shape = (new_shape,)
+def reshape(x, newshape):
+    if not isinstance(newshape, (list, tuple)):
+        newshape = (newshape,)
     x = convert_to_tensor(x)
-    return torch.reshape(x, new_shape)
+    return torch.reshape(x, newshape)
 
 
 def roll(x, shift, axis=None):
