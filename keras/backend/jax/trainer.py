@@ -632,6 +632,9 @@ class JAXTrainer(base_trainer.Trainer):
         non_trainable_variables = [
             v.value for v in self.non_trainable_variables
         ]
+        self._purge_model_variables(
+            optimizer_variables=False, metric_variables=False
+        )
         state = (trainable_variables, non_trainable_variables)
         outputs = None
         for step, x in epoch_iterator.enumerate_epoch():
@@ -641,7 +644,16 @@ class JAXTrainer(base_trainer.Trainer):
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
             if self.stop_predicting:
                 break
+
+        self._jax_state = {
+            # I wouldn't recommend modifying non-trainable model state
+            # during predict(), but it's allowed.
+            "trainable_variables": state[0],
+            "non_trainable_variables": state[1],
+        }
+        self.jax_state_sync()
         callbacks.on_predict_end()
+        self._jax_state = None
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
 
     def train_on_batch(
