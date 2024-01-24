@@ -264,22 +264,6 @@ class MultiHeadAttention(Layer):
         self._output_dense.build(tuple(output_dense_input_shape))
         self.built = True
 
-    @property
-    def query_dense(self):
-        return self._query_dense
-
-    @property
-    def key_dense(self):
-        return self._key_dense
-
-    @property
-    def value_dense(self):
-        return self._value_dense
-
-    @property
-    def output_dense(self):
-        return self._output_dense
-
     def _get_common_kwargs_for_sublayer(self):
         common_kwargs = dict(
             kernel_regularizer=self._kernel_regularizer,

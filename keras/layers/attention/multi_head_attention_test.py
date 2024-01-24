@@ -303,9 +303,9 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
             use_bias=False,
         )
         layer.build(query.shape, key.shape, value.shape)
-        layer.query_dense.enable_lora(2)
-        layer.key_dense.enable_lora(2)
-        layer.value_dense.enable_lora(2)
+        layer._query_dense.enable_lora(2)
+        layer._key_dense.enable_lora(2)
+        layer._value_dense.enable_lora(2)
 
         self.assertLen(layer.trainable_variables, 7)
         self.assertLen(layer.non_trainable_variables, 3)
