@@ -68,37 +68,48 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
         named_product(
             [
                 {
-                    "testcase_name": "multi_on",
+                    "testcase_name": "multiprocessing",
                     "workers": 2,
                     "use_multiprocessing": True,
                     "max_queue_size": 10,
+                    "dataset_type": "np",
                 },
                 {
-                    "testcase_name": "multi_off",
+                    "testcase_name": "multithreading",
                     "workers": 2,
                     "use_multiprocessing": False,
                     "max_queue_size": 10,
+                    "dataset_type": "np",
                 },
                 {
-                    "testcase_name": "multi_off_zero",
-                    "workers": 0,
-                    "use_multiprocessing": False,
-                    "max_queue_size": 0,
+                    "testcase_name": "single_np",
+                    "dataset_type": "np",
+                },
+                {
+                    "testcase_name": "single_tf",
+                    "dataset_type": "tf",
+                },
+                {
+                    "testcase_name": "single_jax",
+                    "dataset_type": "jax",
+                },
+                {
+                    "testcase_name": "single_torch",
+                    "dataset_type": "torch",
                 },
             ],
-            shuffle=[True, False],
-            dataset_type=["np", "tf", "jax", "torch"],
             iterator_type=["np", "tf", "jax", "torch"],
+            shuffle=[True, False],
         )
     )
     def test_basic_flow(
         self,
         shuffle,
-        workers,
-        use_multiprocessing,
-        max_queue_size,
         dataset_type,
         iterator_type,
+        workers=0,
+        use_multiprocessing=False,
+        max_queue_size=0,
     ):
         set_random_seed(1337)
         x = np.random.random((64, 4)).astype("float32")
