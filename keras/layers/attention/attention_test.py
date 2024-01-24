@@ -130,8 +130,8 @@ class AttentionTest(testing.TestCase):
         layer.build(input_shape=[(2, 3, 4), (2, 4, 4)])
         expected_scores = np.matmul(query, key.transpose((0, 2, 1)))
         expected_scores *= layer.scale.numpy()
-        actual_scores = layer._calculate_scores(query, key).numpy()
-        self.assertAllClose(actual_scores, expected_scores, atol=1e-4)
+        actual_scores = layer._calculate_scores(query, key)
+        self.assertAllClose(actual_scores, expected_scores)
 
     def test_attention_calculate_score_mask_no_causal_no_vmask(self):
         scores = np.random.random((2, 3, 4))
@@ -155,9 +155,7 @@ class AttentionTest(testing.TestCase):
         expected_causal_mask = np.tril(
             np.ones((1, scores.shape[1], scores.shape[2])), k=0
         )
-        self.assertAllClose(
-            causal_mask.numpy(), expected_causal_mask, atol=1e-6
-        )
+        self.assertAllClose(causal_mask, expected_causal_mask, atol=1e-6)
 
     def test_attention_calculate_score_mask_with_causal_and_vmask(self):
         scores = np.random.random((2, 3, 4))
@@ -173,9 +171,7 @@ class AttentionTest(testing.TestCase):
         expected_combined_mask = np.logical_and(
             expected_causal_mask, v_mask[:, np.newaxis, :]
         )
-        self.assertAllClose(
-            combined_mask.numpy(), expected_combined_mask, atol=1e-6
-        )
+        self.assertAllClose(combined_mask, expected_combined_mask, atol=1e-6)
 
     def test_attention_compute_mask_with_no_mask(self):
         layer = layers.Attention()
@@ -200,7 +196,7 @@ class AttentionTest(testing.TestCase):
             "compute_mask should return None when the first element is None",
         )
 
-    def test_attention_compute_mask_with_valid_mask(self):
+    def test_attention_compute_mask_does_not_return_none_with_valid_mask(self):
         layer = layers.Attention()
         dummy_inputs = [
             np.random.random((2, 3, 4)),
@@ -213,7 +209,19 @@ class AttentionTest(testing.TestCase):
             computed_mask,
             "compute_mask should not return None with a valid mask",
         )
+
+    def test_attention_compute_mask_returns_correct_tensor_with_valid_mask(
+        self,
+    ):
+        layer = layers.Attention()
+        dummy_inputs = [
+            np.random.random((2, 3, 4)),
+            np.random.random((2, 4, 4)),
+        ]
+        valid_mask = np.array([True, False, True])
+        mask = [valid_mask, np.array([False, True, False])]
+        computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
         self.assertTrue(
-            np.array_equal(computed_mask.numpy(), valid_mask),
+            np.array_equal(computed_mask, valid_mask),
             "compute_mask did not return the correct mask tensor",
         )
