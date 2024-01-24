@@ -1,4 +1,4 @@
-from keras.random.random import categorical 
+from keras.random.random import categorical
 from keras.random.random import dropout
 from keras.random.random import gamma
 from keras.random.random import normal
