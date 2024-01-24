@@ -633,13 +633,17 @@ class JAXTrainer(base_trainer.Trainer):
             v.value for v in self.non_trainable_variables
         ]
         self._purge_model_variables(
-            trainable_variables=False, optimizer_variables=False, metric_variables=False
+            trainable_variables=False,
+            optimizer_variables=False,
+            metric_variables=False,
         )
         outputs = None
         for step, x in epoch_iterator.enumerate_epoch():
             state = (trainable_variables, non_trainable_variables)
             callbacks.on_predict_batch_begin(step)
-            batch_outputs, non_trainable_variables = self.predict_function(state, x)
+            batch_outputs, non_trainable_variables = self.predict_function(
+                state, x
+            )
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
             if self.stop_predicting:
@@ -776,7 +780,9 @@ class JAXTrainer(base_trainer.Trainer):
             v.value for v in self.non_trainable_variables
         ]
         state = (trainable_variables, non_trainable_variables)
-        batch_outputs, non_trainable_variables = self.predict_function(state, [(x,)])
+        batch_outputs, non_trainable_variables = self.predict_function(
+            state, [(x,)]
+        )
         self._jax_state = {
             "non_trainable_variables": non_trainable_variables,
         }

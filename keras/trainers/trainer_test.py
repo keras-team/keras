@@ -1156,14 +1156,15 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_rng_updated_during_predict(self):
-
         class TestTimeDropout(layers.Layer):
             def __init__(self):
                 super().__init__()
                 self.random_generator = keras.random.SeedGenerator()
 
             def call(self, x):
-                return keras.random.dropout(x, rate=0.5, seed=self.random_generator)
+                return keras.random.dropout(
+                    x, rate=0.5, seed=self.random_generator
+                )
 
         inputs = layers.Input((20,))
         outputs = TestTimeDropout()(inputs)
