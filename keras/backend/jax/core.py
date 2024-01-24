@@ -1,7 +1,9 @@
 import types
 
+import h5py
 import jax
 import jax.numpy as jnp
+import ml_dtypes
 import numpy as np
 import tree
 from jax.tree_util import Partial
@@ -61,10 +63,20 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         if dtype and dtype != x.dtype:
             return x.value.astype(dtype)
         return x.value
+    if isinstance(x, h5py.Dataset):
+        # h5py will handle bfloat16 as an opaque dtype.
+        # We assume any two byte void dtypes are in fact bfloat16 type.
+        if x.dtype == np.dtype((np.void, 2)):
+            x = np.array(x, dtype=ml_dtypes.bfloat16)
+        # h5py Datasets do not support converting on the fly for many dtypes.
+        # Instead we convert "as is" and cast.
+        return jnp.asarray(x).astype(dtype)
     return jnp.asarray(x, dtype=dtype)
 
 
 def convert_to_numpy(x):
+    if is_tensor(x) and x.dtype == "bfloat16":
+        return np.asarray(x, ml_dtypes.bfloat16)
     return np.asarray(x)
 
 

@@ -26,6 +26,7 @@ from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import mixed_precision
+from keras import ops
 from keras import regularizers
 from keras import utils
 from keras.api_export import keras_export
@@ -715,7 +716,7 @@ class Layer(BackendLayer, Operation):
                     x.dtype = self.input_dtype
                 return x
             elif hasattr(x, "__array__"):
-                return backend.convert_to_tensor(x, dtype=self.input_dtype)
+                return ops.convert_to_tensor(x, dtype=self.input_dtype)
             return x
 
         # Used to avoid expensive `tree` operations in the most common case.
@@ -1119,7 +1120,7 @@ class Layer(BackendLayer, Operation):
         """
         all_vars = self._trainable_variables + self._non_trainable_variables
         for i, v in enumerate(all_vars):
-            store[f"{i}"] = v.numpy()
+            store[f"{i}"] = ops.convert_to_numpy(v)
 
     def load_own_variables(self, store):
         """Loads the state of the layer.

@@ -265,7 +265,7 @@ class EinsumDense(Layer):
         kernel_value = ops.convert_to_numpy(self.kernel)
         store["0"] = kernel_value
         if self.bias is not None:
-            store["1"] = self.bias.numpy()
+            store["1"] = ops.convert_to_numpy(self.bias)
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
