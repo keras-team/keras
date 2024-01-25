@@ -204,7 +204,7 @@ class Attention(Layer):
         else:
             # If not using causal mask, return the value mask as is,
             # or None if the value mask is not provided.
-            return v_mask if v_mask is not None else None
+            return v_mask
 
     def call(
         self,
