@@ -712,19 +712,22 @@ def batch_normalization(
     x = convert_to_tensor(x)
     mean = convert_to_tensor(mean)
     variance = convert_to_tensor(variance)
-    if offset is not None:
-        offset = convert_to_tensor(offset)
-    else:
-        offset = torch.zeros_like(mean)
-    if scale is not None:
-        scale = convert_to_tensor(scale)
-    else:
-        scale = torch.ones_like(variance)
 
     shape = [1] * len(x.shape)
     shape[axis] = mean.shape[0]
     mean = torch.reshape(mean, shape)
     variance = torch.reshape(variance, shape)
+
+    if offset is not None:
+        offset = convert_to_tensor(offset)
+        offset = torch.reshape(offset, shape)
+    else:
+        offset = torch.zeros_like(mean)
+    if scale is not None:
+        scale = convert_to_tensor(scale)
+        scale = torch.reshape(scale, shape)
+    else:
+        scale = torch.ones_like(variance)
 
     return (
         x.subtract(mean)
