@@ -263,10 +263,10 @@ def norm(x, ord=None, axis=None, keepdims=False):
     if axis is None:
         axis = tuple(range(ndim))
     elif isinstance(axis, int):
-        axis = [axis]
+        axis = (axis,)
 
-    num_axes = len(axis)
     axis = axis[0] if len(axis) == 1 else axis
+    num_axes = 1 if isinstance(axis, int) else len(axis)
 
     # Fast path to utilze `tf.linalg.norm`
     if (num_axes == 1 and ord in ("euclidean", 2)) or (
@@ -275,7 +275,7 @@ def norm(x, ord=None, axis=None, keepdims=False):
         return tf.linalg.norm(x, axis=axis, keepdims=keepdims)
 
     # Ref: jax.numpy.linalg.norm
-    if num_axes == 1 and ord not in ("euclidean", 2):
+    if num_axes == 1 and ord not in ("euclidean", 2, "fro", "nuc"):
         if ord == float("-inf"):
             return tf.math.reduce_min(
                 tf.math.abs(x), axis=axis, keepdims=keepdims
@@ -363,7 +363,13 @@ def norm(x, ord=None, axis=None, keepdims=False):
                 x = tf.expand_dims(x, axis[1])
         return x
 
-    raise ValueError(
-        "Failed to compute norm of x. "
-        f"Received: ord={ord}, axis={axis}, keepdims={keepdims}"
-    )
+    if num_axes == 1:
+        raise ValueError(
+            f"Invalid `ord` argument for vector norm. Received: ord={ord}"
+        )
+    elif num_axes == 2:
+        raise ValueError(
+            f"Invalid `ord` argument for matrix norm. Received: ord={ord}"
+        )
+    else:
+        raise ValueError(f"Invalid axis values. Received: axis={axis}")
