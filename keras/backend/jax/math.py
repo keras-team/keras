@@ -258,3 +258,7 @@ def solve(a, b):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
     return jnp.linalg.solve(a, b)
+
+
+def norm(x, ord=None, axis=None, keepdims=False):
+    return jnp.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)

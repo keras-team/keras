@@ -419,3 +419,8 @@ def solve(a, b):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
     return torch.linalg.solve(a, b)
+
+
+def norm(x, ord=None, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return torch.linalg.norm(x, ord=ord, dim=axis, keepdim=keepdims)

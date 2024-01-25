@@ -1001,3 +1001,122 @@ def solve(a, b):
     a = backend.convert_to_tensor(a)
     b = backend.convert_to_tensor(b)
     return backend.math.solve(a, b)
+
+
+class Norm(Operation):
+    def __init__(self, ord=None, axis=None, keepdims=False):
+        super().__init__()
+        if isinstance(ord, str):
+            if ord not in ("fro", "nuc"):
+                raise ValueError(
+                    "Invalid `ord` argument. "
+                    "Expected one of {'fro', 'nuc'} when using string. "
+                    f"Received: ord={ord}"
+                )
+        if isinstance(axis, int):
+            axis = [axis]
+        self.ord = ord
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def compute_output_spec(self, x):
+        output_dtype = backend.standardize_dtype(x.dtype)
+        if "int" in output_dtype or output_dtype == "bool":
+            output_dtype = backend.floatx()
+        if self.axis is None:
+            axis = tuple(range(len(x.shape)))
+        else:
+            axis = self.axis
+        num_axes = len(axis)
+        if num_axes == 1 and isinstance(self.ord, str):
+            raise ValueError(
+                "Invalid `ord` argument for vector norm. "
+                f"Received: ord={self.ord}"
+            )
+        elif num_axes == 2 and self.ord not in (
+            None,
+            "fro",
+            "nuc",
+            float("inf"),
+            float("-inf"),
+            1,
+            -1,
+            2,
+            -2,
+        ):
+            raise ValueError(
+                "Invalid `ord` argument for matrix norm. "
+                f"Received: ord={self.ord}"
+            )
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=output_dtype,
+        )
+
+    def call(self, x):
+        x = backend.convert_to_tensor(x)
+        return backend.math.norm(
+            x, ord=self.ord, axis=self.axis, keepdims=self.keepdims
+        )
+
+
+@keras_export("keras.ops.norm")
+def norm(x, ord=None, axis=None, keepdims=False):
+    """Matrix or vector norm.
+
+    This function is able to return one of eight different matrix norms, or one
+    of an infinite number of vector norms (described below), depending on the
+    value of the `ord` parameter.
+
+    Args:
+        x: Input tensor.
+        ord: Order of the norm (see table under Notes). The default is `None`.
+        axis: If `axis` is an integer, it specifies the axis of `x` along which
+            to compute the vector norms. If `axis` is a 2-tuple, it specifies
+            the axes that hold 2-D matrices, and the matrix norms of these
+            matrices are computed.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one.
+
+    Note:
+        For values of `ord < 1`, the result is, strictly speaking, not a
+        mathematical 'norm', but it may still be useful for various numerical
+        purposes. The following norms can be calculated:
+        - For matrices:
+            - `ord=None`: Frobenius norm
+            - `ord="fro"`: Frobenius norm
+            - `ord=nuc`: nuclear norm
+            - `ord=np.inf`: `max(sum(abs(x), axis=1))`
+            - `ord=-np.inf`: `min(sum(abs(x), axis=1))`
+            - `ord=0`: not supported
+            - `ord=1`: `max(sum(abs(x), axis=0))`
+            - `ord=-1`: `min(sum(abs(x), axis=0))`
+            - `ord=2`: 2-norm (largest sing. value)
+            - `ord=-2`: smallest singular value
+            - other: not supported
+        - For vectors:
+            - `ord=None`: 2-norm
+            - `ord="fro"`: not supported
+            - `ord=nuc`: not supported
+            - `ord=np.inf`: `max(abs(x))`
+            - `ord=-np.inf`: `min(abs(x))`
+            - `ord=0`: `sum(x != 0)`
+            - `ord=1`: as below
+            - `ord=-1`: as below
+            - `ord=2`: as below
+            - `ord=-2`: as below
+            - other: `sum(abs(x)**ord)**(1./ord)`
+
+    Returns:
+        Norm of the matrix or vector(s).
+
+    Example:
+
+    >>> x = keras.ops.reshape(keras.ops.arange(9, dtype="float32") - 4, (3, 3))
+    >>> keras.ops.norm(x)
+    7.7459664
+    """
+    if any_symbolic_tensors((x,)):
+        return Norm(ord=ord, axis=axis, keepdims=keepdims).symbolic_call(x)
+    x = backend.convert_to_tensor(x)
+    return backend.math.norm(x, ord=ord, axis=axis, keepdims=keepdims)
