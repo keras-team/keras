@@ -409,7 +409,13 @@ def arange(start, stop=None, step=1, dtype=None):
             dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
         dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = standardize_dtype(dtype)
-    return tf.range(start, stop, delta=step, dtype=dtype)
+    try:
+        out = tf.range(start, stop, delta=step, dtype=dtype)
+    except tf.errors.NotFoundError:
+        # Some dtypes may not work in eager mode on CPU or GPU.
+        out = tf.range(start, stop, delta=step, dtype="float32")
+        out = tf.cast(out, dtype)
+    return out
 
 
 @sparse.densifying_unary(0.5 * np.pi)

@@ -4929,6 +4929,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         (0.0, 10, 1, None),
         (10, None, 1, "float32"),
         (10, None, 1, "int32"),
+        (10, None, 1, "int16"),
+        (10, None, 1, "float16"),
     )
     def test_arange(self, start, stop, step, dtype):
         import jax.numpy as jnp
