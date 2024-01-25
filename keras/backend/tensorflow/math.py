@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.experimental import numpy as tfnp
 
 from keras.backend import standardize_dtype
 from keras.backend.tensorflow.core import convert_to_tensor
@@ -249,3 +250,126 @@ def solve(a, b):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
     return tf.linalg.solve(a, b)
+
+
+def norm(x, ord=None, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    x_shape = x.shape
+    ndim = x_shape.rank
+
+    if ord is None:
+        ord = "euclidean"
+
+    if axis is None:
+        axis = tuple(range(ndim))
+    elif isinstance(axis, int):
+        axis = (axis,)
+
+    axis = axis[0] if len(axis) == 1 else axis
+    num_axes = 1 if isinstance(axis, int) else len(axis)
+
+    # Fast path to utilze `tf.linalg.norm`
+    if (num_axes == 1 and ord in ("euclidean", 2)) or (
+        num_axes == 2 and ord in ("euclidean", "fro")
+    ):
+        return tf.linalg.norm(x, axis=axis, keepdims=keepdims)
+
+    # Ref: jax.numpy.linalg.norm
+    if num_axes == 1 and ord not in ("euclidean", 2, "fro", "nuc"):
+        if ord == float("-inf"):
+            return tf.math.reduce_min(
+                tf.math.abs(x), axis=axis, keepdims=keepdims
+            )
+        elif ord == 0:
+            return tf.math.reduce_sum(
+                tf.cast(tf.not_equal(x, 0), dtype=x.dtype),
+                axis=axis,
+                keepdims=keepdims,
+            )
+        elif ord == 1:
+            return tf.math.reduce_sum(
+                tf.math.abs(x), axis=axis, keepdims=keepdims
+            )
+        elif ord == float("inf"):
+            return tf.math.reduce_max(
+                tf.math.abs(x), axis=axis, keepdims=keepdims
+            )
+        else:
+            ord = convert_to_tensor(ord, dtype=x.dtype)
+            out = tf.math.reduce_sum(
+                tf.pow(tf.math.abs(x), ord), axis=axis, keepdims=keepdims
+            )
+            return tf.pow(out, 1.0 / ord)
+    elif num_axes == 2 and ord in (
+        "nuc",
+        float("-inf"),
+        -2,
+        -1,
+        1,
+        2,
+        float("inf"),
+    ):
+        row_axis, col_axis = axis[0], axis[1]
+        row_axis = row_axis + ndim if row_axis < 0 else row_axis
+        col_axis = col_axis + ndim if col_axis < 0 else col_axis
+        if ord == float("-inf"):
+            if not keepdims and row_axis > col_axis:
+                row_axis -= 1
+            x = tf.math.reduce_min(
+                tf.reduce_sum(tf.math.abs(x), axis=col_axis, keepdims=keepdims),
+                axis=row_axis,
+                keepdims=keepdims,
+            )
+        elif ord == -1:
+            if not keepdims and col_axis > row_axis:
+                col_axis -= 1
+            x = tf.math.reduce_min(
+                tf.reduce_sum(tf.math.abs(x), axis=row_axis, keepdims=keepdims),
+                axis=col_axis,
+                keepdims=keepdims,
+            )
+        elif ord == 1:
+            if not keepdims and col_axis > row_axis:
+                col_axis -= 1
+            x = tf.math.reduce_max(
+                tf.reduce_sum(tf.math.abs(x), axis=row_axis, keepdims=keepdims),
+                axis=col_axis,
+                keepdims=keepdims,
+            )
+        elif ord == float("inf"):
+            if not keepdims and row_axis > col_axis:
+                row_axis -= 1
+            x = tf.math.reduce_max(
+                tf.reduce_sum(tf.math.abs(x), axis=col_axis, keepdims=keepdims),
+                axis=row_axis,
+                keepdims=keepdims,
+            )
+        elif ord in ("nuc", 2, -2):
+            x = tfnp.moveaxis(x, axis, (-2, -1))
+            if ord == 2:
+                x = tf.math.reduce_max(
+                    tf.linalg.svd(x, compute_uv=False), axis=-1
+                )
+            elif ord == -2:
+                x = tf.math.reduce_min(
+                    tf.linalg.svd(x, compute_uv=False), axis=-1
+                )
+            else:
+                x = tf.math.reduce_sum(
+                    tf.linalg.svd(x, compute_uv=False), axis=-1
+                )
+            if keepdims:
+                x = tf.expand_dims(x, axis[0])
+                x = tf.expand_dims(x, axis[1])
+        return x
+
+    if num_axes == 1:
+        raise ValueError(
+            f"Invalid `ord` argument for vector norm. Received: ord={ord}"
+        )
+    elif num_axes == 2:
+        raise ValueError(
+            f"Invalid `ord` argument for matrix norm. Received: ord={ord}"
+        )
+    else:
+        raise ValueError(f"Invalid axis values. Received: axis={axis}")

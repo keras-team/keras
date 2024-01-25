@@ -9,6 +9,7 @@ from keras import backend
 from keras import testing
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.ops import math as kmath
+from keras.testing.test_utils import named_product
 
 
 def _stft(
@@ -281,6 +282,16 @@ class MathOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         x = KerasTensor([None, 3])
         self.assertEqual(kmath.rsqrt(x).shape, (None, 3))
 
+    def test_norm(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(kmath.norm(x).shape, ())
+
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(kmath.norm(x, axis=1).shape, (None, 3))
+        self.assertEqual(
+            kmath.norm(x, axis=1, keepdims=True).shape, (None, 1, 3)
+        )
+
 
 class MathOpsStaticShapeTest(testing.TestCase):
     @pytest.mark.skipif(
@@ -424,6 +435,10 @@ class MathOpsStaticShapeTest(testing.TestCase):
         x2 = KerasTensor((2, 2), dtype="float32")
         outputs = kmath.solve(x1, x2)
         self.assertEqual(outputs.shape, (2, 2))
+
+    def test_norm(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(kmath.norm(x).shape, ())
 
 
 class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -877,6 +892,52 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         x2 = np.array([[2, 4], [8, 10]], dtype="float32")
         output = kmath.solve(x1, x2)
         expected_result = np.array([[2, 0], [0, 2]], dtype="float32")
+        self.assertAllClose(output, expected_result)
+
+    @parameterized.named_parameters(
+        named_product(
+            ord=[None, "fro", "nuc", -np.inf, -2, -1, 0, 1, 2, np.inf, 123],
+            axis=[None, (0, 1), (0, 2)],
+            keepdims=[False, True],
+        )
+    )
+    def test_norm_matrices(self, ord, axis, keepdims):
+        if axis is None:
+            x = np.random.random((6, 7))
+        else:
+            x = np.random.random((5, 6, 7))
+        if ord in (0, 123):
+            error = RuntimeError if backend.backend() == "torch" else ValueError
+            with self.assertRaises(error):
+                kmath.norm(x, ord=ord, axis=axis, keepdims=keepdims)
+            return
+        output = kmath.norm(x, ord=ord, axis=axis, keepdims=keepdims)
+        expected_result = np.linalg.norm(
+            x, ord=ord, axis=axis, keepdims=keepdims
+        )
+        self.assertAllClose(output, expected_result)
+
+    @parameterized.named_parameters(
+        named_product(
+            ord=[None, "fro", "nuc", -np.inf, -2, -1, 0, 1, 2, np.inf, 123],
+            axis=[None, 1, -1],
+            keepdims=[False, True],
+        )
+    )
+    def test_norm_vectors(self, ord, axis, keepdims):
+        if axis is None:
+            x = np.random.random((5,))
+        else:
+            x = np.random.random((5, 6))
+        if ord in ("fro", "nuc"):
+            error = RuntimeError if backend.backend() == "torch" else ValueError
+            with self.assertRaises(error):
+                kmath.norm(x, ord=ord, axis=axis, keepdims=keepdims)
+            return
+        output = kmath.norm(x, ord=ord, axis=axis, keepdims=keepdims)
+        expected_result = np.linalg.norm(
+            x, ord=ord, axis=axis, keepdims=keepdims
+        )
         self.assertAllClose(output, expected_result)
 
 
