@@ -150,6 +150,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         indices = [[1, 1], [2, 2]]
         updates = np.array([[0, 1, 2, 3], [3, 2, 1, 0]], dtype=np.float64)
         outputs = core.scatter_update(inputs, indices, updates)
+        self.assertTrue(ops.is_tensor(outputs))
         self.assertAllClose(outputs[1, 1, :], [0, 1, 2, 3])
         self.assertAllClose(outputs[2, 2, :], [3, 2, 1, 0])
 
