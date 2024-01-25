@@ -267,7 +267,7 @@ def scatter(indices, values, shape):
 def scatter_update(inputs, indices, updates):
     indices = jnp.array(indices)
     indices = jnp.transpose(indices)
-    inputs[tuple(indices)] = updates
+    inputs = inputs.at[tuple(indices)].set(updates)
     return inputs
 
 
