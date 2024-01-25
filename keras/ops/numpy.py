@@ -5776,9 +5776,11 @@ class Mean(Operation):
             result_dtype = compute_dtype
         else:
             result_dtype = ori_dtype
+        sparse = getattr(x, "sparse", False)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=result_dtype,
+            sparse=sparse,
         )
 
 

@@ -70,14 +70,21 @@ class EmbeddingTest(test_case.TestCase):
         reason="Backend does not support sparse tensors.",
     )
     def test_correctness_sparse(self):
-        import tensorflow as tf
-
         layer = layers.Embedding(input_dim=3, output_dim=2)
         layer.build()
         layer.embeddings.assign(np.array([[0.0, 0.0], [2.0, 2.0], [3.0, 3.0]]))
-        x = tf.SparseTensor(
-            indices=[[0, 0], [1, 2]], values=[2, 1], dense_shape=(2, 3)
-        )
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x = tf.SparseTensor([[0, 0], [1, 2]], [2, 1], (2, 3))
+        elif backend.backend() == "jax":
+            import jax.experimental.sparse as jax_sparse
+
+            x = jax_sparse.BCOO(([2, 1], [[0, 0], [1, 2]]), shape=(2, 3))
+        else:
+            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+
         self.assertAllClose(
             layer(x),
             np.array(

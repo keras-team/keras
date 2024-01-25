@@ -27,10 +27,20 @@ class PermuteTest(testing.TestCase, parameterized.TestCase):
             np.transpose(inputs, axes=(0, 3, 1, 2))
         )
         if sparse:
-            import tensorflow as tf
+            if backend.backend() == "tensorflow":
+                import tensorflow as tf
 
-            inputs = tf.sparse.from_dense(inputs)
-            expected_output = tf.sparse.from_dense(expected_output)
+                inputs = tf.sparse.from_dense(inputs)
+                expected_output = tf.sparse.from_dense(expected_output)
+            elif backend.backend() == "jax":
+                import jax.experimental.sparse as jax_sparse
+
+                inputs = jax_sparse.BCOO.fromdense(inputs)
+                expected_output = jax_sparse.BCOO.fromdense(expected_output)
+            else:
+                self.fail(
+                    f"Backend {backend.backend()} does not support sparse"
+                )
 
         self.run_layer_test(
             layers.Permute,

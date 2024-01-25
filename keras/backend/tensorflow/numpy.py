@@ -1716,11 +1716,14 @@ def sqrt(x):
 def squeeze(x, axis=None):
     if isinstance(x, tf.SparseTensor):
         static_shape = x.shape.as_list()
-        if axis is not None and static_shape[axis] != 1:
-            raise ValueError(
-                f"Cannot squeeze axis {axis}, because the "
-                "dimension is not 1."
-            )
+        if axis is not None:
+            if static_shape[axis] != 1:
+                raise ValueError(
+                    f"Cannot squeeze axis {axis}, because the "
+                    "dimension is not 1."
+                )
+            if axis < 0:
+                axis += len(static_shape)
         dynamic_shape = tf.shape(x)
         new_shape = []
         gather_indices = []

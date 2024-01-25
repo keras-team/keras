@@ -1,4 +1,7 @@
+import tree
+
 from keras.api_export import keras_export
+from keras.backend import KerasTensor
 from keras.layers.layer import Layer
 
 
@@ -16,3 +19,12 @@ class Identity(Layer):
 
     def call(self, inputs):
         return inputs
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+    def compute_output_spec(self, inputs):
+        return tree.map_structure(
+            lambda x: KerasTensor(x.shape, dtype=x.dtype, sparse=x.sparse),
+            inputs,
+        )

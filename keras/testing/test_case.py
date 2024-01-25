@@ -15,6 +15,7 @@ from keras.backend.common.global_state import clear_session
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.models import Model
 from keras.utils import traceback_utils
+from keras.utils.shape_utils import map_shape_structure
 
 
 class TestCase(unittest.TestCase):
@@ -285,13 +286,22 @@ class TestCase(unittest.TestCase):
                     msg="Unexpected output dtype",
                 )
             if expected_output_sparse:
-                import tensorflow as tf
-
                 for x in tree.flatten(output):
                     if isinstance(x, KerasTensor):
                         self.assertTrue(x.sparse)
-                    else:
+                    elif backend.backend() == "tensorflow":
+                        import tensorflow as tf
+
                         self.assertIsInstance(x, tf.SparseTensor)
+                    elif backend.backend() == "jax":
+                        import jax.experimental.sparse as jax_sparse
+
+                        self.assertIsInstance(x, jax_sparse.JAXSparse)
+                    else:
+                        self.fail(
+                            "Sparse is unsupported with "
+                            f"backend {backend.backend()}"
+                        )
             if eager:
                 if expected_output is not None:
                     self.assertEqual(type(expected_output), type(output))
@@ -315,41 +325,28 @@ class TestCase(unittest.TestCase):
 
             model = TestModel(layer)
 
-            if input_sparse:
-                import tensorflow as tf
+            data = (input_data, output_data)
+            if backend.backend() == "torch":
+                data = tree.map_structure(backend.convert_to_numpy, data)
 
-                if backend.backend() == "torch":
-                    # Bring output Torch tensors to CPU before using `tf.data`
-                    dataset = tf.data.Dataset.from_tensors(
-                        (input_data, backend.convert_to_numpy(output_data))
-                    )
-                else:
-                    dataset = tf.data.Dataset.from_tensors(
-                        (input_data, output_data)
-                    )
-                model.compile(optimizer="sgd", loss="mse", jit_compile=False)
-                model.fit(dataset, verbose=0)
-            else:
-                input_data = tree.map_structure(
-                    lambda x: backend.convert_to_numpy(x), input_data
-                )
-                output_data = tree.map_structure(
-                    lambda x: backend.convert_to_numpy(x), output_data
-                )
-                # test the "default" path for each backend by setting
-                # jit_compile="auto.
-                # for tensorflow and jax backends auto is jitted
-                # for torch backend auto is eager
-                #
-                # NB: for torch, jit_compile=True turns on torchdynamo
-                #  which may not always succeed in tracing depending
-                #  on the model. Run your program with these env vars
-                #  to get debug traces of dynamo:
-                #    TORCH_LOGS="+dynamo"
-                #    TORCHDYNAMO_VERBOSE=1
-                #    TORCHDYNAMO_REPORT_GUARD_FAILURES=1
-                model.compile(optimizer="sgd", loss="mse", jit_compile="auto")
-                model.fit(input_data, output_data, verbose=0)
+            def data_generator():
+                while True:
+                    yield data
+
+            # test the "default" path for each backend by setting
+            # jit_compile="auto".
+            # for tensorflow and jax backends auto is jitted
+            # for torch backend auto is eager
+            #
+            # NB: for torch, jit_compile=True turns on torchdynamo
+            #  which may not always succeed in tracing depending
+            #  on the model. Run your program with these env vars
+            #  to get debug traces of dynamo:
+            #    TORCH_LOGS="+dynamo"
+            #    TORCHDYNAMO_VERBOSE=1
+            #    TORCHDYNAMO_REPORT_GUARD_FAILURES=1
+            model.compile(optimizer="sgd", loss="mse", jit_compile="auto")
+            model.fit(data_generator(), steps_per_epoch=1, verbose=0)
 
         # Build test.
         if input_data is not None or input_shape is not None:
@@ -431,10 +428,6 @@ class TestCase(unittest.TestCase):
 
 
 def create_keras_tensors(input_shape, dtype, sparse):
-    if isinstance(input_shape, tuple):
-        return KerasTensor(input_shape, dtype=dtype, sparse=sparse)
-    if isinstance(input_shape, list):
-        return [KerasTensor(s, dtype=dtype, sparse=sparse) for s in input_shape]
     if isinstance(input_shape, dict):
         return {
             utils.removesuffix(k, "_shape"): KerasTensor(
@@ -442,7 +435,10 @@ def create_keras_tensors(input_shape, dtype, sparse):
             )
             for k, v in input_shape.items()
         }
-    raise ValueError(f"Unsupported type for `input_shape`: {type(input_shape)}")
+    return map_shape_structure(
+        lambda shape: KerasTensor(shape, dtype=dtype, sparse=sparse),
+        input_shape,
+    )
 
 
 def create_eager_tensors(input_shape, dtype, sparse):
@@ -462,28 +458,39 @@ def create_eager_tensors(input_shape, dtype, sparse):
         )
 
     if sparse:
-        import tensorflow as tf
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
 
-        def create_fn(shape, dtype):
-            min_dim = min(dim for dim in shape if dim > 1)
-            x = random.uniform(shape, dtype="float32") * 3 / min_dim
-            x = tf.nn.dropout(x, 1.0 / min_dim)
-            x = tf.cast(x, dtype=dtype)
-            return tf.sparse.from_dense(x)
+            def create_fn(shape):
+                rng = np.random.default_rng(0)
+                x = (4 * rng.standard_normal(shape)).astype(dtype)
+                x = np.multiply(x, rng.random(shape) < 0.7)
+                return tf.sparse.from_dense(x)
+
+        elif backend.backend() == "jax":
+            import jax.experimental.sparse as jax_sparse
+
+            def create_fn(shape):
+                rng = np.random.default_rng(0)
+                x = (4 * rng.standard_normal(shape)).astype(dtype)
+                x = np.multiply(x, rng.random(shape) < 0.7)
+                return jax_sparse.BCOO.fromdense(x, n_batch=1)
+
+        else:
+            raise ValueError(
+                f"Sparse is unsupported with backend {backend.backend()}"
+            )
 
     else:
 
-        def create_fn(shape, dtype):
+        def create_fn(shape):
             return ops.cast(
                 random.uniform(shape, dtype="float32") * 3, dtype=dtype
             )
 
-    if isinstance(input_shape, tuple):
-        return create_fn(input_shape, dtype=dtype)
-    if isinstance(input_shape, list):
-        return [create_fn(s, dtype=dtype) for s in input_shape]
     if isinstance(input_shape, dict):
         return {
-            utils.removesuffix(k, "_shape"): create_fn(v, dtype=dtype)
+            utils.removesuffix(k, "_shape"): create_fn(v)
             for k, v in input_shape.items()
         }
+    return map_shape_structure(create_fn, input_shape)
