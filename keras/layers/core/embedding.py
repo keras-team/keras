@@ -164,7 +164,7 @@ class Embedding(Layer):
         if not self.lora_enabled:
             return super().save_own_variables(store)
 
-        embeddings_value = ops.convert_to_numpy(self.embeddings)
+        embeddings_value = self.embeddings
         store["0"] = embeddings_value
 
     def load_own_variables(self, store):

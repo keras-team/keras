@@ -1,7 +1,5 @@
 import types
 
-import h5py
-import ml_dtypes
 import numpy as np
 import tensorflow as tf
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
@@ -109,10 +107,6 @@ def convert_to_tensor(x, dtype=None, sparse=None):
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if not tf.is_tensor(x):
-        # h5py will handle bfloat16 as an opaque dtype.
-        # We assume any two byte void dtypes are in fact bfloat16 type.
-        if isinstance(x, h5py.Dataset) and x.dtype == np.dtype((np.void, 2)):
-            x = np.array(x, dtype=ml_dtypes.bfloat16)
         if dtype == "bool":
             # TensorFlow boolean conversion is stricter than other backends.
             # It does not allow ints. We convert without dtype and cast instead.

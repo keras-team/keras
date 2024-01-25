@@ -7,8 +7,10 @@ import tempfile
 import warnings
 import zipfile
 
+import ml_dtypes
 import numpy as np
 
+from keras import backend
 from keras.backend.common import global_state
 from keras.layers.layer import Layer
 from keras.losses.loss import Loss
@@ -602,22 +604,10 @@ class H5IOStore:
             self.h5_file = h5py.File(root_path, mode=self.mode)
 
     def make(self, path):
-        if not path:
-            return self.h5_file.create_group("vars")
-        return self.h5_file.create_group(path).create_group("vars")
+        return H5Entry(self.h5_file, path, mode="w")
 
     def get(self, path):
-        if not path:
-            return self.h5_file["vars"]
-        if path in self.h5_file and "vars" in self.h5_file[path]:
-            return self.h5_file[path]["vars"]
-        # No hit.
-        # Fix for 2.13 compatibility
-        if "_layer_checkpoint_dependencies" in self.h5_file:
-            path = path.replace("layers", "_layer_checkpoint_dependencies")
-            if path in self.h5_file and "vars" in self.h5_file[path]:
-                return self.h5_file[path]["vars"]
-        return {}
+        return H5Entry(self.h5_file, path, mode="r")
 
     def close(self):
         self.h5_file.close()
@@ -625,6 +615,72 @@ class H5IOStore:
             self.archive.writestr(self.root_path, self.io_file.getvalue())
         if self.io_file:
             self.io_file.close()
+
+
+class H5Entry:
+    """Leaf entry in a H5IOStore."""
+
+    def __init__(self, h5_file, path, mode):
+        self.h5_file = h5_file
+        self.path = path
+        self.mode = mode
+
+        if mode == "w":
+            if not path:
+                self.group = self.h5_file.create_group("vars")
+            else:
+                self.group = self.h5_file.create_group(self.path).create_group(
+                    "vars"
+                )
+        else:
+            found = False
+            if not path:
+                self.group = self.h5_file["vars"]
+                found = True
+            elif path in self.h5_file and "vars" in self.h5_file[path]:
+                self.group = self.h5_file[path]["vars"]
+                found = True
+            else:
+                # No hit.
+                # Fix for 2.13 compatibility
+                if "_layer_checkpoint_dependencies" in self.h5_file:
+                    path = path.replace(
+                        "layers", "_layer_checkpoint_dependencies"
+                    )
+                    self.path = path
+                    if path in self.h5_file and "vars" in self.h5_file[path]:
+                        self.group = self.h5_file[path]["vars"]
+                        found = True
+            if not found:
+                self.group = {}
+
+    def __len__(self):
+        return self.group.__len__()
+
+    def keys(self):
+        return self.group.keys()
+
+    def items(self):
+        return self.group.items()
+
+    def values(self):
+        return self.group.values()
+
+    def __setitem__(self, key, value):
+        if self.mode != "w":
+            raise ValueError("Setting a value is only allowed in write mode.")
+        value = backend.convert_to_numpy(value)
+        if backend.standardize_dtype(value.dtype) == "bfloat16":
+            ds = self.group.create_dataset(key, data=value)
+            ds.attrs["dtype"] = "bfloat16"
+        else:
+            self.group[key] = value
+
+    def __getitem__(self, name):
+        value = self.group[name]
+        if "dtype" in value.attrs and value.attrs["dtype"] == "bfloat16":
+            value = np.array(value, dtype=ml_dtypes.bfloat16)
+        return value
 
 
 class NpzIOStore:

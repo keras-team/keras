@@ -1,7 +1,6 @@
 import contextlib
 import os
 
-import h5py
 import ml_dtypes
 import numpy as np
 import torch
@@ -181,10 +180,6 @@ def convert_to_tensor(x, dtype=None, sparse=None):
                 x, dtype=to_torch_dtype(floatx()), device=get_device()
             )
 
-    # h5py will handle bfloat16 as an opaque dtype.
-    # We assume any two byte void dtypes are in fact bfloat16 type.
-    if isinstance(x, h5py.Dataset) and x.dtype == np.dtype((np.void, 2)):
-        x = np.array(x, dtype=ml_dtypes.bfloat16)
     # Convert to np in case of any array-like that is not list or tuple.
     if not isinstance(x, (list, tuple)):
         x = np.array(x)

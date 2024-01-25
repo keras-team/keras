@@ -1120,7 +1120,7 @@ class Layer(BackendLayer, Operation):
         """
         all_vars = self._trainable_variables + self._non_trainable_variables
         for i, v in enumerate(all_vars):
-            store[f"{i}"] = ops.convert_to_numpy(v)
+            store[f"{i}"] = v
 
     def load_own_variables(self, store):
         """Loads the state of the layer.

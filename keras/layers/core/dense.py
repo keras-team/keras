@@ -185,10 +185,10 @@ class Dense(Layer):
         if not self.lora_enabled:
             return super().save_own_variables(store)
 
-        kernel_value = ops.convert_to_numpy(self.kernel)
+        kernel_value = self.kernel
         store["0"] = kernel_value
         if self.use_bias:
-            store["1"] = ops.convert_to_numpy(self.bias)
+            store["1"] = self.bias
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
