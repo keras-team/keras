@@ -244,9 +244,11 @@ def rnn(
             for i, inp in enumerate(flattened_inputs)
         )
         input_ta = tuple(
-            ta.unstack(input_)
-            if not go_backwards
-            else ta.unstack(tf.reverse(input_, [0]))
+            (
+                ta.unstack(input_)
+                if not go_backwards
+                else ta.unstack(tf.reverse(input_, [0]))
+            )
             for ta, input_ in zip(input_ta, flattened_inputs)
         )
 

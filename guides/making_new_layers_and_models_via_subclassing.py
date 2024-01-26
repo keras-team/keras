@@ -6,6 +6,7 @@ Last modified: 2023/06/25
 Description: Complete guide to writing `Layer` and `Model` objects from scratch.
 Accelerator: None
 """
+
 """
 ## Introduction
 

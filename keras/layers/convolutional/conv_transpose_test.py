@@ -238,9 +238,9 @@ def np_conv3d_transpose(
             (*new_kenel_size_tuple, ch_out, ch_in),
             dtype=kernel_weights.dtype,
         )
-        new_kernel_weights[
-            ::h_dilation, ::w_dilation, ::d_dilation
-        ] = kernel_weights
+        new_kernel_weights[::h_dilation, ::w_dilation, ::d_dilation] = (
+            kernel_weights
+        )
         kernel_weights = new_kernel_weights
         h_kernel, w_kernel, d_kernel = kernel_weights.shape[:3]
 

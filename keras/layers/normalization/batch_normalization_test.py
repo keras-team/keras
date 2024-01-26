@@ -132,9 +132,9 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
         self.assertNotAllClose(unmasked_out, masked_out)
 
     @parameterized.product(
-        synchronized=(False, True)
-        if backend.backend == "tensorflow"
-        else (False,),
+        synchronized=(
+            (False, True) if backend.backend == "tensorflow" else (False,)
+        ),
     )
     def test_input_fully_masked(self, synchronized):
         norm = layers.BatchNormalization(

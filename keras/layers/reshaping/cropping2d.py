@@ -103,12 +103,16 @@ class Cropping2D(Layer):
             return (
                 input_shape[0],
                 input_shape[1],
-                input_shape[2] - self.cropping[0][0] - self.cropping[0][1]
-                if input_shape[2] is not None
-                else None,
-                input_shape[3] - self.cropping[1][0] - self.cropping[1][1]
-                if input_shape[3] is not None
-                else None,
+                (
+                    input_shape[2] - self.cropping[0][0] - self.cropping[0][1]
+                    if input_shape[2] is not None
+                    else None
+                ),
+                (
+                    input_shape[3] - self.cropping[1][0] - self.cropping[1][1]
+                    if input_shape[3] is not None
+                    else None
+                ),
             )
         else:
             if (
@@ -125,12 +129,16 @@ class Cropping2D(Layer):
                 )
             return (
                 input_shape[0],
-                input_shape[1] - self.cropping[0][0] - self.cropping[0][1]
-                if input_shape[1] is not None
-                else None,
-                input_shape[2] - self.cropping[1][0] - self.cropping[1][1]
-                if input_shape[2] is not None
-                else None,
+                (
+                    input_shape[1] - self.cropping[0][0] - self.cropping[0][1]
+                    if input_shape[1] is not None
+                    else None
+                ),
+                (
+                    input_shape[2] - self.cropping[1][0] - self.cropping[1][1]
+                    if input_shape[2] is not None
+                    else None
+                ),
                 input_shape[3],
             )
 

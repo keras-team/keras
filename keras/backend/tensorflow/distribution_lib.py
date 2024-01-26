@@ -5,6 +5,7 @@ Distribution related class for Tensorflow backend.
 This is just a prototype and we might want to unify it
 with other backends in the future.
 """
+
 import tensorflow as tf
 from tensorflow.experimental import dtensor
 

@@ -576,9 +576,11 @@ def concatenate(xs, axis=0):
             return tf.sparse.concat(axis=axis, sp_inputs=xs)
         else:
             xs = [
-                convert_to_tensor(x, sparse=False)
-                if isinstance(x, tf.SparseTensor)
-                else x
+                (
+                    convert_to_tensor(x, sparse=False)
+                    if isinstance(x, tf.SparseTensor)
+                    else x
+                )
                 for x in xs
             ]
     xs = tf.nest.map_structure(convert_to_tensor, xs)

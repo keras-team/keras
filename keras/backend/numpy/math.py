@@ -16,9 +16,9 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     valid_segment_ids = segment_ids[valid_indices]
 
     data_shape = list(valid_data.shape)
-    data_shape[
-        0
-    ] = num_segments  # Replace first dimension (which corresponds to segments)
+    data_shape[0] = (
+        num_segments  # Replace first dimension (which corresponds to segments)
+    )
 
     if sorted:
         result = np.zeros(data_shape, dtype=valid_data.dtype)
@@ -43,9 +43,9 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     valid_segment_ids = segment_ids[valid_indices]
 
     data_shape = list(valid_data.shape)
-    data_shape[
-        0
-    ] = num_segments  # Replace first dimension (which corresponds to segments)
+    data_shape[0] = (
+        num_segments  # Replace first dimension (which corresponds to segments)
+    )
 
     if sorted:
         result = np.zeros(data_shape, dtype=valid_data.dtype)

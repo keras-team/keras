@@ -778,10 +778,10 @@ class BaseOptimizer:
         """
         if "learning_rate" in config:
             if isinstance(config["learning_rate"], dict):
-                config[
-                    "learning_rate"
-                ] = serialization_lib.deserialize_keras_object(
-                    config["learning_rate"], custom_objects=custom_objects
+                config["learning_rate"] = (
+                    serialization_lib.deserialize_keras_object(
+                        config["learning_rate"], custom_objects=custom_objects
+                    )
                 )
         return cls(**config)
 

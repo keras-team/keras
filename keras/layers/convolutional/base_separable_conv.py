@@ -1,6 +1,5 @@
 """Keras abstract base layer for separable convolution."""
 
-
 from keras import activations
 from keras import constraints
 from keras import initializers

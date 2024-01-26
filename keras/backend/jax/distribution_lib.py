@@ -5,6 +5,7 @@ Distribution related class for JAX backend.
 This is just a prototype and we might want to unify it
 with other backends in the future.
 """
+
 import jax
 import numpy as np
 

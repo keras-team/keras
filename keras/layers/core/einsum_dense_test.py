@@ -254,9 +254,9 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             },
             input_shape=input_shape,
             expected_output_shape=expected_output_shape,
-            expected_num_trainable_weights=2
-            if expected_bias_shape is not None
-            else 1,
+            expected_num_trainable_weights=(
+                2 if expected_bias_shape is not None else 1
+            ),
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
             expected_num_losses=0,

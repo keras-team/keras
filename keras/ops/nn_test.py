@@ -111,20 +111,26 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         else:
             input_shape = (None, 3, 8, None)
         x = KerasTensor(input_shape)
-        self.assertEqual(
-            knn.max_pool(x, 2, 1).shape, (None, 7, None, 3)
-        ) if data_format == "channels_last" else (None, 3, 7, None)
+        (
+            self.assertEqual(knn.max_pool(x, 2, 1).shape, (None, 7, None, 3))
+            if data_format == "channels_last"
+            else (None, 3, 7, None)
+        )
         self.assertEqual(
             knn.max_pool(x, 2, 2, padding="same").shape,
-            (None, 4, None, 3)
-            if data_format == "channels_last"
-            else (None, 3, 4, None),
+            (
+                (None, 4, None, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, None)
+            ),
         )
         self.assertEqual(
             knn.max_pool(x, (2, 2), (2, 2), padding="same").shape,
-            (None, 4, None, 3)
-            if data_format == "channels_last"
-            else (None, 3, 4, None),
+            (
+                (None, 4, None, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, None)
+            ),
         )
 
     def test_average_pool(self):
@@ -150,21 +156,27 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         x = KerasTensor(input_shape)
         self.assertEqual(
             knn.average_pool(x, 2, 1).shape,
-            (None, 7, None, 3)
-            if data_format == "channels_last"
-            else (None, 3, 7, None),
+            (
+                (None, 7, None, 3)
+                if data_format == "channels_last"
+                else (None, 3, 7, None)
+            ),
         )
         self.assertEqual(
             knn.average_pool(x, 2, 2, padding="same").shape,
-            (None, 4, None, 3)
-            if data_format == "channels_last"
-            else (None, 3, 4, None),
+            (
+                (None, 4, None, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, None)
+            ),
         )
         self.assertEqual(
             knn.average_pool(x, (2, 2), (2, 2), padding="same").shape,
-            (None, 4, None, 3)
-            if data_format == "channels_last"
-            else (None, 3, 4, None),
+            (
+                (None, 4, None, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, None)
+            ),
         )
 
     def test_multi_hot(self):
@@ -192,16 +204,20 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         for padding in ["valid", "VALID"]:
             self.assertEqual(
                 knn.conv(inputs_1d, kernel, 1, padding=padding).shape,
-                (None, 17, 2)
-                if data_format == "channels_last"
-                else (None, 2, 17),
+                (
+                    (None, 17, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 17)
+                ),
             )
         for padding in ["same", "SAME"]:
             self.assertEqual(
                 knn.conv(inputs_1d, kernel, 1, padding=padding).shape,
-                (None, 20, 2)
-                if data_format == "channels_last"
-                else (None, 2, 20),
+                (
+                    (None, 20, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 20)
+                ),
             )
         self.assertEqual(
             knn.conv(inputs_1d, kernel, (2,), dilation_rate=2).shape,
@@ -218,22 +234,28 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         for padding in ["valid", "VALID"]:
             self.assertEqual(
                 knn.conv(inputs_2d, kernel, 1, padding=padding).shape,
-                (None, 9, None, 2)
-                if data_format == "channels_last"
-                else (None, 2, 9, None),
+                (
+                    (None, 9, None, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 9, None)
+                ),
             )
         for padding in ["same", "SAME"]:
             self.assertEqual(
                 knn.conv(inputs_2d, kernel, 1, padding=padding).shape,
-                (None, 10, None, 2)
-                if data_format == "channels_last"
-                else (None, 2, 10, None),
+                (
+                    (None, 10, None, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 10, None)
+                ),
             )
         self.assertEqual(
             knn.conv(inputs_2d, kernel, (2, 1), dilation_rate=(2, 1)).shape,
-            (None, 4, None, 2)
-            if data_format == "channels_last"
-            else (None, 2, 4, None),
+            (
+                (None, 4, None, 2)
+                if data_format == "channels_last"
+                else (None, 2, 4, None)
+            ),
         )
 
         # Test 2D conv - H, W specified
@@ -246,22 +268,28 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         for padding in ["valid", "VALID"]:
             self.assertEqual(
                 knn.conv(inputs_2d, kernel, 1, padding=padding).shape,
-                (None, 9, 9, 2)
-                if data_format == "channels_last"
-                else (None, 2, 9, 9),
+                (
+                    (None, 9, 9, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 9, 9)
+                ),
             )
         for padding in ["same", "SAME"]:
             self.assertEqual(
                 knn.conv(inputs_2d, kernel, 1, padding=padding).shape,
-                (None, 10, 10, 2)
-                if data_format == "channels_last"
-                else (None, 2, 10, 10),
+                (
+                    (None, 10, 10, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 10, 10)
+                ),
             )
         self.assertEqual(
             knn.conv(inputs_2d, kernel, (2, 1), dilation_rate=(2, 1)).shape,
-            (None, 4, 9, 2)
-            if data_format == "channels_last"
-            else (None, 2, 4, 9),
+            (
+                (None, 4, 9, 2)
+                if data_format == "channels_last"
+                else (None, 2, 4, 9)
+            ),
         )
 
         # Test 3D conv.
@@ -274,24 +302,30 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         for padding in ["valid", "VALID"]:
             self.assertEqual(
                 knn.conv(inputs_3d, kernel, 1, padding=padding).shape,
-                (None, 6, None, 6, 2)
-                if data_format == "channels_last"
-                else (None, 2, 6, None, 6),
+                (
+                    (None, 6, None, 6, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 6, None, 6)
+                ),
             )
         for padding in ["same", "SAME"]:
             self.assertEqual(
                 knn.conv(inputs_3d, kernel, (2, 1, 2), padding=padding).shape,
-                (None, 4, None, 4, 2)
-                if data_format == "channels_last"
-                else (None, 2, 4, None, 4),
+                (
+                    (None, 4, None, 4, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 4, None, 4)
+                ),
             )
         self.assertEqual(
             knn.conv(
                 inputs_3d, kernel, 1, padding="valid", dilation_rate=(1, 2, 2)
             ).shape,
-            (None, 6, None, 4, 2)
-            if data_format == "channels_last"
-            else (None, 2, 6, None, 4),
+            (
+                (None, 6, None, 4, 2)
+                if data_format == "channels_last"
+                else (None, 2, 6, None, 4)
+            ),
         )
 
     def test_depthwise_conv(self):
@@ -306,18 +340,22 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         for padding in ["valid", "VALID"]:
             self.assertEqual(
                 knn.depthwise_conv(inputs_1d, kernel, 1, padding=padding).shape,
-                (None, 17, 3)
-                if data_format == "channels_last"
-                else (None, 3, 17),
+                (
+                    (None, 17, 3)
+                    if data_format == "channels_last"
+                    else (None, 3, 17)
+                ),
             )
         for padding in ["same", "SAME"]:
             self.assertEqual(
                 knn.depthwise_conv(
                     inputs_1d, kernel, (1,), padding=padding
                 ).shape,
-                (None, 20, 3)
-                if data_format == "channels_last"
-                else (None, 3, 20),
+                (
+                    (None, 20, 3)
+                    if data_format == "channels_last"
+                    else (None, 3, 20)
+                ),
             )
         self.assertEqual(
             knn.depthwise_conv(inputs_1d, kernel, 2, dilation_rate=2).shape,
@@ -334,32 +372,40 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         for padding in ["valid", "VALID"]:
             self.assertEqual(
                 knn.depthwise_conv(inputs_2d, kernel, 1, padding=padding).shape,
-                (None, 9, 9, 3)
-                if data_format == "channels_last"
-                else (None, 3, 9, 9),
+                (
+                    (None, 9, 9, 3)
+                    if data_format == "channels_last"
+                    else (None, 3, 9, 9)
+                ),
             )
         for padding in ["same", "SAME"]:
             self.assertEqual(
                 knn.depthwise_conv(
                     inputs_2d, kernel, (1, 2), padding=padding
                 ).shape,
-                (None, 10, 5, 3)
-                if data_format == "channels_last"
-                else (None, 3, 10, 5),
+                (
+                    (None, 10, 5, 3)
+                    if data_format == "channels_last"
+                    else (None, 3, 10, 5)
+                ),
             )
         self.assertEqual(
             knn.depthwise_conv(inputs_2d, kernel, 2, dilation_rate=2).shape,
-            (None, 4, 4, 3)
-            if data_format == "channels_last"
-            else (None, 3, 4, 4),
+            (
+                (None, 4, 4, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, 4)
+            ),
         )
         self.assertEqual(
             knn.depthwise_conv(
                 inputs_2d, kernel, 2, dilation_rate=(2, 1)
             ).shape,
-            (None, 4, 5, 3)
-            if data_format == "channels_last"
-            else (None, 3, 4, 5),
+            (
+                (None, 4, 5, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, 5)
+            ),
         )
 
     def test_separable_conv(self):
@@ -403,25 +449,31 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, 1, padding="valid"
             ).shape,
-            (None, 9, 9, 5)
-            if data_format == "channels_last"
-            else (None, 5, 9, 9),
+            (
+                (None, 9, 9, 5)
+                if data_format == "channels_last"
+                else (None, 5, 9, 9)
+            ),
         )
         self.assertEqual(
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, (1, 2), padding="same"
             ).shape,
-            (None, 10, 5, 5)
-            if data_format == "channels_last"
-            else (None, 5, 10, 5),
+            (
+                (None, 10, 5, 5)
+                if data_format == "channels_last"
+                else (None, 5, 10, 5)
+            ),
         )
         self.assertEqual(
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, 2, dilation_rate=(2, 1)
             ).shape,
-            (None, 4, 5, 5)
-            if data_format == "channels_last"
-            else (None, 5, 4, 5),
+            (
+                (None, 4, 5, 5)
+                if data_format == "channels_last"
+                else (None, 5, 4, 5)
+            ),
         )
 
     def test_conv_transpose(self):
@@ -455,23 +507,29 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         kernel = KerasTensor([2, 2, 5, 3])
         self.assertEqual(
             knn.conv_transpose(inputs_2d, kernel, 2).shape,
-            (None, 8, 8, 5)
-            if data_format == "channels_last"
-            else (None, 5, 8, 8),
+            (
+                (None, 8, 8, 5)
+                if data_format == "channels_last"
+                else (None, 5, 8, 8)
+            ),
         )
         self.assertEqual(
             knn.conv_transpose(inputs_2d, kernel, (2, 2), padding="same").shape,
-            (None, 8, 8, 5)
-            if data_format == "channels_last"
-            else (None, 5, 8, 8),
+            (
+                (None, 8, 8, 5)
+                if data_format == "channels_last"
+                else (None, 5, 8, 8)
+            ),
         )
         self.assertEqual(
             knn.conv_transpose(
                 inputs_2d, kernel, (5, 5), padding="valid", output_padding=4
             ).shape,
-            (None, 21, 21, 5)
-            if data_format == "channels_last"
-            else (None, 5, 21, 21),
+            (
+                (None, 21, 21, 5)
+                if data_format == "channels_last"
+                else (None, 5, 21, 21)
+            ),
         )
 
     def test_one_hot(self):
@@ -718,9 +776,11 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
         self.assertEqual(
             knn.conv(inputs_2d, kernel, 1, padding="same").shape,
-            (2, 10, 10, 2)
-            if data_format == "channels_last"
-            else (2, 2, 10, 10),
+            (
+                (2, 10, 10, 2)
+                if data_format == "channels_last"
+                else (2, 2, 10, 10)
+            ),
         )
         self.assertEqual(
             knn.conv(inputs_2d, kernel, (2, 1), dilation_rate=(2, 1)).shape,
@@ -736,23 +796,29 @@ class NNOpsStaticShapeTest(testing.TestCase):
         kernel = KerasTensor([3, 3, 3, 3, 2])
         self.assertEqual(
             knn.conv(inputs_3d, kernel, 1, padding="valid").shape,
-            (2, 6, 6, 6, 2)
-            if data_format == "channels_last"
-            else (2, 2, 6, 6, 6),
+            (
+                (2, 6, 6, 6, 2)
+                if data_format == "channels_last"
+                else (2, 2, 6, 6, 6)
+            ),
         )
         self.assertEqual(
             knn.conv(inputs_3d, kernel, (2, 1, 2), padding="same").shape,
-            (2, 4, 8, 4, 2)
-            if data_format == "channels_last"
-            else (2, 2, 4, 8, 4),
+            (
+                (2, 4, 8, 4, 2)
+                if data_format == "channels_last"
+                else (2, 2, 4, 8, 4)
+            ),
         )
         self.assertEqual(
             knn.conv(
                 inputs_3d, kernel, 1, padding="valid", dilation_rate=(1, 2, 2)
             ).shape,
-            (2, 6, 4, 4, 2)
-            if data_format == "channels_last"
-            else (2, 2, 6, 4, 4),
+            (
+                (2, 6, 4, 4, 2)
+                if data_format == "channels_last"
+                else (2, 2, 6, 4, 4)
+            ),
         )
 
     def test_depthwise_conv(self):
@@ -900,9 +966,11 @@ class NNOpsStaticShapeTest(testing.TestCase):
             knn.conv_transpose(
                 inputs_2d, kernel, (5, 5), padding="valid", output_padding=4
             ).shape,
-            (2, 21, 21, 5)
-            if data_format == "channels_last"
-            else (2, 5, 21, 21),
+            (
+                (2, 21, 21, 5)
+                if data_format == "channels_last"
+                else (2, 5, 21, 21)
+            ),
         )
 
     def test_batched_and_unbatched_inputs_multi_hot(self):

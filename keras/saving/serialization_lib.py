@@ -220,9 +220,11 @@ def serialize_keras_object(obj):
         # TensorShape and tf.DType conversion
         ts_config = list(
             map(
-                lambda x: x.as_list()
-                if isinstance(x, tf.TensorShape)
-                else (x.name if isinstance(x, tf.DType) else x),
+                lambda x: (
+                    x.as_list()
+                    if isinstance(x, tf.TensorShape)
+                    else (x.name if isinstance(x, tf.DType) else x)
+                ),
                 ts_config,
             )
         )
@@ -651,9 +653,11 @@ def deserialize_keras_object(
         )
         # Conversion to TensorShape and DType
         inner_config = map(
-            lambda x: tf.TensorShape(x)
-            if isinstance(x, list)
-            else (getattr(tf, x) if hasattr(tf.dtypes, str(x)) else x),
+            lambda x: (
+                tf.TensorShape(x)
+                if isinstance(x, list)
+                else (getattr(tf, x) if hasattr(tf.dtypes, str(x)) else x)
+            ),
             inner_config,
         )
         return obj._deserialize(tuple(inner_config))

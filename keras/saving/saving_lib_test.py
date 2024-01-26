@@ -1,4 +1,5 @@
 """Tests for Keras python-based idempotent saving functions."""
+
 import json
 import os
 import warnings

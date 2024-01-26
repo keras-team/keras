@@ -167,9 +167,11 @@ def rnn(
         # flattened tensor.
 
         input_ta = tuple(
-            list(torch.unbind(input_))
-            if not go_backwards
-            else list(torch.unbind(torch.flip(input_, [0])))
+            (
+                list(torch.unbind(input_))
+                if not go_backwards
+                else list(torch.unbind(torch.flip(input_, [0])))
+            )
             for input_ in flattened_inputs
         )
 

@@ -217,10 +217,10 @@ class Lambda(Layer):
                 )
                 config["output_shape"] = fn
             else:
-                config[
-                    "output_shape"
-                ] = serialization_lib.deserialize_keras_object(
-                    fn_config, custom_objects=custom_objects
+                config["output_shape"] = (
+                    serialization_lib.deserialize_keras_object(
+                        fn_config, custom_objects=custom_objects
+                    )
                 )
         if "arguments" in config:
             config["arguments"] = serialization_lib.deserialize_keras_object(
