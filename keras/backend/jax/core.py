@@ -265,7 +265,7 @@ def scatter(indices, values, shape):
 
 
 def scatter_update(inputs, indices, updates):
-    inputs = jnp.array(inputs)
+    inputs = convert_to_tensor(inputs)
     indices = jnp.array(indices)
     indices = jnp.transpose(indices)
     inputs = inputs.at[tuple(indices)].set(updates)
