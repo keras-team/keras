@@ -968,7 +968,7 @@ def erf(x):
     return backend.math.erf(x)
 
 
-class ErfInv(Operation):
+class Erfinv(Operation):
     def compute_output_spec(self, x):
         return KerasTensor(shape=x.shape, dtype=x.dtype)
 
