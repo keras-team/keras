@@ -993,7 +993,7 @@ def erfinv(x):
     array([-0.47694, -0.17914, -0.08886,  0. ,  0.27246], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return Erf().symbolic_call(x)
+        return Erfinv().symbolic_call(x)
     x = backend.convert_to_tensor(x)
     return backend.math.erfinv(x)
 
