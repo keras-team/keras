@@ -968,6 +968,37 @@ def erf(x):
     return backend.math.erf(x)
 
 
+class Erfinv(Operation):
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape, dtype=x.dtype)
+
+    def call(self, x):
+        return backend.math.erfinv(x)
+
+
+@keras_export("keras.ops.erfinv")
+def erfinv(x):
+    """Computes the inverse error function of `x`, element-wise.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        A tensor with the same dtype as `x`.
+
+    Example:
+
+    >>> x = np.array([-0.5, -0.2, -0.1, 0.0, 0.3])
+    >>> keras.ops.erfinv(x)
+    array([-0.47694, -0.17914, -0.08886,  0. ,  0.27246], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Erfinv().symbolic_call(x)
+    x = backend.convert_to_tensor(x)
+    return backend.math.erfinv(x)
+
+
+
 class Solve(Operation):
     def call(self, a, b):
         a = backend.convert_to_tensor(a)

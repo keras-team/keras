@@ -887,6 +887,38 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         output_from_edge_erf_op = kmath.erf(edge_values)
         self.assertAllClose(expected_output, output_from_edge_erf_op, atol=1e-4)
 
+
+    def test_erfinv_operation_basic(self):
+        # Sample values for testing
+        sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
+
+        # Expected output using numpy's approximation of the error function
+        expected_output = scipy.special.erfinv(sample_values)
+
+        # Output from the erf operation in keras_core
+        output_from_erfinv_op = kmath.erfinv(sample_values)
+
+        # Assert that the outputs are close
+        self.assertAllClose(expected_output, output_from_erfinv_op, atol=1e-4)
+
+    def test_erfinv_operation_dtype(self):
+        # Test for float32 and float64 data types
+        for dtype in ("float32", "float64"):
+            sample_values = np.array(
+                [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], dtype=dtype
+            )
+            expected_output = scipy.special.erfinv(sample_values)
+            output_from_erfinv_op = kmath.erfinv(sample_values)
+            self.assertAllClose(expected_output, output_from_erfinv_op, atol=1e-4)
+
+    def test_erfinv_operation_edge_cases(self):
+        # Test for edge cases
+        edge_values = np.array([1e5, -1e5, 1e-5, -1e-5], dtype=np.float64)
+        expected_output = scipy.special.erfinv(edge_values)
+        output_from_edge_erfinv_op = kmath.erfinv(edge_values)
+        self.assertAllClose(expected_output, output_from_edge_erfinv_op, atol=1e-4)
+
+
     def test_solve(self):
         x1 = np.array([[1, 2], [4, 5]], dtype="float32")
         x2 = np.array([[2, 4], [8, 10]], dtype="float32")

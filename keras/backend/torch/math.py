@@ -415,6 +415,11 @@ def erf(x):
     return torch.erf(x)
 
 
+def erfinv(x):
+    x = convert_to_tensor(x)
+    return torch.erfinv(x)
+
+
 def solve(a, b):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)

@@ -254,6 +254,10 @@ def erf(x):
     return jax.lax.erf(x)
 
 
+def erfinv(x):
+    return jax.lax.erf_inv(x)
+
+
 def solve(a, b):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
