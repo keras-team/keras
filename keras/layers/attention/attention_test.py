@@ -210,7 +210,7 @@ class AttentionTest(testing.TestCase):
             "compute_mask should not return None with a valid mask",
         )
 
-    # Failed test cases ::
+    # Failed test cases :
     # "While the tests pass on torch + CPU, they fail with torch + GPU"
     # def test_attention_compute_mask_returns_correct_tensor_with_valid_mask(
     #     self,
