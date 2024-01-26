@@ -1,3 +1,4 @@
+import sys
 import types
 
 import jax
@@ -20,7 +21,7 @@ SUPPORTS_SPARSE_TENSORS = False
 
 class Variable(KerasVariable):
     def _initialize(self, value):
-        value = jnp.array(value, dtype=self._dtype)
+        value = convert_to_tensor(value, dtype=self._dtype)
         # Note that variable.shape is needed by distribution_lib
         self._shape = tuple(value.shape)
         # We can't import the keras/distribution/distribution_lib
@@ -35,6 +36,14 @@ class Variable(KerasVariable):
         self._direct_assign(value)
 
     def _direct_assign(self, value):
+        # If this is our only reference to the previous backing array,
+        # delete the memory with jax. This is important during weight loading,
+        # as we don't want to temporarily double up on variable allocations
+        # while we wait for python's garbage collector to catch up.
+        # Note that `sys.getrefcount()` will return 2 at a minimum, the
+        # `self._value` reference and a reference by `sys.getrefcount` itself.
+        if self._value is not None and sys.getrefcount(self._value) <= 2:
+            self._value.delete()
         if getattr(self, "_layout", None) is not None:
             value = distribution_lib.distribute_variable(value, self._layout)
         self._value = value

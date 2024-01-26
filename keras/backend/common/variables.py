@@ -28,6 +28,7 @@ class KerasVariable:
         else:
             self.path = self.name
         dtype = standardize_dtype(dtype)
+        self._value = None
         self._dtype = dtype
         self._shape = None
         self._initializer = None
