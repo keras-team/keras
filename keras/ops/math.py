@@ -998,7 +998,6 @@ def erfinv(x):
     return backend.math.erfinv(x)
 
 
-
 class Solve(Operation):
     def call(self, a, b):
         a = backend.convert_to_tensor(a)
