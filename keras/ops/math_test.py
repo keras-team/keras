@@ -887,7 +887,6 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         output_from_edge_erf_op = kmath.erf(edge_values)
         self.assertAllClose(expected_output, output_from_edge_erf_op, atol=1e-4)
 
-
     def test_erfinv_operation_basic(self):
         # Sample values for testing
         sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
@@ -909,15 +908,18 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             )
             expected_output = scipy.special.erfinv(sample_values)
             output_from_erfinv_op = kmath.erfinv(sample_values)
-            self.assertAllClose(expected_output, output_from_erfinv_op, atol=1e-4)
+            self.assertAllClose(
+                expected_output, output_from_erfinv_op, atol=1e-4
+            )
 
     def test_erfinv_operation_edge_cases(self):
         # Test for edge cases
         edge_values = np.array([1e5, -1e5, 1e-5, -1e-5], dtype=np.float64)
         expected_output = scipy.special.erfinv(edge_values)
         output_from_edge_erfinv_op = kmath.erfinv(edge_values)
-        self.assertAllClose(expected_output, output_from_edge_erfinv_op, atol=1e-4)
-
+        self.assertAllClose(
+            expected_output, output_from_edge_erfinv_op, atol=1e-4
+        )
 
     def test_solve(self):
         x1 = np.array([[1, 2], [4, 5]], dtype="float32")
