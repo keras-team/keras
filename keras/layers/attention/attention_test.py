@@ -212,21 +212,21 @@ class AttentionTest(testing.TestCase):
 
     # Failed test cases :
     # "While the tests pass on torch + CPU, they fail with torch + GPU"
-    # def test_attention_compute_mask_returns_correct_tensor_with_valid_mask(
-    #     self,
-    # ):
-    #     layer = layers.Attention()
-    #     dummy_inputs = [
-    #         np.random.random((2, 3, 4)),
-    #         np.random.random((2, 4, 4)),
-    #     ]
-    #     valid_mask = np.array([True, False, True])
-    #     mask = [valid_mask, np.array([False, True, False])]
-    #     computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
-    #     self.assertTrue(
-    #         np.array_equal(computed_mask, valid_mask),
-    #         "compute_mask did not return the correct mask tensor",
-    #     )
+    def test_attention_compute_mask_returns_correct_tensor_with_valid_mask(
+        self,
+    ):
+        layer = layers.Attention()
+        dummy_inputs = [
+            np.random.random((2, 3, 4)),
+            np.random.random((2, 4, 4)),
+        ]
+        valid_mask = np.array([True, False, True])
+        mask = [valid_mask, np.array([False, True, False])]
+        computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
+        self.assertTrue(
+            np.array_equal(computed_mask, valid_mask),
+            "compute_mask did not return the correct mask tensor",
+        )
 
     def test_attention_compute_mask_returns_correct_tensor_with_all_true_mask(
         self,
