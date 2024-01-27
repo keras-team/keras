@@ -164,6 +164,7 @@ class Progbar:
                             self._values[k][0] / max(1, self._values[k][1])
                         )
                     )
+                    avg = float(avg)
                     if abs(avg) > 1e-3:
                         info += f" {avg:.4f}"
                     else:
