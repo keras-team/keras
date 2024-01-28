@@ -2,7 +2,10 @@ import math
 
 import torch
 
+from keras.backend import config
 from keras.backend import standardize_dtype
+from keras.backend.common import dtypes
+from keras.backend.torch.core import cast
 from keras.backend.torch.core import convert_to_tensor
 from keras.backend.torch.core import get_device
 from keras.backend.torch.numpy import pad
@@ -428,4 +431,9 @@ def solve(a, b):
 
 def norm(x, ord=None, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
     return torch.linalg.norm(x, ord=ord, dim=axis, keepdim=keepdims)

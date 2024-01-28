@@ -7,8 +7,11 @@ from absl.testing import parameterized
 
 from keras import backend
 from keras import testing
+from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
+from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import math as kmath
+from keras.ops import numpy as knp
 from keras.testing.test_utils import named_product
 
 
@@ -930,7 +933,7 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(
         named_product(
-            ord=[None, "fro", "nuc", -np.inf, -2, -1, 0, 1, 2, np.inf, 123],
+            ord=[None, "fro", "nuc", -np.inf, -2, -1, 0, 1, 2, np.inf, 3],
             axis=[None, (0, 1), (0, 2)],
             keepdims=[False, True],
         )
@@ -940,7 +943,7 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             x = np.random.random((6, 7))
         else:
             x = np.random.random((5, 6, 7))
-        if ord in (0, 123):
+        if ord in (0, 3):
             error = RuntimeError if backend.backend() == "torch" else ValueError
             with self.assertRaises(error):
                 kmath.norm(x, ord=ord, axis=axis, keepdims=keepdims)
@@ -953,7 +956,7 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(
         named_product(
-            ord=[None, "fro", "nuc", -np.inf, -2, -1, 0, 1, 2, np.inf, 123],
+            ord=[None, "fro", "nuc", -np.inf, -2, -1, 0, 1, 2, np.inf, 3],
             axis=[None, 1, -1],
             keepdims=[False, True],
         )
@@ -973,6 +976,52 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             x, ord=ord, axis=axis, keepdims=keepdims
         )
         self.assertAllClose(output, expected_result)
+
+
+class MathDtypeTest(testing.TestCase, parameterized.TestCase):
+    """Test the floating dtype to verify that the behavior matches JAX."""
+
+    # TODO: Using uint64 will lead to weak type promotion (`float`),
+    # resulting in different behavior between JAX and Keras. Currently, we
+    # are skipping the test for uint64
+    ALL_DTYPES = [
+        x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
+    ] + [None]
+    INT_DTYPES = [x for x in ALLOWED_DTYPES if "int" in x and x != "uint64"]
+    FLOAT_DTYPES = [x for x in ALLOWED_DTYPES if "float" in x]
+
+    if backend.backend() == "torch":
+        # TODO: torch doesn't support uint16, uint32 and uint64
+        ALL_DTYPES = [
+            x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
+        ]
+        INT_DTYPES = [
+            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
+        ]
+
+    def setUp(self):
+        from jax.experimental import enable_x64
+
+        self.jax_enable_x64 = enable_x64()
+        self.jax_enable_x64.__enter__()
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        self.jax_enable_x64.__exit__(None, None, None)
+        return super().tearDown()
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_norm(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.linalg.norm(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = "float32"
+
+        self.assertEqual(standardize_dtype(kmath.norm(x).dtype), expected_dtype)
+        self.assertEqual(kmath.Norm().symbolic_call(x).dtype, expected_dtype)
 
 
 class QrOpTest(testing.TestCase):
