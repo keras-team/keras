@@ -214,10 +214,10 @@ class LegacyH5WholeModelTest(testing.TestCase):
 
             @classmethod
             def from_config(cls, config):
-                config[
-                    "sublayers"
-                ] = serialization_lib.deserialize_keras_object(
-                    config["sublayers"]
+                config["sublayers"] = (
+                    serialization_lib.deserialize_keras_object(
+                        config["sublayers"]
+                    )
                 )
                 return cls(**config)
 
@@ -455,10 +455,10 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
 
             @classmethod
             def from_config(cls, config):
-                config[
-                    "sublayers"
-                ] = serialization_lib.deserialize_keras_object(
-                    config["sublayers"]
+                config["sublayers"] = (
+                    serialization_lib.deserialize_keras_object(
+                        config["sublayers"]
+                    )
                 )
                 return cls(**config)
 
