@@ -1,3 +1,12 @@
+Keras 3 is a high-velocity open-source project. We welcome contributions!
+
+Contributions can be made in a variety of ways, including coding, enriching documentation, refining docstrings, and providing code examples.
+
+
+## Current items open for contributions
+At[this link](https://github.com/keras-team/keras/issues/18442), you'll find a list of items where you help is needed!
+
+
 ## How to contribute code
 
 Follow these steps to submit your code contribution.
@@ -9,7 +18,7 @@ exist) and discussing your proposed changes. This way, we can give you feedback
 and validate the proposed changes.
 
 If the changes are minor (simple bug fix or documentation fix), then feel free
-to open a PR without discussion.
+to open a Pull Request (PR) without discussion.
 
 ### Step 2. Make code changes
 
@@ -30,6 +39,7 @@ instructions on how to do so. Please follow the instructions to sign the CLA and
 the check will pass.
 
 ![CLA signed](https://github.com/keras-team/keras/assets/1091026/71c26353-e3b5-4135-8bae-64693c717775)
+
 
 ### Step 5. Code review
 
@@ -56,7 +66,7 @@ for your reference.
 ## Setup environment
 
 We provide two ways of setting up a development environment. One is to use a
-dev container, and the other one is to setup a local environment by installing
+dev container, and the other one is to set up a local environment by installing
 the dev tools needed.
 
 ### Option 1: GitHub Codespace or dev container
@@ -65,9 +75,9 @@ We support GitHub Codespaces, Visual Studio Code dev containers and JetBrain dev
 containers. Please see the
 [Dev container documentation](https://github.com/keras-team/keras/tree/master/.devcontainer).
 
-### Option 2: Setup a local environment
+### Option 2: Set up a local environment
 
-To setup your local dev environment, you will need the following tools.
+To set up your local dev environment, you will need the following tools.
 
 1.  [git](https://github.com/) for code repository management.
 2.  [python](https://www.python.org/) to build and code in Keras.
@@ -99,7 +109,7 @@ section of the README.
 
 ## Code style
 
-The Keras uses [Black](https://black.readthedocs.io/en/stable/) and
+Keras uses [Black](https://black.readthedocs.io/en/stable/) and
 [isort](https://pycqa.github.io/isort/) to format the code. Please refer to
 [requirements-common.txt](https://github.com/keras-team/keras/blob/master/requirements-common.txt)
 for the required versions. Run the following command **at the root directory of
