@@ -63,7 +63,7 @@ class ComputeOutputSpecTest(unittest.TestCase):
             self.assertEqual(y.shape, (None, 3, 3))
             self.assertTrue(y.sparse)
 
-        def three_args_2_kwarg_sparse_fn(x1, x2, x3=None):
+        def three_args_sparse_fn(x1, x2, x3=None):
             y0 = ops.add(x1, x2)  # sparse, sparse
             y1 = ops.concatenate([x1, x2], axis=0)  # sparse, sparse
             y2 = ops.divide(x1, x3)  # sparse, dense
@@ -75,9 +75,7 @@ class ComputeOutputSpecTest(unittest.TestCase):
         x1 = KerasTensor(shape=(None, 3, 3), sparse=True)
         x2 = KerasTensor(shape=(None, 3, 3), sparse=True)
         x3 = KerasTensor(shape=(None, 3, 3), sparse=False)
-        ys = backend.compute_output_spec(
-            three_args_2_kwarg_sparse_fn, x1, x2, x3=x3
-        )
+        ys = backend.compute_output_spec(three_args_sparse_fn, x1, x2, x3=x3)
         for y in ys:
             self.assertEqual(y.shape, (None, 3, 3))
             self.assertTrue(y.sparse)
@@ -97,23 +95,20 @@ class ComputeOutputSpecTest(unittest.TestCase):
             self.assertEqual(y.shape, (None, 3, 3))
             self.assertFalse(y.sparse)
 
-        def three_args_2_kwarg_dense_fn(x1, x2, x3=None):
-            y0 = ops.add(x1, x3)  # sparse, dense
-            y1 = ops.add(x3, x1)  # dense, sparse
-            y2 = ops.concatenate([x1, x3], axis=0)  # sparse, dense
-            y3 = ops.matmul(x1, x3)  # sparse, dense
-            y4 = ops.matmul(x3, x1)  # dense, sparse
-            indices = KerasTensor((3,), "int64", sparse=True)
-            y5 = ops.take(x3, indices=indices, axis=1)  # dense, sparse
-            y6 = ops.divide(x1, x2)
+        def three_args_dense_fn(x1, x2, x3=None):
+            y0 = ops.add(x1, x2)  # sparse, dense
+            y1 = ops.add(x2, x1)  # dense, sparse
+            y2 = ops.concatenate([x1, x2], axis=0)  # sparse, dense
+            y3 = ops.matmul(x1, x2)  # sparse, dense
+            y4 = ops.matmul(x2, x1)  # dense, sparse
+            y5 = ops.take(x2, indices=x3, axis=1)  # dense, sparse
+            y6 = ops.divide(x1, x1)  # sparse, sparse
             return (y0, y1, y2, y3, y4, y5, y6)
 
         x1 = KerasTensor(shape=(None, 3, 3), sparse=True)
-        x2 = KerasTensor(shape=(None, 3, 3), sparse=True)
-        x3 = KerasTensor(shape=(None, 3, 3), sparse=False)
-        ys = backend.compute_output_spec(
-            three_args_2_kwarg_dense_fn, x1, x2, x3=x3
-        )
+        x2 = KerasTensor(shape=(None, 3, 3), sparse=False)
+        x3 = KerasTensor(shape=(3,), dtype="int64", sparse=True)
+        ys = backend.compute_output_spec(three_args_dense_fn, x1, x2, x3=x3)
         for y in ys:
             self.assertEqual(y.shape, (None, 3, 3))
             self.assertFalse(y.sparse)

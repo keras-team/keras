@@ -1,10 +1,10 @@
 from unittest import mock
 
 import pytest
-import tensorflow as tf
 from absl.testing import parameterized
 
 from keras import backend
+from keras import ops
 from keras import optimizers
 from keras import testing
 
@@ -101,8 +101,8 @@ TEST_CASES = [
 
 
 @pytest.mark.skipif(
-    backend.backend() != "tensorflow",
-    reason="The TensorFlow sparse test can only run with TensorFlow backend.",
+    not backend.SUPPORTS_SPARSE_TENSORS,
+    reason="Backend does not support sparse tensors.",
 )
 class OptimizerSparseTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(TEST_CASES)
@@ -116,7 +116,7 @@ class OptimizerSparseTest(testing.TestCase, parameterized.TestCase):
         # This test verifies that:
         # - Optimizers use Keras ops everywhere instead of native operators
         #   (e.g. `ops.add()` instead of `+`) where sparse gradients are handled
-        # - The used ops handle sparse gradients (`tf.IndexedSlices`)
+        # - The used ops handle sparse gradients
         # - Optimizers use `self.assign/assign_add/assign_sub` instead of
         #   calling the method on the variable directly. Otherwise, the sparse
         #   updates are densified before being applied.
@@ -124,12 +124,28 @@ class OptimizerSparseTest(testing.TestCase, parameterized.TestCase):
         #   variable update as per `expect_model_sparse_variable_updates` and
         #   `expect_optimizer_sparse_variable_updates`
 
-        model_variable = backend.Variable(initializer=tf.ones, shape=(5, 10))
+        model_variable = backend.Variable(initializer="ones", shape=(5, 10))
         optimizer = optimizer_class(**init_kwargs)
 
         # Mocking "tensorflow.Variable" won't work as it gets substituted with
         # the resource variable class.
-        tf_variable_class = model_variable._value.__class__
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            grad = tf.IndexedSlices(0.5 * ops.ones((3, 10)), (0, 2, 4), (5, 10))
+            sparse_class = tf.IndexedSlices
+            variable_class = model_variable._value.__class__
+        elif backend.backend() == "jax":
+            import jax.experimental.sparse as jax_sparse
+
+            grad = jax_sparse.BCOO(
+                (0.5 * ops.ones((3, 10)), ((0,), (2,), (4,))), shape=(5, 10)
+            )
+            sparse_class = jax_sparse.JAXSparse
+            variable_class = model_variable.__class__
+        else:
+            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
 
         optimizer_to_patch = (
             optimizer.inner_optimizer
@@ -145,7 +161,7 @@ class OptimizerSparseTest(testing.TestCase, parameterized.TestCase):
             nonlocal optimizer_sparse_variable_updates
             if isinstance(variable, backend.Variable):
                 variable = variable._value
-            if isinstance(value, tf.IndexedSlices):
+            if isinstance(value, sparse_class):
                 if variable is model_variable._value:
                     model_sparse_variable_updates = True
                 elif any(variable is v._value for v in optimizer.variables):
@@ -173,11 +189,11 @@ class OptimizerSparseTest(testing.TestCase, parameterized.TestCase):
         ) as optimizer_assign_add, mock.patch.object(
             optimizer_to_patch, "assign_sub", autospec=True
         ) as optimizer_assign_sub, mock.patch.object(
-            tf_variable_class, "assign", autospec=True
+            variable_class, "assign", autospec=True
         ) as variable_assign, mock.patch.object(
-            tf_variable_class, "assign_add", autospec=True
+            variable_class, "assign_add", autospec=True
         ) as variable_assign_add, mock.patch.object(
-            tf_variable_class, "assign_sub", autospec=True
+            variable_class, "assign_sub", autospec=True
         ) as variable_assign_sub:
             optimizer_assign.side_effect = mock_optimizer_assign
             optimizer_assign_add.side_effect = mock_optimizer_assign
@@ -186,10 +202,7 @@ class OptimizerSparseTest(testing.TestCase, parameterized.TestCase):
             variable_assign_add.side_effect = mock_variable_assign
             variable_assign_sub.side_effect = mock_variable_assign
 
-            grad = tf.IndexedSlices(
-                values=tf.ones((3, 10)), indices=(0, 2, 4), dense_shape=(5, 10)
-            )
-            optimizer.apply_gradients(zip([grad], [model_variable]))
+            optimizer.apply([grad], [model_variable])
 
         self.assertEqual(
             model_sparse_variable_updates, expect_model_sparse_variable_updates
@@ -208,16 +221,56 @@ class OptimizerSparseTest(testing.TestCase, parameterized.TestCase):
 
         optimizer_sparse = optimizer_class(**init_kwargs)
         optimizer_dense = optimizer_class(**init_kwargs)
-        var_sparse = backend.Variable(initializer=tf.ones, shape=(5, 3, 2))
-        var_dense = backend.Variable(initializer=tf.ones, shape=(5, 3, 2))
+        var_sparse = backend.Variable(initializer="ones", shape=(5, 3, 2))
+        var_dense = backend.Variable(initializer="ones", shape=(5, 3, 2))
+        stateless = backend.backend() == "jax"
+        if stateless:
+            optimizer_sparse.build([var_sparse])
+            optimizer_dense.build([var_dense])
+
+        optimizer_sparse_vars = optimizer_sparse.variables
+        optimizer_dense_vars = optimizer_dense.variables
+        var_sparse_values = [var_sparse.value]
+        var_dense_values = [var_dense.value]
 
         for i in range(5):
-            grads_sparse = tf.IndexedSlices(
-                values=tf.ones((3, 3, 2)) * (10.0 - i),
-                indices=(0, 2, 4),
-                dense_shape=(5, 3, 2),
-            )
-            grads_dense = tf.convert_to_tensor(grads_sparse)
-            optimizer_sparse.apply_gradients(zip([grads_sparse], [var_sparse]))
-            optimizer_dense.apply_gradients(zip([grads_dense], [var_dense]))
-            self.assertAllClose(var_sparse, var_dense)
+            if backend.backend() == "tensorflow":
+                import tensorflow as tf
+
+                grad_sparse = tf.IndexedSlices(
+                    values=ops.ones((3, 3, 2)) * (10.0 - i),
+                    indices=(0, 2, 4),
+                    dense_shape=(5, 3, 2),
+                )
+            elif backend.backend() == "jax":
+                import jax.experimental.sparse as jax_sparse
+
+                grad_sparse = jax_sparse.BCOO(
+                    (ops.ones((3, 3, 2)) * (10.0 - i), ((0,), (2,), (4,))),
+                    shape=(5, 3, 2),
+                )
+            else:
+                self.fail(
+                    f"Sparse is unsupported with backend {backend.backend()}"
+                )
+
+            grad_dense = ops.convert_to_tensor(grad_sparse, sparse=False)
+            if stateless:
+                (
+                    var_sparse_values,
+                    optimizer_sparse_vars,
+                ) = optimizer_sparse.stateless_apply(
+                    optimizer_sparse_vars, [grad_sparse], var_sparse_values
+                )
+                (
+                    var_dense_values,
+                    optimizer_dense_vars,
+                ) = optimizer_dense.stateless_apply(
+                    optimizer_dense_vars, [grad_dense], var_dense_values
+                )
+                self.assertAllClose(var_sparse_values[0], var_dense_values[0])
+
+            else:
+                optimizer_sparse.apply([grad_sparse], [var_sparse])
+                optimizer_dense.apply([grad_dense], [var_dense])
+                self.assertAllClose(var_sparse.value, var_dense.value)

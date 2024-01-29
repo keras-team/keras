@@ -94,23 +94,34 @@ class TrainingTestingLayer(Trainer, layers.Layer):
         return x * 0
 
 
-def tf_sparse_generator():
-    import tensorflow as tf
+def sparse_generator(generator_type):
+    if generator_type == "scipy":
+        import scipy
 
-    for i in range(4):
-        x = tf.random.uniform((2, 4), dtype="float32")
-        x = tf.sparse.from_dense(tf.nn.dropout(x, 0.25))
-        y = tf.random.uniform((2, 3), dtype="float32")
-        yield x, y
+        for i in range(4):
+            x = scipy.sparse.random(2, 4, density=0.25, dtype="float32")
+            y = np.random.rand(2, 3).astype("float32")
+            yield x, y
+    elif generator_type == "tensorflow":
+        import tensorflow as tf
 
+        for i in range(4):
+            x = tf.random.uniform((2, 4), dtype="float32")
+            x = tf.sparse.from_dense(tf.nn.dropout(x, 0.25))
+            y = tf.random.uniform((2, 3), dtype="float32")
+            yield x, y
+    elif generator_type == "jax":
+        import jax
 
-def scipy_sparse_generator():
-    import scipy
-
-    for i in range(4):
-        x = scipy.sparse.random(2, 4, density=0.25, dtype="float32")
-        y = np.random.rand(2, 3).astype("float32")
-        yield x, y
+        for i in range(4):
+            seed = jax.random.PRNGKey(0)
+            x = jax.experimental.sparse.random_bcoo(
+                seed, (2, 4), dtype="float32", nse=0.25
+            )
+            y = jax.random.uniform(seed, (2, 3), dtype="float32")
+            yield x, y
+    else:
+        raise ValueError(f"Invalid generator type {generator_type}")
 
 
 class TestTrainer(testing.TestCase, parameterized.TestCase):
@@ -303,9 +314,9 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             jit_compile=False,
         )
         dataset = (
-            scipy_sparse_generator()
+            sparse_generator("scipy")
             if use_scipy_sparse
-            else tf_sparse_generator()
+            else sparse_generator(backend.backend())
         )
 
         sparse_variable_updates = False
@@ -321,8 +332,10 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             optimizer_assign_sub.side_effect = mock_optimizer_assign
             model.fit(dataset)
 
-        # Verify tensors did not get densified along the way.
-        self.assertTrue(sparse_variable_updates)
+        # JAX does not produce sparse gradients the way we use it.
+        if backend.backend() != "jax":
+            # Verify tensors did not get densified along the way.
+            self.assertTrue(sparse_variable_updates)
 
     @parameterized.named_parameters(
         [
@@ -374,9 +387,9 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             jit_compile=False,
         )
         dataset = (
-            scipy_sparse_generator()
+            sparse_generator("scipy")
             if use_scipy_sparse
-            else tf_sparse_generator()
+            else sparse_generator(backend.backend())
         )
         model.evaluate(dataset)
 
@@ -444,9 +457,9 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             jit_compile=False,
         )
         dataset = (
-            scipy_sparse_generator()
+            sparse_generator("scipy")
             if use_scipy_sparse
-            else tf_sparse_generator()
+            else sparse_generator(backend.backend())
         )
         model.predict(dataset)
 

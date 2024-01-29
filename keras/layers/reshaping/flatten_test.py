@@ -30,13 +30,23 @@ class FlattenTest(testing.TestCase, parameterized.TestCase):
             np.reshape(np.transpose(inputs, (0, 2, 3, 1)), (-1, 5 * 5 * 3))
         )
         if sparse:
-            import tensorflow as tf
+            if backend.backend() == "tensorflow":
+                import tensorflow as tf
 
-            inputs = tf.sparse.from_dense(inputs)
-            expected_output_channels_last = tf.sparse.from_dense(
+                dense_to_sparse = tf.sparse.from_dense
+            elif backend.backend() == "jax":
+                import jax.experimental.sparse as jax_sparse
+
+                dense_to_sparse = jax_sparse.BCOO.fromdense
+            else:
+                self.fail(
+                    f"Sparse is unsupported with backend {backend.backend()}"
+                )
+            inputs = dense_to_sparse(inputs)
+            expected_output_channels_last = dense_to_sparse(
                 expected_output_channels_last
             )
-            expected_output_channels_first = tf.sparse.from_dense(
+            expected_output_channels_first = dense_to_sparse(
                 expected_output_channels_first
             )
 

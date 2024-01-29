@@ -286,11 +286,17 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         reason="Backend does not support sparse tensors.",
     )
     def test_shape_sparse(self):
-        import tensorflow as tf
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
 
-        x = tf.SparseTensor(
-            indices=[[0, 0], [1, 2]], values=[1.0, 2.0], dense_shape=(2, 3)
-        )
+            x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
+        elif backend.backend() == "jax":
+            import jax.experimental.sparse as jax_sparse
+
+            x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
+        else:
+            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+
         self.assertAllEqual(core.shape(x), (2, 3))
 
     def test_convert_to_tensor(self):
@@ -319,20 +325,27 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         reason="Backend does not support sparse tensors.",
     )
     def test_convert_to_tensor_sparse(self):
-        import tensorflow as tf
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
 
-        x = tf.SparseTensor(
-            indices=[[0, 0], [1, 2]], values=[1.0, 2.0], dense_shape=(2, 3)
-        )
+            x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
+            sparse_class = tf.SparseTensor
+        elif backend.backend() == "jax":
+            import jax.experimental.sparse as jax_sparse
+
+            x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
+            sparse_class = jax_sparse.JAXSparse
+        else:
+            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
 
         x_default = ops.convert_to_tensor(x)
-        self.assertIsInstance(x_default, tf.SparseTensor)
+        self.assertIsInstance(x_default, sparse_class)
         self.assertAllClose(x, x_default)
         x_sparse = ops.convert_to_tensor(x, sparse=True)
-        self.assertIsInstance(x_sparse, tf.SparseTensor)
+        self.assertIsInstance(x_sparse, sparse_class)
         self.assertAllClose(x, x_sparse)
         x_dense = ops.convert_to_tensor(x, sparse=False)
-        self.assertNotIsInstance(x_dense, tf.SparseTensor)
+        self.assertNotIsInstance(x_dense, sparse_class)
         self.assertAllClose(x, x_dense)
 
         x_numpy = ops.convert_to_numpy(x)

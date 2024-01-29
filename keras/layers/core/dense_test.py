@@ -7,6 +7,7 @@ from keras import backend
 from keras import constraints
 from keras import layers
 from keras import models
+from keras import ops
 from keras import saving
 from keras import testing
 from keras.backend.common import keras_tensor
@@ -110,23 +111,42 @@ class DenseTest(testing.TestCase):
         inputs = 4 * backend.random.uniform((10, 10))
         inputs = tf.sparse.from_dense(tf.nn.dropout(inputs, 0.8))
 
-        layer = layers.Dense(units=5)
+        inputs = np.random.random((10, 10)).astype("float32")
+        inputs = np.multiply(inputs, inputs >= 0.8)
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            inputs = tf.sparse.from_dense(inputs)
+        elif backend.backend() == "jax":
+            import jax.experimental.sparse as jax_sparse
+
+            inputs = jax_sparse.BCOO.fromdense(inputs)
+        else:
+            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+
+        layer = layers.Dense(units=10)
         outputs = layer(inputs)
 
         # Verify the computation is the same as if it had been a dense tensor
-        expected_outputs = tf.add(
-            tf.matmul(tf.sparse.to_dense(inputs), layer.kernel),
+        expected_outputs = ops.add(
+            ops.matmul(
+                backend.convert_to_tensor(inputs, sparse=False), layer.kernel
+            ),
             layer.bias,
         )
         self.assertAllClose(outputs, expected_outputs)
 
         # Verify the gradient is sparse
-        with tf.GradientTape() as g:
-            outputs = layer(inputs)
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
 
-        self.assertIsInstance(
-            g.gradient(outputs, layer.kernel), tf.IndexedSlices
-        )
+            with tf.GradientTape() as g:
+                outputs = layer(inputs)
+
+            self.assertIsInstance(
+                g.gradient(outputs, layer.kernel), tf.IndexedSlices
+            )
 
     def test_dense_no_activation(self):
         layer = layers.Dense(units=2, use_bias=False, activation=None)

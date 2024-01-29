@@ -85,12 +85,12 @@ class MergingLayersTest(testing.TestCase, parameterized.TestCase):
         init_kwargs={},
         input_shape=(2, 4, 5),
         expected_output_shape=(2, 4, 5),
-        **kwargs
+        **kwargs,
     ):
         self.run_layer_test(
             layer_class,
             init_kwargs=init_kwargs,
-            input_shape=[input_shape, input_shape],
+            input_shape=(input_shape, input_shape),
             expected_output_shape=expected_output_shape,
             expected_num_trainable_weights=0,
             expected_num_non_trainable_weights=0,
@@ -181,7 +181,7 @@ class MergingLayersTest(testing.TestCase, parameterized.TestCase):
         init_kwargs={},
         input_shape=(2, 4, 5),
         skip_mask_test=False,
-        **kwargs
+        **kwargs,
     ):
         if skip_mask_test:
             pytest.skip("Masking not supported")
@@ -246,10 +246,8 @@ class MergingLayersTest(testing.TestCase, parameterized.TestCase):
         init_kwargs={},
         input_shape=(2, 4, 5),
         expected_output_shape=(2, 4, 5),
-        **kwargs
+        **kwargs,
     ):
-        import tensorflow as tf
-
         self.run_layer_test(
             layer_class,
             init_kwargs=init_kwargs,
@@ -270,19 +268,29 @@ class MergingLayersTest(testing.TestCase, parameterized.TestCase):
 
         # Merging a sparse tensor with a dense tensor, or a dense tensor with a
         # sparse tensor produces a dense tensor
-        x1 = tf.SparseTensor(
-            indices=[[0, 0], [1, 2]], values=[1.0, 2.0], dense_shape=(2, 3)
-        )
-        x1_np = tf.sparse.to_dense(x1).numpy()
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x1 = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
+            x3 = tf.SparseTensor([[0, 0], [1, 1]], [4.0, 5.0], (2, 3))
+            sparse_class = tf.SparseTensor
+        elif backend.backend() == "jax":
+            import jax.experimental.sparse as jax_sparse
+
+            # Use n_batch of 1 to be compatible with all ops.
+            x1 = jax_sparse.BCOO(([[1.0, 2.0]], [[[0], [2]]]), shape=(2, 3))
+            x3 = jax_sparse.BCOO(([[4.0, 5.0]], [[[0], [1]]]), shape=(2, 3))
+            sparse_class = jax_sparse.JAXSparse
+        else:
+            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+
+        x1_np = backend.convert_to_numpy(x1)
         x2 = np.random.rand(2, 3)
         self.assertAllClose(layer([x1, x2]), np_op(x1_np, x2, **init_kwargs))
         self.assertAllClose(layer([x2, x1]), np_op(x2, x1_np, **init_kwargs))
 
         # Merging a sparse tensor with a sparse tensor produces a sparse tensor
-        x3 = tf.SparseTensor(
-            indices=[[0, 0], [1, 1]], values=[4.0, 5.0], dense_shape=(2, 3)
-        )
-        x3_np = tf.sparse.to_dense(x3).numpy()
+        x3_np = backend.convert_to_numpy(x3)
 
-        self.assertIsInstance(layer([x1, x3]), tf.SparseTensor)
+        self.assertIsInstance(layer([x1, x3]), sparse_class)
         self.assertAllClose(layer([x1, x3]), np_op(x1_np, x3_np, **init_kwargs))
