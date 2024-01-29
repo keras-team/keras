@@ -1,10 +1,12 @@
 from keras import backend
 from keras.api_export import keras_export
 from keras.backend.common import global_state
+from keras.saving import serialization_lib
 
 
 @keras_export(
     [
+        "keras.DTypePolicy",
         "keras.mixed_precision.DTypePolicy",
         "keras.mixed_precision.Policy",
     ]
@@ -15,7 +17,7 @@ class DTypePolicy:
     A dtype policy determines a layer's computation and variable dtypes. Each
     layer has a policy. Policies can be passed to the `dtype` argument of layer
     constructors, or a global policy can be set with
-    `keras.mixed_precision.set_dtype_policy`.
+    `keras.config.set_dtype_policy`.
 
     Args:
         name: The policy name, which determines the compute and variable dtypes.
@@ -32,7 +34,7 @@ class DTypePolicy:
     API name. Mixed precision can be enabled by passing `"mixed_float16"` or
     `"mixed_bfloat16"` to `keras.mixed_precision.set_dtype_policy()`.
 
-    >>> keras.mixed_precision.set_dtype_policy("mixed_float16")
+    >>> keras.config.set_dtype_policy("mixed_float16")
     >>> layer1 = keras.layers.Dense(10)
     >>> layer1.dtype_policy  # layer1 will automatically use mixed precision
     <DTypePolicy "mixed_float16">
@@ -42,11 +44,11 @@ class DTypePolicy:
     >>> layer2.dtype_policy
     <DTypePolicy "float32">
     >>> # Set policy back to initial float32.
-    >>> keras.mixed_precision.set_dtype_policy('float32')
+    >>> keras.config.set_dtype_policy('float32')
 
     In the example above, passing `dtype="float32"` to the layer is
     equivalent to passing
-    `dtype=keras.mixed_precision.DTypePolicy("float32")`.
+    `dtype=keras.config.DTypePolicy("float32")`.
     In general, passing a dtype policy name to a layer is equivalent
     to passing the corresponding policy, so it is never necessary
     to explicitly construct a `DTypePolicy` object.
@@ -142,6 +144,7 @@ class DTypePolicy:
 
 @keras_export(
     [
+        "keras.config.set_dtype_policy",
         "keras.mixed_precision.set_dtype_policy",
         "keras.mixed_precision.set_global_policy",
     ]
@@ -151,7 +154,7 @@ def set_dtype_policy(policy):
 
     Example:
 
-    >>> keras.mixed_precision.set_dtype_policy("mixed_float16")
+    >>> keras.config.set_dtype_policy("mixed_float16")
     """
     if not isinstance(policy, DTypePolicy):
         if isinstance(policy, str):
@@ -169,6 +172,7 @@ def set_dtype_policy(policy):
 
 @keras_export(
     [
+        "keras.config.dtype_policy",
         "keras.mixed_precision.dtype_policy",
         "keras.mixed_precision.global_policy",
     ]
@@ -180,3 +184,21 @@ def dtype_policy():
         policy = DTypePolicy(backend.floatx())
         set_dtype_policy(policy)
     return policy
+
+
+def get(identifier):
+    if identifier is None:
+        return dtype_policy()
+    if isinstance(identifier, DTypePolicy):
+        return identifier
+    if isinstance(identifier, dict):
+        return serialization_lib.deserialize_keras_object(identifier)
+    if isinstance(identifier, str):
+        return DTypePolicy(identifier)
+    try:
+        return DTypePolicy(backend.standardize_dtype(identifier))
+    except:
+        raise ValueError(
+            "Cannot interpret `dtype` argument. Expected a string "
+            f"or an instance of DTypePolicy. Received: dtype={identifier}"
+        )

@@ -26,7 +26,6 @@ import tree
 from keras import backend
 from keras import constraints
 from keras import initializers
-from keras import mixed_precision
 from keras import ops
 from keras import regularizers
 from keras import utils
@@ -35,6 +34,7 @@ from keras.backend import KerasTensor
 from keras.backend.common import global_state
 from keras.backend.common.name_scope import current_path
 from keras.distribution import distribution_lib
+from keras.layers import dtype_policy
 from keras.layers import input_spec
 from keras.metrics.metric import Metric
 from keras.ops.operation import Operation
@@ -83,12 +83,12 @@ class Layer(BackendLayer, Operation):
         trainable: Boolean, whether the layer's variables should be trainable.
         name: String name of the layer.
         dtype: The dtype of the layer's computations and weights. Can also be a
-            `keras.mixed_precision.DTypePolicy`,
+            `keras.DTypePolicy`,
             which allows the computation and
             weight dtype to differ. Defaults to `None`. `None` means to use
-            `keras.mixed_precision.dtype_policy()`,
+            `keras.config.dtype_policy()`,
             which is a `float32` policy unless set to different value
-            (via `keras.mixed_precision.set_dtype_policy()`).
+            (via `keras.config.set_dtype_policy()`).
 
     Attributes:
         name: The name of the layer (string).
@@ -98,7 +98,7 @@ class Layer(BackendLayer, Operation):
             Layers automatically cast inputs to this dtype, which causes
             the computations and output to also be in this dtype.
             When mixed precision is used with a
-            `keras.mixed_precision.DTypePolicy`, this will be different
+            `keras.DTypePolicy`, this will be different
             than `variable_dtype`.
         trainable_weights: List of variables to be included in backprop.
         non_trainable_weights: List of variables that should not be
@@ -269,7 +269,7 @@ class Layer(BackendLayer, Operation):
             )
 
         self.built = False
-        self.dtype_policy = mixed_precision.resolve_policy(dtype)
+        self.dtype_policy = dtype_policy.get(dtype)
         self.autocast = autocast
         self._input_spec = None
         self._called = False

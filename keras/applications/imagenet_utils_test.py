@@ -6,7 +6,7 @@ import keras
 from keras import backend
 from keras import testing
 from keras.applications import imagenet_utils as utils
-from keras.mixed_precision import set_dtype_policy
+from keras.layers.dtype_policy import set_dtype_policy
 
 
 class TestImageNetUtils(testing.TestCase, parameterized.TestCase):
