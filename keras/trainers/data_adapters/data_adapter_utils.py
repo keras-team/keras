@@ -20,7 +20,7 @@ ARRAY_TYPES = (np.ndarray,)
 if backend.backend() == "tensorflow":
     from keras.utils.module_utils import tensorflow as tf
 
-    ARRAY_TYPES = ARRAY_TYPES + (tf.Tensor, tf.RaggedTensor)
+    ARRAY_TYPES = ARRAY_TYPES + (tf.RaggedTensor,)
 if pandas:
     ARRAY_TYPES = ARRAY_TYPES + (pandas.Series, pandas.DataFrame)
 
@@ -158,7 +158,7 @@ def train_validation_split(arrays, validation_split):
     """
 
     def _can_split(t):
-        return isinstance(t, ARRAY_TYPES) or t is None
+        return backend.is_tensor(t) or isinstance(t, ARRAY_TYPES) or t is None
 
     flat_arrays = tree.flatten(arrays)
     unsplitable = [type(t) for t in flat_arrays if not _can_split(t)]

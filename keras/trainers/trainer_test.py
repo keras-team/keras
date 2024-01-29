@@ -291,6 +291,21 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertIn("loss", history)
         self.assertIn("val_loss", history)
 
+        # Test with backend-native tensors.
+        x = ops.ones((dataset_size, 4))
+        y = ops.zeros((dataset_size, 3))
+        history = model.fit(
+            x,
+            y,
+            batch_size=batch_size,
+            steps_per_epoch=steps_per_epoch if use_steps_per_epoch else None,
+            epochs=epochs,
+            validation_split=0.2,
+        )
+        history = history.history
+        self.assertIn("loss", history)
+        self.assertIn("val_loss", history)
+
     @parameterized.named_parameters(
         [
             ("eager_tf_sparse", True, False),
