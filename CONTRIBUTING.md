@@ -1,10 +1,10 @@
 Keras 3 is a high-velocity open-source project. We welcome contributions!
 
-Contributions can be made in a variety of ways, including coding, enriching documentation, refining docstrings, and offering examples of code.
+Contributions can be made in a variety of ways, including coding, enriching documentation, refining docstrings, and providing code examples.
 
 
-## The Current Opportunities to Contribute
-Check this [link](https://github.com/keras-team/keras/issues/18442) to find the current opportunities to contribute.
+## Current items open for contributions
+At[this link](https://github.com/keras-team/keras/issues/18442), you'll find a list of items where you help is needed!
 
 
 ## How to contribute code
