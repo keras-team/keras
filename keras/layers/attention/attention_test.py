@@ -1,7 +1,7 @@
 import numpy as np
 
-from keras import backend
 from keras import layers
+from keras import ops
 from keras import testing
 
 
@@ -206,8 +206,7 @@ class AttentionTest(testing.TestCase):
         valid_mask = np.array([True, False, True])
         mask = [valid_mask, np.array([False, True, False])]
         computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
-        if backend.backend() == "torch" and computed_mask.is_cuda:
-            computed_mask = computed_mask.cpu().numpy()
+        computed_mask = ops.convert_to_numpy(computed_mask)
         self.assertIsNotNone(
             computed_mask,
             "compute_mask should not return None with a valid mask",
@@ -224,8 +223,7 @@ class AttentionTest(testing.TestCase):
         valid_mask = np.array([True, False, True])
         mask = [valid_mask, np.array([False, True, False])]
         computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
-        if backend.backend() == "torch" and computed_mask.is_cuda:
-            computed_mask = computed_mask.cpu().numpy()
+        computed_mask = ops.convert_to_numpy(computed_mask)
         self.assertTrue(
             np.array_equal(computed_mask, valid_mask),
             "compute_mask did not return the correct mask tensor",
@@ -239,8 +237,7 @@ class AttentionTest(testing.TestCase):
         valid_mask = np.array([True, True, True])
         mask = [valid_mask, np.array([True, True, True])]
         computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
-        if backend.backend() == "torch" and computed_mask.is_cuda:
-            computed_mask = computed_mask.cpu().numpy()
+        computed_mask = ops.convert_to_numpy(computed_mask)
         expected_mask = np.array([True, True, True])
         self.assertTrue(
             np.array_equal(computed_mask, expected_mask),
@@ -255,8 +252,7 @@ class AttentionTest(testing.TestCase):
         valid_mask = np.array([False, False, False])
         mask = [valid_mask, np.array([False, False, False])]
         computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
-        if backend.backend() == "torch" and computed_mask.is_cuda:
-            computed_mask = computed_mask.cpu().numpy()
+        computed_mask = ops.convert_to_numpy(computed_mask)
         expected_mask = np.array([False, False, False])
         self.assertTrue(
             np.array_equal(computed_mask, expected_mask),
@@ -269,8 +265,7 @@ class AttentionTest(testing.TestCase):
         valid_mask = np.array([1.0, 0.0, 1.0], dtype=float)
         mask = [valid_mask, np.array([0.0, 1.0, 0.0], dtype=float)]
         computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
-        if backend.backend() == "torch" and computed_mask.is_cuda:
-            computed_mask = computed_mask.cpu().numpy()
+        computed_mask = ops.convert_to_numpy(computed_mask)
         expected_mask = valid_mask
         self.assertTrue(
             np.allclose(computed_mask, expected_mask, atol=1e-3),
@@ -283,8 +278,7 @@ class AttentionTest(testing.TestCase):
         valid_mask = np.array([1.0, 0.0, 1.0], dtype=float)
         mask = [valid_mask, np.array([0.0, 1.0, 0.0], dtype=float)]
         computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
-        if backend.backend() == "torch" and computed_mask.is_cuda:
-            computed_mask = computed_mask.cpu().numpy()
+        computed_mask = ops.convert_to_numpy(computed_mask)
         expected_mask = valid_mask
         self.assertTrue(
             np.allclose(computed_mask, expected_mask, atol=1e-5),
@@ -297,8 +291,7 @@ class AttentionTest(testing.TestCase):
         valid_mask = np.array([1.0, 0.0, 1.0], dtype=float)
         mask = [valid_mask, np.array([0.0, 1.0, 0.0], dtype=float)]
         computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
-        if backend.backend() == "torch" and computed_mask.is_cuda:
-            computed_mask = computed_mask.cpu().numpy()
+        computed_mask = ops.convert_to_numpy(computed_mask)
         expected_mask = valid_mask
         self.assertTrue(
             np.allclose(computed_mask, expected_mask, atol=1e-7),
@@ -311,8 +304,7 @@ class AttentionTest(testing.TestCase):
         valid_mask = np.array([True])
         mask = [valid_mask, np.array([False])]
         computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
-        if backend.backend() == "torch" and computed_mask.is_cuda:
-            computed_mask = computed_mask.cpu().numpy()
+        computed_mask = ops.convert_to_numpy(computed_mask)
         expected_shape = (1,)
         self.assertEqual(computed_mask.shape, expected_shape)
 
@@ -322,8 +314,7 @@ class AttentionTest(testing.TestCase):
         valid_mask = np.array([1, 0, 1])
         mask = [valid_mask, np.array([0, 1, 0])]
         computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
-        if backend.backend() == "torch" and computed_mask.is_cuda:
-            computed_mask = computed_mask.cpu().numpy()
+        computed_mask = ops.convert_to_numpy(computed_mask)
         self.assertTrue(np.array_equal(computed_mask, valid_mask))
 
     def test_attention_compute_mask_with_edge_case_masks(self):
@@ -338,8 +329,7 @@ class AttentionTest(testing.TestCase):
             computed_mask = layer.compute_mask(
                 inputs=dummy_inputs, mask=[mask, mask]
             )
-            if backend.backend() == "torch" and computed_mask.is_cuda:
-                computed_mask = computed_mask.cpu().numpy()
+            computed_mask = ops.convert_to_numpy(computed_mask)
             self.assertTrue(np.array_equal(computed_mask, mask))
 
     def test_attention_compute_mask_with_different_input_shapes(self):
@@ -350,6 +340,5 @@ class AttentionTest(testing.TestCase):
             dummy_inputs = [np.ones(shape), np.ones(shape)]
             mask = [valid_mask, np.array([False, True, False])]
             computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
-            if backend.backend() == "torch" and computed_mask.is_cuda:
-                computed_mask = computed_mask.cpu().numpy()
+            computed_mask = ops.convert_to_numpy(computed_mask)
             self.assertTrue(np.array_equal(computed_mask, valid_mask))
