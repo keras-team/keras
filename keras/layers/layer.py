@@ -25,6 +25,7 @@ import tree
 
 from keras import backend
 from keras import constraints
+from keras import dtype_policies
 from keras import initializers
 from keras import ops
 from keras import regularizers
@@ -34,7 +35,6 @@ from keras.backend import KerasTensor
 from keras.backend.common import global_state
 from keras.backend.common.name_scope import current_path
 from keras.distribution import distribution_lib
-from keras.layers import dtype_policy
 from keras.layers import input_spec
 from keras.metrics.metric import Metric
 from keras.ops.operation import Operation
@@ -269,7 +269,7 @@ class Layer(BackendLayer, Operation):
             )
 
         self.built = False
-        self.dtype_policy = dtype_policy.get(dtype)
+        self.dtype_policy = dtype_policies.get(dtype)
         self.autocast = autocast
         self._input_spec = None
         self._called = False

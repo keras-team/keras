@@ -1,14 +1,14 @@
 from keras import backend
 from keras.api_export import keras_export
 from keras.backend.common import global_state
-from keras.saving import serialization_lib
 
 
 @keras_export(
     [
         "keras.DTypePolicy",
-        "keras.mixed_precision.DTypePolicy",
-        "keras.mixed_precision.Policy",
+        "keras.dtype_policies.DTypePolicy",
+        "keras.mixed_precision.DTypePolicy",  # Legacy
+        "keras.mixed_precision.Policy",  # Legacy
     ]
 )
 class DTypePolicy:
@@ -145,8 +145,8 @@ class DTypePolicy:
 @keras_export(
     [
         "keras.config.set_dtype_policy",
-        "keras.mixed_precision.set_dtype_policy",
-        "keras.mixed_precision.set_global_policy",
+        "keras.mixed_precision.set_dtype_policy",  # Legacy
+        "keras.mixed_precision.set_global_policy",  # Legacy
     ]
 )
 def set_dtype_policy(policy):
@@ -173,8 +173,8 @@ def set_dtype_policy(policy):
 @keras_export(
     [
         "keras.config.dtype_policy",
-        "keras.mixed_precision.dtype_policy",
-        "keras.mixed_precision.global_policy",
+        "keras.mixed_precision.dtype_policy",  # Legacy
+        "keras.mixed_precision.global_policy",  # Legacy
     ]
 )
 def dtype_policy():
@@ -184,21 +184,3 @@ def dtype_policy():
         policy = DTypePolicy(backend.floatx())
         set_dtype_policy(policy)
     return policy
-
-
-def get(identifier):
-    if identifier is None:
-        return dtype_policy()
-    if isinstance(identifier, DTypePolicy):
-        return identifier
-    if isinstance(identifier, dict):
-        return serialization_lib.deserialize_keras_object(identifier)
-    if isinstance(identifier, str):
-        return DTypePolicy(identifier)
-    try:
-        return DTypePolicy(backend.standardize_dtype(identifier))
-    except:
-        raise ValueError(
-            "Cannot interpret `dtype` argument. Expected a string "
-            f"or an instance of DTypePolicy. Received: dtype={identifier}"
-        )

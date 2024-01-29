@@ -1,6 +1,6 @@
-from keras.layers.dtype_policy import DTypePolicy
-from keras.layers.dtype_policy import dtype_policy
-from keras.layers.dtype_policy import set_dtype_policy
+from keras.dtype_policies.dtype_policy import DTypePolicy
+from keras.dtype_policies.dtype_policy import dtype_policy
+from keras.dtype_policies.dtype_policy import set_dtype_policy
 from keras.testing import test_case
 
 
