@@ -615,11 +615,13 @@ class CoreOpsCallsTests(testing.TestCase):
         self.assertEqual(output_specs[1].dtype, keras_loop_vars[1].dtype)
 
     def test_stop_gradient_call(self):
-        variable = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        variable_np = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        variable = core.convert_to_tensor(variable_np)
         stop_gradient = core.StopGradient()
         result = stop_gradient.call(variable)
-        self.assertTrue(np.array_equal(result, variable))
-        self.assertEqual(result.dtype, variable.dtype)
+        result_np = core.convert_to_numpy(result)
+        self.assertTrue(np.array_equal(result_np, variable_np))
+        self.assertEqual(result_np.dtype, variable_np.dtype)
 
     def test_stop_gradient_compute_output_spec(self):
         variable = KerasTensor(shape=(3,), dtype=np.float32)
@@ -639,10 +641,12 @@ class CoreOpsCallsTests(testing.TestCase):
 
     def test_unstack_basic_functionality(self):
         x = np.random.rand(2, 3, 4)
+        x = core.convert_to_tensor(x)
         axis = 1
         unstack = core.Unstack(axis=axis)
         result = unstack.call(x)
         self.assertEqual(len(result), x.shape[axis])
+        result = core.convert_to_numpy(result)
         expected_shape = x.shape[:axis] + x.shape[axis + 1 :]
         # Check that all tensors have the same shape
         if len(result) > 0:
@@ -657,6 +661,7 @@ class CoreOpsCallsTests(testing.TestCase):
         target_dtype = np.int32
         cast = core.Cast(target_dtype)
         result = cast.call(x)
+        result = core.convert_to_numpy(result)
         self.assertEqual(result.dtype, target_dtype)
         # Check that the values are the same
         expected_values = x.astype(target_dtype)
@@ -728,4 +733,3 @@ class CoreOpsCallsTests(testing.TestCase):
                 (mock_spec,), (mock_spec, mock_spec_different)
             )
         )
-        
