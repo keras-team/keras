@@ -541,9 +541,8 @@ class Cond(Operation):
         return true_fn_spec
 
     def _check_output_spec(self, true_fn_spec, false_fn_spec):
-        if true_fn_spec is None:
-            if false_fn_spec is not None:
-                return False
+        if true_fn_spec is None or false_fn_spec is None:
+            return true_fn_spec is None and false_fn_spec is None
         elif isinstance(true_fn_spec, dict):
             if not isinstance(false_fn_spec, dict):
                 return False
