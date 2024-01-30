@@ -516,7 +516,7 @@ class CoreOpsCallsTests(testing.TestCase):
         scatter = core.Scatter()
         result = scatter.call(indices, values, shape)
         expected_output = np.array([[0, 20], [10, 0]])
-        self.assertAllClose(result.numpy(), expected_output)
+        self.assertAllClose(core.convert_to_numpy(result), expected_output)
 
     def test_scatter_update_basic_call(self):
         inputs = np.array([[0, 0], [0, 0]])
@@ -525,7 +525,7 @@ class CoreOpsCallsTests(testing.TestCase):
         scatter_update = core.ScatterUpdate()
         result = scatter_update.call(inputs, indices, updates)
         expected_output = np.array([[0, 20], [10, 0]])
-        self.assertAllClose(result.numpy(), expected_output)
+        self.assertAllClose(core.convert_to_numpy(result), expected_output)
 
     def test_slice_basic_call(self):
         inputs = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
@@ -534,7 +534,7 @@ class CoreOpsCallsTests(testing.TestCase):
         slice_op = core.Slice()
         result = slice_op.call(inputs, start_indices, shape)
         expected_output = np.array([[5, 6], [8, 9]])
-        self.assertAllClose(result.numpy(), expected_output)
+        self.assertAllClose(core.convert_to_numpy(result), expected_output)
 
     def test_slice_compute_output_spec(self):
         inputs = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32)
@@ -567,7 +567,7 @@ class CoreOpsCallsTests(testing.TestCase):
         slice_update = core.SliceUpdate()
         result = slice_update.call(inputs, start_indices, updates)
         expected_output = np.array([[1, 2, 3], [4, 10, 11], [7, 12, 13]])
-        self.assertAllClose(result.numpy(), expected_output)
+        self.assertAllClose(core.convert_to_numpy(result), expected_output)
 
     def test_while_loop_basic_functionality(self):
         # Loop condition: continue if i < 5
@@ -728,3 +728,4 @@ class CoreOpsCallsTests(testing.TestCase):
                 (mock_spec,), (mock_spec, mock_spec_different)
             )
         )
+        
