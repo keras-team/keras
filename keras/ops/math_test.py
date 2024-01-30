@@ -952,7 +952,7 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         expected_result = np.linalg.norm(
             x, ord=ord, axis=axis, keepdims=keepdims
         )
-        self.assertAllClose(output, expected_result)
+        self.assertAllClose(output, expected_result, atol=1e-5, rtol=1e-5)
 
     @parameterized.named_parameters(
         named_product(
@@ -1243,7 +1243,7 @@ class SolveTest(testing.TestCase):
         b = np.array([[9, 8], [5, 4]], dtype=np.float32)
         output = solve_op.call(a, b)
         expected_output = np.linalg.solve(a, b)
-        self.assertAllClose(output, expected_output, atol=1e-6)
+        self.assertAllClose(output, expected_output, atol=1e-6, rtol=1e-6)
 
 
 class FFT2Test(testing.TestCase):

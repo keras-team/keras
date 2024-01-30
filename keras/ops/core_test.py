@@ -233,6 +233,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(x, np.ones((2, 3)) * 10)
         self.assertAllClose(y, np.ones((3, 2)) * 10)
 
+        # Test max iterations
         x = np.ones((2, 3))
         y = np.ones((3, 2))
         x, y = core.while_loop(cond, body, (x, y), maximum_iterations=5)
