@@ -13,7 +13,6 @@ from keras.backend.jax.core import convert_to_tensor
 from keras.ops import convert_to_numpy
 
 
-
 @sparse.elementwise_binary_union(linear=True, use_sparsify=True)
 def add(x1, x2):
     x1 = convert_to_tensor(x1)
