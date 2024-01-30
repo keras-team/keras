@@ -1,6 +1,5 @@
 import contextlib
 from unittest.mock import Mock
-from collections import namedtuple
 
 import numpy as np
 import pytest
@@ -606,20 +605,6 @@ class CoreOpsCallsTests(testing.TestCase):
         keras_loop_vars = [
             KerasTensor(v.shape, dtype=v.dtype) for v in loop_vars
         ]
-        while_loop = core.WhileLoop(
-            some_cond, some_body, maximum_iterations=None
-        )  # Replace with appropriate cond, body
-        output_specs = while_loop.compute_output_spec(keras_loop_vars)
-        for spec, var in zip(output_specs, keras_loop_vars):
-            self.assertEqual(spec.shape, var.shape)
-            self.assertEqual(spec.dtype, var.dtype)
-
-    def test_whileloop_compute_output_spec(self):
-        # Define loop variables with different shapes and data types
-        loop_vars = (np.random.rand(5, 5), np.random.randint(10, size=(3, 7)))
-        keras_loop_vars = [
-            KerasTensor(v.shape, dtype=v.dtype) for v in loop_vars
-        ]
         cond = lambda v: v[0] < 5
         body = lambda v: (v[0] + 1, v[1])
         while_loop = core.WhileLoop(cond, body, maximum_iterations=None)
@@ -659,16 +644,6 @@ class CoreOpsCallsTests(testing.TestCase):
         result = unstack.call(x)
         self.assertEqual(len(result), x.shape[axis])
         expected_shape = x.shape[:axis] + x.shape[axis + 1 :]
-        for tensor in result:
-            self.assertEqual(tensor.shape, expected_shape)
-
-    def test_unstack_basic_functionality(self):
-        x = np.random.rand(2, 3, 4)
-        axis = 1
-        unstack = core.Unstack(axis=axis)
-        result = unstack.call(x)
-        self.assertEqual(len(result), x.shape[axis])
-        expected_shape = x.shape[:axis] + x.shape[axis + 1 :]
         # Check that all tensors have the same shape
         if len(result) > 0:
             self.assertEqual(result[0].shape, expected_shape)
@@ -686,16 +661,6 @@ class CoreOpsCallsTests(testing.TestCase):
         # Check that the values are the same
         expected_values = x.astype(target_dtype)
         self.assertTrue(np.array_equal(result, expected_values))
-
-    def test_cond_check_output_spec_dict(self):
-        cond_op = core.Cond()
-        mock_spec = Mock(dtype="float32", shape=(2, 2))
-        self.assertTrue(
-            cond_op._check_output_spec(
-                {"a": mock_spec, "b": mock_spec},
-                {"a": mock_spec, "b": mock_spec},
-            )
-        )
 
     def test_cond_check_output_spec_list_tuple(self):
         cond_op = core.Cond()
