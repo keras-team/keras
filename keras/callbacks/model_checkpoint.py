@@ -248,9 +248,9 @@ class ModelCheckpoint(Callback):
                     )
                 elif len(current.numpy()) > 0:
                     warnings.warn(
-                        f"Can save best model only when `monitor` is "
-                        f"a scalar value, got {current}. "
-                        f"Falling back to `save_best_only=False`. "
+                        "Can save best model only when `monitor` is "
+                        f"a scalar value. Received: {current}. "
+                        "Falling back to `save_best_only=False`."
                     )
                     self.model.save(filepath, overwrite=True)
                 else:
