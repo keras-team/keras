@@ -10,6 +10,8 @@ from keras.backend.common.variables import standardize_dtype
 from keras.backend.jax import sparse
 from keras.backend.jax.core import cast
 from keras.backend.jax.core import convert_to_tensor
+from keras.ops import convert_to_numpy
+
 
 
 @sparse.elementwise_binary_union(linear=True, use_sparsify=True)
@@ -322,6 +324,7 @@ def average(x, axis=None, weights=None):
 
 
 def broadcast_to(x, shape):
+    x = convert_to_numpy(x)
     return jnp.broadcast_to(x, shape)
 
 
