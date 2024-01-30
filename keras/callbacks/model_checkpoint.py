@@ -4,6 +4,7 @@ import warnings
 
 import numpy as np
 
+from keras import backend
 from keras.api_export import keras_export
 from keras.callbacks.callback import Callback
 from keras.utils import file_utils
@@ -246,7 +247,10 @@ class ModelCheckpoint(Callback):
                         "available, skipping.",
                         stacklevel=2,
                     )
-                elif len(current.numpy()) > 0:
+                elif (
+                    isinstance(current, np.ndarray)
+                    or backend.is_tensor(current)
+                ) and len(current.shape) > 0:
                     warnings.warn(
                         "Can save best model only when `monitor` is "
                         f"a scalar value. Received: {current}. "
