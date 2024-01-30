@@ -571,15 +571,13 @@ class CoreOpsCallsTests(testing.TestCase):
 
     def test_while_loop_basic_functionality(self):
         # Loop condition: continue if i < 5
-        # cond = lambda i: i < 5
         def cond(i):
             return i < 5
+
         # Loop body: increment i by 1
-        # body = lambda i: (i + 1,)
-        
         def body(i):
             return (i + 1,)
-        
+
         while_loop = core.WhileLoop(cond, body, maximum_iterations=None)
         # Initial loop variable (i = 0)
         loop_vars = (0,)
@@ -588,13 +586,12 @@ class CoreOpsCallsTests(testing.TestCase):
 
     def test_while_loop_output_spec(self):
         # Define dummy cond and body functions
-        # cond = lambda x: True
         def cond(x):
             return True
-        # body = lambda x: (x,)
-        
+
         def body(x):
             return (x,)
+
         while_loop = core.WhileLoop(cond, body, maximum_iterations=None)
         loop_vars = (KerasTensor(shape=(10,), dtype=np.float32),)
         output_spec = while_loop.compute_output_spec(loop_vars)
@@ -603,14 +600,12 @@ class CoreOpsCallsTests(testing.TestCase):
 
     def test_while_loop_with_max_iterations(self):
         # loop condition: continue if i < 10
-        # cond = lambda i: i < 10
         def cond(i):
             return i < 10
-        # loop body: increment i by 1
-        # body = lambda i: (i + 1,)
-        
+
         def body(i):
             return (i + 1,)
+
         while_loop = core.WhileLoop(cond, body, maximum_iterations=5)
         result = while_loop.call((0,))
         self.assertEqual(result[0], 5)
@@ -621,14 +616,13 @@ class CoreOpsCallsTests(testing.TestCase):
         keras_loop_vars = [
             KerasTensor(v.shape, dtype=v.dtype) for v in loop_vars
         ]
-        # cond = lambda v: v[0] < 5
-        
+
         def cond(v):
             return v[0] < 5
-        # body = lambda v: (v[0] + 1, v[1])
-        
+
         def body(v):
             return (v[0] + 1, v[1])
+
         while_loop = core.WhileLoop(cond, body, maximum_iterations=None)
         output_specs = while_loop.compute_output_spec(keras_loop_vars)
         self.assertEqual(output_specs[0].shape, keras_loop_vars[0].shape)
@@ -655,10 +649,10 @@ class CoreOpsCallsTests(testing.TestCase):
     def test_fori_loop_basic_functionality(self):
         lower = 0
         upper = 5
-        # body_fun = lambda index, val: val + 1
-        
+
         def body_fun(index, val):
             return val + 1
+
         fori_loop = core.ForiLoop(lower, upper, body_fun)
         init_val = 0
         result = fori_loop.call(init_val)
