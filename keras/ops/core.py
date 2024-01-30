@@ -235,11 +235,15 @@ def while_loop(
 
     Args:
         cond: A callable that represents the termination condition of the loop.
-            Must have the same number of args as `loop_vars`, and return a bool.
-        body: A callable that represents the loop body. Must have the same
-            number of args as `loop_vars`, and return a list/tuple of the same
-            length, shape and dtype as `loop_vars`.
-        loop_vars: A list/tuple of tensors, the loop variables.
+            Must accept a `loop_vars` like structure as an argument. If
+            `loop_vars` is a tuple or list, each element of `loop_vars` will be
+            passed positionally to the callable.
+        body: A callable that represents the loop body. Must accept a
+            `loop_vars` like structure as an argument, and return update value
+            with the same structure. If `loop_vars` is a tuple or list, each
+            element of `loop_vars` will be passed positionally to the callable.
+        loop_vars: An arbitrary nested structure of tensor state to persist
+            across loop iterations.
         maximum_iterations: Optional maximum number of iterations of the while
             loop to run. If provided, the `cond` output is AND-ed with an
             additional condition ensuring the number of iterations executed is
@@ -253,8 +257,14 @@ def while_loop(
     >>> i = 0
     >>> cond = lambda i: i < 10
     >>> body = lambda i: i + 1
-    >>> keras.ops.while_loop(cond, body, [i])[0]
+    >>> keras.ops.while_loop(cond, body, i)
     10
+
+    >>> x, y = 0, 1
+    >>> cond = lambda x, y: x < 10
+    >>> body = lambda x, y: (x + 1, y + 1)
+    >>> keras.ops.while_loop(cond, body, (x, y))
+    10, 11
     """
     return backend.core.while_loop(
         cond,
