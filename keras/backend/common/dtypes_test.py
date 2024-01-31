@@ -208,7 +208,6 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
             dtypes._least_upper_bound("test_dtype")
 
     def test_least_upper_bound_with_no_common_upper_bound(self):
-        # Modify the LATTICE_UPPER_BOUNDS to create a situation where no common upper bound exists
         with patch.dict(
             dtypes.LATTICE_UPPER_BOUNDS,
             {"test_dtype1": set(), "test_dtype2": set()},
