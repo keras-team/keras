@@ -258,7 +258,10 @@ class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
                 self.assertEqual(tuple(bx.shape), (2, 4))
                 self.assertEqual(tuple(by.shape), (2, 2))
 
-    def test_tf_sparse_tensors(self):
+    @parameterized.named_parameters(
+        named_product(iterator_type=["np", "tf", "jax"])
+    )
+    def test_tf_sparse_tensors(self, iterator_type):
         x = tf.SparseTensor(
             indices=[[0, 0], [1, 2]], values=[1.0, 2.0], dense_shape=(2, 4)
         )
@@ -268,19 +271,20 @@ class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
         base_ds = tf.data.Dataset.from_tensors((x, y))
         adapter = tf_dataset_adapter.TFDatasetAdapter(base_ds)
 
-        gen = adapter.get_numpy_iterator()
-        for batch in gen:
+        if iterator_type == "np":
+            it = adapter.get_numpy_iterator()
+            expected_class = np.ndarray
+        elif iterator_type == "tf":
+            it = adapter.get_tf_dataset()
+            expected_class = tf.SparseTensor
+        elif iterator_type == "jax":
+            it = adapter.get_jax_iterator()
+            expected_class = jax.experimental.sparse.BCOO
+
+        for batch in it:
             self.assertEqual(len(batch), 2)
             bx, by = batch
-            self.assertIsInstance(bx, np.ndarray)
-            self.assertIsInstance(by, np.ndarray)
-            self.assertEqual(bx.shape, (2, 4))
-            self.assertEqual(by.shape, (2, 2))
-        ds = adapter.get_tf_dataset()
-        for batch in ds:
-            self.assertEqual(len(batch), 2)
-            bx, by = batch
-            self.assertIsInstance(bx, tf.SparseTensor)
-            self.assertIsInstance(by, tf.SparseTensor)
+            self.assertIsInstance(bx, expected_class)
+            self.assertIsInstance(by, expected_class)
             self.assertEqual(bx.shape, (2, 4))
             self.assertEqual(by.shape, (2, 2))
