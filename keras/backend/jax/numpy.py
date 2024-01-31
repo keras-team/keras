@@ -322,6 +322,7 @@ def average(x, axis=None, weights=None):
 
 
 def broadcast_to(x, shape):
+    x = convert_to_tensor(x)
     return jnp.broadcast_to(x, shape)
 
 
