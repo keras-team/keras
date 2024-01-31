@@ -190,19 +190,17 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
             dtypes._resolve_weak_type("float64", precision="64"), "float64"
         )
 
-    def test_ill_formed_lattice_scenario_int_float(self):
+    def test_least_upper_bound_ensure_order_independence(self):
         # Test to ensure _least_upper_bound is order-independent.
         result1 = dtypes._least_upper_bound("float32", "int32")
         result2 = dtypes._least_upper_bound("int32", "float32")
         self.assertEqual(result1, result2)
 
     def test_least_upper_bound_single_element(self):
-        # Test for the scenario where LUB contains a single element
         dtypes.LATTICE_UPPER_BOUNDS["test_dtype"] = {"test_dtype"}
         self.assertEqual(dtypes._least_upper_bound("test_dtype"), "test_dtype")
 
     def test_least_upper_bound_no_element(self):
-        # Test for the scenario where LUB contains no elements
         dtypes.LATTICE_UPPER_BOUNDS["test_dtype"] = set()
         with self.assertRaisesRegex(
             ValueError, "no available implicit dtype promotion path"
