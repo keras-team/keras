@@ -195,3 +195,16 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
         result1 = dtypes._least_upper_bound("float32", "int32")
         result2 = dtypes._least_upper_bound("int32", "float32")
         self.assertEqual(result1, result2)
+
+    def test_least_upper_bound_single_element(self):
+        # Test for the scenario where LUB contains a single element
+        dtypes.LATTICE_UPPER_BOUNDS["test_dtype"] = {"test_dtype"}
+        self.assertEqual(dtypes._least_upper_bound("test_dtype"), "test_dtype")
+
+    def test_least_upper_bound_no_element(self):
+        # Test for the scenario where LUB contains no elements
+        dtypes.LATTICE_UPPER_BOUNDS["test_dtype"] = set()
+        with self.assertRaisesRegex(
+            ValueError, "no available implicit dtype promotion path"
+        ):
+            dtypes._least_upper_bound("test_dtype")
