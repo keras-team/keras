@@ -82,7 +82,8 @@ class Callback:
             # attached to the model in the middle of an
             # epoch. We have to force a sync before
             # accessing model state for e.g. checkpointing.
-            self._model.jax_state_sync()
+            if not self._model._jax_state_synced:
+                self._model.jax_state_sync()
         return self._model
 
     def on_batch_begin(self, batch, logs=None):

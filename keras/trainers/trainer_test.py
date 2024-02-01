@@ -497,7 +497,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
 
             # Note that we access model via self._model since self.model
             # will trigger a sync of the jax training state back to the model.
-            def on_train_batch_begin(self, batch, logs=None):
+            def on_train_batch_end(self, batch, logs=None):
                 for v in self._model.trainable_variables:
                     assert v._value is None
                 for v in self._model.non_trainable_variables:
@@ -507,7 +507,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
                 for v in self._model.metrics_variables:
                     assert v._value is None
 
-            def on_test_batch_begin(self, batch, logs=None):
+            def on_test_batch_end(self, batch, logs=None):
                 for v in self._model.non_trainable_variables:
                     assert v._value is None
                 for v in self._model.metrics_variables:
@@ -1203,3 +1203,70 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         out_1 = model.predict(x)
         out_2 = model.predict(x)
         self.assertGreater(np.mean(np.abs(out_1 - out_2)), 0.01)
+
+    @pytest.mark.requires_trainable_backend
+    def test_callbacks_can_update_state_at_batch_boundary(self):
+
+        class CounterModel(keras.Model):
+            def __init__(self):
+                super().__init__()
+                self.train_counter = self.add_weight(
+                    shape=(),
+                    initializer="zeros",
+                )
+                self.test_counter = self.add_weight(
+                    shape=(),
+                    initializer="zeros",
+                )
+                self.predict_counter = self.add_weight(
+                    shape=(),
+                    initializer="zeros",
+                )
+                self.dense = layers.Dense(3)
+
+            def call(self, x):
+                return self.dense(x)
+
+        class CounterCallback(keras.callbacks.Callback):
+            def __init__(self):
+                self.eager_call_counter_train = 0
+                self.eager_call_counter_test = 0
+                self.eager_call_counter_predict = 0
+
+            def on_train_batch_end(self, *args, **kwargs):
+                self.model.train_counter.assign_add(1)
+                self.eager_call_counter_train += 1
+
+            def on_test_batch_end(self, *args, **kwargs):
+                self.model.test_counter.assign_add(1)
+                self.eager_call_counter_test += 1
+
+            def on_predict_batch_end(self, *args, **kwargs):
+                self.model.predict_counter.assign_add(1)
+                self.eager_call_counter_predict += 1
+
+        model = CounterModel()
+        model.compile(
+            optimizer="sgd", loss="mse", metrics=["mse"], run_eagerly=True
+        )
+        cbk = CounterCallback()
+        model.fit(
+            np.ones((4, 3)),
+            np.ones((4, 3)),
+            callbacks=[cbk],
+            epochs=3,
+            batch_size=1,
+            verbose=0,
+            validation_data=(np.ones((2, 3)), np.ones((2, 3))),
+        )
+        self.assertAlmostEqual(cbk.eager_call_counter_train, 12)
+        self.assertAlmostEqual(model.train_counter.numpy(), 12)
+        self.assertAlmostEqual(cbk.eager_call_counter_test, 6)
+        self.assertAlmostEqual(model.test_counter.numpy(), 6)
+        model.predict(
+            np.ones((4, 3)),
+            callbacks=[cbk],
+            batch_size=1,
+        )
+        self.assertAlmostEqual(cbk.eager_call_counter_predict, 4)
+        self.assertAlmostEqual(model.predict_counter.numpy(), 4)
