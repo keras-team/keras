@@ -168,10 +168,10 @@ class Operation:
 
             def get_config(self):
                 config = super().get_config()
-                config.update({
+                config.update({{
                     "arg1": self.arg1,
                     "arg2": self.arg2,
-                })
+                }})
                 return config"""
                 )
             )
