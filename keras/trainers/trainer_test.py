@@ -16,6 +16,7 @@ from keras import optimizers
 from keras import testing
 from keras.callbacks.callback import Callback
 from keras.optimizers.rmsprop import RMSprop
+from keras.testing.test_utils import named_product
 
 if backend.backend() == "jax":
     from keras.backend.jax.trainer import JAXTrainer as Trainer
@@ -98,26 +99,25 @@ def sparse_generator(generator_type):
     if generator_type == "scipy":
         import scipy
 
-        for i in range(4):
+        for _ in range(4):
             x = scipy.sparse.random(2, 4, density=0.25, dtype="float32")
             y = np.random.rand(2, 3).astype("float32")
             yield x, y
-    elif generator_type == "tensorflow":
+    elif generator_type == "tf":
         import tensorflow as tf
 
-        for i in range(4):
+        for _ in range(4):
             x = tf.random.uniform((2, 4), dtype="float32")
             x = tf.sparse.from_dense(tf.nn.dropout(x, 0.25))
             y = tf.random.uniform((2, 3), dtype="float32")
             yield x, y
     elif generator_type == "jax":
         import jax
+        import jax.experimental.sparse as jax_sparse
 
-        for i in range(4):
+        for _ in range(4):
             seed = jax.random.PRNGKey(0)
-            x = jax.experimental.sparse.random_bcoo(
-                seed, (2, 4), dtype="float32", nse=0.25
-            )
+            x = jax_sparse.random_bcoo(seed, (2, 4), dtype="float32", nse=0.25)
             y = jax.random.uniform(seed, (2, 3), dtype="float32")
             yield x, y
     else:
@@ -307,32 +307,25 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertIn("val_loss", history)
 
     @parameterized.named_parameters(
-        [
-            ("eager_tf_sparse", True, False),
-            ("graph_fn_tf_sparse", False, False),
-            ("eager_scipy_sparse", True, False),
-            ("graph_fn_scipy_sparse", False, False),
-        ]
+        named_product(
+            generator_type=["tf", "jax", "scipy"], mode=["eager", "graph"]
+        )
     )
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors.",
     )
-    def test_fit_sparse(self, run_eagerly, use_scipy_sparse):
+    def test_fit_sparse(self, generator_type, mode):
         model = ExampleModel(units=3)
         optimizer = optimizers.Adagrad()
         model.compile(
             optimizer=optimizer,
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
-            run_eagerly=run_eagerly,
+            run_eagerly=(mode == "eager"),
             jit_compile=False,
         )
-        dataset = (
-            sparse_generator("scipy")
-            if use_scipy_sparse
-            else sparse_generator(backend.backend())
-        )
+        dataset = sparse_generator(generator_type)
 
         sparse_variable_updates = False
 
@@ -381,31 +374,24 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output["mean_squared_error"], 16.0)
 
     @parameterized.named_parameters(
-        [
-            ("eager_tf_sparse", True, False),
-            ("graph_fn_tf_sparse", False, False),
-            ("eager_scipy_sparse", True, False),
-            ("graph_fn_scipy_sparse", False, False),
-        ]
+        named_product(
+            generator_type=["tf", "jax", "scipy"], mode=["eager", "graph"]
+        )
     )
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors.",
     )
-    def test_evaluate_sparse(self, run_eagerly, use_scipy_sparse):
+    def test_evaluate_sparse(self, generator_type, mode):
         model = ExampleModel(units=3)
         model.compile(
             optimizer=optimizers.Adagrad(),
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
-            run_eagerly=run_eagerly,
+            run_eagerly=(mode == "eager"),
             jit_compile=False,
         )
-        dataset = (
-            sparse_generator("scipy")
-            if use_scipy_sparse
-            else sparse_generator(backend.backend())
-        )
+        dataset = sparse_generator(generator_type)
         model.evaluate(dataset)
 
     @parameterized.named_parameters(
@@ -451,31 +437,24 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(outputs["y_two"], 4 * np.ones((100, 3)))
 
     @parameterized.named_parameters(
-        [
-            ("eager_tf_sparse", True, False),
-            ("graph_fn_tf_sparse", False, False),
-            ("eager_scipy_sparse", True, False),
-            ("graph_fn_scipy_sparse", False, False),
-        ]
+        named_product(
+            generator_type=["tf", "jax", "scipy"], mode=["eager", "graph"]
+        )
     )
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors.",
     )
-    def test_predict_sparse(self, run_eagerly, use_scipy_sparse):
+    def test_predict_sparse(self, generator_type, mode):
         model = ExampleModel(units=3)
         model.compile(
             optimizer=optimizers.Adagrad(),
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
-            run_eagerly=run_eagerly,
+            run_eagerly=(mode == "eager"),
             jit_compile=False,
         )
-        dataset = (
-            sparse_generator("scipy")
-            if use_scipy_sparse
-            else sparse_generator(backend.backend())
-        )
+        dataset = sparse_generator(generator_type)
         model.predict(dataset)
 
     @pytest.mark.skipif(

@@ -336,6 +336,7 @@ class TestCase(unittest.TestCase):
             # test the "default" path for each backend by setting
             # jit_compile="auto".
             # for tensorflow and jax backends auto is jitted
+            # Note that tensorflow cannot be jitted with sparse tensors
             # for torch backend auto is eager
             #
             # NB: for torch, jit_compile=True turns on torchdynamo
@@ -345,7 +346,10 @@ class TestCase(unittest.TestCase):
             #    TORCH_LOGS="+dynamo"
             #    TORCHDYNAMO_VERBOSE=1
             #    TORCHDYNAMO_REPORT_GUARD_FAILURES=1
-            model.compile(optimizer="sgd", loss="mse", jit_compile="auto")
+            jit_compile = "auto"
+            if backend.backend() == "tensorflow" and input_sparse:
+                jit_compile = False
+            model.compile(optimizer="sgd", loss="mse", jit_compile=jit_compile)
             model.fit(data_generator(), steps_per_epoch=1, verbose=0)
 
         # Build test.

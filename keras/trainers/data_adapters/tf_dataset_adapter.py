@@ -42,9 +42,23 @@ class TFDatasetAdapter(DataAdapter):
             yield tree.map_structure(convert_to_numpy, batch)
 
     def get_jax_iterator(self):
-        # We use numpy as an intermediary because the conversion
-        # tf -> numpy -> jax is more than 2x faster than tf -> jax.
-        return data_adapter_utils.get_jax_iterator(self.get_numpy_iterator())
+        import jax.experimental.sparse as jax_sparse
+
+        from keras.backend.jax.core import convert_to_tensor
+        from keras.backend.tensorflow.core import convert_to_numpy
+        from keras.utils.module_utils import tensorflow as tf
+
+        def convert_to_jax(x):
+            # We use numpy as an intermediary because the conversion
+            # tf -> numpy -> jax is more than 2x faster than tf -> jax.
+            if isinstance(x, tf.SparseTensor):
+                values = convert_to_numpy(x.values)
+                indices = convert_to_numpy(x.indices)
+                return jax_sparse.BCOO((values, indices), shape=x.shape)
+            return convert_to_tensor(convert_to_numpy(x))
+
+        for batch in self._dataset:
+            yield tree.map_structure(convert_to_jax, batch)
 
     def get_tf_dataset(self):
         return self._dataset
