@@ -213,6 +213,33 @@ def while_loop(
     return loop_vars
 
 
+def scan(f, init, xs, length=None, reverse=False, unroll=False):
+    if xs is None:
+        xs = [None] * length
+    carry = init
+    ys = []
+    if reverse:
+        xs = np.flip(xs)
+    for x in xs:
+        carry, y = f(carry, x)
+        ys.append(y)
+    ys = np.array(ys)
+    if reverse:
+        ys = np.flip(ys)
+
+    if len(ys) > 0:
+        if isinstance(ys[0], np.integer):
+            ys = ys.astype(np.int32)
+        if isinstance(ys[0], np.floating):
+            ys = ys.astype(np.float32)
+    if isinstance(ys, np.integer):
+        carry = carry.astype(np.int32)
+    if isinstance(ys, np.floating):
+        carry = carry.astype(np.float32)
+
+    return carry, ys
+
+
 def fori_loop(lower, upper, body_fun, init_val):
     val = init_val
     for i in range(lower, upper):

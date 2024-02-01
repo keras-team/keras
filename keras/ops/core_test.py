@@ -1,6 +1,7 @@
 import contextlib
 from unittest.mock import Mock
 
+import jax
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -81,6 +82,46 @@ class CoreOpsStaticShapeTest(testing.TestCase):
             ValueError, r"Cannot infer argument `num` from shape"
         ):
             core.unstack(x, axis=axis)
+
+    def test_scan(self):
+        def f(carry, x):
+            if type(carry) is list or type(carry) is tuple:
+                carry = carry[0]
+                if type(carry) is int or type(x) is int:
+                    carry = int(carry)
+
+                x += carry
+
+            elif type(carry) is float or type(x) is float:
+                x = float(x)
+                carry = float(carry)
+                x += carry
+            else:
+                x += carry
+
+            return carry, x
+
+        test_cases = [
+            (np.array([0, 1, 2, 3, 4, 5, 6]), 1),
+            (np.array([0.1, 1.2, 2.3, 3.4, 4.5, 5.6, 6.7]), 1.1),
+            (np.array([123, 423, 3, 78, 43, 13]), 1.1),
+            (np.array([-1, -2, -3, -4, -5, -6]), -2),
+            (np.array([0, 0, 0, 0, 0, 0, 0]), 0),
+            (np.array([1.1, 2, 3, 4, 5, 6, 7]), 9),
+        ]
+        for test_case in test_cases:
+            init_carr = test_case[1]
+            xs = test_case[0]
+
+            carry_jax, ys_jax = jax.lax.scan(
+                f, init_carr, xs, length=len(xs), reverse=False
+            )
+            carry_op, ys_op = core.scan(
+                f, init_carr, xs, length=len(xs), reverse=False
+            )
+
+            self.assertEqual(ys_jax.shape, ys_op.shape)
+            self.assertEqual(ys_jax.dtype, ys_op.dtype)
 
 
 class CoreOpsCorrectnessTest(testing.TestCase):
@@ -220,6 +261,56 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         updates = np.zeros([2, 2, 2, 2])
         outputs = core.slice_update(inputs, start_indices, updates)
         self.assertAllClose(outputs[1:3, 1:3, 2:4, 2:4], np.zeros([2, 2, 2, 2]))
+
+    def test_scan(self):
+        def f(carry, x):
+            if type(carry) is list or type(carry) is tuple:
+                carry = carry[0]
+                if type(carry) is int or type(x) is int:
+                    carry = int(carry)
+
+                x += carry
+
+            elif type(carry) is float or type(x) is float:
+                x = float(x)
+                carry = float(carry)
+                x += carry
+            else:
+                x += carry
+
+            return carry, x
+
+        test_cases = [
+            (np.array([0, 1, 2, 3, 4, 5, 6]), 1),
+            (np.array([0.1, 1.2, 2.3, 3.4, 4.5, 5.6, 6.7]), 1.1),
+            (np.array([123, 423, 3, 78, 43, 13]), 1.1),
+            (np.array([-1, -2, -3, -4, -5, -6]), -2),
+            (np.array([0, 0, 0, 0, 0, 0, 0]), 0),
+            (np.array([1.1, 2, 3, 4, 5, 6, 7]), 9),
+        ]
+        for test_case in test_cases:
+            test_input_arr = test_case[0]
+            test_input_carry = test_case[1]
+
+            carry_op, ys_op = core.scan(
+                f,
+                test_input_carry,
+                test_input_arr,
+                length=len(test_input_arr),
+                reverse=False,
+            )
+            carry_jax, ys_jax = jax.lax.scan(
+                f,
+                test_input_carry,
+                test_input_arr,
+                length=len(test_input_arr),
+                reverse=False,
+            )
+
+            ys_op = ys_op.tolist()
+            ys_jax = ys_jax.tolist()
+            self.assertEqual(carry_op, carry_jax)
+            self.assertAllClose(ys_op, ys_jax)
 
     def test_while_loop(self):
         def cond(x, y):

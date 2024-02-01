@@ -398,6 +398,29 @@ def slice_update(inputs, start_indices, updates):
     return outputs
 
 
+def scan(f, init, xs, length=None, reverse=False, unroll=False):
+    if xs is None:
+        xs = [None] * length
+    carry = init
+    ys = []
+    xs = torch.tensor(xs)
+    if reverse:
+        xs = torch.flip(xs, [-1])
+
+    for x in xs:
+        carry, y = f(carry, x)
+        ys.append(y)
+
+    ys = np.array(ys)
+
+    if ys.dtype == np.float64:
+        ys = ys.astype(np.float32)
+    if ys.dtype == np.int64:
+        ys = ys.astype(np.int32)
+
+    return carry, ys
+
+
 def while_loop(
     cond,
     body,

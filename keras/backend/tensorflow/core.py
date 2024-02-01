@@ -226,6 +226,35 @@ def slice_update(inputs, start_indices, updates):
     return dynamic_update_slice(inputs, updates, start_indices)
 
 
+def scan(f, init, xs, length=None, reverse=False, unroll=False):
+    if xs is None:
+        xs = [None] * length
+    if reverse:
+        tf.reverse(xs, [0])
+    for x in xs:
+        print(type(x))
+    print("any(type(x) is float for x in xs)")
+    print(any(np.issubdtype(type(x), np.floating) for x in xs))
+    if type(init) is float or any(
+        np.issubdtype(type(x), np.floating) for x in xs
+    ):
+        init = (
+            tf.cast(init, dtype=tf.double),
+            tf.zeros_like(0, dtype=tf.double),
+        )
+        xs = tf.cast(xs, dtype=tf.double)
+    else:
+        init = (tf.cast(init, dtype=tf.int64), tf.zeros_like(0, dtype=tf.int64))
+
+    carry, ys = tf.scan(f, xs, initializer=init)
+
+    if ys.dtype == tf.int64:
+        ys = tf.cast(ys, dtype=tf.int32)
+    if ys.dtype == tf.double:
+        ys = tf.cast(ys, dtype=tf.float32)
+    return carry[0], ys.numpy()
+
+
 def while_loop(
     cond,
     body,
