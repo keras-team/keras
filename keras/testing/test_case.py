@@ -215,142 +215,154 @@ class TestCase(unittest.TestCase):
                 msg="Unexpected supports_masking value",
             )
 
-        def run_build_asserts(layer):
-            self.assertTrue(layer.built)
-            if expected_num_trainable_weights is not None:
-                self.assertLen(
-                    layer.trainable_weights,
-                    expected_num_trainable_weights,
-                    msg="Unexpected number of trainable_weights",
-                )
-            if expected_num_non_trainable_weights is not None:
-                self.assertLen(
-                    layer.non_trainable_weights,
-                    expected_num_non_trainable_weights,
-                    msg="Unexpected number of non_trainable_weights",
-                )
-            if expected_num_non_trainable_variables is not None:
-                self.assertLen(
-                    layer.non_trainable_variables,
-                    expected_num_non_trainable_variables,
-                    msg="Unexpected number of non_trainable_variables",
-                )
-            if expected_num_seed_generators is not None:
-                self.assertLen(
-                    layer._seed_generators,
-                    expected_num_seed_generators,
-                    msg="Unexpected number of _seed_generators",
-                )
+    def run_build_asserts(layer):
+        self.assertTrue(layer.built)
+        if expected_num_trainable_weights is not None:
+            self.assertLen(
+                layer.trainable_weights,
+                expected_num_trainable_weights,
+                msg="Unexpected number of trainable_weights",
+            )
+        if expected_num_non_trainable_weights is not None:
+            self.assertLen(
+                layer.non_trainable_weights,
+                expected_num_non_trainable_weights,
+                msg="Unexpected number of non_trainable_weights",
+            )
+        if expected_num_non_trainable_variables is not None:
+            self.assertLen(
+                layer.non_trainable_variables,
+                expected_num_non_trainable_variables,
+                msg="Unexpected number of non_trainable_variables",
+            )
+        if expected_num_seed_generators is not None:
+            self.assertLen(
+                layer._seed_generators,
+                expected_num_seed_generators,
+                msg="Unexpected number of _seed_generators",
+            )
 
-        def run_output_asserts(layer, output, eager=False):
-            if expected_output_shape is not None:
-                if isinstance(expected_output_shape, tuple):
-                    self.assertEqual(
-                        expected_output_shape,
-                        output.shape,
-                        msg="Unexpected output shape",
-                    )
-                elif isinstance(expected_output_shape, dict):
-                    self.assertIsInstance(output, dict)
-                    self.assertEqual(
-                        set(output.keys()),
-                        set(expected_output_shape.keys()),
-                        msg="Unexpected output dict keys",
-                    )
-                    output_shape = {
-                        k: v.shape for k, v in expected_output_shape.items()
-                    }
-                    self.assertEqual(
-                        expected_output_shape,
-                        output_shape,
-                        msg="Unexpected output shape",
-                    )
-                elif isinstance(expected_output_shape, list):
-                    self.assertIsInstance(output, list)
-                    self.assertEqual(
-                        len(output),
-                        len(expected_output_shape),
-                        msg="Unexpected number of outputs",
-                    )
-                    output_shape = [v.shape for v in expected_output_shape]
-                    self.assertEqual(
-                        expected_output_shape,
-                        output_shape,
-                        msg="Unexpected output shape",
-                    )
-            if expected_output_dtype is not None:
-                output_dtype = tree.flatten(output)[0].dtype
+    def run_output_asserts(
+        self,
+        layer,
+        output,
+        expected_output_shape=None,
+        expected_output_dtype=None,
+        expected_output_sparse=False,
+        expected_output=None,
+        expected_num_losses=None,
+        eager=False,
+    ):
+        if expected_output_shape is not None:
+            if isinstance(expected_output_shape, tuple):
                 self.assertEqual(
-                    expected_output_dtype,
-                    backend.standardize_dtype(output_dtype),
-                    msg="Unexpected output dtype",
+                    expected_output_shape,
+                    output.shape,
+                    msg="Unexpected output shape",
                 )
-            if expected_output_sparse:
-                for x in tree.flatten(output):
-                    if isinstance(x, KerasTensor):
-                        self.assertTrue(x.sparse)
-                    elif backend.backend() == "tensorflow":
-                        import tensorflow as tf
+            elif isinstance(expected_output_shape, dict):
+                self.assertIsInstance(output, dict)
+                self.assertEqual(
+                    set(output.keys()),
+                    set(expected_output_shape.keys()),
+                    msg="Unexpected output dict keys",
+                )
+                output_shape = {
+                    # k: v.shape for k, v in expected_output_shape.items()
+                    k: output[k].shape
+                    for k in expected_output_shape.keys()
+                }
+                self.assertEqual(
+                    expected_output_shape,
+                    output_shape,
+                    msg="Unexpected output shape",
+                )
+            elif isinstance(expected_output_shape, list):
+                self.assertIsInstance(output, list)
+                self.assertEqual(
+                    len(output),
+                    len(expected_output_shape),
+                    msg="Unexpected number of outputs",
+                )
+                output_shape = [
+                    output[i].shape for i in range(len(expected_output_shape))
+                ]
+                self.assertEqual(
+                    expected_output_shape,
+                    output_shape,
+                    msg="Unexpected output shape",
+                )
+        if expected_output_dtype is not None:
+            output_dtype = tree.flatten(output)[0].dtype
+            self.assertEqual(
+                expected_output_dtype,
+                backend.standardize_dtype(output_dtype),
+                msg="Unexpected output dtype",
+            )
+        if expected_output_sparse:
+            for x in tree.flatten(output):
+                if isinstance(x, KerasTensor):
+                    self.assertTrue(x.sparse)
+                elif backend.backend() == "tensorflow":
+                    import tensorflow as tf
 
-                        self.assertIsInstance(x, tf.SparseTensor)
-                    elif backend.backend() == "jax":
-                        import jax.experimental.sparse as jax_sparse
+                    self.assertIsInstance(x, tf.SparseTensor)
+                elif backend.backend() == "jax":
+                    import jax.experimental.sparse as jax_sparse
 
-                        self.assertIsInstance(x, jax_sparse.JAXSparse)
-                    else:
-                        self.fail(
-                            "Sparse is unsupported with "
-                            f"backend {backend.backend()}"
-                        )
-            if eager:
-                if expected_output is not None:
-                    self.assertEqual(type(expected_output), type(output))
-                    for ref_v, v in zip(
-                        tree.flatten(expected_output), tree.flatten(output)
-                    ):
-                        self.assertAllClose(
-                            ref_v, v, msg="Unexpected output value"
-                        )
-                if expected_num_losses is not None:
-                    self.assertLen(layer.losses, expected_num_losses)
+                    self.assertIsInstance(x, jax_sparse.JAXSparse)
+                else:
+                    self.fail(
+                        "Sparse is unsupported with "
+                        f"backend {backend.backend()}"
+                    )
+        if eager:
+            if expected_output is not None:
+                self.assertEqual(type(expected_output), type(output))
+                for ref_v, v in zip(
+                    tree.flatten(expected_output), tree.flatten(output)
+                ):
+                    self.assertAllClose(ref_v, v, msg="Unexpected output value")
+            if expected_num_losses is not None:
+                self.assertLen(layer.losses, expected_num_losses)
 
-        def run_training_step(layer, input_data, output_data):
-            class TestModel(Model):
-                def __init__(self, layer):
-                    super().__init__()
-                    self.layer = layer
+    def run_training_step(layer, input_data, output_data):
+        class TestModel(Model):
+            def __init__(self, layer):
+                super().__init__()
+                self.layer = layer
 
-                def call(self, x):
-                    return self.layer(x)
+            def call(self, x):
+                return self.layer(x)
 
-            model = TestModel(layer)
+        model = TestModel(layer)
 
-            data = (input_data, output_data)
-            if backend.backend() == "torch":
-                data = tree.map_structure(backend.convert_to_numpy, data)
+        data = (input_data, output_data)
+        if backend.backend() == "torch":
+            data = tree.map_structure(backend.convert_to_numpy, data)
 
-            def data_generator():
-                while True:
-                    yield data
+        def data_generator():
+            while True:
+                yield data
 
-            # test the "default" path for each backend by setting
-            # jit_compile="auto".
-            # for tensorflow and jax backends auto is jitted
-            # Note that tensorflow cannot be jitted with sparse tensors
-            # for torch backend auto is eager
-            #
-            # NB: for torch, jit_compile=True turns on torchdynamo
-            #  which may not always succeed in tracing depending
-            #  on the model. Run your program with these env vars
-            #  to get debug traces of dynamo:
-            #    TORCH_LOGS="+dynamo"
-            #    TORCHDYNAMO_VERBOSE=1
-            #    TORCHDYNAMO_REPORT_GUARD_FAILURES=1
-            jit_compile = "auto"
-            if backend.backend() == "tensorflow" and input_sparse:
-                jit_compile = False
-            model.compile(optimizer="sgd", loss="mse", jit_compile=jit_compile)
-            model.fit(data_generator(), steps_per_epoch=1, verbose=0)
+        # test the "default" path for each backend by setting
+        # jit_compile="auto".
+        # for tensorflow and jax backends auto is jitted
+        # Note that tensorflow cannot be jitted with sparse tensors
+        # for torch backend auto is eager
+        #
+        # NB: for torch, jit_compile=True turns on torchdynamo
+        #  which may not always succeed in tracing depending
+        #  on the model. Run your program with these env vars
+        #  to get debug traces of dynamo:
+        #    TORCH_LOGS="+dynamo"
+        #    TORCHDYNAMO_VERBOSE=1
+        #    TORCHDYNAMO_REPORT_GUARD_FAILURES=1
+        jit_compile = "auto"
+        if backend.backend() == "tensorflow" and input_sparse:
+            jit_compile = False
+        model.compile(optimizer="sgd", loss="mse", jit_compile=jit_compile)
+        model.fit(data_generator(), steps_per_epoch=1, verbose=0)
 
         # Build test.
         if input_data is not None or input_shape is not None:
