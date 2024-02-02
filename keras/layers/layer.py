@@ -27,7 +27,6 @@ from keras import backend
 from keras import constraints
 from keras import dtype_policies
 from keras import initializers
-from keras import ops
 from keras import regularizers
 from keras import utils
 from keras.api_export import keras_export
@@ -700,25 +699,9 @@ class Layer(BackendLayer, Operation):
         #####################################
         # 1. Convert any array arguments to tensors of correct dtype.
         def maybe_convert(x):
-            if backend.is_tensor(x):
-                if (
-                    self.autocast
-                    and backend.is_float_dtype(x.dtype)
-                    and x.dtype != self.input_dtype
-                ):
-                    x = backend.cast(x, dtype=self.input_dtype)
-                return x
-            elif isinstance(x, backend.KerasTensor):
-                if (
-                    self.autocast
-                    and backend.is_float_dtype(x.dtype)
-                    and x.dtype != self.input_dtype
-                ):
-                    x.dtype = self.input_dtype
-                return x
-            elif hasattr(x, "__array__"):
-                return ops.convert_to_tensor(x, dtype=self.input_dtype)
-            return x
+            return self.dtype_policy.convert_input(
+                x, self.autocast, self.input_dtype
+            )
 
         # Used to avoid expensive `tree` operations in the most common case.
         if (
