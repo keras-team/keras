@@ -133,11 +133,7 @@ class DTypePolicy:
         return self._name
 
     def __repr__(self):
-        return (
-            f'<DTypePolicy "{self._name}", '
-            f'variable_dtype="{self._variable_dtype}, "'
-            f'compute_dtype="{self._compute_dtype}">'
-        )
+        return f'<DTypePolicy "{self._name}">'
 
     def convert_input(self, x, autocast, dtype):
         dtype = backend.standardize_dtype(dtype)
