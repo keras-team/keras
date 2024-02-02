@@ -1,5 +1,7 @@
 """Commonly used math operations not included in NumPy."""
 
+import warnings
+
 from keras import backend
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
@@ -310,6 +312,10 @@ def qr(x, mode="reduced"):
            [-0.5070925   0.2760267 ]
            [-0.8451542  -0.34503305]], shape=(3, 2), dtype=float32)
     """
+    warnings.warn(
+        "`keras.ops.qr` is deprecated. Please use `keras.ops.linalg.qr` instead.",
+        DeprecationWarning,
+    )
 
     if any_symbolic_tensors((x,)):
         return Qr(mode=mode).symbolic_call(x)
@@ -1026,6 +1032,10 @@ def solve(a, b):
     >>> keras.ops.solve(x1, x2)
     array([[2, 0], [0, 2]], dtype="float32")
     """
+    warnings.warn(
+        "`keras.ops.solve` is deprecated. Please use `keras.ops.linalg.solve` instead.",
+        DeprecationWarning,
+    )
     if any_symbolic_tensors((a, b)):
         return Solve().symbolic_call(a, b)
     a = backend.convert_to_tensor(a)
@@ -1146,6 +1156,10 @@ def norm(x, ord=None, axis=None, keepdims=False):
     >>> keras.ops.norm(x)
     7.7459664
     """
+    warnings.warn(
+        "`keras.ops.norm` is deprecated. Please use `keras.ops.linalg.norm` instead.",
+        DeprecationWarning,
+    )
     if any_symbolic_tensors((x,)):
         return Norm(ord=ord, axis=axis, keepdims=keepdims).symbolic_call(x)
     x = backend.convert_to_tensor(x)
