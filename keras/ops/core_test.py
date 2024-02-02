@@ -939,18 +939,18 @@ class CoreOpsCallsTests(testing.TestCase):
 
         def true_fn():
             return (
-                KerasTensor(shape=(3, 3), dtype='float32'),
-                KerasTensor(shape=(4, 4), dtype='float32'),
+                KerasTensor(shape=(3, 3), dtype="float32"),
+                KerasTensor(shape=(4, 4), dtype="float32"),
             )
 
         def false_fn():
             return (
-                KerasTensor(shape=(3, 3), dtype='float32'),
+                KerasTensor(shape=(3, 3), dtype="float32"),
                 # Mismatched tuple
-                KerasTensor(shape=(2, 2), dtype='float32'),
+                KerasTensor(shape=(2, 2), dtype="float32"),
             )
 
-        pred = KerasTensor(shape=(), dtype='bool')
+        pred = KerasTensor(shape=(), dtype="bool")
         expected_regex = "should return outputs of the same kind"
 
         with self.assertRaisesRegex(ValueError, expected_regex):
@@ -960,14 +960,58 @@ class CoreOpsCallsTests(testing.TestCase):
         cond_op = core.Cond()
 
         def true_fn():
-            return KerasTensor(shape=(3, 3), dtype='float32')
+            return KerasTensor(shape=(3, 3), dtype="float32")
 
         def false_fn():
             # Mismatched dtype
-            return KerasTensor(shape=(3, 3), dtype='int32')
+            return KerasTensor(shape=(3, 3), dtype="int32")
 
-        pred = KerasTensor(shape=(), dtype='bool')
+        pred = KerasTensor(shape=(), dtype="bool")
         expected_regex = "(struct, dtype and shape)"
+
+        with self.assertRaisesRegex(ValueError, expected_regex):
+            cond_op(pred, true_fn, false_fn)
+
+    def test_cond_output_spec_mismatch_in_dict_shapes(self):
+        cond_op = core.Cond()
+
+        def true_fn():
+            return {
+                "a": KerasTensor(shape=(3, 3), dtype="float32"),
+                "b": KerasTensor(shape=(4, 4), dtype="float32"),
+            }
+
+        def false_fn():
+            return {
+                "a": KerasTensor(shape=(3, 3), dtype="float32"),
+                # Key 'b' has a mismatch in shape
+                "b": KerasTensor(shape=(2, 2), dtype="float32"),
+            }
+
+        pred = KerasTensor(shape=(), dtype="bool")
+        expected_regex = "should return outputs of the same kind"
+
+        with self.assertRaisesRegex(ValueError, expected_regex):
+            cond_op(pred, true_fn, false_fn)
+
+    def test_cond_output_spec_mismatch_in_dict_dtypes(self):
+        cond_op = core.Cond()
+
+        def true_fn():
+            return {
+                "a": KerasTensor(shape=(3, 3), dtype="float32"),
+                "b": KerasTensor(shape=(4, 4), dtype="float32"),
+            }
+
+        def false_fn():
+            return {
+                "a": KerasTensor(shape=(3, 3), dtype="float32"),
+                # Key 'b' has a mismatch in dtype
+                "b": KerasTensor(shape=(4, 4), dtype="int32"),
+            }
+
+        pred = KerasTensor(shape=(), dtype="bool")
+        expected_regex = "should return outputs of the same kind"
 
         with self.assertRaisesRegex(ValueError, expected_regex):
             cond_op(pred, true_fn, false_fn)
