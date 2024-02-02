@@ -1017,7 +1017,7 @@ class MathDtypeTest(testing.TestCase, parameterized.TestCase):
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.linalg.norm(x_jax).dtype)
-        if dtype == "int64" or dtype == None:
+        if dtype is None or dtype == "int64":
             expected_dtype = "float32"
 
         self.assertEqual(standardize_dtype(kmath.norm(x).dtype), expected_dtype)
