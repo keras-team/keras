@@ -42,7 +42,11 @@ class GeneratorDataAdapter(DataAdapter):
             dtype = backend.standardize_dtype(x.dtype)
             if isinstance(x, tf.RaggedTensor):
                 return tf.RaggedTensorSpec(shape=shape, dtype=dtype)
-            if isinstance(x, tf.SparseTensor) or is_scipy_sparse(x):
+            if (
+                isinstance(x, tf.SparseTensor)
+                or is_scipy_sparse(x)
+                or is_jax_sparse(x)
+            ):
                 return tf.SparseTensorSpec(shape=shape, dtype=dtype)
             else:
                 return tf.TensorSpec(shape=shape, dtype=dtype)
@@ -55,15 +59,27 @@ class GeneratorDataAdapter(DataAdapter):
         return data_adapter_utils.get_numpy_iterator(self.generator)
 
     def get_jax_iterator(self):
-        return data_adapter_utils.get_jax_iterator(self.generator)
+        from keras.backend.jax.core import convert_to_tensor
+
+        def convert_to_jax(x):
+            if is_scipy_sparse(x):
+                return scipy_sparse_to_jax_sparse(x)
+            elif is_tf_sparse(x):
+                return tf_sparse_to_jax_sparse(x)
+            return convert_to_tensor(x)
+
+        for batch in self.generator:
+            yield tree.map_structure(convert_to_jax, batch)
 
     def get_tf_dataset(self):
         from keras.utils.module_utils import tensorflow as tf
 
-        def convert_to_tf(batch):
-            if is_scipy_sparse(batch):
-                batch = scipy_sparse_to_tf_sparse(batch)
-            return batch
+        def convert_to_tf(x):
+            if is_scipy_sparse(x):
+                x = scipy_sparse_to_tf_sparse(x)
+            elif is_jax_sparse(x):
+                x = jax_sparse_to_tf_sparse(x)
+            return x
 
         def get_tf_iterator():
             for batch in self.generator:
@@ -102,13 +118,50 @@ def is_scipy_sparse(x):
     )
 
 
+def is_tf_sparse(x):
+    return (
+        x.__class__.__name__ == "SparseTensor"
+        and x.__class__.__module__.startswith("tensorflow")
+    )
+
+
+def is_jax_sparse(x):
+    return x.__class__.__module__.startswith("jax.experimental.sparse")
+
+
 def scipy_sparse_to_tf_sparse(x):
     from keras.utils.module_utils import tensorflow as tf
 
-    sparse_coo = x.tocoo()
-    row, col = sparse_coo.row, sparse_coo.col
-    data, shape = sparse_coo.data, sparse_coo.shape
+    coo = x.tocoo()
     indices = np.concatenate(
-        (np.expand_dims(row, axis=1), np.expand_dims(col, axis=1)), axis=1
+        (np.expand_dims(coo.row, 1), np.expand_dims(coo.col, 1)),
+        axis=1,
     )
-    return tf.SparseTensor(indices, data, shape)
+    return tf.SparseTensor(indices, coo.data, coo.shape)
+
+
+def scipy_sparse_to_jax_sparse(x):
+    import jax.experimental.sparse as jax_sparse
+
+    coo = x.tocoo()
+    indices = np.concatenate(
+        (np.expand_dims(coo.row, 1), np.expand_dims(coo.col, 1)),
+        axis=1,
+    )
+    return jax_sparse.BCOO((coo.data, indices), shape=coo.shape)
+
+
+def tf_sparse_to_jax_sparse(x):
+    import jax.experimental.sparse as jax_sparse
+
+    from keras.backend.tensorflow.core import convert_to_numpy
+
+    values = convert_to_numpy(x.values)
+    indices = convert_to_numpy(x.indices)
+    return jax_sparse.BCOO((values, indices), shape=x.shape)
+
+
+def jax_sparse_to_tf_sparse(x):
+    from keras.utils.module_utils import tensorflow as tf
+
+    return tf.SparseTensor(x.indices, x.data, x.shape)

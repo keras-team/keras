@@ -408,14 +408,16 @@ def while_loop(
     iteration_check = (
         lambda iter: maximum_iterations is None or iter < maximum_iterations
     )
-    loop_vars = tuple([convert_to_tensor(v) for v in loop_vars])
+    is_tuple = isinstance(loop_vars, (tuple, list))
+    loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
+    loop_vars = tree.map_structure(convert_to_tensor, loop_vars)
     while cond(*loop_vars) and iteration_check(current_iter):
         loop_vars = body(*loop_vars)
         if not isinstance(loop_vars, (list, tuple)):
             loop_vars = (loop_vars,)
         loop_vars = tuple(loop_vars)
         current_iter += 1
-    return loop_vars
+    return loop_vars if is_tuple else loop_vars[0]
 
 
 def fori_loop(lower, upper, body_fun, init_val):

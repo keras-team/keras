@@ -260,9 +260,9 @@ class ArrayDataAdapter(DataAdapter):
             def __init__(self, array):
                 self.array = array
 
-            def __getitem__(self, index):
+            def __getitems__(self, indices):
                 def slice_and_convert(x):
-                    return convert_to_tensor(x[index])
+                    return convert_to_tensor(np.take(x, indices, axis=0))
 
                 return tree.map_structure(slice_and_convert, self.array)
 
@@ -301,8 +301,15 @@ class ArrayDataAdapter(DataAdapter):
                 drop_last=False,
             )
 
+        # Because ArrayDataset.__getitems__ returns full batches organized in
+        # the expected structure, there is nothing to collate.
+        def no_op_collate(batch):
+            return batch
+
         dataset = ArrayDataset(self._inputs)
-        return torch.utils.data.DataLoader(dataset, batch_sampler=batch_sampler)
+        return torch.utils.data.DataLoader(
+            dataset, batch_sampler=batch_sampler, collate_fn=no_op_collate
+        )
 
     @property
     def num_batches(self):

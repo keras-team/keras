@@ -232,12 +232,20 @@ def while_loop(
     loop_vars,
     maximum_iterations=None,
 ):
-    return tf.while_loop(
+    is_tuple = isinstance(loop_vars, (tuple, list))
+    loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
+
+    def _body(*args):
+        outputs = body(*args)
+        return tuple(outputs) if is_tuple else (outputs,)
+
+    outputs = tf.while_loop(
         cond,
-        body,
+        _body,
         loop_vars,
         maximum_iterations=maximum_iterations,
     )
+    return outputs if is_tuple else outputs[0]
 
 
 def fori_loop(lower, upper, body_fun, init_val):

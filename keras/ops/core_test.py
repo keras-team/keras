@@ -1,7 +1,9 @@
 import contextlib
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
+import tree
 from absl.testing import parameterized
 
 from keras import backend
@@ -82,7 +84,7 @@ class CoreOpsStaticShapeTest(testing.TestCase):
             core.unstack(x, axis=axis)
 
 
-class CoreOpsCorrectnessTest(testing.TestCase):
+class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_scatter(self):
         # Test 1D
         indices = np.array([[1], [3], [4], [7]])
@@ -220,24 +222,85 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         outputs = core.slice_update(inputs, start_indices, updates)
         self.assertAllClose(outputs[1:3, 1:3, 2:4, 2:4], np.zeros([2, 2, 2, 2]))
 
-    def test_while_loop(self):
-        def cond(x, y):
-            return x[0, 0] < 10
+    @parameterized.named_parameters(
+        [
+            {
+                "testcase_name": "with_max",
+                "state": (np.array(0), np.array(1)),
+                "output": (np.array(5), np.array(6)),
+                "maximum_iterations": 5,
+            },
+            {
+                "testcase_name": "no_max",
+                "state": (np.array(0), np.array(1)),
+                "output": (np.array(10), np.array(11)),
+                "maximum_iterations": None,
+            },
+        ]
+    )
+    def test_while_loop_list_data(self, state, output, maximum_iterations):
+        def cond(*args):
+            return tree.flatten(args)[0] < 10
 
-        def body(x, y):
-            return x + 1, y + 1
+        def body(*args):
+            return tree.map_structure(lambda x: x + 1, args)
 
-        x = np.ones((2, 3))
-        y = np.ones((3, 2))
-        x, y = core.while_loop(cond, body, (x, y))
-        self.assertAllClose(x, np.ones((2, 3)) * 10)
-        self.assertAllClose(y, np.ones((3, 2)) * 10)
+        state = core.while_loop(
+            cond, body, state, maximum_iterations=maximum_iterations
+        )
+        tree.map_structure(self.assertAllClose, state, output)
 
-        x = np.ones((2, 3))
-        y = np.ones((3, 2))
-        x, y = core.while_loop(cond, body, (x, y), maximum_iterations=5)
-        self.assertAllClose(x, np.ones((2, 3)) * 6)
-        self.assertAllClose(y, np.ones((3, 2)) * 6)
+    @parameterized.named_parameters(
+        [
+            {
+                "testcase_name": "scalar_data_with_max",
+                "state": np.array(0),
+                "output": np.array(5),
+                "maximum_iterations": 5,
+            },
+            {
+                "testcase_name": "scalar_data_no_max",
+                "state": np.array(0),
+                "output": np.array(10),
+                "maximum_iterations": None,
+            },
+            {
+                "testcase_name": "nested_data_with_max",
+                "state": {
+                    "a": np.array(0),
+                    "b": (np.array(1), np.array(2)),
+                },
+                "output": {
+                    "a": np.array(5),
+                    "b": (np.array(6), np.array(7)),
+                },
+                "maximum_iterations": 5,
+            },
+            {
+                "testcase_name": "nested_data_no_max",
+                "state": {
+                    "a": np.array(0),
+                    "b": (np.array(1), np.array(2)),
+                },
+                "output": {
+                    "a": np.array(10),
+                    "b": (np.array(11), np.array(12)),
+                },
+                "maximum_iterations": None,
+            },
+        ]
+    )
+    def test_while_loop(self, state, output, maximum_iterations):
+        def cond(args):
+            return tree.flatten(args)[0] < 10
+
+        def body(args):
+            return tree.map_structure(lambda x: x + 1, args)
+
+        state = core.while_loop(
+            cond, body, state, maximum_iterations=maximum_iterations
+        )
+        tree.map_structure(self.assertAllClose, state, output)
 
     def test_fori_loop(self):
         def body_fun(i, x):
@@ -505,3 +568,249 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
                 ),
                 expected_dtype,
             )
+
+
+class CoreOpsCallsTests(testing.TestCase):
+    def test_scatter_basic_call(self):
+        indices = np.array([[1, 0], [0, 1]])
+        values = np.array([10, 20])
+        shape = (2, 2)
+        scatter = core.Scatter()
+        result = scatter.call(indices, values, shape)
+        expected_output = np.array([[0, 20], [10, 0]])
+        self.assertAllClose(core.convert_to_numpy(result), expected_output)
+
+    def test_scatter_update_basic_call(self):
+        inputs = np.array([[0, 0], [0, 0]])
+        indices = np.array([[1, 0], [0, 1]])
+        updates = np.array([10, 20])
+        scatter_update = core.ScatterUpdate()
+        result = scatter_update.call(inputs, indices, updates)
+        expected_output = np.array([[0, 20], [10, 0]])
+        self.assertAllClose(core.convert_to_numpy(result), expected_output)
+
+    def test_slice_basic_call(self):
+        inputs = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        start_indices = np.array([1, 1])
+        shape = (2, 2)
+        slice_op = core.Slice()
+        result = slice_op.call(inputs, start_indices, shape)
+        expected_output = np.array([[5, 6], [8, 9]])
+        self.assertAllClose(core.convert_to_numpy(result), expected_output)
+
+    def test_slice_compute_output_spec(self):
+        inputs = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32)
+        start_indices = np.array([1, 1])
+        shape = (2, 2)
+        slice_op = core.Slice()
+        output_spec = slice_op.compute_output_spec(inputs, start_indices, shape)
+        self.assertEqual(output_spec.shape, shape)
+        self.assertEqual(output_spec.dtype, inputs.dtype)
+
+    def test_slice_with_symbolic_tensors(self):
+        inputs = KerasTensor(shape=(3, 3), dtype=np.float32)
+        start_indices = KerasTensor(shape=(2,), dtype=np.int32)
+        shape = (2, 2)
+        result = core.slice(inputs, start_indices, shape)
+        self.assertTrue(isinstance(result, KerasTensor))
+
+    def test_slice_with_non_symbolic_tensors(self):
+        inputs = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        start_indices = np.array([1, 1])
+        shape = (2, 2)
+        result = core.slice(inputs, start_indices, shape)
+        expected_output = np.array([[5, 6], [8, 9]])
+        self.assertAllClose(result, expected_output)
+
+    def test_slice_update_basic_call(self):
+        inputs = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        start_indices = np.array([1, 1])
+        updates = np.array([[10, 11], [12, 13]])
+        slice_update = core.SliceUpdate()
+        result = slice_update.call(inputs, start_indices, updates)
+        expected_output = np.array([[1, 2, 3], [4, 10, 11], [7, 12, 13]])
+        self.assertAllClose(core.convert_to_numpy(result), expected_output)
+
+    def test_while_loop_basic_functionality(self):
+        # Loop condition: continue if i < 5
+        def cond(i):
+            return i < 5
+
+        # Loop body: increment i by 1
+        def body(i):
+            return (i + 1,)
+
+        while_loop = core.WhileLoop(cond, body, maximum_iterations=None)
+        # Initial loop variable (i = 0)
+        loop_vars = (0,)
+        result = while_loop.call(loop_vars)
+        self.assertEqual(result[0], 5)
+
+    def test_while_loop_output_spec(self):
+        # Define dummy cond and body functions
+        def cond(x):
+            return True
+
+        def body(x):
+            return (x,)
+
+        while_loop = core.WhileLoop(cond, body, maximum_iterations=None)
+        loop_vars = (KerasTensor(shape=(10,), dtype=np.float32),)
+        output_spec = while_loop.compute_output_spec(loop_vars)
+        self.assertEqual(output_spec[0].shape, loop_vars[0].shape)
+        self.assertEqual(output_spec[0].dtype, loop_vars[0].dtype)
+
+    def test_while_loop_with_max_iterations(self):
+        # loop condition: continue if i < 10
+        def cond(i):
+            return i < 10
+
+        def body(i):
+            return (i + 1,)
+
+        while_loop = core.WhileLoop(cond, body, maximum_iterations=5)
+        result = while_loop.call((0,))
+        self.assertEqual(result[0], 5)
+
+    def test_whileloop_compute_output_spec(self):
+        # Define loop variables with different shapes and data types
+        loop_vars = (np.random.rand(5, 5), np.random.randint(10, size=(3, 7)))
+        keras_loop_vars = [
+            KerasTensor(v.shape, dtype=v.dtype) for v in loop_vars
+        ]
+
+        def cond(v):
+            return v[0] < 5
+
+        def body(v):
+            return (v[0] + 1, v[1])
+
+        while_loop = core.WhileLoop(cond, body, maximum_iterations=None)
+        output_specs = while_loop.compute_output_spec(keras_loop_vars)
+        self.assertEqual(output_specs[0].shape, keras_loop_vars[0].shape)
+        self.assertEqual(output_specs[0].dtype, keras_loop_vars[0].dtype)
+        self.assertEqual(output_specs[1].shape, keras_loop_vars[1].shape)
+        self.assertEqual(output_specs[1].dtype, keras_loop_vars[1].dtype)
+
+    def test_stop_gradient_call(self):
+        variable_np = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        variable = core.convert_to_tensor(variable_np)
+        stop_gradient = core.StopGradient()
+        result = stop_gradient.call(variable)
+        result_np = core.convert_to_numpy(result)
+        self.assertTrue(np.array_equal(result_np, variable_np))
+        self.assertEqual(result_np.dtype, variable_np.dtype)
+
+    def test_stop_gradient_compute_output_spec(self):
+        variable = KerasTensor(shape=(3,), dtype=np.float32)
+        stop_gradient = core.StopGradient()
+        output_spec = stop_gradient.compute_output_spec(variable)
+        self.assertEqual(output_spec.shape, variable.shape)
+        self.assertEqual(output_spec.dtype, variable.dtype)
+
+    def test_fori_loop_basic_functionality(self):
+        lower = 0
+        upper = 5
+
+        def body_fun(index, val):
+            return val + 1
+
+        fori_loop = core.ForiLoop(lower, upper, body_fun)
+        init_val = 0
+        result = fori_loop.call(init_val)
+        self.assertEqual(result, upper)
+
+    def test_unstack_basic_functionality(self):
+        x = np.random.rand(2, 3, 4)
+        x = core.convert_to_tensor(x)
+        axis = 1
+        unstack = core.Unstack(axis=axis)
+        result = unstack.call(x)
+        self.assertEqual(len(result), x.shape[axis])
+        result = core.convert_to_numpy(result)
+        expected_shape = x.shape[:axis] + x.shape[axis + 1 :]
+        # Check that all tensors have the same shape
+        if len(result) > 0:
+            self.assertEqual(result[0].shape, expected_shape)
+        if len(result) > 1:
+            self.assertEqual(result[1].shape, expected_shape)
+        if len(result) > 2:
+            self.assertEqual(result[2].shape, expected_shape)
+
+    def test_cast_basic_functionality(self):
+        x = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        target_dtype = np.int32
+        cast = core.Cast(target_dtype)
+        result = cast.call(x)
+        result = core.convert_to_numpy(result)
+        self.assertEqual(result.dtype, target_dtype)
+        # Check that the values are the same
+        expected_values = x.astype(target_dtype)
+        self.assertTrue(np.array_equal(result, expected_values))
+
+    def test_cond_check_output_spec_list_tuple(self):
+        cond_op = core.Cond()
+        mock_spec = Mock(dtype="float32", shape=(2, 2))
+        self.assertTrue(
+            cond_op._check_output_spec(
+                [mock_spec, mock_spec], [mock_spec, mock_spec]
+            )
+        )
+
+    def test_cond_check_output_spec_other_types(self):
+        cond_op = core.Cond()
+        # Create mock objects with dtype and shape attributes
+        mock_spec1 = Mock(dtype="float32", shape=(2, 2))
+        mock_spec2 = Mock(dtype="float32", shape=(2, 2))
+        self.assertTrue(cond_op._check_output_spec(mock_spec1, mock_spec2))
+
+    def test_cond_check_output_spec_none(self):
+        cond_op = core.Cond()
+        self.assertTrue(cond_op._check_output_spec(None, None))
+        self.assertFalse(
+            cond_op._check_output_spec(
+                None, Mock(dtype="float32", shape=(2, 2))
+            )
+        )
+        self.assertFalse(
+            cond_op._check_output_spec(
+                Mock(dtype="float32", shape=(2, 2)), None
+            )
+        )
+
+    def test_cond_check_output_spec_dict(self):
+        cond_op = core.Cond()
+        mock_spec = Mock(dtype="float32", shape=(2, 2))
+        self.assertTrue(
+            cond_op._check_output_spec({"a": mock_spec}, {"a": mock_spec})
+        )
+        self.assertFalse(
+            cond_op._check_output_spec({"a": mock_spec}, {"b": mock_spec})
+        )
+        self.assertFalse(
+            cond_op._check_output_spec(
+                {"a": mock_spec}, {"a": mock_spec, "b": mock_spec}
+            )
+        )
+
+    def test_cond_check_output_spec_list(self):
+        cond_op = core.Cond()
+        mock_spec = Mock(dtype="float32", shape=(2, 2))
+        mock_spec_different = Mock(dtype="int32", shape=(3, 3))
+        self.assertTrue(cond_op._check_output_spec([mock_spec], [mock_spec]))
+        self.assertFalse(
+            cond_op._check_output_spec(
+                [mock_spec], [mock_spec, mock_spec_different]
+            )
+        )
+
+    def test_cond_check_output_spec_tuple(self):
+        cond_op = core.Cond()
+        mock_spec = Mock(dtype="float32", shape=(2, 2))
+        mock_spec_different = Mock(dtype="int32", shape=(3, 3))
+        self.assertTrue(cond_op._check_output_spec((mock_spec,), (mock_spec,)))
+        self.assertFalse(
+            cond_op._check_output_spec(
+                (mock_spec,), (mock_spec, mock_spec_different)
+            )
+        )

@@ -16,6 +16,7 @@ from keras import optimizers
 from keras import testing
 from keras.callbacks.callback import Callback
 from keras.optimizers.rmsprop import RMSprop
+from keras.testing.test_utils import named_product
 
 if backend.backend() == "jax":
     from keras.backend.jax.trainer import JAXTrainer as Trainer
@@ -98,26 +99,25 @@ def sparse_generator(generator_type):
     if generator_type == "scipy":
         import scipy
 
-        for i in range(4):
+        for _ in range(4):
             x = scipy.sparse.random(2, 4, density=0.25, dtype="float32")
             y = np.random.rand(2, 3).astype("float32")
             yield x, y
-    elif generator_type == "tensorflow":
+    elif generator_type == "tf":
         import tensorflow as tf
 
-        for i in range(4):
+        for _ in range(4):
             x = tf.random.uniform((2, 4), dtype="float32")
             x = tf.sparse.from_dense(tf.nn.dropout(x, 0.25))
             y = tf.random.uniform((2, 3), dtype="float32")
             yield x, y
     elif generator_type == "jax":
         import jax
+        import jax.experimental.sparse as jax_sparse
 
-        for i in range(4):
+        for _ in range(4):
             seed = jax.random.PRNGKey(0)
-            x = jax.experimental.sparse.random_bcoo(
-                seed, (2, 4), dtype="float32", nse=0.25
-            )
+            x = jax_sparse.random_bcoo(seed, (2, 4), dtype="float32", nse=0.25)
             y = jax.random.uniform(seed, (2, 3), dtype="float32")
             yield x, y
     else:
@@ -307,32 +307,25 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertIn("val_loss", history)
 
     @parameterized.named_parameters(
-        [
-            ("eager_tf_sparse", True, False),
-            ("graph_fn_tf_sparse", False, False),
-            ("eager_scipy_sparse", True, False),
-            ("graph_fn_scipy_sparse", False, False),
-        ]
+        named_product(
+            generator_type=["tf", "jax", "scipy"], mode=["eager", "graph"]
+        )
     )
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors.",
     )
-    def test_fit_sparse(self, run_eagerly, use_scipy_sparse):
+    def test_fit_sparse(self, generator_type, mode):
         model = ExampleModel(units=3)
         optimizer = optimizers.Adagrad()
         model.compile(
             optimizer=optimizer,
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
-            run_eagerly=run_eagerly,
+            run_eagerly=(mode == "eager"),
             jit_compile=False,
         )
-        dataset = (
-            sparse_generator("scipy")
-            if use_scipy_sparse
-            else sparse_generator(backend.backend())
-        )
+        dataset = sparse_generator(generator_type)
 
         sparse_variable_updates = False
 
@@ -381,31 +374,24 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output["mean_squared_error"], 16.0)
 
     @parameterized.named_parameters(
-        [
-            ("eager_tf_sparse", True, False),
-            ("graph_fn_tf_sparse", False, False),
-            ("eager_scipy_sparse", True, False),
-            ("graph_fn_scipy_sparse", False, False),
-        ]
+        named_product(
+            generator_type=["tf", "jax", "scipy"], mode=["eager", "graph"]
+        )
     )
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors.",
     )
-    def test_evaluate_sparse(self, run_eagerly, use_scipy_sparse):
+    def test_evaluate_sparse(self, generator_type, mode):
         model = ExampleModel(units=3)
         model.compile(
             optimizer=optimizers.Adagrad(),
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
-            run_eagerly=run_eagerly,
+            run_eagerly=(mode == "eager"),
             jit_compile=False,
         )
-        dataset = (
-            sparse_generator("scipy")
-            if use_scipy_sparse
-            else sparse_generator(backend.backend())
-        )
+        dataset = sparse_generator(generator_type)
         model.evaluate(dataset)
 
     @parameterized.named_parameters(
@@ -451,31 +437,24 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(outputs["y_two"], 4 * np.ones((100, 3)))
 
     @parameterized.named_parameters(
-        [
-            ("eager_tf_sparse", True, False),
-            ("graph_fn_tf_sparse", False, False),
-            ("eager_scipy_sparse", True, False),
-            ("graph_fn_scipy_sparse", False, False),
-        ]
+        named_product(
+            generator_type=["tf", "jax", "scipy"], mode=["eager", "graph"]
+        )
     )
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors.",
     )
-    def test_predict_sparse(self, run_eagerly, use_scipy_sparse):
+    def test_predict_sparse(self, generator_type, mode):
         model = ExampleModel(units=3)
         model.compile(
             optimizer=optimizers.Adagrad(),
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
-            run_eagerly=run_eagerly,
+            run_eagerly=(mode == "eager"),
             jit_compile=False,
         )
-        dataset = (
-            sparse_generator("scipy")
-            if use_scipy_sparse
-            else sparse_generator(backend.backend())
-        )
+        dataset = sparse_generator(generator_type)
         model.predict(dataset)
 
     @pytest.mark.skipif(
@@ -497,7 +476,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
 
             # Note that we access model via self._model since self.model
             # will trigger a sync of the jax training state back to the model.
-            def on_train_batch_begin(self, batch, logs=None):
+            def on_train_batch_end(self, batch, logs=None):
                 for v in self._model.trainable_variables:
                     assert v._value is None
                 for v in self._model.non_trainable_variables:
@@ -507,7 +486,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
                 for v in self._model.metrics_variables:
                     assert v._value is None
 
-            def on_test_batch_begin(self, batch, logs=None):
+            def on_test_batch_end(self, batch, logs=None):
                 for v in self._model.non_trainable_variables:
                     assert v._value is None
                 for v in self._model.metrics_variables:
@@ -1203,3 +1182,70 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         out_1 = model.predict(x)
         out_2 = model.predict(x)
         self.assertGreater(np.mean(np.abs(out_1 - out_2)), 0.01)
+
+    @pytest.mark.requires_trainable_backend
+    def test_callbacks_can_update_state_at_batch_boundary(self):
+
+        class CounterModel(keras.Model):
+            def __init__(self):
+                super().__init__()
+                self.train_counter = self.add_weight(
+                    shape=(),
+                    initializer="zeros",
+                )
+                self.test_counter = self.add_weight(
+                    shape=(),
+                    initializer="zeros",
+                )
+                self.predict_counter = self.add_weight(
+                    shape=(),
+                    initializer="zeros",
+                )
+                self.dense = layers.Dense(3)
+
+            def call(self, x):
+                return self.dense(x)
+
+        class CounterCallback(keras.callbacks.Callback):
+            def __init__(self):
+                self.eager_call_counter_train = 0
+                self.eager_call_counter_test = 0
+                self.eager_call_counter_predict = 0
+
+            def on_train_batch_end(self, *args, **kwargs):
+                self.model.train_counter.assign_add(1)
+                self.eager_call_counter_train += 1
+
+            def on_test_batch_end(self, *args, **kwargs):
+                self.model.test_counter.assign_add(1)
+                self.eager_call_counter_test += 1
+
+            def on_predict_batch_end(self, *args, **kwargs):
+                self.model.predict_counter.assign_add(1)
+                self.eager_call_counter_predict += 1
+
+        model = CounterModel()
+        model.compile(
+            optimizer="sgd", loss="mse", metrics=["mse"], run_eagerly=True
+        )
+        cbk = CounterCallback()
+        model.fit(
+            np.ones((4, 3)),
+            np.ones((4, 3)),
+            callbacks=[cbk],
+            epochs=3,
+            batch_size=1,
+            verbose=0,
+            validation_data=(np.ones((2, 3)), np.ones((2, 3))),
+        )
+        self.assertAlmostEqual(cbk.eager_call_counter_train, 12)
+        self.assertAlmostEqual(model.train_counter.numpy(), 12)
+        self.assertAlmostEqual(cbk.eager_call_counter_test, 6)
+        self.assertAlmostEqual(model.test_counter.numpy(), 6)
+        model.predict(
+            np.ones((4, 3)),
+            callbacks=[cbk],
+            batch_size=1,
+        )
+        self.assertAlmostEqual(cbk.eager_call_counter_predict, 4)
+        self.assertAlmostEqual(model.predict_counter.numpy(), 4)

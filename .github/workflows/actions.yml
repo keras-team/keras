@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check for changes in keras/applications
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
@@ -41,7 +41,7 @@ jobs:
           python -m pip install --upgrade pip setuptools
           echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       - name: pip cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}-${{ hashFiles('requirements.txt') }}
@@ -57,7 +57,7 @@ jobs:
           coverage xml --include='keras/applications/*' -o apps-coverage.xml
       - name: Codecov keras.applications
         if: ${{ steps.filter.outputs.applications == 'true' }}
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           env_vars: PYTHON,KERAS_HOME
           flags: keras.applications,keras.applications-${{ matrix.backend }}
@@ -80,7 +80,7 @@ jobs:
           pytest keras --ignore keras/applications --cov=keras
           coverage xml --omit='keras/applications/*' -o core-coverage.xml
       - name: Codecov keras
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           env_vars: PYTHON,KERAS_HOME
           flags: keras,keras-${{ matrix.backend }}
@@ -102,7 +102,7 @@ jobs:
           python -m pip install --upgrade pip setuptools
           echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       - name: pip cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}-${{ hashFiles('requirements.txt') }}
