@@ -814,3 +814,19 @@ class CoreOpsCallsTests(testing.TestCase):
                 (mock_spec,), (mock_spec, mock_spec_different)
             )
         )
+
+    def test_unstack_with_negative_axis_first_tensor(self):
+        x = np.random.rand(4, 3, 2)
+        x_tensor = ops.convert_to_tensor(x)
+        negative_axis = -1
+        result = ops.unstack(x_tensor, axis=negative_axis)
+        expected_shape = (4, 3)
+        self.assertAllEqual(result[0].shape, expected_shape)
+
+    def test_unstack_with_negative_axis_second_tensor(self):
+        x = np.random.rand(4, 3, 2)
+        x_tensor = ops.convert_to_tensor(x)
+        negative_axis = -1
+        result = ops.unstack(x_tensor, axis=negative_axis)
+        expected_shape = (4, 3)
+        self.assertAllEqual(result[1].shape, expected_shape)
