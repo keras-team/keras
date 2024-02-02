@@ -45,7 +45,10 @@ def cholesky(x):
 def _cholesky(x):
     _assert_2d(x)
     _assert_square(x)
-    return backend.linalg.cholesky(x)
+    try:
+        return backend.linalg.cholesky(x)
+    except Exception as e:
+        raise LinalgError("Cholesky decomposition failed: " + str(e))
 
 
 class Det(Operation):
@@ -160,7 +163,7 @@ def _inv(x):
     return backend.linalg.inv(x)
 
 
-class LU(Operation):
+class Lu(Operation):
 
     def __init__(self):
         super().__init__()
@@ -176,11 +179,11 @@ class LU(Operation):
             KerasTensor(x.shape, x.dtype),
             KerasTensor(x.shape[:-1], x.dtype),
         )
-    
+
 
 @keras_export("keras.ops.linalg.lu")
 def lu(x):
-    """Computes the LU decomposition of a square matrix.
+    """Computes the lower-upper decomposition of a square matrix.
 
     Args:
         x: A tensor of shape (..., M, M).
@@ -193,7 +196,7 @@ def lu(x):
 
     """
     if any_symbolic_tensors((x,)):
-        return LU().symbolic_call(x)
+        return Lu().symbolic_call(x)
     return _lu(x)
 
 
@@ -246,7 +249,7 @@ def _solve(a, b):
 
 
 class SVD(Operation):
-    
+
     def __init__(self):
         super().__init__()
 
@@ -260,7 +263,7 @@ class SVD(Operation):
             KerasTensor(x.shape, x.dtype),
             KerasTensor(x.shape, x.dtype),
         )
-    
+
 
 @keras_export("keras.ops.linalg.svd")
 def svd(x):

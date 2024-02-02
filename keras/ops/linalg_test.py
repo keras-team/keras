@@ -135,8 +135,12 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
 
     def test_cholesky(self):
         x = np.random.rand(10, 20, 20)
-        out = linalg.cholesky(x)
-        np.testing.assert_allclose(out, np.linalg.cholesky(x))
+        with self.assertRaises(linalg.LinalgError):
+            linalg.cholesky(x)
+
+        x_psd = x @ x.transpose((0, 2, 1))
+        out = linalg.cholesky(x_psd)
+        np.testing.assert_allclose(out, np.linalg.cholesky(x_psd))
 
     def test_det(self):
         x = np.random.rand(10, 20, 20)
