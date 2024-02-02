@@ -1,6 +1,6 @@
 import jax
 import jax.numpy as jnp
-import jax.scipy.linalg as jsl
+from jax.scipy.linalg import solve_triangular
 
 
 def cholesky(a):
@@ -15,13 +15,9 @@ def inv(a):
     return jnp.linalg.inv(a)
 
 
-def logdet(a):
-    return jnp.linalg.logdet(a)
-
-
 def solve(a, b):
     return jnp.linalg.solve(a, b)
 
 
 def solve_triangular(a, b, lower=False):
-    return jsl.solve_triangular(a, b, lower=lower)
+    return solve_triangular(a, b, lower=lower)

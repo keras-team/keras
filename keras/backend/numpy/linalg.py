@@ -1,5 +1,5 @@
 import numpy as np
-from scipy import linalg
+from scipy.linalg import solve_triangular
 
 
 def cholesky(a):
@@ -20,3 +20,7 @@ def inv(a):
 
 def solve(a, b):
     return np.linalg.solve(a, b)
+
+
+def solve_triangular(a, b, lower=False):
+    return solve_triangular(a, b, lower=lower)
