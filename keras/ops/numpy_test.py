@@ -4593,17 +4593,28 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(
+            dtypes=list(itertools.combinations(ALL_DTYPES, 2))
+            + [("int8", "int8")]
+        )
     )
     def test_matmul(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
-        x1 = knp.ones((1,), dtype=dtype1)
-        x2 = knp.ones((1,), dtype=dtype2)
-        x1_jax = jnp.ones((1,), dtype=dtype1)
-        x2_jax = jnp.ones((1,), dtype=dtype2)
-        expected_dtype = standardize_dtype(jnp.matmul(x1_jax, x2_jax).dtype)
+        x1 = knp.ones((1, 1), dtype=dtype1)
+        x2 = knp.ones((1, 1), dtype=dtype2)
+        x1_jax = jnp.ones((1, 1), dtype=dtype1)
+        x2_jax = jnp.ones((1, 1), dtype=dtype2)
+        if dtype1 == "int8" and dtype2 == "int8":
+            preferred_element_type = "int32"
+        else:
+            preferred_element_type = None
+        expected_dtype = standardize_dtype(
+            jnp.matmul(
+                x1_jax, x2_jax, preferred_element_type=preferred_element_type
+            ).dtype
+        )
 
         self.assertEqual(
             standardize_dtype(knp.matmul(x1, x2).dtype), expected_dtype

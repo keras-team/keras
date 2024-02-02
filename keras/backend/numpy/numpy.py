@@ -52,7 +52,14 @@ def subtract(x1, x2):
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # When both x1 and x2 are of int8, we cast the outputs to int32 to align
+    # with jax
+    x1_dtype = standardize_dtype(x1.dtype)
+    x2_dtype = standardize_dtype(x2.dtype)
+    if x1_dtype == "int8" and x2_dtype == "int8":
+        dtype = "int32"
+    else:
+        dtype = dtypes.result_type(x1.dtype, x2.dtype)
     return np.matmul(x1, x2).astype(dtype)
 
 
