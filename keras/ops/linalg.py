@@ -115,8 +115,8 @@ def eig(x):
         x: A tensor of shape (..., M, M).
 
     Returns:
-        A tuple of two tensors: a tensor of shape (..., M) containing the eigenvalues
-        and a tensor of shape (..., M, M) containing the eigenvectors.
+        A tuple of two tensors: a tensor of shape (..., M) containing
+        eigenvalues and a tensor of shape (..., M, M) containing eigenvectors.
 
     """
     if any_symbolic_tensors((x,)):
@@ -215,7 +215,7 @@ def _lu_factor(x):
         except LinalgError as e:
             raise LinalgError(
                 "LU decomposition failed: " + str(e) + ". "
-                "LU decomposition is only supported for square matrices in TensorFlow."
+                "LU decomposition is only supported for square matrices in tf."
             )
     return backend.linalg.lu_factor(x)
 
@@ -433,11 +433,12 @@ def solve(a, b):
 
     Args:
         a: A tensor of shape (..., M, M) representing the coefficients matrix.
-        b: A tensor of shape (..., M) or (..., M, K) represeting the right-hand side or "dependent variable" matrix.
+        b: A tensor of shape (..., M) or (..., M, K) represeting the right-hand
+            side or "dependent variable" matrix.
 
     Returns:
-        A tensor of shape (..., M) or (..., M, K) representing the solution of the
-        linear system. Returned shape is identical to `b`.
+        A tensor of shape (..., M) or (..., M, K) representing the solution of
+        the linear system. Returned shape is identical to `b`.
 
     """
     if any_symbolic_tensors((a, b)):
@@ -478,11 +479,12 @@ def solve_triangular(a, b, lower=False):
 
     Args:
         a: A tensor of shape (..., M, M) representing the coefficients matrix.
-        b: A tensor of shape (..., M) or (..., M, K) represeting the right-hand side or "dependent variable" matrix.
+        b: A tensor of shape (..., M) or (..., M, K) represeting the right-hand
+            side or "dependent variable" matrix.
 
     Returns:
-        A tensor of shape (..., M) or (..., M, K) representing the solution of the
-        linear system. Returned shape is identical to `b`.
+        A tensor of shape (..., M) or (..., M, K) representing the solution of 
+        the linear system. Returned shape is identical to `b`.
 
     """
     if any_symbolic_tensors((a, b)):

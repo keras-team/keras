@@ -7,14 +7,14 @@ from keras.backend import standardize_dtype
 from keras.backend.common import dtypes
 from keras.backend.jax.core import cast
 from keras.backend.jax.core import convert_to_tensor
-from keras.utils.module_utils import scipy
 
 
 def cholesky(a):
     out = jnp.linalg.cholesky(a)
     if jnp.any(jnp.isnan(out)):
         raise ValueError(
-            "Cholesky decomposition failed. The input might not be a valid positive definite matrix."
+            "Cholesky decomposition failed. "
+            "The input might not be a valid positive definite matrix."
         )
     return out
 
