@@ -330,7 +330,9 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         x_inv = np.array(linalg.inv(x))
         x_reconstructed = x @ x_inv
         # high tolerance due to numerical instability
-        self.assertAllClose(x_reconstructed, np.repeat(np.eye(3)[None], 4, 0), atol=1e-3)
+        self.assertAllClose(
+            x_reconstructed, np.repeat(np.eye(3)[None], 4, 0), atol=1e-3
+        )
 
     def test_lu_factor(self):
         def _pivot_matrix(pivots, n):
@@ -348,7 +350,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             U = np.triu(LU[: min(m, n)])
 
             # pivots are defined differently in tensorflow
-            # compared to the other backends 
+            # compared to the other backends
             if backend.backend() == "tensorflow":
                 P = np.eye(m)[pivots]
             else:
