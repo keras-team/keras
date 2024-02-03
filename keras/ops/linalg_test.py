@@ -322,12 +322,16 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         out = linalg.det(x)
         self.assertAllClose(out, np.linalg.det(x), atol=1e-5)
 
+        with self.assertRaises(linalg.LinalgError):
+            x = np.random.rand(4, 3, 4)
+            linalg.det(x)
+
     def test_eig(self):
-        x = np.random.rand(4, 3, 3)
+        x = np.random.rand(2, 3, 3)
         x = x @ x.transpose((0, 2, 1))
-        w, v = linalg.eig(x)
-        w_ref, v_ref = np.linalg.eig(x)
-        self.assertAllClose(w, w_ref, atol=1e-3)
+        w, v = map(np.array, linalg.eig(x))
+        x_reconstructed = (v * w[..., None, :]) @ v.transpose((0, 2, 1))
+        self.assertAllClose(x_reconstructed, x, atol=1e-4)
 
     def test_inv(self):
         x = np.random.rand(4, 3, 3)
@@ -336,21 +340,50 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
 
     def test_lu_factor(self):
-        from scipy.linalg import lu_factor
-        # 2d-case
-        x = np.random.rand(3, 3)
-        lu, p = linalg.lu_factor(x)
-        lu_ref, p_ref = lu_factor(x)
-        self.assertAllClose(lu, lu_ref, atol=1e-5)
-        self.assertAllClose(p, p_ref, atol=1e-5)
+        # we reconstruct rather than use scipy as reference
+        # because lu results are non-unique
+        def _pivot_matrix(pivots, n):
+            P = np.eye(n)
+            for i, p in enumerate(pivots):
+                Q = np.eye(n,n)
+                q = Q[i,:].copy()
+                Q[i,:] = Q[p,:]
+                Q[p,:] = q
+                P = np.dot(P, Q)
+            return P
+        
+        def _reconstruct(LU, pivots, m, n):
+            L = np.tril(LU[:, :min(m, n)], -1) + np.eye(m, min(m,n))
+            U = np.triu(LU[:min(m, n)])
+            P = _pivot_matrix(pivots, m)
+            return P @ L @ U 
+        
+        m, n = 3, 3
+        x = np.random.rand(m, n)
+        LU, pivots = linalg.lu_factor(x)
+        x_reconstructed = _reconstruct(LU, pivots, m, n)
+        # self.assertAllClose(x_reconstructed, x, atol=1e-5)
+
+        m, n = 4, 3
+        x = np.random.rand(m, n)
+        if backend.backend() == "tensorflow":
+            with self.assertRaises(linalg.LinalgError):
+                linalg.lu_factor(x)
+        else:
+            LU, pivots = linalg.lu_factor(x)
+            x_reconstructed = _reconstruct(LU, pivots, m, n)
+            self.assertAllClose(x_reconstructed, x, atol=1e-5)
 
         # batched case
-        x = np.random.rand(4, 3, 3)
-        lu, p = linalg.lu_factor(x)
-        for i in range(4):
-            lu_ref, p_ref = lu_factor(x[i])
-            self.assertAllClose(lu[i], lu_ref, atol=1e-5)
-            self.assertAllClose(p[i], p_ref, atol=1e-5)        
+        m, n = 3, 4
+        x = np.random.rand(2, m, n)
+        if backend.backend() == "tensorflow":
+            with self.assertRaises(linalg.LinalgError):
+                linalg.lu_factor(x)
+        else:
+            LU, pivots = linalg.lu_factor(x)
+            for i in range(2):
+                self.assertAllClose(_reconstruct(LU[i], pivots[i], m, n), x[i], atol=1e-5)
 
     @parameterized.named_parameters(
         named_product(

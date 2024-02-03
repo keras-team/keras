@@ -21,7 +21,9 @@ def inv(x):
     return torch.linalg.inv(x)
 
 def lu_factor(x):
-    return torch.linalg.lu_factor(x)
+    LU, pivots = torch.linalg.lu_factor(x)
+    # torch retuns pivots with 1-based indexing 
+    return LU, pivots - 1
 
 
 def norm(x, ord=None, axis=None, keepdims=False):

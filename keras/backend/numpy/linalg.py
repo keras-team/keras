@@ -22,7 +22,17 @@ def inv(a):
     return np.linalg.inv(a)
 
 def lu_factor(a):
-    return sl.lu_factor(a)
+    if a.ndim == 2:
+        return sl.lu_factor(a)
+    
+    m, n = a.shape[-2:]
+    signature = "(m,n) -> (m,n), "
+    signature += "(m)" if m <= n else "(n)"
+    _lu_factor_gufunc = np.vectorize(
+        sl.lu_factor,
+        signature=signature,
+    )
+    return _lu_factor_gufunc(a)
 
 def norm(x, ord=None, axis=None, keepdims=False):
     x = convert_to_tensor(x)

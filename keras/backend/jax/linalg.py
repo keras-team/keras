@@ -28,12 +28,12 @@ def inv(a):
     return jnp.linalg.inv(a)
 
 def lu_factor(x):
-    lu_fn = jsp.linalg.lu
+    lu_factor_fn = jsp.linalg.lu_factor
     if x.ndim > 2:
         for i in range(x.ndim - 2):
-            lu_fn = jax.vmap(lu_fn)
+            lu_factor_fn = jax.vmap(lu_factor_fn)
         
-    return lu_fn(x)    
+    return lu_factor_fn(x)    
     
 def norm(x, ord=None, axis=None, keepdims=False):
     x = convert_to_tensor(x)

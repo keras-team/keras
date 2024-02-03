@@ -208,6 +208,14 @@ def lu_factor(x):
 def _lu_factor(x):
     x = backend.convert_to_tensor(x)
     _assert_2d(x)
+    if backend.backend() == "tensorflow":
+        try:
+            _assert_square(x)
+        except LinalgError as e:
+            raise LinalgError(
+                "LU decomposition failed: " + str(e) + ". "
+                "LU decomposition is only supported for square matrices in TensorFlow."
+            )
     return backend.linalg.lu_factor(x)
 
 
@@ -793,12 +801,20 @@ def lu_factor(x):
     """
     if any_symbolic_tensors((x,)):
         return LuFactor().symbolic_call(x)
-    return _lu(x)
+    return _lu_factor(x)
 
 
 def _lu_factor(x):
     x = backend.convert_to_tensor(x)
     _assert_2d(x)
+    if backend.backend() == "tensorflow":
+        try:
+            _assert_square(x)
+        except LinalgError as e:
+            raise LinalgError(
+                "LU decomposition failed: " + str(e) + ". "
+                "LU decomposition is only supported for square matrices in TensorFlow."
+            )
     return backend.linalg.lu_factor(x)
 
 
