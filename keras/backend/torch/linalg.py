@@ -6,6 +6,7 @@ from keras.backend.common import dtypes
 from keras.backend.torch.core import cast
 from keras.backend.torch.core import convert_to_tensor
 
+
 def cholesky(x):
     return torch.cholesky(x)
 
@@ -17,12 +18,14 @@ def det(x):
 def eig(x):
     return torch.linalg.eig(x)
 
+
 def inv(x):
     return torch.linalg.inv(x)
 
+
 def lu_factor(x):
     LU, pivots = torch.linalg.lu_factor(x)
-    # torch retuns pivots with 1-based indexing 
+    # torch retuns pivots with 1-based indexing
     return LU, pivots - 1
 
 
@@ -45,6 +48,7 @@ def qr(x, mode="reduced"):
         )
     return torch.linalg.qr(x, mode=mode)
 
+
 def solve(a, b):
     return torch.linalg.solve(a, b)
 
@@ -52,11 +56,15 @@ def solve(a, b):
 def solve_triangular(a, b, lower=False):
     if b.ndim == a.ndim - 1:
         b = torch.unsqueeze(b, axis=-1)
-        return torch.linalg.solve_triangular(a, b, upper=not lower).squeeze(axis=-1)
+        return torch.linalg.solve_triangular(a, b, upper=not lower).squeeze(
+            axis=-1
+        )
     return torch.linalg.solve_triangular(a, b, upper=not lower)
 
 
 def svd(x, full_matrices=True, compute_uv=True):
     if not compute_uv:
-        raise NotImplementedError("compute_uv=False is not supported for torch backend.")
+        raise NotImplementedError(
+            "compute_uv=False is not supported for torch backend."
+        )
     return torch.linalg.svd(x, full_matrices=full_matrices)

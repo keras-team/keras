@@ -1,4 +1,3 @@
-
 import numpy as np
 from absl.testing import parameterized
 
@@ -63,7 +62,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.inv(x)
 
-
     def test_lu_factor(self):
         x = KerasTensor([None, 4, 3])
         lu, p = linalg.lu_factor(x)
@@ -75,7 +73,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(lu.shape, (None, 2, 3))
         self.assertEqual(p.shape, (None, 2))
 
-
     def test_norm(self):
         x = KerasTensor((None, 3))
         self.assertEqual(linalg.norm(x).shape, ())
@@ -85,7 +82,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(
             linalg.norm(x, axis=1, keepdims=True).shape, (None, 1, 3)
         )
-
 
     def test_qr(self):
         x = KerasTensor((None, 4, 3), dtype="float32")
@@ -102,7 +98,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         rref_shape = (None,) + rref.shape[1:]
         self.assertEqual(q.shape, qref_shape)
         self.assertEqual(r.shape, rref_shape)
-
 
     def test_solve(self):
         a = KerasTensor([None, 20, 20])
@@ -161,7 +156,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(linalg.LinalgError):
             linalg.solve_triangular(a, b)
 
-
     def test_svd(self):
         x = KerasTensor((None, 3, 2))
         u, s, v = linalg.svd(x)
@@ -207,7 +201,6 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         with self.assertRaises(linalg.LinalgError):
             linalg.eig(x)
 
-
     def test_inv(self):
         x = KerasTensor([4, 3, 3])
         out = linalg.inv(x)
@@ -227,7 +220,6 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         lu, p = linalg.lu_factor(x)
         self.assertEqual(lu.shape, (10, 2, 3))
         self.assertEqual(p.shape, (10, 2))
-
 
     def test_norm(self):
         x = KerasTensor((10, 3))
@@ -335,34 +327,40 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     def test_inv(self):
         x = np.random.rand(4, 3, 3)
-        out = linalg.inv(x)
-        self.assertAllClose(out, np.linalg.inv(x), atol=1e-5)
-
+        x_inv = np.array(linalg.inv(x))
+        x_reconstructed = x @ x_inv
+        # high tolerance due to numerical instability
+        self.assertAllClose(x_reconstructed, np.repeat(np.eye(3)[None], 4, 0), atol=1e-3)
 
     def test_lu_factor(self):
-        # we reconstruct rather than use scipy as reference
-        # because lu results are non-unique
         def _pivot_matrix(pivots, n):
             P = np.eye(n)
             for i, p in enumerate(pivots):
-                Q = np.eye(n,n)
-                q = Q[i,:].copy()
-                Q[i,:] = Q[p,:]
-                Q[p,:] = q
+                Q = np.eye(n, n)
+                q = Q[i, :].copy()
+                Q[i, :] = Q[p, :]
+                Q[p, :] = q
                 P = np.dot(P, Q)
             return P
-        
+
         def _reconstruct(LU, pivots, m, n):
-            L = np.tril(LU[:, :min(m, n)], -1) + np.eye(m, min(m,n))
-            U = np.triu(LU[:min(m, n)])
-            P = _pivot_matrix(pivots, m)
-            return P @ L @ U 
-        
-        m, n = 3, 3
+            L = np.tril(LU[:, : min(m, n)], -1) + np.eye(m, min(m, n))
+            U = np.triu(LU[: min(m, n)])
+
+            # pivots are defined differently in tensorflow
+            # compared to the other backends 
+            if backend.backend() == "tensorflow":
+                P = np.eye(m)[pivots]
+            else:
+                P = _pivot_matrix(pivots, m)
+            out = P @ L @ U
+            return out
+
+        m, n = 4, 4
         x = np.random.rand(m, n)
         LU, pivots = linalg.lu_factor(x)
         x_reconstructed = _reconstruct(LU, pivots, m, n)
-        # self.assertAllClose(x_reconstructed, x, atol=1e-5)
+        self.assertAllClose(x_reconstructed, x, atol=1e-5)
 
         m, n = 4, 3
         x = np.random.rand(m, n)
@@ -383,7 +381,9 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         else:
             LU, pivots = linalg.lu_factor(x)
             for i in range(2):
-                self.assertAllClose(_reconstruct(LU[i], pivots[i], m, n), x[i], atol=1e-5)
+                self.assertAllClose(
+                    _reconstruct(LU[i], pivots[i], m, n), x[i], atol=1e-5
+                )
 
     @parameterized.named_parameters(
         named_product(
@@ -420,7 +420,6 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(qref, q)
         self.assertAllClose(rref, r)
 
-
     def test_solve(self):
         x1 = np.array([[1, 2], [4, 5]], dtype="float32")
         x2 = np.array([[2, 4], [8, 10]], dtype="float32")
@@ -429,7 +428,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output, expected_result)
 
     def test_solve_triangular(self):
-        
+
         # 2d-case
         x1 = np.array([[1, 2], [0, 5]], dtype="float32")
         x2 = np.array([2, 10], dtype="float32")
@@ -451,5 +450,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_svd(self):
         x = np.random.rand(4, 30, 20)
         u, s, vh = linalg.svd(x)
-        x_reconstructed = (u[...,:,:s.shape[-1]] * s[...,None,:]) @ vh[..., :s.shape[-1],:]
+        x_reconstructed = (u[..., :, : s.shape[-1]] * s[..., None, :]) @ vh[
+            ..., : s.shape[-1], :
+        ]
         self.assertAllClose(x_reconstructed, x, atol=1e-4)

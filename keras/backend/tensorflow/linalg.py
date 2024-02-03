@@ -7,6 +7,7 @@ from keras.backend.common import dtypes
 from keras.backend.tensorflow.core import cast
 from keras.backend.tensorflow.core import convert_to_tensor
 
+
 def cholesky(a):
     out = tf.linalg.cholesky(a)
     # tf.linalg.cholesky simply returns NaNs for non-positive definite matrices
@@ -27,7 +28,8 @@ def inv(a):
 
 def lu_factor(a):
     lu, p = tf.linalg.lu(a)
-    return lu, p
+    return lu, tf.math.invert_permutation(p)
+
 
 def norm(x, ord=None, axis=None, keepdims=False):
     x = convert_to_tensor(x)
@@ -124,7 +126,6 @@ def norm(x, ord=None, axis=None, keepdims=False):
         raise ValueError(f"Invalid axis values. Received: axis={axis}")
 
 
-
 def qr(x, mode="reduced"):
     if mode not in {"reduced", "complete"}:
         raise ValueError(
@@ -148,10 +149,14 @@ def solve(a, b):
 def solve_triangular(a, b, lower=False):
     if b.shape.ndims == a.shape.ndims - 1:
         b = tf.expand_dims(b, axis=-1)
-        return tf.squeeze(tf.linalg.triangular_solve(a, b, lower=lower), axis=-1)
+        return tf.squeeze(
+            tf.linalg.triangular_solve(a, b, lower=lower), axis=-1
+        )
     return tf.linalg.triangular_solve(a, b, lower=lower)
 
 
 def svd(x, full_matrices=True, compute_uv=True):
-    s, u, v = tf.linalg.svd(x, full_matrices=full_matrices, compute_uv=compute_uv)
+    s, u, v = tf.linalg.svd(
+        x, full_matrices=full_matrices, compute_uv=compute_uv
+    )
     return u, s, tf.linalg.adjoint(v)

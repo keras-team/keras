@@ -13,12 +13,15 @@ from keras.utils.module_utils import scipy
 def cholesky(a):
     out = jnp.linalg.cholesky(a)
     if jnp.any(jnp.isnan(out)):
-        raise ValueError("Cholesky decomposition failed. The input might not be a valid positive definite matrix.")
+        raise ValueError(
+            "Cholesky decomposition failed. The input might not be a valid positive definite matrix."
+        )
     return out
 
 
 def det(a):
     return jnp.linalg.det(a)
+
 
 def eig(x):
     return jnp.linalg.eig(x)
@@ -27,14 +30,16 @@ def eig(x):
 def inv(a):
     return jnp.linalg.inv(a)
 
+
 def lu_factor(x):
     lu_factor_fn = jsp.linalg.lu_factor
     if x.ndim > 2:
         for i in range(x.ndim - 2):
             lu_factor_fn = jax.vmap(lu_factor_fn)
-        
-    return lu_factor_fn(x)    
-    
+
+    return lu_factor_fn(x)
+
+
 def norm(x, ord=None, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
@@ -61,6 +66,7 @@ def solve(a, b):
 
 def solve_triangular(a, b, lower=False):
     return jsp.linalg.solve_triangular(a, b, lower=lower)
+
 
 def svd(x, full_matrices=True, compute_uv=True):
     return jnp.linalg.svd(x, full_matrices=full_matrices, compute_uv=compute_uv)

@@ -6,7 +6,6 @@ from keras.ops.operation import Operation
 from keras.ops.operation_utils import reduce_shape
 
 
-
 class LinalgError(ValueError):
     """Generic exception raised by linalg operations.
 
@@ -520,8 +519,6 @@ def _solve_triangular(a, b, lower=False):
     return backend.linalg.solve_triangular(a, b, lower)
 
 
-
-
 class SVD(Operation):
 
     def __init__(self, full_matrices=True, compute_uv=True):
@@ -580,8 +577,6 @@ def _svd(x, full_matrices=True, compute_uv=True):
     return backend.linalg.svd(x, full_matrices, compute_uv)
 
 
-
-
 def _assert_1d(*arrays):
     for a in arrays:
         if a.ndim < 1:
@@ -618,13 +613,14 @@ def _assert_a_b_compat(a, b):
             raise LinalgError(
                 f"Incompatible shapes between `a` {a.shape} and `b` {b.shape}"
             )
+
+
 from keras import backend
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend import any_symbolic_tensors
 from keras.ops.operation import Operation
 from keras.ops.operation_utils import reduce_shape
-
 
 
 class LinalgError(ValueError):
@@ -1121,8 +1117,6 @@ def _solve_triangular(a, b, lower=False):
     return backend.linalg.solve_triangular(a, b, lower)
 
 
-
-
 class SVD(Operation):
 
     def __init__(self, full_matrices=True, compute_uv=True):
@@ -1177,8 +1171,6 @@ def _svd(x, full_matrices=True, compute_uv=True):
     x = backend.convert_to_tensor(x)
     _assert_2d(x)
     return backend.linalg.svd(x, full_matrices, compute_uv)
-
-
 
 
 def _assert_1d(*arrays):

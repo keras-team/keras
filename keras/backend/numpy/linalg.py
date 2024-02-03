@@ -21,10 +21,11 @@ def eig(a):
 def inv(a):
     return np.linalg.inv(a)
 
+
 def lu_factor(a):
     if a.ndim == 2:
         return sl.lu_factor(a)
-    
+
     m, n = a.shape[-2:]
     signature = "(m,n) -> (m,n), "
     signature += "(m)" if m <= n else "(n)"
@@ -33,6 +34,7 @@ def lu_factor(a):
         signature=signature,
     )
     return _lu_factor_gufunc(a)
+
 
 def norm(x, ord=None, axis=None, keepdims=False):
     x = convert_to_tensor(x)
@@ -61,7 +63,7 @@ def solve(a, b):
 def solve_triangular(a, b, lower=False):
     if a.ndim == 2:
         return sl.solve_triangular(a, b, lower=lower)
-    
+
     _vectorized_solve_triangular = np.vectorize(
         lambda a, b: sl.solve_triangular(a, b, lower=lower),
         signature="(n,n),(n,m)->(n,m)",
