@@ -211,7 +211,8 @@ def lu_factor(x):
         pivot indices, with K = min(M, N).
 
     Raises:
-        LinalgError: If `x` is not at least 2d.
+        LinalgError: If `x` is not at least 2d or (with tensorflow backend)
+            is not square.
     """
     if any_symbolic_tensors((x,)):
         return LuFactor().symbolic_call(x)
