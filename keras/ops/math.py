@@ -313,7 +313,8 @@ def qr(x, mode="reduced"):
            [-0.8451542  -0.34503305]], shape=(3, 2), dtype=float32)
     """
     warnings.warn(
-        "`keras.ops.qr` is deprecated. Please use `keras.ops.linalg.qr` instead.",
+        "`keras.ops.qr` is deprecated."
+        "Please use `keras.ops.linalg.qr` instead.",
         DeprecationWarning,
     )
 
@@ -1033,7 +1034,8 @@ def solve(a, b):
     array([[2, 0], [0, 2]], dtype="float32")
     """
     warnings.warn(
-        "`keras.ops.solve` is deprecated. Please use `keras.ops.linalg.solve` instead.",
+        "`keras.ops.solve` is deprecated."
+        "Please use `keras.ops.linalg.solve` instead.",
         DeprecationWarning,
     )
     if any_symbolic_tensors((a, b)):
@@ -1157,7 +1159,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
     7.7459664
     """
     warnings.warn(
-        "`keras.ops.norm` is deprecated. Please use `keras.ops.linalg.norm` instead.",
+        "`keras.ops.norm` is deprecated."
+        "Please use `keras.ops.linalg.norm` instead.",
         DeprecationWarning,
     )
     if any_symbolic_tensors((x,)):

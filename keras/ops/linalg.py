@@ -483,7 +483,7 @@ def solve_triangular(a, b, lower=False):
             side or "dependent variable" matrix.
 
     Returns:
-        A tensor of shape (..., M) or (..., M, K) representing the solution of 
+        A tensor of shape (..., M) or (..., M, K) representing the solution of
         the linear system. Returned shape is identical to `b`.
 
     """
