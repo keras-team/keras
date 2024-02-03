@@ -1,5 +1,9 @@
 import numpy as np
-from scipy.linalg import solve_triangular
+import scipy.linalg as sl
+
+from keras.backend import standardize_dtype
+from keras.backend.common import dtypes
+from keras.backend.torch.core import convert_to_tensor
 
 
 def cholesky(a):
@@ -17,10 +21,46 @@ def eig(a):
 def inv(a):
     return np.linalg.inv(a)
 
+def lu_factor(a):
+    return sl.lu_factor(a)
+
+def norm(x, ord=None, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or dtype == "bool":
+        dtype = dtypes.result_type(x.dtype, "float32")
+    return np.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims).astype(
+        dtype
+    )
+
+
+def qr(x, mode="reduced"):
+    if mode not in {"reduced", "complete"}:
+        raise ValueError(
+            "`mode` argument value not supported. "
+            "Expected one of {'reduced', 'complete'}. "
+            f"Received: mode={mode}"
+        )
+    return np.linalg.qr(x, mode=mode)
+
 
 def solve(a, b):
     return np.linalg.solve(a, b)
 
 
 def solve_triangular(a, b, lower=False):
-    return solve_triangular(a, b, lower=lower)
+    if a.ndim == 2:
+        return sl.solve_triangular(a, b, lower=lower)
+    
+    _vectorized_solve_triangular = np.vectorize(
+        lambda a, b: sl.solve_triangular(a, b, lower=lower),
+        signature="(n,n),(n,m)->(n,m)",
+    )
+    if b.ndim == a.ndim - 1:
+        b = np.expand_dims(b, axis=-1)
+        return _vectorized_solve_triangular(a, b).squeeze(axis=-1)
+    return _vectorized_solve_triangular(a, b)
+
+
+def svd(x, full_matrices=True, compute_uv=True):
+    return np.linalg.svd(x, full_matrices=full_matrices, compute_uv=compute_uv)
