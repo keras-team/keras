@@ -38,6 +38,8 @@ def cholesky(x):
     Returns:
         A tensor.
 
+    Raises:
+        LinalgError: If `x` is not at least 2d or is not square.
     """
     if any_symbolic_tensors((x,)):
         return Cholesky().symbolic_call(x)
@@ -77,6 +79,9 @@ def det(x):
 
     Returns:
         A tensor of shape (...,) as the determinant of `x`.
+
+    Raises:
+        LinalgError: If `x` is not at least 2d or is not square.
 
     """
     if any_symbolic_tensors((x,)):
@@ -119,6 +124,8 @@ def eig(x):
         A tuple of two tensors: a tensor of shape (..., M) containing the eigenvalues
         and a tensor of shape (..., M, M) containing the eigenvectors.
 
+    Raises:
+        LinalgError: If `x` is not at least 2d or is not square.
     """
     if any_symbolic_tensors((x,)):
         return Eig().symbolic_call(x)
@@ -155,6 +162,9 @@ def inv(x):
 
     Returns:
         A tensor of shape (..., M, M) representing the inverse of `x`.
+
+    Raises:
+        LinalgError: If `x` is not at least 2d or is not square.
 
     """
     if any_symbolic_tensors((x,)):
@@ -193,12 +203,15 @@ def lu_factor(x):
     """Computes the pivoted lower-upper decomposition of a square matrix.
 
     Args:
-        x: A tensor of shape (..., M, M).
+        x: A tensor of shape (..., M, N).
 
     Returns:
-        A tuple of two tensors: a tensor of shape (..., M, M) containing the
+        A tuple of two tensors: a tensor of shape (..., M, N) containing the
         lower-upper decomposition and a tensor of shape (..., K) containing the
         pivot indices, with K = min(M, N).
+
+    Raises:
+        LinalgError: If `x` is not at least 2d.
     """
     if any_symbolic_tensors((x,)):
         return LuFactor().symbolic_call(x)
@@ -438,6 +451,10 @@ def solve(a, b):
         A tensor of shape (..., M) or (..., M, K) representing the solution of the
         linear system. Returned shape is identical to `b`.
 
+    Raises:
+        LinalgError: If `a` or `b` are not at least 2d, `a` is not square or
+            the last dimension of `a` and `b` are incompatible.
+
     """
     if any_symbolic_tensors((a, b)):
         return Solve().symbolic_call(a, b)
@@ -483,6 +500,9 @@ def solve_triangular(a, b, lower=False):
         A tensor of shape (..., M) or (..., M, K) representing the solution of the
         linear system. Returned shape is identical to `b`.
 
+    Raises:
+        LinalgError: If `a` or `b` are not at least 2d, `a` is not square or
+            the last dimension of `a` and `b` are incompatible.
     """
     if any_symbolic_tensors((a, b)):
         return SolveTriangular(lower).symbolic_call(a, b)
@@ -545,6 +565,8 @@ def svd(x, full_matrices=True, compute_uv=True):
         singular values and a tensor of shape (..., N, N) containing the
         right singular vectors.
 
+    Raises:
+        LinalgError: If `x` is not at least 2d.
     """
     if any_symbolic_tensors((x,)):
         return SVD(full_matrices, compute_uv).symbolic_call(x)
