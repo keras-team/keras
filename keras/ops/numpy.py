@@ -3714,8 +3714,8 @@ def meshgrid(*x, indexing="xy"):
 
     Args:
         x: 1-D tensors representing the coordinates of a grid.
-        indexing: Cartesian (`"xy"`, default) or matrix (`"ij"`) indexing
-            of output.
+        indexing: `"xy"` or `"ij"`. "xy" is cartesian; `"ij"` is matrix
+            indexing of output. Defaults to `"xy"`.
 
     Returns:
         Sequence of N tensors.
