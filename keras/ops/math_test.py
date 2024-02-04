@@ -7,12 +7,9 @@ from absl.testing import parameterized
 
 from keras import backend
 from keras import testing
-from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import math as kmath
-from keras.ops import numpy as knp
-from keras.testing.test_utils import named_product
 
 
 def _stft(
