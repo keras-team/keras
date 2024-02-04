@@ -6,14 +6,6 @@ from keras.ops.operation import Operation
 from keras.ops.operation_utils import reduce_shape
 
 
-class LinalgError(ValueError):
-    """Generic exception raised by linalg operations.
-
-    Raised when a linear algebra-related condition prevents the correct
-    execution of the operation.
-    """
-
-
 class Cholesky(Operation):
     def __init__(self):
         super().__init__()
@@ -51,7 +43,7 @@ def _cholesky(x):
     try:
         return backend.linalg.cholesky(x)
     except Exception as e:
-        raise LinalgError("Cholesky decomposition failed: " + str(e))
+        raise ValueError("Cholesky decomposition failed: " + str(e))
 
 
 class Det(Operation):
@@ -212,8 +204,8 @@ def _lu_factor(x):
     if backend.backend() == "tensorflow":
         try:
             _assert_square(x)
-        except LinalgError as e:
-            raise LinalgError(
+        except ValueError as e:
+            raise ValueError(
                 "LU decomposition failed: " + str(e) + ". "
                 "LU decomposition is only supported for square matrices in tf."
             )
@@ -563,7 +555,7 @@ def _svd(x, full_matrices=True, compute_uv=True):
 def _assert_1d(*arrays):
     for a in arrays:
         if a.ndim < 1:
-            raise LinalgError(
+            raise ValueError(
                 f"{a.ndim}-dimensional array given. Array must be "
                 "at least one-dimensional"
             )
@@ -572,7 +564,7 @@ def _assert_1d(*arrays):
 def _assert_2d(*arrays):
     for a in arrays:
         if a.ndim < 2:
-            raise LinalgError(
+            raise ValueError(
                 f"{a.ndim}-dimensional array given. Array must be "
                 "at least two-dimensional"
             )
@@ -582,17 +574,17 @@ def _assert_square(*arrays):
     for a in arrays:
         m, n = a.shape[-2:]
         if m != n:
-            raise LinalgError("Last 2 dimensions of the array must be square")
+            raise ValueError("Last 2 dimensions of the array must be square")
 
 
 def _assert_a_b_compat(a, b):
     if a.ndim == b.ndim:
         if a.shape[-2] != b.shape[-2]:
-            raise LinalgError(
+            raise ValueError(
                 f"Incompatible shapes between `a` {a.shape} and `b` {b.shape}"
             )
     elif a.ndim == b.ndim - 1:
         if a.shape[-1] != b.shape[-1]:
-            raise LinalgError(
+            raise ValueError(
                 f"Incompatible shapes between `a` {a.shape} and `b` {b.shape}"
             )
