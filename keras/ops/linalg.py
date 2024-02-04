@@ -27,7 +27,7 @@ class Cholesky(Operation):
         return KerasTensor(x.shape, x.dtype)
 
 
-@keras_export("keras.ops.linalg.cholesky")
+@keras_export(["keras.ops.linalg.cholesky", "keras.ops.cholesky"])
 def cholesky(x):
     """Computes the Cholesky decomposition of a positive semi-definite matrix.
 
@@ -68,7 +68,7 @@ class Det(Operation):
         return KerasTensor(x.shape[:-2], x.dtype)
 
 
-@keras_export("keras.ops.linalg.det")
+@keras_export(["keras.ops.linalg.det", "keras.ops.det"])
 def det(x):
     """Computes the determinant of a square tensor.
 
@@ -108,7 +108,7 @@ class Eig(Operation):
         )
 
 
-@keras_export("keras.ops.linalg.eig")
+@keras_export(["keras.ops.linalg.eig", "keras.ops.eig"])
 def eig(x):
     """Computes the eigenvalues and eigenvectors of a square matrix.
 
@@ -146,7 +146,7 @@ class Inv(Operation):
         return KerasTensor(x.shape, x.dtype)
 
 
-@keras_export("keras.ops.linalg.inv")
+@keras_export(["keras.ops.linalg.inv", "keras.ops.inv"])
 def inv(x):
     """Computes the inverse of a square tensor.
 
@@ -188,7 +188,7 @@ class LuFactor(Operation):
         )
 
 
-@keras_export("keras.ops.linalg.lu_factor")
+@keras_export(["keras.ops.linalg.lu_factor", "keras.ops.lu_factor"])
 def lu_factor(x):
     """Computes the lower-upper decomposition of a square matrix.
 
@@ -277,7 +277,7 @@ class Norm(Operation):
         )
 
 
-@keras_export("keras.ops.linalg.norm")
+@keras_export(["keras.ops.linalg.norm", "keras.ops.norm"])
 def norm(x, ord=None, axis=None, keepdims=False):
     """Matrix or vector norm.
 
@@ -381,7 +381,7 @@ class Qr(Operation):
         return backend.linalg.qr(x, mode=self.mode)
 
 
-@keras_export("keras.ops.linalg.qr")
+@keras_export(["keras.ops.linalg.qr", "keras.ops.qr"])
 def qr(x, mode="reduced"):
     """Computes the QR decomposition of a tensor.
 
@@ -427,7 +427,7 @@ class Solve(Operation):
         return KerasTensor(b.shape, b.dtype)
 
 
-@keras_export("keras.ops.linalg.solve")
+@keras_export(["keras.ops.linalg.solve", "keras.ops.solve"])
 def solve(a, b):
     """Solves a linear system of equations given by `a x = b`.
 
@@ -473,7 +473,9 @@ class SolveTriangular(Operation):
         return KerasTensor(b.shape, b.dtype)
 
 
-@keras_export("keras.ops.linalg.solve_triangular")
+@keras_export(
+    ["keras.ops.linalg.solve_triangular", "keras.ops.solve_triangular"]
+)
 def solve_triangular(a, b, lower=False):
     """Solves a linear system of equations given by `a x = b`.
 
@@ -533,7 +535,7 @@ class SVD(Operation):
         return KerasTensor(s_shape, x.dtype)
 
 
-@keras_export("keras.ops.linalg.svd")
+@keras_export(["keras.ops.linalg.svd", "keras.ops.svd"])
 def svd(x, full_matrices=True, compute_uv=True):
     """Computes the singular value decomposition of a matrix.
 
