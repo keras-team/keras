@@ -43,7 +43,7 @@ def _cholesky(x):
     try:
         return backend.linalg.cholesky(x)
     except Exception as e:
-        raise ValueError("Cholesky decomposition failed: " + str(e))
+        raise ValueError(f"Cholesky decomposition failed: {e}")
 
 
 class Det(Operation):
@@ -206,8 +206,8 @@ def _lu_factor(x):
             _assert_square(x)
         except ValueError as e:
             raise ValueError(
-                "LU decomposition failed: " + str(e) + ". "
-                "LU decomposition is only supported for square matrices in tf."
+                f"LU decomposition failed: {e}. LU decomposition is only "
+                "supported for square matrices in Tensorflow."
             )
     return backend.linalg.lu_factor(x)
 
