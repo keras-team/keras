@@ -42,11 +42,11 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(v.shape, (None, 20, 20))
 
         x = KerasTensor([None, None, 20])
-        with self.assertRaises(linalg.LinalgError):
+        with self.assertRaises(ValueError):
             linalg.eig(x)
 
         x = KerasTensor([None, 20, 15])
-        with self.assertRaises(linalg.LinalgError):
+        with self.assertRaises(ValueError):
             linalg.eig(x)
 
     def test_inv(self):
@@ -148,12 +148,12 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
 
         a = KerasTensor([None, 20, 15])
         b = KerasTensor([None, 20, 5])
-        with self.assertRaises(linalg.LinalgError):
+        with self.assertRaises(ValueError):
             linalg.solve_triangular(a, b)
 
         a = KerasTensor([None, 20, 20])
         b = KerasTensor([None, None, 5])
-        with self.assertRaises(linalg.LinalgError):
+        with self.assertRaises(ValueError):
             linalg.solve_triangular(a, b)
 
     def test_svd(self):
@@ -198,7 +198,7 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(v.shape, (4, 3, 3))
 
         x = KerasTensor([10, 20, 15])
-        with self.assertRaises(linalg.LinalgError):
+        with self.assertRaises(ValueError):
             linalg.eig(x)
 
     def test_inv(self):
@@ -303,7 +303,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     def test_cholesky(self):
         x = np.random.rand(4, 3, 3).astype("float32")
-        with self.assertRaises(linalg.LinalgError):
+        with self.assertRaises(ValueError):
             linalg.cholesky(x)
         x_psd = x @ x.transpose((0, 2, 1)) + 1e-5 * np.eye(3)
         out = linalg.cholesky(x_psd)
@@ -314,7 +314,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         out = linalg.det(x)
         self.assertAllClose(out, np.linalg.det(x), atol=1e-5)
 
-        with self.assertRaises(linalg.LinalgError):
+        with self.assertRaises(ValueError):
             x = np.random.rand(4, 3, 4)
             linalg.det(x)
 
@@ -336,55 +336,55 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     def test_lu_factor(self):
         def _pivot_matrix(pivots, n):
-            P = np.eye(n)
+            p_matrix = np.eye(n)
             for i, p in enumerate(pivots):
-                Q = np.eye(n, n)
-                q = Q[i, :].copy()
-                Q[i, :] = Q[p, :]
-                Q[p, :] = q
-                P = np.dot(P, Q)
-            return P
+                identity = np.eye(n, n)
+                q = identity[i, :].copy()
+                identity[i, :] = identity[p, :]
+                identity[p, :] = q
+                p_matrix = np.dot(p_matrix, identity)
+            return p_matrix
 
-        def _reconstruct(LU, pivots, m, n):
-            L = np.tril(LU[:, : min(m, n)], -1) + np.eye(m, min(m, n))
-            U = np.triu(LU[: min(m, n)])
+        def _reconstruct(lu, pivots, m, n):
+            lower = np.tril(lu[:, : min(m, n)], -1) + np.eye(m, min(m, n))
+            upper = np.triu(lu[: min(m, n)])
 
             # pivots are defined differently in tensorflow
             # compared to the other backends
             if backend.backend() == "tensorflow":
-                P = np.eye(m)[pivots]
+                p_matrix = np.eye(m)[pivots]
             else:
-                P = _pivot_matrix(pivots, m)
-            out = P @ L @ U
+                p_matrix = _pivot_matrix(pivots, m)
+            out = p_matrix @ lower @ upper
             return out
 
         m, n = 4, 4
         x = np.random.rand(m, n)
-        LU, pivots = linalg.lu_factor(x)
-        x_reconstructed = _reconstruct(LU, pivots, m, n)
+        lu, pivots = linalg.lu_factor(x)
+        x_reconstructed = _reconstruct(lu, pivots, m, n)
         self.assertAllClose(x_reconstructed, x, atol=1e-5)
 
         m, n = 4, 3
         x = np.random.rand(m, n)
         if backend.backend() == "tensorflow":
-            with self.assertRaises(linalg.LinalgError):
+            with self.assertRaises(ValueError):
                 linalg.lu_factor(x)
         else:
-            LU, pivots = linalg.lu_factor(x)
-            x_reconstructed = _reconstruct(LU, pivots, m, n)
+            lu, pivots = linalg.lu_factor(x)
+            x_reconstructed = _reconstruct(lu, pivots, m, n)
             self.assertAllClose(x_reconstructed, x, atol=1e-5)
 
         # batched case
         m, n = 3, 4
         x = np.random.rand(2, m, n)
         if backend.backend() == "tensorflow":
-            with self.assertRaises(linalg.LinalgError):
+            with self.assertRaises(ValueError):
                 linalg.lu_factor(x)
         else:
-            LU, pivots = linalg.lu_factor(x)
+            lu, pivots = linalg.lu_factor(x)
             for i in range(2):
                 self.assertAllClose(
-                    _reconstruct(LU[i], pivots[i], m, n), x[i], atol=1e-5
+                    _reconstruct(lu[i], pivots[i], m, n), x[i], atol=1e-5
                 )
 
     @parameterized.named_parameters(
