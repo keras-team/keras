@@ -556,8 +556,8 @@ def _assert_1d(*arrays):
     for a in arrays:
         if a.ndim < 1:
             raise ValueError(
-                f"{a.ndim}-dimensional array given. Array must be "
-                "at least one-dimensional"
+                "Expected input to have rank >= 1. "
+                "Received scalar input {a}."
             )
 
 
@@ -565,8 +565,8 @@ def _assert_2d(*arrays):
     for a in arrays:
         if a.ndim < 2:
             raise ValueError(
-                f"{a.ndim}-dimensional array given. Array must be "
-                "at least two-dimensional"
+                "Expected input to have rank >= 2. "
+                "Received input with shape {a.shape}."
             )
 
 
@@ -574,17 +574,24 @@ def _assert_square(*arrays):
     for a in arrays:
         m, n = a.shape[-2:]
         if m != n:
-            raise ValueError("Last 2 dimensions of the array must be square")
+            raise ValueError(
+                "Expected a square matrix. "
+                f"Received non-square input with shape {a.shape}"
+            )
 
 
 def _assert_a_b_compat(a, b):
     if a.ndim == b.ndim:
         if a.shape[-2] != b.shape[-2]:
             raise ValueError(
-                f"Incompatible shapes between `a` {a.shape} and `b` {b.shape}"
+                "Incompatible shapes between `a` and `b`. "
+                "Expected `a.shape[-2] == b.shape[-2]`. "
+                f"Received: a.shape={a.shape}, b.shape={b.shape}"
             )
     elif a.ndim == b.ndim - 1:
         if a.shape[-1] != b.shape[-1]:
             raise ValueError(
-                f"Incompatible shapes between `a` {a.shape} and `b` {b.shape}"
+                "Incompatible shapes between `a` and `b`. "
+                "Expected `a.shape[-1] == b.shape[-1]`. "
+                f"Received: a.shape={a.shape}, b.shape={b.shape}"
             )
