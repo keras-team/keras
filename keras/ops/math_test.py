@@ -270,7 +270,6 @@ class MathOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(kmath.rsqrt(x).shape, (None, 3))
 
 
-
 class MathOpsStaticShapeTest(testing.TestCase):
     @pytest.mark.skipif(
         backend.backend() == "jax",
@@ -1057,7 +1056,6 @@ class FFTTest(testing.TestCase):
     def test_fft_init_default_axis(self):
         fft_op = kmath.FFT()
         self.assertEqual(fft_op.axis, -1, "Default axis should be -1")
-
 
 
 class FFT2Test(testing.TestCase):
