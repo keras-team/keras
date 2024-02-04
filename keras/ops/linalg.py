@@ -32,10 +32,11 @@ def cholesky(x):
     """Computes the Cholesky decomposition of a positive semi-definite matrix.
 
     Args:
-        x: A tensor or variable.
+        x: Input tensor of shape `(..., M, M)`.
 
     Returns:
-        A tensor.
+        A tensor of shape `(..., M, M)` representing the lower triangular
+        Cholesky factor of `x`.
 
     """
     if any_symbolic_tensors((x,)):
@@ -72,10 +73,10 @@ def det(x):
     """Computes the determinant of a square tensor.
 
     Args:
-        x: Input tensor of shape (..., M, M)
+        x: Input tensor of shape `(..., M, M)`.
 
     Returns:
-        A tensor of shape (...,) as the determinant of `x`.
+        A tensor of shape `(...,)` represeting the determinant of `x`.
 
     """
     if any_symbolic_tensors((x,)):
@@ -112,11 +113,11 @@ def eig(x):
     """Computes the eigenvalues and eigenvectors of a square matrix.
 
     Args:
-        x: A tensor of shape (..., M, M).
+        x: Input tensor of shape `(..., M, M)`.
 
     Returns:
-        A tuple of two tensors: a tensor of shape (..., M) containing
-        eigenvalues and a tensor of shape (..., M, M) containing eigenvectors.
+        A tuple of two tensors: a tensor of shape `(..., M)` containing
+        eigenvalues and a tensor of shape `(..., M, M)` containing eigenvectors.
 
     """
     if any_symbolic_tensors((x,)):
@@ -150,10 +151,10 @@ def inv(x):
     """Computes the inverse of a square tensor.
 
     Args:
-        x: Input tensor of shape (..., M, M).
+        x: Input tensor of shape `(..., M, M)`.
 
     Returns:
-        A tensor of shape (..., M, M) representing the inverse of `x`.
+        A tensor of shape `(..., M, M)` representing the inverse of `x`.
 
     """
     if any_symbolic_tensors((x,)):
@@ -192,13 +193,12 @@ def lu_factor(x):
     """Computes the lower-upper decomposition of a square matrix.
 
     Args:
-        x: A tensor of shape (..., M, M).
+        x: A tensor of shape `(..., M, M)`.
 
     Returns:
-        A tuple of three tensors: a tensor of shape (..., M, M) containing the
-        lower triangular matrix, a tensor of shape (..., M, M) containing the
-        upper triangular matrix and a tensor of shape (..., M) containing the
-        permutation indices.
+        A tuple of two tensors: a tensor of shape `(..., M, M)` containing the
+        lower and upper triangular matrices and a tensor of shape `(..., M)`
+        containing the pivots.
 
     """
     if any_symbolic_tensors((x,)):
@@ -386,15 +386,15 @@ def qr(x, mode="reduced"):
     """Computes the QR decomposition of a tensor.
 
     Args:
-        x: Input tensor.
+        x: Input tensor of shape `(..., M, N)`.
         mode: A string specifying the mode of the QR decomposition.
             - 'reduced': Returns the reduced QR decomposition. (default)
             - 'complete': Returns the complete QR decomposition.
 
     Returns:
-        A tuple containing two tensors. The first tensor represents the
-        orthogonal matrix Q, and the second tensor represents the upper
-        triangular matrix R.
+        A tuple containing two tensors. The first tensor of shape `(..., M, K)`
+        is the orthogonal matrix `q` and the second tensor of shape
+        `(..., K, N)` is the upper triangular matrix `r`, where `K = min(M, N)`.
 
     Example:
 
@@ -432,13 +432,13 @@ def solve(a, b):
     """Solves a linear system of equations given by `a x = b`.
 
     Args:
-        a: A tensor of shape (..., M, M) representing the coefficients matrix.
-        b: A tensor of shape (..., M) or (..., M, K) represeting the right-hand
-            side or "dependent variable" matrix.
+        a: A tensor of shape `(..., M, M)` representing the coefficients matrix.
+        b: A tensor of shape `(..., M)` or `(..., M, N)` represeting the
+        right-hand side or "dependent variable" matrix.
 
     Returns:
-        A tensor of shape (..., M) or (..., M, K) representing the solution of
-        the linear system. Returned shape is identical to `b`.
+        A tensor of shape `(..., M)` or `(..., M, N)` representing the solution
+        of the linear system. Returned shape is identical to `b`.
 
     """
     if any_symbolic_tensors((a, b)):
@@ -478,13 +478,13 @@ def solve_triangular(a, b, lower=False):
     """Solves a linear system of equations given by `a x = b`.
 
     Args:
-        a: A tensor of shape (..., M, M) representing the coefficients matrix.
-        b: A tensor of shape (..., M) or (..., M, K) represeting the right-hand
-            side or "dependent variable" matrix.
+        a: A tensor of shape `(..., M, M)` representing the coefficients matrix.
+        b: A tensor of shape `(..., M)` or `(..., M, N)` represeting the
+        right-hand side or "dependent variable" matrix.
 
     Returns:
-        A tensor of shape (..., M) or (..., M, K) representing the solution of
-        the linear system. Returned shape is identical to `b`.
+        A tensor of shape `(..., M)` or `(..., M, N)` representing the solution
+        of the linear system. Returned shape is identical to `b`.
 
     """
     if any_symbolic_tensors((a, b)):
@@ -538,12 +538,12 @@ def svd(x, full_matrices=True, compute_uv=True):
     """Computes the singular value decomposition of a matrix.
 
     Args:
-        x: A tensor of shape (..., M, N).
+        x: Input tensor of shape `(..., M, N)`.
 
     Returns:
-        A tuple of three tensors: a tensor of shape (..., M, M) containing the
-        left singular vectors, a tensor of shape (..., M, N) containing the
-        singular values and a tensor of shape (..., N, N) containing the
+        A tuple of three tensors: a tensor of shape `(..., M, M)` containing the
+        left singular vectors, a tensor of shape `(..., M, N)` containing the
+        singular values and a tensor of shape `(..., N, N)` containing the
         right singular vectors.
 
     """
