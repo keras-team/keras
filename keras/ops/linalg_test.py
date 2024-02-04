@@ -456,3 +456,55 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             ..., : s.shape[-1], :
         ]
         self.assertAllClose(x_reconstructed, x, atol=1e-4)
+
+
+class QrOpTest(testing.TestCase):
+    def test_qr_init_mode_reduced(self):
+        qr_op = linalg.Qr(mode="reduced")
+        self.assertIsNotNone(qr_op)
+
+    def test_qr_init_mode_complete(self):
+        qr_op = linalg.Qr(mode="complete")
+        self.assertIsNotNone(qr_op)
+
+    def test_qr_init_invalid_mode(self):
+        invalid_mode = "invalid_mode"
+        expected_error = (
+            r"`mode` argument value not supported. "
+            r"Expected one of \{'reduced', 'complete'\}. "
+            f"Received: mode={invalid_mode}"
+        )
+        with self.assertRaisesRegex(ValueError, expected_error):
+            linalg.Qr(mode=invalid_mode)
+
+    def test_compute_output_spec_low_rank(self):
+        qr_op = linalg.Qr(mode="reduced")
+        low_rank_input = np.random.rand(3)
+        with self.assertRaisesRegex(
+            ValueError, r"Input should have rank >= 2. Received: .*"
+        ):
+            qr_op.compute_output_spec(low_rank_input)
+
+    def test_compute_output_spec_undefined_dimensions(self):
+        qr_op = linalg.Qr(mode="reduced")
+        undefined_dim_input = KerasTensor(shape=(None, 4), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Input should have its last 2 dimensions "
+            r"fully-defined. Received: .*",
+        ):
+            qr_op.compute_output_spec(undefined_dim_input)
+
+    def test_qr_call_mode_reduced(self):
+        qr_op = linalg.Qr(mode="reduced")
+        test_input = np.random.rand(10, 10)
+        q, r = qr_op.call(test_input)
+        self.assertEqual(q.shape, (10, 10))
+        self.assertEqual(r.shape, (10, 10))
+
+    def test_qr_call_mode_complete(self):
+        qr_op = linalg.Qr(mode="complete")
+        test_input = np.random.rand(10, 10)
+        q, r = qr_op.call(test_input)
+        self.assertEqual(q.shape, (10, 10))
+        self.assertEqual(r.shape, (10, 10))

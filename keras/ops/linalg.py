@@ -370,6 +370,7 @@ class Qr(Operation):
         )
 
     def call(self, x):
+        x = backend.convert_to_tensor(x)
         return backend.linalg.qr(x, mode=self.mode)
 
 
