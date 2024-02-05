@@ -657,42 +657,20 @@ def is_tensor(x):
     return backend.core.is_tensor(x)
     
 
-@keras_export("keras.ops.float_max")
-def float_max(dtype):
-    """Maximum machine limits for float dtypes.
+@keras_export("keras.ops.finfo")
+def finfo(dtype):
+    """Machine limits for float dtypes.
 
     Args:
         dtype: target float type.
     """
-    return backend.core.float_max(dtype)
+    return backend.core.finfo(dtype)
 
-@keras_export("keras.ops.float_min")
-def float_min(dtype):
-    """
-    Minimum machine limits for float dtypes.
-
-    Args:
-        dtype: target float type.
-    """
-    return backend.core.float_min(dtype)
-
-@keras_export("keras.ops.int_max")
-def int_max(dtype):
-    """
-    Maximum machine limits for int dtypes.
+@keras_export("keras.ops.iinfo")
+def iinfo(dtype):
+    """Machine limits for int dtypes.
 
     Args:
         dtype: target int type.
     """
-    return backend.core.int_max(dtype)
-
-@keras_export("keras.ops.int_min")
-def int_min(dtype):
-    """
-    Minimum machine limits for int dtypes.
-
-    Args:
-        dtype: target int type.
-    
-    """
-    return backend.core.int_min(dtype)
+    return backend.core.iinfo(dtype)

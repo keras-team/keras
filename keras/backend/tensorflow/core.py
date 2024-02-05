@@ -298,21 +298,10 @@ def device_scope(device_name):
     return tf.device(device_name)
 
 
-def float_max(dtype):
+def finfo(dtype):
     _dtype = standardize_dtype(dtype)
-    return tfnp.finfo(_dtype).max
+    return tfnp.finfo(_dtype)
 
-
-def float_min(dtype):
+def iinfo(dtype):
     _dtype = standardize_dtype(dtype)
-    return tfnp.finfo(_dtype).min
-
-
-def int_max(dtype):
-    _dtype = standardize_dtype(dtype)
-    return tfnp.iinfo(_dtype).max
-
-
-def int_min(dtype):
-    _dtype = standardize_dtype(dtype)
-    return tfnp.iinfo(_dtype).min
+    return tfnp.iinfo(_dtype)

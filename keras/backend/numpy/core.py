@@ -231,17 +231,8 @@ def unstack(x, num=None, axis=0):
     return [x[i] for i in range(x.shape[0])]
 
 
-def float_max(dtype):
-    return np.finfo(dtype).max
+def finfo(dtype):
+    return np.finfo(dtype)
 
-
-def float_min(dtype):
-    return np.finfo(dtype).min
-
-
-def int_max(dtype):
-    return np.iinfo(dtype).max
-
-
-def int_min(dtype):
-    return np.iinfo(dtype).min
+def iinfo(dtype):
+    return np.iinfo(dtype)

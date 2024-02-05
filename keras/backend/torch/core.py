@@ -437,21 +437,9 @@ def unstack(x, num=None, axis=0):
     return x.unbind(axis)
     
 
-def float_max(dtype):
+def finfo(dtype):
     _dtype = to_torch_dtype(dtype)
-    return torch.finfo(_dtype).max
-
-
-def float_min(dtype):
+    return torch.finfo(_dtype)
+def iinfo(dtype):
     _dtype = to_torch_dtype(dtype)
-    return torch.finfo(dtype).min
-
-
-def int_max(dtype):
-    _dtype = to_torch_dtype(dtype)
-    return torch.iinfo(_dtype).max
-
-
-def int_min(dtype):
-    _dtype = to_torch_dtype(dtype)
-    return torch.iinfo(_dtype).min
+    return torch.iinfo(_dtype)
