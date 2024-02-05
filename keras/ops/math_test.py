@@ -7,12 +7,9 @@ from absl.testing import parameterized
 
 from keras import backend
 from keras import testing
-from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import math as kmath
-from keras.ops import numpy as knp
-from keras.testing.test_utils import named_product
 
 
 def _stft(
@@ -179,22 +176,6 @@ class MathOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         result = kmath.logsumexp(x)
         self.assertEqual(result.shape, ())
 
-    def test_qr(self):
-        x = KerasTensor((None, 4, 3), dtype="float32")
-        q, r = kmath.qr(x, mode="reduced")
-        qref, rref = np.linalg.qr(np.ones((2, 4, 3)), mode="reduced")
-        qref_shape = (None,) + qref.shape[1:]
-        rref_shape = (None,) + rref.shape[1:]
-        self.assertEqual(q.shape, qref_shape)
-        self.assertEqual(r.shape, rref_shape)
-
-        q, r = kmath.qr(x, mode="complete")
-        qref, rref = np.linalg.qr(np.ones((2, 4, 3)), mode="complete")
-        qref_shape = (None,) + qref.shape[1:]
-        rref_shape = (None,) + rref.shape[1:]
-        self.assertEqual(q.shape, qref_shape)
-        self.assertEqual(r.shape, rref_shape)
-
     def test_extract_sequences(self):
         # Defined dimension
         x = KerasTensor((None, 32), dtype="float32")
@@ -285,16 +266,6 @@ class MathOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         x = KerasTensor([None, 3])
         self.assertEqual(kmath.rsqrt(x).shape, (None, 3))
 
-    def test_norm(self):
-        x = KerasTensor((None, 3))
-        self.assertEqual(kmath.norm(x).shape, ())
-
-        x = KerasTensor((None, 3, 3))
-        self.assertEqual(kmath.norm(x, axis=1).shape, (None, 3))
-        self.assertEqual(
-            kmath.norm(x, axis=1, keepdims=True).shape, (None, 1, 3)
-        )
-
 
 class MathOpsStaticShapeTest(testing.TestCase):
     @pytest.mark.skipif(
@@ -344,18 +315,6 @@ class MathOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((1, 2, 3), dtype="float32")
         result = kmath.logsumexp(x)
         self.assertEqual(result.shape, ())
-
-    def test_qr(self):
-        x = KerasTensor((4, 3), dtype="float32")
-        q, r = kmath.qr(x, mode="reduced")
-        qref, rref = np.linalg.qr(np.ones((4, 3)), mode="reduced")
-        self.assertEqual(q.shape, qref.shape)
-        self.assertEqual(r.shape, rref.shape)
-
-        q, r = kmath.qr(x, mode="complete")
-        qref, rref = np.linalg.qr(np.ones((4, 3)), mode="complete")
-        self.assertEqual(q.shape, qref.shape)
-        self.assertEqual(r.shape, rref.shape)
 
     def test_extract_sequences(self):
         x = KerasTensor((10, 16), dtype="float32")
@@ -432,16 +391,6 @@ class MathOpsStaticShapeTest(testing.TestCase):
             fft_length,
         )
         self.assertEqual(output.shape, ref.shape)
-
-    def test_solve(self):
-        x1 = KerasTensor((2, 2), dtype="float32")
-        x2 = KerasTensor((2, 2), dtype="float32")
-        outputs = kmath.solve(x1, x2)
-        self.assertEqual(outputs.shape, (2, 2))
-
-    def test_norm(self):
-        x = KerasTensor((2, 3))
-        self.assertEqual(kmath.norm(x).shape, ())
 
 
 class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -641,18 +590,6 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         outputs = kmath.logsumexp(x, axis=1)
         expected = np.log(np.sum(np.exp(x), axis=1))
         self.assertAllClose(outputs, expected)
-
-    def test_qr(self):
-        x = np.random.random((4, 5))
-        q, r = kmath.qr(x, mode="reduced")
-        qref, rref = np.linalg.qr(x, mode="reduced")
-        self.assertAllClose(qref, q)
-        self.assertAllClose(rref, r)
-
-        q, r = kmath.qr(x, mode="complete")
-        qref, rref = np.linalg.qr(x, mode="complete")
-        self.assertAllClose(qref, q)
-        self.assertAllClose(rref, r)
 
     def test_extract_sequences(self):
         # Test 1D case.
@@ -924,59 +861,6 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             expected_output, output_from_edge_erfinv_op, atol=1e-4
         )
 
-    def test_solve(self):
-        x1 = np.array([[1, 2], [4, 5]], dtype="float32")
-        x2 = np.array([[2, 4], [8, 10]], dtype="float32")
-        output = kmath.solve(x1, x2)
-        expected_result = np.array([[2, 0], [0, 2]], dtype="float32")
-        self.assertAllClose(output, expected_result)
-
-    @parameterized.named_parameters(
-        named_product(
-            ord=[None, "fro", "nuc", -np.inf, -2, -1, 0, 1, 2, np.inf, 3],
-            axis=[None, (0, 1), (0, 2)],
-            keepdims=[False, True],
-        )
-    )
-    def test_norm_matrices(self, ord, axis, keepdims):
-        if axis is None:
-            x = np.random.random((6, 7))
-        else:
-            x = np.random.random((5, 6, 7))
-        if ord in (0, 3):
-            error = RuntimeError if backend.backend() == "torch" else ValueError
-            with self.assertRaises(error):
-                kmath.norm(x, ord=ord, axis=axis, keepdims=keepdims)
-            return
-        output = kmath.norm(x, ord=ord, axis=axis, keepdims=keepdims)
-        expected_result = np.linalg.norm(
-            x, ord=ord, axis=axis, keepdims=keepdims
-        )
-        self.assertAllClose(output, expected_result, atol=1e-5, rtol=1e-5)
-
-    @parameterized.named_parameters(
-        named_product(
-            ord=[None, "fro", "nuc", -np.inf, -2, -1, 0, 1, 2, np.inf, 3],
-            axis=[None, 1, -1],
-            keepdims=[False, True],
-        )
-    )
-    def test_norm_vectors(self, ord, axis, keepdims):
-        if axis is None:
-            x = np.random.random((5,))
-        else:
-            x = np.random.random((5, 6))
-        if ord in ("fro", "nuc"):
-            error = RuntimeError if backend.backend() == "torch" else ValueError
-            with self.assertRaises(error):
-                kmath.norm(x, ord=ord, axis=axis, keepdims=keepdims)
-            return
-        output = kmath.norm(x, ord=ord, axis=axis, keepdims=keepdims)
-        expected_result = np.linalg.norm(
-            x, ord=ord, axis=axis, keepdims=keepdims
-        )
-        self.assertAllClose(output, expected_result)
-
 
 class MathDtypeTest(testing.TestCase, parameterized.TestCase):
     """Test the floating dtype to verify that the behavior matches JAX."""
@@ -1009,71 +893,6 @@ class MathDtypeTest(testing.TestCase, parameterized.TestCase):
     def tearDown(self) -> None:
         self.jax_enable_x64.__exit__(None, None, None)
         return super().tearDown()
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_norm(self, dtype):
-        import jax.numpy as jnp
-
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.linalg.norm(x_jax).dtype)
-        if dtype == "int64":
-            expected_dtype = "float32"
-
-        self.assertEqual(standardize_dtype(kmath.norm(x).dtype), expected_dtype)
-        self.assertEqual(kmath.Norm().symbolic_call(x).dtype, expected_dtype)
-
-
-class QrOpTest(testing.TestCase):
-    def test_qr_init_mode_reduced(self):
-        qr_op = kmath.Qr(mode="reduced")
-        self.assertIsNotNone(qr_op)
-
-    def test_qr_init_mode_complete(self):
-        qr_op = kmath.Qr(mode="complete")
-        self.assertIsNotNone(qr_op)
-
-    def test_qr_init_invalid_mode(self):
-        invalid_mode = "invalid_mode"
-        expected_error = (
-            r"`mode` argument value not supported. "
-            r"Expected one of \{'reduced', 'complete'\}. "
-            f"Received: mode={invalid_mode}"
-        )
-        with self.assertRaisesRegex(ValueError, expected_error):
-            kmath.Qr(mode=invalid_mode)
-
-    def test_compute_output_spec_low_rank(self):
-        qr_op = kmath.Qr(mode="reduced")
-        low_rank_input = np.random.rand(3)
-        with self.assertRaisesRegex(
-            ValueError, r"Input should have rank >= 2. Received: .*"
-        ):
-            qr_op.compute_output_spec(low_rank_input)
-
-    def test_compute_output_spec_undefined_dimensions(self):
-        qr_op = kmath.Qr(mode="reduced")
-        undefined_dim_input = KerasTensor(shape=(None, 4), dtype="float32")
-        with self.assertRaisesRegex(
-            ValueError,
-            r"Input should have its last 2 dimensions "
-            r"fully-defined. Received: .*",
-        ):
-            qr_op.compute_output_spec(undefined_dim_input)
-
-    def test_qr_call_mode_reduced(self):
-        qr_op = kmath.Qr(mode="reduced")
-        test_input = np.random.rand(10, 10)
-        q, r = qr_op.call(test_input)
-        self.assertEqual(q.shape, (10, 10))
-        self.assertEqual(r.shape, (10, 10))
-
-    def test_qr_call_mode_complete(self):
-        qr_op = kmath.Qr(mode="complete")
-        test_input = np.random.rand(10, 10)
-        q, r = qr_op.call(test_input)
-        self.assertEqual(q.shape, (10, 10))
-        self.assertEqual(r.shape, (10, 10))
 
 
 class ExtractSequencesOpTest(testing.TestCase):
@@ -1234,16 +1053,6 @@ class FFTTest(testing.TestCase):
     def test_fft_init_default_axis(self):
         fft_op = kmath.FFT()
         self.assertEqual(fft_op.axis, -1, "Default axis should be -1")
-
-
-class SolveTest(testing.TestCase):
-    def test_solve_call(self):
-        solve_op = kmath.Solve()
-        a = np.array([[3, 2], [1, 2]], dtype=np.float32)
-        b = np.array([[9, 8], [5, 4]], dtype=np.float32)
-        output = solve_op.call(a, b)
-        expected_output = np.linalg.solve(a, b)
-        self.assertAllClose(output, expected_output, atol=1e-6, rtol=1e-6)
 
 
 class FFT2Test(testing.TestCase):
