@@ -2,6 +2,7 @@ import types
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.experimental import numpy as tfnp
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 
 from keras.backend.common import KerasVariable
@@ -295,3 +296,23 @@ class name_scope(base_name_scope):
 
 def device_scope(device_name):
     return tf.device(device_name)
+
+
+def float_max(dtype):
+    _dtype = standardize_dtype(dtype)
+    return tfnp.finfo(_dtype).max
+
+
+def float_min(dtype):
+    _dtype = standardize_dtype(dtype)
+    return tfnp.finfo(_dtype).min
+
+
+def int_max(dtype):
+    _dtype = standardize_dtype(dtype)
+    return tfnp.iinfo(_dtype).max
+
+
+def int_min(dtype):
+    _dtype = standardize_dtype(dtype)
+    return tfnp.iinfo(_dtype).min
