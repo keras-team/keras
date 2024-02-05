@@ -435,11 +435,13 @@ def stop_gradient(variable):
 
 def unstack(x, num=None, axis=0):
     return x.unbind(axis)
-    
+
 
 def finfo(dtype):
     _dtype = to_torch_dtype(dtype)
     return torch.finfo(_dtype)
+
+
 def iinfo(dtype):
     _dtype = to_torch_dtype(dtype)
     return torch.iinfo(_dtype)

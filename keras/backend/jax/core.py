@@ -162,7 +162,6 @@ def compute_output_spec(fn, *args, **kwargs):
             return x
 
         def wrapped_fn(*args, **kwargs):
-
             # Turn inputs that are sparse to BCOO tensors
             def to_bcoo_if_sparse(x, maybe_symbolic_x):
                 if (
@@ -378,6 +377,7 @@ def device_scope(device_name):
 
 def finfo(dtype):
     return jnp.finfo(dtype)
+
 
 def iinfo(dtype):
     return jnp.iinfo(dtype)

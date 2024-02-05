@@ -302,6 +302,7 @@ def finfo(dtype):
     _dtype = standardize_dtype(dtype)
     return tfnp.finfo(_dtype)
 
+
 def iinfo(dtype):
     _dtype = standardize_dtype(dtype)
     return tfnp.iinfo(_dtype)
