@@ -374,3 +374,16 @@ def device_scope(device_name):
     else:
         jax_device = device_name
     return jax.default_device(jax_device)
+
+def float_max(dtype):
+    return jnp.finfo(dtype).max
+
+
+def float_min(dtype):
+    return jnp.finfo(dtype).min
+
+def int_max(dtype):
+    return jnp.iinfo(dtype).max
+
+def int_min(dtype):
+    return jnp.iinfo(dtype).min
