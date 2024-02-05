@@ -2,6 +2,7 @@ import numpy as np
 from absl.testing import parameterized
 
 from keras import backend
+from keras import ops
 from keras import testing
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.ops import linalg
@@ -321,13 +322,21 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_eig(self):
         x = np.random.rand(2, 3, 3)
         x = x @ x.transpose((0, 2, 1))
-        w, v = map(np.array, linalg.eig(x))
+        if backend.backend() == "jax":
+            import jax
+
+            if jax.default_backend() == "gpu":
+                # eig not implemented for jax on gpu backend
+                with self.assertRaises(NotImplementedError):
+                    linalg.eig(x)
+                return
+        w, v = map(ops.convert_to_numpy, linalg.eig(x))
         x_reconstructed = (v * w[..., None, :]) @ v.transpose((0, 2, 1))
         self.assertAllClose(x_reconstructed, x, atol=1e-4)
 
     def test_inv(self):
         x = np.random.rand(4, 3, 3)
-        x_inv = np.array(linalg.inv(x))
+        x_inv = ops.convert_to_numpy(linalg.inv(x))
         x_reconstructed = x @ x_inv
         # high tolerance due to numerical instability
         self.assertAllClose(
@@ -360,7 +369,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         m, n = 4, 4
         x = np.random.rand(m, n)
-        lu, pivots = linalg.lu_factor(x)
+        lu, pivots = map(ops.convert_to_numpy, linalg.lu_factor(x))
         x_reconstructed = _reconstruct(lu, pivots, m, n)
         self.assertAllClose(x_reconstructed, x, atol=1e-5)
 
@@ -370,7 +379,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             with self.assertRaises(ValueError):
                 linalg.lu_factor(x)
         else:
-            lu, pivots = linalg.lu_factor(x)
+            lu, pivots = map(ops.convert_to_numpy, linalg.lu_factor(x))
             x_reconstructed = _reconstruct(lu, pivots, m, n)
             self.assertAllClose(x_reconstructed, x, atol=1e-5)
 
@@ -381,7 +390,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             with self.assertRaises(ValueError):
                 linalg.lu_factor(x)
         else:
-            lu, pivots = linalg.lu_factor(x)
+            lu, pivots = map(ops.convert_to_numpy, linalg.lu_factor(x))
             for i in range(2):
                 self.assertAllClose(
                     _reconstruct(lu[i], pivots[i], m, n), x[i], atol=1e-5
