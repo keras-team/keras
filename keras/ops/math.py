@@ -200,7 +200,7 @@ def normalize(x, p=2.0, axis=1, eps=1e-12):
 
     Example:
 
-    >>> x = keras.ops.convert_to_tensor(([[1, 2, 3], [4, 5, 6]])
+    >>> x = keras.ops.convert_to_tensor([[1, 2, 3], [4, 5, 6]])
     >>> x_norm = keras.ops.math.normalize(x)
     >>> print(x_norm)
     array([[0.26726124 0.5345225  0.8017837 ]
