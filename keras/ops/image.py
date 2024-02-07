@@ -662,6 +662,45 @@ def _pad_images(
     return padded
 
 
+class CropImages(Operation):
+    def __init__(
+        self,
+        offset_height,
+        offset_width,
+        target_height,
+        target_width,
+    ):
+        super().__init__()
+        self.offset_height = offset_height
+        self.offset_width = offset_width
+        self.target_height = target_height
+        self.target_width = target_width
+
+    def call(self, images):
+        return _crop_images(
+            images,
+            self.offset_height,
+            self.offset_width,
+            self.target_height,
+            self.target_width,
+        )
+
+    def compute_output_spec(self, images):
+        images_shape = ops.shape(images)
+        out_shape = (
+            images_shape[0],
+            self.target_height,
+            self.target_width,
+            images_shape[-1],
+        )
+        if len(images_shape) == 3:
+            out_shape = out_shape[1:]
+        return KerasTensor(
+            shape=out_shape,
+            dtype=images.dtype,
+        )
+
+
 @keras_export("keras.ops.image.pad_images")
 def pad_images(
     images,
@@ -725,3 +764,90 @@ def pad_images(
         target_height,
         target_width,
     )
+
+
+@keras_export("keras.ops.image.crop_images")
+def crop_images(
+    images, offset_height, offset_width, target_height, target_width
+):
+    """Crops an `image` to a specified `height` and `width`.
+
+    This op cuts a rectangular box out of `image`. The top-left corner
+    of the bounding box is at `offset_height, offset_width` in `image`, and the
+    lower-right corner is at
+    `offset_height + target_height, offset_width + target_width`.
+
+    Example Usage:
+
+    >>> image = np.reshape(np.arange(1, 28, dtype="float32"), [3, 3, 3])
+    >>> image[:,:,0] # print the first channel of the 3-D tensor
+    array([[ 1.,  4.,  7.],
+           [10., 13., 16.],
+           [19., 22., 25.]], dtype=float32)
+    >>> cropped_image = keras.image.crop_images(image, 0, 0, 2, 2)
+    >>> cropped_image[:,:,0] # print the first channel of the cropped 3-D tensor
+    array([[ 1.,  4.],
+           [10., 13.]], dtype=float32)
+
+    Args:
+    images: 4-D `Tensor` of shape `[batch, height, width, channels]` or 3-D
+        `Tensor` of shape `[height, width, channels]`.
+    offset_height: Vertical coordinate of the top-left corner of the bounding
+        box in `image`. Must be 0-D int32 `Tensor` or python integer.
+    offset_width: Horizontal coordinate of the top-left corner of the bounding
+        box in `image`. Must be 0-D int32 `Tensor` or python integer.
+    target_height: Height of the bounding box. Must be 0-D int32 `Tensor` or
+        python integer.
+    target_width: Width of the bounding box. Must be 0-D int32 `Tensor` or
+        python integer.
+
+    Returns:
+    If `image` was 4-D, a 4-D `Tensor` of shape
+    `[batch, target_height, target_width, channels]`.
+    If `image` was 3-D, a 3-D `Tensor` of shape
+    `[target_height, target_width, channels]`.
+    It has the same dtype with `image`.
+    """
+    if any_symbolic_tensors((images,)):
+        return CropImages(
+            offset_height,
+            offset_width,
+            target_height,
+            target_width,
+        ).symbolic_call(images)
+
+    return _crop_images(
+        images, offset_height, offset_width, target_height, target_width
+    )
+
+
+def _crop_images(
+    images, offset_height, offset_width, target_height, target_width
+):
+    images = backend.convert_to_tensor(images)
+    is_batch = True
+    images_shape = ops.shape(images)
+    if len(images_shape) == 3:
+        is_batch = False
+        images = backend.numpy.expand_dims(images, 0)
+    elif len(images_shape) != 4:
+        raise ValueError(
+            f"Invalid shape for argument `images`: "
+            "it must have rank 3 or 4. "
+            f"Received: images.shape={images_shape}"
+        )
+
+    batch, height, width, depth = ops.shape(images)
+
+    cropped = ops.slice(
+        images,
+        backend.numpy.stack([0, offset_height, offset_width, 0]),
+        backend.numpy.stack([batch, target_height, target_width, depth]),
+    )
+
+    cropped_shape = [batch, target_height, target_width, depth]
+    cropped = backend.numpy.reshape(cropped, cropped_shape)
+
+    if not is_batch:
+        cropped = backend.numpy.squeeze(cropped, axis=[0])
+    return cropped
