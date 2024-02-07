@@ -64,9 +64,23 @@ class LossTest(testing.TestCase):
             np.sum((masked_y_true - masked_y_pred) ** 2) / 3, loss
         )
 
+        # no reduction
+        loss_fn = ExampleLoss(reduction=None)
+        loss = loss_fn(y_true, y_pred)
+        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        expected = (y_true - y_pred) ** 2
+        expected = ops.where(mask, expected, ops.zeros_like(expected))
+        self.assertAllClose(expected, loss)
+
+        # sum reduction
+        loss_fn = ExampleLoss(reduction="sum")
+        loss = loss_fn(y_true, y_pred)
+        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertAllClose(np.sum((masked_y_true - masked_y_pred) ** 2), loss)
+
         # Test edge case where everything is masked.
-        mask = np.array([False, False, False, False])
-        y_pred._keras_mask = mask
+        loss_fn = ExampleLoss()
+        y_pred._keras_mask = np.array([False, False, False, False])
         loss = loss_fn(y_true, y_pred)
         self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(loss, 0)  # No NaN.
@@ -83,7 +97,22 @@ class LossTest(testing.TestCase):
             np.sum(sample_weight * (y_true - y_pred) ** 2) / 4, loss
         )
 
+        # no reduction
+        loss_fn = ExampleLoss(reduction=None)
+        loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
+        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertAllClose(sample_weight * (y_true - y_pred) ** 2, loss)
+
+        # sum reduction
+        loss_fn = ExampleLoss(reduction="sum")
+        loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
+        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertAllClose(
+            ops.sum(sample_weight * (y_true - y_pred) ** 2), loss
+        )
+
         # Test edge case where every weight is 0.
+        loss_fn = ExampleLoss()
         sample_weight = np.array([0.0, 0.0, 0.0, 0.0])
         loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
         self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
@@ -114,6 +143,56 @@ class LossTest(testing.TestCase):
         self.assertAllClose(
             np.sum(masked_sample_weight * (masked_y_true - masked_y_pred) ** 2)
             / 3,
+            loss,
+        )
+
+        # ensure the result is the same if `y_pred` has masked nans.
+        y_pred_with_nans = ops.where(
+            mask, y_pred, ops.full_like(y_pred, np.nan)
+        )
+        y_pred_with_nans._keras_mask = mask
+        loss_with_y_pred_nans = loss_fn(
+            y_true, y_pred_with_nans, sample_weight=sample_weight
+        )
+        self.assertEqual(
+            backend.standardize_dtype(loss_with_y_pred_nans.dtype), "float32"
+        )
+        self.assertAllClose(loss, loss_with_y_pred_nans)
+
+        # ensure the result is the same if `sample_weights` has masked nans.
+        sample_weight_with_nans = ops.where(
+            mask, sample_weight, ops.full_like(sample_weight, np.nan)
+        )
+        loss_with_sample_weight_nans = loss_fn(
+            y_true, y_pred, sample_weight=sample_weight_with_nans
+        )
+        self.assertEqual(
+            backend.standardize_dtype(loss_with_sample_weight_nans.dtype),
+            "float32",
+        )
+        self.assertAllClose(loss, loss_with_sample_weight_nans)
+
+        # reduction is None
+        loss_fn = ExampleLoss(reduction="none")
+        loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
+        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertAllClose(
+            ops.cast(mask, sample_weight.dtype)
+            * sample_weight
+            * (y_true - y_pred) ** 2,
+            loss,
+        )
+
+        # reduction is 'sum'
+        loss_fn = ExampleLoss(reduction="sum")
+        loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
+        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertAllClose(
+            ops.sum(
+                ops.cast(mask, sample_weight.dtype)
+                * sample_weight
+                * (y_true - y_pred) ** 2
+            ),
             loss,
         )
 
