@@ -1843,9 +1843,9 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
 
 
 class Normalize(Operation):
-    def __init__(self, p=2.0, axis=1, eps=1e-12):
+    def __init__(self, order=2.0, axis=1, eps=1e-12):
         super().__init__()
-        self.p = p
+        self.p = order
         self.axis = axis
         self.eps = eps
 
@@ -1853,7 +1853,7 @@ class Normalize(Operation):
         return KerasTensor(shape=x.shape)
 
     def call(self, x):
-        return _normalize(x, self.p, self.axis, self.eps)
+        return _normalize(x, self.order, self.axis, self.eps)
 
 
 @keras_export(
@@ -1862,13 +1862,13 @@ class Normalize(Operation):
         "keras.ops.nn.normalize",
     ]
 )
-def normalize(x, p=2.0, axis=1, eps=1e-12):
+def normalize(x, order=2.0, axis=1, eps=1e-12):
     """Perform Lp normalization of a tensor over the specified axis.
         `v' = v / max(||v||_p, epsilon)`
 
     Args:
         x: Input tensor.
-        p: The exponent value in the norm formulation. Default: 2.
+        order: The exponent value in the norm formulation. Default: 2.
         axis: The axis or axes along which to perform normalization. Default: 1.
         eps: Small value to avoid division by zero. Default: 1e-12.
 
@@ -1885,8 +1885,8 @@ def normalize(x, p=2.0, axis=1, eps=1e-12):
 
     """
     if any_symbolic_tensors((x,)):
-        return Normalize(p, axis, eps).symbolic_call(x)
-    return _normalize(x, p, axis, eps)
+        return Normalize(order, axis, eps).symbolic_call(x)
+    return _normalize(x, order, axis, eps)
 
 
 def _normalize(x, p=2.0, axis=1, eps=1e-12):
