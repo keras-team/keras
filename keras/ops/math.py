@@ -163,55 +163,6 @@ def top_k(x, k, sorted=True):
     return backend.math.top_k(x, k, sorted)
 
 
-class Normalize(Operation):
-    def __init__(self, p=2.0, axis=1, eps=1e-12):
-        super().__init__()
-        self.p = p
-        self.axis = axis
-        self.eps = eps
-
-    def compute_output_spec(self, x):
-        return KerasTensor(shape=x.shape)
-
-    def call(self, x):
-        return _normalize(x, self.p, self.axis, self.eps)
-
-
-def _normalize(x, p=2.0, axis=1, eps=1e-12):
-    x = backend.convert_to_tensor(x)
-    norm = backend.linalg.norm(x, ord=p, axis=axis, keepdims=True)
-    denom = backend.numpy.maximum(norm, eps)
-    return backend.numpy.divide(x, denom)
-
-
-@keras_export("keras.ops.normalize")
-def normalize(x, p=2.0, axis=1, eps=1e-12):
-    """Perform Lp normalization of a tensor over the specified axis.
-        v = v / max(||v||_p, epsilon)
-
-    Args:
-        x: Input tensor.
-        p: The exponent value in the norm formulation. Default: 2.
-        axis: The axis or axes along which to perform normalization. Default: 1.
-        eps: Small value to avoid division by zero. Default: 1e-12.
-
-    Returns:
-        The normalized array.
-
-    Example:
-
-    >>> x = keras.ops.convert_to_tensor([[1, 2, 3], [4, 5, 6]])
-    >>> x_norm = keras.ops.math.normalize(x)
-    >>> print(x_norm)
-    array([[0.26726124 0.5345225  0.8017837 ]
-           [0.45584232 0.5698029  0.68376344]], shape=(2, 3), dtype=float32)
-
-    """
-    if any_symbolic_tensors((x,)):
-        return Normalize(p, axis, eps).symbolic_call(x)
-    return _normalize(x, p, axis, eps)
-
-
 class InTopK(Operation):
     def __init__(self, k):
         super().__init__()
