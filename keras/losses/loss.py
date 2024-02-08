@@ -82,18 +82,24 @@ def standardize_reduction(reduction):
     return reduction
 
 
-def squeeze_to_same_rank(x1, x2):
-    """Squeeze last dim if ranks differ from expected by exactly 1."""
+def squeeze_or_expand_to_same_rank(x1, x2, expand_rank_1=True):
+    """Squeeze/expand last dim if ranks differ from expected by exactly 1."""
     x1_rank = len(x1.shape)
     x2_rank = len(x2.shape)
     if x1_rank == x2_rank:
         return x1, x2
     if x1_rank == x2_rank + 1:
         if x1.shape[-1] == 1:
-            x1 = ops.squeeze(x1, axis=-1)
+            if x2_rank == 1 and expand_rank_1:
+                x2 = ops.expand_dims(x2, axis=-1)
+            else:
+                x1 = ops.squeeze(x1, axis=-1)
     if x2_rank == x1_rank + 1:
         if x2.shape[-1] == 1:
-            x2 = ops.squeeze(x2, axis=-1)
+            if x1_rank == 1 and expand_rank_1:
+                x1 = ops.expand_dims(x1, axis=-1)
+            else:
+                x2 = ops.squeeze(x2, axis=-1)
     return x1, x2
 
 
@@ -137,7 +143,9 @@ def reduce_weighted_values(
     if sample_weight is not None:
         sample_weight = ops.cast(sample_weight, values.dtype)
         # Update dimensions of `sample_weight` to match `losses`.
-        values, sample_weight = squeeze_to_same_rank(values, sample_weight)
+        values, sample_weight = squeeze_or_expand_to_same_rank(
+            values, sample_weight
+        )
         values = values * sample_weight
 
     # Apply reduction function to the individual weighted losses.
@@ -166,7 +174,9 @@ def apply_mask(sample_weight, mask, dtype, reduction):
 
         if sample_weight is not None:
             sample_weight = ops.cast(sample_weight, dtype=dtype)
-            mask, sample_weight = squeeze_to_same_rank(mask, sample_weight)
+            mask, sample_weight = squeeze_or_expand_to_same_rank(
+                mask, sample_weight
+            )
             sample_weight *= mask
         else:
             sample_weight = mask

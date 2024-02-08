@@ -17,7 +17,7 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
                 sample_weight, mask, dtype=dtype, reduction="sum"
             )
         # Update dimensions of weights to match with values if possible.
-        values, sample_weight = losses.loss.squeeze_to_same_rank(
+        values, sample_weight = losses.loss.squeeze_or_expand_to_same_rank(
             values, sample_weight
         )
         # Reduce values to same ndim as weight array

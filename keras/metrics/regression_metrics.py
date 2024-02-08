@@ -3,7 +3,7 @@ import warnings
 from keras import initializers
 from keras import ops
 from keras.api_export import keras_export
-from keras.losses.loss import squeeze_to_same_rank
+from keras.losses.loss import squeeze_or_expand_to_same_rank
 from keras.losses.losses import log_cosh
 from keras.losses.losses import mean_absolute_error
 from keras.losses.losses import mean_absolute_percentage_error
@@ -245,7 +245,7 @@ class RootMeanSquaredError(reduction_metrics.Mean):
         """
         y_true = ops.convert_to_tensor(y_true, self._dtype)
         y_pred = ops.convert_to_tensor(y_pred, self._dtype)
-        y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+        y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
         error_sq = ops.square(y_pred - y_true)
         return super().update_state(error_sq, sample_weight=sample_weight)
 
@@ -502,7 +502,7 @@ class R2Score(reduction_metrics.Metric):
         """
         y_true = ops.convert_to_tensor(y_true, dtype=self._dtype)
         y_pred = ops.convert_to_tensor(y_pred, dtype=self._dtype)
-        y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+        y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
         if not self._built:
             self._build(y_true.shape, y_pred.shape)
 
@@ -611,7 +611,7 @@ def cosine_similarity(y_true, y_pred, axis=-1):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     y_pred = normalize(y_pred, axis=axis)
     y_true = normalize(y_true, axis=axis)
     return ops.sum(y_true * y_pred, axis=axis)

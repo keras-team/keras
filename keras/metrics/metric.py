@@ -217,3 +217,9 @@ class Metric:
                 "You forgot to call `super().__init__()` "
                 "in the `__init__()` method. Go add it!"
             )
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} " f"name={self.name}>"
+
+    def __str__(self):
+        return f"<{self.__class__.__name__} " f"name={self.name}>"

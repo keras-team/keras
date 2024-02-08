@@ -10,6 +10,13 @@ class MeanSquaredErrorTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(losses.MeanSquaredError(name="mymse"))
 
+    def test_base_function_reduction(self):
+        mse_fn = losses.mean_squared_error
+        y_true = np.array([4, 8, 12])
+        y_pred = np.array([[3], [0], [1]])
+        loss = mse_fn(y_true, y_pred)
+        self.assertEqual(backend.shape(loss), (3,))
+
     def test_all_correct_unweighted(self):
         mse_obj = losses.MeanSquaredError()
         y_true = np.array([[4, 8, 12], [8, 1, 3]])

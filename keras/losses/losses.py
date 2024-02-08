@@ -4,7 +4,7 @@ from keras import backend
 from keras import ops
 from keras.api_export import keras_export
 from keras.losses.loss import Loss
-from keras.losses.loss import squeeze_to_same_rank
+from keras.losses.loss import squeeze_or_expand_to_same_rank
 from keras.saving import serialization_lib
 from keras.utils.numerical_utils import normalize
 
@@ -18,7 +18,7 @@ class LossFunctionWrapper(Loss):
         self._fn_kwargs = kwargs
 
     def call(self, y_true, y_pred):
-        y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+        y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
         return self.fn(y_true, y_pred, **self._fn_kwargs)
 
     def get_config(self):
@@ -1150,7 +1150,7 @@ def mean_squared_error(y_true, y_pred):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     return ops.mean(ops.square(y_true - y_pred), axis=-1)
 
 
@@ -1187,7 +1187,7 @@ def mean_absolute_error(y_true, y_pred):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     return ops.mean(ops.abs(y_true - y_pred), axis=-1)
 
 
@@ -1232,7 +1232,7 @@ def mean_absolute_percentage_error(y_true, y_pred):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     epsilon = ops.convert_to_tensor(backend.epsilon())
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     diff = ops.abs((y_true - y_pred) / ops.maximum(ops.abs(y_true), epsilon))
     return 100.0 * ops.mean(diff, axis=-1)
 
@@ -1278,7 +1278,7 @@ def mean_squared_logarithmic_error(y_true, y_pred):
     epsilon = ops.convert_to_tensor(backend.epsilon())
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     first_log = ops.log(ops.maximum(y_pred, epsilon) + 1.0)
     second_log = ops.log(ops.maximum(y_true, epsilon) + 1.0)
     return ops.mean(ops.square(first_log - second_log), axis=-1)
@@ -1318,7 +1318,7 @@ def cosine_similarity(y_true, y_pred, axis=-1):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     y_pred = normalize(y_pred, axis=axis)
     y_true = normalize(y_true, axis=axis)
     return -ops.sum(y_true * y_pred, axis=axis)
@@ -1359,7 +1359,7 @@ def huber(y_true, y_pred, delta=1.0):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     delta = ops.convert_to_tensor(delta)
     error = ops.subtract(y_pred, y_true)
     abs_error = ops.abs(error)
@@ -1412,7 +1412,7 @@ def log_cosh(y_true, y_pred):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     log2 = ops.convert_to_tensor(ops.log(2.0), dtype=y_pred.dtype)
 
     def _logcosh(x):
