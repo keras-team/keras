@@ -175,14 +175,14 @@ def print_summary(
                     break
 
     if sequential_like:
-        default_line_length = 84
-        positions = positions or [0.45, 0.84, 1.0]
+        default_line_length = 88
+        positions = positions or [0.45, 0.80, 1.0]
         # header names for the different log elements
         header = ["Layer (type)", "Output Shape", "Param #"]
         alignment = ["left", "left", "right"]
     else:
         default_line_length = 108
-        positions = positions or [0.3, 0.56, 0.70, 1.0]
+        positions = positions or [0.3, 0.56, 0.74, 1.0]
         # header names for the different log elements
         header = ["Layer (type)", "Output Shape", "Param #", "Connected to"]
         alignment = ["left", "left", "right", "left"]
