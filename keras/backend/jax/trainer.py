@@ -24,6 +24,7 @@ class JAXTrainer(base_trainer.Trainer):
         self.train_function = None
         self.test_function = None
         self.predict_function = None
+        self._jax_state_synced = True
 
     def compute_loss_and_updates(
         self,
@@ -416,8 +417,7 @@ class JAXTrainer(base_trainer.Trainer):
             # Reattach state to the model (if not already done by a callback).
             # NOTE: doing this after each step would be a big performance
             # bottleneck.
-            if not self._jax_state_synced:
-                self.jax_state_sync()
+            self.jax_state_sync()
 
             # Override with model metrics instead of last step logs
             # The jax spmd_mode is need for multi-process context, since the
@@ -561,8 +561,7 @@ class JAXTrainer(base_trainer.Trainer):
                 break
 
         # Reattach state back to model (if not already done by a callback).
-        if not self._jax_state_synced:
-            self.jax_state_sync()
+        self.jax_state_sync()
 
         # The jax spmd_mode is need for multi-process context, since the
         # metrics values are replicated, and we don't want to do a all
@@ -657,8 +656,7 @@ class JAXTrainer(base_trainer.Trainer):
             # during predict(), but it's allowed.
             "non_trainable_variables": non_trainable_variables,
         }
-        if not self._jax_state_synced:
-            self.jax_state_sync()
+        self.jax_state_sync()
         callbacks.on_predict_end()
         self._jax_state = None
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
@@ -692,18 +690,14 @@ class JAXTrainer(base_trainer.Trainer):
         self.make_train_function()
 
         # Train step
-        trainable_variables = [v.value for v in self.trainable_variables]
-        non_trainable_variables = [
-            v.value for v in self.non_trainable_variables
-        ]
-        optimizer_variables = [v.value for v in self.optimizer.variables]
-        metrics_variables = [v.value for v in self.metrics_variables]
-        state = (
-            trainable_variables,
-            non_trainable_variables,
-            optimizer_variables,
-            metrics_variables,
+        state = self._get_jax_state(
+            trainable_variables=True,
+            non_trainable_variables=True,
+            optimizer_variables=True,
+            metrics_variables=True,
+            purge_model_variables=False,
         )
+        self._jax_state_synced = False
         logs, state = self.train_function(state, [data])
 
         # State sync
@@ -744,16 +738,13 @@ class JAXTrainer(base_trainer.Trainer):
         self.make_test_function()
 
         # Test step
-        trainable_variables = [v.value for v in self.trainable_variables]
-        non_trainable_variables = [
-            v.value for v in self.non_trainable_variables
-        ]
-        metrics_variables = [v.value for v in self.metrics_variables]
-        state = (
-            trainable_variables,
-            non_trainable_variables,
-            metrics_variables,
+        state = self._get_jax_state(
+            trainable_variables=True,
+            non_trainable_variables=True,
+            metrics_variables=True,
+            purge_model_variables=False,
         )
+        self._jax_state_synced = False
         logs, state = self.test_function(state, [data])
 
         # State sync
@@ -779,11 +770,13 @@ class JAXTrainer(base_trainer.Trainer):
         self._record_training_state_sharding_spec()
         self.make_predict_function()
 
-        trainable_variables = [v.value for v in self.trainable_variables]
-        non_trainable_variables = [
-            v.value for v in self.non_trainable_variables
-        ]
-        state = (trainable_variables, non_trainable_variables)
+        state = self._get_jax_state(
+            trainable_variables=True,
+            non_trainable_variables=True,
+            metrics_variables=False,
+            purge_model_variables=False,
+        )
+        self._jax_state_synced = False
         batch_outputs, non_trainable_variables = self.predict_function(
             state, [(x,)]
         )
@@ -795,7 +788,7 @@ class JAXTrainer(base_trainer.Trainer):
         return batch_outputs
 
     def jax_state_sync(self):
-        if not getattr(self, "_jax_state", None):
+        if not getattr(self, "_jax_state", None) or self._jax_state_synced:
             return
 
         trainable_variables = self._jax_state.get("trainable_variables", None)

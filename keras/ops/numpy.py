@@ -3513,10 +3513,12 @@ class Matmul(Operation):
         x1_sparse = getattr(x1, "sparse", True)
         x2_sparse = getattr(x2, "sparse", True)
         output_sparse = x1_sparse and x2_sparse
-        dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
+        x1_dtype = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_dtype = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        if x1_dtype == "int8" and x2_dtype == "int8":
+            dtype = "int32"
+        else:
+            dtype = dtypes.result_type(x1_dtype, x2_dtype)
         return KerasTensor(output_shape, dtype=dtype, sparse=output_sparse)
 
 
@@ -3712,8 +3714,8 @@ def meshgrid(*x, indexing="xy"):
 
     Args:
         x: 1-D tensors representing the coordinates of a grid.
-        indexing: Cartesian (`"xy"`, default) or matrix (`"ij"`) indexing
-            of output.
+        indexing: `"xy"` or `"ij"`. "xy" is cartesian; `"ij"` is matrix
+            indexing of output. Defaults to `"xy"`.
 
     Returns:
         Sequence of N tensors.

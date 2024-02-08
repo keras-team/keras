@@ -53,7 +53,7 @@ def load_data():
     feature_names = ("sentence1", "sentence2")
 
     def split_features(x):
-        # GLUE comes with dictonary data, we convert it to a uniform format
+        # GLUE comes with dictionary data, we convert it to a uniform format
         # (features, label), where features is a tuple consisting of all
         # features. This format is necessary for using KerasNLP preprocessors.
         features = tuple([x[name] for name in feature_names])

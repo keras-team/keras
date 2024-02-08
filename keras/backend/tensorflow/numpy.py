@@ -113,9 +113,28 @@ def matmul(x1, x2):
     x2 = convert_to_tensor(x2)
     x1_shape = x1.shape
     x2_shape = x2.shape
-    # TODO: GPU and XLA only support float types
-    compute_dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
-    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1_sparse = isinstance(x1, tf.SparseTensor)
+    x2_sparse = isinstance(x2, tf.SparseTensor)
+    # When both x1 and x2 are of int8 and dense tensor, specifying `output_type`
+    # as int32 to enable hardware-accelerated matmul
+    x1_dtype = standardize_dtype(x1.dtype)
+    x2_dtype = standardize_dtype(x2.dtype)
+    if (
+        x1_dtype == "int8"
+        and x2_dtype == "int8"
+        and not x1_sparse
+        and not x2_sparse
+        and x1_shape.rank != 1  # TODO: support tf.tensordot
+        and x2_shape.rank != 1  # TODO: support tf.tensordot
+    ):
+        compute_dtype = "int8"
+        result_dtype = "int32"
+        output_type = result_dtype
+    else:
+        # TODO: Typically, GPU and XLA only support float types
+        compute_dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+        result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+        output_type = None
     x1 = tf.cast(x1, compute_dtype)
     x2 = tf.cast(x2, compute_dtype)
 
@@ -186,8 +205,6 @@ def matmul(x1, x2):
             fn_output_signature=a.dtype,
         )
 
-    x1_sparse = isinstance(x1, tf.SparseTensor)
-    x2_sparse = isinstance(x2, tf.SparseTensor)
     if x1_sparse or x2_sparse:
         from keras.ops.operation_utils import compute_matmul_output_shape
 
@@ -219,13 +236,13 @@ def matmul(x1, x2):
         return output
     else:
         if x1_shape.rank == 2 and x2_shape.rank == 2:
-            output = tf.matmul(x1, x2)
+            output = tf.matmul(x1, x2, output_type=output_type)
         elif x2_shape.rank == 1:
             output = tf.tensordot(x1, x2, axes=1)
         elif x1_shape.rank == 1:
             output = tf.tensordot(x1, x2, axes=[[0], [-2]])
         else:
-            output = tf.matmul(x1, x2)
+            output = tf.matmul(x1, x2, output_type=output_type)
         return tf.cast(output, result_dtype)
 
 

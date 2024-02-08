@@ -315,7 +315,8 @@ def while_loop(
     loop_vars,
     maximum_iterations=None,
 ):
-    loop_vars = tuple(loop_vars)
+    is_tuple = isinstance(loop_vars, (tuple, list))
+    loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
     if maximum_iterations is not None:
         current_iter = 0
         loop_vars = loop_vars + (current_iter,)
@@ -325,7 +326,9 @@ def while_loop(
             return cond(*args[:-1]) & (args[-1] < maximum_iterations)
 
         def _body(args):
-            return tuple(body(*args[:-1])) + (args[-1] + 1,)
+            outputs = body(*args[:-1])
+            outputs = tuple(outputs) if is_tuple else (outputs,)
+            return outputs + (args[-1] + 1,)
 
     else:
 
@@ -333,12 +336,13 @@ def while_loop(
             return cond(*args)
 
         def _body(args):
-            return tuple(body(*args))
+            outputs = body(*args)
+            return tuple(outputs) if is_tuple else (outputs,)
 
     outputs = jax.lax.while_loop(_cond, _body, loop_vars)
     if maximum_iterations is not None:
         outputs = outputs[:-1]
-    return outputs
+    return outputs if is_tuple else outputs[0]
 
 
 def fori_loop(lower, upper, body_fun, init_val):

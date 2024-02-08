@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
+import tree
 from absl.testing import parameterized
 
 from keras import backend
@@ -83,7 +84,7 @@ class CoreOpsStaticShapeTest(testing.TestCase):
             core.unstack(x, axis=axis)
 
 
-class CoreOpsCorrectnessTest(testing.TestCase):
+class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_scatter(self):
         # Test 1D
         indices = np.array([[1], [3], [4], [7]])
@@ -221,25 +222,85 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         outputs = core.slice_update(inputs, start_indices, updates)
         self.assertAllClose(outputs[1:3, 1:3, 2:4, 2:4], np.zeros([2, 2, 2, 2]))
 
-    def test_while_loop(self):
-        def cond(x, y):
-            return x[0, 0] < 10
+    @parameterized.named_parameters(
+        [
+            {
+                "testcase_name": "with_max",
+                "state": (np.array(0), np.array(1)),
+                "output": (np.array(5), np.array(6)),
+                "maximum_iterations": 5,
+            },
+            {
+                "testcase_name": "no_max",
+                "state": (np.array(0), np.array(1)),
+                "output": (np.array(10), np.array(11)),
+                "maximum_iterations": None,
+            },
+        ]
+    )
+    def test_while_loop_list_data(self, state, output, maximum_iterations):
+        def cond(*args):
+            return tree.flatten(args)[0] < 10
 
-        def body(x, y):
-            return x + 1, y + 1
+        def body(*args):
+            return tree.map_structure(lambda x: x + 1, args)
 
-        x = np.ones((2, 3))
-        y = np.ones((3, 2))
-        x, y = core.while_loop(cond, body, (x, y))
-        self.assertAllClose(x, np.ones((2, 3)) * 10)
-        self.assertAllClose(y, np.ones((3, 2)) * 10)
+        state = core.while_loop(
+            cond, body, state, maximum_iterations=maximum_iterations
+        )
+        tree.map_structure(self.assertAllClose, state, output)
 
-        # Test max iterations
-        x = np.ones((2, 3))
-        y = np.ones((3, 2))
-        x, y = core.while_loop(cond, body, (x, y), maximum_iterations=5)
-        self.assertAllClose(x, np.ones((2, 3)) * 6)
-        self.assertAllClose(y, np.ones((3, 2)) * 6)
+    @parameterized.named_parameters(
+        [
+            {
+                "testcase_name": "scalar_data_with_max",
+                "state": np.array(0),
+                "output": np.array(5),
+                "maximum_iterations": 5,
+            },
+            {
+                "testcase_name": "scalar_data_no_max",
+                "state": np.array(0),
+                "output": np.array(10),
+                "maximum_iterations": None,
+            },
+            {
+                "testcase_name": "nested_data_with_max",
+                "state": {
+                    "a": np.array(0),
+                    "b": (np.array(1), np.array(2)),
+                },
+                "output": {
+                    "a": np.array(5),
+                    "b": (np.array(6), np.array(7)),
+                },
+                "maximum_iterations": 5,
+            },
+            {
+                "testcase_name": "nested_data_no_max",
+                "state": {
+                    "a": np.array(0),
+                    "b": (np.array(1), np.array(2)),
+                },
+                "output": {
+                    "a": np.array(10),
+                    "b": (np.array(11), np.array(12)),
+                },
+                "maximum_iterations": None,
+            },
+        ]
+    )
+    def test_while_loop(self, state, output, maximum_iterations):
+        def cond(args):
+            return tree.flatten(args)[0] < 10
+
+        def body(args):
+            return tree.map_structure(lambda x: x + 1, args)
+
+        state = core.while_loop(
+            cond, body, state, maximum_iterations=maximum_iterations
+        )
+        tree.map_structure(self.assertAllClose, state, output)
 
     def test_fori_loop(self):
         def body_fun(i, x):
