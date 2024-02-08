@@ -2,7 +2,7 @@ import inspect
 import json
 import os
 import warnings
-
+from keras.engine.training import Model as KerasModel
 from keras import backend
 from keras import utils
 from keras.api_export import keras_export
@@ -28,7 +28,50 @@ else:
         f"Backend '{backend.backend()}' must implement the Trainer class."
     )
 
+class Model(KerasModel):
+    def fit(self, x=None, y=None, batch_size=None, epochs=1, verbose=1,
+            callbacks=None, validation_split=0.0, validation_data=None,
+            shuffle=True, class_weight=None, sample_weight=None, initial_epoch=0,
+            steps_per_epoch=None, validation_steps=None, validation_batch_size=None,
+            validation_freq=1, max_queue_size=10, workers=1, use_multiprocessing=False):
 
+        # Handle IterableDataset input
+        if isinstance(x, IterableDataset):
+            if validation_data is not None and isinstance(validation_data[0], IterableDataset):
+                raise ValueError("Validation data cannot be an IterableDataset when training with IterableDataset.")
+
+            if steps_per_epoch is None:
+                raise ValueError("When training with IterableDataset, steps_per_epoch must be specified.")
+
+            # Assuming `x` is an IterableDataset of input data
+            train_data_loader = DataLoader(x, batch_size=batch_size, shuffle=shuffle)
+
+            # If validation_data is provided, convert it to DataLoader
+            if validation_data is not None:
+                x_val, y_val = validation_data
+                val_data_loader = DataLoader(x_val, batch_size=validation_batch_size or batch_size)
+                validation_data = val_data_loader
+
+            # Call the actual fit method with DataLoader
+            return super().fit(train_data_loader, y, epochs=epochs, verbose=verbose,
+                                callbacks=callbacks, validation_split=validation_split,
+                                validation_data=validation_data, shuffle=shuffle,
+                                class_weight=class_weight, sample_weight=sample_weight,
+                                initial_epoch=initial_epoch, steps_per_epoch=steps_per_epoch,
+                                validation_steps=validation_steps, validation_freq=validation_freq,
+                                max_queue_size=max_queue_size, workers=workers,
+                                use_multiprocessing=use_multiprocessing)
+
+        else:
+            # Call the original fit method for other types of input
+            return super().fit(x=x, y=y, batch_size=batch_size, epochs=epochs, verbose=verbose,
+                                callbacks=callbacks, validation_split=validation_split,
+                                validation_data=validation_data, shuffle=shuffle,
+                                class_weight=class_weight, sample_weight=sample_weight,
+                                initial_epoch=initial_epoch, steps_per_epoch=steps_per_epoch,
+                                validation_steps=validation_steps, validation_batch_size=validation_batch_size,
+                                validation_freq=validation_freq, max_queue_size=max_queue_size,
+                                workers=workers, use_multiprocessing=use_multiprocessing)
 @keras_export(["keras.Model", "keras.models.Model"])
 class Model(Trainer, Layer):
     """A model grouping layers into an object with training/inference features.
@@ -134,7 +177,7 @@ class Model(Trainer, Layer):
     ])
     ```
     """
-
+    
     def __new__(cls, *args, **kwargs):
         # Signature detection for usage of `Model` as a `Functional`
         if functional_init_arguments(args, kwargs) and cls == Model:
