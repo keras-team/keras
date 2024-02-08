@@ -1863,7 +1863,8 @@ class Normalize(Operation):
 )
 def normalize(x, axis=-1, order=2):
     """Perform Lp normalization of a tensor over the specified axis.
-        `v' = v / max(||v||_p, epsilon)`
+
+    It is defined as: `normalize(x) = x / max(norm(x), epsilon)`.
 
     Args:
         x: Input tensor.
