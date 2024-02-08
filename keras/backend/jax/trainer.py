@@ -47,8 +47,10 @@ class JAXTrainer(base_trainer.Trainer):
             **kwargs,
         )
 
-        trainable_mapping = zip(self.trainable_variables, trainable_variables)
-        with backend.StatelessScope(state_mapping=trainable_mapping):
+        var_mapping = list(zip(self.trainable_variables, trainable_variables))
+        var_mapping.extend(
+                zip(self.non_trainable_variables, non_trainable_variables))
+        with backend.StatelessScope(state_mapping=var_mapping):
             # Note that this is needed for the regularization loss, which need
             # the latest value of train/non-trainable variables.
             loss = self.compute_loss(

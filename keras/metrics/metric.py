@@ -166,7 +166,7 @@ class Metric:
 
     def add_variable(self, shape, initializer, dtype=None, name=None):
         self._check_super_called()
-        with backend.name_scope(self.name, caller=self):
+        with backend.name_scope(self.name.replace("/", ">"), caller=self):
             initializer = initializers.get(initializer)
             variable = backend.Variable(
                 initializer=initializer,
