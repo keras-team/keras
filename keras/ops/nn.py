@@ -1883,8 +1883,8 @@ def normalize(x, axis=-1, order=2):
 
     """
     if any_symbolic_tensors((x,)):
-        return Normalize(order, axis).symbolic_call(x)
-    return _normalize(x, order, axis)
+        return Normalize(axis, order).symbolic_call(x)
+    return _normalize(x, axis, order)
 
 
 def _normalize(x, axis=-1, order=2):
