@@ -150,10 +150,11 @@ class Mean(Metric):
         self.count.assign(0)
 
     def result(self):
-        return self.total / (
-            ops.maximum(
-                ops.cast(self.count, dtype=self.dtype), backend.epsilon()
-            )
+        count = ops.cast(self.count, dtype=self.dtype)
+        return (
+            ops.sign(count)
+            * self.total
+            / ops.maximum(ops.abs(count), backend.epsilon())
         )
 
 
