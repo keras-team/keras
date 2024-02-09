@@ -142,13 +142,28 @@ class ExportArchive:
         if isinstance(resource, Layer):
             # Variables in the lists below are actually part of the trackables
             # that get saved, because the lists are created in __init__.
-            self._tf_trackable.variables += resource.variables
-            self._tf_trackable.trainable_variables += (
-                resource.trainable_variables
-            )
-            self._tf_trackable.non_trainable_variables += (
-                resource.non_trainable_variables
-            )
+            if backend.backend() == "jax":
+                self._tf_trackable.variables += tf.nest.flatten(
+                    tf.nest.map_structure(tf.Variable, resource.variables)
+                )
+                self._tf_trackable.trainable_variables += tf.nest.flatten(
+                    tf.nest.map_structure(
+                        tf.Variable, resource.trainable_variables
+                    )
+                )
+                self._tf_trackable.non_trainable_variables += tf.nest.flatten(
+                    tf.nest.map_structure(
+                        tf.Variable, resource.non_trainable_variables
+                    )
+                )
+            else:
+                self._tf_trackable.variables += resource.variables
+                self._tf_trackable.trainable_variables += (
+                    resource.trainable_variables
+                )
+                self._tf_trackable.non_trainable_variables += (
+                    resource.non_trainable_variables
+                )
 
     def add_endpoint(self, name, fn, input_signature=None):
         """Register a new serving endpoint.
