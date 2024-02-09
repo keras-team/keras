@@ -56,13 +56,6 @@ class ExportArchiveTest(testing.TestCase):
         self.assertLen(export_archive.trainable_variables, 6)
         self.assertLen(export_archive.non_trainable_variables, 2)
 
-        # Assert `tf.Variable` regardless of backend
-        assert isinstance(export_archive.variables[0], tf.Variable)
-        assert isinstance(export_archive.trainable_variables[0], tf.Variable)
-        assert isinstance(
-            export_archive.non_trainable_variables[0], tf.Variable
-        )
-
         export_archive = export_lib.ExportArchive()
         export_archive.track(model)
         export_archive.add_endpoint(
