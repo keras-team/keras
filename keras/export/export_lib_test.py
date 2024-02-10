@@ -127,12 +127,17 @@ class ExportArchiveTest(testing.TestCase):
         def model_call(x):
             return model(x)
 
+        from jax import default_backend as jax_device
         from jax.experimental import jax2tf
 
+        native_jax_compatible = not (
+            jax_device() == "gpu"
+            and len(tf.config.list_physical_devices("GPU")) == 0
+        )
         # now, convert JAX function
         converted_model_call = jax2tf.convert(
             model_call,
-            native_serialization=True,
+            native_serialization=native_jax_compatible,
             polymorphic_shapes=["(b, 10)"],
         )
 
