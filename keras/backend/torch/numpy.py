@@ -1366,6 +1366,14 @@ def divide(x1, x2):
     return torch.divide(x1, x2)
 
 
+def divide_no_nan(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    return torch.where(x2 == 0, 0, torch.divide(x1, x2))
+
+
 def true_divide(x1, x2):
     return divide(x1, x2)
 

@@ -90,7 +90,7 @@ def multiply(x1, x2):
         if isinstance(x2, jax_sparse.BCOO):
             # x1 is sparse, x2 is sparse.
             if x1.indices is x2.indices:
-                # `bcoo_multiply_sparse`` will not detect that the indices are
+                # `bcoo_multiply_sparse` will not detect that the indices are
                 # the same, optimize this case here.
                 if not x1.unique_indices:
                     x1 = jax_sparse.bcoo_sum_duplicates(x1)
@@ -957,7 +957,12 @@ def divide(x1, x2):
     return jnp.divide(x1, x2)
 
 
-@sparse.elementwise_division
+def divide_no_nan(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.where(x2 == 0, 0, jnp.divide(x1, x2))
+
+
 def true_divide(x1, x2):
     return divide(x1, x2)
 

@@ -1386,6 +1386,16 @@ class AUCTest(testing.TestCase):
         expected_result = 2.416 / 7 + 4 / 7
         self.assertAllClose(result, expected_result, 1e-3)
 
+    def test_weighted_pr_interpolation_negative_weights(self):
+        auc_obj = metrics.AUC(num_thresholds=self.num_thresholds, curve="PR")
+        sample_weight = [-1, -2, -3, -4]
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+
+        # Divisor in auc formula is max(tp[1:]+fn[1:], 0), which is all zeros
+        # because the all values in tp and fn are negative, divide_no_nan will
+        # produce all zeros.
+        self.assertAllClose(result, 0.0, 1e-3)
+
     def test_invalid_num_thresholds(self):
         with self.assertRaisesRegex(
             ValueError, "Argument `num_thresholds` must be an integer > 1"
