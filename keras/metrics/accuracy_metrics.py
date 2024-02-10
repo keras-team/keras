@@ -1,14 +1,14 @@
 from keras import backend
 from keras import ops
 from keras.api_export import keras_export
-from keras.losses.loss import squeeze_to_same_rank
+from keras.losses.loss import squeeze_or_expand_to_same_rank
 from keras.metrics import reduction_metrics
 
 
 def accuracy(y_true, y_pred):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     return ops.mean(
         ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx()),
         axis=-1,
@@ -66,7 +66,7 @@ class Accuracy(reduction_metrics.MeanMetricWrapper):
 def binary_accuracy(y_true, y_pred, threshold=0.5):
     y_true = ops.convert_to_tensor(y_true)
     y_pred = ops.convert_to_tensor(y_pred)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     threshold = ops.cast(threshold, y_pred.dtype)
     y_pred = ops.cast(y_pred > threshold, y_true.dtype)
     return ops.mean(

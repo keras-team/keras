@@ -62,6 +62,12 @@ class MeanTest(testing.TestCase):
         result = mean_obj.result()
         self.assertAllClose(result, 2.0, atol=1e-3)
 
+    def test_weighted_negative_weigts(self):
+        mean_obj = reduction_metrics.Mean(name="mean", dtype="float32")
+        mean_obj.update_state([1, 3, 5, 7], sample_weight=[-1, -1, 0, 0])
+        result = mean_obj.result()
+        self.assertAllClose(result, 2.0, atol=1e-3)
+
     def test_weighted_nd(self):
         mean_obj = reduction_metrics.Mean(name="mean", dtype="float32")
         mean_obj.update_state([[1, 3], [5, 7]], sample_weight=[[1, 1], [1, 0]])

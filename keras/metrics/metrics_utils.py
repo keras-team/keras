@@ -4,7 +4,7 @@ import numpy as np
 
 from keras import backend
 from keras import ops
-from keras.losses.loss import squeeze_to_same_rank
+from keras.losses.loss import squeeze_or_expand_to_same_rank
 from keras.utils.python_utils import to_list
 
 NEG_INF = -1e10
@@ -453,12 +453,14 @@ def update_confusion_matrix_variables(
             f'Valid variable key options are: "{list(ConfusionMatrix)}"'
         )
 
-    y_pred, y_true = squeeze_to_same_rank(y_pred, y_true)
+    y_pred, y_true = squeeze_or_expand_to_same_rank(y_pred, y_true)
     if sample_weight is not None:
         sample_weight = ops.expand_dims(
             ops.cast(sample_weight, dtype=variable_dtype), axis=-1
         )
-        _, sample_weight = squeeze_to_same_rank(y_true, sample_weight)
+        _, sample_weight = squeeze_or_expand_to_same_rank(
+            y_true, sample_weight, expand_rank_1=False
+        )
 
     if top_k is not None:
         y_pred = _filter_top_k(y_pred, top_k)
@@ -664,7 +666,7 @@ def confusion_matrix(
     """
     labels = ops.convert_to_tensor(labels, dtype)
     predictions = ops.convert_to_tensor(predictions, dtype)
-    labels, predictions = squeeze_to_same_rank(labels, predictions)
+    labels, predictions = squeeze_or_expand_to_same_rank(labels, predictions)
 
     predictions = ops.cast(predictions, dtype)
     labels = ops.cast(labels, dtype)

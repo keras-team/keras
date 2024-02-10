@@ -6,6 +6,7 @@ from keras import losses as losses_module
 from keras import ops
 from keras import testing
 from keras.losses.loss import Loss
+from keras.losses.loss import squeeze_or_expand_to_same_rank
 
 
 class ExampleLoss(Loss):
@@ -14,6 +15,31 @@ class ExampleLoss(Loss):
 
 
 class LossTest(testing.TestCase):
+    def test_squeeze_or_expand(self):
+        x1 = ops.ones((3,))
+        x2 = ops.ones((3, 1))
+        x1, x2 = squeeze_or_expand_to_same_rank(x1, x2)
+        self.assertEqual(ops.shape(x1), (3, 1))
+        self.assertEqual(ops.shape(x2), (3, 1))
+
+        x1 = ops.ones((3, 2))
+        x2 = ops.ones((3, 2, 1))
+        x1, x2 = squeeze_or_expand_to_same_rank(x1, x2)
+        self.assertEqual(ops.shape(x1), (3, 2))
+        self.assertEqual(ops.shape(x2), (3, 2))
+
+        x1 = ops.ones((3,))
+        x2 = ops.ones((3, 1))
+        x2, x1 = squeeze_or_expand_to_same_rank(x2, x1)
+        self.assertEqual(ops.shape(x1), (3, 1))
+        self.assertEqual(ops.shape(x2), (3, 1))
+
+        x1 = ops.ones((3, 2))
+        x2 = ops.ones((3, 2, 1))
+        x2, x1 = squeeze_or_expand_to_same_rank(x2, x1)
+        self.assertEqual(ops.shape(x1), (3, 2))
+        self.assertEqual(ops.shape(x2), (3, 2))
+
     def test_reduction(self):
         y_true = np.array([1.0, 0.0, 1.0, 0.0])
         y_pred = np.array([0.1, 0.2, 0.3, 0.4])
