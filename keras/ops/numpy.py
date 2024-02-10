@@ -665,7 +665,7 @@ def arange(start, stop=None, step=1, dtype=None):
         stop: Integer or real, representing the end of the interval. The
             interval does not include this value, except in some cases where
             `step` is not an integer and floating point round-off affects the
-            lenght of `out`. Defaults to `None`.
+            length of `out`. Defaults to `None`.
         step: Integer or real, represent the spacing between values. For any
             output `out`, this is the distance between two adjacent values,
             `out[i+1] - out[i]`. The default step size is 1. If `step` is
