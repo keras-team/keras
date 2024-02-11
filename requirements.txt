@@ -12,7 +12,7 @@ jax[cpu]
 # MLX
 pybind11[global]
 cmake
-mlx @ git+https://github.com/ml-explore/mlx.git@v0.0.9
+mlx
 
 # Common deps.
 -r requirements-common.txt

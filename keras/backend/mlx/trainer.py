@@ -153,8 +153,6 @@ class MLXTrainer(base_trainer.Trainer):
             with backend.StatelessScope(state_mapping=mapping):
                 loss = self.optimizer.scale_loss(loss)
 
-        mx.simplify(loss)
-
         return loss, unscaled_loss, y_pred, non_trainable_variables
 
     def train_step(self, state, data):
@@ -190,7 +188,6 @@ class MLXTrainer(base_trainer.Trainer):
             ) = self.optimizer.stateless_apply(
                 optimizer_variables, grads, trainable_variables
             )
-            mx.simplify(loss, trainable_variables, optimizer_variables)
         else:
             (
                 loss,

@@ -6,13 +6,12 @@ import mlx.core as mx
 from keras.backend import config
 from keras.backend import standardize_dtype
 from keras.backend.mlx.core import cast
-from keras.backend.mlx.core import convert_to_tensor
+from keras.backend.mlx.core import convert_to_tensor, convert_to_tensors
 from keras.backend.mlx.core import to_mlx_dtype
 
 
 def add(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2 = convert_to_tensors(x1, x2)
     return mx.add(x1, x2)
 
 
@@ -21,20 +20,17 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2 = convert_to_tensors(x1, x2)
     return mx.subtract(x1, x2)
 
 
 def matmul(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2 = convert_to_tensors(x1, x2)
     return mx.matmul(x1, x2)
 
 
 def multiply(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2 = convert_to_tensors(x1, x2)
     return mx.multiply(x1, x2)
 
 
@@ -225,14 +221,12 @@ def ceil(x):
 
 
 def clip(x, x_min, x_max):
-    x = convert_to_tensor(x)
-    x_min = convert_to_tensor(x_min)
-    x_max = convert_to_tensor(x_max)
+    x, x_min, x_max = convert_to_tensors(x, x_min, x_max)
     return mx.maximum(x_min, mx.minimum(x, x_max))
 
 
 def concatenate(xs, axis=0):
-    xs = [convert_to_tensor(xi) for xi in xs]
+    xs = convert_to_tensors(*xs)
     return mx.concatenate(xs, axis=axis)
 
 

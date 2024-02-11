@@ -11,10 +11,6 @@ from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.config import floatx
 from keras.utils.nest import pack_sequence_as
 
-# Monkey patch mx.array.shape to return tuples
-mx.array._og_shape = mx.array.shape
-mx.array.shape = property(lambda a: tuple(a._og_shape))
-
 SUPPORTS_SPARSE_TENSORS = False
 
 MLX_DTYPES = {
@@ -24,11 +20,11 @@ MLX_DTYPES = {
     "uint8": mx.uint8,
     "uint16": mx.uint16,
     "uint32": mx.uint32,
-    "uint64": mx.uint64,  # some things may not be well supported
+    "uint64": mx.uint64,
     "int8": mx.int8,
     "int16": mx.int16,
     "int32": mx.int32,
-    "int64": mx.int64,  # some things may not be well supported
+    "int64": mx.int64,
     "bfloat16": mx.bfloat16,
     "bool": mx.bool_,
 }
@@ -100,6 +96,35 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         return mx.array(to_scalar_list(x), dtype=mlx_dtype)
 
     return mx.array(x, dtype=mlx_dtype)
+
+
+def convert_to_tensors(*xs):
+    ys = [None]*len(xs)
+    dtype = None
+    for i, x in enumerate(xs):
+        if not isinstance(x, (int, float, bool)):
+            ys[i] = convert_to_tensor(x)
+            dtype = ys[i].dtype
+    # Floating point wins so scalars promote to dtype
+    if dtype in (mx.float32, mx.float16, mx.bfloat16):
+        for i, x in enumerate(xs):
+            if ys[i] is None:
+                ys[i] = mx.array(x, dtype=dtype)
+    # Bool loses against everything so scalars keep their type
+    elif dtype == mx.bool_:
+        for i, x in enumerate(xs):
+            if ys[i] is None:
+                ys[i] = mx.array(x)
+    # Integral types keep their type except if the scalar is a float
+    else:
+        for i, x in enumerate(xs):
+            if ys[i] is None:
+                if isinstance(x, float):
+                    ys[i] = mx.array(x)
+                else:
+                    ys[i] = mx.array(x, dtype=dtype)
+
+    return ys
 
 
 def convert_to_numpy(x):
