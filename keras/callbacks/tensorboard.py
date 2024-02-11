@@ -248,28 +248,26 @@ class TensorBoard(Callback):
     def _write_keras_model_train_graph(self):
         """Writes Keras model train_function graph to TensorBoard."""
         with self._train_writer.as_default():
-            with self.summary.record_if(True):
-                train_fn = self.model.train_function
-                # If the train_function is a `tf.function`, we can write out a
-                # graph
-                if hasattr(train_fn, "function_spec"):
-                    # TODO(b/243822285): Use _variable_creation_fn directly.
-                    if hasattr(train_fn, "_concrete_stateful_fn"):
-                        self.summary.graph(train_fn._concrete_stateful_fn.graph)
-                    else:
-                        self.summary.graph(
-                            train_fn._concrete_variable_creation_fn.graph
-                        )
+            train_fn = self.model.train_function
+            # If the train_function is a `tf.function`, we can write out a
+            # graph
+            if hasattr(train_fn, "function_spec"):
+                # TODO(b/243822285): Use _variable_creation_fn directly.
+                if hasattr(train_fn, "_concrete_stateful_fn"):
+                    self.summary.graph(train_fn._concrete_stateful_fn.graph)
+                else:
+                    self.summary.graph(
+                        train_fn._concrete_variable_creation_fn.graph
+                    )
 
     def _write_keras_model_summary(self):
         """Writes Keras graph network summary to TensorBoard."""
         with self._train_writer.as_default():
-            with self.summary.record_if(True):
-                if (
-                    self.model.__class__.__name__ == "Functional"
-                    or self.model.__class__.__name__ == "Sequential"
-                ):
-                    keras_model_summary("keras", self.model, step=0)
+            if (
+                self.model.__class__.__name__ == "Functional"
+                or self.model.__class__.__name__ == "Sequential"
+            ):
+                keras_model_summary("keras", self.model, step=0)
 
     def _configure_embeddings(self):
         """Configure the Projector for embeddings."""
@@ -419,7 +417,7 @@ class TensorBoard(Callback):
 
     def on_test_end(self, logs=None):
         if self.model.optimizer and hasattr(self.model.optimizer, "iterations"):
-            with self.summary.record_if(True), self._val_writer.as_default():
+            with self._val_writer.as_default():
                 for name, value in logs.items():
                     self.summary.scalar(
                         "evaluation_" + name + "_vs_iterations",
@@ -494,9 +492,8 @@ class TensorBoard(Callback):
         if batch is None:
             batch = self._stop_batch
         with self._train_writer.as_default():
-            with self.summary.record_if(True):
-                # TODO(b/126388999): Remove step info in the summary name.
-                self.summary.trace_export(name="batch_%d" % batch, step=batch)
+            # TODO(b/126388999): Remove step info in the summary name.
+            self.summary.trace_export(name="batch_%d" % batch, step=batch)
         self._stop_profiler()
         self._is_tracing = False
 
@@ -539,37 +536,35 @@ class TensorBoard(Callback):
         if self.write_steps_per_second:
             train_logs["steps_per_second"] = self._compute_steps_per_second()
 
-        with self.summary.record_if(True):
-            if train_logs:
-                with self._train_writer.as_default():
-                    for name, value in train_logs.items():
-                        self.summary.scalar("epoch_" + name, value, step=epoch)
-            if val_logs:
-                with self._val_writer.as_default():
-                    for name, value in val_logs.items():
-                        name = name[4:]  # Remove 'val_' prefix.
-                        self.summary.scalar("epoch_" + name, value, step=epoch)
+        if train_logs:
+            with self._train_writer.as_default():
+                for name, value in train_logs.items():
+                    self.summary.scalar("epoch_" + name, value, step=epoch)
+        if val_logs:
+            with self._val_writer.as_default():
+                for name, value in val_logs.items():
+                    name = name[4:]  # Remove 'val_' prefix.
+                    self.summary.scalar("epoch_" + name, value, step=epoch)
 
     def _log_weights(self, epoch):
         """Logs the weights of the Model to TensorBoard."""
         with self._train_writer.as_default():
-            with self.summary.record_if(True):
-                for layer in self.model.layers:
-                    for weight in layer.weights:
-                        weight_name = weight.name.replace(":", "_")
-                        # Add a suffix to prevent summary tag name collision.
-                        histogram_weight_name = weight_name + "/histogram"
-                        self.summary.histogram(
-                            histogram_weight_name, weight, step=epoch
+            for layer in self.model.layers:
+                for weight in layer.weights:
+                    weight_name = weight.name.replace(":", "_")
+                    # Add a suffix to prevent summary tag name collision.
+                    histogram_weight_name = weight_name + "/histogram"
+                    self.summary.histogram(
+                        histogram_weight_name, weight, step=epoch
+                    )
+                    if self.write_images:
+                        # Add a suffix to prevent summary tag name
+                        # collision.
+                        image_weight_name = weight_name + "/image"
+                        self._log_weight_as_image(
+                            weight, image_weight_name, epoch
                         )
-                        if self.write_images:
-                            # Add a suffix to prevent summary tag name
-                            # collision.
-                            image_weight_name = weight_name + "/image"
-                            self._log_weight_as_image(
-                                weight, image_weight_name, epoch
-                            )
-                self._train_writer.flush()
+            self._train_writer.flush()
 
     def _log_weight_as_image(self, weight, weight_name, epoch):
         """Logs a weight as a TensorBoard image."""
