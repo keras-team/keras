@@ -607,6 +607,10 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
             scale=KerasTensor([3]),
         )
 
+    def test_normalize(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.normalize(x).shape, (None, 2, 3))
+
 
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
