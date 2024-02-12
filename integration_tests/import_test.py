@@ -8,6 +8,7 @@ BACKEND_REQ = {
     "tensorflow": "tensorflow",
     "torch": "torch torchvision",
     "jax": "jax jaxlib",
+    "mlx": "mlx",
 }
 
 
