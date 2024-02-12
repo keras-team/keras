@@ -89,7 +89,8 @@ def _extract_coordinates(
     empty_slices = (slice(None),) * start_axis
     for items in itertools.product(*indices):
         indices, validities, weights = zip(*items)
-        contribution = src[*empty_slices, *indices]
+        index = empty_slices + indices
+        contribution = src[index]
 
         # Check if we need to replace some with fill value
         if check_validity:

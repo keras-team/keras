@@ -1,3 +1,6 @@
+import mlx.core as mx
+
+
 def rnn(
     step_function,
     inputs,
@@ -27,5 +30,4 @@ def gru(*args, **kwargs):
 
 
 def unstack(x, axis=0):
-    slices = (slice(None),) * axis
-    return [x[*slices, i] for i in range(x.shape[axis])]
+    return mx.split(x, axis=axis)
