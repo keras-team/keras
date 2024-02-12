@@ -1053,6 +1053,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         y_lengths = KerasTensor([10], dtype="int32")
         self.assertEqual(knn.ctc_loss(x, y, x_lengths, y_lengths).shape, (10,))
 
+    def test_normalize(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.normalize(x).shape, (1, 2, 3))
+
 
 class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_relu(self):
