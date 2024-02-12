@@ -95,4 +95,6 @@ def erf(x):
 
 
 def solve(a, b):
-    raise NotImplementedError("Linear system solving not yet implemented in mlx")
+    raise NotImplementedError(
+        "Linear system solving not yet implemented in mlx"
+    )

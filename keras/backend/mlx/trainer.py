@@ -9,7 +9,6 @@ from keras import optimizers as optimizers_module
 from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.mlx.core import is_tensor
-from keras.trainers import epoch_iterator
 from keras.trainers import trainer as base_trainer
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.epoch_iterator import EpochIterator

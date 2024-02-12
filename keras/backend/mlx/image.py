@@ -277,8 +277,10 @@ def resize(
     antialias=False,
     data_format="channels_last",
 ):
-    if antialias == True:
-        raise NotImplementedError("Antialiasing not implemented for the MLX backend")
+    if antialias:
+        raise NotImplementedError(
+            "Antialiasing not implemented for the MLX backend"
+        )
 
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
@@ -306,7 +308,7 @@ def resize(
         )
 
     *_, H, W, C = image.shape
-    transform = mx.array([H/size[0], 0, 0, 0, W/size[1], 0, 0, 0])
+    transform = mx.array([H / size[0], 0, 0, 0, W / size[1], 0, 0, 0])
     result = _affine_transform(
         src=image,
         transform=transform,
@@ -314,7 +316,7 @@ def resize(
         interpolation_function=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
         index_fixer=_INDEX_FIXERS["constant"],
         fill_value=0,
-        check_validity=False
+        check_validity=False,
     )
 
     # Change back to channels_first

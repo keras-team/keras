@@ -3,12 +3,9 @@ import numpy as np
 import tree
 
 from keras.backend.common import KerasVariable
-from keras.backend.common import global_state
 from keras.backend.common import standardize_dtype
-from keras.backend.common.dtypes import result_type
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
-from keras.backend.config import floatx
 from keras.utils.nest import pack_sequence_as
 
 SUPPORTS_SPARSE_TENSORS = False
@@ -99,7 +96,7 @@ def convert_to_tensor(x, dtype=None, sparse=None):
 
 
 def convert_to_tensors(*xs):
-    ys = [None]*len(xs)
+    ys = [None] * len(xs)
     dtype = None
     for i, x in enumerate(xs):
         if not isinstance(x, (int, float, bool)):

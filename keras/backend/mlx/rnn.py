@@ -1,14 +1,3 @@
-import contextlib
-
-import tree
-import mlx.core as mx
-
-from keras.backend import standardize_dtype
-from keras.backend.common import stateless_scope
-from keras.backend.mlx.core import to_mlx_dtype
-from keras.utils.nest import pack_sequence_as
-
-
 def rnn(
     step_function,
     inputs,
@@ -40,4 +29,3 @@ def gru(*args, **kwargs):
 def unstack(x, axis=0):
     slices = (slice(None),) * axis
     return [x[*slices, i] for i in range(x.shape[axis])]
-

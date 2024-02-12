@@ -1,12 +1,13 @@
-import math
 import builtins
 
 import mlx.core as mx
 
 from keras.backend import config
+from keras.backend import result_type
 from keras.backend import standardize_dtype
 from keras.backend.mlx.core import cast
-from keras.backend.mlx.core import convert_to_tensor, convert_to_tensors
+from keras.backend.mlx.core import convert_to_tensor
+from keras.backend.mlx.core import convert_to_tensors
 from keras.backend.mlx.core import to_mlx_dtype
 
 
@@ -36,7 +37,6 @@ def multiply(x1, x2):
 
 def mean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
 
     # TODO: decide if we need special low precision handling
 
@@ -119,7 +119,7 @@ def arange(start, stop=None, step=1, dtype=None):
         ]
         if stop is not None:
             dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
-        dtype = dtypes.result_type(*dtypes_to_resolve)
+        dtype = result_type(*dtypes_to_resolve)
     dtype = standardize_dtype(dtype)
     return mx.arange(start, stop, step=step, dtype=dtype)
 
@@ -181,7 +181,7 @@ def average(x, axis=None, weights=None):
     if weights is not None:
         weights = convert_to_tensor(weights)
         dtypes_to_resolve.append(weights.dtype)
-    dtype = dtypes.result_type(*dtypes_to_resolve)
+    dtype = result_type(*dtypes_to_resolve)
     x = cast(x, dtype)
 
     # Early exit
@@ -467,7 +467,7 @@ def imag(x):
 def isclose(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    result_dtype = result_type(x1.dtype, x2.dtype)
     x1 = cast(x1, result_dtype)
     x2 = cast(x2, result_dtype)
 
@@ -607,8 +607,8 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
-    x1 = convert_to_tensor(x1, dtype)
-    x2 = convert_to_tensor(x2, dtype)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return mx.minimum(x1, x2)
 
 
@@ -782,7 +782,7 @@ def std(x, axis=None, keepdims=False):
 def swapaxes(x, axis1, axis2):
     x = convert_to_tensor(x)
     axes = list(range(x.ndim))
-    axes[axis1], axes[axes2] = axes[axis2], axes[axis1]
+    axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
     return x.transpose(axes)
 
 

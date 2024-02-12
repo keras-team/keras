@@ -99,6 +99,7 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
         "Sampling from a Binomial distribution is not implemented in mlx"
     )
 
+
 def beta(shape, alpha, beta, dtype=None, seed=None):
     raise NotImplementedError(
         "Sampling from a Beta distribution is not implemented in mlx"

@@ -266,7 +266,7 @@ def binary_crossentropy(target, output, from_logits=False):
         return nn.binary_cross_entropy(output, target, reduction="none")
     else:
         output = mx.minimum(mx.maximum(output, epsilon()), 1 - epsilon())
-        return -targets * mx.log(output) - (1 - targets) * mx.log(1 - output)
+        return -target * mx.log(output) - (1 - target) * mx.log(1 - output)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
