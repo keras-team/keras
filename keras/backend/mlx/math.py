@@ -2,7 +2,7 @@ import math
 
 import mlx.core as mx
 
-from keras.backend.jax.core import convert_to_tensor
+from keras.backend.mlx.core import convert_to_tensor
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
