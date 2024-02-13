@@ -1,4 +1,3 @@
-from keras import backend
 from keras import initializers
 from keras import losses
 from keras import ops
@@ -150,11 +149,8 @@ class Mean(Metric):
         self.count.assign(0)
 
     def result(self):
-        count = ops.cast(self.count, dtype=self.dtype)
-        return (
-            ops.sign(count)
-            * self.total
-            / ops.maximum(ops.abs(count), backend.epsilon())
+        return ops.divide_no_nan(
+            self.total, ops.cast(self.count, dtype=self.dtype)
         )
 
 

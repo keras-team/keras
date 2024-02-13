@@ -390,9 +390,9 @@ class Precision(Metric):
         )
 
     def result(self):
-        result = ops.divide(
+        result = ops.divide_no_nan(
             self.true_positives,
-            self.true_positives + self.false_positives + backend.epsilon(),
+            ops.add(self.true_positives, self.false_positives),
         )
         return result[0] if len(self.thresholds) == 1 else result
 
@@ -534,9 +534,9 @@ class Recall(Metric):
         )
 
     def result(self):
-        result = ops.divide(
+        result = ops.divide_no_nan(
             self.true_positives,
-            self.true_positives + self.false_negatives + backend.epsilon(),
+            ops.add(self.true_positives, self.false_negatives),
         )
         return result[0] if len(self.thresholds) == 1 else result
 
@@ -757,13 +757,13 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
         )
 
     def result(self):
-        sensitivities = ops.divide(
+        sensitivities = ops.divide_no_nan(
             self.true_positives,
-            self.true_positives + self.false_negatives + backend.epsilon(),
+            ops.add(self.true_positives, self.false_negatives),
         )
-        specificities = ops.divide(
+        specificities = ops.divide_no_nan(
             self.true_negatives,
-            self.true_negatives + self.false_positives + backend.epsilon(),
+            ops.add(self.true_negatives, self.false_positives),
         )
         return self._find_max_under_constraint(
             specificities, sensitivities, ops.greater_equal
@@ -861,13 +861,13 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
         )
 
     def result(self):
-        sensitivities = ops.divide(
+        sensitivities = ops.divide_no_nan(
             self.true_positives,
-            self.true_positives + self.false_negatives + backend.epsilon(),
+            ops.add(self.true_positives, self.false_negatives),
         )
-        specificities = ops.divide(
+        specificities = ops.divide_no_nan(
             self.true_negatives,
-            self.true_negatives + self.false_positives + backend.epsilon(),
+            ops.add(self.true_negatives, self.false_positives),
         )
         return self._find_max_under_constraint(
             sensitivities, specificities, ops.greater_equal
@@ -951,13 +951,13 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
         )
 
     def result(self):
-        recalls = ops.divide(
+        recalls = ops.divide_no_nan(
             self.true_positives,
-            self.true_positives + self.false_negatives + backend.epsilon(),
+            ops.add(self.true_positives, self.false_negatives),
         )
-        precisions = ops.divide(
+        precisions = ops.divide_no_nan(
             self.true_positives,
-            self.true_positives + self.false_positives + backend.epsilon(),
+            ops.add(self.true_positives, self.false_positives),
         )
         return self._find_max_under_constraint(
             recalls, precisions, ops.greater_equal
@@ -1046,13 +1046,13 @@ class RecallAtPrecision(SensitivitySpecificityBase):
         )
 
     def result(self):
-        recalls = ops.divide(
+        recalls = ops.divide_no_nan(
             self.true_positives,
-            self.true_positives + self.false_negatives + backend.epsilon(),
+            ops.add(self.true_positives, self.false_negatives),
         )
-        precisions = ops.divide(
+        precisions = ops.divide_no_nan(
             self.true_positives,
-            self.true_positives + self.false_positives + backend.epsilon(),
+            ops.add(self.true_positives, self.false_positives),
         )
         return self._find_max_under_constraint(
             precisions, recalls, ops.greater_equal
@@ -1439,29 +1439,32 @@ class AUC(Metric):
             pr_auc: an approximation of the area under the P-R curve.
         """
 
-        dtp = (
-            self.true_positives[: self.num_thresholds - 1]
-            - self.true_positives[1:]
+        dtp = ops.subtract(
+            self.true_positives[: self.num_thresholds - 1],
+            self.true_positives[1:],
         )
         p = ops.add(self.true_positives, self.false_positives)
-        dp = p[: self.num_thresholds - 1] - p[1:]
-        prec_slope = ops.divide(dtp, ops.maximum(dp, backend.epsilon()))
-        intercept = self.true_positives[1:] - ops.multiply(prec_slope, p[1:])
+        dp = ops.subtract(p[: self.num_thresholds - 1], p[1:])
+        prec_slope = ops.divide_no_nan(dtp, ops.maximum(dp, 0))
+        intercept = ops.subtract(
+            self.true_positives[1:], ops.multiply(prec_slope, p[1:])
+        )
 
         safe_p_ratio = ops.where(
             ops.logical_and(p[: self.num_thresholds - 1] > 0, p[1:] > 0),
-            ops.divide(
-                p[: self.num_thresholds - 1],
-                ops.maximum(p[1:], backend.epsilon()),
+            ops.divide_no_nan(
+                p[: self.num_thresholds - 1], ops.maximum(p[1:], 0)
             ),
             ops.ones_like(p[1:]),
         )
 
-        pr_auc_increment = ops.divide(
-            prec_slope * (dtp + intercept * ops.log(safe_p_ratio)),
+        pr_auc_increment = ops.divide_no_nan(
+            ops.multiply(
+                prec_slope,
+                (ops.add(dtp, ops.multiply(intercept, ops.log(safe_p_ratio)))),
+            ),
             ops.maximum(
-                self.true_positives[1:] + self.false_negatives[1:],
-                backend.epsilon(),
+                ops.add(self.true_positives[1:], self.false_negatives[1:]), 0
             ),
         )
 
@@ -1472,9 +1475,9 @@ class AUC(Metric):
                 return ops.mean(by_label_auc)
             else:
                 # Weighted average of the label AUCs.
-                return ops.divide(
+                return ops.divide_no_nan(
                     ops.sum(ops.multiply(by_label_auc, self.label_weights)),
-                    ops.maximum(ops.sum(self.label_weights), backend.epsilon()),
+                    ops.sum(self.label_weights),
                 )
         else:
             return ops.sum(pr_auc_increment)
@@ -1489,30 +1492,21 @@ class AUC(Metric):
             return self.interpolate_pr_auc()
 
         # Set `x` and `y` values for the curves based on `curve` config.
-        recall = ops.divide(
+        recall = ops.divide_no_nan(
             self.true_positives,
-            ops.maximum(
-                ops.add(self.true_positives, self.false_negatives),
-                backend.epsilon(),
-            ),
+            ops.add(self.true_positives, self.false_negatives),
         )
         if self.curve == metrics_utils.AUCCurve.ROC:
-            fp_rate = ops.divide(
+            fp_rate = ops.divide_no_nan(
                 self.false_positives,
-                ops.maximum(
-                    ops.add(self.false_positives, self.true_negatives),
-                    backend.epsilon(),
-                ),
+                ops.add(self.false_positives, self.true_negatives),
             )
             x = fp_rate
             y = recall
         else:  # curve == 'PR'.
-            precision = ops.divide(
+            precision = ops.divide_no_nan(
                 self.true_positives,
-                ops.maximum(
-                    ops.add(self.true_positives, self.false_positives),
-                    backend.epsilon(),
-                ),
+                ops.add(self.true_positives, self.false_positives),
             )
             x = recall
             y = precision
@@ -1523,7 +1517,9 @@ class AUC(Metric):
             == metrics_utils.AUCSummationMethod.INTERPOLATION
         ):
             # Note: the case ('PR', 'interpolation') has been handled above.
-            heights = (y[: self.num_thresholds - 1] + y[1:]) / 2.0
+            heights = ops.divide(
+                ops.add(y[: self.num_thresholds - 1], y[1:]), 2.0
+            )
         elif self.summation_method == metrics_utils.AUCSummationMethod.MINORING:
             heights = ops.minimum(y[: self.num_thresholds - 1], y[1:])
         # self.summation_method = metrics_utils.AUCSummationMethod.MAJORING:
@@ -1531,10 +1527,10 @@ class AUC(Metric):
             heights = ops.maximum(y[: self.num_thresholds - 1], y[1:])
 
         # Sum up the areas of all the rectangles.
+        riemann_terms = ops.multiply(
+            ops.subtract(x[: self.num_thresholds - 1], x[1:]), heights
+        )
         if self.multi_label:
-            riemann_terms = ops.multiply(
-                x[: self.num_thresholds - 1] - x[1:], heights
-            )
             by_label_auc = ops.sum(riemann_terms, axis=0)
 
             if self.label_weights is None:
@@ -1542,14 +1538,12 @@ class AUC(Metric):
                 return ops.mean(by_label_auc)
             else:
                 # Weighted average of the label AUCs.
-                return ops.divide(
+                return ops.divide_no_nan(
                     ops.sum(ops.multiply(by_label_auc, self.label_weights)),
-                    ops.maximum(ops.sum(self.label_weights), backend.epsilon()),
+                    ops.sum(self.label_weights),
                 )
         else:
-            return ops.sum(
-                ops.multiply(x[: self.num_thresholds - 1] - x[1:], heights)
-            )
+            return ops.sum(riemann_terms)
 
     def reset_state(self):
         if self._built:

@@ -48,6 +48,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.divide(x, y).shape, (2, 3))
 
+    def test_divide_no_nan(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.divide_no_nan(x, y).shape, (2, 3))
+
     def test_true_divide(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -469,6 +474,19 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.divide(x, y)
+
+    def test_divide_no_nan(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.divide_no_nan(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.divide_no_nan(x, 2).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
+            knp.divide_no_nan(x, y)
 
     def test_true_divide(self):
         x = KerasTensor((2, 3))
@@ -2024,6 +2042,17 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
 
         self.assertAllClose(knp.Divide()(x, y), np.divide(x, y))
         self.assertAllClose(knp.Divide()(x, z), np.divide(x, z))
+
+    def test_divide_no_nan(self):
+        x = np.array(
+            [[2, 1, 0], [np.inf, -np.inf, np.nan], [np.inf, -np.inf, np.nan]]
+        )
+        y = np.array([[2, 0, 0], [0, 0, 0], [3, 2, 1]])
+        expected_result = np.array(
+            [[1, 0, 0], [0, 0, 0], [np.inf, -np.inf, np.nan]]
+        )
+        self.assertAllClose(knp.divide_no_nan(x, y), expected_result)
+        self.assertAllClose(knp.DivideNoNan()(x, y), expected_result)
 
     def test_true_divide(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -4320,47 +4349,23 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(op_class()(x, y), expected_result)
         self.assertSparseness(op_class()(x, y), op_sparseness(x, y))
 
-    def test_divide_with_zeros_in_int_sparse_tensor(self):
-        x = backend.convert_to_tensor([[0, 2, 3], [3, 2, 1]], dtype="int32")
-        x = create_sparse_tensor(x, start=0, delta=2)
-        y = backend.convert_to_tensor([[0, 0, 0], [0, 0, 0]], dtype="int32")
-        expected_result = np.divide(
-            backend.convert_to_numpy(x), backend.convert_to_numpy(y)
+    @parameterized.named_parameters(
+        named_product(
+            sparse_type=["sparse_tensor", "indexed_slices"],
+            dtype=["int32", "float32"],
         )
-
-        self.assertAllClose(knp.divide(x, y), expected_result)
-        self.assertAllClose(knp.Divide()(x, y), expected_result)
-
-    def test_divide_with_zeros_nans_in_float_sparse_tensor(self):
-        x = backend.convert_to_tensor([[0, 2, 3], [3, 2, 1]], dtype="float32")
-        x = create_sparse_tensor(x, start=0, delta=2)
-        y = backend.convert_to_tensor(
-            [[np.nan, np.nan, 3], [0, 0, 1]], dtype="float32"
-        )
-        expected_result = np.divide(
-            backend.convert_to_numpy(x), backend.convert_to_numpy(y)
-        )
-
-        self.assertAllClose(knp.divide(x, y), expected_result)
-        self.assertAllClose(knp.Divide()(x, y), expected_result)
-
-    def test_divide_with_zeros_in_int_indexed_slices(self):
-        x = backend.convert_to_tensor([[0, 2, 3], [3, 2, 1]], dtype="int32")
-        x = create_indexed_slices(x, start=0, delta=2)
-        y = backend.convert_to_tensor([[0, 0, 3], [0, 0, 1]], dtype="int32")
-        expected_result = np.divide(
-            backend.convert_to_numpy(x), backend.convert_to_numpy(y)
-        )
-
-        self.assertAllClose(knp.divide(x, y), expected_result)
-        self.assertAllClose(knp.Divide()(x, y), expected_result)
-
-    def test_divide_with_zeros_nans_in_float_indexed_slices(self):
-        x = backend.convert_to_tensor([[0, 2, 3], [3, 2, 1]], dtype="float32")
-        x = create_indexed_slices(x, start=0, delta=2)
-        y = backend.convert_to_tensor(
-            [[np.nan, 0, 3], [np.nan, 0, 1]], dtype="float32"
-        )
+    )
+    def test_divide_with_zeros_nans(self, sparse_type, dtype):
+        x = backend.convert_to_tensor([[0, 2, 3], [3, 2, 1]], dtype=dtype)
+        if sparse_type == "indexed_slices":
+            x = create_indexed_slices(x, start=0, delta=2)
+        else:
+            x = create_sparse_tensor(x, start=0, delta=2)
+        if dtype.startswith("int"):
+            y = [[0, 0, 3], [0, 0, 1]]
+        else:
+            y = [[np.nan, np.nan, 3], [0, 0, 1]]
+        y = backend.convert_to_tensor(y, dtype=dtype)
         expected_result = np.divide(
             backend.convert_to_numpy(x), backend.convert_to_numpy(y)
         )
