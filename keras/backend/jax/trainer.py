@@ -946,9 +946,9 @@ def _distribute_data(data):
             layout = distribution.get_data_layout(d.shape)
             return jax_distribution_lib.distribute_data_input(d, layout)
 
-        return jax.tree_util.tree_map(distribute_single_value, data)
+        return tree.map_structure(distribute_single_value, data)
     else:
-        return jax.tree_util.tree_map(jax.device_put, data)
+        return tree.map_structure(jax.device_put, data)
 
 
 class JAXEpochIterator(EpochIterator):
