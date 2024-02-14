@@ -1862,14 +1862,16 @@ class Normalize(Operation):
     ]
 )
 def normalize(x, axis=-1, order=2):
-    """Perform Lp normalization of a tensor over the specified axis.
+    """Normalizes `x` over the specified axis.
 
     It is defined as: `normalize(x) = x / max(norm(x), epsilon)`.
 
     Args:
         x: Input tensor.
-        axis: The axis or axes along which to perform normalization. Default: 1.
-        order: The exponent value in the norm formulation. Default: 2.
+        axis: The axis or axes along which to perform normalization.
+            Default to -1.
+        order: The exponent value in the norm formulation.
+            Defaults to 2.
 
     Returns:
         The normalized array.
@@ -1889,8 +1891,14 @@ def normalize(x, axis=-1, order=2):
 
 
 def _normalize(x, axis=-1, order=2):
+    if not isinstance(order, int) or not order >= 1:
+        raise ValueError(
+            f"Argument `order` must be an int >= 1. Received: order={order}"
+        )
     x = backend.convert_to_tensor(x)
-    epsilon = backend.config.epsilon()
+    if len(x.shape) == 0:
+        x = backend.numpy.expand_dims(x, axis=0)
+    epsilon = backend.epsilon()
     norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
     denom = backend.numpy.maximum(norm, epsilon)
     return backend.numpy.divide(x, denom)

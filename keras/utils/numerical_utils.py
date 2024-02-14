@@ -21,10 +21,6 @@ def normalize(x, axis=-1, order=2):
     """
     from keras import ops
 
-    if not isinstance(order, int) or not order >= 1:
-        raise ValueError(
-            "Argument `order` must be an int >= 1. " f"Received: order={order}"
-        )
     if isinstance(x, np.ndarray):
         # NumPy input
         norm = np.atleast_1d(np.linalg.norm(x, order, axis))
@@ -35,18 +31,7 @@ def normalize(x, axis=-1, order=2):
         return x / np.expand_dims(norm, axis)
 
     # Backend tensor input
-    if len(x.shape) == 0:
-        x = ops.expand_dims(x, axis=0)
-    epsilon = backend.epsilon()
-    if order == 2:
-        power_sum = ops.sum(ops.square(x), axis=axis, keepdims=True)
-        norm = ops.reciprocal(ops.sqrt(ops.maximum(power_sum, epsilon)))
-    else:
-        power_sum = ops.sum(ops.power(x, order), axis=axis, keepdims=True)
-        norm = ops.reciprocal(
-            ops.power(ops.maximum(power_sum, epsilon), 1.0 / order)
-        )
-    return ops.multiply(x, norm)
+    return ops.nn.normalize(x, axis=axis, order=order)
 
 
 @keras_export("keras.utils.to_categorical")
