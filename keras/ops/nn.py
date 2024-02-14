@@ -1840,3 +1840,57 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     return backend.nn.ctc_loss(
         target, output, target_length, output_length, mask_index
     )
+
+
+class Normalize(Operation):
+    def __init__(self, axis=-1, order=2):
+        super().__init__()
+        self.axis = axis
+        self.order = order
+
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape)
+
+    def call(self, x):
+        return _normalize(x, self.order, self.axis)
+
+
+@keras_export(
+    [
+        "keras.ops.normalize",
+        "keras.ops.nn.normalize",
+    ]
+)
+def normalize(x, axis=-1, order=2):
+    """Perform Lp normalization of a tensor over the specified axis.
+
+    It is defined as: `normalize(x) = x / max(norm(x), epsilon)`.
+
+    Args:
+        x: Input tensor.
+        axis: The axis or axes along which to perform normalization. Default: 1.
+        order: The exponent value in the norm formulation. Default: 2.
+
+    Returns:
+        The normalized array.
+
+    Example:
+
+    >>> x = keras.ops.convert_to_tensor([[1, 2, 3], [4, 5, 6]])
+    >>> x_norm = keras.ops.math.normalize(x)
+    >>> print(x_norm)
+    array([[0.26726124 0.5345225  0.8017837 ]
+           [0.45584232 0.5698029  0.68376344]], shape=(2, 3), dtype=float32)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Normalize(axis, order).symbolic_call(x)
+    return _normalize(x, axis, order)
+
+
+def _normalize(x, axis=-1, order=2):
+    x = backend.convert_to_tensor(x)
+    epsilon = backend.config.epsilon()
+    norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
+    denom = backend.numpy.maximum(norm, epsilon)
+    return backend.numpy.divide(x, denom)

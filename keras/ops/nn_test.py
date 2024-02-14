@@ -607,6 +607,10 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
             scale=KerasTensor([3]),
         )
 
+    def test_normalize(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.normalize(x).shape, (None, 2, 3))
+
 
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
@@ -1048,6 +1052,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x_lengths = KerasTensor([10], dtype="int32")
         y_lengths = KerasTensor([10], dtype="int32")
         self.assertEqual(knn.ctc_loss(x, y, x_lengths, y_lengths).shape, (10,))
+
+    def test_normalize(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.normalize(x).shape, (1, 2, 3))
 
 
 class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -1843,6 +1851,37 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         result = knn.ctc_loss(labels, outputs, label_length, output_length)
         self.assertAllClose(result, np.array([3.4411672, 1.91680186]))
+
+    def test_normalize(self):
+        x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
+        self.assertAllClose(
+            knn.normalize(x, axis=None),
+            [
+                [0.18898225, 0.3779645, 0.56694674],
+                [0.18898225, 0.3779645, 0.56694674],
+            ],
+        )
+        self.assertAllClose(
+            knn.normalize(x, axis=0),
+            [
+                [0.70710677, 0.70710677, 0.70710677],
+                [0.70710677, 0.70710677, 0.70710677],
+            ],
+        )
+        self.assertAllClose(
+            knn.normalize(x, axis=-1),
+            [
+                [0.26726124, 0.53452247, 0.8017837],
+                [0.26726124, 0.53452247, 0.8017837],
+            ],
+        )
+        self.assertAllClose(
+            knn.normalize(x, order=3),
+            [
+                [0.30285344, 0.6057069, 0.9085603],
+                [0.30285344, 0.6057069, 0.9085603],
+            ],
+        )
 
 
 class TestLogitRecovery(testing.TestCase):
