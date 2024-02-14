@@ -222,4 +222,4 @@ class Metric:
         return f"<{self.__class__.__name__} " f"name={self.name}>"
 
     def __str__(self):
-        return f"<{self.__class__.__name__} " f"name={self.name}>"
+        return self.__repr__()

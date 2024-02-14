@@ -199,6 +199,15 @@ class DeviceMesh:
     def devices(self):
         return self._devices
 
+    def __repr__(self):
+        return (
+            f"<{self.__class__.__name__} "
+            f"shape={self.shape}, axis_names={self.axis_names}>"
+        )
+
+    def __str__(self):
+        return self.__repr__()
+
 
 @keras_export("keras.distribution.TensorLayout")
 class TensorLayout:
@@ -253,6 +262,15 @@ class TensorLayout:
                     "Invalid axis names for Layout. Valid axis "
                     f"names: {valid_axis_names}, Got {axis_names}"
                 )
+
+    def __repr__(self):
+        return (
+            f"<{self.__class__.__name__} "
+            f"axes={self.axes}, device_mesh={self.device_mesh}>"
+        )
+
+    def __str__(self):
+        return self.__repr__()
 
 
 class Distribution:
@@ -337,6 +355,12 @@ class Distribution:
             the current local worker/process.
         """
         raise NotImplementedError()
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} device_mesh={self.device_mesh}>"
+
+    def __str__(self):
+        return self.__repr__()
 
 
 @keras_export("keras.distribution.DataParallel")

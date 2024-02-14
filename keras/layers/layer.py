@@ -1260,10 +1260,7 @@ class Layer(BackendLayer, Operation):
         )
 
     def __str__(self):
-        return (
-            f"<{self.__class__.__name__} "
-            f"name={self.name}, built={self.built}>"
-        )
+        return self.__repr__()
 
     def __setattr__(self, name, value):
         # Track Variables, Layers, Metrics, SeedGenerators.
