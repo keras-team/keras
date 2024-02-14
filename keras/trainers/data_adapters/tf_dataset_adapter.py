@@ -75,7 +75,7 @@ class TFDatasetAdapter(DataAdapter):
         else:
             # However, in the case of `DistributedDataset`, it's a np.int64.
             cardinality = int(cardinality)
-        # Return None for Unknown and Infiite cardinality datasets
+        # Return None for Unknown and Infinite cardinality datasets
         if cardinality < 0:
             return None
         return cardinality

@@ -20,8 +20,14 @@ class TorchDataLoaderAdapter(DataAdapter):
 
         self._dataloader = dataloader
         self._batch_size = dataloader.batch_size
-        self._size = len(dataloader)
-        self._partial_batch_size = len(dataloader.dataset) % self._batch_size
+        self._num_batches = None
+        self._partial_batch_size = None
+        if hasattr(dataloader.dataset, "__len__"):
+            self._num_batches = len(dataloader)
+            if self._batch_size is not None:
+                self._partial_batch_size = (
+                    len(dataloader.dataset) % self._batch_size
+                )
 
     def get_numpy_iterator(self):
         for batch in self._dataloader:
@@ -70,7 +76,7 @@ class TorchDataLoaderAdapter(DataAdapter):
 
     @property
     def num_batches(self):
-        return self._size
+        return self._num_batches
 
     @property
     def batch_size(self):

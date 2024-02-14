@@ -334,7 +334,7 @@ class JAXTrainer(base_trainer.Trainer):
                 (x, y, sample_weight), validation_split=validation_split
             )
 
-        if validation_data:
+        if validation_data is not None:
             (
                 val_x,
                 val_y,
@@ -428,7 +428,9 @@ class JAXTrainer(base_trainer.Trainer):
                 epoch_logs = self.get_metrics_result()
 
             # Run validation.
-            if validation_data and self._should_eval(epoch, validation_freq):
+            if validation_data is not None and self._should_eval(
+                epoch, validation_freq
+            ):
                 # Create JAXEpochIterator for evaluation and cache it.
                 if getattr(self, "_eval_epoch_iterator", None) is None:
                     self._eval_epoch_iterator = JAXEpochIterator(
