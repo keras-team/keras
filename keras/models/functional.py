@@ -148,6 +148,21 @@ class Functional(Function, Model):
 
         trainable = kwargs.pop("trainable", None)
 
+        # if isinstance(inputs, KerasTensor) and not tensor_is_from_input_constructor(inputs):
+        #     alt_input = Input(batch_shape=inputs.shape, dtype=inputs.dtype, sparse=inputs.sparse)
+        #     alt_input._keras_history[0]._outbound_nodes = 
+
+        if not all(
+            [
+                is_input_keras_tensor(t)
+                for t in tree.flatten(inputs)
+            ]
+        ):
+            inputs, outputs = clone_graph_nodes(
+                inputs, outputs
+            )
+
+
         Function.__init__(self, inputs, outputs, name=name, **kwargs)
 
         if trainable is not None:
@@ -666,3 +681,88 @@ def deserialize_node(node_data, created_layers):
     args = tree.map_structure(convert_revived_tensor, args)
     kwargs = tree.map_structure(convert_revived_tensor, kwargs)
     return args, kwargs
+
+
+def is_input_keras_tensor(x):
+    (
+        operation,
+        node_index,
+        _,
+    ) = x._keras_history
+    node = operation._inbound_nodes[node_index]
+    return node.is_input
+
+
+def clone_graph_nodes(inputs, outputs):
+    """Clone the `Node` between the inputs and output tensors.
+
+    This function is used to create a new functional model from any intermediate
+    keras tensors. The clone of the nodes mimic the behavior of reconstructing
+    the functional graph network by re-executing all the __call__ methods. The
+    cloned nodes will be appended to the layers.
+
+    Note that a new tf.keras.Inputs will be created for any items in the
+    `inputs`
+
+    Args:
+      inputs: A nested structure of keras_tensors.
+      outputs: A nested structure of keras_tensors.
+
+    Returns:
+      A pair of inputs and outputs, with cloned keras_tensors. They can be used
+      to create a new functional model.
+    """
+    nodes_to_clone = find_nodes_by_inputs_and_outputs(inputs, outputs)
+    cloned_inputs = []
+    cloned_outputs = []
+    # We not only need to create copies of Nodes (mimic the calls), also need to
+    # clone keras_tensors to avoid the override of _keras_history attached on
+    # the keras_tensor. The following dict is used to track any keras tensor we
+    # cloned The key is the string ID of the original keras tensor, and value is
+    # the cloned keras_tensor instance.
+    kt_id_mapping = {}
+
+    for kt_input in tf.nest.flatten(inputs):
+        if kt_input.node.is_input:
+            # For any existing keras_tensor from tf.keras.Input, we leave them
+            # as is.
+            cloned_inputs.append(kt_input)
+            kt_id_mapping[id(kt_input)] = kt_input
+        else:
+            # We need to create a new tf.keras.Input for any intermediate
+            # keras_tensor
+            cpy = _clone_keras_tensor(kt_input)
+            cloned_input = input_layer_module.Input(tensor=cpy)
+            cloned_inputs.append(cloned_input)
+            kt_id_mapping[id(kt_input)] = cloned_input
+    cloned_inputs = tf.nest.pack_sequence_as(inputs, cloned_inputs)
+
+    for kt_output in tf.nest.flatten(outputs):
+        cpy = _clone_keras_tensor(kt_output)
+        # We reuse the _keras_history here, which contains the old information.
+        # It is used in the Node constructor to check if the tensor
+        # "is_keras_tensor()" The history will be override by the Node
+        # constructor anyway for the corresponding layer output anyway.
+        cpy._keras_history = kt_output._keras_history
+        cloned_outputs.append(cpy)
+        kt_id_mapping[id(kt_output)] = cpy
+    cloned_outputs = tf.nest.pack_sequence_as(outputs, cloned_outputs)
+
+    for node in nodes_to_clone:
+        # Clone any keras_tensors to avoid override of _keras_history
+        # Or reuse an existing keras_tensor if it has already been cloned.
+        output_copy = clone_keras_tensors(node.output_tensors, kt_id_mapping)
+        call_args_copy = clone_keras_tensors(node.call_args, kt_id_mapping)
+        call_kwargs_copy = clone_keras_tensors(node.call_kwargs, kt_id_mapping)
+        # Creating new nodes based on the existing node information.  Node wires
+        # itself to inbound and outbound layers.  The Node constructor actually
+        # updates this layer's self._inbound_nodes, sets _keras_history on the
+        # outputs, and adds itself to the `_outbound_nodes` of the layers that
+        # produced the inputs to this layer call.
+        node_module.Node(
+            node.layer,
+            call_args=call_args_copy,
+            call_kwargs=call_kwargs_copy,
+            outputs=output_copy,
+        )
+    return cloned_inputs, cloned_outputs
