@@ -38,7 +38,7 @@ class CustomObjectScope:
     ```
 
     Args:
-        custom_objects: Dictionary of `{name: object}` pairs.
+        custom_objects: Dictionary of `{str: object}` pairs. Where the str key is the name.
     """
 
     def __init__(self, custom_objects):
