@@ -196,4 +196,3 @@ class CategoryEncodingTest(testing.TestCase):
         for output in ds.take(1):
             output = output.numpy()
         self.assertAllClose(output, expected_output)
-

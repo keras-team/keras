@@ -172,4 +172,3 @@ class CategoryEncoding(TFDataLayer):
             )
         outputs = self._encode(inputs, count_weights)
         return backend_utils.convert_tf_tensor(outputs)
-
