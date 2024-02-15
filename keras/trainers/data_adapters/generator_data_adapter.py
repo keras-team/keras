@@ -1,6 +1,5 @@
 import itertools
 
-from keras import backend
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.data_adapters.data_adapter import DataAdapter
 from keras.utils import tree
@@ -10,48 +9,18 @@ class GeneratorDataAdapter(DataAdapter):
     """Adapter for Python generators."""
 
     def __init__(self, generator):
-        first_batch, generator = peek_and_restore(generator)
+        first_batches, generator = peek_and_restore(generator)
         self.generator = generator
-        self._first_batch = first_batch
+        self._first_batches = first_batches
         self._output_signature = None
-        if not isinstance(first_batch, tuple):
+        if not isinstance(first_batches[0], tuple):
             raise ValueError(
                 "When passing a Python generator to a Keras model, "
                 "the generator must return a tuple, either "
                 "(input,) or (inputs, targets) or "
                 "(inputs, targets, sample_weights). "
-                f"Received: {first_batch}"
+                f"Received: {first_batches[0]}"
             )
-
-    def _set_tf_output_signature(self):
-        from keras.utils.module_utils import tensorflow as tf
-
-        def get_tensor_spec(x):
-            shape = x.shape
-            if len(shape) < 1:
-                raise ValueError(
-                    "When passing a Python generator to a Keras model, "
-                    "the arrays returned by the generator "
-                    "must be at least rank 1. Received: "
-                    f"{x} of rank {len(x.shape)}"
-                )
-            shape = list(shape)
-            shape[0] = None  # The batch size is not guaranteed to be static.
-            dtype = backend.standardize_dtype(x.dtype)
-            if isinstance(x, tf.RaggedTensor):
-                return tf.RaggedTensorSpec(shape=shape, dtype=dtype)
-            if (
-                isinstance(x, tf.SparseTensor)
-                or data_adapter_utils.is_scipy_sparse(x)
-                or data_adapter_utils.is_jax_sparse(x)
-            ):
-                return tf.SparseTensorSpec(shape=shape, dtype=dtype)
-            else:
-                return tf.TensorSpec(shape=shape, dtype=dtype)
-
-        self._output_signature = tree.map_structure(
-            get_tensor_spec, self._first_batch
-        )
 
     def get_numpy_iterator(self):
         return data_adapter_utils.get_numpy_iterator(self.generator)
@@ -85,7 +54,9 @@ class GeneratorDataAdapter(DataAdapter):
                 yield batch
 
         if self._output_signature is None:
-            self._set_tf_output_signature()
+            self._output_signature = data_adapter_utils.get_tensor_spec(
+                self._first_batches
+            )
         ds = tf.data.Dataset.from_generator(
             get_tf_iterator,
             output_signature=self._output_signature,
@@ -106,5 +77,9 @@ class GeneratorDataAdapter(DataAdapter):
 
 
 def peek_and_restore(generator):
-    element = next(generator)
-    return element, itertools.chain([element], generator)
+    batches = list(
+        itertools.islice(
+            generator, data_adapter_utils.NUM_BATCHES_FOR_TENSOR_SPEC
+        )
+    )
+    return batches, itertools.chain(batches, generator)
