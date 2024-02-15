@@ -25,6 +25,35 @@ class CategoryEncodingTest(testing.TestCase):
         self.assertEqual(expected_output_shape, output.shape)
         self.assertEqual("float32", output.dtype)
 
+    def test_count_weighted_output(self):
+        input_array = np.array([[0, 1], [0, 0], [1, 2], [3, 1]])
+        count_weights = np.array(
+            [[0.1, 0.2], [0.1, 0.1], [0.2, 0.3], [0.4, 0.2]]
+        )
+        expected_output = np.array(
+            [
+                [0.1, 0.2, 0.0, 0.0],
+                [0.2, 0.0, 0.0, 0.0],
+                [0.0, 0.2, 0.3, 0.0],
+                [0.0, 0.2, 0.0, 0.4],
+            ]
+        )
+
+        num_tokens = 4
+        expected_output_shape = (num_tokens, num_tokens)
+
+        layer = layers.CategoryEncoding(num_tokens=4, output_mode="count")
+        int_data = layer(input_array, count_weights=count_weights)
+        self.assertEqual(expected_output_shape, int_data.shape)
+        self.assertAllClose(int_data, expected_output)
+
+        # Test symbolic call.
+        output = layer(
+            layers.Input(batch_shape=input_array.shape, dtype="int32")
+        )
+        self.assertEqual(expected_output_shape, output.shape)
+        self.assertEqual("float32", output.dtype)
+
     def test_batched_count_output(self):
         input_array = np.array([[1, 2, 3, 1], [0, 3, 1, 0]])
         expected_output = np.array([[0, 2, 1, 1, 0, 0], [2, 1, 0, 1, 0, 0]])
