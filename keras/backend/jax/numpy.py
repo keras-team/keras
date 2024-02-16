@@ -181,11 +181,13 @@ def zeros(shape, dtype=None):
 
 @sparse.elementwise_unary(linear=False)
 def absolute(x):
+    x = convert_to_tensor(x)
     return jnp.absolute(x)
 
 
 @sparse.elementwise_unary(linear=False)
 def abs(x):
+    x = convert_to_tensor(x)
     return jnp.absolute(x)
 
 
@@ -376,16 +378,19 @@ def concatenate(xs, axis=0):
 
 @sparse.elementwise_unary(linear=True)
 def conjugate(x):
+    x = convert_to_tensor(x)
     return jnp.conjugate(x)
 
 
 @sparse.elementwise_unary(linear=True)
 def conj(x):
+    x = convert_to_tensor(x)
     return jnp.conjugate(x)
 
 
 @sparse.elementwise_unary(linear=True)
 def copy(x):
+    x = convert_to_tensor(x)
     return jnp.copy(x)
 
 
@@ -416,6 +421,8 @@ def count_nonzero(x, axis=None):
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return jnp.cross(
         x1,
         x2,
@@ -427,10 +434,12 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 
 def cumprod(x, axis=None, dtype=None):
+    x = convert_to_tensor(x)
     return jnp.cumprod(x, axis=axis, dtype=dtype)
 
 
 def cumsum(x, axis=None, dtype=None):
+    x = convert_to_tensor(x)
     return jnp.cumsum(x, axis=axis, dtype=dtype)
 
 
@@ -440,6 +449,7 @@ def diag(x, k=0):
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
+    x = convert_to_tensor(x)
     return jnp.diagonal(
         x,
         offset=offset,
@@ -449,6 +459,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 
 
 def diff(a, n=1, axis=-1):
+    a = convert_to_tensor(a)
     return jnp.diff(a, n=n, axis=axis)
 
 
@@ -459,6 +470,8 @@ def digitize(x, bins):
 
 
 def dot(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
     return jnp.dot(x, y)
 
 
@@ -483,6 +496,7 @@ def exp(x):
 
 
 def expand_dims(x, axis):
+    x = convert_to_tensor(x)
     if isinstance(x, jax_sparse.BCOO):
         (
             _,
@@ -550,6 +564,7 @@ def identity(n, dtype=None):
 
 @sparse.elementwise_unary(linear=True)
 def imag(x):
+    x = convert_to_tensor(x)
     return jnp.imag(x)
 
 
@@ -561,16 +576,19 @@ def isclose(x1, x2):
 
 @sparse.densifying_unary
 def isfinite(x):
+    x = convert_to_tensor(x)
     return jnp.isfinite(x)
 
 
 @sparse.elementwise_unary(linear=False)
 def isinf(x):
+    x = convert_to_tensor(x)
     return jnp.isinf(x)
 
 
 @sparse.elementwise_unary(linear=False)
 def isnan(x):
+    x = convert_to_tensor(x)
     return jnp.isnan(x)
 
 
@@ -648,6 +666,7 @@ def logical_and(x1, x2):
 
 
 def logical_not(x):
+    x = convert_to_tensor(x)
     return jnp.logical_not(x)
 
 
@@ -698,6 +717,7 @@ def meshgrid(*x, indexing="xy"):
 
 
 def min(x, axis=None, keepdims=False, initial=None):
+    x = convert_to_tensor(x)
     return jnp.min(x, axis=axis, keepdims=keepdims, initial=initial)
 
 
@@ -719,6 +739,7 @@ def moveaxis(x, source, destination):
 
 
 def nan_to_num(x):
+    x = convert_to_tensor(x)
     return jnp.nan_to_num(x)
 
 
@@ -749,6 +770,7 @@ def outer(x1, x2):
 
 
 def pad(x, pad_width, mode="constant", constant_values=None):
+    x = convert_to_tensor(x)
     kwargs = {}
     if constant_values is not None:
         if mode != "constant":
@@ -762,6 +784,7 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
+    x = convert_to_tensor(x)
     return jnp.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
@@ -781,20 +804,24 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
 
 def ravel(x):
+    x = convert_to_tensor(x)
     return jnp.ravel(x)
 
 
 @sparse.elementwise_unary(linear=True)
 def real(x):
+    x = convert_to_tensor(x)
     return jnp.real(x)
 
 
 @sparse.densifying_unary
 def reciprocal(x):
+    x = convert_to_tensor(x)
     return jnp.reciprocal(x)
 
 
 def repeat(x, repeats, axis=None):
+    x = convert_to_tensor(x)
     return jnp.repeat(x, repeats, axis=axis)
 
 
@@ -818,6 +845,7 @@ def roll(x, shift, axis=None):
 
 @sparse.elementwise_unary(linear=False)
 def sign(x):
+    x = convert_to_tensor(x)
     return jnp.sign(x)
 
 
@@ -848,6 +876,7 @@ def size(x):
 
 
 def sort(x, axis=-1):
+    x = convert_to_tensor(x)
     return jnp.sort(x, axis=axis)
 
 
@@ -867,6 +896,7 @@ def std(x, axis=None, keepdims=False):
 
 
 def swapaxes(x, axis1, axis2):
+    x = convert_to_tensor(x)
     return jnp.swapaxes(x, axis1=axis1, axis2=axis2)
 
 
@@ -910,6 +940,7 @@ def tensordot(x1, x2, axes=2):
 
 @sparse.elementwise_unary(linear=False)
 def round(x, decimals=0):
+    x = convert_to_tensor(x)
     return jnp.round(x, decimals=decimals)
 
 
@@ -931,14 +962,18 @@ def tri(N, M=None, k=0, dtype=None):
 
 
 def tril(x, k=0):
+    x = convert_to_tensor(x)
     return jnp.tril(x, k=k)
 
 
 def triu(x, k=0):
+    x = convert_to_tensor(x)
     return jnp.triu(x, k=k)
 
 
 def vdot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return jnp.vdot(x1, x2)
 
 
@@ -975,11 +1010,13 @@ def power(x1, x2):
 
 @sparse.elementwise_unary(linear=True)
 def negative(x):
+    x = convert_to_tensor(x)
     return jnp.negative(x)
 
 
 @sparse.elementwise_unary(linear=False)
 def square(x):
+    x = convert_to_tensor(x)
     return jnp.square(x)
 
 
