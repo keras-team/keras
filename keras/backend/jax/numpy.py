@@ -181,11 +181,13 @@ def zeros(shape, dtype=None):
 
 @sparse.elementwise_unary(linear=False)
 def absolute(x):
+    x = convert_to_tensor(x)
     return jnp.absolute(x)
 
 
 @sparse.elementwise_unary(linear=False)
 def abs(x):
+    x = convert_to_tensor(x)
     return jnp.absolute(x)
 
 
@@ -376,16 +378,19 @@ def concatenate(xs, axis=0):
 
 @sparse.elementwise_unary(linear=True)
 def conjugate(x):
+    x = convert_to_tensor(x)
     return jnp.conjugate(x)
 
 
 @sparse.elementwise_unary(linear=True)
 def conj(x):
+    x = convert_to_tensor(x)
     return jnp.conjugate(x)
 
 
 @sparse.elementwise_unary(linear=True)
 def copy(x):
+    x = convert_to_tensor(x)
     return jnp.copy(x)
 
 
@@ -550,6 +555,7 @@ def identity(n, dtype=None):
 
 @sparse.elementwise_unary(linear=True)
 def imag(x):
+    x = convert_to_tensor(x)
     return jnp.imag(x)
 
 
@@ -561,16 +567,19 @@ def isclose(x1, x2):
 
 @sparse.densifying_unary
 def isfinite(x):
+    x = convert_to_tensor(x)
     return jnp.isfinite(x)
 
 
 @sparse.elementwise_unary(linear=False)
 def isinf(x):
+    x = convert_to_tensor(x)
     return jnp.isinf(x)
 
 
 @sparse.elementwise_unary(linear=False)
 def isnan(x):
+    x = convert_to_tensor(x)
     return jnp.isnan(x)
 
 
@@ -786,11 +795,13 @@ def ravel(x):
 
 @sparse.elementwise_unary(linear=True)
 def real(x):
+    x = convert_to_tensor(x)
     return jnp.real(x)
 
 
 @sparse.densifying_unary
 def reciprocal(x):
+    x = convert_to_tensor(x)
     return jnp.reciprocal(x)
 
 
@@ -818,6 +829,7 @@ def roll(x, shift, axis=None):
 
 @sparse.elementwise_unary(linear=False)
 def sign(x):
+    x = convert_to_tensor(x)
     return jnp.sign(x)
 
 
@@ -910,6 +922,7 @@ def tensordot(x1, x2, axes=2):
 
 @sparse.elementwise_unary(linear=False)
 def round(x, decimals=0):
+    x = convert_to_tensor(x)
     return jnp.round(x, decimals=decimals)
 
 
@@ -975,11 +988,13 @@ def power(x1, x2):
 
 @sparse.elementwise_unary(linear=True)
 def negative(x):
+    x = convert_to_tensor(x)
     return jnp.negative(x)
 
 
 @sparse.elementwise_unary(linear=False)
 def square(x):
+    x = convert_to_tensor(x)
     return jnp.square(x)
 
 
