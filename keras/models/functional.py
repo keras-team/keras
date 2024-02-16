@@ -714,20 +714,20 @@ def clone_graph_nodes(inputs, outputs):
     """Clone the `Node` between the inputs and output tensors.
 
     This function is used to create a new functional model from any intermediate
-    keras tensors. The clone of the nodes mimic the behavior of reconstructing
-    the functional graph network by re-executing all the __call__ methods. The
-    cloned nodes will be appended to the layers.
+    Keras tensors. The clone of the nodes mimic the behavior of reconstructing
+    the functional graph network by re-executing all the `__call__()` methods.
+    The cloned nodes will be appended to the layers.
 
-    Note that a new tf.keras.Inputs will be created for any items in the
+    Note that a new `keras.Input` will be created for any items in the
     `inputs`
 
     Args:
-      inputs: A nested structure of keras_tensors.
-      outputs: A nested structure of keras_tensors.
+    inputs: A nested structure of `KerasTensor` instances.
+    outputs: A nested structure of `KerasTensor` instances.
 
     Returns:
-      A pair of inputs and outputs, with cloned keras_tensors. They can be used
-      to create a new functional model.
+        A pair of inputs and outputs, with cloned `KerasTensor` instances.
+        They can be used to create a new functional model.
     """
     nodes_to_clone = find_nodes_by_inputs_and_outputs(inputs, outputs)
     cloned_inputs = []
