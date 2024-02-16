@@ -4,7 +4,9 @@ import pytest
 from keras import backend
 from keras import layers
 from keras import testing
+from keras.layers import Softmax
 from keras.layers.core.input_layer import Input
+from keras.ops.nn import softmax as softmax_op
 from keras.models.functional import Functional
 from keras.models.sequential import Sequential
 
@@ -259,6 +261,48 @@ class SequentialTest(testing.TestCase):
 
         model.add(BadLayer())
         with self.assertRaisesRegex(
-            ValueError, "can only have a single positional"
+                ValueError, "can only have a single positional"
         ):
             model.build((None, 2))
+
+    def test_model_output_softmax_activation_dense(self):
+
+        for activation in ["softmax", softmax_op, Softmax()]:
+            with self.assertRaisesRegex(
+                    ValueError,
+                    "has a single unit output, but the activation is softmax.*",
+            ):
+                Sequential(
+                    [
+                        layers.InputLayer(input_shape=(10,)),
+                        layers.Dense(1, activation=activation),
+                    ]
+                )
+
+    def test_model_output_softmax_activation_lstm_does_not_throw_err(self):
+        for activation in ["softmax", softmax_op, Softmax()]:
+            Sequential(
+                [
+                    layers.InputLayer(input_shape=(10, 1)),
+                    layers.LSTM(1, activation=activation),
+                ]
+            )
+
+    def test_model_output_softmax_activation_conv(self):
+
+        input_config = {"Conv1D": (10, 2),
+                        "Conv2D": (10, 10, 2),
+                        "Conv3D": (10, 10, 10, 2)}
+
+        for layer in [layers.Conv1D, layers.Conv2D, layers.Conv3D]:
+            for activation in ["softmax", softmax_op, Softmax()]:
+                with self.assertRaisesRegex(
+                        ValueError,
+                        "has a single unit output, but the activation is softmax.*",
+                ):
+                    Sequential(
+                        [
+                            layers.InputLayer(shape=input_config[layer.__name__]),
+                            layer(1, 3, activation=activation),
+                        ]
+                    )
