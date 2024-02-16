@@ -679,15 +679,18 @@ def deserialize_node(node_data, created_layers):
 
 
 def _check_output_activation_softmax(output_layers):
-    """
-    Checks if the output activation is softmax and the applied axis has only
-    one unit.
-    Args:
-        output_layers: A dictionary of output layers with their names as keys
-            and the layers as values.
+    """Ensures output activation is suitable for Sequential and Functional models.
+
+    Verifies the output layer's activation function is softmax and confirms that
+    the axis of application leads to a singular unit output.
+
+    Parameters:
+        output_layers (dict): A mapping of output layer names to their respective layer
+            instances.
+
     Raises:
-        ValueError: If the output activation is softmax and the applied axis
-            will make the model output 1.0 for all inputs.
+        ValueError: Triggered when the softmax activation results in a constant model
+            output of 1.0 across all inputs.
     """
 
     # remove all the layers except Dense, and BaseConv
