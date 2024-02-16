@@ -335,6 +335,43 @@ class FunctionalTest(testing.TestCase):
             model(np.zeros((2, 3, 3)))
         model(np.zeros((2, 4, 3)))
 
+    def test_functional_slicing(self):
+        inputs = Input(shape=(None, 2), name="input")
+        x1 = layers.Dense(3, name="dense1")(inputs)
+        x2 = layers.Dense(4, name="dense2")(x1)
+        outputs = layers.Dense(5, name="dense3")(x2)
+
+        full_model = Functional(inputs, outputs, name="full_model")
+        self.assertLen(full_model.layers, 4)
+
+        partial_model_1 = Functional(x2, outputs, name="partial1")
+        self.assertLen(partial_model_1.layers, 2)  # input_layer, dense3
+        self.assertIsInstance(partial_model_1.layers[0], layers.InputLayer)
+        self.assertEqual(partial_model_1.layers[1].name, "dense3")
+
+        partial_model_2 = Functional(x1, x2, name="partial2")
+        self.assertLen(partial_model_2.layers, 2)  # input_layer, dense2
+        self.assertIsInstance(partial_model_2.layers[0], layers.InputLayer)
+        self.assertEqual(partial_model_2.layers[1].name, "dense2")
+
+        partial_model_3 = Functional(
+            full_model.get_layer("dense2").input, outputs, name="partial3"
+        )
+        self.assertLen(partial_model_3.layers, 3)  # input_layer, dense2, dense3
+        self.assertIsInstance(partial_model_3.layers[0], layers.InputLayer)
+        self.assertEqual(partial_model_3.layers[1].name, "dense2")
+        self.assertEqual(partial_model_3.layers[2].name, "dense3")
+
+        partial_model_4 = Functional(
+            full_model.get_layer("dense1").input,
+            full_model.get_layer("dense2").output,
+            name="partial4",
+        )
+        self.assertLen(partial_model_4.layers, 3)  # input_layer, dense1, dense2
+        self.assertIsInstance(partial_model_4.layers[0], layers.InputLayer)
+        self.assertEqual(partial_model_4.layers[1].name, "dense1")
+        self.assertEqual(partial_model_4.layers[2].name, "dense2")
+
     def test_add_loss(self):
         # TODO
         pass
