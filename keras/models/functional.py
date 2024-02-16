@@ -7,6 +7,9 @@ import tree
 from keras import backend
 from keras import ops
 from keras.backend.common import global_state
+from keras.layers import Dense
+from keras.layers import Softmax
+from keras.layers.convolutional.base_conv import BaseConv
 from keras.layers.core.input_layer import Input
 from keras.layers.core.input_layer import InputLayer
 from keras.layers.input_spec import InputSpec
@@ -152,6 +155,7 @@ class Functional(Function, Model):
             )
 
         trainable = kwargs.pop("trainable", None)
+        validate_softmax = kwargs.pop("validate_output_activation", True)
 
         if not all([is_input_keras_tensor(t) for t in tree.flatten(inputs)]):
             inputs, outputs = clone_graph_nodes(inputs, outputs)
@@ -168,6 +172,12 @@ class Functional(Function, Model):
         self._allow_non_tensor_positional_args = True
         output_layers = [x._keras_history[0] for x in self.outputs]
         self.output_names = [x.name for x in output_layers]
+
+        if validate_softmax:
+            layer_output_mapping = {
+                layer.name: layer for layer in output_layers
+            }
+            _check_output_activation_softmax(layer_output_mapping)
 
     def _lock_state(self):
         # Unlike other layers, we allow Functional state to be mutable after
@@ -798,3 +808,60 @@ def clone_graph_nodes(inputs, outputs):
             outputs=output_copy,
         )
     return cloned_inputs, cloned_outputs
+
+
+def _check_output_activation_softmax(output_layers):
+    """Ensures output activation is suitable for Sequential and Functional models.
+    Verifies the output layer's activation function is softmax and confirms that
+    the axis of application leads to a singular unit output.
+    Parameters:
+        output_layers (dict): A mapping of output layer names to their respective layer
+            instances.
+    Raises:
+        ValueError: Triggered when the softmax activation results in a constant model
+            output of 1.0 across all inputs.
+    """
+
+    # remove all the layers except Dense, and BaseConv
+    output_layers = {
+        k: v
+        for k, v in output_layers.items()
+        if isinstance(v, (Dense, BaseConv))
+    }
+
+    for layer_name, layer in output_layers.items():
+
+        # If the activation is a layer, we can check the axis, but as a
+        # precaution, we check if the layer has an axis attribute.
+        if hasattr(layer, "activation"):
+
+            act_signature = str(inspect.signature(layer.activation))
+
+            if isinstance(layer.activation, Softmax):
+                try:
+                    softmax_axis = layer.activation.axis
+                except AttributeError:
+                    continue
+
+            # This is the case for when user uses "softmax" or keras.ops.softmax
+            elif "axis=-1" in act_signature or "axis=None" in act_signature:
+                softmax_axis = -1
+
+            # If above conditions are not met, we cannot check the output.
+            else:
+                continue
+
+            layer_output_shape = layer.output.shape
+
+            if layer_output_shape[softmax_axis] == 1:
+                raise ValueError(
+                    f"Output layer {layer_name} has a single unit output, "
+                    "but the activation is softmax. This is most likely an "
+                    "error because softmax outputs sum to 1 therefore single "
+                    "unit outputs with softmax will only output 1.0. If you "
+                    "think that the error is raised due to an incorrect check, "
+                    "please file an issue on "
+                    "https://github.com/keras-team/keras/issues. You can "
+                    "disable this check by setting `validate_output_activation=False` "
+                    "when constructing the model."
+                )
