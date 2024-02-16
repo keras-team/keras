@@ -94,7 +94,7 @@ class FunctionalTest(testing.TestCase):
         outputs = layers.Dense(4)(x)
 
         with self.assertRaisesRegex(
-                ValueError, "all values in the dict must be KerasTensors"
+            ValueError, "all values in the dict must be KerasTensors"
         ):
             model = Functional({"aa": [input_a], "bb": input_b}, outputs)
 
@@ -295,7 +295,7 @@ class FunctionalTest(testing.TestCase):
         outputs = layers.Dense(2)(inputs)
         model = Functional(inputs, outputs)
         with self.assertRaisesRegex(
-                ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
+            ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
         ):
             model(np.zeros((2, 3)))
         with self.assertRaisesRegex(ValueError, "expected 1 input"):
@@ -310,7 +310,7 @@ class FunctionalTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "expected 2 input"):
             model(np.zeros((2, 3)))
         with self.assertRaisesRegex(
-                ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
+            ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
         ):
             model([np.zeros((2, 3)), np.zeros((2, 4))])
 
@@ -319,7 +319,7 @@ class FunctionalTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "expected 2 input"):
             model(np.zeros((2, 3)))
         with self.assertRaisesRegex(
-                ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
+            ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
         ):
             model({"a": np.zeros((2, 3)), "b": np.zeros((2, 4))})
 
@@ -330,8 +330,8 @@ class FunctionalTest(testing.TestCase):
         model = Functional(inputs, outputs)
         model.input_spec = InputSpec(shape=(None, 4, 3))
         with self.assertRaisesRegex(
-                ValueError,
-                r"expected shape=\(None, 4, 3\), found shape=\(2, 3, 3\)",
+            ValueError,
+            r"expected shape=\(None, 4, 3\), found shape=\(2, 3, 3\)",
         ):
             model(np.zeros((2, 3, 3)))
         model(np.zeros((2, 4, 3)))
@@ -346,8 +346,8 @@ class FunctionalTest(testing.TestCase):
             x = layers.Dense(1, activation=activation)(inputs)
 
             with self.assertRaisesRegex(
-                    ValueError,
-                    "has a single unit output, but the activation is softmax.*",
+                ValueError,
+                "has a single unit output, but the activation is softmax.*",
             ):
                 Model(inputs, x)
 
@@ -358,8 +358,8 @@ class FunctionalTest(testing.TestCase):
             y = layers.Dense(1, activation=activation)(inputs)
 
             with self.assertRaisesRegex(
-                    ValueError,
-                    "has a single unit output, but the activation is softmax.*",
+                ValueError,
+                "has a single unit output, but the activation is softmax.*",
             ):
                 Model(inputs, [x, y])
 
@@ -372,7 +372,7 @@ class FunctionalTest(testing.TestCase):
             x = layers.Dense(1, activation=activation)(inputs[0])
             y = layers.Dense(1, activation=activation)(inputs[1])
             with self.assertRaisesRegex(
-                    ValueError,
-                    "has a single unit output, but the activation is softmax.*",
+                ValueError,
+                "has a single unit output, but the activation is softmax.*",
             ):
                 Model(inputs, [x, y])

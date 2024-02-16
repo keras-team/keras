@@ -61,7 +61,13 @@ class Sequential(Model):
     ```
     """
 
-    def __init__(self, layers=None, trainable=True, name=None, validate_output_activation=True):
+    def __init__(
+        self,
+        layers=None,
+        trainable=True,
+        name=None,
+        validate_output_activation=True,
+    ):
         super().__init__(trainable=trainable, name=name)
         self._functional = None
         self._layers = []
@@ -196,8 +202,11 @@ class Sequential(Model):
                     )
                 raise e
         outputs = x
-        self._functional = Functional(inputs=inputs, outputs=outputs,
-                                      validate_output_activation=self.validate_output_activation)
+        self._functional = Functional(
+            inputs=inputs,
+            outputs=outputs,
+            validate_output_activation=self.validate_output_activation,
+        )
         self.built = True
 
     def call(self, inputs, training=None, mask=None):

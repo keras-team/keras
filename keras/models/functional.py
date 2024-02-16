@@ -7,7 +7,8 @@ import tree
 from keras import backend
 from keras import ops
 from keras.backend.common import global_state
-from keras.layers import Softmax, Dense
+from keras.layers import Dense
+from keras.layers import Softmax
 from keras.layers.convolutional.base_conv import BaseConv
 from keras.layers.input_spec import InputSpec
 from keras.layers.layer import Layer
@@ -165,9 +166,10 @@ class Functional(Function, Model):
         self.output_names = [x.name for x in output_layers]
 
         if validate_softmax:
-            layer_output_mapping = {layer.name:layer for layer in output_layers}
+            layer_output_mapping = {
+                layer.name: layer for layer in output_layers
+            }
             _check_output_activation_softmax(layer_output_mapping)
-
 
     def _lock_state(self):
         # Unlike other layers, we allow Functional state to be mutable after
@@ -689,7 +691,11 @@ def _check_output_activation_softmax(output_layers):
     """
 
     # remove all the layers except Dense, and BaseConv
-    output_layers = {k: v for k, v in output_layers.items() if isinstance(v, (Dense, BaseConv))}
+    output_layers = {
+        k: v
+        for k, v in output_layers.items()
+        if isinstance(v, (Dense, BaseConv))
+    }
 
     for layer_name, layer in output_layers.items():
 
