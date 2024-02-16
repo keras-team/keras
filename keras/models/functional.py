@@ -811,15 +811,17 @@ def clone_graph_nodes(inputs, outputs):
 
 
 def _check_output_activation_softmax(output_layers):
-    """Ensures output activation is suitable for Sequential and Functional models.
+    """Ensures output activation is suitable.
+
     Verifies the output layer's activation function is softmax and confirms that
     the axis of application leads to a singular unit output.
+
     Parameters:
-        output_layers (dict): A mapping of output layer names to their respective layer
+        output_layers: A mapping of output layer names to their respective layer
             instances.
     Raises:
-        ValueError: Triggered when the softmax activation results in a constant model
-            output of 1.0 across all inputs.
+        ValueError: Triggered when the softmax activation results in a constant
+            model output of 1.0 across all inputs.
     """
 
     # remove all the layers except Dense, and BaseConv
@@ -862,6 +864,7 @@ def _check_output_activation_softmax(output_layers):
                     "think that the error is raised due to an incorrect check, "
                     "please file an issue on "
                     "https://github.com/keras-team/keras/issues. You can "
-                    "disable this check by setting `validate_output_activation=False` "
-                    "when constructing the model."
+                    "disable this check by setting "
+                    "`validate_output_activation=False` when constructing the "
+                    "model."
                 )
