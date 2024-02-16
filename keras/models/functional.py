@@ -733,16 +733,16 @@ def clone_graph_nodes(inputs, outputs):
     cloned_inputs = []
     cloned_outputs = []
     # We not only need to create copies of Nodes (mimic the calls), also need to
-    # clone keras_tensors to avoid the override of _keras_history attached on
-    # the keras_tensor. The following dict is used to track any keras tensor we
+    # clone Keras tensors to avoid the override of _keras_history attached on
+    # the Keras tensor. The following dict is used to track any keras tensor we
     # cloned The key is the string ID of the original keras tensor, and value is
-    # the cloned keras_tensor instance.
+    # the cloned Keras tensor instance.
     kt_id_mapping = {}
     op_id_mapping = {}
 
     for kt_input in tree.flatten(inputs):
         if is_input_keras_tensor(kt_input):
-            # For any existing keras_tensor from keras.Input, leave them as is.
+            # For any existing Keras tensor from keras.Input, leave them as is.
             cloned_inputs.append(kt_input)
             kt_id_mapping[id(kt_input)] = kt_input
         else:
@@ -763,9 +763,6 @@ def clone_graph_nodes(inputs, outputs):
     for kt_output in tree.flatten(outputs):
         cpy = clone_single_keras_tensor(kt_output)
         # We reuse the _keras_history here, which contains the old information.
-        # It is used in the Node constructor to check if the tensor
-        # "is_keras_tensor()" The history will be override by the Node
-        # constructor anyway for the corresponding layer output anyway.
         cpy._keras_history = kt_output._keras_history
         cloned_outputs.append(cpy)
         kt_id_mapping[id(kt_output)] = cpy
@@ -776,8 +773,8 @@ def clone_graph_nodes(inputs, outputs):
             operation = op_id_mapping[id(node.operation)]
         else:
             operation = node.operation
-        # Clone any keras_tensors to avoid override of _keras_history
-        # Or reuse an existing keras_tensor if it has already been cloned.
+        # Clone any Keras tensor to avoid override of _keras_history
+        # Or reuse an existing Keras tensor if it has already been cloned.
         output_copy = clone_keras_tensors(node.output_tensors, kt_id_mapping)
         if not isinstance(operation, InputLayer):
             call_args_copy = clone_keras_tensors(
