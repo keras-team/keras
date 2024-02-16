@@ -3,7 +3,7 @@ import scipy.linalg as sl
 
 from keras.backend import standardize_dtype
 from keras.backend.common import dtypes
-from keras.backend.torch.core import convert_to_tensor
+from keras.backend.numpy.core import convert_to_tensor
 
 
 def cholesky(a):
