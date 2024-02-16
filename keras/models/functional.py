@@ -7,15 +7,20 @@ import tree
 from keras import backend
 from keras import ops
 from keras.backend.common import global_state
+from keras.layers.core.input_layer import Input
+from keras.layers.core.input_layer import InputLayer
 from keras.layers.input_spec import InputSpec
 from keras.layers.layer import Layer
 from keras.legacy.saving import saving_utils
 from keras.legacy.saving import serialization as legacy_serialization
 from keras.models.model import Model
 from keras.ops.function import Function
+from keras.ops.function import _build_map
 from keras.ops.function import make_node_key
+from keras.ops.node import Node
 from keras.saving import serialization_lib
 from keras.utils import tracking
+from keras.utils.nest import pack_sequence_as
 
 
 class Functional(Function, Model):
@@ -148,20 +153,8 @@ class Functional(Function, Model):
 
         trainable = kwargs.pop("trainable", None)
 
-        # if isinstance(inputs, KerasTensor) and not tensor_is_from_input_constructor(inputs):
-        #     alt_input = Input(batch_shape=inputs.shape, dtype=inputs.dtype, sparse=inputs.sparse)
-        #     alt_input._keras_history[0]._outbound_nodes = 
-
-        if not all(
-            [
-                is_input_keras_tensor(t)
-                for t in tree.flatten(inputs)
-            ]
-        ):
-            inputs, outputs = clone_graph_nodes(
-                inputs, outputs
-            )
-
+        if not all([is_input_keras_tensor(t) for t in tree.flatten(inputs)]):
+            inputs, outputs = clone_graph_nodes(inputs, outputs)
 
         Function.__init__(self, inputs, outputs, name=name, **kwargs)
 
@@ -693,6 +686,30 @@ def is_input_keras_tensor(x):
     return node.is_input
 
 
+def clone_single_keras_tensor(x):
+    return backend.KerasTensor(
+        shape=x.shape, dtype=x.dtype, sparse=x.sparse, name=x.name + "_clone"
+    )
+
+
+def clone_keras_tensors(tensors, kt_id_mapping):
+    def swap(x):
+        if not isinstance(x, backend.KerasTensor):
+            return x
+        if id(x) in kt_id_mapping:
+            return kt_id_mapping[id(x)]
+        new_x = clone_single_keras_tensor(x)
+        kt_id_mapping[id(x)] = new_x
+        return new_x
+
+    return tree.map_structure(swap, tensors)
+
+
+def find_nodes_by_inputs_and_outputs(inputs, outputs):
+    nodes, _ = _build_map(inputs, outputs)
+    return nodes
+
+
 def clone_graph_nodes(inputs, outputs):
     """Clone the `Node` between the inputs and output tensors.
 
@@ -721,24 +738,30 @@ def clone_graph_nodes(inputs, outputs):
     # cloned The key is the string ID of the original keras tensor, and value is
     # the cloned keras_tensor instance.
     kt_id_mapping = {}
+    op_id_mapping = {}
 
-    for kt_input in tf.nest.flatten(inputs):
-        if kt_input.node.is_input:
-            # For any existing keras_tensor from tf.keras.Input, we leave them
-            # as is.
+    for kt_input in tree.flatten(inputs):
+        if is_input_keras_tensor(kt_input):
+            # For any existing keras_tensor from keras.Input, leave them as is.
             cloned_inputs.append(kt_input)
             kt_id_mapping[id(kt_input)] = kt_input
         else:
-            # We need to create a new tf.keras.Input for any intermediate
-            # keras_tensor
-            cpy = _clone_keras_tensor(kt_input)
-            cloned_input = input_layer_module.Input(tensor=cpy)
+            # We need to create a new Keras tensor for any intermediate tensor
+            cloned_input = Input(
+                batch_shape=kt_input.shape,
+                dtype=kt_input.dtype,
+                sparse=kt_input.sparse,
+                name=kt_input.name + "CLONE",
+            )
             cloned_inputs.append(cloned_input)
             kt_id_mapping[id(kt_input)] = cloned_input
-    cloned_inputs = tf.nest.pack_sequence_as(inputs, cloned_inputs)
+            op_id_mapping[id(kt_input._keras_history[0])] = (
+                cloned_input._keras_history[0]
+            )
+    cloned_inputs = pack_sequence_as(inputs, cloned_inputs)
 
-    for kt_output in tf.nest.flatten(outputs):
-        cpy = _clone_keras_tensor(kt_output)
+    for kt_output in tree.flatten(outputs):
+        cpy = clone_single_keras_tensor(kt_output)
         # We reuse the _keras_history here, which contains the old information.
         # It is used in the Node constructor to check if the tensor
         # "is_keras_tensor()" The history will be override by the Node
@@ -746,21 +769,33 @@ def clone_graph_nodes(inputs, outputs):
         cpy._keras_history = kt_output._keras_history
         cloned_outputs.append(cpy)
         kt_id_mapping[id(kt_output)] = cpy
-    cloned_outputs = tf.nest.pack_sequence_as(outputs, cloned_outputs)
+    cloned_outputs = pack_sequence_as(outputs, cloned_outputs)
 
     for node in nodes_to_clone:
+        if id(node.operation) in op_id_mapping:
+            operation = op_id_mapping[id(node.operation)]
+        else:
+            operation = node.operation
         # Clone any keras_tensors to avoid override of _keras_history
         # Or reuse an existing keras_tensor if it has already been cloned.
         output_copy = clone_keras_tensors(node.output_tensors, kt_id_mapping)
-        call_args_copy = clone_keras_tensors(node.call_args, kt_id_mapping)
-        call_kwargs_copy = clone_keras_tensors(node.call_kwargs, kt_id_mapping)
+        if not isinstance(operation, InputLayer):
+            call_args_copy = clone_keras_tensors(
+                node.arguments.args, kt_id_mapping
+            )
+            call_kwargs_copy = clone_keras_tensors(
+                node.arguments.kwargs, kt_id_mapping
+            )
+        else:
+            call_args_copy = ()
+            call_kwargs_copy = {}
         # Creating new nodes based on the existing node information.  Node wires
         # itself to inbound and outbound layers.  The Node constructor actually
         # updates this layer's self._inbound_nodes, sets _keras_history on the
         # outputs, and adds itself to the `_outbound_nodes` of the layers that
         # produced the inputs to this layer call.
-        node_module.Node(
-            node.layer,
+        Node(
+            operation,
             call_args=call_args_copy,
             call_kwargs=call_kwargs_copy,
             outputs=output_copy,

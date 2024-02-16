@@ -214,12 +214,6 @@ def map_graph(inputs, outputs):
     # "depth" is number of operations between output Node and the Node.
     # Nodes are ordered from inputs -> outputs.
     nodes_in_decreasing_depth, operation_indices = _build_map(inputs, outputs)
-    print("--")
-    print("--")
-    print("--")
-    print("Inputs:", inputs)
-    print("Outputs:", outputs)
-    print("nodes_in_decreasing_depth:", nodes_in_decreasing_depth)
     network_nodes = {
         make_node_key(node.operation, node.operation._inbound_nodes.index(node))
         for node in nodes_in_decreasing_depth
@@ -261,11 +255,9 @@ def map_graph(inputs, outputs):
             network_nodes.add(make_node_key(input_operation, 0))
 
     # Build a dict {depth: list of nodes with this depth}
-    nodes_set = set(nodes_in_decreasing_depth)
     nodes_by_depth = collections.defaultdict(list)
     for node, depth in nodes_depths.items():
-        if node in nodes_set:
-            nodes_by_depth[depth].append(node)
+        nodes_by_depth[depth].append(node)
 
     # Build a dict {depth: list of operations with this depth}
     operations_by_depth = collections.defaultdict(list)
@@ -289,8 +281,6 @@ def map_graph(inputs, outputs):
     depth_keys = list(nodes_by_depth.keys())
     depth_keys.sort(reverse=True)
 
-    print("depth_keys", depth_keys)
-
     # Check that all tensors required are computable.
     # computable_tensors: all tensors in the graph
     # that can be computed from the inputs provided.
@@ -300,12 +290,8 @@ def map_graph(inputs, outputs):
 
     operations_with_complete_input = []  # To provide a better error msg.
     for depth in depth_keys:
-        print("computable_tensors", computable_tensors)
-        print(f"nodes_by_depth[{depth}], {nodes_by_depth[depth]}")
         for node in nodes_by_depth[depth]:
-            print("...node:", node)
             for x in tree.flatten(node.input_tensors):
-                print("... ... input tensor:", x)
                 if x not in computable_tensors:
                     operation = node.operation
                     raise ValueError(
@@ -378,8 +364,6 @@ def _build_map_helper(
     operation_indices,
 ):
     """Recursive helper for `_build_map`."""
-    if tensor in inputs:
-        return
     (
         operation,
         node_index,
@@ -407,11 +391,11 @@ def _build_map_helper(
 
     # Propagate to all previous tensors connected to this node.
     nodes_in_progress.add(node)
-    if not node.is_input:
-        for input_tensor in node.input_tensors:
+    if not node.is_input and tensor not in tree.flatten(inputs):
+        for tensor in node.input_tensors:
             _build_map_helper(
                 inputs,
-                input_tensor,
+                tensor,
                 finished_nodes,
                 nodes_in_progress,
                 nodes_in_decreasing_depth,
