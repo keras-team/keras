@@ -770,44 +770,34 @@ def pad_images(
 def crop_images(
     images, offset_height, offset_width, target_height, target_width
 ):
-    """Crops an `image` to a specified `height` and `width`.
+    """Crop `images` to a specified `height` and `width`.
 
-    This op cuts a rectangular box out of `image`. The top-left corner
-    of the bounding box is at `offset_height, offset_width` in `image`, and the
-    lower-right corner is at
-    `offset_height + target_height, offset_width + target_width`.
+    Args:
+        images: 4-D batch of images of shape `(batch, height, width, channels)`
+             or 3-D single image of shape `(height, width, channels)`.
+        offset_height: Number of columns to crop on the top.
+        offset_width: Number of columns to crop on the left.
+        target_height: Height of the output images.
+        target_width: Width of the output images.
 
-    Example Usage:
+    Returns:
+        If `images` were 4D, a 4D float Tensor of shape
+            `(batch, target_height, target_width, channels)`
+        If `images` were 3D, a 3D float Tensor of shape
+            `(target_height, target_width, channels)`
 
-    >>> image = np.reshape(np.arange(1, 28, dtype="float32"), [3, 3, 3])
-    >>> image[:,:,0] # print the first channel of the 3-D tensor
+    Example:
+
+    >>> images = np.reshape(np.arange(1, 28, dtype="float32"), [3, 3, 3])
+    >>> images[:,:,0] # print the first channel of the images
     array([[ 1.,  4.,  7.],
            [10., 13., 16.],
            [19., 22., 25.]], dtype=float32)
-    >>> cropped_image = keras.image.crop_images(image, 0, 0, 2, 2)
-    >>> cropped_image[:,:,0] # print the first channel of the cropped 3-D tensor
+    >>> cropped_images = keras.image.crop_images(images, 0, 0, 2, 2)
+    >>> cropped_images[:,:,0] # print the first channel of the cropped images
     array([[ 1.,  4.],
-           [10., 13.]], dtype=float32)
+           [10., 13.]], dtype=float32)"""
 
-    Args:
-    images: 4-D `Tensor` of shape `[batch, height, width, channels]` or 3-D
-        `Tensor` of shape `[height, width, channels]`.
-    offset_height: Vertical coordinate of the top-left corner of the bounding
-        box in `image`. Must be 0-D int32 `Tensor` or python integer.
-    offset_width: Horizontal coordinate of the top-left corner of the bounding
-        box in `image`. Must be 0-D int32 `Tensor` or python integer.
-    target_height: Height of the bounding box. Must be 0-D int32 `Tensor` or
-        python integer.
-    target_width: Width of the bounding box. Must be 0-D int32 `Tensor` or
-        python integer.
-
-    Returns:
-    If `image` was 4-D, a 4-D `Tensor` of shape
-    `[batch, target_height, target_width, channels]`.
-    If `image` was 3-D, a 3-D `Tensor` of shape
-    `[target_height, target_width, channels]`.
-    It has the same dtype with `image`.
-    """
     if any_symbolic_tensors((images,)):
         return CropImages(
             offset_height,
