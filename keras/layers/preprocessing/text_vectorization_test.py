@@ -66,11 +66,14 @@ class TextVectorizationTest(testing.TestCase):
         self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([[4, 1, 3, 0], [1, 2, 0, 0]]))
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
     def test_save_load_with_ngrams_flow(self):
         input_data = np.array(["foo bar", "bar baz", "baz bada boom"])
         model = Sequential(
             [
-                layers.Input(dtype=tf.string, shape=(1,)),
+                layers.Input(dtype="string", shape=(1,)),
                 layers.TextVectorization(ngrams=(1, 2)),
             ]
         )
