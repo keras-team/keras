@@ -132,7 +132,7 @@ class BaseConv(Layer):
         if self.groups <= 0:
             raise ValueError(
                 "The number of groups must be a positive integer. "
-                f"Received groups={self.groups}."
+                f"Received: groups={self.groups}."
             )
 
         if self.filters is not None and self.filters % self.groups != 0:

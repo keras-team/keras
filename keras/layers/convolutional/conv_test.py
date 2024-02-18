@@ -504,7 +504,11 @@ class ConvBasicTest(testing.TestCase, parameterized.TestCase):
             )
 
         # `groups` is not strictly positive.
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            "The number of groups must be a positive integer. "
+            "Received: groups=0.",
+        ):
             layers.Conv2D(filters=5, kernel_size=(2, 2), groups=0)
 
         # `filters` cannot be divided by `groups`.
