@@ -503,7 +503,7 @@ class MelSpectrogram(Layer):
         if callable(self.ref_power):
             ref_value = self.ref_power(log_spec)
         else:
-            ref_value = ops.abs(self.ref_power)
+            ref_value = ops.abs(ops.convert_to_tensor(self.ref_power))
         log_spec -= (
             10.0
             * ops.log(ops.maximum(ref_value, self.min_power))
