@@ -1,6 +1,7 @@
+import math
+
 import keras
 from keras import ops
-import math
 
 
 def gcd(a, b):
