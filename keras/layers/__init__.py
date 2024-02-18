@@ -64,6 +64,7 @@ from keras.layers.pooling.global_max_pooling3d import GlobalMaxPooling3D
 from keras.layers.pooling.max_pooling1d import MaxPooling1D
 from keras.layers.pooling.max_pooling2d import MaxPooling2D
 from keras.layers.pooling.max_pooling3d import MaxPooling3D
+from keras.layers.preprocessing.audio_preprocessing import MelSpectrogram
 from keras.layers.preprocessing.category_encoding import CategoryEncoding
 from keras.layers.preprocessing.center_crop import CenterCrop
 from keras.layers.preprocessing.discretization import Discretization

@@ -1,7 +1,8 @@
 import math
 
-import keras
 from keras import ops
+from keras.api_export import keras_export
+from keras.layers.layer import Layer
 
 
 def gcd(a, b):
@@ -311,7 +312,8 @@ def linear_to_mel_weight_matrix(
     )
 
 
-class MelSpectrogram(keras.layers.Layer):
+@keras_export("keras.layers.MelSpectrogram")
+class MelSpectrogram(Layer):
     """A preprocessing layer to convert raw audio signals to Mel spectrograms.
 
     This layer takes `float32`/`float64` single or batched audio signal as
