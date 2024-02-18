@@ -44,11 +44,11 @@ def frame(
     frame_step = ops.convert_to_tensor(frame_step)
     axis = ops.convert_to_tensor(axis)
 
-    signal_shape = ops.shape(signal)
+    signal_shape = ops.convert_to_tensor(ops.shape(signal))
     # Axis can be negative. Convert it to positive.
     axis = ops.arange(ops.ndim(signal_shape))[axis]
     outer_dimensions, length_samples, inner_dimensions = ops.split(
-        ops.array(signal_shape), [axis, axis + 1]
+        signal_shape, [axis, axis + 1]
     )
     length_samples = ops.reshape(length_samples, [])
     num_outer_dimensions = ops.size(outer_dimensions)
@@ -91,12 +91,22 @@ def frame(
     subframes_per_hop = frame_step // subframe_length
     num_subframes = length_samples // subframe_length
 
+    # print(outer_dimensions, [num_subframes * subframe_length], inner_dimensions)
+    # print(type(outer_dimensions), type([num_subframes * subframe_length]), type(inner_dimensions))
     slice_shape = ops.concatenate(
-        [outer_dimensions, [num_subframes * subframe_length], inner_dimensions],
+        [
+            outer_dimensions,
+            ops.convert_to_tensor([num_subframes * subframe_length]),
+            inner_dimensions,
+        ],
         0,
     )
     subframe_shape = ops.concatenate(
-        [outer_dimensions, [num_subframes, subframe_length], inner_dimensions],
+        [
+            outer_dimensions,
+            ops.convert_to_tensor([num_subframes, subframe_length]),
+            inner_dimensions,
+        ],
         0,
     )
     subframes = ops.reshape(
