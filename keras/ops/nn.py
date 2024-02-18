@@ -1,5 +1,7 @@
 """Commonly-used neural network operations not included in NumPy."""
 
+import warnings
+
 from keras import backend
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
@@ -536,6 +538,14 @@ def softmax(x, axis=-1):
     array([0.09003057, 0.24472847, 0.66524096], shape=(3,), dtype=float64)
 
     """
+    if isinstance(axis, int) and backend.shape(x)[axis] == 1:
+        warnings.warn(
+            f"You are using a softmax over axis {axis} "
+            f"of a tensor of shape {backend.shape(x)}. This axis "
+            "has size 1. The softmax operation will always return "
+            "the value 1, which is likely not what you intended. "
+            "Did you mean to use a sigmoid instead?"
+        )
     if any_symbolic_tensors((x,)):
         return Softmax(axis).symbolic_call(x)
     if isinstance(axis, tuple):
