@@ -91,8 +91,6 @@ def frame(
     subframes_per_hop = frame_step // subframe_length
     num_subframes = length_samples // subframe_length
 
-    # print(outer_dimensions, [num_subframes * subframe_length], inner_dimensions)
-    # print(type(outer_dimensions), type([num_subframes * subframe_length]), type(inner_dimensions))
     slice_shape = ops.concatenate(
         [
             outer_dimensions,
