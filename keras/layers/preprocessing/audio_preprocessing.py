@@ -21,9 +21,11 @@ def gcd(a, b):
     a = ops.convert_to_tensor(a)
     b = ops.convert_to_tensor(b)
 
-    a, b = ops.while_loop(lambda _, b: ops.greater(b, ops.zeros_like(b)),
-                          lambda a, b: [b, ops.mod(a, b)],
-                          [a, b])
+    a, b = ops.while_loop(
+        lambda _, b: ops.greater(b, ops.zeros_like(b)),
+        lambda a, b: [b, ops.mod(a, b)],
+        [a, b],
+    )
     return a
 
 
