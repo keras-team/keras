@@ -50,7 +50,7 @@ class JaxDistributionLibTest(testing.TestCase):
     def test_initialize_with_all_job_addresses(self, mock_jax_initialze):
         backend_dlib.initialize("10.0.0.1:1234,10.0.0.2:2345", 2, 0)
         mock_jax_initialze.assert_called_once_with(
-            corrdinator_address="10.0.0.1:1234", num_processes=2, process_id=0
+            coordinator_address="10.0.0.1:1234", num_processes=2, process_id=0
         )
 
     def test_initialize_validate_job_and_process(self):
@@ -63,7 +63,7 @@ class JaxDistributionLibTest(testing.TestCase):
     def test_initialize_with_coordinater_address(self, mock_jax_initialze):
         backend_dlib.initialize("10.0.0.1:1234", 2, 0)
         mock_jax_initialze.assert_called_once_with(
-            corrdinator_address="10.0.0.1:1234", num_processes=2, process_id=0
+            coordinator_address="10.0.0.1:1234", num_processes=2, process_id=0
         )
 
     def test_distribute_tensor(self):
