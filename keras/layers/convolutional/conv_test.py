@@ -488,7 +488,8 @@ class ConvBasicTest(testing.TestCase, parameterized.TestCase):
         # `filters` is not positive.
         with self.assertRaisesRegex(
             ValueError,
-            "Invalid value for argument `filters`. Expected a strictly positive value. Received filters=0.",
+            "Invalid value for argument `filters`. Expected a "
+            "strictly positive value. Received filters=0.",
         ):
             layers.Conv1D(filters=0, kernel_size=1)
 
