@@ -17,14 +17,14 @@ from keras.backend.common.backend_utils import (
 
 
 def np_conv1d_transpose(
-    x,
-    kernel_weights,
-    bias_weights,
-    strides,
-    padding,
-    output_padding,
-    data_format,
-    dilation_rate,
+        x,
+        kernel_weights,
+        bias_weights,
+        strides,
+        padding,
+        output_padding,
+        data_format,
+        dilation_rate,
 ):
     if data_format == "channels_first":
         x = x.transpose((0, 2, 1))
@@ -77,27 +77,27 @@ def np_conv1d_transpose(
     for nb in range(n_batch):
         for h_x_idx in range(h_x):
             h_out_idx = h_x_idx * h_stride  # Index in output
-            output[nb, h_out_idx : h_out_idx + h_kernel, :] += np.sum(
+            output[nb, h_out_idx: h_out_idx + h_kernel, :] += np.sum(
                 kernel_weights[:, :, :] * x[nb, h_x_idx, :], axis=-1
             )
     output = output + bias_weights
 
     # Cut padding results from output
-    output = output[:, h_pad_side1 : h_out + h_pad_side1]
+    output = output[:, h_pad_side1: h_out + h_pad_side1]
     if data_format == "channels_first":
         output = output.transpose((0, 2, 1))
     return output
 
 
 def np_conv2d_transpose(
-    x,
-    kernel_weights,
-    bias_weights,
-    strides,
-    padding,
-    output_padding,
-    data_format,
-    dilation_rate,
+        x,
+        kernel_weights,
+        bias_weights,
+        strides,
+        padding,
+        output_padding,
+        data_format,
+        dilation_rate,
 ):
     if data_format == "channels_first":
         x = x.transpose((0, 2, 3, 1))
@@ -157,10 +157,10 @@ def np_conv2d_transpose(
             for w_x_idx in range(w_x):
                 w_out_idx = w_x_idx * w_stride
                 output[
-                    nb,
-                    h_out_idx : h_out_idx + h_kernel,
-                    w_out_idx : w_out_idx + w_kernel,
-                    :,
+                nb,
+                h_out_idx: h_out_idx + h_kernel,
+                w_out_idx: w_out_idx + w_kernel,
+                :,
                 ] += np.sum(
                     kernel_weights[:, :, :, :] * x[nb, h_x_idx, w_x_idx, :],
                     axis=-1,
@@ -169,24 +169,24 @@ def np_conv2d_transpose(
 
     # Cut padding results from output
     output = output[
-        :,
-        h_pad_side1 : h_out + h_pad_side1,
-        w_pad_side1 : w_out + w_pad_side1,
-    ]
+             :,
+             h_pad_side1: h_out + h_pad_side1,
+             w_pad_side1: w_out + w_pad_side1,
+             ]
     if data_format == "channels_first":
         output = output.transpose((0, 3, 1, 2))
     return output
 
 
 def np_conv3d_transpose(
-    x,
-    kernel_weights,
-    bias_weights,
-    strides,
-    padding,
-    output_padding,
-    data_format,
-    dilation_rate,
+        x,
+        kernel_weights,
+        bias_weights,
+        strides,
+        padding,
+        output_padding,
+        data_format,
+        dilation_rate,
 ):
     if data_format == "channels_first":
         x = x.transpose((0, 2, 3, 4, 1))
@@ -262,11 +262,11 @@ def np_conv3d_transpose(
                 for d_x_idx in range(d_x):
                     d_out_idx = d_x_idx * d_stride
                     output[
-                        nb,
-                        h_out_idx : h_out_idx + h_kernel,
-                        w_out_idx : w_out_idx + w_kernel,
-                        d_out_idx : d_out_idx + d_kernel,
-                        :,
+                    nb,
+                    h_out_idx: h_out_idx + h_kernel,
+                    w_out_idx: w_out_idx + w_kernel,
+                    d_out_idx: d_out_idx + d_kernel,
+                    :,
                     ] += np.sum(
                         kernel_weights[:, :, :, :, :]
                         * x[nb, h_x_idx, w_x_idx, d_x_idx, :],
@@ -276,11 +276,11 @@ def np_conv3d_transpose(
 
     # Cut padding results from output
     output = output[
-        :,
-        h_pad_side1 : h_out + h_pad_side1,
-        w_pad_side1 : w_out + w_pad_side1,
-        d_pad_side1 : d_out + d_pad_side1,
-    ]
+             :,
+             h_pad_side1: h_out + h_pad_side1,
+             w_pad_side1: w_out + w_pad_side1,
+             d_pad_side1: d_out + d_pad_side1,
+             ]
     if data_format == "channels_first":
         output = output.transpose((0, 4, 1, 2, 3))
     return output
@@ -324,16 +324,16 @@ class ConvTransposeBasicTest(testing.TestCase, parameterized.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_conv1d_transpose_basic(
-        self,
-        filters,
-        kernel_size,
-        strides,
-        padding,
-        output_padding,
-        data_format,
-        dilation_rate,
-        input_shape,
-        output_shape,
+            self,
+            filters,
+            kernel_size,
+            strides,
+            padding,
+            output_padding,
+            data_format,
+            dilation_rate,
+            input_shape,
+            output_shape,
     ):
         self.run_layer_test(
             layers.Conv1DTranspose,
@@ -402,20 +402,20 @@ class ConvTransposeBasicTest(testing.TestCase, parameterized.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_conv2d_transpose_basic(
-        self,
-        filters,
-        kernel_size,
-        strides,
-        padding,
-        output_padding,
-        data_format,
-        dilation_rate,
-        input_shape,
-        output_shape,
+            self,
+            filters,
+            kernel_size,
+            strides,
+            padding,
+            output_padding,
+            data_format,
+            dilation_rate,
+            input_shape,
+            output_shape,
     ):
         if (
-            data_format == "channels_first"
-            and backend.backend() == "tensorflow"
+                data_format == "channels_first"
+                and backend.backend() == "tensorflow"
         ):
             pytest.skip("channels_first unsupported on CPU with TF")
 
@@ -475,16 +475,16 @@ class ConvTransposeBasicTest(testing.TestCase, parameterized.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_conv3d_transpose_basic(
-        self,
-        filters,
-        kernel_size,
-        strides,
-        padding,
-        output_padding,
-        data_format,
-        dilation_rate,
-        input_shape,
-        output_shape,
+            self,
+            filters,
+            kernel_size,
+            strides,
+            padding,
+            output_padding,
+            data_format,
+            dilation_rate,
+            input_shape,
+            output_shape,
     ):
         self.run_layer_test(
             layers.Conv3DTranspose,
@@ -507,24 +507,41 @@ class ConvTransposeBasicTest(testing.TestCase, parameterized.TestCase):
 
     def test_bad_init_args(self):
         # `filters` is not positive.
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+                ValueError,
+                "Invalid value for argument `filters`. Expected a "
+                "strictly positive value. Received filters=0."
+        ):
             layers.Conv1DTranspose(filters=0, kernel_size=1)
 
         # `kernel_size` has 0.
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+                ValueError,
+                r"The `kernel_size` argument must be a tuple of "
+                r"\d+ integers. Received kernel_size=\(1, 0\), including values"
+                r" \{0\} that do not satisfy `value > 0`"
+        ):
             layers.Conv2DTranspose(filters=2, kernel_size=(1, 0))
 
         # `strides` has 0.
-        with self.assertRaises(ValueError):
-            layers.Conv2DTranspose(
-                filters=2, kernel_size=(2, 2), strides=(1, 0)
-            )
+        with self.assertRaisesRegex(
+                ValueError,
+                r"The `strides` argument must be a tuple of \d+ "
+                r"integers. Received strides=\(1, 0\), including values \{0\} "
+                r"that do not satisfy `value > 0`"
+        ):
+            layers.Conv2DTranspose(filters=2, kernel_size=(2, 2),
+                                   strides=(1, 0))
 
         # `dilation_rate > 1` while `strides > 1`.
-        with self.assertRaises(ValueError):
-            layers.Conv2DTranspose(
-                filters=2, kernel_size=(2, 2), strides=2, dilation_rate=(2, 1)
-            )
+        with self.assertRaisesRegex(
+                ValueError,
+                "`strides > 1` not supported in conjunction with "
+                "`dilation_rate > 1`. Received: strides=\(2, 2\) and "
+                "dilation_rate=\(2, 1\)"
+        ):
+            layers.Conv2DTranspose(filters=2, kernel_size=(2, 2), strides=2,
+                                   dilation_rate=(2, 1))
 
 
 class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -558,14 +575,14 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
         },
     )
     def test_conv1d_transpose(
-        self,
-        filters,
-        kernel_size,
-        strides,
-        padding,
-        output_padding,
-        data_format,
-        dilation_rate,
+            self,
+            filters,
+            kernel_size,
+            strides,
+            padding,
+            output_padding,
+            data_format,
+            dilation_rate,
     ):
         layer = layers.Conv1DTranspose(
             filters=filters,
@@ -638,14 +655,14 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
         },
     )
     def test_conv2d_transpose(
-        self,
-        filters,
-        kernel_size,
-        strides,
-        padding,
-        output_padding,
-        data_format,
-        dilation_rate,
+            self,
+            filters,
+            kernel_size,
+            strides,
+            padding,
+            output_padding,
+            data_format,
+            dilation_rate,
     ):
         layer = layers.Conv2DTranspose(
             filters=filters,
@@ -709,14 +726,14 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
         },
     )
     def test_conv3d_transpose(
-        self,
-        filters,
-        kernel_size,
-        strides,
-        padding,
-        output_padding,
-        data_format,
-        dilation_rate,
+            self,
+            filters,
+            kernel_size,
+            strides,
+            padding,
+            output_padding,
+            data_format,
+            dilation_rate,
     ):
         layer = layers.Conv3DTranspose(
             filters=filters,
@@ -757,7 +774,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
         output_padding=[None] + list(range(1, 5)),
     )
     def test_conv1d_transpose_consistency(
-        self, kernel_size, strides, padding, output_padding
+            self, kernel_size, strides, padding, output_padding
     ):
         """Test conv transpose, on an 1D array of size 3, against several
         convolution parameters. In particular, tests if Torch inconsistencies
@@ -848,7 +865,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
         output_padding=[None] + list(range(1, 5)),
     )
     def test_shape_inference_static_unknown_shape(
-        self, kernel_size, strides, padding, output_padding
+            self, kernel_size, strides, padding, output_padding
     ):
         if backend.config.image_data_format() == "channels_last":
             input_shape = (None, None, 3)
