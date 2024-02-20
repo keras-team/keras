@@ -79,8 +79,8 @@ def linear_to_mel_weight_matrix(
     M = keras.ops.matmul(S, A)
     ```
 
-    The matrix can be used with `keras.ops.tensordot` to convert an arbitrary rank
-    `Tensor` of linear-scale spectral bins into the mel scale.
+    The matrix can be used with `keras.ops.tensordot` to convert an arbitrary
+    rank `Tensor` of linear-scale spectral bins into the mel scale.
 
     ```
     # S has shape [..., num_spectrogram_bins].
