@@ -11,12 +11,12 @@ def _mel_to_hertz(mel_values, name=None):
     """Converts frequencies in `mel_values` from the mel scale to linear scale.
 
     Args:
-    mel_values: A `Tensor` of frequencies in the mel scale.
-    name: An optional name for the operation.
+        mel_values: A tensor of frequencies in the mel scale.
+        name: An optional name for the operation.
 
     Returns:
-    A `Tensor` of the same shape and type as `mel_values` containing linear
-    scale frequencies in Hertz.
+        A tensor of the same shape and type as `mel_values` containing linear
+        scale frequencies in Hertz.
     """
     mel_values = ops.convert_to_tensor(mel_values)
     return _MEL_BREAK_FREQUENCY_HERTZ * (
@@ -28,12 +28,12 @@ def _hertz_to_mel(frequencies_hertz, name=None):
     """Converts frequencies in `frequencies_hertz` in Hertz to the mel scale.
 
     Args:
-    frequencies_hertz: A `Tensor` of frequencies in Hertz.
-    name: An optional name for the operation.
+        frequencies_hertz: A tensor of frequencies in Hertz.
+        name: An optional name for the operation.
 
     Returns:
-    A `Tensor` of the same shape and type of `frequencies_hertz` containing
-    frequencies in the mel scale.
+        A tensor of the same shape and type of `frequencies_hertz` containing
+        frequencies in the mel scale.
     """
     frequencies_hertz = ops.convert_to_tensor(frequencies_hertz)
     return _MEL_HIGH_FREQUENCY_Q * ops.log(
