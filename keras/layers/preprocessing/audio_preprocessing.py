@@ -187,9 +187,9 @@ class MelSpectrogram(Layer):
     speech and music processing tasks like speech recognition, speaker
     identification, and music genre classification.
 
-    For more information on spectrograms, you may refer to this resources:
-    [spectrogram](https://en.wikipedia.org/wiki/Spectrogram),
-    [mel scale](https://en.wikipedia.org/wiki/Mel_scale).
+    References:
+    - [Spectrogram](https://en.wikipedia.org/wiki/Spectrogram),
+    - [Mel scale](https://en.wikipedia.org/wiki/Mel_scale).
 
     Examples:
 
