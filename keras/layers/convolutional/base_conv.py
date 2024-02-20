@@ -104,7 +104,7 @@ class BaseConv(Layer):
         )
         self.rank = rank
         self.filters = filters
-        self.groups = groups or 1
+        self.groups = groups
         self.kernel_size = standardize_tuple(kernel_size, rank, "kernel_size")
         self.strides = standardize_tuple(strides, rank, "strides")
         self.dilation_rate = standardize_tuple(
@@ -127,6 +127,12 @@ class BaseConv(Layer):
             raise ValueError(
                 "Invalid value for argument `filters`. Expected a strictly "
                 f"positive value. Received filters={self.filters}."
+            )
+
+        if self.groups <= 0:
+            raise ValueError(
+                "The number of groups must be a positive integer. "
+                f"Received: groups={self.groups}."
             )
 
         if self.filters is not None and self.filters % self.groups != 0:

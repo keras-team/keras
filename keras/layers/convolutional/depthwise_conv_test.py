@@ -293,21 +293,41 @@ class DepthwiseConvBasicTest(testing.TestCase, parameterized.TestCase):
 
     def test_bad_init_args(self):
         # `depth_multiplier` is not positive.
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid value for argument `depth_multiplier`. "
+            "Expected a strictly positive value. Received "
+            "depth_multiplier=0.",
+        ):
             layers.DepthwiseConv1D(depth_multiplier=0, kernel_size=1)
 
         # `kernel_size` has 0.
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"The `kernel_size` argument must be a tuple of 2 "
+            r"integers. Received kernel_size=\(1, 0\), including values "
+            r"\{0\} that do not satisfy `value > 0`",
+        ):
             layers.DepthwiseConv2D(depth_multiplier=2, kernel_size=(1, 0))
 
         # `strides` has 0.
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"The `strides` argument must be a tuple of \d+ "
+            r"integers. Received strides=\(1, 0\), including values \{0\} "
+            r"that do not satisfy `value > 0`",
+        ):
             layers.DepthwiseConv2D(
                 depth_multiplier=2, kernel_size=(2, 2), strides=(1, 0)
             )
 
         # `dilation_rate > 1` while `strides > 1`.
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`strides > 1` not supported in conjunction with "
+            r"`dilation_rate > 1`. Received: strides=\(2, 2\) and "
+            r"dilation_rate=\(2, 1\)",
+        ):
             layers.DepthwiseConv2D(
                 depth_multiplier=2,
                 kernel_size=(2, 2),

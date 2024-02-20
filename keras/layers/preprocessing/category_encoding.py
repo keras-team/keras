@@ -107,17 +107,30 @@ class CategoryEncoding(TFDataLayer):
         self._allow_non_tensor_positional_args = True
         self._convert_input_args = False
 
-    def _count(self, inputs, axis=-1):
+    def _count(self, inputs, axis=-1, count_weights=None):
         reduction_axis = 1 if len(inputs.shape) > 1 else 0
+
+        one_hot_encoding = self.backend.nn.one_hot(
+            inputs, self.num_tokens, axis=axis, dtype=self.dtype
+        )
+        if count_weights is not None:
+            split_weights = self.backend.numpy.split(
+                count_weights,
+                count_weights.shape[reduction_axis],
+                reduction_axis,
+            )
+            stacked_weights = self.backend.numpy.stack(
+                split_weights, axis=reduction_axis
+            )
+            one_hot_encoding = one_hot_encoding * stacked_weights
+
         outputs = self.backend.numpy.sum(
-            self.backend.nn.one_hot(
-                inputs, self.num_tokens, axis=axis, dtype=self.dtype
-            ),
+            one_hot_encoding,
             axis=reduction_axis,
         )
         return outputs
 
-    def _encode(self, inputs):
+    def _encode(self, inputs, count_weights=None):
         if self.output_mode == "multi_hot":
             outputs = self.backend.nn.multi_hot(
                 inputs, self.num_tokens, dtype=self.dtype
@@ -127,7 +140,7 @@ class CategoryEncoding(TFDataLayer):
                 inputs, self.num_tokens, dtype=self.dtype
             )
         elif self.output_mode == "count":
-            outputs = self._count(inputs)
+            outputs = self._count(inputs, count_weights=count_weights)
 
         return outputs
 
@@ -147,6 +160,15 @@ class CategoryEncoding(TFDataLayer):
         base_config = super().get_config()
         return {**base_config, **config}
 
-    def call(self, inputs):
-        outputs = self._encode(inputs)
+    def call(self, inputs, count_weights=None):
+        if count_weights is not None:
+            if self.output_mode != "count":
+                raise ValueError(
+                    "`count_weights` is not used when `output_mode` is not "
+                    "`'count'`. Received `count_weights={count_weights}`."
+                )
+            count_weights = self.backend.convert_to_tensor(
+                count_weights, dtype=self.compute_dtype
+            )
+        outputs = self._encode(inputs, count_weights)
         return backend_utils.convert_tf_tensor(outputs)

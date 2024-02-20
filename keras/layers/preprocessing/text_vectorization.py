@@ -492,6 +492,10 @@ class TextVectorization(Layer):
             config["split"] = serialization_lib.deserialize_keras_object(
                 config["split"]
             )
+
+        if isinstance(config["ngrams"], list):
+            config["ngrams"] = tuple(config["ngrams"])
+
         return cls(**config)
 
     def set_vocabulary(self, vocabulary, idf_weights=None):

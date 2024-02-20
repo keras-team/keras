@@ -51,6 +51,15 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.pad_images(x, 2, 3, target_height=20, target_width=30)
         self.assertEqual(out.shape, (20, 30, 3))
 
+    def test_crop_images(self):
+        x = KerasTensor([None, 15, 25, 3])
+        out = kimage.crop_images(x, 2, 3, target_height=10, target_width=20)
+        self.assertEqual(out.shape, (None, 10, 20, 3))
+
+        x = KerasTensor([None, None, 3])
+        out = kimage.crop_images(x, 2, 3, target_height=10, target_width=20)
+        self.assertEqual(out.shape, (10, 20, 3))
+
 
 class ImageOpsStaticShapeTest(testing.TestCase):
     def test_resize(self):
@@ -88,6 +97,17 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             x_batch, 2, 3, target_height=20, target_width=30
         )
         self.assertEqual(out_batch.shape, (2, 20, 30, 3))
+
+    def test_crop_images(self):
+        x = KerasTensor([15, 25, 3])
+        out = kimage.crop_images(x, 2, 3, target_height=10, target_width=20)
+        self.assertEqual(out.shape, (10, 20, 3))
+
+        x_batch = KerasTensor([2, 15, 25, 3])
+        out_batch = kimage.crop_images(
+            x_batch, 2, 3, target_height=10, target_width=20
+        )
+        self.assertEqual(out_batch.shape, (2, 10, 20, 3))
 
 
 AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
@@ -478,5 +498,52 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             ref_padded_image.numpy(),
             backend.convert_to_numpy(padded_image),
+            atol=1e-5,
+        )
+
+    @parameterized.parameters(
+        [
+            (0, 0, 3, 3, None, None),
+            (1, 0, 4, 3, None, None),
+            (0, 1, 3, 4, None, None),
+            (0, 0, 4, 3, None, None),
+            (0, 0, 3, 4, None, None),
+            (0, 0, None, None, 0, 1),
+            (0, 0, None, None, 1, 0),
+            (1, 2, None, None, 3, 4),
+        ]
+    )
+    def test_crop_images(
+        self,
+        top_cropping,
+        left_cropping,
+        target_height,
+        target_width,
+        bottom_cropping,
+        right_cropping,
+    ):
+        image = np.random.uniform(size=(10, 10, 1))
+        cropped_image = kimage.crop_images(
+            image,
+            top_cropping,
+            left_cropping,
+            target_height,
+            target_width,
+            bottom_cropping,
+            right_cropping,
+        )
+        if target_height is None:
+            target_height = image.shape[0] - top_cropping - bottom_cropping
+        if target_width is None:
+            target_width = image.shape[1] - left_cropping - right_cropping
+        ref_cropped_image = tf.image.crop_to_bounding_box(
+            image, top_cropping, left_cropping, target_height, target_width
+        )
+        self.assertEqual(
+            tuple(cropped_image.shape), tuple(ref_cropped_image.shape)
+        )
+        self.assertAllClose(
+            ref_cropped_image.numpy(),
+            backend.convert_to_numpy(cropped_image),
             atol=1e-5,
         )

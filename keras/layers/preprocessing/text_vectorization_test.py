@@ -1,11 +1,15 @@
+import os
+
 import numpy as np
 import pytest
 import tensorflow as tf
 from tensorflow import data as tf_data
 
+from keras import Sequential
 from keras import backend
 from keras import layers
 from keras import models
+from keras import saving
 from keras import testing
 
 
@@ -61,6 +65,24 @@ class TextVectorizationTest(testing.TestCase):
         output = layer(input_data)
         self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([[4, 1, 3, 0], [1, 2, 0, 0]]))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_save_load_with_ngrams_flow(self):
+        input_data = np.array(["foo bar", "bar baz", "baz bada boom"])
+        model = Sequential(
+            [
+                layers.Input(dtype="string", shape=(1,)),
+                layers.TextVectorization(ngrams=(1, 2)),
+            ]
+        )
+        model.layers[0].adapt(input_data)
+        output = model(input_data)
+        temp_filepath = os.path.join(self.get_temp_dir(), "model.keras")
+        model.save(temp_filepath)
+        model = saving.load_model(temp_filepath)
+        self.assertAllClose(output, model(input_data))
 
     def test_tf_data_compatibility(self):
         max_tokens = 5000

@@ -135,7 +135,7 @@ class BaseSeparableConv(Layer):
         if self.depth_multiplier is not None and self.depth_multiplier <= 0:
             raise ValueError(
                 "Invalid value for argument `depth_multiplier`. Expected a "
-                "strictly  positive value. Received "
+                "strictly positive value. Received "
                 f"depth_multiplier={self.depth_multiplier}."
             )
 
