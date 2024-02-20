@@ -142,6 +142,8 @@ def shape(x):
     tensor values when the shape is unknown (this is tf specific, as dynamic
     shapes do not apply in other backends).
     """
+    if isinstance(x, KerasTensor):
+        return x.shape
     if not tf.is_tensor(x):
         x = tf.convert_to_tensor(x)
     dynamic = tf.shape(x)
