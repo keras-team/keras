@@ -1,5 +1,3 @@
-import math
-
 from keras import ops
 from keras.api_export import keras_export
 from keras.layers.layer import Layer
@@ -334,13 +332,15 @@ class MelSpectrogram(Layer):
         if len(input_shape) == 1:
             output_shape = [
                 self.num_mel_bins,
-                int(math.ceil(input_shape[0] / self.sequence_stride)),
+                (input_shape[0] + self.sequence_stride + 1)
+                // self.sequence_stride,
             ]
         else:
             output_shape = [
                 input_shape[0],
                 self.num_mel_bins,
-                int(math.ceil(input_shape[1] / self.sequence_stride)),
+                (input_shape[1] + self.sequence_stride + 1)
+                // self.sequence_stride,
             ]
         return output_shape
 
