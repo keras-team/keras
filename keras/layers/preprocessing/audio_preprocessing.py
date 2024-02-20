@@ -73,16 +73,20 @@ def linear_to_mel_weight_matrix(
     scale spectrum values (e.g. STFT magnitudes) to generate a "mel spectrogram"
     `M` of shape `[frames, num_mel_bins]`.
 
-        # `S` has shape [frames, num_spectrogram_bins]
-        # `M` has shape [frames, num_mel_bins]
-        M = keras.ops.matmul(S, A)
+    ```
+    # `S` has shape [frames, num_spectrogram_bins]
+    # `M` has shape [frames, num_mel_bins]
+    M = keras.ops.matmul(S, A)
+    ```
 
-    The matrix can be used with `tf.tensordot` to convert an arbitrary rank
+    The matrix can be used with `keras.ops.tensordot` to convert an arbitrary rank
     `Tensor` of linear-scale spectral bins into the mel scale.
 
-        # S has shape [..., num_spectrogram_bins].
-        # M has shape [..., num_mel_bins].
-        M = keras.ops.tensordot(S, A, 1)
+    ```
+    # S has shape [..., num_spectrogram_bins].
+    # M has shape [..., num_mel_bins].
+    M = keras.ops.tensordot(S, A, 1)
+    ```
 
     Args:
         num_mel_bins: Python int. How many bands in the resulting mel spectrum.
