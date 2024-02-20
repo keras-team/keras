@@ -4,32 +4,6 @@ from keras import ops
 from keras.api_export import keras_export
 from keras.layers.layer import Layer
 
-
-def gcd(a, b):
-    """Returns the greatest common divisor via Euclid's algorithm.
-
-    Args:
-        a: The dividend. A scalar integer `Tensor`.
-        b: The divisor. A scalar integer `Tensor`.
-
-    Returns:
-        A scalar `Tensor` representing the greatest common divisor
-        between `a` and `b`.
-
-    Raises:
-        ValueError: If `a` or `b` are not scalar integers.
-    """
-    a = ops.convert_to_tensor(a)
-    b = ops.convert_to_tensor(b)
-
-    a, b = ops.while_loop(
-        lambda _, b: ops.greater(b, ops.zeros_like(b)),
-        lambda a, b: [b, ops.mod(a, b)],
-        [a, b],
-    )
-    return a
-
-
 # mel spectrum constants.
 _MEL_BREAK_FREQUENCY_HERTZ = 700.0
 _MEL_HIGH_FREQUENCY_Q = 1127.0
