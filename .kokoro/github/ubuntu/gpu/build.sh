@@ -20,6 +20,8 @@ nvcc --version
 
 cd "src/github/keras"
 pip install -U pip setuptools
+# psutil is used by background log reader
+pip install -U psutil
 
 if [ "$KERAS_BACKEND" == "tensorflow" ]
 then
