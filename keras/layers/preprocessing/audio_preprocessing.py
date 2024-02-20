@@ -63,7 +63,7 @@ def linear_to_mel_weight_matrix(
     (HTK)](http://htk.eng.cam.ac.uk/) convention, defining the mel scale in
     terms of a frequency in hertz according to the following formula:
 
-        $$\textrm{mel}(f) = 2595 * \textrm{log}_{10}(1 + \frac{f}{700})$$
+    `mel(f) = 2595 * log10( 1 + f/700)`
 
     In the returned matrix, all the triangles (filterbanks) have a peak value
     of 1.0.
