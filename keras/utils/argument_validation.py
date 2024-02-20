@@ -86,7 +86,7 @@ def validate_string_arg(
     elif isinstance(value, str) and value in allowable_strings:
         return
     raise ValueError(
-        f"Unkown value for `{arg_name}` argument of {caller_name}. "
+        f"Unknown value for `{arg_name}` argument of {caller_name}. "
         f"Allowed values are: {allowable_strings}. Received: "
         f"{arg_name}={value}"
     )

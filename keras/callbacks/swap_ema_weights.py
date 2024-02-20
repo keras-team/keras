@@ -153,7 +153,7 @@ class SwapEMAWeights(Callback):
             self._swap_variables()
             self._ema_weights_in_model = True
             # We need to recover EMA weights from the previously swapped weights
-            # in the last epoch. This is becuase, at the end of the fitting,
+            # in the last epoch. This is because, at the end of the fitting,
             # `finalize_variable_values` will be called to assign
             # `_model_variables_moving_average` to `trainable_variables`.
             if epoch == self.params["epochs"] - 1:

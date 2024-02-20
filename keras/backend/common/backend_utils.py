@@ -16,7 +16,7 @@ def _convert_conv_tranpose_padding_args_from_keras_to_jax(
     kernel_size = (kernel_size - 1) * dilation_rate + 1
 
     if padding.lower() == "valid":
-        # If output_padding is None, we fill it so that the shape of the ouput
+        # If output_padding is None, we fill it so that the shape of the output
         # is `(input-1)*s + max(kernel_size, stride)`
         output_padding = (
             max(kernel_size, stride) - kernel_size
@@ -28,12 +28,12 @@ def _convert_conv_tranpose_padding_args_from_keras_to_jax(
 
     else:
         if output_padding is None:
-            # When output_padding is None, we want the shape of the ouput to
+            # When output_padding is None, we want the shape of the output to
             # be `input * s`, therefore a total padding of
             # `stride + kernel_size - 2`
             pad_len = stride + kernel_size - 2
         else:
-            # When output_padding is filled, we want the shape of the ouput to
+            # When output_padding is filled, we want the shape of the output to
             # be `(input-1)*stride + kernel_size%2 + output_padding`
             pad_len = kernel_size + kernel_size % 2 - 2 + output_padding
         left_pad = min(pad_len // 2 + pad_len % 2, kernel_size - 1)
@@ -51,15 +51,15 @@ def _convert_conv_tranpose_padding_args_from_keras_to_torch(
     `torch_output_padding` on the right.
     Because in Torch the output_padding can only be added to the right,
     consistency with Tensorflow is not always possible. In particular this is
-    the case when both the Torch padding and output_padding values are stricly
-    positive.
+    the case when both the Torch padding and output_padding values are
+    strictly positive.
     """
     assert padding.lower() in {"valid", "same"}
     original_kernel_size = kernel_size
     kernel_size = (kernel_size - 1) * dilation_rate + 1
 
     if padding.lower() == "valid":
-        # If output_padding is None, we fill it so that the shape of the ouput
+        # If output_padding is None, we fill it so that the shape of the output
         # is `(i-1)*s + max(k, s)`
         output_padding = (
             max(kernel_size, stride) - kernel_size
@@ -70,7 +70,7 @@ def _convert_conv_tranpose_padding_args_from_keras_to_torch(
         torch_output_padding = output_padding
 
     else:
-        # When output_padding is None, we want the shape of the ouput to be
+        # When output_padding is None, we want the shape of the output to be
         # `input * s`, otherwise we use the value provided.
         output_padding = (
             stride - kernel_size % 2
@@ -86,7 +86,7 @@ def _convert_conv_tranpose_padding_args_from_keras_to_torch(
 
     if torch_padding > 0 and torch_output_padding > 0:
         warnings.warn(
-            f"You might experience inconsistencies accross backends when "
+            f"You might experience inconsistencies across backends when "
             f"calling conv transpose with kernel_size={original_kernel_size}, "
             f"stride={stride}, dilation_rate={dilation_rate}, "
             f"padding={padding}, output_padding={output_padding}."

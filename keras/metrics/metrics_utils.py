@@ -172,7 +172,7 @@ def _update_confusion_matrix_variables_optimized(
             to be the same).
         multi_label: Optional boolean indicating whether multidimensional
             prediction/labels should be treated as multilabel responses, or
-            flattened into a single label. When True, the valus of
+            flattened into a single label. When True, the values of
             `variables_to_update` must have a second dimension equal to the
             number of labels in y_true and y_pred, and those tensors must not be
             RaggedTensors.
@@ -383,7 +383,7 @@ def update_confusion_matrix_variables(
         dimension).
       multi_label: Optional boolean indicating whether multidimensional
         prediction/labels should be treated as multilabel responses, or
-        flattened into a single label. When True, the valus of
+        flattened into a single label. When True, the values of
         `variables_to_update` must have a second dimension equal to the number
         of labels in y_true and y_pred, and those tensors must not be
         RaggedTensors.

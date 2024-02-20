@@ -201,7 +201,7 @@ def _transpose_spatial_inputs(inputs):
 
 
 def _transpose_spatial_outputs(outputs):
-    # Undo the tranpose in `_transpose_spatial_inputs`.
+    # Undo the transpose in `_transpose_spatial_inputs`.
     num_spatial_dims = len(outputs.shape) - 2
     if num_spatial_dims == 1:
         outputs = torch.permute(outputs, (0, 2, 1))
@@ -567,7 +567,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
     dims = output.dim()
     if axis != -1 and axis != dims:
         new_axes_order = list(range(dims))
-        new_axes_order[axis] = -1  # Shifts output to axis positon
+        new_axes_order[axis] = -1  # Shifts output to axis position
         # Shift remaining axes with offset by 1 since output moved to `axis`.
         for ax in range(axis + 1, dims):
             new_axes_order[ax] -= 1

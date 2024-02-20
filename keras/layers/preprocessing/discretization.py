@@ -293,7 +293,7 @@ def merge_summaries(prev_summary, next_summary, epsilon):
     Args:
         prev_summary: 2D `np.ndarray` summary to be merged with `next_summary`.
         next_summary: 2D `np.ndarray` summary to be merged with `prev_summary`.
-        epsilon: A float that determines the approxmiate desired precision.
+        epsilon: A float that determines the approximate desired precision.
 
     Returns:
         A 2-D `np.ndarray` that is a merged summary. First column is the
@@ -319,7 +319,7 @@ def compress_summary(summary, epsilon):
 
     Args:
         summary: 2D `np.ndarray` summary to be compressed.
-        epsilon: A `'float32'` that determines the approxmiate desired
+        epsilon: A `'float32'` that determines the approximate desired
         precision.
 
     Returns:
