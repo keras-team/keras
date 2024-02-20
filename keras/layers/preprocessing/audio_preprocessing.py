@@ -46,7 +46,7 @@ def _hertz_to_mel(frequencies_hertz, name=None):
 def linear_to_mel_weight_matrix(
     num_mel_bins=20,
     num_spectrogram_bins=129,
-    sample_rate=8000,
+    sampling_rate=8000,
     lower_edge_hertz=125.0,
     upper_edge_hertz=3800.0,
     dtype="float32",
@@ -56,7 +56,7 @@ def linear_to_mel_weight_matrix(
 
     Returns a weight matrix that can be used to re-weight a `Tensor` containing
     `num_spectrogram_bins` linearly sampled frequency information from
-    `[0, sample_rate / 2]` into `num_mel_bins` frequency information from
+    `[0, sampling_rate / 2]` into `num_mel_bins` frequency information from
     `[lower_edge_hertz, upper_edge_hertz]` on the [mel scale][mel].
 
     This function follows the [Hidden Markov Model Toolkit
@@ -90,7 +90,7 @@ def linear_to_mel_weight_matrix(
             in the source spectrogram data, which is understood to be
             `fft_size // 2 + 1`, i.e. the spectrogram only contains the
             nonredundant FFT bins.
-        sample_rate: An integer or float `Tensor`. Samples per second of the
+        sampling_rate: An integer or float `Tensor`. Samples per second of the
             input signal used to create the spectrogram. Used to figure out the
             frequencies corresponding to each spectrogram bin, which dictates
             how they are mapped into the mel scale.
@@ -109,7 +109,7 @@ def linear_to_mel_weight_matrix(
 
     # This function can be constant folded by graph optimization since there are
     # no Tensor inputs.
-    sample_rate = ops.cast(sample_rate, dtype)
+    sampling_rate = ops.cast(sampling_rate, dtype)
     lower_edge_hertz = ops.convert_to_tensor(
         lower_edge_hertz,
         dtype,
@@ -122,7 +122,7 @@ def linear_to_mel_weight_matrix(
 
     # HTK excludes the spectrogram DC bin.
     bands_to_zero = 1
-    nyquist_hertz = sample_rate / 2.0
+    nyquist_hertz = sampling_rate / 2.0
     linear_frequencies = ops.linspace(
         zero, nyquist_hertz, num_spectrogram_bins
     )[bands_to_zero:]
@@ -197,8 +197,8 @@ class MelSpectrogram(Layer):
 
     >>> layer = keras.layers.MelSpectrogram(num_mel_bins=64,
     ...                                     sampling_rate=8000,
-    ...                                     fft_stride=256,
-    ...                                     num_fft_bins=2048)
+    ...                                     sequence_stride=256,
+    ...                                     fft_length=2048)
     >>> layer(keras.random.uniform(shape=(16000,)))
     <tf.Tensor: shape=(64, 63), dtype=float32, numpy=
     array([[ 27.002258 ,  25.82557  ,  24.530018 , ...,  29.447317 ,
@@ -219,8 +219,8 @@ class MelSpectrogram(Layer):
 
     >>> layer = keras.layers.MelSpectrogram(num_mel_bins=80,
     ...                                     sampling_rate=8000,
-    ...                                     fft_stride=128,
-    ...                                     num_fft_bins=2048)
+    ...                                     sequence_stride=128,
+    ...                                     fft_length=2048)
     >>> layer(keras.random.uniform(shape=(2, 16000)))
     <tf.Tensor: shape=(2, 80, 125), dtype=float32, numpy=
     array([[[ 23.235947  ,  22.86543   ,  22.391176  , ...,  21.741554  ,
@@ -259,11 +259,12 @@ class MelSpectrogram(Layer):
         shape:`(..., num_mel_bins, time)`.
 
     Args:
-        num_fft_bins: Integer, size of the FFT window.
-        fft_stride: Integer, number of samples between successive STFT columns.
-        window_size: Integer, size of the window used for applying `window_fn`
-            to each audio frame. If `None`, defaults to `num_fft_bins`.
-        window_fn: String, name of the window function to use.
+        fft_length: Integer, size of the FFT window.
+        sequence_stride: Integer, number of samples between successive STFT
+            columns.
+        sequence_length: Integer, size of the window used for applying
+            `window` to each audio frame. If `None`, defaults to `fft_length`.
+        window: String, name of the window function to use.
         sampling_rate: Integer, sample rate of the input signal.
         num_mel_bins: Integer, number of mel bins to generate.
         min_freq: Float, minimum frequency of the mel bins.
@@ -280,9 +281,9 @@ class MelSpectrogram(Layer):
 
     def __init__(
         self,
-        num_fft_bins=2048,
-        fft_stride=512,
-        window_size=None,
+        fft_length=2048,
+        sequence_stride=512,
+        sequence_length=None,
         window="hann",
         sampling_rate=16000,
         num_mel_bins=128,
@@ -295,9 +296,9 @@ class MelSpectrogram(Layer):
         ref_power=1.0,
         **kwargs,
     ):
-        self.num_fft_bins = num_fft_bins
-        self.fft_stride = fft_stride
-        self.window_size = window_size or num_fft_bins
+        self.fft_length = fft_length
+        self.sequence_stride = sequence_stride
+        self.sequence_length = sequence_length or fft_length
         self.window = window
         self.sampling_rate = sampling_rate
         self.num_mel_bins = num_mel_bins
@@ -312,21 +313,21 @@ class MelSpectrogram(Layer):
 
     def call(self, inputs):
         inputs = ops.convert_to_tensor(inputs, dtype=self.compute_dtype)
-        outputs = self.spectrogram(inputs)
-        outputs = self.melscale(outputs)
+        outputs = self._spectrogram(inputs)
+        outputs = self._melscale(outputs)
         if self.power_to_db:
-            outputs = self.dbscale(outputs)
+            outputs = self._dbscale(outputs)
         # swap time & freq axis to have shape of (..., num_mel_bins, time)
         outputs = ops.swapaxes(outputs, -1, -2)
         outputs = ops.cast(outputs, self.compute_dtype)
         return outputs
 
-    def spectrogram(self, inputs):
+    def _spectrogram(self, inputs):
         real, imag = ops.stft(
             inputs,
-            sequence_length=self.window_size,
-            sequence_stride=self.fft_stride,
-            fft_length=self.num_fft_bins,
+            sequence_length=self.sequence_length,
+            sequence_stride=self.sequence_stride,
+            fft_length=self.fft_length,
             window=self.window,
             center=True,
         )
@@ -335,17 +336,17 @@ class MelSpectrogram(Layer):
         spec = ops.power(spec, self.mag_exp)
         return spec
 
-    def melscale(self, inputs):
+    def _melscale(self, inputs):
         matrix = linear_to_mel_weight_matrix(
             num_mel_bins=self.num_mel_bins,
             num_spectrogram_bins=ops.shape(inputs)[-1],
-            sample_rate=self.sampling_rate,
+            sampling_rate=self.sampling_rate,
             lower_edge_hertz=self.min_freq,
             upper_edge_hertz=self.max_freq,
         )
         return ops.tensordot(inputs, matrix, axes=1)
 
-    def dbscale(self, inputs):
+    def _dbscale(self, inputs):
         log_spec = 10.0 * (
             ops.log(ops.maximum(inputs, self.min_power)) / ops.log(10.0)
         )
@@ -365,13 +366,13 @@ class MelSpectrogram(Layer):
         if len(input_shape) == 1:
             output_shape = [
                 self.num_mel_bins,
-                int(math.ceil(input_shape[0] / self.fft_stride)),
+                int(math.ceil(input_shape[0] / self.sequence_stride)),
             ]
         else:
             output_shape = [
                 input_shape[0],
                 self.num_mel_bins,
-                int(math.ceil(input_shape[1] / self.fft_stride)),
+                int(math.ceil(input_shape[1] / self.sequence_stride)),
             ]
         return output_shape
 
@@ -379,9 +380,9 @@ class MelSpectrogram(Layer):
         config = super().get_config()
         config.update(
             {
-                "num_fft_bins": self.num_fft_bins,
-                "fft_stride": self.fft_stride,
-                "window_size": self.window_size,
+                "fft_length": self.fft_length,
+                "sequence_stride": self.sequence_stride,
+                "sequence_length": self.sequence_length,
                 "window": self.window,
                 "sampling_rate": self.sampling_rate,
                 "num_mel_bins": self.num_mel_bins,
