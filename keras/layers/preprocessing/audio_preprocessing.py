@@ -30,131 +30,6 @@ def gcd(a, b):
     return a
 
 
-def frame(
-    signal,
-    frame_length,
-    frame_step,
-    pad_end=False,
-    pad_value=0,
-    axis=-1,
-    name=None,
-):
-    signal = ops.convert_to_tensor(signal)
-    frame_length = ops.convert_to_tensor(frame_length)
-    frame_step = ops.convert_to_tensor(frame_step)
-    axis = ops.convert_to_tensor(axis)
-
-    signal_shape = ops.convert_to_tensor(ops.shape(signal))
-    # Axis can be negative. Convert it to positive.
-    axis = ops.arange(ops.ndim(signal_shape))[axis]
-    outer_dimensions, length_samples, inner_dimensions = ops.split(
-        signal_shape, [axis, axis + 1]
-    )
-    length_samples = ops.reshape(length_samples, [])
-    num_outer_dimensions = ops.size(outer_dimensions)
-    num_inner_dimensions = ops.size(inner_dimensions)
-
-    # If padding is requested, pad the input signal tensor with pad_value.
-    if pad_end:
-        pad_value = ops.convert_to_tensor(pad_value, signal.dtype)
-
-        # Calculate number of frames, using double negatives to round up.
-        num_frames = -(-length_samples // frame_step)
-
-        # Pad the signal by up to frame_length samples based on how many samples
-        # are remaining starting from last_frame_position.
-        pad_samples = ops.maximum(
-            0, frame_length + frame_step * (num_frames - 1) - length_samples
-        )
-
-        # Pad the inner dimension of signal by pad_samples.
-        paddings = ops.concatenate(
-            [
-                ops.zeros([num_outer_dimensions, 2], dtype=pad_samples.dtype),
-                ops.convert_to_tensor([[0, pad_samples]]),
-                ops.zeros([num_inner_dimensions, 2], dtype=pad_samples.dtype),
-            ],
-            0,
-        )
-        signal = ops.pad(signal, paddings, constant_values=pad_value)
-
-        signal_shape = ops.shape(signal)
-        length_samples = signal_shape[axis]
-    else:
-        num_frames = ops.maximum(
-            ops.convert_to_tensor(0, dtype=frame_length.dtype),
-            1 + (length_samples - frame_length) // frame_step,
-        )
-
-    subframe_length = gcd(frame_length, frame_step)
-    subframes_per_frame = frame_length // subframe_length
-    subframes_per_hop = frame_step // subframe_length
-    num_subframes = length_samples // subframe_length
-
-    slice_shape = ops.concatenate(
-        [
-            outer_dimensions,
-            ops.convert_to_tensor([num_subframes * subframe_length]),
-            inner_dimensions,
-        ],
-        0,
-    )
-    subframe_shape = ops.concatenate(
-        [
-            outer_dimensions,
-            ops.convert_to_tensor([num_subframes, subframe_length]),
-            inner_dimensions,
-        ],
-        0,
-    )
-    subframes = ops.reshape(
-        ops.slice(signal, ops.zeros_like(signal_shape), slice_shape),
-        ops.convert_to_numpy(subframe_shape).tolist(),
-    )
-
-    # frame_selector is a [num_frames, subframes_per_frame] tensor
-    # that indexes into the appropriate frame in subframes. For example:
-    # [[0, 0, 0, 0], [2, 2, 2, 2], [4, 4, 4, 4]]
-    frame_selector = ops.reshape(
-        ops.arange(num_frames, dtype=frame_length.dtype) * subframes_per_hop,
-        [num_frames, 1],
-    )
-
-    # subframe_selector is a [num_frames, subframes_per_frame] tensor
-    # that indexes into the appropriate subframe within a frame. For example:
-    # [[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]]
-    subframe_selector = ops.reshape(
-        ops.arange(subframes_per_frame, dtype=frame_length.dtype),
-        [1, subframes_per_frame],
-    )
-
-    # Adding the 2 selector tensors together produces a [num_frames,
-    # subframes_per_frame] tensor of indices to use with tf.gather to select
-    # subframes from subframes. We then reshape the inner-most
-    # subframes_per_frame dimension to stitch the subframes together into
-    # frames. For example: [[0, 1, 2, 3], [2, 3, 4, 5], [4, 5, 6, 7]].
-    selector = frame_selector + subframe_selector
-
-    # Dtypes have to match.
-    outer_dimensions = ops.convert_to_tensor(outer_dimensions)
-    inner_dimensions = ops.convert_to_tensor(
-        inner_dimensions, dtype=outer_dimensions.dtype
-    )
-    mid_dimensions = ops.convert_to_tensor(
-        [num_frames, frame_length], dtype=outer_dimensions.dtype
-    )
-
-    new_shape = ops.concatenate(
-        [outer_dimensions, mid_dimensions, inner_dimensions], 0
-    )
-    frames = ops.reshape(
-        ops.take(subframes, selector, axis=axis),
-        ops.convert_to_numpy(new_shape).tolist(),
-    )
-
-    return frames
-
-
 # mel spectrum constants.
 _MEL_BREAK_FREQUENCY_HERTZ = 700.0
 _MEL_HIGH_FREQUENCY_Q = 1127.0
@@ -283,14 +158,14 @@ def linear_to_mel_weight_matrix(
     # center of each band is the lower and upper edge of the adjacent bands.
     # Accordingly, we divide [lower_edge_hertz, upper_edge_hertz] into
     # num_mel_bins + 2 pieces.
-    band_edges_mel = frame(
+    band_edges_mel = ops.math.extract_sequences(
         ops.linspace(
             _hertz_to_mel(lower_edge_hertz),
             _hertz_to_mel(upper_edge_hertz),
             num_mel_bins + 2,
         ),
-        frame_length=3,
-        frame_step=1,
+        sequence_length=3,
+        sequence_stride=1,
     )
 
     # Split the triples up and reshape them into [1, num_mel_bins] tensors.
