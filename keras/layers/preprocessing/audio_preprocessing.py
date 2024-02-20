@@ -52,7 +52,7 @@ def linear_to_mel_weight_matrix(
     r"""Returns a matrix to warp linear scale spectrograms
         to the [mel scale][mel].
 
-    Returns a weight matrix that can be used to re-weight a `Tensor` containing
+    Returns a weight matrix that can be used to re-weight a tensor containing
     `num_spectrogram_bins` linearly sampled frequency information from
     `[0, sampling_rate / 2]` into `num_mel_bins` frequency information from
     `[lower_edge_hertz, upper_edge_hertz]` on the [mel scale][mel].
@@ -104,7 +104,7 @@ def linear_to_mel_weight_matrix(
         dtype: The `DType` of the result matrix. Must be a floating point type.
 
     Returns:
-        A `Tensor` of shape `[num_spectrogram_bins, num_mel_bins]`.
+        A tensor of shape `[num_spectrogram_bins, num_mel_bins]`.
 
     [mel]: https://en.wikipedia.org/wiki/Mel_scale
     """
