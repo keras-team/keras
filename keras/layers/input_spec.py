@@ -17,15 +17,16 @@ class InputSpec:
     A `None` entry in a shape is compatible with any dimension.
 
     Args:
-        dtype: Expected DataType of the input.
+        dtype: Expected dtype of the input.
         shape: Shape tuple, expected shape of the input
-            (may include None for unchecked axes). Includes the batch size.
+            (may include `None` for dynamic axes).
+            Includes the batch size.
         ndim: Integer, expected rank of the input.
         max_ndim: Integer, maximum rank of the input.
         min_ndim: Integer, minimum rank of the input.
         axes: Dictionary mapping integer axes to
             a specific dimension value.
-        allow_last_axis_squeeze: If True, then allow inputs of rank N+1 as long
+        allow_last_axis_squeeze: If `True`, allow inputs of rank N+1 as long
             as the last axis of the input is 1, as well as inputs of rank N-1
             as long as the last axis of the spec is 1.
         name: Expected key corresponding to this input when passing data as
@@ -36,7 +37,7 @@ class InputSpec:
     ```python
     class MyLayer(Layer):
         def __init__(self):
-            super(MyLayer, self).__init__()
+            super().__init__()
             # The layer will accept inputs with
             # shape (*, 28, 28) & (*, 28, 28, 1)
             # and raise an appropriate error message otherwise.
