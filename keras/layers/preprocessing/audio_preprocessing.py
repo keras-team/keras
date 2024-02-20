@@ -224,7 +224,11 @@ class MelSpectrogram(Layer):
             columns.
         sequence_length: Integer, size of the window used for applying
             `window` to each audio frame. If `None`, defaults to `fft_length`.
-        window: String, name of the window function to use.
+        window: String, name of the window function to use. Available values
+            are `"hann"` and `"hamming"`. If `window` is a tensor, it will be
+            used directly as the window and its length must be
+            `sequence_length`. If `window` is `None`, no windowing is
+            used. Defaults to `"hann"`.
         sampling_rate: Integer, sample rate of the input signal.
         num_mel_bins: Integer, number of mel bins to generate.
         min_freq: Float, minimum frequency of the mel bins.
