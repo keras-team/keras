@@ -41,5 +41,9 @@ elif backend() == "numpy":
     from keras.backend.numpy import *  # noqa: F403
 
     distribution_lib = None
+elif backend() == "mlx":
+    from keras.backend.mlx import *  # noqa: F403
+
+    distribution_lib = None
 else:
     raise ValueError(f"Unable to import backend : {backend()}")
