@@ -280,7 +280,9 @@ class ExportArchive:
                 decorated_fn = tf.function(fn, input_signature=input_signature)
             else:  # JAX backend
                 jax_shapes = kwargs.pop("jax_shapes", None)
-                fn = self._convert_jax2tf_function(fn, input_signature, jax_shapes)
+                fn = self._convert_jax2tf_function(
+                    fn, input_signature, jax_shapes
+                )
                 decorated_fn = tf.function(
                     fn, input_signature=input_signature, autograph=False
                 )
