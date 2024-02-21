@@ -867,7 +867,9 @@ class LayerTest(testing.TestCase):
 
             def custom_change_dtype(self):
                 self.w = self.remove_weight(self.w)
-                self.w = self.add_weight(initializer="zeros", dtype="int8")
+                self.w = self.add_weight(
+                    initializer="zeros", dtype="int8", trainable=False
+                )
 
         layer = MyLayer()
         self.assertEqual(len(layer.weights), 1)
@@ -877,5 +879,7 @@ class LayerTest(testing.TestCase):
 
         layer = MyLayer()
         self.assertEqual(layer.w.dtype, "float32")
+        self.assertEqual(layer.w.trainable, True)
         layer.custom_change_dtype()
         self.assertEqual(layer.w.dtype, "int8")
+        self.assertEqual(layer.w.trainable, False)
