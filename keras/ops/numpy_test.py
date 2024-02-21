@@ -4607,10 +4607,12 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
-        x1 = knp.ones((1, 1), dtype=dtype1)
-        x2 = knp.ones((1, 1), dtype=dtype2)
-        x1_jax = jnp.ones((1, 1), dtype=dtype1)
-        x2_jax = jnp.ones((1, 1), dtype=dtype2)
+        # The shape of the matrix needs to meet the requirements of
+        # torch._int_mm to test hardware-accelerated matmul
+        x1 = knp.ones((17, 16), dtype=dtype1)
+        x2 = knp.ones((16, 8), dtype=dtype2)
+        x1_jax = jnp.ones((17, 16), dtype=dtype1)
+        x2_jax = jnp.ones((16, 8), dtype=dtype2)
         if dtype1 == "int8" and dtype2 == "int8":
             preferred_element_type = "int32"
         else:
