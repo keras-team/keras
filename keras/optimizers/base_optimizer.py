@@ -330,7 +330,7 @@ class BaseOptimizer:
             self._backend_apply_gradients(grads, trainable_variables)
             # Apply variable constraints after applying gradients.
             for variable in trainable_variables:
-                if getattr(variable, "constraint", None) is not None:
+                if variable.constraint is not None:
                     variable.assign(variable.constraint(variable))
 
     def _backend_apply_gradients(self, grads, trainable_variables):

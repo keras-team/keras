@@ -1062,13 +1062,14 @@ class Layer(BackendLayer, Operation):
 
     def _get_regularization_losses(self):
         weight_regularization_losses = []
-        for v in self.trainable_weights:
-            regularizer = getattr(v, "regularizer", None)
-            if regularizer is None:
+        for variable in self.trainable_weights:
+            if variable.regularizer is None:
                 continue
             if backend.in_stateless_scope():
-                v = backend.get_stateless_scope().get_current_value(v)
-            weight_regularization_losses.append(regularizer(v))
+                v = backend.get_stateless_scope().get_current_value(variable)
+            else:
+                v = variable
+            weight_regularization_losses.append(variable.regularizer(v))
         return weight_regularization_losses
 
     @property
@@ -1155,6 +1156,13 @@ class Layer(BackendLayer, Operation):
             self._tracker.add_to_store("trainable_variables", variable)
         else:
             self._tracker.add_to_store("non_trainable_variables", variable)
+
+    def _untrack_variable(self, variable):
+        previous_lock_state = self._tracker.locked
+        self._tracker.unlock()
+        self._tracker.untrack(variable)
+        if previous_lock_state is True:
+            self._tracker.lock()
 
     def add_metric(self):
         # Permanently disabled
