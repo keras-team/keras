@@ -31,6 +31,8 @@ class KerasVariable:
         self._dtype = dtype
         self._shape = None
         self._initializer = None
+        self._regularizer = None
+        self._constraint = None
         self._trainable = trainable
         if isinstance(initializer, str):
             from keras import initializers
@@ -174,6 +176,36 @@ class KerasVariable:
     @trainable.setter
     def trainable(self, value):
         self._trainable = value
+
+    @property
+    def regularizer(self):
+        return self._regularizer
+
+    @regularizer.setter
+    def regularizer(self, value):
+        from keras.regularizers import Regularizer
+
+        if value is not None and not isinstance(value, Regularizer):
+            raise ValueError(
+                "The object to be assigned must be the subclass of "
+                f"`Regularizer` or `None`. Received: {type(value)}"
+            )
+        self._regularizer = value
+
+    @property
+    def constraint(self):
+        return self._constraint
+
+    @constraint.setter
+    def constraint(self, value):
+        from keras.constraints import Constraint
+
+        if value is not None and not isinstance(value, Constraint):
+            raise ValueError(
+                "The object to be assigned must be the subclass of "
+                f"`Constraint` or `None`. Received: {type(value)}"
+            )
+        self._constraint = value
 
     def __repr__(self):
         return (
