@@ -863,10 +863,10 @@ class LayerTest(testing.TestCase):
                 self.w = self.add_weight()
 
             def custom_remove_w(self):
-                self.w = self.remove_weight(self.w)
+                self.w = self._untrack_variable(self.w)
 
             def custom_change_dtype(self):
-                self.w = self.remove_weight(self.w)
+                self.w = self._untrack_variable(self.w)
                 self.w = self.add_weight(
                     initializer="zeros", dtype="int8", trainable=False
                 )

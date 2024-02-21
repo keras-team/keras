@@ -509,16 +509,6 @@ class Layer(BackendLayer, Operation):
         self._track_variable(variable)
         return variable
 
-    def remove_weight(self, variable):
-        """Remove a weight variable from the layer.
-
-        Args:
-            variable: The variable to be removed.
-        """
-        self._check_super_called()
-        self._untrack_variable(variable)
-        return None
-
     @property
     def trainable(self):
         """Settable boolean, whether this layer should be trainable or not."""

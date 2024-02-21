@@ -187,8 +187,9 @@ class KerasVariable:
 
         if value is not None and not isinstance(value, Regularizer):
             raise ValueError(
-                "The object to be assigned must be the subclass of "
-                f"`Regularizer` or `None`. Received: {type(value)}"
+                "Invalid value for attribute `regularizer`. Expected an "
+                "instance of `keras.regularizers.Regularizer`, or `None`. "
+                f"Received: regularizer={value}"
             )
         self._regularizer = value
 
@@ -202,8 +203,9 @@ class KerasVariable:
 
         if value is not None and not isinstance(value, Constraint):
             raise ValueError(
-                "The object to be assigned must be the subclass of "
-                f"`Constraint` or `None`. Received: {type(value)}"
+                "Invalid value for attribute `constraint`. Expected an "
+                "instance of `keras.constraints.Constraint`, or `None`. "
+                f"Received: constraint={value}"
             )
         self._constraint = value
 
