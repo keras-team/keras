@@ -515,11 +515,8 @@ class Layer(BackendLayer, Operation):
         Args:
             variable: The variable to be removed.
         """
-        previous_lock_state = self._tracker.locked
-        self._tracker.unlock()
-        self._tracker.untrack(variable)
-        if previous_lock_state is True:
-            self._tracker.lock()
+        self._check_super_called()
+        self._untrack_variable(variable)
         return None
 
     @property
@@ -1169,6 +1166,13 @@ class Layer(BackendLayer, Operation):
             self._tracker.add_to_store("trainable_variables", variable)
         else:
             self._tracker.add_to_store("non_trainable_variables", variable)
+
+    def _untrack_variable(self, variable):
+        previous_lock_state = self._tracker.locked
+        self._tracker.unlock()
+        self._tracker.untrack(variable)
+        if previous_lock_state is True:
+            self._tracker.lock()
 
     def add_metric(self):
         # Permanently disabled
