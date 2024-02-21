@@ -95,9 +95,13 @@ class Tracker:
                 self.stored_ids[store_name].remove(id(value))
                 python_utils.remove_by_id(self.config[store_name][1], value)
 
-    def lock(self, msg):
+    def lock(self, msg=None):
         self.locked = True
-        self._lock_violation_msg = msg
+        if msg is not None:
+            self._lock_violation_msg = msg
+
+    def unlock(self):
+        self.locked = False
 
     def add_to_store(self, store_name, value):
         if self.locked:

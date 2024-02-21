@@ -164,7 +164,7 @@ class Dense(Layer):
                 "lora is already enabled. "
                 "This can only be done once per layer."
             )
-        self._tracker.locked = False
+        self._tracker.unlock()
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",
             shape=(self.kernel.shape[0], rank),
@@ -178,7 +178,7 @@ class Dense(Layer):
             regularizer=self.kernel_regularizer,
         )
         self.kernel.trainable = False
-        self._tracker.locked = True
+        self._tracker.lock()
         self.lora_enabled = True
 
     def save_own_variables(self, store):

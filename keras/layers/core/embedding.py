@@ -143,7 +143,7 @@ class Embedding(Layer):
                 "lora is already enabled. "
                 "This can only be done once per layer."
             )
-        self._tracker.locked = False
+        self._tracker.unlock()
         self.lora_embeddings_a = self.add_weight(
             name="lora_embeddings_a",
             shape=(self.embeddings.shape[0], rank),
@@ -157,7 +157,7 @@ class Embedding(Layer):
             regularizer=self.embeddings_regularizer,
         )
         self.embeddings.trainable = False
-        self._tracker.locked = True
+        self._tracker.lock()
         self.lora_enabled = True
 
     def save_own_variables(self, store):
