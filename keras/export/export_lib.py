@@ -165,7 +165,7 @@ class ExportArchive:
                     resource.non_trainable_variables
                 )
 
-    def add_endpoint(self, name, fn, input_signature=None):
+    def add_endpoint(self, name, fn, input_signature=None, **kwargs):
         """Register a new serving endpoint.
 
         Arguments:
@@ -279,7 +279,8 @@ class ExportArchive:
             if backend.backend() == "tensorflow":
                 decorated_fn = tf.function(fn, input_signature=input_signature)
             else:  # JAX backend
-                fn = self._convert_jax2tf_function(fn, input_signature)
+                jax_shapes = kwargs.pop("jax_shapes", None)
+                fn = self._convert_jax2tf_function(fn, input_signature, jax_shapes)
                 decorated_fn = tf.function(
                     fn, input_signature=input_signature, autograph=False
                 )
@@ -314,6 +315,8 @@ class ExportArchive:
                     "    ],\n"
                     ")"
                 )
+        if kwargs:
+            raise ValueError(f"Arguments not recognized: {kwargs}")
         setattr(self._tf_trackable, name, decorated_fn)
         self._endpoint_names.append(name)
 
@@ -455,16 +458,17 @@ class ExportArchive:
                     ):
                         self._tf_trackable._misc_assets.append(trackable)
 
-    def _convert_jax2tf_function(self, fn, input_signature):
+    def _convert_jax2tf_function(self, fn, input_signature, jax_shapes=None):
         from jax.experimental import jax2tf
 
         native_serialization = self._check_device_compatible()
-        shapes = []
-        for spec in input_signature:
-            shapes.append(self._spec_to_poly_shape(spec))
+        if jax_shapes is None:
+            jax_shapes = []
+            for spec in input_signature:
+                jax_shapes.append(self._spec_to_poly_shape(spec))
         return jax2tf.convert(
             fn,
-            polymorphic_shapes=shapes,
+            polymorphic_shapes=jax_shapes,
             native_serialization=native_serialization,
         )
 

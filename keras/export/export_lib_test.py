@@ -76,7 +76,7 @@ class ExportArchiveTest(testing.TestCase):
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
-        reason="Registering a tf.function endpoint is only in TF backend.",
+        reason="This test is native to the TF backend.",
     )
     def test_endpoint_registration_tf_function(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -118,7 +118,7 @@ class ExportArchiveTest(testing.TestCase):
         backend.backend() != "jax",
         reason="This test is native to the JAX backend.",
     )
-    def test_jax_endpoint_registration_tf_function(self):
+    def test_jax_manual_endpoint_conversion(self):
         model = get_model()
         ref_input = np.random.normal(size=(3, 10))
         model(ref_input)
@@ -156,6 +156,48 @@ class ExportArchiveTest(testing.TestCase):
         export_archive = export_lib.ExportArchive()
         export_archive.track(model)
         export_archive.add_endpoint("serve", infer_fn)
+        export_archive.write_out(temp_filepath)
+
+        # Reload and verify outputs
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertFalse(hasattr(revived_model, "_tracked"))
+        self.assertAllClose(
+            ref_output, revived_model.serve(ref_input), atol=1e-6
+        )
+        self.assertLen(revived_model.variables, 8)
+        self.assertLen(revived_model.trainable_variables, 6)
+        self.assertLen(revived_model.non_trainable_variables, 2)
+
+        # Assert all variables wrapped as `tf.Variable`
+        assert isinstance(export_archive.variables[0], tf.Variable)
+        assert isinstance(export_archive.trainable_variables[0], tf.Variable)
+        assert isinstance(
+            export_archive.non_trainable_variables[0], tf.Variable
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="This test is native to the JAX backend.",
+    )
+    def test_jax_auto_endpoint_conversion(self):
+        model = get_model()
+        ref_input = np.random.normal(size=(3, 10))
+        ref_output = np.asarray(model(ref_input))
+
+        # build a JAX function
+        def model_call(x):
+            return model(x)
+
+        # Export with TF inference function as endpoint
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model")
+        export_archive = export_lib.ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint(
+            "serve",
+            model_call,
+            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+            jax_shapes=["(b, 10)"],
+        )
         export_archive.write_out(temp_filepath)
 
         # Reload and verify outputs
