@@ -26,6 +26,8 @@ elif backend.backend() == "tensorflow":
     from keras.backend.tensorflow.trainer import TensorFlowTrainer as Trainer
 elif backend.backend() == "numpy":
     from keras.backend.numpy.trainer import NumpyTrainer as Trainer
+elif backend.backend() == "mlx":
+    from keras.backend.mlx.trainer import MLXTrainer as Trainer
 else:
     raise ImportError(f"Invalid backend: {backend.backend()}")
 

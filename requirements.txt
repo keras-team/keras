@@ -9,5 +9,10 @@ torchvision>=0.16.0
 # Jax.
 jax[cpu]
 
+# MLX
+pybind11[global]
+cmake
+mlx
+
 # Common deps.
 -r requirements-common.txt
