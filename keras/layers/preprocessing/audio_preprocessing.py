@@ -313,18 +313,12 @@ class MelSpectrogram(Layer):
         return ops.tensordot(inputs, matrix, axes=1)
 
     def _dbscale(self, inputs):
-        log_spec = 10.0 * (
-            ops.log(ops.maximum(inputs, self.min_power)) / ops.log(10.0)
-        )
+        log_spec = 10.0 * (ops.log10(ops.maximum(inputs, self.min_power)))
         if callable(self.ref_power):
             ref_value = self.ref_power(log_spec)
         else:
             ref_value = ops.abs(ops.convert_to_tensor(self.ref_power))
-        log_spec -= (
-            10.0
-            * ops.log(ops.maximum(ref_value, self.min_power))
-            / ops.log(10.0)
-        )
+        log_spec -= 10.0 * ops.log10(ops.maximum(ref_value, self.min_power))
         log_spec = ops.maximum(log_spec, ops.max(log_spec) - self.top_db)
         return log_spec
 
