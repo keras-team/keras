@@ -41,7 +41,7 @@ If you intend to run multiple models in parallel with shared memory, it is your 
 
 #### Tenant Isolation
 
-Even though we have several tools to help things run smoothly, you must make sure that models run separately. Since models can run code, it's important to use strong isolation methods to prevent unwanted access to the data from other tenants.
+You must make sure that models run separately. Since models can run code, it's important to use strong isolation methods to prevent unwanted access to the data from other tenants.
 
 Separating networks is also a big part of isolation. If you keep model network traffic separate, you not only prevent unauthorized access to data or models, but also prevent malicious users or tenants sending graphs to execute under another tenant’s identity.
 
