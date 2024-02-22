@@ -320,8 +320,8 @@ class TestCase(unittest.TestCase):
                     super().__init__()
                     self.layer = layer
 
-                def call(self, x):
-                    return self.layer(x)
+                def call(self, x, training=False):
+                    return self.layer(x, training=training)
 
             model = TestModel(layer)
 
