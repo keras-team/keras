@@ -5,7 +5,7 @@
    - [Data privacy](#data-privacy)
    - [Untrusted environments or networks](#untrusted-environments-or-networks)
    - [Multi-Tenant environments](#multi-tenant-environments)
- - [Reporting a Vulnerability](#reporting-a-vulnerability)
+ - [**Reporting a Vulnerability**](#reporting-a-vulnerability)
 
 ## Using Keras Securely
 
