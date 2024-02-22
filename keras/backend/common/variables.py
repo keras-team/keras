@@ -455,7 +455,7 @@ def standardize_shape(shape):
         if e is None:
             continue
         if config.backend() == "jax" and "_DimExpr" in str(type(e)):
-            # JAX2TF tracing represents `None` dimensions as `b`
+            # JAX2TF tracing uses JAX-native dimension expressions
             continue
         if not is_int_dtype(type(e)):
             raise ValueError(
