@@ -314,6 +314,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         callbacks.on_train_begin()
         training_logs = None
         logs = None
+        initial_epoch = self._initial_epoch or initial_epoch
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)

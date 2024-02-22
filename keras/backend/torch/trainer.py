@@ -233,7 +233,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.stop_training = False
         self.make_train_function()
         callbacks.on_train_begin()
-
+        initial_epoch = self._initial_epoch or initial_epoch
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)

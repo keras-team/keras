@@ -24,6 +24,8 @@ class Trainer:
         self.compiled = False
         self.loss = None
         self.steps_per_execution = 1
+        # Can be set by callbacks in on_train_begin
+        self._initial_epoch = None
 
     @traceback_utils.filter_traceback
     @tracking.no_automatic_dependency_tracking

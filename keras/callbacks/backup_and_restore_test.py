@@ -101,7 +101,7 @@ class BackupAndRestoreCallbackTest(testing.TestCase):
                 x_train, y_train, batch_size=4, callbacks=[cbk], epochs=5
             )
 
-            self.assertEqual(cbk._current_epoch, 4)
+            self.assertEqual(cbk._current_epoch, 5)
             self.assertEqual(hist.epoch[-1], 4)
             self.assertEqual(int(model.layers[0].counter.value), 17)
 
@@ -135,16 +135,16 @@ class BackupAndRestoreCallbackTest(testing.TestCase):
                 verbose=0,
             )
         except RuntimeError:
-            self.assertEqual(cbk._current_epoch, 1)
+            self.assertEqual(cbk._current_epoch, 2)
             self.assertTrue(file_utils.exists(backup_dir))
             self.assertEqual(int(model.layers[0].counter.value), 6)
 
             hist = model.fit(
                 x_train, y_train, batch_size=4, callbacks=[cbk], epochs=5
             )
-            self.assertEqual(cbk._current_epoch, 4)
+            self.assertEqual(cbk._current_epoch, 5)
             self.assertEqual(hist.epoch[-1], 4)
-            self.assertEqual(int(model.layers[0].counter.value), 21)
+            self.assertEqual(int(model.layers[0].counter.value), 5 * 3)
 
     # Checking if after interruption, when model is deleted
     @pytest.mark.requires_trainable_backend

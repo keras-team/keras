@@ -1,3 +1,5 @@
+import json
+
 from keras.api_export import keras_export
 from keras.callbacks.callback import Callback
 from keras.utils import file_utils
@@ -85,6 +87,9 @@ class BackupAndRestore(Callback):
             raise ValueError("Empty `backup_dir` argument passed")
         self.backup_dir = backup_dir
         self._weights_path = file_utils.join(backup_dir, "latest.weights.h5")
+        self._training_metadata_path = file_utils.join(
+            backup_dir, "training_metadata.json"
+        )
         if save_freq != "epoch" and not isinstance(save_freq, int):
             raise ValueError(
                 "Invalid value for argument `save_freq`. "
@@ -96,9 +101,15 @@ class BackupAndRestore(Callback):
         """Get training state from temporary file and restore it."""
         if file_utils.exists(self._weights_path):
             self.model.load_weights(self._weights_path)
+        if file_utils.exists(self._training_metadata_path):
+            with file_utils.File(self._training_metadata_path, "r") as f:
+                training_metadata = json.loads(f.read())
+            epoch = training_metadata["epoch"]
+            self.model._initial_epoch = epoch
 
     def on_epoch_end(self, epoch, logs=None):
-        self._current_epoch = epoch
+        self._current_epoch = epoch + 1
+        self._last_batch_seen = 0
         if self.save_freq == "epoch":
             self._save_model()
 
@@ -119,6 +130,12 @@ class BackupAndRestore(Callback):
         if not file_utils.exists(self.backup_dir):
             file_utils.makedirs(self.backup_dir)
         self.model.save_weights(filepath=self._weights_path, overwrite=True)
+        with file_utils.File(self._training_metadata_path, "w") as f:
+            training_metadata = {
+                "epoch": self._current_epoch,
+                "batch": self._last_batch_seen,
+            }
+            f.write(json.dumps(training_metadata))
 
     def _should_save_on_batch(self, batch):
         """Handles batch-level saving logic, supports steps_per_execution."""

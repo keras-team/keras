@@ -1,4 +1,4 @@
-from keras.callbacks.backup_and_restore_callback import BackupAndRestore
+from keras.callbacks.backup_and_restore import BackupAndRestore
 from keras.callbacks.callback import Callback
 from keras.callbacks.callback_list import CallbackList
 from keras.callbacks.csv_logger import CSVLogger
