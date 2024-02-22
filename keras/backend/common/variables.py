@@ -379,7 +379,9 @@ PYTHON_DTYPES_MAP = {
 }
 
 
-@keras_export("keras.backend.standardize_dtype")
+@keras_export(
+    ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
+)
 def standardize_dtype(dtype):
     if dtype is None:
         return config.floatx()
