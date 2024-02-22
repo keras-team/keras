@@ -1862,7 +1862,7 @@ class Normalize(Operation):
         return KerasTensor(shape=x.shape)
 
     def call(self, x):
-        return _normalize(x, self.order, self.axis)
+        return _normalize(x, axis=self.axis, order=self.order)
 
 
 @keras_export(
@@ -1896,8 +1896,8 @@ def normalize(x, axis=-1, order=2):
 
     """
     if any_symbolic_tensors((x,)):
-        return Normalize(axis, order).symbolic_call(x)
-    return _normalize(x, axis, order)
+        return Normalize(axis=axis, order=order).symbolic_call(x)
+    return _normalize(x, axis=axis, order=order)
 
 
 def _normalize(x, axis=-1, order=2):
