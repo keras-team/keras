@@ -16,6 +16,7 @@ class MelSpectrogramTest(testing.TestCase, parameterized.TestCase):
                 "sampling_rate": 8000,
                 "sequence_stride": 128,
                 "fft_length": 2048,
+                "dtype": "float32",
             },
             input_shape=(2, 16000),
             expected_output_shape=(2, 80, 126),
