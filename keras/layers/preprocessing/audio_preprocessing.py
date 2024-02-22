@@ -326,15 +326,23 @@ class MelSpectrogram(Layer):
         if len(input_shape) == 1:
             output_shape = [
                 self.num_mel_bins,
-                (input_shape[0] + self.sequence_stride + 1)
-                // self.sequence_stride,
+                (
+                    (input_shape[0] + self.sequence_stride + 1)
+                    // self.sequence_stride
+                    if input_shape[0] is not None
+                    else None
+                ),
             ]
         else:
             output_shape = [
                 input_shape[0],
                 self.num_mel_bins,
-                (input_shape[1] + self.sequence_stride + 1)
-                // self.sequence_stride,
+                (
+                    (input_shape[1] + self.sequence_stride + 1)
+                    // self.sequence_stride
+                    if input_shape[1] is not None
+                    else None
+                ),
             ]
         return output_shape
 
