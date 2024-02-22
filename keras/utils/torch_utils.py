@@ -110,7 +110,7 @@ class TorchModuleWrapper(Layer):
         self.built = True
 
     def call(self, *args, **kwargs):
-        return self.module.forward(*args, **kwargs)
+        return self.module(*args, **kwargs)
 
     def save_own_variables(self, store):
         """Saves model's state from `state_dict`.
