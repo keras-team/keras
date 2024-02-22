@@ -420,11 +420,12 @@ def standardize_dtype(dtype):
     dtype = PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
         dtype = dtype.name
-    elif hasattr(dtype, "__str__"):
-        if "_DimExpr" in str(dtype):
-            return config.floatx()
-        if "torch" in str(dtype) or "jax.numpy" in str(dtype):
-            dtype = str(dtype).split(".")[-1]
+    elif hasattr(dtype, "__str__") and (
+        "torch" in str(dtype) or "jax.numpy" in str(dtype)
+    ):
+        dtype = str(dtype).split(".")[-1]
+    elif hasattr(dtype, "__str__") and "_DimExpr" in str(dtype):
+        return config.floatx()
     elif hasattr(dtype, "__name__"):
         dtype = dtype.__name__
 
