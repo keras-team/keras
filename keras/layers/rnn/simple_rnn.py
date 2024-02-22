@@ -158,13 +158,13 @@ class SimpleRNNCell(Layer, DropoutRNNCell):
         rec_dp_mask = self.get_recurrent_dropout_mask(prev_output)
 
         if training and dp_mask is not None:
-            sequence *= dp_mask
+            sequence = sequence * dp_mask
         h = ops.matmul(sequence, self.kernel)
         if self.bias is not None:
             h += self.bias
 
         if training and rec_dp_mask is not None:
-            prev_output *= rec_dp_mask
+            prev_output = prev_output * rec_dp_mask
         output = h + ops.matmul(prev_output, self.recurrent_kernel)
         if self.activation is not None:
             output = self.activation(output)
