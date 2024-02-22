@@ -855,3 +855,31 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.w5.shape, (2, 2))
         self.assertEqual(layer.w5.dtype, "float32")
         self.assertAllClose(backend.convert_to_numpy(layer.w5), np.ones((2, 2)))
+
+    def test_remove_weight(self):
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight()
+
+            def custom_remove_w(self):
+                self.w = self._untrack_variable(self.w)
+
+            def custom_change_dtype(self):
+                self.w = self._untrack_variable(self.w)
+                self.w = self.add_weight(
+                    initializer="zeros", dtype="int8", trainable=False
+                )
+
+        layer = MyLayer()
+        self.assertEqual(len(layer.weights), 1)
+        layer.custom_remove_w()
+        self.assertEqual(len(layer.weights), 0)
+        self.assertEqual(layer.w, None)
+
+        layer = MyLayer()
+        self.assertEqual(layer.w.dtype, "float32")
+        self.assertEqual(layer.w.trainable, True)
+        layer.custom_change_dtype()
+        self.assertEqual(layer.w.dtype, "int8")
+        self.assertEqual(layer.w.trainable, False)
