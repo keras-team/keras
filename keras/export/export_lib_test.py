@@ -181,7 +181,6 @@ class ExportArchiveTest(testing.TestCase):
     )
     def test_jax_multi_unknown_endpoint_registration(self):
         window_size = 100
-        inference_window_size = None
 
         X = np.random.random((1024, window_size, 1))
         Y = np.random.random((1024, window_size, 1))
