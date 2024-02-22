@@ -7,7 +7,7 @@ _MEL_BREAK_FREQUENCY_HERTZ = 700.0
 _MEL_HIGH_FREQUENCY_Q = 1127.0
 
 
-def _mel_to_hertz(mel_values, name=None):
+def _mel_to_hertz(mel_values):
     """Converts frequencies in `mel_values` from the mel scale to linear scale.
 
     Args:
@@ -24,7 +24,7 @@ def _mel_to_hertz(mel_values, name=None):
     )
 
 
-def _hertz_to_mel(frequencies_hertz, name=None):
+def _hertz_to_mel(frequencies_hertz):
     """Converts frequencies in `frequencies_hertz` in Hertz to the mel scale.
 
     Args:
