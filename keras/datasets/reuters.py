@@ -141,7 +141,7 @@ def get_word_index(path="reuters_word_index.json"):
 
     E.g. word index of 'the' is 1, but the in the actual training data, the
     index of 'the' will be 1 + 3 = 4. Vice versa, to translate word indices in
-    training data back to words using this mapping, indices need to substract 3.
+    training data back to words using this mapping, indices need to subtract 3.
 
     Args:
         path: where to cache the data (relative to `~/.keras/dataset`).

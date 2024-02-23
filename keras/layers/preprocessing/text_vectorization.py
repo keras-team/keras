@@ -397,7 +397,7 @@ class TextVectorization(Layer):
         During `adapt()`, the layer will build a vocabulary of all string tokens
         seen in the dataset, sorted by occurrence count, with ties broken by
         sort order of the tokens (high to low). At the end of `adapt()`, if
-        `max_tokens` is set, the vocabulary wil be truncated to `max_tokens`
+        `max_tokens` is set, the vocabulary will be truncated to `max_tokens`
         size. For example, adapting a layer with `max_tokens=1000` will compute
         the 1000 most frequent tokens occurring in the input dataset. If
         `output_mode='tf-idf'`, `adapt()` will also learn the document

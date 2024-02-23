@@ -234,7 +234,7 @@ def _find_replace_nested_dict(config, find, replace):
 
 
 def _resolve_compile_arguments_compat(obj, obj_config, module):
-    """Resolves backwards compatiblity issues with training config arguments.
+    """Resolves backwards compatibility issues with training config arguments.
 
     This helper function accepts built-in Keras modules such as optimizers,
     losses, and metrics to ensure an object being deserialized is compatible

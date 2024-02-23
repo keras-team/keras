@@ -123,7 +123,7 @@ Here's our training loop, step by step:
 
 - We open a `for` loop that iterates over epochs
 - For each epoch, we open a `for` loop that iterates over the dataset, in batches
-- For each batch, we call the model on the input data to retrive the predictions,
+- For each batch, we call the model on the input data to retrieve the predictions,
 then we use them to compute a loss value
 - We call `loss.backward()` to 
 - Outside the scope, we retrieve the gradients of the weights

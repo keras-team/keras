@@ -238,7 +238,7 @@ class StringLookup(IndexLookup):
            [1.0 , 0.  , 0.75, 0.  , 0.4 ]], dtype=float32)
 
     To specify the idf weights for oov values, you will need to pass the entire
-    vocabularly including the leading oov token.
+    vocabulary including the leading oov token.
 
     >>> vocab = ["[UNK]", "a", "b", "c", "d"]
     >>> idf_weights = [0.9, 0.25, 0.75, 0.6, 0.4]
@@ -338,7 +338,7 @@ class StringLookup(IndexLookup):
         self.supports_jit = False
 
     def adapt(self, data, steps=None):
-        """Computes a vocabulary of interger terms from tokens in a dataset.
+        """Computes a vocabulary of integer terms from tokens in a dataset.
 
         Calling `adapt()` on a `StringLookup` layer is an alternative to passing
         in a precomputed vocabulary on construction via the `vocabulary`
@@ -348,7 +348,7 @@ class StringLookup(IndexLookup):
         During `adapt()`, the layer will build a vocabulary of all string tokens
         seen in the dataset, sorted by occurrence count, with ties broken by
         sort order of the tokens (high to low). At the end of `adapt()`, if
-        `max_tokens` is set, the vocabulary wil be truncated to `max_tokens`
+        `max_tokens` is set, the vocabulary will be truncated to `max_tokens`
         size. For example, adapting a layer with `max_tokens=1000` will compute
         the 1000 most frequent tokens occurring in the input dataset. If
         `output_mode='tf-idf'`, `adapt()` will also learn the document

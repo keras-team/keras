@@ -752,7 +752,7 @@ class Layer(BackendLayer, Operation):
         # across nested calls.
         call_context = self._get_call_context()
 
-        # This is the value explicity passed by the user
+        # This is the value explicitly passed by the user
         training = call_spec.user_arguments_dict.get("training", None)
         if training is None:
             # Wasn't passed explicitly: use context value
@@ -877,7 +877,7 @@ class Layer(BackendLayer, Operation):
             trainable_variables: List of trainable variables of the model.
             non_trainable_variables: List of non-trainable variables of the
                 model.
-            *args: Positional argumets to be passed to `call()`.
+            *args: Positional arguments to be passed to `call()`.
             return_losses: If `True`, `stateless_call()` will return the list of
                 losses created during `call()` as part of its return values.
             **kwargs: Keyword arguments to be passed to `call()`.
@@ -1228,7 +1228,7 @@ class Layer(BackendLayer, Operation):
                     "your layer. It should create all variables used by the "
                     "layer (e.g. by calling `layer.build()` on all its "
                     "children layers).\n"
-                    f"Exception encoutered: ''{e}''"
+                    f"Exception encountered: ''{e}''"
                 )
         self.build(first_shape)
 

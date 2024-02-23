@@ -122,7 +122,7 @@ class KerasVariable:
             if value is not None:
                 return self._maybe_autocast(value)
         if self._value is None:
-            # Unitialized variable. Return a placeholder.
+            # Uninitialized variable. Return a placeholder.
             # This is fine because it's only ever used
             # in during shape inference / graph tracing
             # (anything else would be a bug, to be fixed.)

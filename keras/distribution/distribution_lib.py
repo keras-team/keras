@@ -48,9 +48,9 @@ def initialize(job_addresses=None, num_processes=None, proceed_id=None):
     Calling `initialize` will prepare the backend for execution on multi-host
     GPU or TPUs. It should be called before any computations.
 
-    Note that the parameters can also be injected via enviornment variables,
+    Note that the parameters can also be injected via environment variables,
     which can be better controlled by the launch script at startup time.
-    For certain backend that also rely on the enviornment variables to
+    For certain backend that also rely on the environment variables to
     configure, Keras will properly forward them.
 
     Args:
@@ -58,18 +58,18 @@ def initialize(job_addresses=None, num_processes=None, proceed_id=None):
             that will form the whole computation cluster. Note that for JAX
             backend, only the address for job 0 (coodinator) is needed. For
             certain runtime like cloud TPU, this value can be `None`, and the
-            backend will figure it out with the TPU enviornment variables. You
-            can also config this value via enviornment variable
+            backend will figure it out with the TPU environment variables. You
+            can also config this value via environment variable
             `KERAS_DISTRIBUTION_JOB_ADDRESSES`.
         num_processes: int. The number of worker/processes that will form the
             whole computation cluster. For certain runtime like cloud TPU, this
             value can be `None`, and the backend will figure it out with the TPU
-            enviornment variables. You can also configure this value via
-            enviornment variable `KERAS_DISTRIBUTION_NUM_PROCESSES`.
+            environment variables. You can also configure this value via
+            environment variable `KERAS_DISTRIBUTION_NUM_PROCESSES`.
         process_id: int. The ID number of the current worker/process. The value
             should be ranged from `0` to `num_processes - 1`. `0` will indicate
             the current worker/process is the master/coordinate job. You can
-            also configure this value via enviornment variable
+            also configure this value via environment variable
             `KERAS_DISTRIBUTION_PROCESS_ID`.
 
         Example:
@@ -93,7 +93,7 @@ def initialize(job_addresses=None, num_processes=None, proceed_id=None):
             process_id=1)
         ```
 
-        or via the enviornment variables:
+        or via the environment variables:
         On process 0:
         ```python
         os.environ[
@@ -223,7 +223,7 @@ class TensorLayout:
 
     Args:
         axes: tuple of strings that should map to the `axis_names` in
-            a `DeviceMesh`. For any dimentions that doesn't need any sharding,
+            a `DeviceMesh`. For any dimensions that doesn't need any sharding,
             A `None` can be used a placeholder.
         device_mesh: Optional `DeviceMesh` that will be used to create
             the layout. The actual mapping of tensor to physical device
@@ -320,7 +320,7 @@ class Distribution:
         """Retrieve the `TensorLayout` for the intermediate tensor.
 
         Args:
-            path: a string path for the correspoding tensor.
+            path: a string path for the corresponding tensor.
 
         return:
             The `TensorLayout` for the intermediate tensor, which can be used
@@ -367,7 +367,7 @@ class Distribution:
 class DataParallel(Distribution):
     """Distribution for data parallelism.
 
-    You can choose to create this instance by either specifing
+    You can choose to create this instance by either specifying
     the `device_mesh` or `devices` arguments (but not both).
 
     The `device_mesh` argument is expected to be a `DeviceMesh` instance,
@@ -495,7 +495,7 @@ class ModelParallel(Distribution):
     To construct a `ModelParallel` distribution, you need to provide a
     `DeviceMesh` and a `LayoutMap`.
 
-    1. `DeviceMesh` contains physcial device information. The axis names in
+    1. `DeviceMesh` contains physical device information. The axis names in
         the mesh will be used to map the variable and data layout.
     2. `LayoutMap` contains the mapping between variable paths to their
         corresponding `TensorLayout`.
@@ -623,7 +623,7 @@ class ModelParallel(Distribution):
         # model   | w0_0, w0_1, w1_0, w1_1 |
         #   v     | w0_2, w0_3, w1_2, w1_3 |
         #         --------------------------
-        # In this case, the batch dim will be split acorss 2 workers.
+        # In this case, the batch dim will be split across 2 workers.
         #
         # In the case that global batch dim is smaller than the worker size, eg
         # {'batch': 1, 'model': 8}, then the mesh will be like below:
@@ -650,12 +650,12 @@ class ModelParallel(Distribution):
         if mesh_batch_dim_size < local_device_count:
             # No sharding is needed in this case. The worker will have the
             # global batch size, and data from the iterator will need to be
-            # replicated for model dimention.
+            # replicated for model dimension.
             return dataset.prefetch(tf.data.AUTOTUNE)
         else:
             if mesh_batch_dim_size % local_device_count != 0:
                 raise ValueError(
-                    "The Batch dimention of the mesh is not compatible "
+                    "The Batch dimension of the mesh is not compatible "
                     "with the local worker device count. Mesh batch "
                     f"dim = {mesh_batch_dim_size} and local device "
                     f"count = {local_device_count}"

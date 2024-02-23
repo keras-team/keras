@@ -306,7 +306,7 @@ def mean(x, axis=None, keepdims=False):
             )
             return tf.IndexedSlices(new_values, x.indices, new_dense_shape)
         elif rank == len(axis) + 1:
-            # `keepdims=False` and reducing against all axes exept 0, result is
+            # `keepdims=False` and reducing against all axes except 0, result is
             # a 1D tensor, which cannot be `IndexedSlices`. We have to scatter
             # the computed means to construct the correct dense tensor.
             return tf.scatter_nd(
@@ -1140,7 +1140,7 @@ def nan_to_num(x):
     # Replace NaN with 0
     x = tf.where(tf.math.is_nan(x), tf.constant(0, dtype), x)
 
-    # Replace positive infinitiy with dtype.max
+    # Replace positive infinity with dtype.max
     x = tf.where(tf.math.is_inf(x) & (x > 0), tf.constant(dtype.max, dtype), x)
 
     # Replace negative infinity with dtype.min
