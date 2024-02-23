@@ -284,7 +284,7 @@ def train_step(train_state, x, y):
 
 # training loop
 EPOCHS = 5
-print("\ntraining:")
+print("\nTraining:")
 data_iter = iter(train_data)
 for epoch in range(EPOCHS):
     for i in tqdm(range(STEPS_PER_EPOCH)):
