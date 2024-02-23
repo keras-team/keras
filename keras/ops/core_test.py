@@ -423,14 +423,6 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         f = ops.cond(False, lambda: None, lambda: None)
         self.assertEqual(f, None)
 
-        for val in [True, False]:
-            out = ops.cond(
-                val,
-                lambda: KerasTensor((16, 3)),
-                lambda: KerasTensor((16, 3)),
-            )
-            self.assertEqual((16, 3), out.shape)
-
         out = ops.cond(
             KerasTensor((), dtype="bool"),
             lambda: ops.ones((1, 3)),
@@ -440,16 +432,16 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         out = ops.cond(
             KerasTensor((), dtype="bool"),
-            lambda: KerasTensor((3,)),
-            lambda: KerasTensor((3,)),
+            lambda: ops.ones((3,)),
+            lambda: ops.zeros((3,)),
         )
         self.assertEqual((3,), out.shape)
 
         with self.assertRaises(ValueError):
             ops.cond(
                 KerasTensor((), dtype="bool"),
-                lambda: KerasTensor((3,)),
-                lambda: KerasTensor((4,)),
+                lambda: ops.ones((3,)),
+                lambda: ops.zeros((4,)),
             )
 
     def test_unstack(self):

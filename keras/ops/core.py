@@ -14,6 +14,7 @@ is_tensor
 """
 
 import numpy as np
+import tree
 
 from keras import backend
 from keras.api_export import keras_export
@@ -514,13 +515,10 @@ class Cond(Operation):
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
         def call_fn(*args, **kwargs):
-            if not any_symbolic_tensors(args, kwargs):
-                try:
-                    return self.call(*args, **kwargs)
-                except (TypeError, ValueError):
-                    # fallback on symbolic case
-                    pass
-            return self.symbolic_call(*args, **kwargs)
+            if any_symbolic_tensors(args, kwargs):
+                return self.symbolic_call(*args, **kwargs)
+            else:
+                return self.call(*args, **kwargs)
 
         if traceback_utils.is_traceback_filtering_enabled():
             # Wrap self.call to provide helpful info in case of exception
@@ -537,11 +535,8 @@ class Cond(Operation):
         return backend.core.cond(pred, true_fn, false_fn)
 
     def compute_output_spec(self, pred, true_fn, false_fn):
-        def call_fn(fn):
-            return fn()
-
-        true_fn_spec = backend.compute_output_spec(call_fn, true_fn)
-        false_fn_spec = backend.compute_output_spec(call_fn, false_fn)
+        true_fn_spec = backend.compute_output_spec(true_fn)
+        false_fn_spec = backend.compute_output_spec(false_fn)
         if not self._check_output_spec(true_fn_spec, false_fn_spec):
             raise ValueError(
                 "`true_fn` and `false_fn` should return outputs "
@@ -551,45 +546,18 @@ class Cond(Operation):
         return true_fn_spec
 
     def _check_output_spec(self, true_fn_spec, false_fn_spec):
-        if true_fn_spec is None or false_fn_spec is None:
-            return true_fn_spec is None and false_fn_spec is None
-        elif isinstance(true_fn_spec, dict):
-            if not isinstance(false_fn_spec, dict):
-                return False
-            if true_fn_spec.keys() != false_fn_spec.keys():
-                return False
-            if any(
-                (not self._check_output_spec(true_fn_spec[k], false_fn_spec[k]))
-                for k in true_fn_spec.keys()
-            ):
-                return False
-        elif isinstance(true_fn_spec, list):
-            if not isinstance(false_fn_spec, list):
-                return False
-            if len(true_fn_spec) != len(false_fn_spec):
-                return False
-            if any(
-                (not self._check_output_spec(ti, fi))
-                for ti, fi in zip(true_fn_spec, false_fn_spec)
-            ):
-                return False
-        elif isinstance(true_fn_spec, tuple):
-            if not isinstance(false_fn_spec, tuple):
-                return False
-            if len(true_fn_spec) != len(false_fn_spec):
-                return False
-            if any(
-                (not self._check_output_spec(ti, fi))
-                for ti, fi in zip(true_fn_spec, false_fn_spec)
-            ):
-                return False
-        else:
-            if true_fn_spec.dtype != false_fn_spec.dtype:
-                return False
-            if true_fn_spec.shape != false_fn_spec.shape:
-                return False
+        try:
+            tree.assert_same_structure(true_fn_spec, false_fn_spec)
+        except:
+            return False
 
-        return True
+        def check_leaf(t_spec, f_spec):
+            if t_spec is None or f_spec is None:
+                return t_spec is None and f_spec is None
+            return t_spec.shape == f_spec.shape and t_spec.dtype == f_spec.dtype
+
+        same = tree.map_structure(check_leaf, true_fn_spec, false_fn_spec)
+        return all(tree.flatten(same))
 
 
 @keras_export("keras.ops.cond")
