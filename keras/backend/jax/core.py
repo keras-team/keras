@@ -1,12 +1,9 @@
-import types
-
 import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 import ml_dtypes
 import numpy as np
 import tree
-from jax.tree_util import Partial
 
 from keras.backend.common import KerasVariable
 from keras.backend.common import global_state
@@ -139,16 +136,6 @@ def compute_output_spec(fn, *args, **kwargs):
                             shape[i] = fill_value
                 jax_tensor = jax.ShapeDtypeStruct(shape, dtype=x.dtype)
                 return jax_tensor
-            if isinstance(x, types.FunctionType):
-
-                def _fn(*args, **kwargs):
-                    out = x(*args, **kwargs)
-                    out = convert_keras_tensor_to_jax(
-                        out, fill_value=fill_value
-                    )
-                    return out
-
-                return Partial(_fn)
             if isinstance(x, dict):
                 return {
                     k: convert_keras_tensor_to_jax(v, fill_value=fill_value)
