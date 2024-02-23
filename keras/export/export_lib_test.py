@@ -76,7 +76,7 @@ class ExportArchiveTest(testing.TestCase):
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
-        reason="Registering a tf.function endpoint is only in TF backend.",
+        reason="This test is native to the TF backend.",
     )
     def test_endpoint_registration_tf_function(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -174,6 +174,80 @@ class ExportArchiveTest(testing.TestCase):
         assert isinstance(
             export_archive.non_trainable_variables[0], tf.Variable
         )
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="This test is native to the JAX backend.",
+    )
+    def test_jax_multi_unknown_endpoint_registration(self):
+        window_size = 100
+
+        X = np.random.random((1024, window_size, 1))
+        Y = np.random.random((1024, window_size, 1))
+
+        model = models.Sequential(
+            [
+                layers.Dense(128, activation="relu"),
+                layers.Dense(64, activation="relu"),
+                layers.Dense(1, activation="relu"),
+            ]
+        )
+
+        model.compile(optimizer="adam", loss="mse")
+
+        model.fit(X, Y, batch_size=32)
+
+        # build a JAX function
+        def model_call(x):
+            return model(x)
+
+        from jax import default_backend as jax_device
+        from jax.experimental import jax2tf
+
+        native_jax_compatible = not (
+            jax_device() == "gpu"
+            and len(tf.config.list_physical_devices("GPU")) == 0
+        )
+        # now, convert JAX function
+        converted_model_call = jax2tf.convert(
+            model_call,
+            native_serialization=native_jax_compatible,
+            polymorphic_shapes=["(b, t, 1)"],
+        )
+
+        # you can now build a TF inference function
+        @tf.function(
+            input_signature=[
+                tf.TensorSpec(shape=(None, None, 1), dtype=tf.float32)
+            ],
+            autograph=False,
+        )
+        def infer_fn(x):
+            return converted_model_call(x)
+
+        ref_input = np.random.random((1024, window_size, 1))
+        ref_output = infer_fn(ref_input)
+
+        # Export with TF inference function as endpoint
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model")
+        export_archive = export_lib.ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint("serve", infer_fn)
+        export_archive.write_out(temp_filepath)
+
+        # Reload and verify outputs
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertFalse(hasattr(revived_model, "_tracked"))
+        self.assertAllClose(
+            ref_output, revived_model.serve(ref_input), atol=1e-6
+        )
+        self.assertLen(revived_model.variables, 6)
+        self.assertLen(revived_model.trainable_variables, 6)
+        self.assertLen(revived_model.non_trainable_variables, 0)
+
+        # Assert all variables wrapped as `tf.Variable`
+        assert isinstance(export_archive.variables[0], tf.Variable)
+        assert isinstance(export_archive.trainable_variables[0], tf.Variable)
 
     def test_layer_export(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_layer")
