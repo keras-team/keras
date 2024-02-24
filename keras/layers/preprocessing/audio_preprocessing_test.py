@@ -44,12 +44,14 @@ class MelSpectrogramTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.parameters(
         [
-            ((2, 16000), 80, 128, 2048, 8000),
-            ((16000,), 80, 128, 2048, 8000),
-            ((2, 16001), 80, 128, 2048, 16000),
-            ((16001,), 80, 128, 2048, 8000),
-            ((2, 16000), 128, 64, 512, 32000),
-            ((16000,), 128, 64, 512, 32000),
+            ((2, 16000), 80, 128, 2048, 8000, False),
+            ((16000,), 80, 128, 2048, 8000, False),
+            ((2, 16001), 80, 128, 2048, 16000, False),
+            ((16001,), 80, 128, 2048, 8000, False),
+            ((2, 8000), 128, 64, 512, 32000, False),
+            ((8000,), 128, 64, 512, 32000, False),
+            ((2, 8000), 128, 64, 512, 32000, True),
+            ((8000,), 128, 64, 512, 32000, True),
         ]
     )
     def test_output_shape(
@@ -59,8 +61,12 @@ class MelSpectrogramTest(testing.TestCase, parameterized.TestCase):
         sequence_stride,
         fft_length,
         sampling_rate,
+        all_zero,
     ):
-        audios = np.random.random(input_shape)
+        if all_zero:
+            audios = np.zeros(input_shape)
+        else:
+            audios = np.random.random(input_shape)
         out = layers.MelSpectrogram(
             num_mel_bins=num_mel_bins,
             sequence_stride=sequence_stride,
