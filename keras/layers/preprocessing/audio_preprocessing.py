@@ -1,6 +1,4 @@
-from keras import ops
 from keras.api_export import keras_export
-from keras.layers.layer import Layer
 from keras.layers.preprocessing.tf_data_layer import TFDataLayer
 
 # mel spectrum constants.
