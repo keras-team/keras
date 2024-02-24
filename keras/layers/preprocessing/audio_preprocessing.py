@@ -177,17 +177,17 @@ class MelSpectrogram(TFDataLayer):
         return log_spec
 
     def _hertz_to_mel(self, frequencies_hertz):
-        """Converts frequencies in `frequencies_hertz` in Hertz to the mel scale.
+        """Converts frequencies in `frequencies_hertz` in Hertz to the
+            mel scale.
 
         Args:
             frequencies_hertz: A tensor of frequencies in Hertz.
             name: An optional name for the operation.
 
         Returns:
-            A tensor of the same shape and type of `frequencies_hertz` containing
-            frequencies in the mel scale.
+            A tensor of the same shape and type of `frequencies_hertz`
+            containing frequencies in the mel scale.
         """
-        # frequencies_hertz = self.backend.convert_to_tensor(frequencies_hertz)
         return _MEL_HIGH_FREQUENCY_Q * self.backend.numpy.log(
             1.0 + (frequencies_hertz / _MEL_BREAK_FREQUENCY_HERTZ)
         )
@@ -203,10 +203,10 @@ class MelSpectrogram(TFDataLayer):
     ):
         """Returns a matrix to warp linear scale spectrograms to the mel scale.
 
-        Returns a weight matrix that can be used to re-weight a tensor containing
-        `num_spectrogram_bins` linearly sampled frequency information from
-        `[0, sampling_rate / 2]` into `num_mel_bins` frequency information from
-        `[lower_edge_hertz, upper_edge_hertz]` on the mel scale.
+        Returns a weight matrix that can be used to re-weight a tensor
+        containing `num_spectrogram_bins` linearly sampled frequency information
+        from `[0, sampling_rate / 2]` into `num_mel_bins` frequency information
+        from `[lower_edge_hertz, upper_edge_hertz]` on the mel scale.
 
         This function follows the [Hidden Markov Model Toolkit (HTK)](
         http://htk.eng.cam.ac.uk/) convention, defining the mel scale in
@@ -214,13 +214,13 @@ class MelSpectrogram(TFDataLayer):
 
         ```mel(f) = 2595 * log10( 1 + f/700)```
 
-        In the returned matrix, all the triangles (filterbanks) have a peak value
-        of 1.0.
+        In the returned matrix, all the triangles (filterbanks) have a peak
+        value of 1.0.
 
         For example, the returned matrix `A` can be used to right-multiply a
         spectrogram `S` of shape `[frames, num_spectrogram_bins]` of linear
-        scale spectrum values (e.g. STFT magnitudes) to generate a "mel spectrogram"
-        `M` of shape `[frames, num_mel_bins]`.
+        scale spectrum values (e.g. STFT magnitudes) to generate a
+        "mel spectrogram" `M` of shape `[frames, num_mel_bins]`.
 
         ```
         # `S` has shape [frames, num_spectrogram_bins]
@@ -228,8 +228,9 @@ class MelSpectrogram(TFDataLayer):
         M = keras.ops.matmul(S, A)
         ```
 
-        The matrix can be used with `keras.ops.tensordot` to convert an arbitrary
-        rank `Tensor` of linear-scale spectral bins into the mel scale.
+        The matrix can be used with `keras.ops.tensordot` to convert an
+        arbitrary rank `Tensor` of linear-scale spectral bins into the
+        mel scale.
 
         ```
         # S has shape [..., num_spectrogram_bins].
@@ -241,28 +242,30 @@ class MelSpectrogram(TFDataLayer):
         - [Mel scale (Wikipedia)](https://en.wikipedia.org/wiki/Mel_scale)
 
         Args:
-            num_mel_bins: Python int. How many bands in the resulting mel spectrum.
+            num_mel_bins: Python int. How many bands in the resulting
+                mel spectrum.
             num_spectrogram_bins: An integer `Tensor`. How many bins there are
                 in the source spectrogram data, which is understood to be
                 `fft_size // 2 + 1`, i.e. the spectrogram only contains the
                 nonredundant FFT bins.
-            sampling_rate: An integer or float `Tensor`. Samples per second of the
-                input signal used to create the spectrogram. Used to figure out the
-                frequencies corresponding to each spectrogram bin, which dictates
-                how they are mapped into the mel scale.
+            sampling_rate: An integer or float `Tensor`. Samples per second of
+                the input signal used to create the spectrogram. Used to figure
+                out the frequencies corresponding to each spectrogram bin,
+                which dictates how they are mapped into the mel scale.
             lower_edge_hertz: Python float. Lower bound on the frequencies to be
-                included in the mel spectrum. This corresponds to the lower edge of
-                the lowest triangular band.
+                included in the mel spectrum. This corresponds to the lower
+                edge of the lowest triangular band.
             upper_edge_hertz: Python float. The desired top edge of the highest
                 frequency band.
-            dtype: The `DType` of the result matrix. Must be a floating point type.
+            dtype: The `DType` of the result matrix. Must be a floating point
+                type.
 
         Returns:
             A tensor of shape `[num_spectrogram_bins, num_mel_bins]`.
         """
 
-        # This function can be constant folded by graph optimization since there are
-        # no Tensor inputs.
+        # This function can be constant folded by graph optimization since
+        # there are no Tensor inputs.
         sampling_rate = self.backend.cast(sampling_rate, dtype)
         lower_edge_hertz = self.backend.convert_to_tensor(
             lower_edge_hertz,
