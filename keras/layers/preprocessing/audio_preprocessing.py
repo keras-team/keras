@@ -278,7 +278,12 @@ class MelSpectrogram(Layer):
         super().__init__(**kwargs)
 
     def call(self, inputs):
-        inputs = ops.convert_to_tensor(inputs, dtype=self.compute_dtype)
+        dtype = (
+            "float32"
+            if self.compute_dtype not in ["float32", "float64"]
+            else self.compute_dtype
+        )  # jax, tf supports only "float32" and "float64" in stft
+        inputs = ops.convert_to_tensor(inputs, dtype=dtype)
         outputs = self._spectrogram(inputs)
         outputs = self._melscale(outputs)
         if self.power_to_db:
