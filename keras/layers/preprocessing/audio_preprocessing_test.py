@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from absl.testing import parameterized
+from tensorflow import data as tf_data
 
 from keras import layers
 from keras import testing
@@ -85,3 +86,18 @@ class MelSpectrogramTest(testing.TestCase, parameterized.TestCase):
                 (input_shape[1] + sequence_stride + 1) // sequence_stride,
             )
         self.assertEqual(tuple(out.shape), ref_shape)
+
+    def test_tf_data_compatibility(self):
+        input_shape = (2, 16000)
+        output_shape = (2, 80, 126)
+        layer = layers.MelSpectrogram(
+            num_mel_bins=80,
+            sampling_rate=8000,
+            sequence_stride=128,
+            fft_length=2048,
+        )
+        input_data = np.random.random(input_shape)
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        for output in ds.take(1):
+            output = output.numpy()
+        self.assertEqual(tuple(output.shape), output_shape)
