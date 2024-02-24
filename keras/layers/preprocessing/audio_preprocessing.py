@@ -162,12 +162,9 @@ class MelSpectrogram(TFDataLayer):
                 self.backend.numpy.maximum(inputs, self.min_power)
             )
         )
-        if callable(self.ref_power):
-            ref_value = self.ref_power(log_spec)
-        else:
-            ref_value = self.backend.numpy.abs(
-                self.backend.convert_to_tensor(self.ref_power)
-            )
+        ref_value = self.backend.numpy.abs(
+            self.backend.convert_to_tensor(self.ref_power)
+        )
         log_spec -= 10.0 * self.backend.numpy.log10(
             self.backend.numpy.maximum(ref_value, self.min_power)
         )
