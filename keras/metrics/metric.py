@@ -160,6 +160,21 @@ class Metric:
             res = self.result()
         return res
 
+    def stateless_reset_state(self):
+        # Call in stateless scope
+        with backend.StatelessScope() as scope:
+            self.reset_state()
+
+        # Gather updated variables
+        metric_variables = []
+        for v in self.variables:
+            new_v = scope.get_current_value(v)
+            if new_v is not None:
+                metric_variables.append(new_v)
+            else:
+                metric_variables.append(v)
+        return metric_variables
+
     @property
     def dtype(self):
         return self._dtype
