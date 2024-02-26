@@ -29,12 +29,16 @@ class Operation:
 
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
+        _quantization_mode = kwargs.pop("quantization_mode", None)
         if traceback_utils.is_traceback_filtering_enabled():
             # Wrap self.call to provide helpful info in case of exception
             if any_symbolic_tensors(args, kwargs):
                 call_fn = self.symbolic_call
             else:
-                call_fn = self.call
+                if _quantization_mode == "dynamic_int8":
+                    call_fn = self.dynamic_int8_call
+                else:
+                    call_fn = self.call
             call_fn = traceback_utils.inject_argument_info_in_traceback(
                 call_fn,
                 object_name=(f"{self.__class__.__name__}.call()"),
@@ -44,7 +48,10 @@ class Operation:
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
             return self.symbolic_call(*args, **kwargs)
-        return self.call(*args, **kwargs)
+        if _quantization_mode == "dynamic_int8":
+            return self.dynamic_int8_call(*args, **kwargs)
+        else:
+            return self.call(*args, **kwargs)
 
     def symbolic_call(self, *args, **kwargs):
         # Perform shape/dtype inference.
@@ -62,6 +69,10 @@ class Operation:
 
     def call(self, *args, **kwargs):
         raise NotImplementedError
+
+    def dynamic_int8_call(self, *args, **kwargs):
+        # Note that `dynamic_int8_call` defaults to `call` if not implemented.
+        return self.call(*args, **kwargs)
 
     def compute_output_spec(self, *args, **kwargs):
         try:

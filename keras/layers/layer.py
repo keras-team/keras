@@ -261,6 +261,14 @@ class Layer(BackendLayer, Operation):
                 stacklevel=2,
             )
             self._input_shape_arg = input_shape_arg
+        # Quantization parameters
+        self._quantization_mode = kwargs.pop("quantization_mode", None)
+        self._quantization_trainable = kwargs.pop(
+            "quantization_trainable", False
+        )
+        self._check_quantize_args(
+            self.quantization_mode, self.quantization_trainable
+        )
         if kwargs:
             raise ValueError(
                 "Unrecognized keyword arguments "
@@ -626,6 +634,14 @@ class Layer(BackendLayer, Operation):
         return [v for v in self.weights if not v.trainable]
 
     @property
+    def quantization_mode(self):
+        return self._quantization_mode
+
+    @property
+    def quantization_trainable(self):
+        return self._quantization_trainable
+
+    @property
     def metrics_variables(self):
         """List of all metric variables."""
         vars = []
@@ -789,8 +805,12 @@ class Layer(BackendLayer, Operation):
                         )
                         kwargs[expected_mask_arg_name] = mask
 
+        ##############################
+        # 7. Populate quantization argument(s)
+        kwargs["quantization_mode"] = self.quantization_mode
+
         ####################
-        # 7. Call the layer.
+        # 8. Call the layer.
         try:
             with backend.name_scope(self.name, caller=self):
                 current_scope = backend.get_autocast_scope()
@@ -861,6 +881,9 @@ class Layer(BackendLayer, Operation):
             f"Layer {self.__class__.__name__} does not have a `call()` "
             "method implemented."
         )
+
+    def dynamic_int8_call(self, *args, **kwargs):
+        return self.call(*args, **kwargs)
 
     @traceback_utils.filter_traceback
     def stateless_call(
@@ -951,7 +974,10 @@ class Layer(BackendLayer, Operation):
         with backend.StatelessScope(
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
-            outputs = self.call(*args, **kwargs)
+            if self.quantization_mode == "dynamic_int8":
+                outputs = self.dynamic_int8_call(*args, **kwargs)
+            else:
+                outputs = self.call(*args, **kwargs)
             if return_losses:
                 losses = self.losses
 
@@ -1093,6 +1119,25 @@ class Layer(BackendLayer, Operation):
         self._loss_ids.clear()
         for layer in self._layers:
             layer._clear_losses()
+
+    def quantize(self, mode, trainable=False, input_shape=None):
+        self._check_quantize_args(mode, trainable)
+        warnings.warn(
+            "`quantize` is not implemented for class "
+            f"'{self.__class__.__name__}' so the quantization is skipped."
+        )
+
+    def _check_quantize_args(self, mode, trainable):
+        if mode not in (None, "dynamic_int8"):
+            raise ValueError(
+                "Currently, `quantize` must be one of "
+                f"(`None`, 'dynamic_int8'). Received: mode={mode}"
+            )
+        if not isinstance(trainable, bool):
+            raise TypeError(
+                "`trainable` must be boolean. "
+                f"Received: trainable={trainable} of type '{type(trainable)}'"
+            )
 
     def save_own_variables(self, store):
         """Saves the state of the layer.
@@ -1362,6 +1407,8 @@ class Layer(BackendLayer, Operation):
         config = {
             "trainable": self.trainable,
             "dtype": self.dtype_policy.name,
+            "quantization_mode": self.quantization_mode,
+            "quantization_trainable": self.quantization_trainable,
         }
         return {**base_config, **config}
 

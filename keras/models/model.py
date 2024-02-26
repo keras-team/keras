@@ -361,6 +361,37 @@ class Model(Trainer, Layer):
             self, filepath, skip_mismatch=skip_mismatch, **kwargs
         )
 
+    def quantize(self, mode, trainable):
+        """Quantize the weights of the model.
+
+        Note that the model must be built first before calling this method.
+        Quantization will be skipped if the layer doesn't implement `quantize`
+        function.
+
+        Args:
+            mode: The mode of the quantization. The supported modes are
+                `"dynamic_int8"`.
+            trainable: Boolean, whether to enable training after the
+                quantization. This is useful for finetuning lora weights of the
+                model.
+        """
+        if not self.built:
+            raise ValueError(
+                "The model must be built first before calling `quantize`."
+            )
+        mode_changed = False
+        for layer in self.layers:
+            original_mode = layer.quantization_mode
+            layer.quantize(mode, trainable)
+            if layer.quantization_mode != original_mode:
+                mode_changed = True
+        # We need to set these functions to `None` to remake them for changed
+        # call function
+        if mode_changed:
+            self.train_function = None
+            self.test_function = None
+            self.predict_function = None
+
     def build_from_config(self, config):
         if not config:
             return
