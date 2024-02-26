@@ -263,12 +263,7 @@ class Layer(BackendLayer, Operation):
             self._input_shape_arg = input_shape_arg
         # Quantization parameters
         self._quantization_mode = kwargs.pop("quantization_mode", None)
-        self._quantization_trainable = kwargs.pop(
-            "quantization_trainable", False
-        )
-        self._check_quantize_args(
-            self.quantization_mode, self.quantization_trainable
-        )
+        self._check_quantize_args(self.quantization_mode)
         if kwargs:
             raise ValueError(
                 "Unrecognized keyword arguments "
@@ -636,10 +631,6 @@ class Layer(BackendLayer, Operation):
     @property
     def quantization_mode(self):
         return self._quantization_mode
-
-    @property
-    def quantization_trainable(self):
-        return self._quantization_trainable
 
     @property
     def metrics_variables(self):
@@ -1120,23 +1111,18 @@ class Layer(BackendLayer, Operation):
         for layer in self._layers:
             layer._clear_losses()
 
-    def quantize(self, mode, trainable=False, input_shape=None):
-        self._check_quantize_args(mode, trainable)
+    def quantize(self, mode, input_shape=None):
+        self._check_quantize_args(mode)
         warnings.warn(
             "`quantize` is not implemented for class "
             f"'{self.__class__.__name__}' so the quantization is skipped."
         )
 
-    def _check_quantize_args(self, mode, trainable):
+    def _check_quantize_args(self, mode):
         if mode not in (None, "dynamic_int8"):
             raise ValueError(
                 "Currently, `quantize` must be one of "
                 f"(`None`, 'dynamic_int8'). Received: mode={mode}"
-            )
-        if not isinstance(trainable, bool):
-            raise TypeError(
-                "`trainable` must be boolean. "
-                f"Received: trainable={trainable} of type '{type(trainable)}'"
             )
 
     def save_own_variables(self, store):
@@ -1408,7 +1394,6 @@ class Layer(BackendLayer, Operation):
             "trainable": self.trainable,
             "dtype": self.dtype_policy.name,
             "quantization_mode": self.quantization_mode,
-            "quantization_trainable": self.quantization_trainable,
         }
         return {**base_config, **config}
 

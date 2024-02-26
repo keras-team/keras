@@ -189,7 +189,6 @@ class IndexLookup(Layer):
         kwargs.pop("trainable", None)
         kwargs.pop("dtype", None)
         kwargs.pop("quantization_mode", None)
-        kwargs.pop("quantization_trainable", None)
         if kwargs:
             raise ValueError(f"Unrecognized keyword argument(s): {kwargs}")
 
