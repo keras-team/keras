@@ -23,6 +23,7 @@ def text_dataset_from_directory(
     validation_split=None,
     subset=None,
     follow_links=False,
+    verbose=True,
 ):
     """Generates a `tf.data.Dataset` from text files in a directory.
 
@@ -88,6 +89,8 @@ def text_dataset_from_directory(
             (the training and validation datasets respectively).
         follow_links: Whether to visits subdirectories pointed to by symlinks.
             Defaults to `False`.
+        verbose: Whether to display number information on classes and
+            number of files found. Defaults to `True`.
 
     Returns:
 
@@ -149,6 +152,7 @@ def text_dataset_from_directory(
         shuffle=shuffle,
         seed=seed,
         follow_links=follow_links,
+        verbose=verbose,
     )
 
     if label_mode == "binary" and len(class_names) != 2:

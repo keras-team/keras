@@ -116,8 +116,8 @@ def image_dataset_from_directory(
             preserved.
         data_format: If None uses keras.config.image_data_format()
             otherwise either 'channel_last' or 'channel_first'.
-        verbose: Whether the function prints number of files found and classes.
-            Default: True
+        verbose: Whether to display number information on classes and
+            number of files found. Defaults to `True`.
 
     Returns:
 
