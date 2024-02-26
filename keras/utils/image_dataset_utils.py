@@ -31,6 +31,7 @@ def image_dataset_from_directory(
     follow_links=False,
     crop_to_aspect_ratio=False,
     data_format=None,
+    verbose=True,
 ):
     """Generates a `tf.data.Dataset` from image files in a directory.
 
@@ -115,6 +116,8 @@ def image_dataset_from_directory(
             preserved.
         data_format: If None uses keras.config.image_data_format()
             otherwise either 'channel_last' or 'channel_first'.
+        verbose: Whether the function prints number of files found and classes.
+            Default: True
 
     Returns:
 
@@ -217,6 +220,7 @@ def image_dataset_from_directory(
         shuffle=shuffle,
         seed=seed,
         follow_links=follow_links,
+        verbose=verbose,
     )
 
     if label_mode == "binary" and len(class_names) != 2:
