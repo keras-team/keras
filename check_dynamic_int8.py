@@ -70,60 +70,74 @@ def benchmark(model, batch_size=1024, input_shape=(28, 28), iterations=200):
     return avg_time
 
 
-ENABLE_LORA = False
-
-model = build_model(num_layers=32, units=1024)
-model.compile(
-    loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
-)
-
-"""Train float model"""
-print("Start training:")
-model.fit(x_train, y_train, batch_size=128, epochs=epochs, validation_split=0.1)
-print("Performance of float32:")
-score = model.evaluate(x_test, y_test, verbose=0)
-print(f"Test accuracy: {score[1]:.5f}")
-avg_time = benchmark(model)
-print(f"Avg. time (batch_size=1024): {avg_time:.5f}s")
-model.save("model_fp32.keras")
-
-if ENABLE_LORA:
-    """Enable lora"""
-    enable_lora(model)
-
-    """Fine-tuning lora weights with trainable quantization"""
+for enable_rola in (True, False):
+    model = build_model(num_layers=32, units=1024)
     model.compile(
         loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
     )
+
+    """Train float model"""
+    print("Start training float model:")
     model.fit(
         x_train, y_train, batch_size=128, epochs=epochs, validation_split=0.1
     )
-    print("Performance of fine-tuning lora with trainable quantization:")
+    print("Performance of float32:")
     score = model.evaluate(x_test, y_test, verbose=0)
     print(f"Test accuracy: {score[1]:.5f}")
     avg_time = benchmark(model)
     print(f"Avg. time (batch_size=1024): {avg_time:.5f}s")
+    model.save("model_fp32.keras")
 
-    """Quantize to int8 weights"""
-    model.quantize(mode="dynamic_int8")
-    int8_model = model
-    int8_model.compile(loss="categorical_crossentropy", metrics=["accuracy"])
-    score = int8_model.evaluate(x_test, y_test, verbose=0)
-    print(f"Test accuracy: {score[1]:.5f}")
-    avg_time = benchmark(int8_model)
-    print(f"Avg. time (batch_size=1024): {avg_time:.5f}s")
-else:
-    """Quantization"""
-    model.quantize(mode="dynamic_int8")
-    int8_model = model
-    int8_model.compile(loss="categorical_crossentropy", metrics=["accuracy"])
-    score = int8_model.evaluate(x_test, y_test, verbose=0)
-    print(f"Test accuracy: {score[1]:.5f}")
-    avg_time = benchmark(int8_model)
-    print(f"Avg. time (batch_size=1024): {avg_time:.5f}s")
+    if enable_rola:
+        """Enable lora"""
+        print("Enable lora weights")
+        enable_lora(model)
 
-"""Saving & loading"""
-int8_model.save("model_int8.keras")
-reloaded_int8_model = saving.load_model("model_int8.keras")
-reloaded_score = reloaded_int8_model.evaluate(x_test, y_test, verbose=0)
-print(f"Reloaded int8 model test accuracy: {reloaded_score[1]:.5f}")
+        """Fine-tuning lora weights"""
+        model.compile(
+            loss="categorical_crossentropy",
+            optimizer="adam",
+            metrics=["accuracy"],
+        )
+        model.fit(
+            x_train,
+            y_train,
+            batch_size=128,
+            epochs=epochs,
+            validation_split=0.1,
+        )
+        print("Performance of fine-tuned lora weights:")
+        score = model.evaluate(x_test, y_test, verbose=0)
+        print(f"Test accuracy: {score[1]:.5f}")
+        avg_time = benchmark(model)
+        print(f"Avg. time (batch_size=1024): {avg_time:.5f}s")
+
+        """Quantize to int8 weights"""
+        model.quantize(mode="dynamic_int8")
+        int8_model = model
+        int8_model.compile(
+            loss="categorical_crossentropy", metrics=["accuracy"]
+        )
+        print("Performance of quantized model:")
+        score = int8_model.evaluate(x_test, y_test, verbose=0)
+        print(f"Test accuracy: {score[1]:.5f}")
+        avg_time = benchmark(int8_model)
+        print(f"Avg. time (batch_size=1024): {avg_time:.5f}s")
+    else:
+        """Quantization"""
+        model.quantize(mode="dynamic_int8")
+        int8_model = model
+        int8_model.compile(
+            loss="categorical_crossentropy", metrics=["accuracy"]
+        )
+        print("Performance of quantized model:")
+        score = int8_model.evaluate(x_test, y_test, verbose=0)
+        print(f"Test accuracy: {score[1]:.5f}")
+        avg_time = benchmark(int8_model)
+        print(f"Avg. time (batch_size=1024): {avg_time:.5f}s")
+
+    """Saving & loading"""
+    int8_model.save("model_int8.keras")
+    reloaded_int8_model = saving.load_model("model_int8.keras")
+    reloaded_score = reloaded_int8_model.evaluate(x_test, y_test, verbose=0)
+    print(f"Reloaded int8 model test accuracy: {reloaded_score[1]:.5f}")
