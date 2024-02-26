@@ -141,12 +141,13 @@ class Dense(Layer):
     def call(self, inputs):
         x = ops.matmul(inputs, self.kernel)
         if self.bias is not None:
-            x = x + self.bias
+            x = ops.add(x, self.bias)
         if self.activation is not None:
             x = self.activation(x)
         return x
 
     def dynamic_int8_call(self, inputs):
+        ori_inputs = inputs
         inputs, inputs_scale = self.inputs_quantizer(inputs)
         if self.kernel_quantizer is not None:
             kernel, kernel_scale = self.kernel_quantizer(self._kernel)
@@ -160,8 +161,12 @@ class Dense(Layer):
         # We need to explicitly add lora_kernels instead of directly using
         # self.kernel because we want `ops.matmul` to be computed in int8 format
         if self.lora_enabled:
-            x = ops.add(x, ops.matmul(self.lora_kernel_a, self.lora_kernel_b))
-
+            lora_x = ops.matmul(
+                ori_inputs, ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
+            )
+            x = ops.add(x, lora_x)
+        if self.bias is not None:
+            x = ops.add(x, self.bias)
         if self.activation is not None:
             x = self.activation(x)
         return x
