@@ -673,10 +673,6 @@ class ExportArchiveTest(testing.TestCase):
         )
 
 
-@pytest.mark.skipif(
-    backend.backend() != "tensorflow",
-    reason="TFSM Layer reloading is only for the TF backend.",
-)
 class TestTFSMLayer(testing.TestCase):
     def test_reloading_export_archive(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -725,7 +721,11 @@ class TestTFSMLayer(testing.TestCase):
             len(model.non_trainable_weights),
         )
 
-    def test_call_training(self):
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="This test is specific to TF backend endpoints.",
+    )
+    def test_call_training_tf(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         utils.set_random_seed(1337)
         model = models.Sequential(
@@ -748,6 +748,84 @@ class TestTFSMLayer(testing.TestCase):
             input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
         )
         export_archive.write_out(temp_filepath)
+        reloaded_layer = export_lib.TFSMLayer(
+            temp_filepath,
+            call_endpoint="call_inference",
+            call_training_endpoint="call_training",
+        )
+        inference_output = reloaded_layer(
+            tf.random.normal((1, 10)), training=False
+        )
+        training_output = reloaded_layer(
+            tf.random.normal((1, 10)), training=True
+        )
+        self.assertAllClose(np.mean(training_output), 0.0, atol=1e-7)
+        self.assertNotAllClose(np.mean(inference_output), 0.0, atol=1e-7)
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="This test is specific to JAX backend endpoints.",
+    )
+    def test_call_training_jax(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        utils.set_random_seed(1337)
+        model = models.Sequential(
+            [
+                layers.Input((10,)),
+                layers.Dense(10),
+                layers.Dropout(0.99999),
+            ]
+        )
+        # build JAX functions
+        def inference_call(x):
+            return model(x, training=False)
+
+        def training_call(x):
+            return model(x, training=True)
+
+        # Convert jax2tf
+        from jax import default_backend as jax_device
+        from jax.experimental import jax2tf
+
+        native_jax_compatible = not (
+            jax_device() == "gpu"
+            and len(tf.config.list_physical_devices("GPU")) == 0
+        )
+        # now, convert JAX function
+        converted_inference_call = jax2tf.convert(
+            inference_call,
+            native_serialization=native_jax_compatible,
+            polymorphic_shapes=["(b, 10)"],
+        )
+        converted_training_call = jax2tf.convert(
+            training_call,
+            native_serialization=native_jax_compatible,
+            polymorphic_shapes=["(b, 10)"],
+        )
+
+        # Build TF functions
+        inference_fn = tf.function(
+            converted_inference_call,
+            input_signature = [tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+            autograph=False,
+        )
+        training_fn = tf.function(
+            converted_training_call,
+            input_signature = [tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+            autograph=False,
+        )
+
+        # Export to TF SavedModel
+        export_archive = export_lib.ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint("call_inference", inference_fn)
+        export_archive.add_endpoint("call_training", training_fn)
+        export_archive.write_out(
+            temp_filepath,
+            options=tf.saved_model.SaveOptions(experimental_custom_gradients=False),
+        )
+
+        # Reload using TFSMLayer
         reloaded_layer = export_lib.TFSMLayer(
             temp_filepath,
             call_endpoint="call_inference",
