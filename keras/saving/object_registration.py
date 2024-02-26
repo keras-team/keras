@@ -38,7 +38,8 @@ class CustomObjectScope:
     ```
 
     Args:
-        custom_objects: Dictionary of `{name: object}` pairs.
+        custom_objects: Dictionary of `{str: object}` pairs.
+            Where the `str` key is the object name.
     """
 
     def __init__(self, custom_objects):
@@ -73,7 +74,7 @@ custom_object_scope = CustomObjectScope
 def get_custom_objects():
     """Retrieves a live reference to the global dictionary of custom objects.
 
-    Custom objects set using using `custom_object_scope()` are not added to the
+    Custom objects set using `custom_object_scope()` are not added to the
     global dictionary of custom objects, and will not appear in the returned
     dictionary.
 
