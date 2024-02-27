@@ -233,6 +233,7 @@ def gamma(shape, alpha, dtype=None, seed=None):
     return backend.random.gamma(shape, alpha=alpha, dtype=dtype, seed=seed)
 
 
+@keras_export("keras.random.binomial")
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
     """Draw samples from a Binomial distribution.
 
@@ -268,6 +269,7 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
     )
 
 
+@keras_export("keras.random.beta")
 def beta(shape, alpha, beta, dtype=None, seed=None):
     """Draw samples from a Beta distribution.
 
