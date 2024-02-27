@@ -694,7 +694,10 @@ class TestTFSMLayer(testing.TestCase):
 
         # TODO(nkovela): Expand test coverage/debug fine-tuning and
         # non-trainable use cases here.
-
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Default SavedModel only works with TF backend Keras models.",
+    )
     def test_reloading_default_saved_model(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()
@@ -721,11 +724,7 @@ class TestTFSMLayer(testing.TestCase):
             len(model.non_trainable_weights),
         )
 
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason="This test is specific to TF backend endpoints.",
-    )
-    def test_call_training_tf(self):
+    def test_call_training(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         utils.set_random_seed(1337)
         model = models.Sequential(
@@ -747,7 +746,10 @@ class TestTFSMLayer(testing.TestCase):
             fn=lambda x: model(x, training=True),
             input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
         )
-        export_archive.write_out(temp_filepath)
+        export_archive.write_out(
+            temp_filepath,
+            options=tf.saved_model.SaveOptions(experimental_custom_gradients=False),
+        )
         reloaded_layer = export_lib.TFSMLayer(
             temp_filepath,
             call_endpoint="call_inference",
@@ -766,7 +768,7 @@ class TestTFSMLayer(testing.TestCase):
         backend.backend() != "jax",
         reason="This test is specific to JAX backend endpoints.",
     )
-    def test_call_training_jax(self):
+    def test_call_training_jax_manual_endpoint(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         utils.set_random_seed(1337)
         model = models.Sequential(
