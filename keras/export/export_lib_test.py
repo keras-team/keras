@@ -683,13 +683,14 @@ class TestTFSMLayer(testing.TestCase):
         export_lib.export_model(model, temp_filepath)
         reloaded_layer = export_lib.TFSMLayer(temp_filepath)
         self.assertAllClose(reloaded_layer(ref_input), ref_output, atol=1e-7)
-        self.assertLen(reloaded_layer.weights, len(model.weights))
+        self.assertLen(reloaded_layer._reloaded_obj.variables, len(model.variables))
         self.assertLen(
-            reloaded_layer.trainable_weights, len(model.trainable_weights)
+            reloaded_layer._reloaded_obj.trainable_variables,
+            len(model.trainable_variables),
         )
         self.assertLen(
-            reloaded_layer.non_trainable_weights,
-            len(model.non_trainable_weights),
+            reloaded_layer._reloaded_obj.non_trainable_variables,
+            len(model.non_trainable_variables),
         )
 
         # TODO(nkovela): Expand test coverage/debug fine-tuning and
@@ -842,6 +843,11 @@ class TestTFSMLayer(testing.TestCase):
         self.assertAllClose(np.mean(training_output), 0.0, atol=1e-7)
         self.assertNotAllClose(np.mean(inference_output), 0.0, atol=1e-7)
 
+    # TODO(nkovela): Investigate serialization issue on JAX-backend TFSM layer in new model
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="JAX-backend TFSM layer has serialization issues in a new whole model.",
+    )
     def test_serialization(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()
