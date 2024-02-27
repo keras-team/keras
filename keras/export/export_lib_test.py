@@ -683,7 +683,9 @@ class TestTFSMLayer(testing.TestCase):
         export_lib.export_model(model, temp_filepath)
         reloaded_layer = export_lib.TFSMLayer(temp_filepath)
         self.assertAllClose(reloaded_layer(ref_input), ref_output, atol=1e-7)
-        self.assertLen(reloaded_layer._reloaded_obj.variables, len(model.variables))
+        self.assertLen(
+            reloaded_layer._reloaded_obj.variables, len(model.variables)
+        )
         self.assertLen(
             reloaded_layer._reloaded_obj.trainable_variables,
             len(model.trainable_variables),
@@ -695,6 +697,7 @@ class TestTFSMLayer(testing.TestCase):
 
         # TODO(nkovela): Expand test coverage/debug fine-tuning and
         # non-trainable use cases here.
+
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
         reason="Default SavedModel only works with TF backend Keras models.",
@@ -749,7 +752,9 @@ class TestTFSMLayer(testing.TestCase):
         )
         export_archive.write_out(
             temp_filepath,
-            options=tf.saved_model.SaveOptions(experimental_custom_gradients=False),
+            options=tf.saved_model.SaveOptions(
+                experimental_custom_gradients=False
+            ),
         )
         reloaded_layer = export_lib.TFSMLayer(
             temp_filepath,
@@ -779,6 +784,7 @@ class TestTFSMLayer(testing.TestCase):
                 layers.Dropout(0.99999),
             ]
         )
+
         # build JAX functions
         def inference_call(x):
             return model(x, training=False)
@@ -809,12 +815,12 @@ class TestTFSMLayer(testing.TestCase):
         # Build TF functions
         inference_fn = tf.function(
             converted_inference_call,
-            input_signature = [tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
             autograph=False,
         )
         training_fn = tf.function(
             converted_training_call,
-            input_signature = [tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
             autograph=False,
         )
 
@@ -825,7 +831,9 @@ class TestTFSMLayer(testing.TestCase):
         export_archive.add_endpoint("call_training", training_fn)
         export_archive.write_out(
             temp_filepath,
-            options=tf.saved_model.SaveOptions(experimental_custom_gradients=False),
+            options=tf.saved_model.SaveOptions(
+                experimental_custom_gradients=False
+            ),
         )
 
         # Reload using TFSMLayer
