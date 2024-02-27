@@ -851,10 +851,11 @@ class TestTFSMLayer(testing.TestCase):
         self.assertAllClose(np.mean(training_output), 0.0, atol=1e-7)
         self.assertNotAllClose(np.mean(inference_output), 0.0, atol=1e-7)
 
-    # TODO(nkovela): Investigate serialization issue on JAX-backend TFSM layer in new model
+    # TODO(nkovela): Investigate model serialization issue
+    # with JAX-backend TFSM layer
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
-        reason="JAX-backend TFSM layer has serialization issues in a new whole model.",
+        reason="JAX-backend TFSM layer causes model serialization issues.",
     )
     def test_serialization(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
