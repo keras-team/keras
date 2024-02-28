@@ -23,14 +23,18 @@ def add(x1, x2):
 
 def einsum(subscripts, *operands, **kwargs):
     operands = tree.map_structure(convert_to_tensor, operands)
-    dtypes_to_resolve = []
-    for x in operands:
-        dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
-    result_dtype = dtypes.result_type(*dtypes_to_resolve)
-    compute_dtype = result_dtype
-    # TODO: np.einsum doesn't support bfloat16
-    if compute_dtype == "bfloat16":
-        compute_dtype = "float32"
+    dtypes_to_resolve = list(set(standardize_dtype(x.dtype) for x in operands))
+    # When operands are of int8, we cast the result to int32 to align with
+    # the behavior of jax.
+    if len(dtypes_to_resolve) == 1 and dtypes_to_resolve[0] == "int8":
+        compute_dtype = "int32"  # prevent overflow
+        result_dtype = "int32"
+    else:
+        result_dtype = dtypes.result_type(*dtypes_to_resolve)
+        compute_dtype = result_dtype
+        # TODO: np.einsum doesn't support bfloat16
+        if compute_dtype == "bfloat16":
+            compute_dtype = "float32"
     operands = tree.map_structure(lambda x: x.astype(compute_dtype), operands)
     return np.einsum(subscripts, *operands, **kwargs).astype(result_dtype)
 
