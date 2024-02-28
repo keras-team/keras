@@ -673,6 +673,10 @@ class ExportArchiveTest(testing.TestCase):
         )
 
 
+@pytest.mark.skipif(
+    backend.backend() not in ("tensorflow", "jax"),
+    reason="Export only currently supports the TF and JAX backends.",
+)
 class TestTFSMLayer(testing.TestCase):
     def test_reloading_export_archive(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
