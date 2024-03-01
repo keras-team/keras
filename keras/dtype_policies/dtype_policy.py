@@ -62,6 +62,7 @@ class DTypePolicy:
                 f"Received: name={name} (of type {type(name)})"
             )
         self._name = name
+        self._quantization_mode = None
         self._compute_dtype, self._variable_dtype = self._parse_name(name)
         # TODO: check that the current hardware supports the provided
         # dtype policy and raise/warn otherwise.
@@ -79,6 +80,19 @@ class DTypePolicy:
             return "float16", "float32"
         elif name == "mixed_bfloat16":
             return "bfloat16", "float32"
+        elif "quantized_int8" in name:
+            if "_from_" not in name:
+                raise ValueError(
+                    f"Cannot convert '{name}' to a quantized DTypePolicy. "
+                    "Valid policies are in the pattern of "
+                    "'quantized_int8_from_(name)' such as "
+                    "'quantized_int8_from_mixed_bfloat16'."
+                )
+            # "quantized_int8_from_float32" indicates that the layer
+            # or model is quantized from float32 dtype policy.
+            ori_name = name.split("_from_")[-1]
+            self._quantization_mode = "quantized_int8"
+            return self._parse_name(ori_name)
         try:
             dtype = backend.standardize_dtype(name)
             return dtype, dtype
@@ -126,6 +140,26 @@ class DTypePolicy:
             The compute dtype of this policy, as a string.
         """
         return self._compute_dtype
+
+    @property
+    def quantization_mode(self):
+        """The quantization mode of this policy.
+
+        Returns:
+            The quantization mode of this policy, as a string. `None` if no
+            quantization.
+        """
+        return self._quantization_mode
+
+    @property
+    def is_quantized_int8(self):
+        """Whether this policy is quantized to `'int8'`.
+
+        Returns:
+            The boolean value indicating whether this policy is quantized to
+            `'int8'`.
+        """
+        return "quantized_int8" in self._name
 
     @property
     def name(self):
