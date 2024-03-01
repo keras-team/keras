@@ -1,3 +1,4 @@
+import os
 import time
 
 import jax
@@ -6,10 +7,16 @@ import tensorflow as tf
 
 import keras
 from keras import backend
+from keras import dtype_policies
 from keras import layers
 from keras import models
 from keras import ops
 from keras import saving
+
+# Set dtype policy
+dtype = "mixed_bfloat16"
+dtype_policies.dtype_policy.set_dtype_policy(dtype)
+print(f"Global dtype policy: {dtype_policies.dtype_policy.dtype_policy()}")
 
 # Model / data parameters
 num_classes = 10
@@ -77,20 +84,20 @@ for enable_rola in (True, False):
     )
 
     """Train float model"""
-    print("Start training float model:")
+    print("=====Start training float model=====")
     model.fit(
         x_train, y_train, batch_size=128, epochs=epochs, validation_split=0.1
     )
-    print("Performance of float32:")
+    print(f"Performance of {dtype}:")
     score = model.evaluate(x_test, y_test, verbose=0)
-    print(f"Test accuracy: {score[1]:.5f}")
+    print(f"  Test accuracy: {score[1]:.5f}")
     avg_time = benchmark(model)
-    print(f"Avg. time (batch_size=1024): {avg_time:.5f}s")
+    print(f"  Avg. inference time (batch_size=1024): {avg_time:.5f}s")
     model.save("model_fp32.keras")
 
     if enable_rola:
         """Enable lora"""
-        print("Enable lora weights")
+        print("=====Enable lora weights=====")
         enable_lora(model)
 
         """Fine-tuning lora weights"""
@@ -108,36 +115,44 @@ for enable_rola in (True, False):
         )
         print("Performance of fine-tuned lora weights:")
         score = model.evaluate(x_test, y_test, verbose=0)
-        print(f"Test accuracy: {score[1]:.5f}")
+        print(f"  Test accuracy: {score[1]:.5f}")
         avg_time = benchmark(model)
-        print(f"Avg. time (batch_size=1024): {avg_time:.5f}s")
+        print(f"  Avg. inference time (batch_size=1024): {avg_time:.5f}s")
 
         """Quantize to int8 weights"""
-        model.quantize(mode="dynamic_int8")
+        model.quantize(mode="quantized_int8")
         int8_model = model
         int8_model.compile(
             loss="categorical_crossentropy", metrics=["accuracy"]
         )
         print("Performance of quantized model:")
         score = int8_model.evaluate(x_test, y_test, verbose=0)
-        print(f"Test accuracy: {score[1]:.5f}")
+        print(f"  Test accuracy: {score[1]:.5f}")
         avg_time = benchmark(int8_model)
-        print(f"Avg. time (batch_size=1024): {avg_time:.5f}s")
+        print(f"  Avg. inference time (batch_size=1024): {avg_time:.5f}s")
     else:
+        print("=====No lora weights=====")
         """Quantization"""
-        model.quantize(mode="dynamic_int8")
+        model.quantize(mode="quantized_int8")
         int8_model = model
         int8_model.compile(
             loss="categorical_crossentropy", metrics=["accuracy"]
         )
         print("Performance of quantized model:")
         score = int8_model.evaluate(x_test, y_test, verbose=0)
-        print(f"Test accuracy: {score[1]:.5f}")
+        print(f"  Test accuracy: {score[1]:.5f}")
         avg_time = benchmark(int8_model)
-        print(f"Avg. time (batch_size=1024): {avg_time:.5f}s")
+        print(f"  Avg. inference time (batch_size=1024): {avg_time:.5f}s")
 
     """Saving & loading"""
     int8_model.save("model_int8.keras")
     reloaded_int8_model = saving.load_model("model_int8.keras")
     reloaded_score = reloaded_int8_model.evaluate(x_test, y_test, verbose=0)
     print(f"Reloaded int8 model test accuracy: {reloaded_score[1]:.5f}")
+    print("Size of saved model:")
+    print(f"  fp32: {os.path.getsize('model_fp32.keras') >> 20}MB")
+    print(f"  int8: {os.path.getsize('model_int8.keras') >> 20}MB")
+
+"""Cleanup"""
+os.remove("model_fp32.keras")
+os.remove("model_int8.keras")
