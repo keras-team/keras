@@ -261,9 +261,6 @@ class Layer(BackendLayer, Operation):
                 stacklevel=2,
             )
             self._input_shape_arg = input_shape_arg
-        # Quantization parameters
-        self._quantization_mode = kwargs.pop("quantization_mode", None)
-        self._check_quantize_args(self.quantization_mode)
         if kwargs:
             raise ValueError(
                 "Unrecognized keyword arguments "
@@ -629,10 +626,6 @@ class Layer(BackendLayer, Operation):
         return [v for v in self.weights if not v.trainable]
 
     @property
-    def quantization_mode(self):
-        return self._quantization_mode
-
-    @property
     def metrics_variables(self):
         """List of all metric variables."""
         vars = []
@@ -798,7 +791,7 @@ class Layer(BackendLayer, Operation):
 
         ##############################
         # 7. Populate quantization argument(s)
-        kwargs["quantization_mode"] = self.quantization_mode
+        kwargs["is_quantized_int8"] = self.dtype_policy.is_quantized_int8
 
         ####################
         # 8. Call the layer.
@@ -873,7 +866,7 @@ class Layer(BackendLayer, Operation):
             "method implemented."
         )
 
-    def dynamic_int8_call(self, *args, **kwargs):
+    def int8_call(self, *args, **kwargs):
         return self.call(*args, **kwargs)
 
     @traceback_utils.filter_traceback
@@ -965,8 +958,8 @@ class Layer(BackendLayer, Operation):
         with backend.StatelessScope(
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
-            if self.quantization_mode == "dynamic_int8":
-                outputs = self.dynamic_int8_call(*args, **kwargs)
+            if self.dtype_policy.is_quantized_int8:
+                outputs = self.int8_call(*args, **kwargs)
             else:
                 outputs = self.call(*args, **kwargs)
             if return_losses:
@@ -1119,10 +1112,19 @@ class Layer(BackendLayer, Operation):
         )
 
     def _check_quantize_args(self, mode):
-        if mode not in (None, "dynamic_int8"):
+        if mode not in (None, "quantized_int8"):
             raise ValueError(
                 "Currently, `quantize` must be one of "
-                f"(`None`, 'dynamic_int8'). Received: mode={mode}"
+                f"(`None`, 'quantized_int8'). Received: mode={mode}"
+            )
+        if (
+            mode == "quantized_int8"
+            and self.dtype_policy.compute_dtype == "float16"
+        ):
+            raise ValueError(
+                f"mode='{mode}' doesn't work well with "
+                "compute_dtype='float16'. Consider loading model/layer with "
+                "other dtype policy before calling `quantize`."
             )
 
     def save_own_variables(self, store):
@@ -1393,7 +1395,6 @@ class Layer(BackendLayer, Operation):
         config = {
             "trainable": self.trainable,
             "dtype": self.dtype_policy.name,
-            "quantization_mode": self.quantization_mode,
         }
         return {**base_config, **config}
 

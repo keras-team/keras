@@ -370,7 +370,7 @@ class Model(Trainer, Layer):
 
         Args:
             mode: The mode of the quantization. The supported modes are
-                `"dynamic_int8"`.
+                `"quantized_int8"`.
         """
         if not self.built:
             raise ValueError(
@@ -378,9 +378,9 @@ class Model(Trainer, Layer):
             )
         mode_changed = False
         for layer in self.layers:
-            original_mode = layer.quantization_mode
+            original_mode = layer.dtype_policy.quantization_mode
             layer.quantize(mode)
-            if layer.quantization_mode != original_mode:
+            if layer.dtype_policy.quantization_mode != original_mode:
                 mode_changed = True
         # We need to set these functions to `None` to remake them for changed
         # call function

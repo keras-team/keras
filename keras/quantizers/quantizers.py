@@ -13,7 +13,7 @@ def abs_max_quantize(
 ):
     scale = ops.divide(
         value_range[1],
-        ops.max(ops.abs(inputs), axis=axis, keepdims=True) + epsilon,
+        ops.add(ops.max(ops.abs(inputs), axis=axis, keepdims=True), epsilon),
     )
     outputs = ops.multiply(inputs, scale)
     outputs = ops.clip(ops.round(outputs), value_range[0], value_range[1])

@@ -2,6 +2,7 @@ import numpy as np
 
 from keras import activations
 from keras import constraints
+from keras import dtype_policies
 from keras import initializers
 from keras import ops
 from keras import quantizers
@@ -121,8 +122,8 @@ class Dense(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
-        if self.quantization_mode:
-            self.quantize(self.quantization_mode, input_shape)
+        if self.dtype_policy.quantization_mode:
+            self.quantize(self.dtype_policy.quantization_mode, input_shape)
 
     @property
     def kernel(self):
@@ -144,9 +145,9 @@ class Dense(Layer):
             x = self.activation(x)
         return x
 
-    def dynamic_int8_call(self, inputs):
+    def int8_call(self, inputs):
         if self.lora_enabled:
-            raise ValueError("`dynamic_int8_call` doesn't support lora weights")
+            raise ValueError("`int8_call` doesn't support lora weights")
 
         inputs, inputs_scale = self.inputs_quantizer(inputs)
         x = ops.matmul(inputs, self.kernel)
@@ -208,7 +209,7 @@ class Dense(Layer):
                 )
             input_shape = list(tuple(self._build_shapes_dict.values())[0])
 
-        if mode == "dynamic_int8":
+        if mode == "quantized_int8":
             inputs_quantizer_axes = list(range(len(input_shape)))
             if len(inputs_quantizer_axes) > 2:
                 inputs_quantizer_axes.pop(-2)
@@ -241,7 +242,9 @@ class Dense(Layer):
             self.kernel_quantizer = None
         else:
             NotImplementedError()
-        self._quantization_mode = mode
+
+        quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
+        self.dtype_policy = dtype_policies.get(quantized_dtype)
 
     def _merge_lora_into_kernel(self):
         if not self.lora_enabled:
