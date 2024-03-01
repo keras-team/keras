@@ -19,6 +19,10 @@ def map_structure_up_to(shallow_structure, func, *structures, **kwargs):
     )
 
 
+def traverse(func, structure, top_down=True):
+    return tree.traverse(func, structure, top_down=top_down)
+
+
 def assert_same_structure(a, b, check_types=True):
     return tree.assert_same_structure(a, b, check_types=check_types)
 

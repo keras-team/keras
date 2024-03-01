@@ -47,21 +47,23 @@ class Variable(KerasVariable):
 def convert_to_tensor(x, dtype=None, sparse=True):
     if dtype is not None:
         dtype = standardize_dtype(dtype)
-    if isinstance(x, (jnp.ndarray, jax.Array)) and dtype == x.dtype:
+    if isinstance(x, (jnp.ndarray, jax.Array)) and (
+        dtype is None or x.dtype == dtype
+    ):
         # Skip the conversion early if the instance is already a JAX array.
         # This is important in the multi-process context since jax.array(x) for
         # an existing distributed jax array will raise error.
         return x
 
     if isinstance(x, Variable):
-        if dtype and dtype != x.dtype:
+        if dtype is not None and x.dtype != dtype:
             return x.value.astype(dtype)
         return x.value
 
     if isinstance(x, jax_sparse.JAXSparse):
         if sparse is not None and not sparse:
             x = x.todense()
-        elif dtype and dtype != x.dtype:
+        elif dtype is not None and x.dtype != dtype:
             return x.astype(dtype)
         else:
             return x
