@@ -2136,6 +2136,84 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertAllClose(knp.Einsum(",ijk")(5, y), np.einsum(",ijk", 5, y))
 
+    def test_einsum_with_custom_ops(self):
+        subscripts = "a,b->ab"
+        x = np.arange(2).reshape([2]).astype("float32")
+        y = np.arange(3).reshape([3]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abc,cd->abd"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(20).reshape([4, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abc,cde->abde"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(120).reshape([4, 5, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abc,dce->abde"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(120).reshape([5, 4, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,abed->abce"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(180).reshape([2, 3, 6, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,adbe->acbe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(180).reshape([2, 5, 3, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,aecd->acbe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(240).reshape([2, 6, 4, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,aecd->aceb"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(240).reshape([2, 6, 4, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,cde->abe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(120).reshape([4, 5, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcde,aebf->adbcf"
+        x = np.arange(720).reshape([2, 3, 4, 5, 6]).astype("float32")
+        y = np.arange(252).reshape([2, 6, 3, 7]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcde,afce->acdbf"
+        x = np.arange(720).reshape([2, 3, 4, 5, 6]).astype("float32")
+        y = np.arange(336).reshape([2, 7, 4, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
     def test_full_like(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.full_like(x, 2), np.full_like(x, 2))
@@ -5452,19 +5530,39 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knp.Dot().symbolic_call(x1, x2).dtype, expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(
+            dtypes=list(itertools.combinations(ALL_DTYPES, 2))
+            + [("int8", "int8")]
+        )
     )
     def test_einsum(self, dtypes):
         import jax.numpy as jnp
 
+        def get_input_shapes(subscripts):
+            x1_labels = subscripts.split(",")[0]
+            x2_labels = subscripts.split("->")[0][len(x1_labels) + 1 :]
+            x1_shape = [1] * len(x1_labels)
+            x2_shape = [1] * len(x2_labels)
+            return x1_shape, x2_shape
+
         dtype1, dtype2 = dtypes
-        x1 = knp.ones((1, 1, 1), dtype=dtype1)
-        x2 = knp.ones((1, 1, 1), dtype=dtype2)
-        x1_jax = jnp.ones((1, 1, 1), dtype=dtype1)
-        x2_jax = jnp.ones((1, 1, 1), dtype=dtype2)
         subscripts = "ijk,lkj->il"
+        x1_shape, x2_shape = get_input_shapes(subscripts)
+        x1 = knp.ones(x1_shape, dtype=dtype1)
+        x2 = knp.ones(x2_shape, dtype=dtype2)
+        x1_jax = jnp.ones(x1_shape, dtype=dtype1)
+        x2_jax = jnp.ones(x2_shape, dtype=dtype2)
+        if dtype1 == "int8" and dtype2 == "int8":
+            preferred_element_type = "int32"
+        else:
+            preferred_element_type = None
         expected_dtype = standardize_dtype(
-            jnp.einsum(subscripts, x1_jax, x2_jax).dtype
+            jnp.einsum(
+                subscripts,
+                x1_jax,
+                x2_jax,
+                preferred_element_type=preferred_element_type,
+            ).dtype
         )
 
         self.assertEqual(
@@ -5477,6 +5575,50 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             ),
             expected_dtype,
         )
+
+        # Test custom implementation of einsum for tensorflow
+        if backend.backend() == "tensorflow":
+            for subscripts in [
+                "a,b->ab",
+                "abc,cd->abd",
+                "abc,cde->abde",
+                "abc,dce->abde",
+                "abcd,abed->abce",
+                "abcd,adbe->acbe",
+                "abcd,aecd->acbe",
+                "abcd,aecd->aceb",
+                "abcd,cde->abe",
+                "abcde,aebf->adbcf",
+                "abcde,afce->acdbf",
+            ]:
+                x1_shape, x2_shape = get_input_shapes(subscripts)
+                x1 = knp.ones(x1_shape, dtype=dtype1)
+                x2 = knp.ones(x2_shape, dtype=dtype2)
+                x1_jax = jnp.ones(x1_shape, dtype=dtype1)
+                x2_jax = jnp.ones(x2_shape, dtype=dtype2)
+                if dtype1 == "int8" and dtype2 == "int8":
+                    preferred_element_type = "int32"
+                else:
+                    preferred_element_type = None
+                expected_dtype = standardize_dtype(
+                    jnp.einsum(
+                        subscripts,
+                        x1_jax,
+                        x2_jax,
+                        preferred_element_type=preferred_element_type,
+                    ).dtype
+                )
+
+                self.assertEqual(
+                    standardize_dtype(knp.einsum(subscripts, x1, x2).dtype),
+                    expected_dtype,
+                )
+                self.assertEqual(
+                    standardize_dtype(
+                        knp.Einsum(subscripts).symbolic_call(x1, x2).dtype
+                    ),
+                    expected_dtype,
+                )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_empty(self, dtype):

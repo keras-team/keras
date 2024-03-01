@@ -42,6 +42,14 @@ def bincount(x, weights=None, minlength=0):
 
 def einsum(subscripts, *operands, **kwargs):
     operands = [convert_to_tensor(x) for x in operands]
+    # When all operands are of int8, specifying `preferred_element_type` as
+    # int32 to enable hardware-accelerated einsum
+    dtypes = list(set(standardize_dtype(x.dtype) for x in operands))
+    if len(dtypes) == 1 and dtypes[0] == "int8":
+        preferred_element_type = "int32"
+    else:
+        preferred_element_type = None
+    kwargs["preferred_element_type"] = preferred_element_type
     return jnp.einsum(subscripts, *operands, **kwargs)
 
 
