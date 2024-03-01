@@ -503,6 +503,7 @@ def index_directory(
     shuffle=True,
     seed=None,
     follow_links=False,
+    verbose=True,
 ):
     """List all files in `directory`, with their labels.
 
@@ -525,10 +526,12 @@ def index_directory(
             list of class names (must match names of subdirectories). Used
             to control the order of the classes
             (otherwise alphanumerical order is used).
-        shuffle: Whether to shuffle the data. Default: True.
+        shuffle: Whether to shuffle the data. Defaults to `True`.
             If set to False, sorts the data in alphanumeric order.
         seed: Optional random seed for shuffling.
         follow_links: Whether to visits subdirectories pointed to by symlinks.
+        verbose: Whether the function prints number of files found and classes.
+            Defaults to `True`.
 
     Returns:
         tuple (file_paths, labels, class_names).
@@ -610,14 +613,14 @@ def index_directory(
                 f"in directory {directory}."
             )
         class_names = [str(label) for label in sorted(set(labels))]
-
-    if labels is None:
-        io_utils.print_msg(f"Found {len(filenames)} files.")
-    else:
-        io_utils.print_msg(
-            f"Found {len(filenames)} files belonging "
-            f"to {len(class_names)} classes."
-        )
+    if verbose:
+        if labels is None:
+            io_utils.print_msg(f"Found {len(filenames)} files.")
+        else:
+            io_utils.print_msg(
+                f"Found {len(filenames)} files belonging "
+                f"to {len(class_names)} classes."
+            )
     pool.close()
     pool.join()
     file_paths = [tf.io.gfile.join(directory, fname) for fname in filenames]

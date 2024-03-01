@@ -582,6 +582,12 @@ class TFSMLayer(Layer):
         name=None,
         dtype=None,
     ):
+        if backend.backend() != "tensorflow":
+            raise NotImplementedError(
+                "The TFSMLayer is only currently supported with the "
+                "TensorFlow backend."
+            )
+
         # Initialize an empty layer, then add_weight() etc. as needed.
         super().__init__(trainable=trainable, name=name, dtype=dtype)
 

@@ -2318,10 +2318,16 @@ class Einsum(Operation):
         output_shape = expanded_operands_shapes[0]
         for shape in expanded_operands_shapes[1:]:
             output_shape = broadcast_shapes(output_shape, shape)
-        dtypes_to_resolve = []
-        for x in operands:
-            dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
-        dtype = dtypes.result_type(*dtypes_to_resolve)
+        dtypes_to_resolve = list(
+            set(
+                backend.standardize_dtype(getattr(x, "dtype", type(x)))
+                for x in operands
+            )
+        )
+        if len(dtypes_to_resolve) == 1 and dtypes_to_resolve[0] == "int8":
+            dtype = "int32"
+        else:
+            dtype = dtypes.result_type(*dtypes_to_resolve)
         return KerasTensor(output_shape, dtype=dtype)
 
 

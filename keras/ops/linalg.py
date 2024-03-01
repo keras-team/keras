@@ -294,7 +294,7 @@ def norm(x, ord=None, axis=None, keepdims=False):
         - For matrices:
             - `ord=None`: Frobenius norm
             - `ord="fro"`: Frobenius norm
-            - `ord=nuc`: nuclear norm
+            - `ord="nuc"`: nuclear norm
             - `ord=np.inf`: `max(sum(abs(x), axis=1))`
             - `ord=-np.inf`: `min(sum(abs(x), axis=1))`
             - `ord=0`: not supported
@@ -306,7 +306,7 @@ def norm(x, ord=None, axis=None, keepdims=False):
         - For vectors:
             - `ord=None`: 2-norm
             - `ord="fro"`: not supported
-            - `ord=nuc`: not supported
+            - `ord="nuc"`: not supported
             - `ord=np.inf`: `max(abs(x))`
             - `ord=-np.inf`: `min(abs(x))`
             - `ord=0`: `sum(x != 0)`
