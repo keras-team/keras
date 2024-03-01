@@ -98,12 +98,22 @@ def einsum(subscripts, *operands, **kwargs):
 
     def is_valid_for_custom_ops(subscripts, *operands):
         # Check that `subscripts` is supported and the shape of operands is not
-        # `None`
-        if subscripts == "abcde,afce->acdbf":
-            _, b1, c1, d1, e1 = operands[0].shape
-            _, f2, c2, e2 = operands[1].shape
-            b, c, d, e, f = b1, c1 or c2, d1, e1 or e2, f2
-            if None in (b, c, d, e, f):
+        # `None`.
+        if subscripts in [
+            "a,b->ab",
+            "abc,cd->abd",
+            "abcd,abed->abce",
+            "abcd,adbe->acbe",
+            "abcd,aecd->acbe",
+            "abcd,aecd->aceb",
+        ]:
+            # These subscripts don't require the shape information
+            return True
+        elif subscripts == "abc,cde->abde":
+            _, b1, c1 = operands[0].shape
+            c2, d2, e2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            if None in (b, c, d, e):
                 return False
             return True
         elif subscripts == "abc,dce->abde":
@@ -113,35 +123,97 @@ def einsum(subscripts, *operands, **kwargs):
             if None in (b, c, d, e):
                 return False
             return True
+        elif subscripts == "abcd,cde->abe":
+            _, b1, c1, d1 = operands[0].shape
+            c2, d2, e2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
+        elif subscripts == "abcde,aebf->adbcf":
+            _, b1, c1, d1, e1 = operands[0].shape
+            _, e2, b2, f2 = operands[1].shape
+            b, c, d, e, f = b1 or b2, c1, d1, e1 or e2, f2
+            if None in (b, c, d, e, f):
+                return False
+            return True
+        elif subscripts == "abcde,afce->acdbf":
+            _, b1, c1, d1, e1 = operands[0].shape
+            _, f2, c2, e2 = operands[1].shape
+            b, c, d, e, f = b1, c1 or c2, d1, e1 or e2, f2
+            if None in (b, c, d, e, f):
+                return False
+            return True
         else:
-            # Defaults to `False`
+            # No match in subscripts
             return False
 
     def use_custom_ops(subscripts, *operands, output_type):
         # Replace tf.einsum with custom ops to utilize hardware-accelerated
         # matmul
-        if subscripts == "abcde,afce->acdbf":
-            x = operands[0]
-            y = operands[1]
+        x, y = operands[0], operands[1]
+        if subscripts == "a,b->ab":
+            x = tf.expand_dims(x, axis=-1)
+            y = tf.expand_dims(y, axis=0)
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abc,cd->abd":
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abc,cde->abde":
+            _, b1, c1 = x.shape
+            c2, d2, e2 = y.shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            y = tf.reshape(y, [c, -1])
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.reshape(result, [-1, b, d, e])
+        elif subscripts == "abc,dce->abde":
+            _, b1, c1 = x.shape
+            d2, c2, e2 = y.shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            y = tf.transpose(y, [1, 0, 2])  # cde
+            y = tf.reshape(y, [c, -1])
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.reshape(result, [-1, b, d, e])
+        elif subscripts == "abcd,abed->abce":
+            y = tf.transpose(y, [0, 1, 3, 2])
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,adbe->acbe":
+            y = tf.transpose(y, [0, 2, 1, 3])  # abde
+            result = tf.matmul(x, y, output_type=output_type)  # abce
+            return tf.transpose(result, [0, 2, 1, 3])
+        elif subscripts == "abcd,aecd->acbe":
+            x = tf.transpose(x, [0, 2, 1, 3])  # acbd
+            y = tf.transpose(y, [0, 2, 3, 1])  # acde
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,aecd->aceb":
+            x = tf.transpose(x, [0, 2, 1, 3])
+            y = tf.transpose(y, [0, 2, 3, 1])
+            result = tf.matmul(x, y, output_type=output_type)  # acbe
+            return tf.transpose(result, [0, 1, 3, 2])
+        elif subscripts == "abcd,cde->abe":
+            _, b1, c1, d1 = x.shape
+            c2, d2, e2 = y.shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            x = tf.reshape(x, [-1, b, c * d])
+            y = tf.reshape(y, [-1, e])
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcde,aebf->adbcf":
+            _, b1, c1, d1, e1 = x.shape
+            _, e2, b2, f2 = y.shape
+            b, c, d, e, f = b1 or b2, c1, d1, e1 or e2, f2
+            x = tf.reshape(x, [-1, b, c * d, e])  # ab(cd)e
+            y = tf.transpose(y, [0, 2, 1, 3])  # abef
+            result = tf.matmul(x, y, output_type=output_type)  # ab(cd)f
+            result = tf.reshape(result, [-1, b, c, d, f])  # abcdf
+            return tf.transpose(result, [0, 3, 1, 2, 4])
+        elif subscripts == "abcde,afce->acdbf":
             _, b1, c1, d1, e1 = x.shape
             _, f2, c2, e2 = y.shape
             b, c, d, e, f = b1, c1 or c2, d1, e1 or e2, f2
             x = tf.transpose(x, [0, 2, 3, 1, 4])  # acdbe
-            x = tf.reshape(x, [-1, c, d * b, e])  # ac(b*d)e
+            x = tf.reshape(x, [-1, c, d * b, e])  # ac(db)e
             y = tf.transpose(y, [0, 2, 3, 1])  # acef
-            result = tf.matmul(x, y, output_type=output_type)
+            result = tf.matmul(x, y, output_type=output_type)  # ac(db)f
             return tf.reshape(result, [-1, c, d, b, f])
-        elif subscripts == "abc,dce->abde":
-            x = operands[0]
-            y = operands[1]
-            _, b1, c1 = x.shape
-            d2, c2, e2 = y.shape
-            b, c, d, e = b1, c1 or c2, d2, e2
-            x = tf.reshape(x, [-1, c])
-            y = tf.transpose(y, [1, 0, 2])
-            y = tf.reshape(y, [c, -1])
-            result = tf.matmul(x, y, output_type=output_type)
-            return tf.reshape(result, [-1, b, d, e])
         else:
             raise NotImplementedError
 
