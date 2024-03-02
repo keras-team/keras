@@ -201,21 +201,8 @@ class Dense(Layer):
 
     def quantize(self, mode, input_shape=None):
         self._check_quantize_args(mode)
-        if input_shape is None:
-            if self._build_shapes_dict is None:
-                raise ValueError(
-                    "If no `input_shape` is provided, you must first build the"
-                    "layer before applying the quantization."
-                )
-            input_shape = list(tuple(self._build_shapes_dict.values())[0])
-
         if mode == "quantized_int8":
-            inputs_quantizer_axes = list(range(len(input_shape)))
-            if len(inputs_quantizer_axes) > 2:
-                inputs_quantizer_axes.pop(-2)
-            self.inputs_quantizer = quantizers.AbsMaxQuantizer(
-                axis=inputs_quantizer_axes
-            )
+            self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
             # Merge lora-related parameters to make use of fully int8 kernel
             self._merge_lora_into_kernel()
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
