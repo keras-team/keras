@@ -114,12 +114,12 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
     def _distributed_tf_update_step(
         self, distribution, grads_and_vars, learning_rate
     ):
-        def apply_grad_to_update_var(var, grad):
-            return self.update_step(grad, var, learning_rate)
+        def apply_grad_to_update_var(var, grad, lr):
+            return self.update_step(grad, var, lr)
 
         for grad, var in grads_and_vars:
             distribution.extended.update(
-                var, apply_grad_to_update_var, args=(grad,), group=False
+                var, apply_grad_to_update_var, args=(grad, learning_rate), group=False
             )
 
     def _overwrite_model_variables_with_average_value(
