@@ -3,8 +3,8 @@ tensorflow-cpu==2.16.0rc0  # Pin to rc until TF 2.16 release
 
 # Torch with cuda support.
 --extra-index-url https://download.pytorch.org/whl/cu121
-torch==2.1.2
-torchvision==0.16.2
+torch==2.2.1+cu121
+torchvision==0.17.1+cu121
 
 # Jax cpu-only version (needed for testing).
 jax[cpu]
