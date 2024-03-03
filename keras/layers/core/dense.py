@@ -123,7 +123,7 @@ class Dense(Layer):
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
         if self.dtype_policy.quantization_mode:
-            self.quantize(self.dtype_policy.quantization_mode, input_shape)
+            self.quantize(self.dtype_policy.quantization_mode)
 
     @property
     def kernel(self):
@@ -199,7 +199,7 @@ class Dense(Layer):
         self._tracker.lock()
         self.lora_enabled = True
 
-    def quantize(self, mode, input_shape=None):
+    def quantize(self, mode):
         self._check_quantize_args(mode)
         if mode == "quantized_int8":
             self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)

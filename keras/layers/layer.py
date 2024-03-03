@@ -1104,7 +1104,7 @@ class Layer(BackendLayer, Operation):
         for layer in self._layers:
             layer._clear_losses()
 
-    def quantize(self, mode, input_shape=None):
+    def quantize(self, mode):
         self._check_quantize_args(mode)
         warnings.warn(
             "`quantize` is not implemented for class "
