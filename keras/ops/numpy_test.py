@@ -2,6 +2,7 @@ import contextlib
 import functools
 import itertools
 import math
+import warnings
 
 import numpy as np
 import pytest
@@ -4012,7 +4013,7 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Arange()(3, 7, 2), np.arange(3, 7, 2))
 
         self.assertEqual(standardize_dtype(knp.arange(3).dtype), "int32")
-        with pytest.warns(None) as record:
+        with warnings.catch_warnings(record=True) as record:
             knp.arange(3, dtype="int")
         self.assertEqual(len(record), 0)
 
