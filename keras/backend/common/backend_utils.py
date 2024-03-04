@@ -263,7 +263,8 @@ def canonicalize_axis(axis, num_dims):
     axis = operator.index(axis)
     if not -num_dims <= axis < num_dims:
         raise ValueError(
-            f"axis={axis} is out of bounds for array of dimension={num_dims}."
+            f"axis {axis} is out of bounds for an array with dimension "
+            f"{num_dims}."
         )
     if axis < 0:
         axis = axis + num_dims
@@ -271,17 +272,17 @@ def canonicalize_axis(axis, num_dims):
 
 
 def standardize_axis_for_numpy(axis):
-    """Standardize an axis to tuple if it is a list for numpy backend."""
+    """Standardize an axis to a tuple if it is a list in the numpy backend."""
     return tuple(axis) if isinstance(axis, list) else axis
 
 
 def to_tuple_or_list(value):
-    """Convert the given value to a tuple or list."""
+    """Convert the non-`None` value to either a tuple or a list."""
     if value is None:
         return value
     if not isinstance(value, (int, tuple, list)):
         raise ValueError(
-            "`value` must be integer, tuple or list. "
+            "`value` must be an integer, tuple or list. "
             f"Received: value={value}"
         )
     if isinstance(value, int):
