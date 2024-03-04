@@ -6,6 +6,8 @@ import torch
 from keras.backend import KerasTensor
 from keras.backend import config
 from keras.backend.common import dtypes
+from keras.backend.common.backend_utils import canonicalize_axis
+from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.backend.common.variables import standardize_dtype
 from keras.backend.torch.core import cast
 from keras.backend.torch.core import convert_to_tensor
@@ -119,8 +121,7 @@ def mean(x, axis=None, keepdims=False):
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
-    elif isinstance(axis, int):
-        axis = (axis,)  # see [NB] below
+    axis = to_tuple_or_list(axis)  # see [NB] below
 
     ori_dtype = standardize_dtype(x.dtype)
     # torch.mean only supports floating point inputs
@@ -208,8 +209,7 @@ def all(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
         return cast(torch.all(x), "bool")
-    if not isinstance(axis, (list, tuple)):
-        axis = (axis,)
+    axis = to_tuple_or_list(axis)
     for a in axis:
         # `torch.all` does not handle multiple axes.
         x = torch.all(x, dim=a, keepdim=keepdims)
@@ -220,8 +220,7 @@ def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
         return cast(torch.any(x), "bool")
-    if not isinstance(axis, (list, tuple)):
-        axis = (axis,)
+    axis = to_tuple_or_list(axis)
     for a in axis:
         # `torch.any` does not handle multiple axes.
         x = torch.any(x, dim=a, keepdim=keepdims)
@@ -602,7 +601,12 @@ def exp(x):
 
 def expand_dims(x, axis):
     x = convert_to_tensor(x)
-    return torch.unsqueeze(x, dim=axis)
+    axis = to_tuple_or_list(axis)
+    out_ndim = len(x.shape) + len(axis)
+    axis = sorted([canonicalize_axis(a, out_ndim) for a in axis])
+    for a in axis:
+        x = torch.unsqueeze(x, dim=a)
+    return x
 
 
 def expm1(x):
@@ -617,8 +621,7 @@ def flip(x, axis=None):
     x = convert_to_tensor(x)
     if axis is None:
         axis = tuple(range(x.ndim))
-    if isinstance(axis, int):
-        axis = (axis,)
+    axis = to_tuple_or_list(axis)
     return torch.flip(x, dims=axis)
 
 
@@ -892,7 +895,7 @@ def median(x, axis=None, keepdims=False):
         y = reshape(x, [-1])
     else:
         # transpose
-        axis = list(map(lambda a: a if a >= 0 else a + x.ndim, axis))
+        axis = [canonicalize_axis(a, x.ndim) for a in axis]
         other_dims = sorted(set(range(x.ndim)).difference(axis))
         perm = other_dims + list(axis)
         x_permed = torch.permute(x, dims=perm)
@@ -1072,8 +1075,7 @@ def prod(x, axis=None, keepdims=False, dtype=None):
         compute_dtype = "float32"
     if axis is None:
         return cast(torch.prod(x, dtype=to_torch_dtype(compute_dtype)), dtype)
-    if not isinstance(axis, (list, tuple)):
-        axis = (axis,)
+    axis = to_tuple_or_list(axis)
     for a in axis:
         # `torch.prod` does not handle multiple axes.
         x = cast(
@@ -1086,11 +1088,9 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
-    if isinstance(axis, int):
-        axis = [axis]
-
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
+    axis = to_tuple_or_list(axis)
 
     compute_dtype = dtypes.result_type(x.dtype, "float32")
     result_dtype = dtypes.result_type(x.dtype, float)
@@ -1105,7 +1105,7 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
         y = reshape(x, [-1])
     else:
         # transpose
-        axis = list(map(lambda a: a if a >= 0 else a + x.ndim, axis))
+        axis = [canonicalize_axis(a, x.ndim) for a in axis]
         other_dims = sorted(set(range(x.ndim)).difference(axis))
         perm = other_dims + list(axis)
         x_permed = torch.permute(x, dims=perm)
@@ -1266,8 +1266,7 @@ def take(x, indices, axis=None):
         x = torch.reshape(x, (-1,))
         axis = 0
     if axis is not None:
-        # make sure axis is non-negative
-        axis = len(x.shape) + axis if axis < 0 else axis
+        axis = canonicalize_axis(axis, x.ndim)
         shape = x.shape[:axis] + indices.shape + x.shape[axis + 1 :]
         # ravel the `indices` since `index_select` expects `indices`
         # to be a vector (1-D tensor).

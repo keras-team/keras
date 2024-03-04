@@ -1,3 +1,4 @@
+import operator
 import warnings
 
 
@@ -255,3 +256,35 @@ def compute_conv_transpose_output_shape(
     else:
         output_shape = [input_shape[0], filters] + output_shape
     return output_shape
+
+
+def canonicalize_axis(axis, num_dims):
+    """Canonicalize an axis in [-num_dims, num_dims) to [0, num_dims)."""
+    axis = operator.index(axis)
+    if not -num_dims <= axis < num_dims:
+        raise ValueError(
+            f"axis {axis} is out of bounds for an array with dimension "
+            f"{num_dims}."
+        )
+    if axis < 0:
+        axis = axis + num_dims
+    return axis
+
+
+def standardize_axis_for_numpy(axis):
+    """Standardize an axis to a tuple if it is a list in the numpy backend."""
+    return tuple(axis) if isinstance(axis, list) else axis
+
+
+def to_tuple_or_list(value):
+    """Convert the non-`None` value to either a tuple or a list."""
+    if value is None:
+        return value
+    if not isinstance(value, (int, tuple, list)):
+        raise ValueError(
+            "`value` must be an integer, tuple or list. "
+            f"Received: value={value}"
+        )
+    if isinstance(value, int):
+        return (value,)
+    return value

@@ -2,6 +2,7 @@ import contextlib
 import functools
 import itertools
 import math
+import warnings
 
 import numpy as np
 import pytest
@@ -929,6 +930,13 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             x = KerasTensor((None, 1))
             knp.squeeze(x, axis=0)
 
+        # Multiple axes
+        x = KerasTensor((None, 1, 1, 1))
+        self.assertEqual(knp.squeeze(x, (1, 2)).shape, (None, 1))
+        self.assertEqual(knp.squeeze(x, (-1, -2)).shape, (None, 1))
+        self.assertEqual(knp.squeeze(x, (1, 2, 3)).shape, (None,))
+        self.assertEqual(knp.squeeze(x, (-1, 1)).shape, (None, 1))
+
     def test_transpose(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.transpose(x).shape, (3, None))
@@ -1142,6 +1150,11 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.expand_dims(x, 0).shape, (1, None, 3))
         self.assertEqual(knp.expand_dims(x, 1).shape, (None, 1, 3))
         self.assertEqual(knp.expand_dims(x, -2).shape, (None, 1, 3))
+
+        # Multiple axes
+        self.assertEqual(knp.expand_dims(x, (1, 2)).shape, (None, 1, 1, 3))
+        self.assertEqual(knp.expand_dims(x, (-1, -2)).shape, (None, 3, 1, 1))
+        self.assertEqual(knp.expand_dims(x, (-1, 1)).shape, (None, 1, 3, 1))
 
     def test_expm1(self):
         x = KerasTensor((None, 3))
@@ -1479,6 +1492,13 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             knp.squeeze(x, axis=0)
 
+        # Multiple axes
+        x = KerasTensor((2, 1, 1, 1))
+        self.assertEqual(knp.squeeze(x, (1, 2)).shape, (2, 1))
+        self.assertEqual(knp.squeeze(x, (-1, -2)).shape, (2, 1))
+        self.assertEqual(knp.squeeze(x, (1, 2, 3)).shape, (2,))
+        self.assertEqual(knp.squeeze(x, (-1, 1)).shape, (2, 1))
+
     def test_transpose(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.transpose(x).shape, (3, 2))
@@ -1649,6 +1669,11 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.expand_dims(x, 0).shape, (1, 2, 3, 4))
         self.assertEqual(knp.expand_dims(x, 1).shape, (2, 1, 3, 4))
         self.assertEqual(knp.expand_dims(x, -2).shape, (2, 3, 1, 4))
+
+        # Multiple axes
+        self.assertEqual(knp.expand_dims(x, (1, 2)).shape, (2, 1, 1, 3, 4))
+        self.assertEqual(knp.expand_dims(x, (-1, -2)).shape, (2, 3, 4, 1, 1))
+        self.assertEqual(knp.expand_dims(x, (-1, 1)).shape, (2, 1, 3, 4, 1))
 
     def test_expm1(self):
         x = KerasTensor((2, 3))
@@ -2852,6 +2877,18 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Squeeze()(x), np.squeeze(x))
         self.assertAllClose(knp.Squeeze(axis=0)(x), np.squeeze(x, axis=0))
 
+        # Multiple axes
+        x = np.ones([2, 1, 1, 1])
+        self.assertAllClose(knp.squeeze(x, (1, 2)), np.squeeze(x, (1, 2)))
+        self.assertAllClose(knp.squeeze(x, (-1, -2)), np.squeeze(x, (-1, -2)))
+        self.assertAllClose(knp.squeeze(x, (1, 2, 3)), np.squeeze(x, (1, 2, 3)))
+        self.assertAllClose(knp.squeeze(x, (-1, 1)), np.squeeze(x, (-1, 1)))
+
+        self.assertAllClose(knp.Squeeze((1, 2))(x), np.squeeze(x, (1, 2)))
+        self.assertAllClose(knp.Squeeze((-1, -2))(x), np.squeeze(x, (-1, -2)))
+        self.assertAllClose(knp.Squeeze((1, 2, 3))(x), np.squeeze(x, (1, 2, 3)))
+        self.assertAllClose(knp.Squeeze((-1, 1))(x), np.squeeze(x, (-1, 1)))
+
     def test_transpose(self):
         x = np.ones([1, 2, 3, 4, 5])
         self.assertAllClose(knp.transpose(x), np.transpose(x))
@@ -3290,6 +3327,27 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.ExpandDims(0)(x), np.expand_dims(x, 0))
         self.assertAllClose(knp.ExpandDims(1)(x), np.expand_dims(x, 1))
         self.assertAllClose(knp.ExpandDims(-2)(x), np.expand_dims(x, -2))
+
+        # Multiple axes
+        self.assertAllClose(
+            knp.expand_dims(x, (1, 2)), np.expand_dims(x, (1, 2))
+        )
+        self.assertAllClose(
+            knp.expand_dims(x, (-1, -2)), np.expand_dims(x, (-1, -2))
+        )
+        self.assertAllClose(
+            knp.expand_dims(x, (-1, 1)), np.expand_dims(x, (-1, 1))
+        )
+
+        self.assertAllClose(
+            knp.ExpandDims((1, 2))(x), np.expand_dims(x, (1, 2))
+        )
+        self.assertAllClose(
+            knp.ExpandDims((-1, -2))(x), np.expand_dims(x, (-1, -2))
+        )
+        self.assertAllClose(
+            knp.ExpandDims((-1, 1))(x), np.expand_dims(x, (-1, 1))
+        )
 
     def test_expm1(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -3955,7 +4013,7 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Arange()(3, 7, 2), np.arange(3, 7, 2))
 
         self.assertEqual(standardize_dtype(knp.arange(3).dtype), "int32")
-        with pytest.warns(None) as record:
+        with warnings.catch_warnings(record=True) as record:
             knp.arange(3, dtype="int")
         self.assertEqual(len(record), 0)
 
