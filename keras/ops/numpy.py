@@ -151,6 +151,7 @@ from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend import any_symbolic_tensors
 from keras.backend.common import dtypes
+from keras.backend.common.backend_utils import canonicalize_axis
 from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.ops import operation_utils
 from keras.ops.operation import Operation
@@ -5752,6 +5753,7 @@ class Squeeze(Operation):
                         f"Cannot squeeze axis {a}, because the dimension "
                         "is not 1."
                     )
+            axis = [canonicalize_axis(a, len(input_shape)) for a in axis]
             for a in sorted(axis, reverse=True):
                 del input_shape[a]
             return KerasTensor(input_shape, dtype=x.dtype, sparse=sparse)
