@@ -6,6 +6,8 @@ import jax.numpy as jnp
 
 from keras.backend import config
 from keras.backend.common import dtypes
+from keras.backend.common.backend_utils import canonicalize_axis
+from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.backend.common.variables import standardize_dtype
 from keras.backend.jax import sparse
 from keras.backend.jax.core import cast
@@ -367,14 +369,7 @@ def concatenate(xs, axis=0):
     bcoo_count = builtins.sum(isinstance(x, jax_sparse.BCOO) for x in xs)
     if bcoo_count:
         if bcoo_count == len(xs):
-            ndim = len(xs[0].shape)
-            if not -ndim <= axis < ndim:
-                raise ValueError(
-                    f"In `axis`, axis {axis} is out of bounds for array "
-                    f"of dimension {ndim}"
-                )
-            if axis < 0:
-                axis = axis + ndim
+            axis = canonicalize_axis(axis, len(xs[0].shape))
             return jax_sparse.bcoo_concatenate(xs, dimension=axis)
         else:
             xs = [
@@ -1040,8 +1035,7 @@ def squeeze(x, axis=None):
     if isinstance(x, jax_sparse.BCOO):
         if axis is None:
             axis = tuple(i for i, d in enumerate(x.shape) if d == 1)
-        elif isinstance(axis, int):
-            axis = (axis,)
+        axis = to_tuple_or_list(axis)
         return jax_sparse.bcoo_squeeze(x, dimensions=axis)
     return jnp.squeeze(x, axis=axis)
 
@@ -1055,11 +1049,8 @@ def transpose(x, axes=None):
         else:
             permutation = []
             for a in axes:
-                if not -num_dims <= a < num_dims:
-                    raise ValueError(
-                        f"axis {a} out of bounds for tensor of rank {num_dims}"
-                    )
-                permutation.append(a if a >= 0 else a + num_dims)
+                a = canonicalize_axis(a, num_dims)
+                permutation.append(a)
         return jax_sparse.bcoo_transpose(x, permutation=permutation)
     return jnp.transpose(x, axes=axes)
 

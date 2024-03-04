@@ -4,6 +4,7 @@ import tree
 from keras.backend import config
 from keras.backend import standardize_dtype
 from keras.backend.common import dtypes
+from keras.backend.common.backend_utils import standardize_axis_for_numpy
 from keras.backend.numpy.core import convert_to_tensor
 
 
@@ -82,7 +83,7 @@ def multiply(x1, x2):
 
 
 def mean(x, axis=None, keepdims=False):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
     if "int" in ori_dtype or ori_dtype == "bool":
@@ -93,7 +94,7 @@ def mean(x, axis=None, keepdims=False):
 
 
 def max(x, axis=None, keepdims=False, initial=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.max(x, axis=axis, keepdims=keepdims, initial=initial)
 
 
@@ -116,27 +117,27 @@ def abs(x):
 
 
 def all(x, axis=None, keepdims=False):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.all(x, axis=axis, keepdims=keepdims)
 
 
 def any(x, axis=None, keepdims=False):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.any(x, axis=axis, keepdims=keepdims)
 
 
 def amax(x, axis=None, keepdims=False):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.amax(x, axis=axis, keepdims=keepdims)
 
 
 def amin(x, axis=None, keepdims=False):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.amin(x, axis=axis, keepdims=keepdims)
 
 
 def append(x1, x2, axis=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
@@ -227,17 +228,17 @@ def arctanh(x):
 
 
 def argmax(x, axis=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.argmax(x, axis=axis).astype("int32")
 
 
 def argmin(x, axis=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.argmin(x, axis=axis).astype("int32")
 
 
 def argsort(x, axis=-1):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.argsort(x, axis=axis).astype("int32")
 
 
@@ -246,7 +247,7 @@ def array(x, dtype=None):
 
 
 def average(x, axis=None, weights=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype, float]
     if weights is not None:
@@ -311,7 +312,7 @@ def clip(x, x_min, x_max):
 
 
 def concatenate(xs, axis=0):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
@@ -354,14 +355,14 @@ def cosh(x):
 
 
 def count_nonzero(x, axis=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     # np.count_nonzero will return python int when axis=None, so we need
     # to convert_to_tensor
     return convert_to_tensor(np.count_nonzero(x, axis=axis)).astype("int32")
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
@@ -378,7 +379,7 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 
 def cumprod(x, axis=None, dtype=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
         dtype = "int32"
@@ -386,7 +387,7 @@ def cumprod(x, axis=None, dtype=None):
 
 
 def cumsum(x, axis=None, dtype=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
         dtype = "int32"
@@ -398,14 +399,9 @@ def diag(x, k=0):
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
-    axis1 = tuple(axis1) if isinstance(axis1, list) else axis1
-    axis2 = tuple(axis2) if isinstance(axis2, list) else axis2
-    return np.diagonal(
-        x,
-        offset=offset,
-        axis1=axis1,
-        axis2=axis2,
-    )
+    axis1 = standardize_axis_for_numpy(axis1)
+    axis2 = standardize_axis_for_numpy(axis2)
+    return np.diagonal(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
 def diff(a, n=1, axis=-1):
@@ -443,7 +439,7 @@ def exp(x):
 
 
 def expand_dims(x, axis):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.expand_dims(x, axis)
 
 
@@ -456,7 +452,7 @@ def expm1(x):
 
 
 def flip(x, axis=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.flip(x, axis=axis)
 
 
@@ -534,7 +530,7 @@ def less_equal(x1, x2):
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     if dtype is None:
         dtypes_to_resolve = [
             getattr(start, "dtype", type(start)),
@@ -657,7 +653,7 @@ def meshgrid(*x, indexing="xy"):
 
 
 def min(x, axis=None, keepdims=False, initial=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.min(x, axis=axis, keepdims=keepdims, initial=initial)
 
 
@@ -737,7 +733,7 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
     if dtype is None:
         dtype = dtypes.result_type(x.dtype)
@@ -749,7 +745,7 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
 
     ori_dtype = standardize_dtype(x.dtype)
@@ -818,17 +814,17 @@ def size(x):
 
 
 def sort(x, axis=-1):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.sort(x, axis=axis)
 
 
 def split(x, indices_or_sections, axis=0):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.split(x, indices_or_sections, axis=axis)
 
 
 def stack(x, axis=0):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     dtype_set = set([getattr(a, "dtype", type(a)) for a in x])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
@@ -837,7 +833,7 @@ def stack(x, axis=0):
 
 
 def std(x, axis=None, keepdims=False):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
     if "int" in ori_dtype or ori_dtype == "bool":
@@ -850,12 +846,12 @@ def swapaxes(x, axis1, axis2):
 
 
 def take(x, indices, axis=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.take(x, indices, axis=axis)
 
 
 def take_along_axis(x, indices, axis=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.take_along_axis(x, indices, axis=axis)
 
 
@@ -898,8 +894,8 @@ def tile(x, repeats):
 
 
 def trace(x, offset=0, axis1=0, axis2=1):
-    axis1 = tuple(axis1) if isinstance(axis1, list) else axis1
-    axis2 = tuple(axis2) if isinstance(axis2, list) else axis2
+    axis1 = standardize_axis_for_numpy(axis1)
+    axis2 = standardize_axis_for_numpy(axis2)
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
     if dtype not in ("int64", "uint32", "uint64"):
@@ -1027,7 +1023,7 @@ def sqrt(x):
 
 
 def squeeze(x, axis=None):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     return np.squeeze(x, axis=axis)
 
 
@@ -1037,7 +1033,7 @@ def transpose(x, axes=None):
 
 
 def var(x, axis=None, keepdims=False):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
     compute_dtype = dtypes.result_type(x.dtype, "float32")
     result_dtype = dtypes.result_type(x.dtype, float)
@@ -1047,7 +1043,7 @@ def var(x, axis=None, keepdims=False):
 
 
 def sum(x, axis=None, keepdims=False):
-    axis = tuple(axis) if isinstance(axis, list) else axis
+    axis = standardize_axis_for_numpy(axis)
     dtype = standardize_dtype(x.dtype)
     # follow jax's rule
     if dtype in ("bool", "int8", "int16"):

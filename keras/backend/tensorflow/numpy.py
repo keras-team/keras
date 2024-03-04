@@ -13,6 +13,8 @@ from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
 from keras.backend import config
 from keras.backend import standardize_dtype
 from keras.backend.common import dtypes
+from keras.backend.common.backend_utils import canonicalize_axis
+from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.backend.tensorflow import sparse
 from keras.backend.tensorflow.core import convert_to_tensor
 
@@ -426,16 +428,15 @@ def mean(x, axis=None, keepdims=False):
             sum = tf.reduce_sum(x.values, keepdims=keepdims)
             return sum / tf.cast(tf.reduce_prod(x.dense_shape), dtype=sum.dtype)
 
-        if isinstance(axis, int):
-            axis = [axis]
-        elif not axis:
+        axis = to_tuple_or_list(axis)
+        if not axis:
             # Empty axis tuple, this is a no-op
             return x
 
         dense_shape = tf.convert_to_tensor(x.dense_shape)
         rank = tf.shape(dense_shape)[0]
         # Normalize axis: convert negative values and sort
-        axis = [rank + a if a < 0 else a for a in axis]
+        axis = [canonicalize_axis(a, rank) for a in axis]
         axis.sort()
 
         if axis == [0]:
@@ -700,8 +701,7 @@ def array(x, dtype=None):
 
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
-    if not isinstance(axis, (list, tuple)):
-        axis = (axis,)
+    axis = to_tuple_or_list(axis)
     dtypes_to_resolve = [x.dtype, float]
     if weights is not None:
         weights = convert_to_tensor(weights)
@@ -715,6 +715,9 @@ def average(x, axis=None, weights=None):
     x = tf.cast(x, compute_dtype)
     if weights is not None:
         weights = tf.cast(weights, compute_dtype)
+    if axis is None:
+        x = tfnp.average(x, weights=weights, axis=None)
+        return tf.cast(x, result_dtype)
     for a in axis:
         # `tfnp.average` does not handle multiple axes.
         x = tfnp.average(x, weights=weights, axis=a)
@@ -1385,9 +1388,8 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
         y = tf.reshape(x, [-1])
     else:
         x_ndims = len(x.shape)
-
         # _make_static_axis_non_negative_list
-        axis = list(map(lambda x: x if x >= 0 else x + x_ndims, axis))
+        axis = [canonicalize_axis(a, x_ndims) for a in axis]
 
         # _move_dims_to_flat_end
         other_dims = sorted(set(range(x_ndims)).difference(axis))
@@ -1483,11 +1485,9 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
-    if isinstance(axis, int):
-        axis = [axis]
-
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
+    axis = to_tuple_or_list(axis)
     compute_dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, compute_dtype)
     return _quantile(x, q, axis=axis, method=method, keepdims=keepdims)
@@ -1910,8 +1910,7 @@ def squeeze(x, axis=None):
                     f"Cannot squeeze axis {axis}, because the "
                     "dimension is not 1."
                 )
-            if axis < 0:
-                axis += len(static_shape)
+            axis = canonicalize_axis(axis, len(static_shape))
         dynamic_shape = tf.shape(x)
         new_shape = []
         gather_indices = []
