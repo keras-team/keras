@@ -151,6 +151,8 @@ from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend import any_symbolic_tensors
 from keras.backend.common import dtypes
+from keras.backend.common.backend_utils import canonicalize_axis
+from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.ops import operation_utils
 from keras.ops.operation import Operation
 from keras.ops.operation_utils import broadcast_shapes
@@ -2499,10 +2501,10 @@ def exp(x):
 class ExpandDims(Operation):
     def __init__(self, axis):
         super().__init__()
-        if isinstance(axis, list):
+        if not isinstance(axis, (int, tuple, list)):
             raise ValueError(
                 "The `axis` argument to `expand_dims` should be an integer, "
-                f"but received a list: {axis}."
+                f"tuple or list. Received axis={axis}"
             )
         self.axis = axis
 
@@ -5740,16 +5742,20 @@ class Squeeze(Operation):
     def compute_output_spec(self, x):
         input_shape = list(x.shape)
         sparse = getattr(x, "sparse", False)
-        if self.axis is None:
+        axis = to_tuple_or_list(self.axis)
+        if axis is None:
             output_shape = list(filter((1).__ne__, input_shape))
             return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
         else:
-            if input_shape[self.axis] != 1:
-                raise ValueError(
-                    f"Cannot squeeze axis {self.axis}, because the dimension "
-                    "is not 1."
-                )
-            del input_shape[self.axis]
+            for a in axis:
+                if input_shape[a] != 1:
+                    raise ValueError(
+                        f"Cannot squeeze axis {a}, because the dimension "
+                        "is not 1."
+                    )
+            axis = [canonicalize_axis(a, len(input_shape)) for a in axis]
+            for a in sorted(axis, reverse=True):
+                del input_shape[a]
             return KerasTensor(input_shape, dtype=x.dtype, sparse=sparse)
 
 
