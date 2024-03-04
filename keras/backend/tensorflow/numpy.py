@@ -940,13 +940,21 @@ def exp(x):
 
 
 def expand_dims(x, axis):
+    x = convert_to_tensor(x)
+    axis = to_tuple_or_list(axis)
+    out_ndim = len(x.shape) + len(axis)
+    axis = sorted([canonicalize_axis(a, out_ndim) for a in axis])
     if isinstance(x, tf.SparseTensor):
         from keras.ops.operation_utils import compute_expand_dims_output_shape
 
-        output = tf.sparse.expand_dims(x, axis)
-        output.set_shape(compute_expand_dims_output_shape(x.shape, axis))
-        return output
-    return tf.expand_dims(x, axis)
+        output_shape = compute_expand_dims_output_shape(x.shape, axis)
+        for a in axis:
+            x = tf.sparse.expand_dims(x, a)
+        x.set_shape(output_shape)
+        return x
+    for a in axis:
+        x = tf.expand_dims(x, a)
+    return x
 
 
 @sparse.elementwise_unary
@@ -1902,20 +1910,23 @@ def sqrt(x):
 
 
 def squeeze(x, axis=None):
-    if isinstance(x, tf.SparseTensor):
-        static_shape = x.shape.as_list()
-        if axis is not None:
-            if static_shape[axis] != 1:
+    x = convert_to_tensor(x)
+    axis = to_tuple_or_list(axis)
+    static_shape = x.shape.as_list()
+    if axis is not None:
+        for a in axis:
+            if static_shape[a] != 1:
                 raise ValueError(
-                    f"Cannot squeeze axis {axis}, because the "
+                    f"Cannot squeeze axis={a}, because the "
                     "dimension is not 1."
                 )
-            axis = canonicalize_axis(axis, len(static_shape))
+        axis = sorted([canonicalize_axis(a, len(static_shape)) for a in axis])
+    if isinstance(x, tf.SparseTensor):
         dynamic_shape = tf.shape(x)
         new_shape = []
         gather_indices = []
         for i, dim in enumerate(static_shape):
-            if not (dim == 1 if axis is None else i == axis):
+            if not (dim == 1 if axis is None else i in axis):
                 new_shape.append(dim if dim is not None else dynamic_shape[i])
                 gather_indices.append(i)
         new_indices = tf.gather(x.indices, gather_indices, axis=1)

@@ -4,6 +4,8 @@ import numpy as np
 import tree
 
 from keras.api_export import keras_export
+from keras.backend.common.backend_utils import canonicalize_axis
+from keras.backend.common.backend_utils import to_tuple_or_list
 
 
 def broadcast_shapes(shape1, shape2):
@@ -55,7 +57,7 @@ def compute_expand_dims_output_shape(input_shape, axis):
 
     Args:
         input_shape: Input shape.
-        axis: int for the axis to expand.
+        axis: int or sequence of ints for the axis to expand.
 
     Returns:
         Tuple of ints: The output shape after the `expand_dims` operation.
@@ -63,9 +65,14 @@ def compute_expand_dims_output_shape(input_shape, axis):
     input_shape = list(input_shape)
     if axis is None:
         axis = len(input_shape)
-    elif axis < 0:
-        axis = len(input_shape) + 1 + axis
-    return tuple(input_shape[:axis] + [1] + input_shape[axis:])
+    axis = to_tuple_or_list(axis)
+    out_ndim = len(axis) + len(input_shape)
+    axis = [canonicalize_axis(a, out_ndim) for a in axis]
+    shape_iter = iter(input_shape)
+    new_shape = [
+        1 if ax in axis else next(shape_iter) for ax in range(out_ndim)
+    ]
+    return tuple(new_shape)
 
 
 def compute_pooling_output_shape(

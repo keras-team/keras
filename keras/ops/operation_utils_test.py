@@ -18,6 +18,23 @@ class OperationUtilsTest(testing.TestCase):
         inputs = input_layer.Input(shape=(10,))
         self.assertIs(operation_utils.get_source_inputs(inputs)[0], inputs)
 
+    def test_compute_expand_dims_output_shape(self):
+        input_shape = (2, 3, 4)
+        axis = -1
+        output_shape = operation_utils.compute_expand_dims_output_shape(
+            input_shape, axis
+        )
+        expected_output_shape = (2, 3, 4, 1)
+        self.assertEqual(output_shape, expected_output_shape)
+
+        input_shape = (2, 3, 4)
+        axis = (1, -1)
+        output_shape = operation_utils.compute_expand_dims_output_shape(
+            input_shape, axis
+        )
+        expected_output_shape = (2, 1, 3, 4, 1)
+        self.assertEqual(output_shape, expected_output_shape)
+
     def test_compute_pooling_output_shape(self):
         input_shape = (1, 4, 4, 1)
         pool_size = (2, 2)

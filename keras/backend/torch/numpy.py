@@ -601,7 +601,12 @@ def exp(x):
 
 def expand_dims(x, axis):
     x = convert_to_tensor(x)
-    return torch.unsqueeze(x, dim=axis)
+    axis = to_tuple_or_list(axis)
+    out_ndim = len(x.shape) + len(axis)
+    axis = sorted([canonicalize_axis(a, out_ndim) for a in axis])
+    for a in axis:
+        x = torch.unsqueeze(x, dim=a)
+    return x
 
 
 def expm1(x):
