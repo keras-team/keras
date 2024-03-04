@@ -365,8 +365,8 @@ class Model(Trainer, Layer):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
-        Quantization will be skipped if the layer doesn't implement `quantize`
-        function.
+        `quantize` will recursively call `quantize(mode)` in all layers and
+        will be skipped if the layer doesn't implement the function.
 
         Args:
             mode: The mode of the quantization. The supported modes are
@@ -377,7 +377,7 @@ class Model(Trainer, Layer):
                 "The model must be built first before calling `quantize`."
             )
         mode_changed = False
-        for layer in self.layers:
+        for layer in self._flatten_layers(include_self=False, recursive=True):
             original_mode = layer.dtype_policy.quantization_mode
             layer.quantize(mode)
             if layer.dtype_policy.quantization_mode != original_mode:

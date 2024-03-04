@@ -26,16 +26,16 @@ class Operation:
         self.name = name
         self._inbound_nodes = []
         self._outbound_nodes = []
+        self._is_quantized_int8 = False
 
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
-        is_quantized_int8 = kwargs.pop("is_quantized_int8", None)
         if traceback_utils.is_traceback_filtering_enabled():
             # Wrap self.call to provide helpful info in case of exception
             if any_symbolic_tensors(args, kwargs):
                 call_fn = self.symbolic_call
             else:
-                if is_quantized_int8:
+                if self.is_quantized_int8:
                     call_fn = self.int8_call
                 else:
                     call_fn = self.call
@@ -48,7 +48,7 @@ class Operation:
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
             return self.symbolic_call(*args, **kwargs)
-        if is_quantized_int8:
+        if self.is_quantized_int8:
             return self.int8_call(*args, **kwargs)
         else:
             return self.call(*args, **kwargs)
@@ -237,6 +237,15 @@ class Operation:
             Output tensor or list of output tensors.
         """
         return self._get_node_attribute_at_index(0, "output_tensors", "output")
+
+    @property
+    def is_quantized_int8(self):
+        """Whether the operation is quantized to int8."""
+        return self._is_quantized_int8
+
+    @is_quantized_int8.setter
+    def is_quantized_int8(self, value):
+        self._is_quantized_int8 = value
 
     def _get_node_attribute_at_index(self, node_index, attr, attr_name):
         """Private utility to retrieves an attribute (e.g. inputs) from a node.
