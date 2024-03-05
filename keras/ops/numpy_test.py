@@ -2161,10 +2161,21 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertAllClose(knp.Einsum(",ijk")(5, y), np.einsum(",ijk", 5, y))
 
-    def test_einsum_with_custom_ops(self):
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason=f"{backend.backend()} doesn't implement custom ops for einsum.",
+    )
+    def test_einsum_custom_ops_for_tensorflow(self):
         subscripts = "a,b->ab"
         x = np.arange(2).reshape([2]).astype("float32")
         y = np.arange(3).reshape([3]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "ab,bc->ac"
+        x = np.arange(6).reshape([2, 3]).astype("float32")
+        y = np.arange(12).reshape([3, 4]).astype("float32")
         self.assertAllClose(
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
@@ -5634,49 +5645,69 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
-        # Test custom implementation of einsum for tensorflow
-        if backend.backend() == "tensorflow":
-            for subscripts in [
-                "a,b->ab",
-                "abc,cd->abd",
-                "abc,cde->abde",
-                "abc,dce->abde",
-                "abcd,abed->abce",
-                "abcd,adbe->acbe",
-                "abcd,aecd->acbe",
-                "abcd,aecd->aceb",
-                "abcd,cde->abe",
-                "abcde,aebf->adbcf",
-                "abcde,afce->acdbf",
-            ]:
-                x1_shape, x2_shape = get_input_shapes(subscripts)
-                x1 = knp.ones(x1_shape, dtype=dtype1)
-                x2 = knp.ones(x2_shape, dtype=dtype2)
-                x1_jax = jnp.ones(x1_shape, dtype=dtype1)
-                x2_jax = jnp.ones(x2_shape, dtype=dtype2)
-                if dtype1 == "int8" and dtype2 == "int8":
-                    preferred_element_type = "int32"
-                else:
-                    preferred_element_type = None
-                expected_dtype = standardize_dtype(
-                    jnp.einsum(
-                        subscripts,
-                        x1_jax,
-                        x2_jax,
-                        preferred_element_type=preferred_element_type,
-                    ).dtype
-                )
+    @parameterized.named_parameters(
+        named_product(
+            dtypes=list(itertools.combinations(ALL_DTYPES, 2))
+            + [("int8", "int8")]
+        )
+    )
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason=f"{backend.backend()} doesn't implement custom ops for einsum.",
+    )
+    def test_einsum_custom_ops_for_tensorflow(self, dtypes):
+        import jax.numpy as jnp
 
-                self.assertEqual(
-                    standardize_dtype(knp.einsum(subscripts, x1, x2).dtype),
-                    expected_dtype,
-                )
-                self.assertEqual(
-                    standardize_dtype(
-                        knp.Einsum(subscripts).symbolic_call(x1, x2).dtype
-                    ),
-                    expected_dtype,
-                )
+        def get_input_shapes(subscripts):
+            x1_labels = subscripts.split(",")[0]
+            x2_labels = subscripts.split("->")[0][len(x1_labels) + 1 :]
+            x1_shape = [1] * len(x1_labels)
+            x2_shape = [1] * len(x2_labels)
+            return x1_shape, x2_shape
+
+        dtype1, dtype2 = dtypes
+        for subscripts in [
+            "a,b->ab",
+            "ab,bc->ac",
+            "abc,cd->abd",
+            "abc,cde->abde",
+            "abc,dce->abde",
+            "abcd,abed->abce",
+            "abcd,adbe->acbe",
+            "abcd,aecd->acbe",
+            "abcd,aecd->aceb",
+            "abcd,cde->abe",
+            "abcde,aebf->adbcf",
+            "abcde,afce->acdbf",
+        ]:
+            x1_shape, x2_shape = get_input_shapes(subscripts)
+            x1 = knp.ones(x1_shape, dtype=dtype1)
+            x2 = knp.ones(x2_shape, dtype=dtype2)
+            x1_jax = jnp.ones(x1_shape, dtype=dtype1)
+            x2_jax = jnp.ones(x2_shape, dtype=dtype2)
+            if dtype1 == "int8" and dtype2 == "int8":
+                preferred_element_type = "int32"
+            else:
+                preferred_element_type = None
+            expected_dtype = standardize_dtype(
+                jnp.einsum(
+                    subscripts,
+                    x1_jax,
+                    x2_jax,
+                    preferred_element_type=preferred_element_type,
+                ).dtype
+            )
+
+            self.assertEqual(
+                standardize_dtype(knp.einsum(subscripts, x1, x2).dtype),
+                expected_dtype,
+            )
+            self.assertEqual(
+                standardize_dtype(
+                    knp.Einsum(subscripts).symbolic_call(x1, x2).dtype
+                ),
+                expected_dtype,
+            )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_empty(self, dtype):
