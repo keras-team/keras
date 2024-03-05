@@ -174,7 +174,7 @@ class EinsumDense(Layer):
             )
         else:
             self.bias = None
-        self.input_spec = InputSpec(shape=input_shape)
+        self.input_spec = InputSpec(ndim=len(input_shape))
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
