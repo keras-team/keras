@@ -198,6 +198,7 @@ class Dense(Layer):
         self._kernel.trainable = False
         self._tracker.lock()
         self.lora_enabled = True
+        self.lora_rank = rank
 
     def quantize(self, mode):
         self._check_quantize_args(mode)
@@ -234,19 +235,18 @@ class Dense(Layer):
         self.dtype_policy = dtype_policies.get(quantized_dtype)
         self.is_quantized_int8 = self.dtype_policy.is_quantized_int8
 
-    def _merge_lora_into_kernel(self):
+    def _merge_lora_into_kernel(self, untrack=False):
         if not self.lora_enabled:
             return
-
         # Merge lora-enabled kernel into kernel
         self._kernel.assign(self.kernel)
-
-        # Untrack lora parameters
-        self._tracker.unlock()
-        self.lora_kernel_a = self._untrack_variable(self.lora_kernel_a)
-        self.lora_kernel_b = self._untrack_variable(self.lora_kernel_b)
-        self._tracker.lock()
         self.lora_enabled = False
+        if untrack:
+            self._tracker.unlock()
+            self.lora_kernel_a = self._untrack_variable(self.lora_kernel_a)
+            self.lora_kernel_b = self._untrack_variable(self.lora_kernel_b)
+            self._tracker.lock()
+            self.lora_rank = None
 
     def save_own_variables(self, store):
         if not self.lora_enabled:
