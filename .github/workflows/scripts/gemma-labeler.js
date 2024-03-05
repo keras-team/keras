@@ -28,8 +28,7 @@ module.exports = async ({ github, context }) => {
     const labelToAdd = 'Gemma'
     console.log(issue_title,issue_discription,issue_number)
     if(issue_title.toLowerCase().indexOf('gemma') !=-1 || issue_discription.toLowerCase().indexOf('gemma') !=-1 ){
-        console.log(`Gemma keyword is presnet in #${issue_number} issue. Adding 'Gemma label.'`)
-        console.log('Adding gemma...')
+        console.log(`Gemma keyword is present in #${issue_number} issue. Adding 'Gemma label.'`)
         github.rest.issues.addLabels({
             owner: context.repo.owner,
             repo: context.repo.repo,
