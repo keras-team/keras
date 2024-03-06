@@ -201,7 +201,7 @@ class Dense(Layer):
         self.lora_rank = rank
 
     def quantize(self, mode):
-        self._check_quantize_args(mode)
+        self._check_quantize_args(mode, self.compute_dtype)
         if mode == "quantized_int8":
             # Merge lora-related parameters to make use of fully int8 kernel
             self._merge_lora_into_kernel()
@@ -216,17 +216,19 @@ class Dense(Layer):
             self._kernel = self.add_weight(
                 name="kernel",
                 shape=self._kernel.shape,
-                initializer=initializers.Constant(kernel_value),
+                initializer="zeros",
                 dtype="int8",
                 trainable=False,
             )
+            self._kernel.assign(kernel_value)
             self.kernel_scale = self.add_weight(
                 name="kernel_scale",
                 shape=kernel_scale.shape,
-                initializer=initializers.Constant(kernel_scale),
+                initializer="zeros",
                 dtype=self.compute_dtype,
                 trainable=False,
             )
+            self.kernel_scale.assign(kernel_scale)
             self._tracker.lock()
         else:
             NotImplementedError()
