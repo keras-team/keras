@@ -13,11 +13,12 @@
 # limitations under the License.
 
 
-#This workflow automatically identifies issues and pull requests (PRs) related to Gemma.
-# It searches for the keyword "Gemma" (case-insensitive) in both the title and description of the issue/PR.
-# If a match is found, the workflow adds the label 'Gemma' to the issue/PR.
+# This workflow automatically identifies issues and pull requests (PRs) and add the 
+# appropriate label as per defined rules.
+# First Labeler workflow: It searches for the keyword "Gemma" (case-insensitive) in both the title 
+# and description of the issue/PR. If a match is found, the workflow adds the label 'Gemma' to the issue/PR.
 
-name: 'Gemma Labeler'
+name: 'Labeler'
 on:
   issues:
     types: [edited,opened]
@@ -37,5 +38,5 @@ jobs:
       - uses: actions/github-script@v7
         with:
           script: |
-            const script = require('./\.github/workflows/scripts/gemma_identifier.js')
+            const script = require('./\.github/workflows/scripts/labeler.js')
             script({github, context})
