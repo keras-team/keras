@@ -245,7 +245,7 @@ class Layer(BackendLayer, Operation):
     ):
         BackendLayer.__init__(self)
         self._lock = False
-        Operation.__init__(self, name=name)
+        Operation.__init__(self, dtype=dtype, name=name)
         self.activity_regularizer = regularizers.get(activity_regularizer)
         input_dim_arg = kwargs.pop("input_dim", None)
         if input_dim_arg is not None:
@@ -268,7 +268,6 @@ class Layer(BackendLayer, Operation):
             )
 
         self.built = False
-        self.dtype_policy = dtype_policies.get(dtype)
         self.autocast = autocast
         self._input_spec = None
         self._called = False
@@ -290,8 +289,6 @@ class Layer(BackendLayer, Operation):
         self._convert_input_args = True
         # Whether to allow non-tensors as positional arguments in `call()`.
         self._allow_non_tensor_positional_args = False
-        # Propagate `self.dtype_policy.is_quantized_int8`
-        self.is_quantized_int8 = self.dtype_policy.is_quantized_int8
         # Dict of shapes that were used to call `build()`.
         self._build_shapes_dict = None
         self._initializer_tracker()
@@ -864,10 +861,10 @@ class Layer(BackendLayer, Operation):
             "method implemented."
         )
 
-    def int8_call(self, *args, **kwargs):
+    def quantized_call(self, *args, **kwargs):
         raise NotImplementedError(
-            f"Layer {self.__class__.__name__} does not have a `int8_call()` "
-            "method implemented."
+            f"Layer {self.__class__.__name__} does not have a "
+            "`quantized_call()` method implemented."
         )
 
     @traceback_utils.filter_traceback
@@ -959,8 +956,10 @@ class Layer(BackendLayer, Operation):
         with backend.StatelessScope(
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
-            if self.is_quantized_int8:
-                outputs = self.int8_call(*args, **kwargs)
+            if isinstance(
+                self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+            ):
+                outputs = self.quantized_call(*args, **kwargs)
             else:
                 outputs = self.call(*args, **kwargs)
             if return_losses:

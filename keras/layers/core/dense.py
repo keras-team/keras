@@ -122,7 +122,7 @@ class Dense(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
-        if self.dtype_policy.quantization_mode:
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
             self.quantize(self.dtype_policy.quantization_mode)
 
     @property
@@ -145,9 +145,9 @@ class Dense(Layer):
             x = self.activation(x)
         return x
 
-    def int8_call(self, inputs):
+    def quantized_call(self, inputs):
         if self.lora_enabled:
-            raise ValueError("`int8_call` doesn't support lora weights")
+            raise ValueError("`quantized_call` doesn't support lora weights")
         inputs, inputs_scale = self.inputs_quantizer(inputs)
         x = ops.matmul(inputs, self.kernel)
         # De-scale outputs
@@ -233,9 +233,12 @@ class Dense(Layer):
         else:
             NotImplementedError()
 
-        quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
-        self.dtype_policy = dtype_policies.get(quantized_dtype)
-        self.is_quantized_int8 = self.dtype_policy.is_quantized_int8
+        # Set new dtype policy
+        if not isinstance(
+            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+        ):
+            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
+            self.dtype_policy = dtype_policies.get(quantized_dtype)
 
     def _merge_lora_into_kernel(self, untrack=False):
         if not self.lora_enabled:

@@ -4,6 +4,7 @@ import textwrap
 import tree
 
 from keras import backend
+from keras import dtype_policies
 from keras.api_export import keras_export
 from keras.backend.common.keras_tensor import any_symbolic_tensors
 from keras.ops.node import Node
@@ -14,7 +15,7 @@ from keras.utils.naming import auto_name
 
 @keras_export("keras.Operation")
 class Operation:
-    def __init__(self, name=None):
+    def __init__(self, dtype=None, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
         if not isinstance(name, str) or "/" in name:
@@ -23,10 +24,10 @@ class Operation:
                 "cannot contain character `/`. "
                 f"Received: name={name} (of type {type(name)})"
             )
+        self.dtype_policy = dtype_policies.get(dtype)
         self.name = name
         self._inbound_nodes = []
         self._outbound_nodes = []
-        self._is_quantized_int8 = False
 
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
@@ -35,8 +36,10 @@ class Operation:
             if any_symbolic_tensors(args, kwargs):
                 call_fn = self.symbolic_call
             else:
-                if self.is_quantized_int8:
-                    call_fn = self.int8_call
+                if isinstance(
+                    self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+                ):
+                    call_fn = self.quantized_call
                 else:
                     call_fn = self.call
             call_fn = traceback_utils.inject_argument_info_in_traceback(
@@ -48,8 +51,8 @@ class Operation:
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
             return self.symbolic_call(*args, **kwargs)
-        if self.is_quantized_int8:
-            return self.int8_call(*args, **kwargs)
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            return self.quantized_call(*args, **kwargs)
         else:
             return self.call(*args, **kwargs)
 
@@ -70,7 +73,7 @@ class Operation:
     def call(self, *args, **kwargs):
         raise NotImplementedError
 
-    def int8_call(self, *args, **kwargs):
+    def quantized_call(self, *args, **kwargs):
         raise NotImplementedError
 
     def compute_output_spec(self, *args, **kwargs):
@@ -236,15 +239,6 @@ class Operation:
             Output tensor or list of output tensors.
         """
         return self._get_node_attribute_at_index(0, "output_tensors", "output")
-
-    @property
-    def is_quantized_int8(self):
-        """Whether the operation is quantized to int8."""
-        return self._is_quantized_int8
-
-    @is_quantized_int8.setter
-    def is_quantized_int8(self, value):
-        self._is_quantized_int8 = value
 
     def _get_node_attribute_at_index(self, node_index, attr, attr_name):
         """Private utility to retrieves an attribute (e.g. inputs) from a node.
