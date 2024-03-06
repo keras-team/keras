@@ -62,8 +62,8 @@ class DTypePolicy:
                 f"Received: name={name} (of type {type(name)})"
             )
         self._name = name
-        self._compute_dtype = None
-        self._variable_dtype = None
+        self._compute_dtype = backend.floatx()
+        self._variable_dtype = backend.floatx()
 
     def _parse_name(self, name):
         """Parses a `DTypePolicy` name into a compute and variable dtype.
