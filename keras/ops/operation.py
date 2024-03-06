@@ -71,8 +71,7 @@ class Operation:
         raise NotImplementedError
 
     def int8_call(self, *args, **kwargs):
-        # Note that `int8_call` defaults to `call` if not implemented.
-        return self.call(*args, **kwargs)
+        raise NotImplementedError
 
     def compute_output_spec(self, *args, **kwargs):
         try:

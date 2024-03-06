@@ -865,7 +865,10 @@ class Layer(BackendLayer, Operation):
         )
 
     def int8_call(self, *args, **kwargs):
-        return self.call(*args, **kwargs)
+        raise NotImplementedError(
+            f"Layer {self.__class__.__name__} does not have a `int8_call()` "
+            "method implemented."
+        )
 
     @traceback_utils.filter_traceback
     def stateless_call(
@@ -1103,22 +1106,18 @@ class Layer(BackendLayer, Operation):
             layer._clear_losses()
 
     def quantize(self, mode):
-        self._check_quantize_args(mode)
-        warnings.warn(
-            "`quantize` is not implemented for class "
-            f"'{self.__class__.__name__}' so the quantization is skipped."
+        raise NotImplementedError(
+            f"Layer {self.__class__.__name__} does not have a `quantize()` "
+            "method implemented."
         )
 
-    def _check_quantize_args(self, mode):
+    def _check_quantize_args(self, mode, compute_dtype):
         if mode not in (None, "quantized_int8"):
             raise ValueError(
                 "Currently, `quantize` must be one of "
                 f"(`None`, 'quantized_int8'). Received: mode={mode}"
             )
-        if (
-            mode == "quantized_int8"
-            and self.dtype_policy.compute_dtype == "float16"
-        ):
+        if mode == "quantized_int8" and compute_dtype == "float16":
             raise ValueError(
                 f"mode='{mode}' doesn't work well with "
                 "compute_dtype='float16'. Consider loading model/layer with "

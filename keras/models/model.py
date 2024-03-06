@@ -374,14 +374,15 @@ class Model(Trainer, Layer):
         """
         if not self.built:
             raise ValueError(
-                "The model must be built first before calling `quantize`."
+                "The model must be built first before calling `quantize()`."
             )
         mode_changed = False
         for layer in self._flatten_layers(include_self=False, recursive=True):
-            original_mode = layer.dtype_policy.quantization_mode
-            layer.quantize(mode)
-            if layer.dtype_policy.quantization_mode != original_mode:
+            try:
+                layer.quantize(mode)
                 mode_changed = True
+            except NotImplementedError as e:
+                warnings.warn(str(e))
         # We need to set these functions to `None` to remake them for changed
         # call function
         if mode_changed:
