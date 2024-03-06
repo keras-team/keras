@@ -369,7 +369,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
         self.assertEqual(batch[0].shape, output_shape)
-        
+
     def test_image_dataset_from_directory_pad_to_aspect_ratio(self):
         directory = self._prepare_directory(num_classes=2, count=5)
         dataset = image_dataset_utils.image_dataset_from_directory(
