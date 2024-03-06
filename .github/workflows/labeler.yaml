@@ -1,0 +1,42 @@
+# Copyright 2024 Google LLC. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# This workflow automatically identifies issues and pull requests (PRs) and add the 
+# appropriate label as per defined rules.
+# First Labeler workflow: It searches for the keyword "Gemma" (case-insensitive) in both the title 
+# and description of the issue/PR. If a match is found, the workflow adds the label 'Gemma' to the issue/PR.
+
+name: 'Labeler'
+on:
+  issues:
+    types: [edited,opened]
+  pull_request_target:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const script = require('./\.github/workflows/scripts/labeler.js')
+            script({github, context})
