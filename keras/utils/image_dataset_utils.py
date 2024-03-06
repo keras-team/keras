@@ -117,7 +117,7 @@ def image_dataset_from_directory(
             preserved.
         pad_to_aspect_ratio: If `True`, resize the images without aspect
             ratio distortion. When the original aspect ratio differs from the
-            target aspect ratio, the output image will be cropped so as to
+            target aspect ratio, the output image will be padded so as to
             return the largest possible window in the image
             (of size `image_size`) that matches the target aspect ratio. By
             default (`pad_to_aspect_ratio=False`), aspect ratio may not be
