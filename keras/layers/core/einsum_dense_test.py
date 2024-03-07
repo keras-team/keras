@@ -401,6 +401,18 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         )
         model.save_weights(temp_filepath)
 
+        # Try lora
+        layer = layers.EinsumDense(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer.build((None, 3))
+        layer.enable_lora(2)
+        layer.quantize("int8")
+        x = np.random.random((2, 3))
+        _ = layer(x)
+
     @pytest.mark.requires_trainable_backend
     def test_quantize_dtype_argument(self):
         self.run_layer_test(

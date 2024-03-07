@@ -187,12 +187,25 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
         policy = dtype_policy()
         self.assertEqual(policy.name, "mixed_float16")
 
+    def test_set_dtype_policy_valid_string_quantized(self):
+        """Test set_dtype_policy with a valid string."""
+        set_dtype_policy("int8_from_mixed_float16")
+        policy = dtype_policy()
+        self.assertEqual(policy.name, "int8_from_mixed_float16")
+
     def test_set_dtype_policy_valid_policy(self):
         """Test set_dtype_policy with a valid FloatDTypePolicy object."""
         policy_obj = FloatDTypePolicy("mixed_float16")
         set_dtype_policy(policy_obj)
         policy = dtype_policy()
         self.assertEqual(policy.name, "mixed_float16")
+
+    def test_set_dtype_policy_valid_policy_quantized(self):
+        """Test set_dtype_policy with a valid FloatDTypePolicy object."""
+        policy_obj = QuantizedDTypePolicy("int8_from_mixed_float16")
+        set_dtype_policy(policy_obj)
+        policy = dtype_policy()
+        self.assertEqual(policy.name, "int8_from_mixed_float16")
 
     def test_set_dtype_policy_invalid(self):
         """Test set_dtype_policy with an invalid input."""

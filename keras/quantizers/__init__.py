@@ -30,7 +30,7 @@ def deserialize(config, custom_objects=None):
 
 
 @keras_export("keras.quantizers.get")
-def get(identifier):
+def get(identifier, **kwargs):
     """Retrieve a Keras quantizer object via an identifier."""
     if identifier is None:
         return None
@@ -43,7 +43,7 @@ def get(identifier):
 
     if callable(obj):
         if inspect.isclass(obj):
-            obj = obj()
+            obj = obj(kwargs)
         return obj
     else:
         raise ValueError(

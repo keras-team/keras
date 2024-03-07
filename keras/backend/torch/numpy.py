@@ -35,8 +35,12 @@ def einsum(subscripts, *operands, **kwargs):
     # the behavior of jax.
     dtypes_to_resolve = list(set(standardize_dtype(x.dtype) for x in operands))
     if len(dtypes_to_resolve) == 1 and dtypes_to_resolve[0] == "int8":
+        compute_dtype = "int32"
+        if get_device() == "cuda":
+            # TODO: torch.einsum doesn't support int32 when using cuda
+            compute_dtype = config.floatx()
         # prevent overflow
-        operands = [cast(operand, "int32") for operand in operands]
+        operands = [cast(operand, compute_dtype) for operand in operands]
         return cast(torch.einsum(subscripts, *operands), "int32")
     return torch.einsum(subscripts, *operands)
 

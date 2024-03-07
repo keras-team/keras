@@ -258,7 +258,7 @@ def set_dtype_policy(policy):
     """
     if not isinstance(policy, DTypePolicy):
         if isinstance(policy, str):
-            if "quantized" in policy:
+            if "int8" in policy:
                 policy = QuantizedDTypePolicy(policy)
             else:
                 policy = FloatDTypePolicy(policy)

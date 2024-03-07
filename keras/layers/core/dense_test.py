@@ -329,6 +329,14 @@ class DenseTest(testing.TestCase):
         )
         model.save_weights(temp_filepath)
 
+        # Try lora
+        layer = layers.Dense(units=16)
+        layer.build((None, 8))
+        layer.enable_lora(4)
+        layer.quantize("int8")
+        x = np.random.random((2, 8))
+        _ = layer(x)
+
     @pytest.mark.requires_trainable_backend
     def test_quantize_dtype_argument(self):
         self.run_layer_test(
