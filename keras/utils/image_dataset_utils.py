@@ -410,16 +410,11 @@ def load_image(
             "Only one of pad_to_aspect_ratio, crop_to_aspect_ratio can be set to True"
         )
 
-    if data_format == "channels_first":
-        img = tf.transpose(img, (2, 0, 1))
-
-    if pad_to_aspect_ratio:
-        img = tf.image.resize_with_pad(
-            img, image_size[0], image_size[1], method=interpolation
-        )
-    elif crop_to_aspect_ratio:
+    if crop_to_aspect_ratio:
         from keras.backend import tensorflow as tf_backend
 
+        if data_format == "channels_first":
+            img = tf.transpose(img, (2, 0, 1))
         img = image_utils.smart_resize(
             img,
             image_size,
@@ -427,8 +422,16 @@ def load_image(
             data_format=data_format,
             backend_module=tf_backend,
         )
+    elif pad_to_aspect_ratio:
+        img = tf.image.resize_with_pad(
+            img, image_size[0], image_size[1], method=interpolation
+        )
+        if data_format == "channels_first":
+            img = tf.transpose(img, (2, 0, 1))
     else:
         img = tf.image.resize(img, image_size, method=interpolation)
+        if data_format == "channels_first":
+            img = tf.transpose(img, (2, 0, 1))
 
     if data_format == "channels_last":
         img.set_shape((image_size[0], image_size[1], num_channels))
