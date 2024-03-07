@@ -44,7 +44,8 @@ def build_keras_model(keras_module, num_classes):
             keras_module.layers.Conv2D(
                 64, kernel_size=(3, 3), activation="relu"
             ),
-            keras_module.layers.BatchNormalization(scale=False, center=True),
+            # TODO: Renable the following line.
+            # keras_module.layers.BatchNormalization(scale=False, center=True),
             keras_module.layers.MaxPooling2D(pool_size=(2, 2)),
             keras_module.layers.Flatten(),
             keras_module.layers.Dense(num_classes, activation="softmax"),
