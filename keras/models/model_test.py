@@ -561,3 +561,43 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
             "it should have as many entries as the model has outputs",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
+
+    def test_quantize(self):
+        model = _get_model()
+        x1 = np.random.rand(2, 3)
+        x2 = np.random.rand(2, 3)
+        model.quantize("int8")
+        _ = model((x1, x2))
+
+        for layer in model._flatten_layers():
+            if isinstance(layer, (layers.Dense, layers.EinsumDense)):
+                self.assertEqual(layer.dtype_policy.name, "int8_from_float32")
+                self.assertEqual(layer.dtype_policy.quantization_mode, "int8")
+
+    def test_quantize_unbuilt(self):
+        class MyModel(Model):
+            def __init__(self):
+                super().__init__()
+                self.dense1 = layers.Dense(32, activation="relu")
+                self.dense2 = layers.Dense(5, activation="softmax")
+                self.dropout = layers.Dropout(0.5)
+
+            def call(self, inputs, training=False):
+                x = self.dense1(inputs)
+                x = self.dropout(x, training=training)
+                return self.dense2(x)
+
+        model = MyModel()
+        with self.assertRaisesRegex(
+            ValueError, "The model must be built first before calling"
+        ):
+            model.quantize("int8")
+
+        x = np.random.rand(2, 3)
+        _ = model(x)
+        model.quantize("int8")
+
+    def test_quantize_invalid_args(self):
+        model = _get_model()
+        with self.assertRaisesRegex(ValueError, "`quantize` must be one of"):
+            model.quantize("abc")
