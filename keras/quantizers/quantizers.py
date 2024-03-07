@@ -71,6 +71,7 @@ class Quantizer:
         raise NotImplementedError(f"{self} does not implement get_config()")
 
 
+@keras_export(["keras.AbsMaxQuantizer", "keras.quantizers.AbsMaxQuantizer"])
 class AbsMaxQuantizer(Quantizer):
     def __init__(
         self,
@@ -91,3 +92,11 @@ class AbsMaxQuantizer(Quantizer):
             x, self.axis, self.value_range, self.output_dtype, self.epsilon
         )
         return quantized_x, scale
+
+    def get_config(self):
+        return {
+            "axis": self.axis,
+            "value_range": self.value_range,
+            "epsilon": self.epsilon,
+            "output_dtype": self.output_dtype,
+        }
