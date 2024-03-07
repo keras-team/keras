@@ -1,3 +1,5 @@
+import warnings
+
 from keras import backend
 from keras import ops
 from keras.api_export import keras_export
@@ -55,12 +57,28 @@ class DTypePolicy:
     to explicitly construct a `DTypePolicy` object.
     """
 
-    def __init__(self, name):
+    def __new__(cls, name):
         if not isinstance(name, str):
             raise TypeError(
                 "'name' must be a string, such as 'mixed_float16'. "
                 f"Received: name={name} (of type {type(name)})"
             )
+        # For backwards compatibility
+        # TODO: We should consider deprecating this behavior
+        if cls is __class__:
+            warnings.warn(
+                "Consider using the subclass of DTypePolicy to initialize the "
+                "dtype policy such as FloatDTypePolicy and "
+                "QuantizedDTypePolicy."
+            )
+        else:
+            return super().__new__(cls)
+        if "int8" in name:
+            return QuantizedDTypePolicy(name)
+        else:
+            return FloatDTypePolicy(name)
+
+    def __init__(self, name):
         self._name = name
         self._compute_dtype = backend.floatx()
         self._variable_dtype = backend.floatx()
@@ -119,9 +137,6 @@ class DTypePolicy:
         """Returns the name of this policy."""
         return self._name
 
-    def __repr__(self):
-        return f'<DTypePolicy "{self._name}">'
-
     def convert_input(self, x, autocast, dtype):
         dtype = backend.standardize_dtype(dtype)
         if backend.is_tensor(x):
@@ -172,9 +187,9 @@ class FloatDTypePolicy(DTypePolicy):
             return dtype, dtype
         except ValueError:
             raise ValueError(
-                f"Cannot convert '{name}' to a mixed precision DTypePolicy."
-                " Valid policies include 'mixed_float16', 'mixed_bfloat16', "
-                "and the name of any dtype such as 'float32'."
+                f"Cannot convert '{name}' to a mixed precision "
+                "FloatDTypePolicy. Valid policies include 'mixed_float16', "
+                "'mixed_bfloat16', and the name of any dtype such as 'float32'."
             )
 
     def __repr__(self):
@@ -187,38 +202,39 @@ class FloatDTypePolicy(DTypePolicy):
 class QuantizedDTypePolicy(DTypePolicy):
     def __init__(self, name):
         super().__init__(name)
-        self._compute_dtype, self._variable_dtype = self._parse_name(name)
+        self._quantization_mode, self._compute_dtype, self._variable_dtype = (
+            self._parse_name(name)
+        )
 
     def _parse_name(self, name):
-        if "_from_" in name:
-            quantization_mode, from_name = name.split("_from_")
-            self._quantization_mode = quantization_mode
-            if from_name == "mixed_float16":
-                return "float16", "float32"
-            elif from_name == "mixed_bfloat16":
-                return "bfloat16", "float32"
-            try:
-                dtype = backend.standardize_dtype(name)
-                return dtype, dtype
-            except ValueError:
-                raise ValueError(
-                    f"Cannot convert '{name}' to a mixed precision DTypePolicy."
-                    " Valid policies include 'mixed_float16', 'mixed_bfloat16',"
-                    " and the name of any dtype such as 'float32'."
-                )
-        raise ValueError(
-            f"Cannot convert '{name}' to a quantized DTypePolicy. "
-            "Valid policies are in the pattern of 'quantized_int8_from_(name)' "
-            "such as 'quantized_int8_from_mixed_bfloat16'."
+        error_msg = (
+            f"Cannot convert '{name}' to a QuantizedDTypePolicy. "
+            "Valid policies include "
+            "'int8_from_float32', 'int8_from_float16', 'int8_from_bfloat16', "
+            "'int8_from_mixed_float16', 'int8_from_mixed_bfloat16'."
         )
+        split_name = name.split("_from_")
+        if len(split_name) != 2:
+            raise ValueError(error_msg)
+        mode, from_name = split_name
+        if mode not in ("int8",):
+            raise ValueError(error_msg)
+        if from_name == "mixed_float16":
+            return mode, "float16", "float32"
+        elif from_name == "mixed_bfloat16":
+            return mode, "bfloat16", "float32"
+        try:
+            dtype = backend.standardize_dtype(from_name)
+            return mode, dtype, dtype
+        except ValueError:
+            raise ValueError(error_msg)
 
     @property
     def quantization_mode(self):
         """The quantization mode of this policy.
 
         Returns:
-            The quantization mode of this policy, as a string. `None` if no
-            quantization.
+            The quantization mode of this policy, as a string.
         """
         return self._quantization_mode
 

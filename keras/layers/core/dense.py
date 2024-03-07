@@ -202,7 +202,7 @@ class Dense(Layer):
 
     def quantize(self, mode):
         self._check_quantize_args(mode, self.compute_dtype)
-        if mode == "quantized_int8":
+        if mode == "int8":
             # Merge lora-related parameters to make use of fully int8 kernel
             self._merge_lora_into_kernel()
             # Configure `self.inputs_quantizer`
@@ -211,24 +211,25 @@ class Dense(Layer):
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
                 self._kernel, axis=0
             )
+            kernel_scale = ops.cast(kernel_scale, self.compute_dtype)
             self._tracker.unlock()
             self._untrack_variable(self._kernel)
             self._kernel = self.add_weight(
                 name="kernel",
                 shape=self._kernel.shape,
-                initializer="zeros",
+                # Prevent adding a large constant to the computation graph
+                initializer=lambda shape, dtype: kernel_value,
                 dtype="int8",
                 trainable=False,
             )
-            self._kernel.assign(kernel_value)
             self.kernel_scale = self.add_weight(
                 name="kernel_scale",
                 shape=kernel_scale.shape,
-                initializer="zeros",
+                # Prevent adding a large constant to the computation graph
+                initializer=lambda shape, dtype: kernel_scale,
                 dtype=self.compute_dtype,
                 trainable=False,
             )
-            self.kernel_scale.assign(kernel_scale)
             self._tracker.lock()
         else:
             NotImplementedError()

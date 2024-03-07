@@ -370,11 +370,15 @@ class Model(Trainer, Layer):
 
         Args:
             mode: The mode of the quantization. The supported modes are
-                `"quantized_int8"`.
+                ('int8').
         """
         if not self.built:
             raise ValueError(
                 "The model must be built first before calling `quantize()`."
+            )
+        if mode not in ("int8",):
+            raise ValueError(
+                f"`quantize` must be one of ('int8'). Received: mode={mode}"
             )
         mode_changed = False
         for layer in self._flatten_layers(include_self=False, recursive=True):

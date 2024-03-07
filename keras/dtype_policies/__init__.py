@@ -9,17 +9,17 @@ def get(identifier):
 
     if identifier is None:
         return dtype_policy.dtype_policy()
-    if isinstance(identifier, dtype_policy.DTypePolicy):
+    if isinstance(identifier, (FloatDTypePolicy, QuantizedDTypePolicy)):
         return identifier
     if isinstance(identifier, dict):
         return serialization_lib.deserialize_keras_object(identifier)
     if isinstance(identifier, str):
-        if "quantized" in identifier:
-            return dtype_policy.QuantizedDTypePolicy(identifier)
+        if "int8" in identifier:
+            return QuantizedDTypePolicy(identifier)
         else:
-            return dtype_policy.FloatDTypePolicy(identifier)
+            return FloatDTypePolicy(identifier)
     try:
-        return dtype_policy.DTypePolicy(backend.standardize_dtype(identifier))
+        return FloatDTypePolicy(backend.standardize_dtype(identifier))
     except:
         raise ValueError(
             "Cannot interpret `dtype` argument. Expected a string "

@@ -1111,12 +1111,11 @@ class Layer(BackendLayer, Operation):
         )
 
     def _check_quantize_args(self, mode, compute_dtype):
-        if mode not in (None, "quantized_int8"):
+        if mode not in ("int8",):
             raise ValueError(
-                "Currently, `quantize` must be one of "
-                f"(`None`, 'quantized_int8'). Received: mode={mode}"
+                f"`quantize` must be one of ('int8'). Received: mode={mode}"
             )
-        if mode == "quantized_int8" and compute_dtype == "float16":
+        if mode == "int8" and compute_dtype == "float16":
             raise ValueError(
                 f"mode='{mode}' doesn't work well with "
                 "compute_dtype='float16'. Consider loading model/layer with "

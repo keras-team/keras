@@ -241,7 +241,7 @@ class DenseTest(testing.TestCase):
         model.save(temp_filepath)
 
         new_model = saving.load_model(temp_filepath)
-        self.assertFalse(new_model.layers[0].lora_enabled)
+        self.assertTrue(new_model.layers[0].lora_enabled)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
         # Try saving and reloading the model's weights only
