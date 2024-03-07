@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras import activations
+from keras import backend
 from keras import constraints
 from keras import dtype_policies
 from keras import initializers
@@ -203,6 +204,8 @@ class Dense(Layer):
     def quantize(self, mode):
         self._check_quantize_args(mode, self.compute_dtype)
         if mode == "int8":
+            if backend.standardize_dtype(self._kernel.dtype) == "int8":
+                raise ValueError("`quantize` can only be done once per layer.")
             # Merge lora-related parameters to make use of fully int8 kernel
             self._merge_lora_into_kernel()
             # Configure `self.inputs_quantizer`
@@ -230,6 +233,8 @@ class Dense(Layer):
                 dtype=self.compute_dtype,
                 trainable=False,
             )
+            if self.bias is not None:
+                self.bias.trainable = False
             self._tracker.lock()
         else:
             NotImplementedError()

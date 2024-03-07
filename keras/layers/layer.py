@@ -1111,6 +1111,8 @@ class Layer(BackendLayer, Operation):
         )
 
     def _check_quantize_args(self, mode, compute_dtype):
+        if not self.built:
+            raise ValueError("Cannot quantize on a layer that isn't yet built.")
         if mode not in ("int8",):
             raise ValueError(
                 f"`quantize` must be one of ('int8'). Received: mode={mode}"
