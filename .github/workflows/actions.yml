@@ -49,7 +49,7 @@ jobs:
         run: |
           pip install -r requirements.txt --progress-bar off --upgrade
           pip uninstall -y keras keras-nightly
-          pip install tf_keras --progress-bar off --upgrade
+          pip install tf_keras==2.16.0rc0 --progress-bar off --upgrade
           pip install -e "." --progress-bar off --upgrade
       - name: Test applications with pytest
         if: ${{ steps.filter.outputs.applications == 'true' }}
