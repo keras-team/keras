@@ -237,7 +237,10 @@ class Dense(Layer):
                 self.bias.trainable = False
             self._tracker.lock()
         else:
-            NotImplementedError()
+            NotImplementedError(
+                "Invalid quantization mode. Expected 'int8'. "
+                f"Received: mode={mode}"
+            )
 
         # Set new dtype policy
         if not isinstance(

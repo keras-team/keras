@@ -369,8 +369,8 @@ class Model(Trainer, Layer):
         will be skipped if the layer doesn't implement the function.
 
         Args:
-            mode: The mode of the quantization. The supported modes are
-                ('int8').
+            mode: The mode of the quantization. Only 'int8' is supported at this
+                time.
         """
         if not self.built:
             raise ValueError(
@@ -378,7 +378,8 @@ class Model(Trainer, Layer):
             )
         if mode not in ("int8",):
             raise ValueError(
-                f"`quantize` must be one of ('int8'). Received: mode={mode}"
+                "Invalid quantization mode. Expected 'int8'. "
+                f"Received: mode={mode}"
             )
         mode_changed = False
         for layer in self._flatten_layers(include_self=False, recursive=True):

@@ -1121,7 +1121,8 @@ class Layer(BackendLayer, Operation):
             raise ValueError(
                 f"mode='{mode}' doesn't work well with "
                 "compute_dtype='float16'. Consider loading model/layer with "
-                "other dtype policy before calling `quantize`."
+                "other dtype policy such as 'mixed_bfloat16' before calling "
+                "`quantize`."
             )
 
     def save_own_variables(self, store):

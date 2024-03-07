@@ -1,5 +1,3 @@
-import warnings
-
 from keras import backend
 from keras import ops
 from keras.api_export import keras_export
@@ -66,17 +64,10 @@ class DTypePolicy:
         # For backwards compatibility
         # TODO: We should consider deprecating this behavior
         if cls is __class__:
-            warnings.warn(
-                "Consider using the subclass of DTypePolicy to initialize the "
-                "dtype policy such as FloatDTypePolicy and "
-                "QuantizedDTypePolicy."
-            )
-        else:
-            return super().__new__(cls)
-        if "int8" in name:
-            return QuantizedDTypePolicy(name)
-        else:
+            if "int8" in name:
+                return QuantizedDTypePolicy(name)
             return FloatDTypePolicy(name)
+        return super().__new__(cls)
 
     def __init__(self, name):
         self._name = name
@@ -189,7 +180,8 @@ class FloatDTypePolicy(DTypePolicy):
             raise ValueError(
                 f"Cannot convert '{name}' to a mixed precision "
                 "FloatDTypePolicy. Valid policies include 'mixed_float16', "
-                "'mixed_bfloat16', and the name of any dtype such as 'float32'."
+                "'mixed_bfloat16', and the name of any float dtype such as "
+                "'float32'."
             )
 
     def __repr__(self):
