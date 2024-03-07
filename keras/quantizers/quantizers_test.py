@@ -9,16 +9,19 @@ class QuantizersTest(testing.TestCase):
         values = random.uniform([3, 4, 5], minval=-1, maxval=1)
         quantizer = quantizers.AbsMaxQuantizer(axis=-1)
 
-        # Test quantize
+        # Test quantizing
         quantized_values, scale = quantizer(values)
-        self.assertEqual(quantized_values.shape, [3, 4, 5])
-        self.assertEqual(scale.shape, [3, 4, 1])
+        self.assertEqual(tuple(quantized_values.shape), (3, 4, 5))
+        self.assertEqual(tuple(scale.shape), (3, 4, 1))
         self.assertLessEqual(ops.max(quantized_values), 127)
         self.assertGreaterEqual(ops.min(quantized_values), -127)
 
-        # Test dequantize
+        # Test dequantizing
         dequantized_values = ops.divide(quantized_values, scale)
-        self.assertAllClose(values, dequantized_values, atol=1)
+        rmse = ops.sqrt(
+            ops.mean(ops.square(ops.subtract(values, dequantized_values)))
+        )
+        self.assertLess(rmse, 1e-1)  # loose assertion
 
         # Test serialization
         self.run_class_serialization_test(quantizer)
