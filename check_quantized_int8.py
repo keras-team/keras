@@ -1,3 +1,4 @@
+import argparse
 import os
 import time
 
@@ -13,25 +14,16 @@ from keras import models
 from keras import ops
 from keras import saving
 
-# Set dtype policy
-dtype = "mixed_bfloat16"  # float32
-dtype_policies.dtype_policy.set_dtype_policy(dtype)
-print(f"Global dtype policy: {dtype_policies.dtype_policy.dtype_policy()}")
 
-# Model / data parameters
-use_einsum = True
-num_classes = 10
-input_shape = (28, 28, 1)
-epochs = 1
-
-# Load the data and split it between train and test sets
-(x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
-x_train = x_train.astype("float32") / 255
-x_test = x_test.astype("float32") / 255
-x_train = np.expand_dims(x_train, -1)
-x_test = np.expand_dims(x_test, -1)
-y_train = keras.utils.to_categorical(y_train, num_classes)
-y_test = keras.utils.to_categorical(y_test, num_classes)
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--dtype-policy",
+        default="float32",
+        choices=["float32", "bfloat16", "mixed_bfloat16"],
+    )
+    parser.add_argument("--use-einsum", action="store_true")
+    return parser.parse_args()
 
 
 def build_model(num_layers=32, units=1024, use_einsum=False):
@@ -81,63 +73,92 @@ def benchmark(model, batch_size=1024, input_shape=(28, 28), iterations=200):
     return avg_time
 
 
-model = build_model(num_layers=32, units=1024, use_einsum=use_einsum)
-model.compile(
-    loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
-)
+def main():
+    args = get_args()
 
-"""Train float model"""
-print("=====Start training float model=====")
-model.fit(x_train, y_train, batch_size=128, epochs=epochs, validation_split=0.1)
-print(f"Performance of {dtype}:")
-score = model.evaluate(x_test, y_test, verbose=0)
-print(f"  Test accuracy: {score[1]:.5f}")
-avg_time = benchmark(model)
-print(f"  Avg. inference time (batch_size=1024): {avg_time:.5f}s")
-model.save("model_fp32.keras")
+    # Set dtype policy
+    dtype = args.dtype_policy
+    dtype_policies.dtype_policy.set_dtype_policy(dtype)
+    print(f"Global dtype policy: {dtype_policies.dtype_policy.dtype_policy()}")
 
-"""Enable lora"""
-print("=====Enable lora weights=====")
-enable_lora(model)
+    # Model / data parameters
+    use_einsum = args.use_einsum
+    num_classes = 10
+    input_shape = (28, 28, 1)
+    epochs = 1
 
-"""Fine-tuning lora weights"""
-model.compile(
-    loss="categorical_crossentropy",
-    optimizer="adam",
-    metrics=["accuracy"],
-)
-model.fit(
-    x_train,
-    y_train,
-    batch_size=128,
-    epochs=epochs,
-    validation_split=0.1,
-)
-print("Performance of fine-tuned lora weights:")
-score = model.evaluate(x_test, y_test, verbose=0)
-print(f"  Test accuracy: {score[1]:.5f}")
-avg_time = benchmark(model)
-print(f"  Avg. inference time (batch_size=1024): {avg_time:.5f}s")
+    # Load the data and split it between train and test sets
+    (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+    x_train = x_train.astype("float32") / 255
+    x_test = x_test.astype("float32") / 255
+    x_train = np.expand_dims(x_train, -1)
+    x_test = np.expand_dims(x_test, -1)
+    y_train = keras.utils.to_categorical(y_train, num_classes)
+    y_test = keras.utils.to_categorical(y_test, num_classes)
 
-"""Quantize to int8 weights"""
-model.quantize(mode="quantized_int8")
-int8_model = model
-int8_model.compile(loss="categorical_crossentropy", metrics=["accuracy"])
-print("Performance of quantized model:")
-score = int8_model.evaluate(x_test, y_test, verbose=0)
-print(f"  Test accuracy: {score[1]:.5f}")
-avg_time = benchmark(int8_model)
-print(f"  Avg. inference time (batch_size=1024): {avg_time:.5f}s")
+    model = build_model(num_layers=32, units=1024, use_einsum=use_einsum)
+    model.compile(
+        loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
+    )
 
-"""Saving & loading"""
-int8_model.save("model_int8.keras")
-reloaded_int8_model = saving.load_model("model_int8.keras")
-reloaded_score = reloaded_int8_model.evaluate(x_test, y_test, verbose=0)
-print(f"Reloaded int8 model test accuracy: {reloaded_score[1]:.5f}")
-print("Size of saved model:")
-print(f"  fp32: {os.path.getsize('model_fp32.keras') >> 20}MB")
-print(f"  int8: {os.path.getsize('model_int8.keras') >> 20}MB")
+    """Train float model"""
+    print("=====Start training float model=====")
+    model.fit(
+        x_train, y_train, batch_size=128, epochs=epochs, validation_split=0.1
+    )
+    print(f"Performance of {dtype}:")
+    score = model.evaluate(x_test, y_test, verbose=0)
+    print(f"  Test accuracy: {score[1]:.5f}")
+    avg_time = benchmark(model, input_shape=input_shape)
+    print(f"  Avg. inference time (batch_size=1024): {avg_time:.5f}s")
+    model.save("model_fp32.keras")
 
-"""Cleanup"""
-os.remove("model_fp32.keras")
-os.remove("model_int8.keras")
+    """Enable lora"""
+    print("=====Enable lora weights=====")
+    enable_lora(model)
+
+    """Fine-tuning lora weights"""
+    model.compile(
+        loss="categorical_crossentropy",
+        optimizer="adam",
+        metrics=["accuracy"],
+    )
+    model.fit(
+        x_train,
+        y_train,
+        batch_size=128,
+        epochs=epochs,
+        validation_split=0.1,
+    )
+    print("Performance of fine-tuned lora weights:")
+    score = model.evaluate(x_test, y_test, verbose=0)
+    print(f"  Test accuracy: {score[1]:.5f}")
+    avg_time = benchmark(model, input_shape=input_shape)
+    print(f"  Avg. inference time (batch_size=1024): {avg_time:.5f}s")
+
+    """Quantize to int8 weights"""
+    model.quantize(mode="int8")
+    int8_model = model
+    int8_model.compile(loss="categorical_crossentropy", metrics=["accuracy"])
+    print("Performance of quantized model:")
+    score = int8_model.evaluate(x_test, y_test, verbose=0)
+    print(f"  Test accuracy: {score[1]:.5f}")
+    avg_time = benchmark(int8_model, input_shape=input_shape)
+    print(f"  Avg. inference time (batch_size=1024): {avg_time:.5f}s")
+
+    """Saving & loading"""
+    int8_model.save("model_int8.keras")
+    reloaded_int8_model = saving.load_model("model_int8.keras")
+    reloaded_score = reloaded_int8_model.evaluate(x_test, y_test, verbose=0)
+    print(f"Reloaded int8 model test accuracy: {reloaded_score[1]:.5f}")
+    print("Size of saved model:")
+    print(f"  fp32: {os.path.getsize('model_fp32.keras') >> 20}MB")
+    print(f"  int8: {os.path.getsize('model_int8.keras') >> 20}MB")
+
+    """Cleanup"""
+    os.remove("model_fp32.keras")
+    os.remove("model_int8.keras")
+
+
+if __name__ == "__main__":
+    main()
