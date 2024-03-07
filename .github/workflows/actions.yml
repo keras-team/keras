@@ -67,6 +67,7 @@ jobs:
         if: ${{ matrix.backend != 'numpy'}}
         run: |
           python integration_tests/import_test.py
+          python integration_tests/numerical_test.py
       - name: Test TF-specific integrations
         if: ${{ matrix.backend == 'tensorflow'}}
         run: |
