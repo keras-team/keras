@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras import backend
 from keras import layers
 from keras import testing
 from keras.layers.core.input_layer import Input
@@ -603,3 +604,40 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
             ValueError, "Invalid quantization mode. Expected 'int8'."
         ):
             model.quantize("abc")
+
+    def test_quantize_nested_model(self):
+        class NestedLayer(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.dense = layers.Dense(units)
+
+            def call(self, x):
+                x = self.dense(x)
+                return x
+
+        class DoubleNestedLayer(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.nested_dense1 = NestedLayer(units)
+                self.nested_dense2 = NestedLayer(units)
+                self.dense = layers.Dense(units)
+
+            def call(self, x):
+                x = self.nested_dense1(x)
+                x = self.nested_dense2(x)
+                x = self.dense(x)
+                return x
+
+        inputs = layers.Input([3])
+        outputs = DoubleNestedLayer(8)(inputs)
+        model = Model(inputs, outputs)
+        model.quantize("int8")
+
+        kernel_count = 0
+        for weight in model.weights:
+            if weight.name == "kernel":
+                kernel_count += 1
+                self.assertEqual(
+                    backend.standardize_dtype(weight.dtype), "int8"
+                )
+        self.assertEqual(kernel_count, 3)

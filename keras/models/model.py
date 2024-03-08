@@ -382,12 +382,14 @@ class Model(Trainer, Layer):
                 f"Received: mode={mode}"
             )
         mode_changed = False
-        for layer in self._flatten_layers(include_self=False, recursive=True):
-            try:
-                layer.quantize(mode)
-                mode_changed = True
-            except NotImplementedError as e:
-                warnings.warn(str(e))
+        for layer in self._flatten_layers():
+            list_of_sublayers = list(layer._flatten_layers())
+            if len(list_of_sublayers) == 1:  # leaves of the model
+                try:
+                    layer.quantize(mode)
+                    mode_changed = True
+                except NotImplementedError as e:
+                    warnings.warn(str(e))
         # We need to set these functions to `None` to remake them for changed
         # call function
         if mode_changed:
