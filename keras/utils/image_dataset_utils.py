@@ -30,6 +30,7 @@ def image_dataset_from_directory(
     interpolation="bilinear",
     follow_links=False,
     crop_to_aspect_ratio=False,
+    pad_to_aspect_ratio=False,
     data_format=None,
     verbose=True,
 ):
@@ -113,6 +114,13 @@ def image_dataset_from_directory(
             return the largest possible window in the image
             (of size `image_size`) that matches the target aspect ratio. By
             default (`crop_to_aspect_ratio=False`), aspect ratio may not be
+            preserved.
+        pad_to_aspect_ratio: If `True`, resize the images without aspect
+            ratio distortion. When the original aspect ratio differs from the
+            target aspect ratio, the output image will be padded so as to
+            return the largest possible window in the image
+            (of size `image_size`) that matches the target aspect ratio. By
+            default (`pad_to_aspect_ratio=False`), aspect ratio may not be
             preserved.
         data_format: If None uses keras.config.image_data_format()
             otherwise either 'channel_last' or 'channel_first'.
@@ -263,6 +271,7 @@ def image_dataset_from_directory(
             num_classes=len(class_names) if class_names else 0,
             interpolation=interpolation,
             crop_to_aspect_ratio=crop_to_aspect_ratio,
+            pad_to_aspect_ratio=pad_to_aspect_ratio,
             data_format=data_format,
         )
 
@@ -275,6 +284,7 @@ def image_dataset_from_directory(
             num_classes=len(class_names) if class_names else 0,
             interpolation=interpolation,
             crop_to_aspect_ratio=crop_to_aspect_ratio,
+            pad_to_aspect_ratio=pad_to_aspect_ratio,
             data_format=data_format,
         )
 
@@ -323,6 +333,7 @@ def image_dataset_from_directory(
             num_classes=len(class_names) if class_names else 0,
             interpolation=interpolation,
             crop_to_aspect_ratio=crop_to_aspect_ratio,
+            pad_to_aspect_ratio=pad_to_aspect_ratio,
             data_format=data_format,
         )
 
@@ -355,6 +366,7 @@ def paths_and_labels_to_dataset(
     interpolation,
     data_format,
     crop_to_aspect_ratio=False,
+    pad_to_aspect_ratio=False,
 ):
     """Constructs a dataset of images and labels."""
     # TODO(fchollet): consider making num_parallel_calls settable
@@ -365,6 +377,7 @@ def paths_and_labels_to_dataset(
         interpolation,
         data_format,
         crop_to_aspect_ratio,
+        pad_to_aspect_ratio,
     )
     img_ds = path_ds.map(
         lambda x: load_image(x, *args), num_parallel_calls=tf.data.AUTOTUNE
@@ -384,12 +397,20 @@ def load_image(
     interpolation,
     data_format,
     crop_to_aspect_ratio=False,
+    pad_to_aspect_ratio=False,
 ):
     """Load an image from a path and resize it."""
     img = tf.io.read_file(path)
     img = tf.image.decode_image(
         img, channels=num_channels, expand_animations=False
     )
+
+    if pad_to_aspect_ratio and crop_to_aspect_ratio:
+        raise ValueError(
+            "Only one of pad_to_aspect_ratio, crop_to_aspect_ratio"
+            " can be set to True"
+        )
+
     if crop_to_aspect_ratio:
         from keras.backend import tensorflow as tf_backend
 
@@ -402,10 +423,17 @@ def load_image(
             data_format=data_format,
             backend_module=tf_backend,
         )
+    elif pad_to_aspect_ratio:
+        img = tf.image.resize_with_pad(
+            img, image_size[0], image_size[1], method=interpolation
+        )
+        if data_format == "channels_first":
+            img = tf.transpose(img, (2, 0, 1))
     else:
         img = tf.image.resize(img, image_size, method=interpolation)
         if data_format == "channels_first":
             img = tf.transpose(img, (2, 0, 1))
+
     if data_format == "channels_last":
         img.set_shape((image_size[0], image_size[1], num_channels))
     else:

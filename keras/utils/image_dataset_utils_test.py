@@ -370,6 +370,22 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         self.assertLen(batch, 2)
         self.assertEqual(batch[0].shape, output_shape)
 
+    def test_image_dataset_from_directory_pad_to_aspect_ratio(self):
+        directory = self._prepare_directory(num_classes=2, count=5)
+        dataset = image_dataset_utils.image_dataset_from_directory(
+            directory,
+            batch_size=5,
+            image_size=(18, 18),
+            pad_to_aspect_ratio=True,
+        )
+        if backend.config.image_data_format() == "channels_last":
+            output_shape = [5, 18, 18, 3]
+        else:
+            output_shape = [5, 3, 18, 18]
+        batch = next(iter(dataset))
+        self.assertLen(batch, 2)
+        self.assertEqual(batch[0].shape, output_shape)
+
     def test_image_dataset_from_directory_errors(self):
         directory = self._prepare_directory(num_classes=3, count=5)
 
