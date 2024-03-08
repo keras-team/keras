@@ -361,6 +361,42 @@ class Model(Trainer, Layer):
             self, filepath, skip_mismatch=skip_mismatch, **kwargs
         )
 
+    def quantize(self, mode):
+        """Quantize the weights of the model.
+
+        Note that the model must be built first before calling this method.
+        `quantize` will recursively call `quantize(mode)` in all layers and
+        will be skipped if the layer doesn't implement the function.
+
+        Args:
+            mode: The mode of the quantization. Only 'int8' is supported at this
+                time.
+        """
+        if not self.built:
+            raise ValueError(
+                "The model must be built first before calling `quantize()`."
+            )
+        if mode not in ("int8",):
+            raise ValueError(
+                "Invalid quantization mode. Expected 'int8'. "
+                f"Received: mode={mode}"
+            )
+        mode_changed = False
+        for layer in self._flatten_layers():
+            list_of_sublayers = list(layer._flatten_layers())
+            if len(list_of_sublayers) == 1:  # leaves of the model
+                try:
+                    layer.quantize(mode)
+                    mode_changed = True
+                except NotImplementedError as e:
+                    warnings.warn(str(e))
+        # We need to set these functions to `None` to remake them for changed
+        # call function
+        if mode_changed:
+            self.train_function = None
+            self.test_function = None
+            self.predict_function = None
+
     def build_from_config(self, config):
         if not config:
             return

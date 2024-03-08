@@ -55,16 +55,24 @@ class DTypePolicy:
     to explicitly construct a `DTypePolicy` object.
     """
 
-    def __init__(self, name):
+    def __new__(cls, name):
         if not isinstance(name, str):
             raise TypeError(
                 "'name' must be a string, such as 'mixed_float16'. "
                 f"Received: name={name} (of type {type(name)})"
             )
+        # For backwards compatibility
+        # TODO: We should consider deprecating this behavior
+        if cls is __class__:
+            if "int8" in name:
+                return QuantizedDTypePolicy(name)
+            return FloatDTypePolicy(name)
+        return super().__new__(cls)
+
+    def __init__(self, name):
         self._name = name
-        self._compute_dtype, self._variable_dtype = self._parse_name(name)
-        # TODO: check that the current hardware supports the provided
-        # dtype policy and raise/warn otherwise.
+        self._compute_dtype = backend.floatx()
+        self._variable_dtype = backend.floatx()
 
     def _parse_name(self, name):
         """Parses a `DTypePolicy` name into a compute and variable dtype.
@@ -75,19 +83,7 @@ class DTypePolicy:
         Returns:
             The `(compute_dtype, variable_dtype)` pair.
         """
-        if name == "mixed_float16":
-            return "float16", "float32"
-        elif name == "mixed_bfloat16":
-            return "bfloat16", "float32"
-        try:
-            dtype = backend.standardize_dtype(name)
-            return dtype, dtype
-        except ValueError:
-            raise ValueError(
-                f"Cannot convert '{name}' to a mixed precision DTypePolicy."
-                " Valid policies include 'mixed_float16', 'mixed_bfloat16', "
-                "and the name of any dtype such as 'float32'."
-            )
+        raise NotImplementedError
 
     @property
     def variable_dtype(self):
@@ -132,9 +128,6 @@ class DTypePolicy:
         """Returns the name of this policy."""
         return self._name
 
-    def __repr__(self):
-        return f'<DTypePolicy "{self._name}">'
-
     def convert_input(self, x, autocast, dtype):
         dtype = backend.standardize_dtype(dtype)
         if backend.is_tensor(x):
@@ -166,6 +159,82 @@ class DTypePolicy:
 
 
 @keras_export(
+    ["keras.FloatDTypePolicy", "keras.dtype_policies.FloatDTypePolicy"]
+)
+class FloatDTypePolicy(DTypePolicy):
+    def __init__(self, name):
+        super().__init__(name)
+        self._compute_dtype, self._variable_dtype = self._parse_name(name)
+        # TODO: check that the current hardware supports the provided
+        # dtype policy and raise/warn otherwise.
+
+    def _parse_name(self, name):
+        if name == "mixed_float16":
+            return "float16", "float32"
+        elif name == "mixed_bfloat16":
+            return "bfloat16", "float32"
+        try:
+            dtype = backend.standardize_dtype(name)
+            return dtype, dtype
+        except ValueError:
+            raise ValueError(
+                f"Cannot convert '{name}' to a mixed precision "
+                "FloatDTypePolicy. Valid policies include 'mixed_float16', "
+                "'mixed_bfloat16', and the name of any float dtype such as "
+                "'float32'."
+            )
+
+    def __repr__(self):
+        return f'<FloatDTypePolicy "{self._name}">'
+
+
+@keras_export(
+    ["keras.QuantizedDTypePolicy", "keras.dtype_policies.QuantizedDTypePolicy"]
+)
+class QuantizedDTypePolicy(DTypePolicy):
+    def __init__(self, name):
+        super().__init__(name)
+        self._quantization_mode, self._compute_dtype, self._variable_dtype = (
+            self._parse_name(name)
+        )
+
+    def _parse_name(self, name):
+        error_msg = (
+            f"Cannot convert '{name}' to a QuantizedDTypePolicy. "
+            "Valid policies include "
+            "'int8_from_float32', 'int8_from_float16', 'int8_from_bfloat16', "
+            "'int8_from_mixed_float16', 'int8_from_mixed_bfloat16'."
+        )
+        split_name = name.split("_from_")
+        if len(split_name) != 2:
+            raise ValueError(error_msg)
+        mode, from_name = split_name
+        if mode not in ("int8",):
+            raise ValueError(error_msg)
+        if from_name == "mixed_float16":
+            return mode, "float16", "float32"
+        elif from_name == "mixed_bfloat16":
+            return mode, "bfloat16", "float32"
+        try:
+            dtype = backend.standardize_dtype(from_name)
+            return mode, dtype, dtype
+        except ValueError:
+            raise ValueError(error_msg)
+
+    @property
+    def quantization_mode(self):
+        """The quantization mode of this policy.
+
+        Returns:
+            The quantization mode of this policy, as a string.
+        """
+        return self._quantization_mode
+
+    def __repr__(self):
+        return f'<QuantizedDTypePolicy "{self._name}">'
+
+
+@keras_export(
     [
         "keras.config.set_dtype_policy",
         "keras.mixed_precision.set_dtype_policy",  # Legacy
@@ -181,7 +250,10 @@ def set_dtype_policy(policy):
     """
     if not isinstance(policy, DTypePolicy):
         if isinstance(policy, str):
-            policy = DTypePolicy(policy)
+            if "int8" in policy:
+                policy = QuantizedDTypePolicy(policy)
+            else:
+                policy = FloatDTypePolicy(policy)
         else:
             raise ValueError(
                 "Invalid `policy` argument. "
@@ -204,6 +276,6 @@ def dtype_policy():
     """Returns the current default dtype policy object."""
     policy = global_state.get_global_attribute("dtype_policy", None)
     if policy is None:
-        policy = DTypePolicy(backend.floatx())
+        policy = FloatDTypePolicy(backend.floatx())
         set_dtype_policy(policy)
     return policy

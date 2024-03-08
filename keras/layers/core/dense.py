@@ -1,9 +1,12 @@
 import numpy as np
 
 from keras import activations
+from keras import backend
 from keras import constraints
+from keras import dtype_policies
 from keras import initializers
 from keras import ops
+from keras import quantizers
 from keras import regularizers
 from keras.api_export import keras_export
 from keras.layers.input_spec import InputSpec
@@ -120,6 +123,8 @@ class Dense(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            self.quantize(self.dtype_policy.quantization_mode)
 
     @property
     def kernel(self):
@@ -136,7 +141,21 @@ class Dense(Layer):
     def call(self, inputs):
         x = ops.matmul(inputs, self.kernel)
         if self.bias is not None:
-            x = x + self.bias
+            x = ops.add(x, self.bias)
+        if self.activation is not None:
+            x = self.activation(x)
+        return x
+
+    def quantized_call(self, inputs):
+        if self.lora_enabled:
+            raise ValueError("`quantized_call` doesn't support lora weights")
+        inputs, inputs_scale = self.inputs_quantizer(inputs)
+        x = ops.matmul(inputs, self.kernel)
+        # De-scale outputs
+        x = ops.cast(x, self.compute_dtype)
+        x = ops.divide(x, ops.multiply(inputs_scale, self.kernel_scale))
+        if self.bias is not None:
+            x = ops.add(x, self.bias)
         if self.activation is not None:
             x = self.activation(x)
         return x
@@ -177,9 +196,71 @@ class Dense(Layer):
             initializer=initializers.get(b_initializer),
             regularizer=self.kernel_regularizer,
         )
-        self.kernel.trainable = False
+        self._kernel.trainable = False
         self._tracker.lock()
         self.lora_enabled = True
+        self.lora_rank = rank
+
+    def quantize(self, mode):
+        self._check_quantize_args(mode, self.compute_dtype)
+        if mode == "int8":
+            if backend.standardize_dtype(self._kernel.dtype) == "int8":
+                raise ValueError("`quantize` can only be done once per layer.")
+            # Merge lora-related parameters to make use of fully int8 kernel
+            self._merge_lora_into_kernel()
+            # Configure `self.inputs_quantizer`
+            self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
+            # Quantize `self._kernel` to int8 and compute corresponding scale
+            kernel_value, kernel_scale = quantizers.abs_max_quantize(
+                self._kernel, axis=0
+            )
+            kernel_scale = ops.cast(kernel_scale, self.compute_dtype)
+            self._tracker.unlock()
+            self._untrack_variable(self._kernel)
+            self._kernel = self.add_weight(
+                name="kernel",
+                shape=self._kernel.shape,
+                # Prevent adding a large constant to the computation graph
+                initializer=lambda shape, dtype: kernel_value,
+                dtype="int8",
+                trainable=False,
+            )
+            self.kernel_scale = self.add_weight(
+                name="kernel_scale",
+                shape=kernel_scale.shape,
+                # Prevent adding a large constant to the computation graph
+                initializer=lambda shape, dtype: kernel_scale,
+                dtype=self.compute_dtype,
+                trainable=False,
+            )
+            if self.bias is not None:
+                self.bias.trainable = False
+            self._tracker.lock()
+        else:
+            NotImplementedError(
+                "Invalid quantization mode. Expected 'int8'. "
+                f"Received: mode={mode}"
+            )
+
+        # Set new dtype policy
+        if not isinstance(
+            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+        ):
+            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
+            self.dtype_policy = dtype_policies.get(quantized_dtype)
+
+    def _merge_lora_into_kernel(self, untrack=False):
+        if not self.lora_enabled:
+            return
+        # Merge lora-enabled kernel into kernel
+        self._kernel.assign(self.kernel)
+        self.lora_enabled = False
+        if untrack:
+            self._tracker.unlock()
+            self.lora_kernel_a = self._untrack_variable(self.lora_kernel_a)
+            self.lora_kernel_b = self._untrack_variable(self.lora_kernel_b)
+            self._tracker.lock()
+            self.lora_rank = None
 
     def save_own_variables(self, store):
         if not self.lora_enabled:

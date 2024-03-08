@@ -241,7 +241,7 @@ class DenseTest(testing.TestCase):
         model.save(temp_filepath)
 
         new_model = saving.load_model(temp_filepath)
-        self.assertFalse(new_model.layers[0].lora_enabled)
+        self.assertTrue(new_model.layers[0].lora_enabled)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
         # Try saving and reloading the model's weights only
@@ -304,3 +304,68 @@ class DenseTest(testing.TestCase):
         layer.enable_lora(rank=2)
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
+
+    def test_quantize_int8(self):
+        layer = layers.Dense(units=16)
+        layer.build((None, 8))
+        layer.quantize("int8")
+
+        # Try eager call
+        x = np.random.random((2, 8))
+        _ = layer(x)
+
+        # Try saving and reloading the model
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_model.keras"
+        )
+        model.save(temp_filepath)
+        new_model = saving.load_model(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Try saving and reloading the model's weights only
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_model.weights.h5"
+        )
+        model.save_weights(temp_filepath)
+
+        # Try lora
+        layer = layers.Dense(units=16)
+        layer.build((None, 8))
+        layer.enable_lora(4)
+        layer.quantize("int8")
+        x = np.random.random((2, 8))
+        _ = layer(x)
+
+    @pytest.mark.requires_trainable_backend
+    def test_quantize_dtype_argument(self):
+        self.run_layer_test(
+            layers.Dense,
+            init_kwargs={
+                "units": 5,
+                "dtype": "int8_from_mixed_bfloat16",
+            },
+            input_shape=(2, 3, 4),
+            expected_output_shape=(2, 3, 5),
+            expected_num_trainable_weights=0,
+            expected_num_non_trainable_weights=3,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=True,
+        )
+
+    def test_quantize_on_unbuilt_layer(self):
+        layer = layers.Dense(units=2)
+        with self.assertRaisesRegex(
+            ValueError, "Cannot quantize on a layer that isn't yet built."
+        ):
+            layer.quantize("int8")
+
+    def test_quantize_when_already_quantized(self):
+        layer = layers.Dense(units=2)
+        layer.build((None, 2))
+        layer.quantize("int8")
+        with self.assertRaisesRegex(
+            ValueError, "`quantize` can only be done once per layer."
+        ):
+            layer.quantize("int8")

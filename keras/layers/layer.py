@@ -245,7 +245,7 @@ class Layer(BackendLayer, Operation):
     ):
         BackendLayer.__init__(self)
         self._lock = False
-        Operation.__init__(self, name=name)
+        Operation.__init__(self, dtype=dtype, name=name)
         self.activity_regularizer = regularizers.get(activity_regularizer)
         input_dim_arg = kwargs.pop("input_dim", None)
         if input_dim_arg is not None:
@@ -268,7 +268,6 @@ class Layer(BackendLayer, Operation):
             )
 
         self.built = False
-        self.dtype_policy = dtype_policies.get(dtype)
         self.autocast = autocast
         self._input_spec = None
         self._called = False
@@ -862,6 +861,12 @@ class Layer(BackendLayer, Operation):
             "method implemented."
         )
 
+    def quantized_call(self, *args, **kwargs):
+        raise NotImplementedError(
+            f"Layer {self.__class__.__name__} does not have a "
+            "`quantized_call()` method implemented."
+        )
+
     @traceback_utils.filter_traceback
     def stateless_call(
         self,
@@ -951,7 +956,12 @@ class Layer(BackendLayer, Operation):
         with backend.StatelessScope(
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
-            outputs = self.call(*args, **kwargs)
+            if isinstance(
+                self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+            ):
+                outputs = self.quantized_call(*args, **kwargs)
+            else:
+                outputs = self.call(*args, **kwargs)
             if return_losses:
                 losses = self.losses
 
@@ -1093,6 +1103,27 @@ class Layer(BackendLayer, Operation):
         self._loss_ids.clear()
         for layer in self._layers:
             layer._clear_losses()
+
+    def quantize(self, mode):
+        raise NotImplementedError(
+            f"Layer {self.__class__.__name__} does not have a `quantize()` "
+            "method implemented."
+        )
+
+    def _check_quantize_args(self, mode, compute_dtype):
+        if not self.built:
+            raise ValueError("Cannot quantize on a layer that isn't yet built.")
+        if mode not in ("int8",):
+            raise ValueError(
+                f"`quantize` must be one of ('int8'). Received: mode={mode}"
+            )
+        if mode == "int8" and compute_dtype == "float16":
+            raise ValueError(
+                f"mode='{mode}' doesn't work well with "
+                "compute_dtype='float16'. Consider loading model/layer with "
+                "other dtype policy such as 'mixed_bfloat16' before calling "
+                "`quantize`."
+            )
 
     def save_own_variables(self, store):
         """Saves the state of the layer.
