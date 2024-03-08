@@ -35,7 +35,7 @@ _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
 _ASSETS_DIRNAME = "assets"
 
 
-def save_model(model, filepath, weights_format="h5"):
+def save_model(model, filepath, weights_format="h5", sharded=False, max_size="10GB"):
     """Save a zip-archive representing a Keras model to the given filepath.
 
     The zip-based archive contains the following structure:
@@ -67,6 +67,12 @@ def save_model(model, filepath, weights_format="h5"):
         )
     if weights_format == "h5" and h5py is None:
         raise ImportError("h5py must be installed in order to save a model.")
+    if weights_format != "h5" and sharded:
+        raise NotImplementedError(
+            "Sharding is only currently supported in the H5 weights format. "
+            "Please pass `sharded=False` or switch to `weights_format=h5`. "
+            f"Received: weights_format={weights_format}, sharded={sharded}."
+        )
 
     if not model.built:
         warnings.warn(
@@ -99,7 +105,15 @@ def save_model(model, filepath, weights_format="h5"):
             f.write(config_json.encode())
 
         if weights_format == "h5":
-            weights_store = H5IOStore(_VARS_FNAME + ".h5", archive=zf, mode="w")
+            if sharded:
+                weights_store = ShardedH5IOStore(
+                    _VARS_FNAME + ".h5",
+                    archive=zf,
+                    mode="w",
+                    max_size=max_size,
+                )
+            else:
+                weights_store = H5IOStore(_VARS_FNAME + ".h5", archive=zf, mode="w")
         elif weights_format == "npz":
             weights_store = NpzIOStore(
                 _VARS_FNAME + ".npz", archive=zf, mode="w"
@@ -158,7 +172,14 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
 
         all_filenames = zf.namelist()
         if _VARS_FNAME + ".h5" in all_filenames:
-            weights_store = H5IOStore(_VARS_FNAME + ".h5", archive=zf, mode="r")
+            if _VARS_FNAME + ".json" in all_filenames:
+                weights_store = ShardedH5IOStore(
+                    _VARS_FNAME + ".h5",
+                    archive=zf,
+                    mode="r",
+                )
+            else:
+                weights_store = H5IOStore(_VARS_FNAME + ".h5", archive=zf, mode="r")
         elif _VARS_FNAME + ".npz" in all_filenames:
             weights_store = NpzIOStore(
                 _VARS_FNAME + ".npz", archive=zf, mode="r"
@@ -186,7 +207,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     return model
 
 
-def save_weights_only(model, filepath):
+def save_weights_only(model, filepath, sharded=False, max_size="10GB"):
     """Save only the weights of a model to a target filepath (.weights.h5).
 
     Note: only supports h5 for now.
@@ -199,7 +220,10 @@ def save_weights_only(model, filepath):
             "Invalid `filepath` argument: expected a `.weights.h5` extension. "
             f"Received: filepath={filepath}"
         )
-    weights_store = H5IOStore(filepath, mode="w")
+    if sharded:
+        weights_store = ShardedH5IOStore(filepath, mode="w", max_size=max_size)
+    else:
+        weights_store = H5IOStore(filepath, mode="w")
     _save_state(
         model,
         weights_store=weights_store,
@@ -210,7 +234,7 @@ def save_weights_only(model, filepath):
     weights_store.close()
 
 
-def load_weights_only(model, filepath, skip_mismatch=False):
+def load_weights_only(model, filepath, sharded=False, skip_mismatch=False):
     """Load the weights of a model from a filepath (.keras or .weights.h5).
 
     Note: only supports h5 for now.
@@ -220,12 +244,23 @@ def load_weights_only(model, filepath, skip_mismatch=False):
     filepath = str(filepath)
     if filepath.endswith(".weights.h5"):
         # TODO: download file if h5 filepath is remote
-        weights_store = H5IOStore(filepath, mode="r")
+        if sharded:
+            weights_store = ShardedH5IOStore(filepath, mode="r")
+        else:
+            weights_store = H5IOStore(filepath, mode="r")
     elif filepath.endswith(".keras"):
         archive = zipfile.ZipFile(filepath, "r")
-        weights_store = H5IOStore(
-            _VARS_FNAME + ".h5", archive=archive, mode="r"
-        )
+        all_filenames = archive.namelist()
+        if _VARS_FNAME + ".json" in all_filenames:
+            weights_store = ShardedH5IOStore(
+                _VARS_FNAME + ".h5",
+                archive=archive,
+                mode="r",
+            )
+        else:
+            weights_store = H5IOStore(
+                _VARS_FNAME + ".h5", archive=archive, mode="r"
+            )
 
     _load_state(
         model,
@@ -563,11 +598,20 @@ class ShardedH5IOStore:
     def __init__(self, root_path, max_size="10GB", archive=None, mode="r"):
         self.shard_list = []
         self.var_shard_map_filename = str(root_path).replace(".weights.h5", ".weights.json")
-        if self.mode == "w" and not os.path.exists(self.var_shard_map_filename):
-            self.var_shard_map = {}
+        if not os.path.exists(self.var_shard_map_filename):
+            if self.mode == "w":
+                self.var_shard_map = {}
+            if self.mode =="r":
+                raise FileNotFoundError(
+                    f"Loading a sharded `.weights.h5` file requires "
+                    "its corresponding sharding map JSON file "
+                    f"{self.var_shard_map_filename} in the same directory. "
+                    "Please ensure all weights files and the sharding map JSON file "
+                    "are in the same directory when loading a sharded weights file."
+                )
         else:
-            with open(self.var_shard_map_filename) as map_json:
-                self.var_shard_map = json.load(map_json)
+            with open(self.var_shard_map_filename, "r") as map_file:
+                self.var_shard_map = json.load(map_file)
         self.root_path = root_path
         self.mode = mode
         self.archive = archive
@@ -626,8 +670,11 @@ class ShardedH5IOStore:
 
     def close(self):
         self.h5_file.close()
-        if self.mode == "w" and self.archive:
-            self.archive.writestr(self.root_path, self.io_file.getvalue())
+        if self.mode == "w":
+            with open(self.var_shard_map_filename, "w") as map_file:
+                map_file.write(json.dumps(self.var_shard_map))
+            if self.archive:
+                self.archive.writestr(self.root_path, self.io_file.getvalue())
         if self.io_file:
             self.io_file.close()
 
