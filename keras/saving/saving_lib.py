@@ -6,6 +6,8 @@ import json
 import tempfile
 import warnings
 import zipfile
+import re
+import os
 
 import numpy as np
 
@@ -560,33 +562,67 @@ class H5IOStore:
 class ShardedH5IOStore:
     def __init__(self, root_path, max_size="10GB", archive=None, mode="r"):
         self.shard_list = []
+        self.var_shard_map_filename = str(root_path).replace(".weights.h5", ".weights.json")
+        if self.mode == "w" and not os.path.exists(self.var_shard_map_filename):
+            self.var_shard_map = {}
+        else:
+            with open(self.var_shard_map_filename) as map_json:
+                self.var_shard_map = json.load(map_json)
         self.root_path = root_path
         self.mode = mode
         self.archive = archive
         self.io_file = None
         self.max_size = convert_str_bytes_to_int(max_size)
-        self.h5_file = self._create_new_file()
+        self.h5_file = self._create_new_file(root_path)
 
-    def _create_new_file(self, root_path):
-        if self.h5_file in self.shard_list:
-            self.root_path = str(root_path).replace(".weights.h5")
+    def _create_new_file(self, path):
+        if path in self.shard_list:
+            path = resolve_duplicate_filename(str(path), self.shard_list)
+            self.root_path = path
         if self.archive:
             if self.mode == "w":
                 self.io_file = io.BytesIO()
             else:
-                self.io_file = self.archive.open(self.root_path, "r")
+                self.io_file = self.archive.open(path "r")
             return h5py.File(self.io_file, mode=self.mode)
         else:
-            return h5py.File(self.root_path, mode=self.mode)
-        
+            return h5py.File(path, mode=self.mode)
+
+    def _change_access_file(self, filename):  # Read-only
+        self.close()
+        if self.archive:
+            self.io_file = self.archive.open(filename, "r")
+            return h5py.File(self.io_file, mode=self.mode)
+        else:
+            return h5py.File(path, mode=self.mode)
+
+
     def make(self, path):
         if self.current_shard_size > self.max_size:
             self.close()
-            self.shard_list.append(self.h5_file)
+            self.shard_list.append(self.h5_file.filename)
             self.h5_file = self._create_new_file()
         if not path:
-            return self.h5_file.create_group("vars")
-        return self.h5_file.create_group(path).create_group("vars")
+            group = self.h5_file.create_group("vars")
+        else:
+            group = self.h5_file.create_group(path).create_group("vars")
+        self.var_shard_map[group.name] = self.root_path
+        return group
+
+    def get(self, path):
+        if not path:
+            return self.h5_file["vars"]
+        if path in self.h5_file and "vars" in self.h5_file[path]:
+            return self.h5_file[path]["vars"]
+
+        # If not found, check shard map and switch files
+        filename = self.var_shard_map.get(path)
+        if filename is not None and self.h5_file.name != filename:
+            new_file = self._change_access_file(filename)
+            if "vars" in new_file[path]:
+                self.h5_file = new_file
+                return self.h5_file[path]["vars"]
+        return {}
 
     def close(self):
         self.h5_file.close()
@@ -608,6 +644,16 @@ def convert_str_bytes_to_int(size):
         "Invalid format for `size`. Use an integer followed by the unit "
         "(GB, MB, or KB). For example, '5GB' or '15MB'."
     )
+
+
+def resolve_duplicate_filename(path, path_list):
+    pattern = re.compile("_\d\.weights\.h5")
+    pre_duplicate = pattern.split(path)[0]  # Check for pre-existing duplicate
+    if not pre_duplicate.endswith(".weights.h5"):
+        match_list = filter(lambda x: x.startswith(pre_duplicate), path_list)
+        if len(match_list) > 1:
+            return pre_duplicate + "_" + str(len(match_list)) + ".weights.h5"
+    return path.replace(".weights.h5", "_1.weights.h5")
 
 
 def dtype_to_bytes(dtype):
