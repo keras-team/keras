@@ -305,6 +305,8 @@ class Model(Trainer, Layer):
         """
         include_optimizer = kwargs.pop("include_optimizer", True)
         save_format = kwargs.pop("save_format", None)
+        sharded = kwargs.pop("sharded", False)
+        shard_size = kwargs.pop("shard_size", None)
         if kwargs:
             raise ValueError(
                 "The following argument(s) are not supported: "
@@ -336,7 +338,7 @@ class Model(Trainer, Layer):
             if not proceed:
                 return
         if str(filepath).endswith(".keras"):
-            saving_lib.save_model(self, filepath)
+            saving_lib.save_model(self, filepath, sharded, shard_size)
         elif str(filepath).endswith((".h5", ".hdf5")):
             # Deprecation warnings
             warnings.warn(

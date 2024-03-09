@@ -520,6 +520,17 @@ class SavingTest(testing.TestCase):
             np.array(new_model.layers[2].kernel), new_layer_kernel_value
         )
 
+    def test_model_sharding(self):
+        model = _get_basic_functional_model()
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        ref_input = np.random.random((2, 4))
+        ref_output = model.predict(ref_input)
+        saving_lib.save_weights_only(model, temp_filepath, sharded=True, shard_size="50")
+
+        model = _get_basic_functional_model()
+        model.load_weights(temp_filepath, sharded=True)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
 
 @pytest.mark.requires_trainable_backend
 class SavingAPITest(testing.TestCase):

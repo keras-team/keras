@@ -35,7 +35,7 @@ _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
 _ASSETS_DIRNAME = "assets"
 
 
-def save_model(model, filepath, weights_format="h5", sharded=False, max_size="10GB"):
+def save_model(model, filepath, weights_format="h5", sharded=False, shard_size=None):
     """Save a zip-archive representing a Keras model to the given filepath.
 
     The zip-based archive contains the following structure:
@@ -106,6 +106,7 @@ def save_model(model, filepath, weights_format="h5", sharded=False, max_size="10
 
         if weights_format == "h5":
             if sharded:
+                max_size = shard_size if shard_size is not None else "10GB"
                 weights_store = ShardedH5IOStore(
                     _VARS_FNAME + ".h5",
                     archive=zf,
@@ -207,7 +208,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     return model
 
 
-def save_weights_only(model, filepath, sharded=False, max_size="10GB"):
+def save_weights_only(model, filepath, sharded=False, shard_size=None):
     """Save only the weights of a model to a target filepath (.weights.h5).
 
     Note: only supports h5 for now.
@@ -221,6 +222,7 @@ def save_weights_only(model, filepath, sharded=False, max_size="10GB"):
             f"Received: filepath={filepath}"
         )
     if sharded:
+        max_size = shard_size if shard_size is not None else "10GB"
         weights_store = ShardedH5IOStore(filepath, mode="w", max_size=max_size)
     else:
         weights_store = H5IOStore(filepath, mode="w")
@@ -597,6 +599,13 @@ class H5IOStore:
 class ShardedH5IOStore:
     def __init__(self, root_path, max_size="10GB", archive=None, mode="r"):
         self.shard_list = []
+        self.root_path = root_path
+        self.mode = mode
+        self.archive = archive
+        self.io_file = None
+        self.max_size = convert_str_bytes_to_int(max_size)
+        self.current_shard_size = 0
+
         self.var_shard_map_filename = str(root_path).replace(".weights.h5", ".weights.json")
         if not os.path.exists(self.var_shard_map_filename):
             if self.mode == "w":
@@ -612,11 +621,7 @@ class ShardedH5IOStore:
         else:
             with open(self.var_shard_map_filename, "r") as map_file:
                 self.var_shard_map = json.load(map_file)
-        self.root_path = root_path
-        self.mode = mode
-        self.archive = archive
-        self.io_file = None
-        self.max_size = convert_str_bytes_to_int(max_size)
+
         self.h5_file = self._create_new_file(root_path)
 
     def _create_new_file(self, path):
@@ -627,7 +632,7 @@ class ShardedH5IOStore:
             if self.mode == "w":
                 self.io_file = io.BytesIO()
             else:
-                self.io_file = self.archive.open(path "r")
+                self.io_file = self.archive.open(path, "r")
             return h5py.File(self.io_file, mode=self.mode)
         else:
             return h5py.File(path, mode=self.mode)
@@ -640,8 +645,13 @@ class ShardedH5IOStore:
         else:
             return h5py.File(path, mode=self.mode)
 
-
     def make(self, path):
+        def _get_size(key):
+            if isinstance(self.h5_file[key], h5py.Dataset):
+                self.current_shard_size += self.h5_file[key].nbytes
+
+        self.current_shard_size = 0
+        self.h5_file.visit(_get_size)
         if self.current_shard_size > self.max_size:
             self.close()
             self.shard_list.append(self.h5_file.filename)
