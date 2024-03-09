@@ -42,7 +42,7 @@ def list_devices(device_type=None):
 
 
 @keras_export("keras.distribution.initialize")
-def initialize(job_addresses=None, num_processes=None, proceed_id=None):
+def initialize(job_addresses=None, num_processes=None, process_id=None):
     """Initialize the distribution system for multi-host/process setting.
 
     Calling `initialize` will prepare the backend for execution on multi-host
@@ -126,9 +126,9 @@ def initialize(job_addresses=None, num_processes=None, proceed_id=None):
         and "KERAS_DISTRIBUTION_NUM_PROCESSES" in os.environ
     ):
         num_processes = int(os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"])
-    if proceed_id is None and "KERAS_DISTRIBUTION_PROCESS_ID" in os.environ:
-        proceed_id = int(os.environ["KERAS_DISTRIBUTION_PROCESS_ID"])
-    distribution_lib.initialize(job_addresses, num_processes, proceed_id)
+    if process_id is None and "KERAS_DISTRIBUTION_PROCESS_ID" in os.environ:
+        process_id = int(os.environ["KERAS_DISTRIBUTION_PROCESS_ID"])
+    distribution_lib.initialize(job_addresses, num_processes, process_id)
 
 
 @keras_export("keras.distribution.DeviceMesh")
