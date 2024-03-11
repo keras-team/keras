@@ -438,6 +438,7 @@ def unstack(x, num=None, axis=0):
 
 
 def custom_gradient(fun):
+    # TODO: Support this function
     raise NotImplementedError(
         "`custom_gradient` is not supported with torch backend"
     )
