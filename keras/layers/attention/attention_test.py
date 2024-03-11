@@ -342,3 +342,8 @@ class AttentionTest(testing.TestCase):
             computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
             computed_mask = ops.convert_to_numpy(computed_mask)
             self.assertTrue(np.array_equal(computed_mask, valid_mask))
+
+    def test_attention_compute_output_shape(self):
+        layer = layers.Attention()
+        input_shape = [(2, 8, 7), (2, 8, 5), (2, 8, 7)]  # Shapes of Q, V, K
+        self.assertAllEqual(layer.compute_output_shape(input_shape) == (2, 8, 5))

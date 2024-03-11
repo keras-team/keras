@@ -242,7 +242,8 @@ class Attention(Layer):
         return ops.convert_to_tensor(mask[0])
 
     def compute_output_shape(self, input_shape):
-        return input_shape[0]
+        # Return shape of value tensor
+        return input_shape[1]
 
     def _validate_inputs(self, inputs, mask=None):
         """Validates arguments of the call method."""
