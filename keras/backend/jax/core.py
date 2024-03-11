@@ -347,6 +347,10 @@ def unstack(x, num=None, axis=0):
     ]
 
 
+def custom_gradient(fun):
+    return jax.custom_gradient(fun=fun)
+
+
 def device_scope(device_name):
     if isinstance(device_name, str):
         # We support string value like "cpu:0", "gpu:1", etc.

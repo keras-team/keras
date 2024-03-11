@@ -229,3 +229,9 @@ def stop_gradient(x):
 def unstack(x, num=None, axis=0):
     x = np.moveaxis(x, axis, 0)
     return [x[i] for i in range(x.shape[0])]
+
+
+def custom_gradient(fun):
+    raise NotImplementedError(
+        "`custom_gradient` is not supported with numpy backend"
+    )

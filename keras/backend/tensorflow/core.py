@@ -256,6 +256,10 @@ def unstack(x, num=None, axis=0):
     return tf.unstack(x, num=num, axis=axis)
 
 
+def custom_gradient(fun):
+    return tf.custom_gradient(f=fun)
+
+
 class name_scope(base_name_scope):
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
