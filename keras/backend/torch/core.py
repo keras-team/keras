@@ -435,3 +435,9 @@ def stop_gradient(variable):
 
 def unstack(x, num=None, axis=0):
     return x.unbind(axis)
+
+
+def custom_gradient(fun):
+    raise NotImplementedError(
+        "`custom_gradient` is not supported with torch backend"
+    )

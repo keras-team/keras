@@ -11,6 +11,7 @@ convert_to_tensor
 convert_to_numpy
 cond
 is_tensor
+custom_gradient
 """
 
 import numpy as np
@@ -623,3 +624,47 @@ def is_tensor(x):
         `True` if `x` is a tensor, otherwise `False`.
     """
     return backend.core.is_tensor(x)
+
+
+@keras_export("keras.ops.custom_gradient")
+def custom_gradient(f):
+    """Decorator to define a function with a custom gradient.
+
+    This decorator allows fine grained control over the gradients of a sequence
+    for operations. This may be useful for multiple reasons, including providing
+    a more efficient or numerically stable gradient for a sequence of
+    operations.
+
+    Note that `custom_gradient` only supports TensorFlow and JAX backends.
+
+    Args:
+        f: Function `f(*x)` that returns a tuple `(y, grad_fn)` where:
+            - `x` is a sequence of (nested structures of) tensor inputs to the
+                function.
+            - `y` is a (nested structure of) tensor outputs of applying
+                operations in `f` to `x`.
+            - `grad_fn` is a function with the signature `g(*grad_ys)` which
+                returns a list of tensors the same size as (flattened) `x`: the
+                derivatives of tensors in `y` with respect to the tensors in
+                `x`. `grad_ys` is a sequence of tensors the same size as
+                (flattened) `y` holding the initial value gradients for each
+                tensor in `y`.
+
+    Returns:
+        A function `h(x)` which returns the same value as `f(x)[0]` and whose
+        gradient is determined by `f(x)[1]`.
+
+    Example:
+
+    ```python
+    @ops.custom_gradient
+    def log1pexp(x):
+        e = ops.exp(x)
+
+        def grad(upstream):
+            return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
+
+        return ops.log(1 + e), grad
+    ```
+    """
+    return backend.core.custom_gradient(f)

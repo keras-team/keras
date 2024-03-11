@@ -500,6 +500,44 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertTrue(ops.is_tensor(x))
         self.assertFalse(ops.is_tensor([1, 2, 3]))
 
+    @pytest.mark.skipif(
+        backend.backend() not in ("tensorflow", "jax"),
+        reason=f"{backend.backend()} doesn't support `custom_gradient`.",
+    )
+    def test_custom_gradient(self):
+        @ops.custom_gradient
+        def log1pexp(x):
+            e = ops.exp(x)
+
+            def grad(upstream):
+                return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
+
+            return ops.log(1 + e), grad
+
+        def log1pexp_nan(x):
+            return ops.log(1 + ops.exp(x))
+
+        x = ops.convert_to_tensor(100.0)
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            with tf.GradientTape() as tape1:
+                tape1.watch(x)
+                y = log1pexp(x)
+            with tf.GradientTape() as tape2:
+                tape2.watch(x)
+                z = log1pexp_nan(x)
+            dy_dx = tape1.gradient(y, x)
+            dz_dx = tape2.gradient(z, x)
+        elif backend.backend() == "jax":
+            import jax
+
+            dy_dx = jax.grad(log1pexp)(x)
+            dz_dx = jax.grad(log1pexp_nan)(x)
+
+        self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
+        self.assertTrue(ops.isnan(dz_dx))
+
 
 class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
     import jax  # enable bfloat16 for numpy
