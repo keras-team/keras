@@ -643,7 +643,7 @@ class ShardedH5IOStore:
             self.io_file = self.archive.open(filename, "r")
             return h5py.File(self.io_file, mode=self.mode)
         else:
-            return h5py.File(path, mode=self.mode)
+            return h5py.File(filename, mode=self.mode)
 
     def make(self, path):
         def _get_size(key):
@@ -653,9 +653,9 @@ class ShardedH5IOStore:
         self.current_shard_size = 0
         self.h5_file.visit(_get_size)
         if self.current_shard_size > self.max_size:
-            self.close()
             self.shard_list.append(self.h5_file.filename)
-            self.h5_file = self._create_new_file()
+            self.close()
+            self.h5_file = self._create_new_file(self.root_path)
         if not path:
             group = self.h5_file.create_group("vars")
         else:
@@ -670,7 +670,7 @@ class ShardedH5IOStore:
             return self.h5_file[path]["vars"]
 
         # If not found, check shard map and switch files
-        filename = self.var_shard_map.get(path)
+        filename = self.var_shard_map.get(path) or self.var_shard_map.get("/" + path +"/vars")
         if filename is not None and self.h5_file.name != filename:
             new_file = self._change_access_file(filename)
             if "vars" in new_file[path]:
@@ -707,7 +707,7 @@ def resolve_duplicate_filename(path, path_list):
     pattern = re.compile("_\d\.weights\.h5")
     pre_duplicate = pattern.split(path)[0]  # Check for pre-existing duplicate
     if not pre_duplicate.endswith(".weights.h5"):
-        match_list = filter(lambda x: x.startswith(pre_duplicate), path_list)
+        match_list = list(filter(lambda x: x.startswith(pre_duplicate), path_list))
         if len(match_list) > 1:
             return pre_duplicate + "_" + str(len(match_list)) + ".weights.h5"
     return path.replace(".weights.h5", "_1.weights.h5")

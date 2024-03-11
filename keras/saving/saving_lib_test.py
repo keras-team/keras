@@ -520,17 +520,6 @@ class SavingTest(testing.TestCase):
             np.array(new_model.layers[2].kernel), new_layer_kernel_value
         )
 
-    def test_model_sharding(self):
-        model = _get_basic_functional_model()
-        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
-        ref_input = np.random.random((2, 4))
-        ref_output = model.predict(ref_input)
-        saving_lib.save_weights_only(model, temp_filepath, sharded=True, shard_size="50")
-
-        model = _get_basic_functional_model()
-        model.load_weights(temp_filepath, sharded=True)
-        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
-
 
 @pytest.mark.requires_trainable_backend
 class SavingAPITest(testing.TestCase):
@@ -697,6 +686,48 @@ class ComplexModel(keras.layers.Layer):
 
     def call(self, inputs):
         return self.first_layer(self.second_layer(inputs))
+
+
+def _get_large_model():
+    model = keras.Sequential(
+      [
+        keras.layers.Input(shape=[28, 28, 1], dtype="float32"),
+        keras.layers.Conv2D(filters=12, kernel_size=3, padding='same', name="conv1", use_bias=False), # no bias necessary before batch norm
+        keras.layers.BatchNormalization(scale=False, center=True), # no batch norm scaling necessary before "relu"
+        keras.layers.Activation('relu'), # activation after batch norm
+
+        keras.layers.Conv2D(filters=24, kernel_size=6, padding='same', name="conv2", use_bias=False, strides=2),
+        keras.layers.BatchNormalization(scale=False, center=True),
+        keras.layers.Activation('relu'),
+
+        keras.layers.Conv2D(filters=32, kernel_size=6, padding='same', name="conv3", use_bias=False, strides=2),
+        keras.layers.BatchNormalization(scale=False, center=True),
+        keras.layers.Activation('relu'),
+
+        keras.layers.Flatten(),
+        keras.layers.Dense(200, name="dense1", use_bias=False),
+        keras.layers.BatchNormalization(scale=False, center=True),
+        keras.layers.Activation('relu'),
+        keras.layers.Dropout(0.4), # Dropout on dense layer only
+
+        keras.layers.Dense(10, name="dense2", activation='softmax')
+      ]
+    )
+    model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
+    return model
+
+
+class LargeModelTest(testing.TestCase):
+    def test_model_sharding(self):
+        model = _get_large_model()
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        ref_input = np.random.random((1, 28, 28, 1))
+        ref_output = model.predict(ref_input)
+        saving_lib.save_weights_only(model, temp_filepath, sharded=True, shard_size="10KB")
+
+        model = _get_large_model()
+        model.load_weights(temp_filepath, sharded=True)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
 
 class SavingBattleTest(testing.TestCase):
