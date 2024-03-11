@@ -64,7 +64,7 @@ class Cropping1DTest(testing.TestCase):
     def test_cropping_1d_errors_if_cropping_more_than_available(self):
         with self.assertRaisesRegex(
             ValueError,
-            "`cropping` parameter of `Cropping1D` layer must be greater than",
+            "`cropping` parameter of `Cropping1D` layer must be smaller than",
         ):
             input_layer = layers.Input(batch_shape=(3, 5, 7))
             layers.Cropping1D(cropping=(2, 3))(input_layer)
@@ -74,7 +74,7 @@ class Cropping1DTest(testing.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "`cropping` parameter of `Cropping1D` layer must be greater than",
+            "`cropping` parameter of `Cropping1D` layer must be smaller than",
         ):
             layer = layers.Cropping1D(cropping=(3, 3))
             _ = layer(inputs)

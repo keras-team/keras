@@ -21,10 +21,6 @@ def normalize(x, axis=-1, order=2):
     """
     from keras import ops
 
-    if not isinstance(order, int) or not order >= 1:
-        raise ValueError(
-            "Argument `order` must be an int >= 1. " f"Received: order={order}"
-        )
     if isinstance(x, np.ndarray):
         # NumPy input
         norm = np.atleast_1d(np.linalg.norm(x, order, axis))
@@ -35,18 +31,7 @@ def normalize(x, axis=-1, order=2):
         return x / np.expand_dims(norm, axis)
 
     # Backend tensor input
-    if len(x.shape) == 0:
-        x = ops.expand_dims(x, axis=0)
-    epsilon = backend.epsilon()
-    if order == 2:
-        power_sum = ops.sum(ops.square(x), axis=axis, keepdims=True)
-        norm = ops.reciprocal(ops.sqrt(ops.maximum(power_sum, epsilon)))
-    else:
-        power_sum = ops.sum(ops.power(x, order), axis=axis, keepdims=True)
-        norm = ops.reciprocal(
-            ops.power(ops.maximum(power_sum, epsilon), 1.0 / order)
-        )
-    return ops.multiply(x, norm)
+    return ops.nn.normalize(x, axis=axis, order=order)
 
 
 @keras_export("keras.utils.to_categorical")
@@ -79,11 +64,11 @@ def to_categorical(x, num_classes=None):
     ...               .04, .01, .94, .05,
     ...               .12, .21, .5, .17],
     ...               shape=[4, 4])
-    >>> loss = keras.backend.categorical_crossentropy(a, b)
+    >>> loss = keras.ops.categorical_crossentropy(a, b)
     >>> print(np.around(loss, 5))
     [0.10536 0.82807 0.1011  1.77196]
 
-    >>> loss = keras.backend.categorical_crossentropy(a, a)
+    >>> loss = keras.ops.categorical_crossentropy(a, a)
     >>> print(np.around(loss, 5))
     [0. 0. 0. 0.]
     """
@@ -120,20 +105,27 @@ def encode_categorical_inputs(
     if output_mode == "int":
         return backend_module.cast(inputs, dtype=dtype)
 
-    original_shape = inputs.shape
-    # In all cases, we should uprank scalar input to a single sample.
-    if len(backend_module.shape(inputs)) == 0:
-        inputs = backend_module.numpy.expand_dims(inputs, -1)
-
-    if len(backend_module.shape(inputs)) > 2:
-        raise ValueError(
-            "When output_mode is not `'int'`, maximum supported output rank "
-            f"is 2. Received output_mode {output_mode} and input shape "
-            f"{original_shape}, "
-            f"which would result in output rank {inputs.shape.rank}."
-        )
-
     binary_output = output_mode in ("multi_hot", "one_hot")
+    original_shape = backend_module.shape(inputs)
+    rank_of_inputs = len(original_shape)
+
+    # In all cases, we should uprank scalar input to a single sample.
+    if rank_of_inputs == 0:
+        # We need to update `rank_of_inputs`
+        # If necessary.
+        inputs = backend_module.numpy.expand_dims(inputs, -1)
+    elif rank_of_inputs > 2:
+        # The `count` mode does not support inputs with a rank greater than 2.
+        if not binary_output:
+            raise ValueError(
+                "When output_mode is anything other than "
+                "`'multi_hot', 'one_hot', or 'int'`, "
+                "the rank must be 2 or less. "
+                f"Received output_mode: {output_mode} "
+                f"and input shape: {original_shape}, "
+                f"which would result in output rank {rank_of_inputs}."
+            )
+
     if binary_output:
         if output_mode == "one_hot":
             bincounts = backend_module.nn.one_hot(inputs, depth)

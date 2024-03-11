@@ -64,6 +64,11 @@ def hard_sigmoid(x):
     return jnn.hard_sigmoid(x)
 
 
+def hard_silu(x):
+    x = convert_to_tensor(x)
+    return jnn.hard_silu(x)
+
+
 def elu(x, alpha=1.0):
     x = convert_to_tensor(x)
     return jnn.elu(x, alpha=alpha)
@@ -405,6 +410,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
 
 
 def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+    x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
     outputs = jnp.max(
         one_hot(cast(x, "int32"), num_classes, axis=axis, dtype=dtype),
@@ -499,23 +505,12 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # to float16
     need_cast = False
     ori_dtype = standardize_dtype(x.dtype)
-    if ori_dtype == "float16":
+    if ori_dtype in ("float16", "bfloat16"):
         need_cast = True
         x = cast(x, "float32")
 
     mean = jnp.mean(x, axes, keepdims=True)
-
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    # Note: stop_gradient does not change the gradient to the mean, because that
-    # gradient is zero.
-    # The substraction operation does not guarantee a non-negative
-    # result given float precision, so we clamp it to 0.
-    variance = jnp.maximum(
-        jnp.mean(jnp.square(x), axis=axes, keepdims=True)
-        - jnp.square(jax.lax.stop_gradient(mean)),
-        0.0,
-    )
+    variance = jnp.var(x, axis=axes, keepdims=True)
 
     if not keepdims:
         mean = jnp.squeeze(mean, axes)
@@ -552,3 +547,78 @@ def batch_normalization(
         res = res + offset
 
     return x * inv + res
+
+
+def ctc_loss(
+    target,
+    output,
+    target_length,
+    output_length,
+    mask_index=0,
+):
+    batch_size, _, _ = output.shape
+    batch_size, max_target_length = target.shape
+
+    output = output.transpose((1, 0, 2))
+    target = target.transpose((1, 0)).astype("int32")
+
+    logits = jnn.log_softmax(output)
+    mgrid_t, mgrid_b = jnp.meshgrid(
+        jnp.arange(max_target_length), jnp.arange(batch_size)
+    )
+    logprobs_emit = logits[mgrid_t, mgrid_b, target[:, :, None]]
+    logprobs_mask = logits[:, :, mask_index]
+
+    logit_paddings = jnp.array(
+        jnp.arange(max_target_length) < output_length[:, None],
+        dtype=jnp.float32,
+    )
+
+    repeat = jnp.array(target[1:] == target[:-1])
+    repeat = jnp.pad(repeat, ((0, 1), (0, 0))).transpose((1, 0))
+
+    _logepsilon = -100000.0
+
+    def _iterate(prev, x):
+        prev_mask, prev_emit = prev
+        logprob_mask, logprob_emit, pad = x
+
+        prev_mask_orig = prev_mask
+        prev_mask = prev_mask.at[:, 1:].set(
+            jnp.logaddexp(prev_mask[:, 1:], prev_emit + _logepsilon * repeat),
+        )
+        emit = jnp.logaddexp(
+            prev_mask[:, :-1] + logprob_emit, prev_emit + logprob_emit
+        )
+
+        mask = prev_mask + logprob_mask[:, None]
+        mask = mask.at[:, 1:].set(
+            jnp.logaddexp(
+                mask[:, 1:],
+                prev_emit + logprob_mask[:, None] + _logepsilon * (1 - repeat),
+            )
+        )
+
+        pad = pad[:, None]
+        emit = emit * pad + prev_emit * (1 - pad)
+        mask = mask * pad + prev_mask_orig * (1 - pad)
+
+        return (mask, emit), (mask, emit)
+
+    mask_init = jnp.full((batch_size, max_target_length + 1), _logepsilon)
+    mask_init = mask_init.at[:, 0].set(0.0)
+    emit_init = jnp.full((batch_size, max_target_length), _logepsilon)
+
+    _, (alphas_mask, alphas_emit) = lax.scan(
+        _iterate,
+        (mask_init, emit_init),
+        (logprobs_mask, logprobs_emit, logit_paddings.transpose()),
+    )
+
+    last_alpha_mask = (
+        alphas_mask[-1]
+        .at[:, 1:]
+        .set(jnp.logaddexp(alphas_mask[-1, :, 1:], alphas_emit[-1]))
+    )
+
+    return -last_alpha_mask[jnp.arange(batch_size), target_length]

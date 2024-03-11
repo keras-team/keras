@@ -7,7 +7,9 @@ from keras import layers
 from keras import losses
 from keras import models
 from keras import testing
+from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
+from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.layers.convolutional.conv_test import np_conv1d
 from keras.layers.convolutional.conv_test import np_conv2d
 from keras.layers.convolutional.conv_test import np_conv3d
@@ -19,6 +21,8 @@ from keras.layers.pooling.average_pooling_test import np_avgpool2d
 from keras.layers.pooling.max_pooling_test import np_maxpool1d
 from keras.layers.pooling.max_pooling_test import np_maxpool2d
 from keras.ops import nn as knn
+from keras.ops import numpy as knp
+from keras.testing.test_utils import named_product
 
 
 class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
@@ -57,6 +61,10 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
     def test_hard_sigmoid(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_sigmoid(x).shape, (None, 2, 3))
+
+    def test_hard_silu(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.hard_silu(x).shape, (None, 2, 3))
 
     def test_elu(self):
         x = KerasTensor([None, 2, 3])
@@ -103,20 +111,26 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         else:
             input_shape = (None, 3, 8, None)
         x = KerasTensor(input_shape)
-        self.assertEqual(
-            knn.max_pool(x, 2, 1).shape, (None, 7, None, 3)
-        ) if data_format == "channels_last" else (None, 3, 7, None)
+        (
+            self.assertEqual(knn.max_pool(x, 2, 1).shape, (None, 7, None, 3))
+            if data_format == "channels_last"
+            else (None, 3, 7, None)
+        )
         self.assertEqual(
             knn.max_pool(x, 2, 2, padding="same").shape,
-            (None, 4, None, 3)
-            if data_format == "channels_last"
-            else (None, 3, 4, None),
+            (
+                (None, 4, None, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, None)
+            ),
         )
         self.assertEqual(
             knn.max_pool(x, (2, 2), (2, 2), padding="same").shape,
-            (None, 4, None, 3)
-            if data_format == "channels_last"
-            else (None, 3, 4, None),
+            (
+                (None, 4, None, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, None)
+            ),
         )
 
     def test_average_pool(self):
@@ -142,21 +156,27 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         x = KerasTensor(input_shape)
         self.assertEqual(
             knn.average_pool(x, 2, 1).shape,
-            (None, 7, None, 3)
-            if data_format == "channels_last"
-            else (None, 3, 7, None),
+            (
+                (None, 7, None, 3)
+                if data_format == "channels_last"
+                else (None, 3, 7, None)
+            ),
         )
         self.assertEqual(
             knn.average_pool(x, 2, 2, padding="same").shape,
-            (None, 4, None, 3)
-            if data_format == "channels_last"
-            else (None, 3, 4, None),
+            (
+                (None, 4, None, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, None)
+            ),
         )
         self.assertEqual(
             knn.average_pool(x, (2, 2), (2, 2), padding="same").shape,
-            (None, 4, None, 3)
-            if data_format == "channels_last"
-            else (None, 3, 4, None),
+            (
+                (None, 4, None, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, None)
+            ),
         )
 
     def test_multi_hot(self):
@@ -184,16 +204,20 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         for padding in ["valid", "VALID"]:
             self.assertEqual(
                 knn.conv(inputs_1d, kernel, 1, padding=padding).shape,
-                (None, 17, 2)
-                if data_format == "channels_last"
-                else (None, 2, 17),
+                (
+                    (None, 17, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 17)
+                ),
             )
         for padding in ["same", "SAME"]:
             self.assertEqual(
                 knn.conv(inputs_1d, kernel, 1, padding=padding).shape,
-                (None, 20, 2)
-                if data_format == "channels_last"
-                else (None, 2, 20),
+                (
+                    (None, 20, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 20)
+                ),
             )
         self.assertEqual(
             knn.conv(inputs_1d, kernel, (2,), dilation_rate=2).shape,
@@ -210,22 +234,28 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         for padding in ["valid", "VALID"]:
             self.assertEqual(
                 knn.conv(inputs_2d, kernel, 1, padding=padding).shape,
-                (None, 9, None, 2)
-                if data_format == "channels_last"
-                else (None, 2, 9, None),
+                (
+                    (None, 9, None, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 9, None)
+                ),
             )
         for padding in ["same", "SAME"]:
             self.assertEqual(
                 knn.conv(inputs_2d, kernel, 1, padding=padding).shape,
-                (None, 10, None, 2)
-                if data_format == "channels_last"
-                else (None, 2, 10, None),
+                (
+                    (None, 10, None, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 10, None)
+                ),
             )
         self.assertEqual(
             knn.conv(inputs_2d, kernel, (2, 1), dilation_rate=(2, 1)).shape,
-            (None, 4, None, 2)
-            if data_format == "channels_last"
-            else (None, 2, 4, None),
+            (
+                (None, 4, None, 2)
+                if data_format == "channels_last"
+                else (None, 2, 4, None)
+            ),
         )
 
         # Test 2D conv - H, W specified
@@ -238,22 +268,28 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         for padding in ["valid", "VALID"]:
             self.assertEqual(
                 knn.conv(inputs_2d, kernel, 1, padding=padding).shape,
-                (None, 9, 9, 2)
-                if data_format == "channels_last"
-                else (None, 2, 9, 9),
+                (
+                    (None, 9, 9, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 9, 9)
+                ),
             )
         for padding in ["same", "SAME"]:
             self.assertEqual(
                 knn.conv(inputs_2d, kernel, 1, padding=padding).shape,
-                (None, 10, 10, 2)
-                if data_format == "channels_last"
-                else (None, 2, 10, 10),
+                (
+                    (None, 10, 10, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 10, 10)
+                ),
             )
         self.assertEqual(
             knn.conv(inputs_2d, kernel, (2, 1), dilation_rate=(2, 1)).shape,
-            (None, 4, 9, 2)
-            if data_format == "channels_last"
-            else (None, 2, 4, 9),
+            (
+                (None, 4, 9, 2)
+                if data_format == "channels_last"
+                else (None, 2, 4, 9)
+            ),
         )
 
         # Test 3D conv.
@@ -266,24 +302,30 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         for padding in ["valid", "VALID"]:
             self.assertEqual(
                 knn.conv(inputs_3d, kernel, 1, padding=padding).shape,
-                (None, 6, None, 6, 2)
-                if data_format == "channels_last"
-                else (None, 2, 6, None, 6),
+                (
+                    (None, 6, None, 6, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 6, None, 6)
+                ),
             )
         for padding in ["same", "SAME"]:
             self.assertEqual(
                 knn.conv(inputs_3d, kernel, (2, 1, 2), padding=padding).shape,
-                (None, 4, None, 4, 2)
-                if data_format == "channels_last"
-                else (None, 2, 4, None, 4),
+                (
+                    (None, 4, None, 4, 2)
+                    if data_format == "channels_last"
+                    else (None, 2, 4, None, 4)
+                ),
             )
         self.assertEqual(
             knn.conv(
                 inputs_3d, kernel, 1, padding="valid", dilation_rate=(1, 2, 2)
             ).shape,
-            (None, 6, None, 4, 2)
-            if data_format == "channels_last"
-            else (None, 2, 6, None, 4),
+            (
+                (None, 6, None, 4, 2)
+                if data_format == "channels_last"
+                else (None, 2, 6, None, 4)
+            ),
         )
 
     def test_depthwise_conv(self):
@@ -298,18 +340,22 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         for padding in ["valid", "VALID"]:
             self.assertEqual(
                 knn.depthwise_conv(inputs_1d, kernel, 1, padding=padding).shape,
-                (None, 17, 3)
-                if data_format == "channels_last"
-                else (None, 3, 17),
+                (
+                    (None, 17, 3)
+                    if data_format == "channels_last"
+                    else (None, 3, 17)
+                ),
             )
         for padding in ["same", "SAME"]:
             self.assertEqual(
                 knn.depthwise_conv(
                     inputs_1d, kernel, (1,), padding=padding
                 ).shape,
-                (None, 20, 3)
-                if data_format == "channels_last"
-                else (None, 3, 20),
+                (
+                    (None, 20, 3)
+                    if data_format == "channels_last"
+                    else (None, 3, 20)
+                ),
             )
         self.assertEqual(
             knn.depthwise_conv(inputs_1d, kernel, 2, dilation_rate=2).shape,
@@ -326,32 +372,40 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         for padding in ["valid", "VALID"]:
             self.assertEqual(
                 knn.depthwise_conv(inputs_2d, kernel, 1, padding=padding).shape,
-                (None, 9, 9, 3)
-                if data_format == "channels_last"
-                else (None, 3, 9, 9),
+                (
+                    (None, 9, 9, 3)
+                    if data_format == "channels_last"
+                    else (None, 3, 9, 9)
+                ),
             )
         for padding in ["same", "SAME"]:
             self.assertEqual(
                 knn.depthwise_conv(
                     inputs_2d, kernel, (1, 2), padding=padding
                 ).shape,
-                (None, 10, 5, 3)
-                if data_format == "channels_last"
-                else (None, 3, 10, 5),
+                (
+                    (None, 10, 5, 3)
+                    if data_format == "channels_last"
+                    else (None, 3, 10, 5)
+                ),
             )
         self.assertEqual(
             knn.depthwise_conv(inputs_2d, kernel, 2, dilation_rate=2).shape,
-            (None, 4, 4, 3)
-            if data_format == "channels_last"
-            else (None, 3, 4, 4),
+            (
+                (None, 4, 4, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, 4)
+            ),
         )
         self.assertEqual(
             knn.depthwise_conv(
                 inputs_2d, kernel, 2, dilation_rate=(2, 1)
             ).shape,
-            (None, 4, 5, 3)
-            if data_format == "channels_last"
-            else (None, 3, 4, 5),
+            (
+                (None, 4, 5, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, 5)
+            ),
         )
 
     def test_separable_conv(self):
@@ -395,25 +449,31 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, 1, padding="valid"
             ).shape,
-            (None, 9, 9, 5)
-            if data_format == "channels_last"
-            else (None, 5, 9, 9),
+            (
+                (None, 9, 9, 5)
+                if data_format == "channels_last"
+                else (None, 5, 9, 9)
+            ),
         )
         self.assertEqual(
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, (1, 2), padding="same"
             ).shape,
-            (None, 10, 5, 5)
-            if data_format == "channels_last"
-            else (None, 5, 10, 5),
+            (
+                (None, 10, 5, 5)
+                if data_format == "channels_last"
+                else (None, 5, 10, 5)
+            ),
         )
         self.assertEqual(
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, 2, dilation_rate=(2, 1)
             ).shape,
-            (None, 4, 5, 5)
-            if data_format == "channels_last"
-            else (None, 5, 4, 5),
+            (
+                (None, 4, 5, 5)
+                if data_format == "channels_last"
+                else (None, 5, 4, 5)
+            ),
         )
 
     def test_conv_transpose(self):
@@ -447,23 +507,29 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         kernel = KerasTensor([2, 2, 5, 3])
         self.assertEqual(
             knn.conv_transpose(inputs_2d, kernel, 2).shape,
-            (None, 8, 8, 5)
-            if data_format == "channels_last"
-            else (None, 5, 8, 8),
+            (
+                (None, 8, 8, 5)
+                if data_format == "channels_last"
+                else (None, 5, 8, 8)
+            ),
         )
         self.assertEqual(
             knn.conv_transpose(inputs_2d, kernel, (2, 2), padding="same").shape,
-            (None, 8, 8, 5)
-            if data_format == "channels_last"
-            else (None, 5, 8, 8),
+            (
+                (None, 8, 8, 5)
+                if data_format == "channels_last"
+                else (None, 5, 8, 8)
+            ),
         )
         self.assertEqual(
             knn.conv_transpose(
                 inputs_2d, kernel, (5, 5), padding="valid", output_padding=4
             ).shape,
-            (None, 21, 21, 5)
-            if data_format == "channels_last"
-            else (None, 5, 21, 21),
+            (
+                (None, 21, 21, 5)
+                if data_format == "channels_last"
+                else (None, 5, 21, 21)
+            ),
         )
 
     def test_one_hot(self):
@@ -541,6 +607,10 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
             scale=KerasTensor([3]),
         )
 
+    def test_normalize(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.normalize(x).shape, (None, 2, 3))
+
 
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
@@ -578,6 +648,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
     def test_hard_sigmoid(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.hard_sigmoid(x).shape, (1, 2, 3))
+
+    def test_hard_silu(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.hard_silu(x).shape, (1, 2, 3))
 
     def test_elu(self):
         x = KerasTensor([1, 2, 3])
@@ -706,9 +780,11 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
         self.assertEqual(
             knn.conv(inputs_2d, kernel, 1, padding="same").shape,
-            (2, 10, 10, 2)
-            if data_format == "channels_last"
-            else (2, 2, 10, 10),
+            (
+                (2, 10, 10, 2)
+                if data_format == "channels_last"
+                else (2, 2, 10, 10)
+            ),
         )
         self.assertEqual(
             knn.conv(inputs_2d, kernel, (2, 1), dilation_rate=(2, 1)).shape,
@@ -724,23 +800,29 @@ class NNOpsStaticShapeTest(testing.TestCase):
         kernel = KerasTensor([3, 3, 3, 3, 2])
         self.assertEqual(
             knn.conv(inputs_3d, kernel, 1, padding="valid").shape,
-            (2, 6, 6, 6, 2)
-            if data_format == "channels_last"
-            else (2, 2, 6, 6, 6),
+            (
+                (2, 6, 6, 6, 2)
+                if data_format == "channels_last"
+                else (2, 2, 6, 6, 6)
+            ),
         )
         self.assertEqual(
             knn.conv(inputs_3d, kernel, (2, 1, 2), padding="same").shape,
-            (2, 4, 8, 4, 2)
-            if data_format == "channels_last"
-            else (2, 2, 4, 8, 4),
+            (
+                (2, 4, 8, 4, 2)
+                if data_format == "channels_last"
+                else (2, 2, 4, 8, 4)
+            ),
         )
         self.assertEqual(
             knn.conv(
                 inputs_3d, kernel, 1, padding="valid", dilation_rate=(1, 2, 2)
             ).shape,
-            (2, 6, 4, 4, 2)
-            if data_format == "channels_last"
-            else (2, 2, 6, 4, 4),
+            (
+                (2, 6, 4, 4, 2)
+                if data_format == "channels_last"
+                else (2, 2, 6, 4, 4)
+            ),
         )
 
     def test_depthwise_conv(self):
@@ -888,9 +970,11 @@ class NNOpsStaticShapeTest(testing.TestCase):
             knn.conv_transpose(
                 inputs_2d, kernel, (5, 5), padding="valid", output_padding=4
             ).shape,
-            (2, 21, 21, 5)
-            if data_format == "channels_last"
-            else (2, 5, 21, 21),
+            (
+                (2, 21, 21, 5)
+                if data_format == "channels_last"
+                else (2, 5, 21, 21)
+            ),
         )
 
     def test_batched_and_unbatched_inputs_multi_hot(self):
@@ -958,6 +1042,21 @@ class NNOpsStaticShapeTest(testing.TestCase):
             (10, 3, 4, 5),
         )
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy does not support CTC loss",
+    )
+    def test_ctc_loss(self):
+        x = KerasTensor([10, 3, 4])
+        y = KerasTensor([10, 3], dtype="int32")
+        x_lengths = KerasTensor([10], dtype="int32")
+        y_lengths = KerasTensor([10], dtype="int32")
+        self.assertEqual(knn.ctc_loss(x, y, x_lengths, y_lengths).shape, (10,))
+
+    def test_normalize(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.normalize(x).shape, (1, 2, 3))
+
 
 class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_relu(self):
@@ -1011,6 +1110,13 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             knn.hard_sigmoid(x),
             [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
+        )
+
+    def test_hard_silu(self):
+        x = np.array([-3, -2, -1, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.hard_silu(x),
+            [-0.0, -0.333333, -0.333333, 0.0, 0.6666667, 1.6666667, 3.0],
         )
 
     def test_elu(self):
@@ -1437,6 +1543,14 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np.eye(4)[indices_1d],
         )
 
+        # Test 1D list one-hot.
+        indices_1d = [0, 1, 2, 3]
+        self.assertAllClose(knn.one_hot(indices_1d, 4), np.eye(4)[indices_1d])
+        self.assertAllClose(
+            knn.one_hot(indices_1d, 4, axis=0),
+            np.eye(4)[indices_1d],
+        )
+
         # Test 2D one-hot.
         indices_2d = np.array([[0, 1], [2, 3]])
         self.assertAllClose(knn.one_hot(indices_2d, 4), np.eye(4)[indices_2d])
@@ -1719,6 +1833,56 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(tuple(output.shape), (2, 3, 3, 5))
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy does not support CTC loss",
+    )
+    def test_ctc_loss(self):
+        labels = np.array([[1, 2, 1], [1, 2, 2]])
+        outputs = np.array(
+            [
+                [[0.4, 0.8, 0.4], [0.2, 0.8, 0.3], [0.9, 0.4, 0.5]],
+                [[0.4, 0.8, 0.4], [0.2, 0.3, 0.3], [0.4, 0.3, 0.2]],
+            ]
+        )
+
+        label_length = np.array([3, 2])
+        output_length = np.array([3, 2])
+
+        result = knn.ctc_loss(labels, outputs, label_length, output_length)
+        self.assertAllClose(result, np.array([3.4411672, 1.91680186]))
+
+    def test_normalize(self):
+        x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
+        self.assertAllClose(
+            knn.normalize(x, axis=None),
+            [
+                [0.18898225, 0.3779645, 0.56694674],
+                [0.18898225, 0.3779645, 0.56694674],
+            ],
+        )
+        self.assertAllClose(
+            knn.normalize(x, axis=0),
+            [
+                [0.70710677, 0.70710677, 0.70710677],
+                [0.70710677, 0.70710677, 0.70710677],
+            ],
+        )
+        self.assertAllClose(
+            knn.normalize(x, axis=-1),
+            [
+                [0.26726124, 0.53452247, 0.8017837],
+                [0.26726124, 0.53452247, 0.8017837],
+            ],
+        )
+        self.assertAllClose(
+            knn.normalize(x, order=3),
+            [
+                [0.30285344, 0.6057069, 0.9085603],
+                [0.30285344, 0.6057069, 0.9085603],
+            ],
+        )
+
 
 class TestLogitRecovery(testing.TestCase):
     def test_logit_recovery_binary_crossentropy(self):
@@ -1735,3 +1899,303 @@ class TestLogitRecovery(testing.TestCase):
         model.compile(loss="binary_crossentropy", optimizer="sgd")
         out = model.evaluate(x, y)
         self.assertAllClose(out, 2.682124)
+
+
+class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
+    """Test the dtype to verify that the behavior matches JAX."""
+
+    FLOAT_DTYPES = [x for x in ALLOWED_DTYPES if "float" in x]
+
+    def setUp(self):
+        from jax.experimental import enable_x64
+
+        self.jax_enable_x64 = enable_x64()
+        self.jax_enable_x64.__enter__()
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        self.jax_enable_x64.__exit__(None, None, None)
+        return super().tearDown()
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_elu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.elu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.elu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Elu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_gelu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+
+        # approximate = True
+        expected_dtype = standardize_dtype(jnn.gelu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.gelu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Gelu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+        # approximate = False
+        expected_dtype = standardize_dtype(jnn.gelu(x_jax, False).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.gelu(x, False).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Gelu(False).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_hard_sigmoid(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.hard_sigmoid(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.hard_sigmoid(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.HardSigmoid().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_hard_silu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.hard_silu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.hard_silu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.HardSilu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_leaky_relu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.leaky_relu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.leaky_relu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.LeakyRelu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_log_sigmoid(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.log_sigmoid(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.log_sigmoid(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.LogSigmoid().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_log_softmax(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((10,), dtype=dtype)
+        x_jax = jnp.ones((10,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.log_softmax(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.log_softmax(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.LogSoftmax().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_relu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.relu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.relu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Relu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_relu6(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.relu6(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.relu6(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Relu6().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_selu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.selu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.selu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Selu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_sigmoid(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.sigmoid(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.sigmoid(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Sigmoid().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_silu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.silu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.silu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Silu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_softplus(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.softplus(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.softplus(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Softplus().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_softmax(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((10,), dtype=dtype)
+        x_jax = jnp.ones((10,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.softmax(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.softmax(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Softmax().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_softsign(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.soft_sign(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.softsign(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Softsign().symbolic_call(x).dtype),
+            expected_dtype,
+        )

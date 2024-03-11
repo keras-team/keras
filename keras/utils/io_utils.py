@@ -49,7 +49,7 @@ def is_interactive_logging_enabled():
 
     To switch between writing logs to stdout and `absl.logging`, you may use
     `keras.config.enable_interactive_logging()` and
-    `keras.config.disable_interactie_logging()`.
+    `keras.config.disable_interactive_logging()`.
 
     Returns:
         Boolean, `True` if interactive logging is enabled,

@@ -1,5 +1,8 @@
+import numpy as np
 import tree
 
+from keras import backend
+from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.data_adapters.data_adapter import DataAdapter
 
 
@@ -17,15 +20,26 @@ class TorchDataLoaderAdapter(DataAdapter):
 
         self._dataloader = dataloader
         self._batch_size = dataloader.batch_size
-        self._size = len(dataloader)
-        self._partial_batch_size = len(dataloader.dataset) % self._batch_size
+        self._num_batches = None
+        self._partial_batch_size = None
+        if hasattr(dataloader.dataset, "__len__"):
+            self._num_batches = len(dataloader)
+            if self._batch_size is not None:
+                self._partial_batch_size = (
+                    len(dataloader.dataset) % self._batch_size
+                )
 
     def get_numpy_iterator(self):
         for batch in self._dataloader:
-            yield tuple(tree.map_structure(lambda x: x.cpu().numpy(), batch))
+            # shared memory using `np.asarray`
+            yield tuple(
+                tree.map_structure(lambda x: np.asarray(x.cpu()), batch)
+            )
 
-    def get_torch_dataloader(self):
-        return self._dataloader
+    def get_jax_iterator(self):
+        # We use numpy as an intermediary because the conversion
+        # torch -> numpy -> jax is faster than torch -> jax.
+        return data_adapter_utils.get_jax_iterator(self.get_numpy_iterator())
 
     def get_tf_dataset(self):
         from keras.utils.module_utils import tensorflow as tf
@@ -35,6 +49,9 @@ class TorchDataLoaderAdapter(DataAdapter):
             self.get_numpy_iterator,
             output_signature=output_signature,
         )
+
+    def get_torch_dataloader(self):
+        return self._dataloader
 
     def peek_and_get_tensor_spec(self):
         from keras.utils.module_utils import tensorflow as tf
@@ -52,17 +69,14 @@ class TorchDataLoaderAdapter(DataAdapter):
                 )
             shape = list(shape)
             shape[0] = None  # The batch size is not guaranteed to be static.
-
-            # No easy way to get string representation of dtype in torch
-            # TODO: Figure out a better way to achieve this
-            dtype = str(x.dtype).replace("torch.", "")
+            dtype = backend.standardize_dtype(x.dtype)
             return tf.TensorSpec(shape=shape, dtype=dtype)
 
         return tuple(tree.map_structure(get_tensor_spec, batch_data))
 
     @property
     def num_batches(self):
-        return self._size
+        return self._num_batches
 
     @property
     def batch_size(self):

@@ -52,7 +52,14 @@ def subtract(x1, x2):
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    # When both x1 and x2 are of int8, we cast the outputs to int32 to align
+    # with jax
+    x1_dtype = standardize_dtype(x1.dtype)
+    x2_dtype = standardize_dtype(x2.dtype)
+    if x1_dtype == "int8" and x2_dtype == "int8":
+        dtype = "int32"
+    else:
+        dtype = dtypes.result_type(x1.dtype, x2.dtype)
     return np.matmul(x1, x2).astype(dtype)
 
 
@@ -770,8 +777,8 @@ def repeat(x, repeats, axis=None):
     return np.repeat(x, repeats, axis=axis)
 
 
-def reshape(x, new_shape):
-    return np.reshape(x, new_shape)
+def reshape(x, newshape):
+    return np.reshape(x, newshape)
 
 
 def roll(x, shift, axis=None):
@@ -960,6 +967,21 @@ def divide(x1, x2):
     return np.divide(x1, x2)
 
 
+def divide_no_nan(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+        float,
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
+    return np.where(x2 == 0, 0, np.divide(x1, x2))
+
+
 def true_divide(x1, x2):
     return divide(x1, x2)
 
@@ -1037,6 +1059,15 @@ def eye(N, M=None, k=0, dtype=None):
 
 
 def floor_divide(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)), getattr(x2, "dtype", type(x2))
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return np.floor_divide(x1, x2)
 
 

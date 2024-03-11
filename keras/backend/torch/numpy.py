@@ -43,10 +43,46 @@ def subtract(x1, x2):
     return torch.subtract(x1, x2)
 
 
+def _can_use_int_matmul(x1, x2):
+    # torch._int_mm only accepts the following conditions:
+    # 1. cuda
+    # 2. both inputs must have int8 dtype
+    # 3. both inputs must be 2d
+    # 4. x1.shape must be [>16, >= 16 and a multiplier of 8]
+    # 5. x2.shape must be [>= 16 and a multiplier of 8, multiplier of 8]
+    if get_device() != "cuda":
+        return False
+    x1_dtype = standardize_dtype(x1.dtype)
+    x2_dtype = standardize_dtype(x2.dtype)
+    if x1_dtype != "int8" or x2_dtype != "int8":
+        return False
+    x1_shape = x1.shape
+    x2_shape = x2.shape
+    if x1.ndim != 2 or x2.ndim != 2:
+        return False
+    if x1_shape[0] <= 16 or x1_shape[1] < 16 or x1_shape[1] % 8 != 0:
+        return False
+    if x2_shape[0] < 16 or x2_shape[0] % 8 != 0 or x2_shape[1] % 8 != 0:
+        return False
+    return True
+
+
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+
+    # Shortcut for torch._int_mm
+    # TODO: Loosen the restriction of the usage of torch._int_mm
+    # TODO: We should replace torch._int_mm with the public api if possible
+    if _can_use_int_matmul(x1, x2):
+        return torch._int_mm(x1, x2)
+
+    x1_dtype = standardize_dtype(x1.dtype)
+    x2_dtype = standardize_dtype(x2.dtype)
+    if x1_dtype == "int8" and x2_dtype == "int8":
+        result_dtype = "int32"
+    else:
+        result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     compute_dtype = result_dtype
 
     # TODO: torch.matmul doesn't support bool
@@ -892,9 +928,7 @@ def min(x, axis=None, keepdims=False, initial=None):
     if axis is None:
         result = torch.min(x)
     else:
-        if isinstance(axis, list):
-            axis = axis[-1]
-        result = torch.min(x, dim=axis, keepdim=keepdims)
+        result = amin(x, axis=axis, keepdims=keepdims)
 
     if isinstance(getattr(result, "values", None), torch.Tensor):
         result = result.values
@@ -1124,11 +1158,11 @@ def repeat(x, repeats, axis=None):
     return torch.repeat_interleave(x, repeats, dim=axis)
 
 
-def reshape(x, new_shape):
-    if not isinstance(new_shape, (list, tuple)):
-        new_shape = (new_shape,)
+def reshape(x, newshape):
+    if not isinstance(newshape, (list, tuple)):
+        newshape = (newshape,)
     x = convert_to_tensor(x)
-    return torch.reshape(x, new_shape)
+    return torch.reshape(x, newshape)
 
 
 def roll(x, shift, axis=None):
@@ -1168,15 +1202,15 @@ def sort(x, axis=-1):
 def split(x, indices_or_sections, axis=0):
     x = convert_to_tensor(x)
     dim = x.shape[axis]
-    if isinstance(indices_or_sections, (list, tuple)):
-        idxs = convert_to_tensor(indices_or_sections)
-        start_size = indices_or_sections[0]
-        end_size = dim - indices_or_sections[-1]
-        chunk_sizes = (
-            [start_size]
-            + torch.diff(idxs).type(torch.int).tolist()
-            + [end_size]
+    if not isinstance(indices_or_sections, int):
+        indices_or_sections = convert_to_tensor(indices_or_sections)
+        start_size = indices_or_sections[0:1]
+        end_size = dim - indices_or_sections[-1:]
+        chunk_sizes = torch.concat(
+            [start_size, torch.diff(indices_or_sections), end_size], dim=0
         )
+        # torch.split doesn't support tensor input for `split_size_or_sections`
+        chunk_sizes = chunk_sizes.tolist()
     else:
         if dim % indices_or_sections != 0:
             raise ValueError(
@@ -1219,9 +1253,12 @@ def swapaxes(x, axis1, axis2):
 def take(x, indices, axis=None):
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices).long()
-    if x.ndim == 2 and (axis is None or axis == 0):
+    if x.ndim == 2 and axis == 0:
         # This case is equivalent to embedding lookup.
         return torch.nn.functional.embedding(indices, x)
+    if axis is None:
+        x = torch.reshape(x, (-1,))
+        axis = 0
     if axis is not None:
         # make sure axis is non-negative
         axis = len(x.shape) + axis if axis < 0 else axis
@@ -1357,6 +1394,14 @@ def divide(x1, x2):
     return torch.divide(x1, x2)
 
 
+def divide_no_nan(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    return torch.where(x2 == 0, 0, torch.divide(x1, x2))
+
+
 def true_divide(x1, x2):
     return divide(x1, x2)
 
@@ -1450,8 +1495,15 @@ def eye(N, M=None, k=None, dtype=None):
 
 
 def floor_divide(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return torch.floor_divide(x1, x2)
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    return cast(torch.floor_divide(x1, x2), dtype)
 
 
 def logical_xor(x1, x2):

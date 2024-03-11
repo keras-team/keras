@@ -140,6 +140,7 @@ zeros_like
 
 
 """
+
 import builtins
 import re
 
@@ -664,7 +665,7 @@ def arange(start, stop=None, step=1, dtype=None):
         stop: Integer or real, representing the end of the interval. The
             interval does not include this value, except in some cases where
             `step` is not an integer and floating point round-off affects the
-            lenght of `out`. Defaults to `None`.
+            length of `out`. Defaults to `None`.
         step: Integer or real, represent the spacing between values. For any
             output `out`, this is the distance between two adjacent values,
             `out[i+1] - out[i]`. The default step size is 1. If `step` is
@@ -3512,10 +3513,12 @@ class Matmul(Operation):
         x1_sparse = getattr(x1, "sparse", True)
         x2_sparse = getattr(x2, "sparse", True)
         output_sparse = x1_sparse and x2_sparse
-        dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
+        x1_dtype = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_dtype = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        if x1_dtype == "int8" and x2_dtype == "int8":
+            dtype = "int32"
+        else:
+            dtype = dtypes.result_type(x1_dtype, x2_dtype)
         return KerasTensor(output_shape, dtype=dtype, sparse=output_sparse)
 
 
@@ -3711,8 +3714,8 @@ def meshgrid(*x, indexing="xy"):
 
     Args:
         x: 1-D tensors representing the coordinates of a grid.
-        indexing: Cartesian (`"xy"`, default) or matrix (`"ij"`) indexing
-            of output.
+        indexing: `"xy"` or `"ij"`. "xy" is cartesian; `"ij"` is matrix
+            indexing of output. Defaults to `"xy"`.
 
     Returns:
         Sequence of N tensors.
@@ -3831,12 +3834,7 @@ class Mod(Operation):
         )
         if output_dtype == "bool":
             output_dtype = "int32"
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and not x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+        return KerasTensor(output_shape, dtype=output_dtype)
 
 
 @keras_export(["keras.ops.mod", "keras.ops.numpy.mod"])
@@ -4468,28 +4466,28 @@ def repeat(x, repeats, axis=None):
 
 
 class Reshape(Operation):
-    def __init__(self, new_shape):
+    def __init__(self, newshape):
         super().__init__()
-        self.new_shape = new_shape
+        self.newshape = newshape
 
     def call(self, x):
-        return backend.numpy.reshape(x, self.new_shape)
+        return backend.numpy.reshape(x, self.newshape)
 
     def compute_output_spec(self, x):
         output_shape = operation_utils.compute_reshape_output_shape(
-            x.shape, self.new_shape, "new_shape"
+            x.shape, self.newshape, "newshape"
         )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.reshape", "keras.ops.numpy.reshape"])
-def reshape(x, new_shape):
+def reshape(x, newshape):
     """Gives a new shape to a tensor without changing its data.
 
     Args:
         x: Input tensor.
-        new_shape: The new shape should be compatible with the original shape.
+        newshape: The new shape should be compatible with the original shape.
             One shape dimension can be -1 in which case the value is
             inferred from the length of the array and remaining dimensions.
 
@@ -4497,8 +4495,8 @@ def reshape(x, new_shape):
         The reshaped tensor.
     """
     if any_symbolic_tensors((x,)):
-        return Reshape(new_shape).symbolic_call(x)
-    return backend.numpy.reshape(x, new_shape)
+        return Reshape(newshape).symbolic_call(x)
+    return backend.numpy.reshape(x, newshape)
 
 
 class Roll(Operation):
@@ -5542,6 +5540,43 @@ def divide(x1, x2):
     return backend.numpy.divide(x1, x2)
 
 
+class DivideNoNan(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.divide_no_nan(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+            float,
+        )
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
+        output_sparse = x1_sparse and not x2_sparse
+        return KerasTensor(
+            output_shape, dtype=output_dtype, sparse=output_sparse
+        )
+
+
+@keras_export(["keras.ops.divide_no_nan", "keras.ops.numpy.divide_no_nan"])
+def divide_no_nan(x1, x2):
+    """Safe element-wise division which returns 0 where the denominator is 0.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor.
+
+    Returns:
+        The quotient `x1/x2`, element-wise, with zero where x2 is zero.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return DivideNoNan().symbolic_call(x1, x2)
+    return backend.numpy.divide_no_nan(x1, x2)
+
+
 class TrueDivide(Operation):
     def call(self, x1, x2):
         return backend.numpy.true_divide(x1, x2)
@@ -5780,9 +5815,11 @@ class Mean(Operation):
             result_dtype = compute_dtype
         else:
             result_dtype = ori_dtype
+        sparse = getattr(x, "sparse", False)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=result_dtype,
+            sparse=sparse,
         )
 
 
@@ -5972,10 +6009,11 @@ class FloorDivide(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and not x2_sparse
-        return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        return KerasTensor(output_shape, dtype=output_dtype)
 
 
 @keras_export(["keras.ops.floor_divide", "keras.ops.numpy.floor_divide"])

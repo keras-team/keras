@@ -1,4 +1,4 @@
-from keras.callbacks.backup_and_restore_callback import BackupAndRestore
+from keras.callbacks.backup_and_restore import BackupAndRestore
 from keras.callbacks.callback import Callback
 from keras.callbacks.callback_list import CallbackList
 from keras.callbacks.csv_logger import CSVLogger
@@ -10,5 +10,6 @@ from keras.callbacks.model_checkpoint import ModelCheckpoint
 from keras.callbacks.progbar_logger import ProgbarLogger
 from keras.callbacks.reduce_lr_on_plateau import ReduceLROnPlateau
 from keras.callbacks.remote_monitor import RemoteMonitor
+from keras.callbacks.swap_ema_weights import SwapEMAWeights
 from keras.callbacks.tensorboard import TensorBoard
 from keras.callbacks.terminate_on_nan import TerminateOnNaN

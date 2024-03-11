@@ -139,7 +139,7 @@ class OperationUtilsTest(testing.TestCase):
         input_shape = (1, 4, 4, 1)
         target_shape = (16, 1)
         output_shape = operation_utils.compute_reshape_output_shape(
-            input_shape, new_shape=target_shape, new_shape_arg_name="New shape"
+            input_shape, newshape=target_shape, newshape_arg_name="New shape"
         )
         self.assertEqual(output_shape, target_shape)
 

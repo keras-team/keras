@@ -184,26 +184,27 @@ class Attention(Layer):
         return ops.matmul(weights, value), weights
 
     def _calculate_score_mask(self, scores, v_mask, use_causal_mask):
-        if v_mask is not None:
-            # Mask of shape [batch_size, 1, Tv].
-            v_mask = ops.expand_dims(v_mask, axis=-2)
-        if not use_causal_mask:
-            return v_mask
+        if use_causal_mask:
+            # Creates a lower triangular mask, so position i cannot attend to
+            # positions j > i. This prevents the flow of information from the
+            # future into the past.
+            score_shape = ops.shape(scores)
+            # causal_mask_shape = [1, Tq, Tv].
+            mask_shape = (1, score_shape[-2], score_shape[-1])
+            ones_mask = ops.ones(shape=mask_shape, dtype="int32")
+            row_index = ops.cumsum(ones_mask, axis=-2)
+            col_index = ops.cumsum(ones_mask, axis=-1)
+            causal_mask = ops.greater_equal(row_index, col_index)
 
-        # Creates a lower triangular mask, so position i cannot attend to
-        # positions j>i. This prevents the flow of information from the
-        # future into the past.
-        score_shape = ops.shape(scores)
-        # causal_mask_shape = [1, Tq, Tv].
-        mask_shape = (1, score_shape[-2], score_shape[-1])
-        ones_mask = ops.ones(shape=mask_shape, dtype="int32")
-        row_index = ops.cumsum(ones_mask, axis=-2)
-        col_index = ops.cumsum(ones_mask, axis=-1)
-        causal_mask = ops.greater_equal(row_index, col_index)
-
-        if v_mask is not None:
+            if v_mask is not None:
+                # Mask of shape [batch_size, 1, Tv].
+                v_mask = ops.expand_dims(v_mask, axis=-2)
+                return ops.logical_and(v_mask, causal_mask)
             return causal_mask
-        return ops.logical_and(v_mask, causal_mask)
+        else:
+            # If not using causal mask, return the value mask as is,
+            # or None if the value mask is not provided.
+            return v_mask
 
     def call(
         self,

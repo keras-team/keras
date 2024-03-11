@@ -563,6 +563,71 @@ class PadImages(Operation):
         )
 
 
+@keras_export("keras.ops.image.pad_images")
+def pad_images(
+    images,
+    top_padding=None,
+    left_padding=None,
+    target_height=None,
+    target_width=None,
+    bottom_padding=None,
+    right_padding=None,
+):
+    """Pad `images` with zeros to the specified `height` and `width`.
+
+    Args:
+        images: 4D Tensor of shape `(batch, height, width, channels)` or 3D
+            Tensor of shape `(height, width, channels)`.
+        top_padding: Number of rows of zeros to add on top.
+        bottom_padding: Number of rows of zeros to add at the bottom.
+        left_padding: Number of columns of zeros to add on the left.
+        right_padding: Number of columns of zeros to add on the right.
+        target_height: Height of output images.
+        target_width: Width of output images.
+
+    Returns:
+        If `images` were 4D, a 4D float Tensor of shape
+            `(batch, target_height, target_width, channels)`
+        If `images` were 3D, a 3D float Tensor of shape
+            `(target_height, target_width, channels)`
+
+    Example:
+
+    >>> images = np.random.random((15, 25, 3))
+    >>> padded_images = keras.ops.image.pad_images(
+    ...     images, 2, 3, target_height=20, target_width=30
+    ... )
+    >>> padded_images.shape
+    (20, 30, 3)
+
+    >>> batch_images = np.random.random((2, 15, 25, 3))
+    >>> padded_batch = keras.ops.image.pad_images(
+    ...     batch_images, 2, 3, target_height=20, target_width=30
+    ... )
+    >>> padded_batch.shape
+    (2, 20, 30, 3)"""
+
+    if any_symbolic_tensors((images,)):
+        return PadImages(
+            top_padding,
+            bottom_padding,
+            left_padding,
+            right_padding,
+            target_height,
+            target_width,
+        ).symbolic_call(images)
+
+    return _pad_images(
+        images,
+        top_padding,
+        bottom_padding,
+        left_padding,
+        right_padding,
+        target_height,
+        target_width,
+    )
+
+
 def _pad_images(
     images,
     top_padding,
@@ -662,27 +727,92 @@ def _pad_images(
     return padded
 
 
-@keras_export("keras.ops.image.pad_images")
-def pad_images(
+class CropImages(Operation):
+    def __init__(
+        self,
+        top_cropping,
+        bottom_cropping,
+        left_cropping,
+        right_cropping,
+        target_height,
+        target_width,
+    ):
+        super().__init__()
+        self.top_cropping = top_cropping
+        self.bottom_cropping = bottom_cropping
+        self.left_cropping = left_cropping
+        self.right_cropping = right_cropping
+        self.target_height = target_height
+        self.target_width = target_width
+
+    def call(self, images):
+        return _crop_images(
+            images,
+            self.top_cropping,
+            self.bottom_cropping,
+            self.left_cropping,
+            self.right_cropping,
+            self.target_height,
+            self.target_width,
+        )
+
+    def compute_output_spec(self, images):
+        images_shape = ops.shape(images)
+        out_shape = (
+            images_shape[0],
+            self.target_height,
+            self.target_width,
+            images_shape[-1],
+        )
+        if self.target_height is None:
+            height_axis = 0 if len(images_shape) == 3 else 1
+            self.target_height = (
+                self.top_cropping
+                - images_shape[height_axis]
+                - self.bottom_cropping
+            )
+        if self.target_width is None:
+            width_axis = 0 if len(images_shape) == 3 else 2
+            self.target_width = (
+                self.left_cropping
+                - images_shape[width_axis]
+                - self.right_cropping
+            )
+        out_shape = (
+            images_shape[0],
+            self.target_height,
+            self.target_width,
+            images_shape[-1],
+        )
+        if len(images_shape) == 3:
+            out_shape = out_shape[1:]
+        return KerasTensor(
+            shape=out_shape,
+            dtype=images.dtype,
+        )
+
+
+@keras_export("keras.ops.image.crop_images")
+def crop_images(
     images,
-    top_padding=None,
-    left_padding=None,
+    top_cropping=None,
+    left_cropping=None,
     target_height=None,
     target_width=None,
-    bottom_padding=None,
-    right_padding=None,
+    bottom_cropping=None,
+    right_cropping=None,
 ):
-    """Pad `images` with zeros to the specified `height` and `width`.
+    """Crop `images` to a specified `height` and `width`.
 
     Args:
-        images: 4D Tensor of shape `(batch, height, width, channels)` or 3D
-            Tensor of shape `(height, width, channels)`.
-        top_padding: Number of rows of zeros to add on top.
-        bottom_padding: Number of rows of zeros to add at the bottom.
-        left_padding: Number of columns of zeros to add on the left.
-        right_padding: Number of columns of zeros to add on the right.
-        target_height: Height of output images.
-        target_width: Width of output images.
+        images: 4-D batch of images of shape `(batch, height, width, channels)`
+             or 3-D single image of shape `(height, width, channels)`.
+        top_cropping: Number of columns to crop from the top.
+        bottom_cropping: Number of columns to crop from the bottom.
+        left_cropping: Number of columns to crop from the left.
+        right_cropping: Number of columns to crop from the right.
+        target_height: Height of the output images.
+        target_width: Width of the output images.
 
     Returns:
         If `images` were 4D, a 4D float Tensor of shape
@@ -692,36 +822,117 @@ def pad_images(
 
     Example:
 
-    >>> images = np.random.random((15, 25, 3))
-    >>> padded_images = keras.ops.image.pad_images(
-    ...     images, 2, 3, target_height=20, target_width=30
-    ... )
-    >>> padded_images.shape
-    (20, 30, 3)
-
-    >>> batch_images = np.random.random((2, 15, 25, 3))
-    >>> padded_batch = keras.ops.image.pad_images(
-    ...     batch_images, 2, 3, target_height=20, target_width=30
-    ... )
-    >>> padded_batch.shape
-    (2, 20, 30, 3)"""
+    >>> images = np.reshape(np.arange(1, 28, dtype="float32"), [3, 3, 3])
+    >>> images[:,:,0] # print the first channel of the images
+    array([[ 1.,  4.,  7.],
+           [10., 13., 16.],
+           [19., 22., 25.]], dtype=float32)
+    >>> cropped_images = keras.image.crop_images(images, 0, 0, 2, 2)
+    >>> cropped_images[:,:,0] # print the first channel of the cropped images
+    array([[ 1.,  4.],
+           [10., 13.]], dtype=float32)"""
 
     if any_symbolic_tensors((images,)):
-        return PadImages(
-            top_padding,
-            bottom_padding,
-            left_padding,
-            right_padding,
+        return CropImages(
+            top_cropping,
+            bottom_cropping,
+            left_cropping,
+            right_cropping,
             target_height,
             target_width,
         ).symbolic_call(images)
 
-    return _pad_images(
+    return _crop_images(
         images,
-        top_padding,
-        bottom_padding,
-        left_padding,
-        right_padding,
+        top_cropping,
+        bottom_cropping,
+        left_cropping,
+        right_cropping,
         target_height,
         target_width,
     )
+
+
+def _crop_images(
+    images,
+    top_cropping,
+    bottom_cropping,
+    left_cropping,
+    right_cropping,
+    target_height,
+    target_width,
+):
+    images = backend.convert_to_tensor(images)
+    is_batch = True
+    images_shape = ops.shape(images)
+    if len(images_shape) == 3:
+        is_batch = False
+        images = backend.numpy.expand_dims(images, 0)
+    elif len(images_shape) != 4:
+        raise ValueError(
+            f"Invalid shape for argument `images`: "
+            "it must have rank 3 or 4. "
+            f"Received: images.shape={images_shape}"
+        )
+
+    batch, height, width, depth = ops.shape(images)
+
+    if [top_cropping, bottom_cropping, target_height].count(None) != 1:
+        raise ValueError(
+            "Must specify exactly two of "
+            "top_cropping, bottom_cropping, target_height. "
+            f"Received: top_cropping={top_cropping}, "
+            f"bottom_cropping={bottom_cropping}, "
+            f"target_height={target_height}"
+        )
+    if [left_cropping, right_cropping, target_width].count(None) != 1:
+        raise ValueError(
+            "Must specify exactly two of "
+            "left_cropping, right_cropping, target_width. "
+            f"Received: left_cropping={left_cropping}, "
+            f"right_cropping={right_cropping}, "
+            f"target_width={target_width}"
+        )
+
+    if top_cropping is None:
+        top_cropping = height - target_height - bottom_cropping
+    if target_height is None:
+        target_height = height - bottom_cropping - top_cropping
+    if left_cropping is None:
+        left_cropping = width - target_width - right_cropping
+    if target_width is None:
+        target_width = width - right_cropping - left_cropping
+
+    if top_cropping < 0:
+        raise ValueError(
+            "top_cropping must be >= 0. "
+            f"Received: top_cropping={top_cropping}"
+        )
+    if target_height < 0:
+        raise ValueError(
+            "target_height must be >= 0. "
+            f"Received: target_height={target_height}"
+        )
+    if left_cropping < 0:
+        raise ValueError(
+            "left_cropping must be >= 0. "
+            f"Received: left_cropping={left_cropping}"
+        )
+    if target_width < 0:
+        raise ValueError(
+            "target_width must be >= 0. "
+            f"Received: target_width={target_width}"
+        )
+
+    cropped = ops.slice(
+        images,
+        backend.numpy.stack([0, top_cropping, left_cropping, 0]),
+        backend.numpy.stack([batch, target_height, target_width, depth]),
+    )
+
+    cropped_shape = [batch, target_height, target_width, depth]
+    cropped = backend.numpy.reshape(cropped, cropped_shape)
+
+    if not is_batch:
+        cropped = backend.numpy.squeeze(cropped, axis=[0])
+    return cropped

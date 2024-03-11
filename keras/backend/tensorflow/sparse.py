@@ -355,7 +355,7 @@ def elementwise_unary(func):
       `tf.SparseTensor` or `tf.IndexedSlices`, the indices of the result must be
       the same. Therefore:
         - Reduction operations are not supported (e.g. `mean`).
-        - Operation for which the result may be dense (e.g. `reciprocal`), or
+        - Operations for which the result may be dense (e.g. `reciprocal`), or
           the sparse indices depend on the inputs are not supported (e.g.
           `clip`). This implies that `func(0)` must be 0.
 
@@ -631,8 +631,8 @@ def elementwise_division(func):
     """Decorator to add support for `tf.SparseTensor` and `tf.IndexedSlices` to
     element-wise binary division and related operators.
 
-    This decorator is designed for operations related to the division of the
-    two operands (e.g. `divide`, `mod`). It accepts `tf.SparseTensor` and
+    This decorator is designed for operations related to the division of two
+    operands (e.g. `divide`). It accepts `tf.SparseTensor` and
     `tf.IndexedSlices` for both the dividend and the divisor, but handles them
     differently based on whether they are the dividend or the divisor.
 

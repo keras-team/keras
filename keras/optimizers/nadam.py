@@ -99,7 +99,7 @@ class Nadam(optimizer.Optimizer):
                 )
             )
 
-    def _internal_apply_gradients(self, grads_and_vars):
+    def _backend_update_step(self, grads, trainable_variables, learning_rate):
         dtype = self._u_product.dtype
         self.assign(
             self._u_product,
@@ -110,7 +110,7 @@ class Nadam(optimizer.Optimizer):
                 - 0.5 * ops.power(0.96, ops.cast(self.iterations + 1, dtype))
             ),
         )
-        super()._internal_apply_gradients(grads_and_vars)
+        super()._backend_update_step(grads, trainable_variables, learning_rate)
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""

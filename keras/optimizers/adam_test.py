@@ -84,3 +84,21 @@ class AdamTest(testing.TestCase):
         x = keras.ops.zeros((1, 5))
         y = keras.ops.zeros((1, 10))
         model.fit(x, y)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="The IndexedSlices test can only run with TF backend.",
+    )
+    def test_clipnorm_indexed_slices(self):
+        # https://github.com/keras-team/keras/issues/18985
+        model = keras.Sequential(
+            [
+                keras.layers.Embedding(10, 4),
+                keras.layers.Flatten(),
+                keras.layers.Dense(2),
+            ]
+        )
+        model.compile(optimizer=Adam(clipnorm=100), loss="mse")
+        x = keras.ops.ones((8, 5))
+        y = keras.ops.zeros((8, 2))
+        model.fit(x, y, verbose=0)

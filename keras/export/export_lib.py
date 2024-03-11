@@ -1,5 +1,7 @@
 """Library for exporting inference-only Keras models/layers."""
 
+from absl import logging
+
 from keras import backend
 from keras.api_export import keras_export
 from keras.layers import Layer
@@ -91,16 +93,6 @@ class ExportArchive:
                 "The export API is only compatible with JAX and TF backends."
             )
 
-        # TODO(nkovela): Make JAX version checking programatic.
-        if backend.backend() == "jax":
-            from jax import __version__ as jax_v
-
-            if jax_v > "0.4.15":
-                raise ValueError(
-                    "The export API is only compatible with JAX version 0.4.15 "
-                    f"and prior. Your JAX version: {jax_v}"
-                )
-
     @property
     def variables(self):
         return self._tf_trackable.variables
@@ -150,13 +142,28 @@ class ExportArchive:
         if isinstance(resource, Layer):
             # Variables in the lists below are actually part of the trackables
             # that get saved, because the lists are created in __init__.
-            self._tf_trackable.variables += resource.variables
-            self._tf_trackable.trainable_variables += (
-                resource.trainable_variables
-            )
-            self._tf_trackable.non_trainable_variables += (
-                resource.non_trainable_variables
-            )
+            if backend.backend() == "jax":
+                self._tf_trackable.variables += tf.nest.flatten(
+                    tf.nest.map_structure(tf.Variable, resource.variables)
+                )
+                self._tf_trackable.trainable_variables += tf.nest.flatten(
+                    tf.nest.map_structure(
+                        tf.Variable, resource.trainable_variables
+                    )
+                )
+                self._tf_trackable.non_trainable_variables += tf.nest.flatten(
+                    tf.nest.map_structure(
+                        tf.Variable, resource.non_trainable_variables
+                    )
+                )
+            else:
+                self._tf_trackable.variables += resource.variables
+                self._tf_trackable.trainable_variables += (
+                    resource.trainable_variables
+                )
+                self._tf_trackable.non_trainable_variables += (
+                    resource.non_trainable_variables
+                )
 
     def add_endpoint(self, name, fn, input_signature=None):
         """Register a new serving endpoint.
@@ -451,10 +458,15 @@ class ExportArchive:
     def _convert_jax2tf_function(self, fn, input_signature):
         from jax.experimental import jax2tf
 
+        native_serialization = self._check_device_compatible()
         shapes = []
         for spec in input_signature:
             shapes.append(self._spec_to_poly_shape(spec))
-        return jax2tf.convert(fn, polymorphic_shapes=shapes)
+        return jax2tf.convert(
+            fn,
+            polymorphic_shapes=shapes,
+            native_serialization=native_serialization,
+        )
 
     def _spec_to_poly_shape(self, spec):
         if isinstance(spec, (dict, list)):
@@ -462,6 +474,26 @@ class ExportArchive:
         spec_shape = spec.shape
         spec_shape = str(spec_shape).replace("None", "b")
         return spec_shape
+
+    def _check_device_compatible(self):
+        from jax import default_backend as jax_device
+
+        if (
+            jax_device() == "gpu"
+            and len(tf.config.list_physical_devices("GPU")) == 0
+        ):
+            logging.warning(
+                "JAX backend is using GPU for export, but installed "
+                "TF package cannot access GPU, so reloading the model with "
+                "the TF runtime in the same environment will not work. "
+                "To use JAX-native serialization for high-performance export "
+                "and serving, please install `tensorflow-gpu` and ensure "
+                "CUDA version compatiblity between your JAX and TF "
+                "installations."
+            )
+            return False
+        else:
+            return True
 
 
 def export_model(model, filepath):

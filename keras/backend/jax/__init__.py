@@ -1,6 +1,7 @@
 from keras.backend.jax import core
 from keras.backend.jax import distribution_lib
 from keras.backend.jax import image
+from keras.backend.jax import linalg
 from keras.backend.jax import math
 from keras.backend.jax import nn
 from keras.backend.jax import numpy
@@ -12,7 +13,7 @@ from keras.backend.jax.core import compute_output_spec
 from keras.backend.jax.core import cond
 from keras.backend.jax.core import convert_to_numpy
 from keras.backend.jax.core import convert_to_tensor
-from keras.backend.jax.core import device
+from keras.backend.jax.core import device_scope
 from keras.backend.jax.core import is_tensor
 from keras.backend.jax.core import scatter
 from keras.backend.jax.core import shape

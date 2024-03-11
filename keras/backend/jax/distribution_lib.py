@@ -5,6 +5,7 @@ Distribution related class for JAX backend.
 This is just a prototype and we might want to unify it
 with other backends in the future.
 """
+
 import jax
 import numpy as np
 
@@ -141,7 +142,7 @@ def distribute_data_input(inputs, layout):
                 f"{num_split}"
             )
         global_batch_size = per_process_batch_size * jax.process_count()
-        per_replica_batches = np.split(inputs, num_split, axis=0)
+        per_replica_batches = jax.numpy.split(inputs, num_split, axis=0)
     elif mesh_rank == 2:
         # Data+Model parallel
         # In this case, we need to check if the mesh batch dim shape is large
@@ -163,7 +164,9 @@ def distribute_data_input(inputs, layout):
             global_batch_size = per_process_batch_size * (
                 mesh_batch_dim_size // local_device_count
             )
-            per_replica_batches = np.split(inputs, local_device_count, axis=0)
+            per_replica_batches = jax.numpy.split(
+                inputs, local_device_count, axis=0
+            )
     else:
         raise ValueError(
             "Only 1D or 2D mesh is supported at the moment. "
@@ -197,12 +200,12 @@ def initialize(job_addresses, num_processes, process_id):
                 f"{len(job_addresses)} jobs, but num_processes is "
                 f"{num_processes}"
             )
-        corrdinator_address = job_addresses[0]
+        coordinator_address = job_addresses[0]
     else:
-        corrdinator_address = job_addresses
+        coordinator_address = job_addresses
 
     jax.distributed.initialize(
-        corrdinator_address=corrdinator_address,
+        coordinator_address=coordinator_address,
         num_processes=num_processes,
         process_id=process_id,
     )

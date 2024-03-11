@@ -5,6 +5,7 @@ import tree
 
 from keras import backend
 from keras.api_export import keras_export
+from keras.utils.dataset_utils import is_torch_tensor
 
 try:
     import pandas
@@ -19,7 +20,7 @@ ARRAY_TYPES = (np.ndarray,)
 if backend.backend() == "tensorflow":
     from keras.utils.module_utils import tensorflow as tf
 
-    ARRAY_TYPES = ARRAY_TYPES + (tf.Tensor, tf.RaggedTensor)
+    ARRAY_TYPES = ARRAY_TYPES + (tf.RaggedTensor,)
 if pandas:
     ARRAY_TYPES = ARRAY_TYPES + (pandas.Series, pandas.DataFrame)
 
@@ -157,7 +158,7 @@ def train_validation_split(arrays, validation_split):
     """
 
     def _can_split(t):
-        return isinstance(t, ARRAY_TYPES) or t is None
+        return backend.is_tensor(t) or isinstance(t, ARRAY_TYPES) or t is None
 
     flat_arrays = tree.flatten(arrays)
     unsplitable = [type(t) for t in flat_arrays if not _can_split(t)]
@@ -215,3 +216,44 @@ def class_weight_to_sample_weights(y, class_weight):
     for i in range(y.shape[0]):
         sample_weight[i] = class_weight.get(int(y[i]), 1.0)
     return sample_weight
+
+
+def get_jax_iterator(iterable):
+    from keras.backend.jax.core import convert_to_tensor
+
+    for batch in iterable:
+        yield tree.map_structure(convert_to_tensor, batch)
+
+
+def get_numpy_iterator(iterable):
+    def convert_to_numpy(x):
+        if not isinstance(x, np.ndarray):
+            # Using `__array__` should handle `tf.Tensor`, `jax.np.ndarray`,
+            # `torch.Tensor`, as well as any other tensor-like object that
+            # has added numpy support.
+            if hasattr(x, "__array__"):
+                if is_torch_tensor(x):
+                    x = x.cpu()
+                x = np.asarray(x)
+        return x
+
+    for batch in iterable:
+        yield tree.map_structure(convert_to_numpy, batch)
+
+
+def get_torch_dataloader(iterable):
+    import torch.utils.data as torch_data
+
+    from keras.backend.torch.core import convert_to_tensor
+
+    class ConverterIterableDataset(torch_data.IterableDataset):
+        def __init__(self, iterable):
+            self.iterable = iterable
+
+        def __iter__(self):
+            for batch in self.iterable:
+                yield tree.map_structure(convert_to_tensor, batch)
+
+    dataset = ConverterIterableDataset(iterable)
+    # `batch_size=None` indicates that we should not re-batch
+    return torch_data.DataLoader(dataset, batch_size=None)

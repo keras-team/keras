@@ -244,78 +244,6 @@ def logsumexp(x, axis=None, keepdims=False):
     return backend.math.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
-class Qr(Operation):
-    def __init__(self, mode="reduced"):
-        super().__init__()
-        if mode not in {"reduced", "complete"}:
-            raise ValueError(
-                "`mode` argument value not supported. "
-                "Expected one of {'reduced', 'complete'}. "
-                f"Received: mode={mode}"
-            )
-        self.mode = mode
-
-    def compute_output_spec(self, x):
-        if len(x.shape) < 2:
-            raise ValueError(
-                "Input should have rank >= 2. Received: "
-                f"input.shape = {x.shape}"
-            )
-        m = x.shape[-2]
-        n = x.shape[-1]
-        if m is None or n is None:
-            raise ValueError(
-                "Input should have its last 2 dimensions "
-                "fully-defined. Received: "
-                f"input.shape = {x.shape}"
-            )
-        k = min(m, n)
-        base = tuple(x.shape[:-2])
-        if self.mode == "reduced":
-            return (
-                KerasTensor(shape=base + (m, k), dtype=x.dtype),
-                KerasTensor(shape=base + (k, n), dtype=x.dtype),
-            )
-        # 'complete' mode.
-        return (
-            KerasTensor(shape=base + (m, m), dtype=x.dtype),
-            KerasTensor(shape=base + (m, n), dtype=x.dtype),
-        )
-
-    def call(self, x):
-        return backend.math.qr(x, mode=self.mode)
-
-
-@keras_export("keras.ops.qr")
-def qr(x, mode="reduced"):
-    """Computes the QR decomposition of a tensor.
-
-    Args:
-        x: Input tensor.
-        mode: A string specifying the mode of the QR decomposition.
-            - 'reduced': Returns the reduced QR decomposition. (default)
-            - 'complete': Returns the complete QR decomposition.
-
-    Returns:
-        A tuple containing two tensors. The first tensor represents the
-        orthogonal matrix Q, and the second tensor represents the upper
-        triangular matrix R.
-
-    Example:
-
-    >>> x = keras.ops.convert_to_tensor([[1., 2.], [3., 4.], [5., 6.]])
-    >>> q, r = qr(x)
-    >>> print(q)
-    array([[-0.16903079  0.897085]
-           [-0.5070925   0.2760267 ]
-           [-0.8451542  -0.34503305]], shape=(3, 2), dtype=float32)
-    """
-
-    if any_symbolic_tensors((x,)):
-        return Qr(mode=mode).symbolic_call(x)
-    return backend.math.qr(x, mode=mode)
-
-
 class ExtractSequences(Operation):
     def __init__(self, sequence_length, sequence_stride):
         super().__init__()
@@ -381,6 +309,10 @@ def extract_sequences(x, sequence_length, sequence_stride):
 
 
 class FFT(Operation):
+    def __init__(self, axis=-1):
+        super().__init__()
+        self.axis = axis
+
     def compute_output_spec(self, x):
         if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
@@ -449,6 +381,10 @@ def fft(x):
 
 
 class FFT2(Operation):
+    def __init__(self):
+        super().__init__()
+        self.axes = (-2, -1)
+
     def compute_output_spec(self, x):
         if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
@@ -473,8 +409,8 @@ class FFT2(Operation):
             )
 
         # The axes along which we are calculating FFT should be fully-defined.
-        m = real.shape[-1]
-        n = real.shape[-2]
+        m = real.shape[self.axes[0]]
+        n = real.shape[self.axes[1]]
         if m is None or n is None:
             raise ValueError(
                 f"Input should have its {self.axes} axes fully-defined. "
@@ -960,36 +896,31 @@ def erf(x):
     return backend.math.erf(x)
 
 
-class Solve(Operation):
-    def call(self, a, b):
-        a = backend.convert_to_tensor(a)
-        b = backend.convert_to_tensor(b)
-        return backend.math.solve(a, b)
+class Erfinv(Operation):
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape, dtype=x.dtype)
 
-    def compute_output_spec(self, a, b):
-        return KerasTensor(shape=a.shape, dtype=a.dtype)
+    def call(self, x):
+        return backend.math.erfinv(x)
 
 
-@keras_export("keras.ops.solve")
-def solve(a, b):
-    """Solves for `x` in the equation `a * x = b`.
+@keras_export("keras.ops.erfinv")
+def erfinv(x):
+    """Computes the inverse error function of `x`, element-wise.
 
     Args:
-        a: Input tensor.
-        b: Input tensor.
+        x: Input tensor.
 
     Returns:
-        A tensor with the same shape and dtype as `a`.
+        A tensor with the same dtype as `x`.
 
     Example:
 
-    >>> a = np.array([[1, 2], [4, 5]], dtype="float32")
-    >>> b = np.array([[2, 4], [8, 10]], dtype="float32")
-    >>> keras.ops.solve(x1, x2)
-    array([[2, 0], [0, 2]], dtype="float32")
+    >>> x = np.array([-0.5, -0.2, -0.1, 0.0, 0.3])
+    >>> keras.ops.erfinv(x)
+    array([-0.47694, -0.17914, -0.08886,  0. ,  0.27246], dtype=float32)
     """
-    if any_symbolic_tensors((a, b)):
-        return Solve().symbolic_call(a, b)
-    a = backend.convert_to_tensor(a)
-    b = backend.convert_to_tensor(b)
-    return backend.math.solve(a, b)
+    if any_symbolic_tensors((x,)):
+        return Erfinv().symbolic_call(x)
+    x = backend.convert_to_tensor(x)
+    return backend.math.erfinv(x)

@@ -170,12 +170,7 @@ class HashedCrossing(Layer):
             sparse=self.sparse,
             dtype=self.compute_dtype,
         )
-        if (
-            backend.backend() != "tensorflow"
-            and not backend_utils.in_tf_graph()
-        ):
-            outputs = backend.convert_to_tensor(outputs, dtype=self.dtype)
-        return outputs
+        return backend_utils.convert_tf_tensor(outputs, dtype=self.dtype)
 
     def get_config(self):
         return {

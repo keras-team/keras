@@ -20,7 +20,7 @@ _BACKEND = "tensorflow"
 def floatx():
     """Return the default float type, as a string.
 
-    E.g. `'float16'`, `'float32'`, `'float64'`.
+    E.g. `'bfloat16'`, `'float16'`, `'float32'`, `'float64'`.
 
     Returns:
         String, the current default float type.
@@ -45,7 +45,7 @@ def set_floatx(value):
     `keras.mixed_precision.set_dtype_policy('mixed_float16')`.
 
     Args:
-        value: String; `'float16'`, `'float32'`, or `'float64'`.
+        value: String; `'bfloat16'`, `'float16'`, `'float32'`, or `'float64'`.
 
     Examples:
     >>> keras.config.floatx()
@@ -62,7 +62,7 @@ def set_floatx(value):
         ValueError: In case of invalid value.
     """
     global _FLOATX
-    accepted_dtypes = {"float16", "float32", "float64"}
+    accepted_dtypes = {"bfloat16", "float16", "float32", "float64"}
     if value not in accepted_dtypes:
         raise ValueError(
             f"Unknown `floatx` value: {value}. "

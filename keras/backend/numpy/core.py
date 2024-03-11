@@ -35,6 +35,10 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         if dtype and dtype != x.dtype:
             return x.value.astype(dtype)
         return x.value
+    if not is_tensor(x) and standardize_dtype(dtype) == "bfloat16":
+        # Can't create bfloat16 arrays on the fly (e.g. from a h5 Dataset).
+        # Instead we convert "as is" (to stored dtype) and cast.
+        return np.asarray(x).astype(dtype)
     if dtype is None:
         dtype = result_type(
             *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
@@ -199,14 +203,16 @@ def while_loop(
     iteration_check = (
         lambda iter: maximum_iterations is None or iter < maximum_iterations
     )
-    loop_vars = tuple([convert_to_tensor(v) for v in loop_vars])
+    is_tuple = isinstance(loop_vars, (tuple, list))
+    loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
+    loop_vars = tree.map_structure(convert_to_tensor, loop_vars)
     while cond(*loop_vars) and iteration_check(current_iter):
         loop_vars = body(*loop_vars)
         if not isinstance(loop_vars, (list, tuple)):
             loop_vars = (loop_vars,)
         loop_vars = tuple(loop_vars)
         current_iter += 1
-    return loop_vars
+    return loop_vars if is_tuple else loop_vars[0]
 
 
 def fori_loop(lower, upper, body_fun, init_val):

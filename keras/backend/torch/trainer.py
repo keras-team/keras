@@ -8,11 +8,6 @@ from packaging.version import parse
 from keras import backend
 from keras import callbacks as callbacks_module
 from keras import optimizers as optimizers_module
-from keras.backend.common import standardize_dtype
-from keras.backend.common.keras_tensor import KerasTensor
-from keras.backend.torch.core import is_tensor
-from keras.trainers import data_adapters
-from keras.trainers import epoch_iterator
 from keras.trainers import trainer as base_trainer
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.epoch_iterator import EpochIterator
@@ -163,55 +158,6 @@ class TorchTrainer(base_trainer.Trainer):
         else:
             self.predict_function = one_step_on_data
 
-    def _symbolic_build(self, data_batch):
-        model_unbuilt = not all(layer.built for layer in self._flatten_layers())
-        compile_metrics_unbuilt = (
-            self._compile_metrics is not None
-            and not self._compile_metrics.built
-        )
-        if model_unbuilt or compile_metrics_unbuilt:
-            # Create symbolic tensors matching an input batch.
-
-            def to_symbolic_input(v):
-                if is_tensor(v):
-                    return KerasTensor(v.shape, standardize_dtype(v.dtype))
-                return v
-
-            data_batch = tree.map_structure(to_symbolic_input, data_batch)
-            (
-                x,
-                y,
-                sample_weight,
-            ) = data_adapter_utils.unpack_x_y_sample_weight(data_batch)
-            # Build all model state with `backend.compute_output_spec`.
-            try:
-                y_pred = backend.compute_output_spec(self, x)
-            except Exception as e:
-                raise RuntimeError(
-                    "Unable to automatically build the model. "
-                    "Please build it yourself before calling "
-                    "fit/evaluate/predict. "
-                    "A model is 'built' when its variables have "
-                    "been created and its `self.built` attribute "
-                    "is True. Usually, calling the model on a batch "
-                    "of data is the right way to build it.\n"
-                    "Exception encountered:\n"
-                    f"'{e}'"
-                )
-            if compile_metrics_unbuilt:
-                # Build all metric state with `backend.compute_output_spec`.
-                backend.compute_output_spec(
-                    self.compute_metrics,
-                    x,
-                    y,
-                    y_pred,
-                    sample_weight=sample_weight,
-                )
-        if self.optimizer is not None and not self.optimizer.built:
-            # Build optimizer
-            self.optimizer.build(self.trainable_variables)
-        self._post_build()
-
     @traceback_utils.filter_traceback
     def fit(
         self,
@@ -251,7 +197,7 @@ class TorchTrainer(base_trainer.Trainer):
                 (x, y, sample_weight), validation_split=validation_split
             )
 
-        if validation_data:
+        if validation_data is not None:
             (
                 val_x,
                 val_y,
@@ -259,7 +205,7 @@ class TorchTrainer(base_trainer.Trainer):
             ) = data_adapter_utils.unpack_x_y_sample_weight(validation_data)
 
         # Create an iterator that yields batches for one epoch.
-        epoch_iterator = EpochIterator(
+        epoch_iterator = TorchEpochIterator(
             x=x,
             y=y,
             sample_weight=sample_weight,
@@ -270,20 +216,7 @@ class TorchTrainer(base_trainer.Trainer):
             steps_per_execution=self.steps_per_execution,
         )
 
-        needs_building = (
-            not all(layer.built for layer in self._flatten_layers())
-            or not self.optimizer.built
-            or (
-                self._compile_metrics is not None
-                and not self._compile_metrics.built
-            )
-        )
-        if needs_building:
-            # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch():
-                data_batch = data[0]
-                self._symbolic_build(data_batch)
-                break
+        self._symbolic_build(iterator=epoch_iterator)
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -300,7 +233,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.stop_training = False
         self.make_train_function()
         callbacks.on_train_begin()
-
+        initial_epoch = self._initial_epoch or initial_epoch
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)
@@ -327,10 +260,12 @@ class TorchTrainer(base_trainer.Trainer):
             self.eval()
 
             # Run validation.
-            if validation_data and self._should_eval(epoch, validation_freq):
-                # Create EpochIterator for evaluation and cache it.
+            if validation_data is not None and self._should_eval(
+                epoch, validation_freq
+            ):
+                # Create TorchEpochIterator for evaluation and cache it.
                 if getattr(self, "_eval_epoch_iterator", None) is None:
-                    self._eval_epoch_iterator = EpochIterator(
+                    self._eval_epoch_iterator = TorchEpochIterator(
                         x=val_x,
                         y=val_y,
                         sample_weight=val_sample_weight,
@@ -393,7 +328,7 @@ class TorchTrainer(base_trainer.Trainer):
             epoch_iterator = self._eval_epoch_iterator
         else:
             # Create an iterator that yields batches of input/target data.
-            epoch_iterator = EpochIterator(
+            epoch_iterator = TorchEpochIterator(
                 x=x,
                 y=y,
                 sample_weight=sample_weight,
@@ -403,12 +338,7 @@ class TorchTrainer(base_trainer.Trainer):
                 steps_per_execution=self.steps_per_execution,
             )
 
-        if not all(layer.built for layer in self._flatten_layers()):
-            # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch():
-                data_batch = data[0]
-                self._symbolic_build(data_batch)
-                break
+        self._symbolic_build(iterator=epoch_iterator)
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -525,7 +455,7 @@ class TorchTrainer(base_trainer.Trainer):
         data = (x, y, sample_weight)
 
         # Maybe build model
-        self._symbolic_build(data)
+        self._symbolic_build(data_batch=data)
         self.make_train_function()
 
         logs = self.train_function([data])
@@ -546,7 +476,7 @@ class TorchTrainer(base_trainer.Trainer):
         data = (x, y, sample_weight)
 
         # Maybe build model
-        self._symbolic_build(data)
+        self._symbolic_build(data_batch=data)
         self.make_test_function()
 
         logs = self.test_function([data])
@@ -564,11 +494,6 @@ class TorchTrainer(base_trainer.Trainer):
         return batch_outputs
 
 
-class TorchEpochIterator(epoch_iterator.EpochIterator):
-    def _get_iterator(self, return_type="auto"):
-        if return_type == "auto" and isinstance(
-            self.data_adapter, data_adapters.TorchDataLoaderAdapter
-        ):
-            return self.data_adapter.get_torch_dataloader()
-
-        return super()._get_iterator(return_type)
+class TorchEpochIterator(EpochIterator):
+    def _get_iterator(self):
+        return self.data_adapter.get_torch_dataloader()

@@ -1,4 +1,4 @@
-import multiprocessing
+import multiprocessing.dummy
 import queue
 import random
 import threading
@@ -10,6 +10,7 @@ from contextlib import closing
 import numpy as np
 import tree
 
+from keras import backend
 from keras.api_export import keras_export
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.data_adapters.data_adapter import DataAdapter
@@ -200,7 +201,8 @@ class PyDatasetAdapter(DataAdapter):
                 )
             shape = list(shape)
             shape[0] = None  # The batch size is not guaranteed to be static.
-            return tf.TensorSpec(shape=shape, dtype=x.dtype.name)
+            dtype = backend.standardize_dtype(x.dtype)
+            return tf.TensorSpec(shape=shape, dtype=dtype)
 
         # Grab the first example
         batch = self.py_dataset[0]
@@ -209,13 +211,16 @@ class PyDatasetAdapter(DataAdapter):
         self._output_signature = tree.map_structure(get_tensor_spec, batch)
 
     def _standardize_batch(self, batch):
+        if isinstance(batch, dict):
+            return batch
         if isinstance(batch, np.ndarray):
             batch = (batch,)
         if isinstance(batch, list):
             batch = tuple(batch)
         if not isinstance(batch, tuple) or len(batch) not in {1, 2, 3}:
             raise ValueError(
-                "PyDataset.__getitem__() must return a tuple, either "
+                "PyDataset.__getitem__() must return a tuple or a dict. "
+                "If a tuple, it must be ordered either "
                 "(input,) or (inputs, targets) or "
                 "(inputs, targets, sample_weights). "
                 f"Received: {str(batch)[:100]}... of type {type(batch)}"
@@ -264,13 +269,19 @@ class PyDatasetAdapter(DataAdapter):
 
         return generator_fn
 
-    def get_numpy_iterator(self):
+    def _get_iterator(self):
         gen_fn = self._make_multiprocessed_generator_fn()
         for i, batch in enumerate(gen_fn()):
             batch = self._standardize_batch(batch)
             yield batch
             if i >= len(self.py_dataset) - 1 and self.enqueuer:
                 self.enqueuer.stop()
+
+    def get_numpy_iterator(self):
+        return data_adapter_utils.get_numpy_iterator(self._get_iterator())
+
+    def get_jax_iterator(self):
+        return data_adapter_utils.get_jax_iterator(self._get_iterator())
 
     def get_tf_dataset(self):
         from keras.utils.module_utils import tensorflow as tf
@@ -279,13 +290,16 @@ class PyDatasetAdapter(DataAdapter):
             self._set_tf_output_signature()
 
         ds = tf.data.Dataset.from_generator(
-            self.get_numpy_iterator,
+            self._get_iterator,
             output_signature=self._output_signature,
         )
         if self.shuffle:
             ds = ds.shuffle(8)
         ds = ds.prefetch(tf.data.AUTOTUNE)
         return ds
+
+    def get_torch_dataloader(self):
+        return data_adapter_utils.get_torch_dataloader(self._get_iterator())
 
     def on_epoch_end(self):
         if self.enqueuer:

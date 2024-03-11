@@ -1,5 +1,6 @@
 from keras.backend.numpy import core
 from keras.backend.numpy import image
+from keras.backend.numpy import linalg
 from keras.backend.numpy import math
 from keras.backend.numpy import nn
 from keras.backend.numpy import numpy

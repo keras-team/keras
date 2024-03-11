@@ -77,3 +77,7 @@ class SeedGeneratorTest(testing.TestCase):
             "When tracing a JAX function, you should only use seeded random",
         ):
             traced_function()
+
+    def test_seed_generator_serialization(self):
+        random_generator = seed_generator.SeedGenerator(seed=42)
+        self.run_class_serialization_test(random_generator)

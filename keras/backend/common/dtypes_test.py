@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from absl.testing import parameterized
 
 from keras import backend
@@ -128,3 +130,90 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
             ValueError, "Invalid value for argument `dtype`. Expected one of"
         ):
             dtypes._respect_weak_type("invalid_dtype", True)
+
+    def test_invalid_dtype_in_least_upper_bound(self):
+        invalid_dtype = "non_existent_dtype"
+        with self.assertRaisesRegex(
+            ValueError, "is not a valid dtype for Keras type promotion"
+        ):
+            dtypes._least_upper_bound(invalid_dtype)
+
+    def test_empty_lub_in_least_upper_bound(self):
+        dtype1 = "float32"
+        dtype2 = "int32"
+        with patch.dict(
+            dtypes.LATTICE_UPPER_BOUNDS,
+            {"float32": set(), "int32": set()},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "no available implicit dtype promotion path"
+            ):
+                dtypes._least_upper_bound(dtype1, dtype2)
+
+    def test_valid_dtype_leading_to_single_lub_element(self):
+        self.assertEqual(
+            dtypes._least_upper_bound("float32", "int32"), "float32"
+        )
+
+    def test_valid_dtype_leading_to_keyerror_and_valueerror(self):
+        invalid_dtype = "non_existent_dtype"
+        with self.assertRaisesRegex(
+            ValueError, "is not a valid dtype for Keras type promotion"
+        ):
+            dtypes._least_upper_bound(invalid_dtype)
+
+    def test_resolve_weak_type_bool(self):
+        self.assertEqual(dtypes._resolve_weak_type("bool"), "bool")
+
+    def test_resolve_weak_type_int(self):
+        self.assertEqual(
+            dtypes._resolve_weak_type("int32", precision="32"), "int32"
+        )
+        self.assertEqual(
+            dtypes._resolve_weak_type("int64", precision="64"), "int64"
+        )
+
+    def test_resolve_weak_type_uint(self):
+        self.assertEqual(
+            dtypes._resolve_weak_type("uint32", precision="32"), "uint32"
+        )
+        self.assertEqual(
+            dtypes._resolve_weak_type("uint64", precision="64"), "uint64"
+        )
+
+    def test_resolve_weak_type_float(self):
+        self.assertEqual(
+            dtypes._resolve_weak_type("float32", precision="32"), "float32"
+        )
+        self.assertEqual(
+            dtypes._resolve_weak_type("float64", precision="64"), "float64"
+        )
+
+    def test_least_upper_bound_ensure_order_independence(self):
+        # Test to ensure _least_upper_bound is order-independent.
+        result1 = dtypes._least_upper_bound("float32", "int32")
+        result2 = dtypes._least_upper_bound("int32", "float32")
+        self.assertEqual(result1, result2)
+
+    def test_least_upper_bound_single_element(self):
+        dtypes.LATTICE_UPPER_BOUNDS["test_dtype"] = {"test_dtype"}
+        self.assertEqual(dtypes._least_upper_bound("test_dtype"), "test_dtype")
+
+    def test_least_upper_bound_no_element(self):
+        dtypes.LATTICE_UPPER_BOUNDS["test_dtype"] = set()
+        with self.assertRaisesRegex(
+            ValueError, "no available implicit dtype promotion path"
+        ):
+            dtypes._least_upper_bound("test_dtype")
+
+    def test_least_upper_bound_with_no_common_upper_bound(self):
+        with patch.dict(
+            dtypes.LATTICE_UPPER_BOUNDS,
+            {"test_dtype1": set(), "test_dtype2": set()},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "no available implicit dtype promotion path"
+            ):
+                dtypes._least_upper_bound("test_dtype1", "test_dtype2")

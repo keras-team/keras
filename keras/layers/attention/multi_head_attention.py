@@ -137,6 +137,34 @@ class MultiHeadAttention(Layer):
             )
         self._attention_axes = attention_axes
 
+    @property
+    def num_heads(self):
+        return self._num_heads
+
+    @property
+    def key_dim(self):
+        return self._key_dim
+
+    @property
+    def value_dim(self):
+        return self._value_dim
+
+    @property
+    def dropout(self):
+        return self._dropout
+
+    @property
+    def use_bias(self):
+        return self._use_bias
+
+    @property
+    def output_shape(self):
+        return self._output_shape
+
+    @property
+    def attention_axes(self):
+        return self._attention_axes
+
     def get_config(self):
         base_config = super().get_config()
         config = {
@@ -235,6 +263,22 @@ class MultiHeadAttention(Layer):
         output_dense_input_shape[-1] = self._value_dim
         self._output_dense.build(tuple(output_dense_input_shape))
         self.built = True
+
+    @property
+    def query_dense(self):
+        return self._query_dense
+
+    @property
+    def key_dense(self):
+        return self._key_dense
+
+    @property
+    def value_dense(self):
+        return self._value_dense
+
+    @property
+    def output_dense(self):
+        return self._output_dense
 
     def _get_common_kwargs_for_sublayer(self):
         common_kwargs = dict(
@@ -375,13 +419,16 @@ class MultiHeadAttention(Layer):
 
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
-        attention_scores_dropout = self._dropout_layer(
-            attention_scores, training=training
-        )
+        if self.dropout:
+            final_attn_scores = self._dropout_layer(
+                attention_scores, training=training
+            )
+        else:
+            final_attn_scores = attention_scores
 
         # `context_layer` = [B, T, N, H]
         attention_output = ops.einsum(
-            self._combine_equation, attention_scores_dropout, value
+            self._combine_equation, final_attn_scores, value
         )
         return attention_output, attention_scores
 

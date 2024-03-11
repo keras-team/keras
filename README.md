@@ -1,6 +1,6 @@
-# Keras 3: A new multi-backend Keras
+# Keras 3: Deep Learning for Humans
 
-Keras 3 is a new multi-backend implementation of the Keras API, with support for TensorFlow, JAX, and PyTorch.
+Keras 3 is a multi-backend deep learning framework, with support for TensorFlow, JAX, and PyTorch.
 
 ## Installation
 
@@ -22,6 +22,8 @@ as well as `tf.data` pipelines.
 
 ### Local installation
 
+#### Minimal installation
+
 Keras 3 is compatible with Linux and MacOS systems. For Windows users, we recommend using WSL2 to run Keras.
 To install a local development version:
 
@@ -36,6 +38,8 @@ pip install -r requirements.txt
 ```
 python pip_build.py --install
 ```
+
+#### Adding GPU support
 
 The `requirements.txt` file will install a CPU-only version of TensorFlow, JAX, and PyTorch. For GPU support, we also
 provide a separate `requirements-{backend}-cuda.txt` for TensorFlow, JAX, and PyTorch. These install all CUDA
@@ -64,7 +68,7 @@ In Colab, you can do:
 import os
 os.environ["KERAS_BACKEND"] = "jax"
 
-import keras_core as keras
+import keras
 ```
 
 **Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after 

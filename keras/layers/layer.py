@@ -15,6 +15,7 @@ And some more magic:
 - RNG seed tracking
 - activity regularization
 """
+
 import collections
 import inspect
 import warnings
@@ -23,8 +24,9 @@ from functools import wraps
 import tree
 
 from keras import backend
+from keras import constraints
+from keras import dtype_policies
 from keras import initializers
-from keras import mixed_precision
 from keras import regularizers
 from keras import utils
 from keras.api_export import keras_export
@@ -80,12 +82,12 @@ class Layer(BackendLayer, Operation):
         trainable: Boolean, whether the layer's variables should be trainable.
         name: String name of the layer.
         dtype: The dtype of the layer's computations and weights. Can also be a
-            `keras.mixed_precision.DTypePolicy`,
+            `keras.DTypePolicy`,
             which allows the computation and
             weight dtype to differ. Defaults to `None`. `None` means to use
-            `keras.mixed_precision.dtype_policy()`,
+            `keras.config.dtype_policy()`,
             which is a `float32` policy unless set to different value
-            (via `keras.mixed_precision.set_dtype_policy()`).
+            (via `keras.config.set_dtype_policy()`).
 
     Attributes:
         name: The name of the layer (string).
@@ -95,7 +97,7 @@ class Layer(BackendLayer, Operation):
             Layers automatically cast inputs to this dtype, which causes
             the computations and output to also be in this dtype.
             When mixed precision is used with a
-            `keras.mixed_precision.DTypePolicy`, this will be different
+            `keras.DTypePolicy`, this will be different
             than `variable_dtype`.
         trainable_weights: List of variables to be included in backprop.
         non_trainable_weights: List of variables that should not be
@@ -266,7 +268,7 @@ class Layer(BackendLayer, Operation):
             )
 
         self.built = False
-        self.dtype_policy = mixed_precision.resolve_policy(dtype)
+        self.dtype_policy = dtype_policies.get(dtype)
         self.autocast = autocast
         self._input_spec = None
         self._called = False
@@ -502,8 +504,8 @@ class Layer(BackendLayer, Operation):
                 name=name,
             )
         # Will be added to layer.losses
-        variable.regularizer = regularizer
-        variable.constraint = constraint
+        variable.regularizer = regularizers.get(regularizer)
+        variable.constraint = constraints.get(constraint)
         self._track_variable(variable)
         return variable
 
@@ -697,25 +699,9 @@ class Layer(BackendLayer, Operation):
         #####################################
         # 1. Convert any array arguments to tensors of correct dtype.
         def maybe_convert(x):
-            if backend.is_tensor(x):
-                if (
-                    self.autocast
-                    and backend.is_float_dtype(x.dtype)
-                    and x.dtype != self.input_dtype
-                ):
-                    x = backend.cast(x, dtype=self.input_dtype)
-                return x
-            elif isinstance(x, backend.KerasTensor):
-                if (
-                    self.autocast
-                    and backend.is_float_dtype(x.dtype)
-                    and x.dtype != self.input_dtype
-                ):
-                    x.dtype = self.input_dtype
-                return x
-            elif hasattr(x, "__array__"):
-                return backend.convert_to_tensor(x, dtype=self.input_dtype)
-            return x
+            return self.dtype_policy.convert_input(
+                x, self.autocast, self.input_dtype
+            )
 
         # Used to avoid expensive `tree` operations in the most common case.
         if (
@@ -766,7 +752,7 @@ class Layer(BackendLayer, Operation):
         # across nested calls.
         call_context = self._get_call_context()
 
-        # This is the value explicity passed by the user
+        # This is the value explicitly passed by the user
         training = call_spec.user_arguments_dict.get("training", None)
         if training is None:
             # Wasn't passed explicitly: use context value
@@ -891,7 +877,7 @@ class Layer(BackendLayer, Operation):
             trainable_variables: List of trainable variables of the model.
             non_trainable_variables: List of non-trainable variables of the
                 model.
-            *args: Positional argumets to be passed to `call()`.
+            *args: Positional arguments to be passed to `call()`.
             return_losses: If `True`, `stateless_call()` will return the list of
                 losses created during `call()` as part of its return values.
             **kwargs: Keyword arguments to be passed to `call()`.
@@ -961,10 +947,13 @@ class Layer(BackendLayer, Operation):
         mapping = list(trainable_mapping) + list(non_trainable_mapping)
 
         # Call in stateless scope
+        losses = None
         with backend.StatelessScope(
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
             outputs = self.call(*args, **kwargs)
+            if return_losses:
+                losses = self.losses
 
         # Gather updated non-trainable variables
         non_trainable_variables = []
@@ -976,7 +965,7 @@ class Layer(BackendLayer, Operation):
                 non_trainable_variables.append(v)
 
         if return_losses:
-            return outputs, non_trainable_variables, scope.losses[:]
+            return outputs, non_trainable_variables, losses
         return outputs, non_trainable_variables
 
     def compute_output_spec(self, *args, **kwargs):
@@ -1071,19 +1060,25 @@ class Layer(BackendLayer, Operation):
         else:
             return self._losses[:]
 
+    def _get_regularization_losses(self):
+        weight_regularization_losses = []
+        for variable in self.trainable_weights:
+            if variable.regularizer is None:
+                continue
+            if backend.in_stateless_scope():
+                v = backend.get_stateless_scope().get_current_value(variable)
+            else:
+                v = variable
+            weight_regularization_losses.append(variable.regularizer(v))
+        return weight_regularization_losses
+
     @property
     def losses(self):
         """List of scalar losses from `add_loss`, regularizers and sublayers."""
         losses = self._get_own_losses()
         for layer in self._flatten_layers(include_self=False):
             losses.extend(layer._get_own_losses())
-        weight_regularization_losses = []
-        for v in self.trainable_weights:
-            if backend.in_stateless_scope():
-                v = backend.get_stateless_scope().get_current_value(v)
-            regularizer = getattr(v, "regularizer", None)
-            if regularizer:
-                weight_regularization_losses.append(regularizer(v))
+        weight_regularization_losses = self._get_regularization_losses()
         losses.extend(weight_regularization_losses)
         return losses
 
@@ -1110,7 +1105,7 @@ class Layer(BackendLayer, Operation):
         """
         all_vars = self._trainable_variables + self._non_trainable_variables
         for i, v in enumerate(all_vars):
-            store[f"{i}"] = v.numpy()
+            store[f"{i}"] = v
 
     def load_own_variables(self, store):
         """Loads the state of the layer.
@@ -1161,6 +1156,13 @@ class Layer(BackendLayer, Operation):
             self._tracker.add_to_store("trainable_variables", variable)
         else:
             self._tracker.add_to_store("non_trainable_variables", variable)
+
+    def _untrack_variable(self, variable):
+        previous_lock_state = self._tracker.locked
+        self._tracker.unlock()
+        self._tracker.untrack(variable)
+        if previous_lock_state is True:
+            self._tracker.lock()
 
     def add_metric(self):
         # Permanently disabled
@@ -1226,7 +1228,7 @@ class Layer(BackendLayer, Operation):
                     "your layer. It should create all variables used by the "
                     "layer (e.g. by calling `layer.build()` on all its "
                     "children layers).\n"
-                    f"Exception encoutered: ''{e}''"
+                    f"Exception encountered: ''{e}''"
                 )
         self.build(first_shape)
 
@@ -1266,10 +1268,7 @@ class Layer(BackendLayer, Operation):
         )
 
     def __str__(self):
-        return (
-            f"<{self.__class__.__name__} "
-            f"name={self.name}, built={self.built}>"
-        )
+        return self.__repr__()
 
     def __setattr__(self, name, value):
         # Track Variables, Layers, Metrics, SeedGenerators.

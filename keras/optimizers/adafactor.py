@@ -106,7 +106,7 @@ class Adafactor(optimizer.Optimizer):
             else:
                 # Always factor the last 2 dimensions.
                 r_shape = var.shape[:-1]
-                c_shape = var.shape[:-2] + var.shape[-1]
+                c_shape = var.shape[:-2] + (var.shape[-1],)
                 self._r.append(
                     self.add_variable(
                         shape=r_shape,
@@ -177,7 +177,6 @@ class Adafactor(optimizer.Optimizer):
                 v, beta_2_t * v + (1 - beta_2_t) * regulated_grad_square
             )
 
-        # `convert_to_tensor` unifies the handling of sparse and dense grads.
         u_t = ops.divide(gradient, ops.sqrt(v))
         u_t_hat = ops.divide(
             u_t,

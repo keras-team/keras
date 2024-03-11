@@ -6,6 +6,7 @@ Last modified: 2023/07/11
 Description: Guide to multi-GPU/TPU training for Keras models with JAX.
 Accelerator: GPU
 """
+
 """
 ## Introduction
 

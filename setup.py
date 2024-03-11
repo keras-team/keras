@@ -45,6 +45,7 @@ setup(
         "namex",
         "h5py",
         "dm-tree",
+        "ml-dtypes",
     ],
     # Supported Python versions
     python_requires=">=3.9",

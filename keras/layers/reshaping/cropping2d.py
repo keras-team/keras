@@ -57,6 +57,11 @@ class Cropping2D(Layer):
         super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
         if isinstance(cropping, int):
+            if cropping < 0:
+                raise ValueError(
+                    "`cropping` cannot be negative. "
+                    f"Received: cropping={cropping}."
+                )
             self.cropping = ((cropping, cropping), (cropping, cropping))
         elif hasattr(cropping, "__len__"):
             if len(cropping) != 2:
@@ -91,19 +96,23 @@ class Cropping2D(Layer):
                 and sum(self.cropping[1]) >= input_shape[3]
             ):
                 raise ValueError(
-                    "Values in `cropping` argument should be greater than the "
+                    "Values in `cropping` argument should be smaller than the "
                     "corresponding spatial dimension of the input. Received: "
                     f"input_shape={input_shape}, cropping={self.cropping}"
                 )
             return (
                 input_shape[0],
                 input_shape[1],
-                input_shape[2] - self.cropping[0][0] - self.cropping[0][1]
-                if input_shape[2] is not None
-                else None,
-                input_shape[3] - self.cropping[1][0] - self.cropping[1][1]
-                if input_shape[3] is not None
-                else None,
+                (
+                    input_shape[2] - self.cropping[0][0] - self.cropping[0][1]
+                    if input_shape[2] is not None
+                    else None
+                ),
+                (
+                    input_shape[3] - self.cropping[1][0] - self.cropping[1][1]
+                    if input_shape[3] is not None
+                    else None
+                ),
             )
         else:
             if (
@@ -114,18 +123,22 @@ class Cropping2D(Layer):
                 and sum(self.cropping[1]) >= input_shape[2]
             ):
                 raise ValueError(
-                    "Values in `cropping` argument should be greater than the "
+                    "Values in `cropping` argument should be smaller than the "
                     "corresponding spatial dimension of the input. Received: "
                     f"input_shape={input_shape}, cropping={self.cropping}"
                 )
             return (
                 input_shape[0],
-                input_shape[1] - self.cropping[0][0] - self.cropping[0][1]
-                if input_shape[1] is not None
-                else None,
-                input_shape[2] - self.cropping[1][0] - self.cropping[1][1]
-                if input_shape[2] is not None
-                else None,
+                (
+                    input_shape[1] - self.cropping[0][0] - self.cropping[0][1]
+                    if input_shape[1] is not None
+                    else None
+                ),
+                (
+                    input_shape[2] - self.cropping[1][0] - self.cropping[1][1]
+                    if input_shape[2] is not None
+                    else None
+                ),
                 input_shape[3],
             )
 
@@ -139,7 +152,7 @@ class Cropping2D(Layer):
                 and sum(self.cropping[1]) >= inputs.shape[3]
             ):
                 raise ValueError(
-                    "Values in `cropping` argument should be greater than the "
+                    "Values in `cropping` argument should be smaller than the "
                     "corresponding spatial dimension of the input. Received: "
                     f"inputs.shape={inputs.shape}, cropping={self.cropping}"
                 )
@@ -176,7 +189,7 @@ class Cropping2D(Layer):
                 and sum(self.cropping[1]) >= inputs.shape[2]
             ):
                 raise ValueError(
-                    "Values in `cropping` argument should be greater than the "
+                    "Values in `cropping` argument should be smaller than the "
                     "corresponding spatial dimension of the input. Received: "
                     f"inputs.shape={inputs.shape}, cropping={self.cropping}"
                 )

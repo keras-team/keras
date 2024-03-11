@@ -44,9 +44,9 @@ class ConvLSTM1DTest(testing.TestCase):
                 "return_sequences": True,
             },
             input_shape=(3, 2, 8, 3) if channels_last else (3, 2, 3, 8),
-            expected_output_shape=(3, 2, 6, 5)
-            if channels_last
-            else (3, 2, 5, 6),
+            expected_output_shape=(
+                (3, 2, 6, 5) if channels_last else (3, 2, 5, 6)
+            ),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
             supports_masking=True,

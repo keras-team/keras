@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -238,7 +236,7 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
         self.assertAllClose(v.numpy(), np.array([1, 2, 3]))
 
     @pytest.mark.skipif(
-        backend.backend() != "tf",
+        backend.backend() != "tensorflow",
         reason="Tests for MirroredVariable under tf backend",
     )
     def test_variable_numpy_scalar(self):
@@ -613,13 +611,6 @@ class VariableBinaryOperationsTest(test_case.TestCase):
             ValueError, f"Invalid dtype: {invalid_dtype}"
         ):
             standardize_dtype(invalid_dtype)
-
-    @patch("keras.backend.config.backend", return_value="jax")
-    def test_jax_backend_b_dimension(self, mock_backend):
-        """Test 'b' dimension handling with JAX backend."""
-        shape = (3, "b", 5)
-        standardized_shape = standardize_shape(shape)
-        self.assertEqual(standardized_shape, shape)
 
     def test_negative_shape_entry(self):
         """Test negative shape entry."""

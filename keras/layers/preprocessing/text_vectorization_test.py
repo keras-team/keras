@@ -1,10 +1,15 @@
+import os
+
 import numpy as np
 import pytest
+import tensorflow as tf
 from tensorflow import data as tf_data
 
+from keras import Sequential
 from keras import backend
 from keras import layers
 from keras import models
+from keras import saving
 from keras import testing
 
 
@@ -61,6 +66,24 @@ class TextVectorizationTest(testing.TestCase):
         self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([[4, 1, 3, 0], [1, 2, 0, 0]]))
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_save_load_with_ngrams_flow(self):
+        input_data = np.array(["foo bar", "bar baz", "baz bada boom"])
+        model = Sequential(
+            [
+                layers.Input(dtype="string", shape=(1,)),
+                layers.TextVectorization(ngrams=(1, 2)),
+            ]
+        )
+        model.layers[0].adapt(input_data)
+        output = model(input_data)
+        temp_filepath = os.path.join(self.get_temp_dir(), "model.keras")
+        model.save(temp_filepath)
+        model = saving.load_model(temp_filepath)
+        self.assertAllClose(output, model(input_data))
+
     def test_tf_data_compatibility(self):
         max_tokens = 5000
         max_len = 4
@@ -104,3 +127,46 @@ class TextVectorizationTest(testing.TestCase):
             ]
         )
         model(backend.convert_to_tensor([["foo qux bar"], ["qux baz"]]))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires ragged tensors."
+    )
+    def test_ragged_tensor(self):
+        layer = layers.TextVectorization(
+            output_mode="int",
+            vocabulary=["baz", "bar", "foo"],
+            ragged=True,
+        )
+        input_data = [["foo qux bar"], ["qux baz"], ["foo"]]
+        output = layer(input_data)
+        self.assertIsInstance(output, tf.RaggedTensor)
+        self.assertEqual(output.shape, (3, None))
+        self.assertEqual(output.to_list(), [[4, 1, 3], [1, 2], [4]])
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires ragged tensors."
+    )
+    def test_ragged_tensor_output_length(self):
+        layer = layers.TextVectorization(
+            output_mode="int",
+            vocabulary=["baz", "bar", "foo"],
+            ragged=True,
+            output_sequence_length=2,
+        )
+        input_data = [["foo qux bar"], ["qux baz"], ["foo"]]
+        output = layer(input_data)
+        self.assertIsInstance(output, tf.RaggedTensor)
+        self.assertEqual(output.shape, (3, None))
+        self.assertEqual(output.to_list(), [[4, 1], [1, 2], [4]])
+
+    @pytest.mark.skipif(
+        backend.backend() == "tensorflow",
+        reason="Verify raises exception for non-TF backends",
+    )
+    def test_raises_exception_ragged_tensor(self):
+        with self.assertRaises(ValueError):
+            _ = layers.TextVectorization(
+                output_mode="int",
+                vocabulary=["baz", "bar", "foo"],
+                ragged=True,
+            )

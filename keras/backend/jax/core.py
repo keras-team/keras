@@ -1,7 +1,9 @@
 import types
 
 import jax
+import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
+import ml_dtypes
 import numpy as np
 import tree
 from jax.tree_util import Partial
@@ -12,9 +14,8 @@ from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.jax import distribution_lib
-from keras.utils.nest import pack_sequence_as
 
-SUPPORTS_SPARSE_TENSORS = False
+SUPPORTS_SPARSE_TENSORS = True
 
 
 class Variable(KerasVariable):
@@ -39,16 +40,14 @@ class Variable(KerasVariable):
         self._value = value
 
     def _convert_to_tensor(self, value, dtype=None):
-        return convert_to_tensor(value, dtype=dtype)
+        return convert_to_tensor(value, dtype=dtype, sparse=False)
 
     # Overload native accessor.
     def __jax_array__(self):
         return self.value
 
 
-def convert_to_tensor(x, dtype=None, sparse=None):
-    if sparse:
-        raise ValueError("`sparse=True` is not supported with jax backend")
+def convert_to_tensor(x, dtype=None, sparse=True):
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if isinstance(x, (jnp.ndarray, jax.Array)) and dtype == x.dtype:
@@ -61,15 +60,32 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         if dtype and dtype != x.dtype:
             return x.value.astype(dtype)
         return x.value
-    return jnp.array(x, dtype=dtype)
+
+    if isinstance(x, jax_sparse.JAXSparse):
+        if sparse is not None and not sparse:
+            x = x.todense()
+        elif dtype and dtype != x.dtype:
+            return x.astype(dtype)
+        else:
+            return x
+
+    if not is_tensor(x) and standardize_dtype(dtype) == "bfloat16":
+        # Can't create bfloat16 arrays on the fly (e.g. from a h5 Dataset).
+        # Instead we convert "as is" (to stored dtype) and cast.
+        return jnp.asarray(x).astype(dtype)
+    return jnp.asarray(x, dtype=dtype)
 
 
 def convert_to_numpy(x):
-    return np.array(x)
+    if isinstance(x, jax_sparse.JAXSparse):
+        x = x.todense()
+    if is_tensor(x) and x.dtype == "bfloat16":
+        return np.asarray(x, ml_dtypes.bfloat16)
+    return np.asarray(x)
 
 
 def is_tensor(x):
-    if isinstance(x, jnp.ndarray):
+    if isinstance(x, (jnp.ndarray, jax_sparse.JAXSparse)):
         return True
     return False
 
@@ -84,10 +100,9 @@ def cast(x, dtype):
     return convert_to_tensor(x, dtype=dtype)
 
 
-# Shape / dtype inference util
+# Shape / dtype / sparseness inference util
 def compute_output_spec(fn, *args, **kwargs):
     with StatelessScope():
-        all_input_ktensors = []
         built_in_types = (type(None), int, float, str, bool, complex, bytes)
 
         # First, separate symbolic args from other args
@@ -102,27 +117,18 @@ def compute_output_spec(fn, *args, **kwargs):
                 static_args.append(arg)
             else:
                 maybe_symbolic_args.append(arg)
+        maybe_symbolic_args = tuple(maybe_symbolic_args)
         for k, v in kwargs.items():
             if isinstance(v, built_in_types):
                 static_kwargs[k] = v
             else:
                 maybe_symbolic_kwargs[k] = v
 
-        # Second, identify all ktensors
-        def index_all_ktensors(x):
-            if isinstance(x, KerasTensor):
-                all_input_ktensors.append(x)
-            return x
-
-        # Third, find out if there are dynamic shapes
-        maybe_symbolic_args, maybe_symbolic_kwargs = tree.map_structure(
-            index_all_ktensors, (maybe_symbolic_args, maybe_symbolic_kwargs)
-        )
-        none_count = 0
-        for x in all_input_ktensors:
-            for d in x.shape:
-                if d is None:
-                    none_count += 1
+        # Second, find out if there are dynamic shapes
+        has_none = False
+        for x in tree.flatten((maybe_symbolic_args, maybe_symbolic_kwargs)):
+            if isinstance(x, KerasTensor) and any(d is None for d in x.shape):
+                has_none = True
 
         def convert_keras_tensor_to_jax(x, fill_value=None):
             if isinstance(x, KerasTensor):
@@ -156,6 +162,22 @@ def compute_output_spec(fn, *args, **kwargs):
             return x
 
         def wrapped_fn(*args, **kwargs):
+
+            # Turn inputs that are sparse to BCOO tensors
+            def to_bcoo_if_sparse(x, maybe_symbolic_x):
+                if (
+                    isinstance(maybe_symbolic_x, KerasTensor)
+                    and maybe_symbolic_x.sparse
+                ):
+                    return jax_sparse.BCOO.fromdense(x, nse=1)
+                return x
+
+            args, kwargs = tree.map_structure(
+                to_bcoo_if_sparse,
+                (args, kwargs),
+                (maybe_symbolic_args, maybe_symbolic_kwargs),
+            )
+
             rec_args = []
             idx_static = 0
             idx_sym = 0
@@ -169,10 +191,11 @@ def compute_output_spec(fn, *args, **kwargs):
                     idx_sym += 1
 
                 i += 1
-            return fn(*rec_args, **kwargs, **static_kwargs)
+            with StatelessScope():
+                return fn(*rec_args, **kwargs, **static_kwargs)
 
-        jax_out = None
-        if none_count:
+        output_spec = None
+        if has_none:
             try:
                 ms_args_1, ms_kwargs_1 = tree.map_structure(
                     lambda x: convert_keras_tensor_to_jax(x, fill_value=83),
@@ -190,25 +213,38 @@ def compute_output_spec(fn, *args, **kwargs):
                     *ms_args_2, **ms_kwargs_2
                 )
 
-                flat_out_1 = tree.flatten(jax_out_1)
-                flat_out_2 = tree.flatten(jax_out_2)
+                def merge_shapes(shape1, shape2):
+                    return tuple(
+                        [
+                            d1 if d1 == d2 else None
+                            for d1, d2 in zip(shape1, shape2)
+                        ]
+                    )
 
-                flat_out = []
-                for x1, x2 in zip(flat_out_1, flat_out_2):
+                def convert_jax_specs_to_keras_tensor(x1, x2):
                     if isinstance(x1, jax.ShapeDtypeStruct):
                         if not isinstance(x2, jax.ShapeDtypeStruct):
                             raise ValueError("Indeterministic output ordering.")
-                        shape = list(x1.shape)
-                        for i, e in enumerate(x2.shape):
-                            if e != shape[i]:
-                                shape[i] = None
-                        flat_out.append(
-                            jax.ShapeDtypeStruct(shape, dtype=x1.dtype)
+                        return KerasTensor(
+                            merge_shapes(x1.shape, x2.shape), dtype=x1.dtype
+                        )
+                    elif isinstance(x1, jax_sparse.BCOO):
+                        if not isinstance(x2, jax_sparse.BCOO):
+                            raise ValueError("Indeterministic output ordering.")
+                        return KerasTensor(
+                            merge_shapes(x1.shape, x2.shape),
+                            dtype=x1.dtype,
+                            sparse=True,
                         )
                     else:
-                        flat_out.append(x1)
-                jax_out = pack_sequence_as(jax_out_1, flat_out)
-            except:
+                        return x1
+
+                output_spec = tree.map_structure(
+                    convert_jax_specs_to_keras_tensor, jax_out_1, jax_out_2
+                )
+            except Exception as e:
+                if "[JAX RNG]" in str(e):
+                    raise e
                 # Errors can happen when the filled dimensions
                 # are not compatible with the function
                 # (or when the function contains a bug).
@@ -220,7 +256,7 @@ def compute_output_spec(fn, *args, **kwargs):
                 # The error message will be much easier to understand.
                 pass
 
-        if jax_out is None:
+        if output_spec is None:
             maybe_symbolic_args, maybe_symbolic_kwargs = tree.map_structure(
                 convert_keras_tensor_to_jax,
                 (maybe_symbolic_args, maybe_symbolic_kwargs),
@@ -229,15 +265,18 @@ def compute_output_spec(fn, *args, **kwargs):
                 *maybe_symbolic_args, **maybe_symbolic_kwargs
             )
 
-        def convert_jax_spec_to_keras_tensor(x):
-            if isinstance(x, jax.ShapeDtypeStruct):
-                return KerasTensor(x.shape, x.dtype)
-            return x
+            def convert_jax_spec_to_keras_tensor(x):
+                if isinstance(x, jax.ShapeDtypeStruct):
+                    return KerasTensor(x.shape, x.dtype)
+                elif isinstance(x, jax_sparse.BCOO):
+                    return KerasTensor(x.shape, x.dtype, sparse=True)
+                return x
 
-        output_shape = tree.map_structure(
-            convert_jax_spec_to_keras_tensor, jax_out
-        )
-    return output_shape
+            output_spec = tree.map_structure(
+                convert_jax_spec_to_keras_tensor, jax_out
+            )
+
+    return output_spec
 
 
 def cond(pred, true_fn, false_fn):
@@ -255,9 +294,10 @@ def scatter(indices, values, shape):
 
 
 def scatter_update(inputs, indices, updates):
+    inputs = convert_to_tensor(inputs)
     indices = jnp.array(indices)
     indices = jnp.transpose(indices)
-    inputs[tuple(indices)] = updates
+    inputs = inputs.at[tuple(indices)].set(updates)
     return inputs
 
 
@@ -275,7 +315,8 @@ def while_loop(
     loop_vars,
     maximum_iterations=None,
 ):
-    loop_vars = tuple(loop_vars)
+    is_tuple = isinstance(loop_vars, (tuple, list))
+    loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
     if maximum_iterations is not None:
         current_iter = 0
         loop_vars = loop_vars + (current_iter,)
@@ -285,7 +326,9 @@ def while_loop(
             return cond(*args[:-1]) & (args[-1] < maximum_iterations)
 
         def _body(args):
-            return tuple(body(*args[:-1])) + (args[-1] + 1,)
+            outputs = body(*args[:-1])
+            outputs = tuple(outputs) if is_tuple else (outputs,)
+            return outputs + (args[-1] + 1,)
 
     else:
 
@@ -293,12 +336,13 @@ def while_loop(
             return cond(*args)
 
         def _body(args):
-            return tuple(body(*args))
+            outputs = body(*args)
+            return tuple(outputs) if is_tuple else (outputs,)
 
     outputs = jax.lax.while_loop(_cond, _body, loop_vars)
     if maximum_iterations is not None:
         outputs = outputs[:-1]
-    return outputs
+    return outputs if is_tuple else outputs[0]
 
 
 def fori_loop(lower, upper, body_fun, init_val):
@@ -316,16 +360,17 @@ def unstack(x, num=None, axis=0):
     ]
 
 
-def device(device):
-    if isinstance(device, str):
+def device_scope(device_name):
+    if isinstance(device_name, str):
         # We support string value like "cpu:0", "gpu:1", etc.
-        jax_device = distribution_lib._to_jax_device(device)
-    elif not isinstance(device, jax.Device):
+        device_name = device_name.lower()
+        jax_device = distribution_lib._to_jax_device(device_name)
+    elif not isinstance(device_name, jax.Device):
         raise ValueError(
-            "Invalid value for argument `device`. "
+            "Invalid value for argument `device_name`. "
             "Expected a string like 'gpu:0' or a `jax.Device` instance. "
-            f"Received: device={device}"
+            f"Received: device_name='{device_name}'"
         )
     else:
-        jax_device = device
+        jax_device = device_name
     return jax.default_device(jax_device)

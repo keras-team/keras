@@ -1,6 +1,7 @@
 import contextlib
 import os
 
+import ml_dtypes
 import numpy as np
 import torch
 import tree
@@ -46,13 +47,12 @@ TORCH_DTYPES = {
 
 
 @contextlib.contextmanager
-def device(device):
+def device_scope(device_name):
     previous_device = global_state.get_global_attribute("torch_device", None)
-    device = _parse_device_input(device)
-    global_state.set_global_attribute("torch_device", device)
+    current_device = _parse_device_input(device_name)
+    global_state.set_global_attribute("torch_device", current_device)
     try:
-        with device:
-            yield
+        yield
     finally:
         global_state.set_global_attribute("torch_device", previous_device)
 
@@ -64,23 +64,21 @@ def get_device():
     return device
 
 
-def _parse_device_input(device):
-    if isinstance(device, str):
+def _parse_device_input(device_name):
+    if isinstance(device_name, str):
         # We support string value like "cpu:0", "gpu:1", and need to convert
         # "gpu" to "cuda"
-        if "gpu" in device:
-            device = device.replace("gpu", "cuda")
-        torch_device = torch.device(device)
-    elif not isinstance(device, torch.device):
-        raise ValueError(
-            "Invalid value for argument `device`. "
-            "Expected a string like 'gpu:0' or a `torch.device` instance. "
-            f"Received: device={device}"
-        )
+        device_name = device_name.lower()
+        if "gpu" in device_name:
+            device_name = device_name.replace("gpu", "cuda")
     else:
-        torch_device = device
-    # The jax.Device instance can be used as context.
-    return torch_device
+        raise ValueError(
+            "Invalid value for argument `device_name`. "
+            "Expected a string like 'gpu:0' or 'cpu'. "
+            f"Received: device_name='{device_name}'"
+        )
+    # The torch.Device instance can be used directly.
+    return device_name
 
 
 def to_torch_dtype(dtype):
@@ -92,10 +90,14 @@ def to_torch_dtype(dtype):
 
 class Variable(KerasVariable):
     def _initialize(self, value):
-        self._value = torch.nn.Parameter(
-            convert_to_tensor(value, dtype=self._dtype),
-            requires_grad=self.trainable,
-        ).to(get_device())
+        if isinstance(value, torch.nn.Parameter):
+            # Reuse same parameter
+            self._value = value
+        else:
+            self._value = torch.nn.Parameter(
+                convert_to_tensor(value, dtype=self._dtype),
+                requires_grad=self.trainable,
+            ).to(get_device())
 
     def _direct_assign(self, value):
         with torch.no_grad():
@@ -128,7 +130,7 @@ class Variable(KerasVariable):
     def value(self):
         value = super().value
         # Create and use a symbolic tensor stub in symbolic calls.
-        if get_device() == "meta" and str(value.device) != "meta":
+        if str(get_device()) == "meta" and str(value.device) != "meta":
             return torch.empty(
                 size=value.shape,
                 dtype=value.dtype,
@@ -209,6 +211,12 @@ def convert_to_numpy(x):
             # Tensor has to be moved to CPU before converting to numpy.
             if x.is_cuda or x.is_mps:
                 x = x.cpu()
+            if x.dtype == torch.bfloat16:
+                # Attempting to call .numpy() on a bfloat16 torch tensor leads
+                # to an immediate error. Instead we upcast to float32 and then
+                # convert to the numpy friendly bfloat16 type.
+                # https://github.com/pytorch/pytorch/issues/90574
+                return np.array(x.to(torch.float32)).astype(ml_dtypes.bfloat16)
         return np.array(x)
 
     if isinstance(x, (list, tuple)):
@@ -279,14 +287,14 @@ def compute_output_spec(fn, *args, **kwargs):
             # First try instantiating all tensors on the `"meta"` device,
             # which  should give a "zero flop" way to trace shape, but does
             # not have universal support with torch operations.
-            with device("meta"):
+            with device_scope("meta"):
                 meta_args, meta_kwargs = tree.map_structure(
                     lambda x: convert_keras_tensor_to_torch(x, fill_value),
                     (args, kwargs),
                 )
                 return fn(*meta_args, **meta_kwargs)
         except:
-            with device(DEFAULT_DEVICE):
+            with device_scope(DEFAULT_DEVICE):
                 # If the `"meta"` device placement fails, fall back to tracing
                 # eagerly with tensors on the default device. This will be
                 # more robust, but more expensive.
@@ -400,14 +408,16 @@ def while_loop(
     iteration_check = (
         lambda iter: maximum_iterations is None or iter < maximum_iterations
     )
-    loop_vars = tuple([convert_to_tensor(v) for v in loop_vars])
+    is_tuple = isinstance(loop_vars, (tuple, list))
+    loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
+    loop_vars = tree.map_structure(convert_to_tensor, loop_vars)
     while cond(*loop_vars) and iteration_check(current_iter):
         loop_vars = body(*loop_vars)
         if not isinstance(loop_vars, (list, tuple)):
             loop_vars = (loop_vars,)
         loop_vars = tuple(loop_vars)
         current_iter += 1
-    return loop_vars
+    return loop_vars if is_tuple else loop_vars[0]
 
 
 def fori_loop(lower, upper, body_fun, init_val):

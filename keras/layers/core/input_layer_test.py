@@ -131,3 +131,7 @@ class InputLayerTest(testing.TestCase, parameterized.TestCase):
         layer = InputLayer(shape=(32,))
         output = layer.call()
         self.assertIsNone(output)
+
+    def test_numpy_shape(self):
+        # non-python int type shapes should be ok
+        InputLayer(shape=(np.int64(32),))

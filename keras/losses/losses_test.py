@@ -1,5 +1,7 @@
 import numpy as np
+import pytest
 
+from keras import backend
 from keras import testing
 from keras.losses import losses
 
@@ -7,6 +9,13 @@ from keras.losses import losses
 class MeanSquaredErrorTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(losses.MeanSquaredError(name="mymse"))
+
+    def test_base_function_reduction(self):
+        mse_fn = losses.mean_squared_error
+        y_true = np.array([4, 8, 12])
+        y_pred = np.array([[3], [0], [1]])
+        loss = mse_fn(y_true, y_pred)
+        self.assertEqual(backend.shape(loss), (3,))
 
     def test_all_correct_unweighted(self):
         mse_obj = losses.MeanSquaredError()
@@ -1364,3 +1373,18 @@ class CategoricalFocalCrossentropyTest(testing.TestCase):
 
         expected_value = 0.06685
         self.assertAlmostEqual(loss, expected_value, 3)
+
+
+class CTCTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(losses.CTC(name="myctc"))
+
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy does not support CTC loss",
+    )
+    def test_correctness(self):
+        logits = (np.arange(24).reshape((2, 4, 3)).astype("float32") - 12) / 100
+        y_true = np.array(([[1, 2, 1, 0], [1, 2, 0, 2]]))
+        output = losses.CTC()(y_true, logits)
+        self.assertAllClose(output, 4.389582)

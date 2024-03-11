@@ -277,7 +277,7 @@ inputs = keras.Input(shape=(32,))
 outputs = keras.layers.Dense(1)(inputs)
 model = CustomModel(inputs, outputs)
 
-# We don't passs a loss or metrics here.
+# We don't pass a loss or metrics here.
 model.compile(optimizer="adam")
 
 # Just use `fit` as usual -- you can use callbacks, etc.

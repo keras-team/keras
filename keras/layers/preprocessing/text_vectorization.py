@@ -123,7 +123,9 @@ class TextVectorization(Layer):
             have its time dimension padded or truncated to exactly
             `output_sequence_length` values, resulting in a tensor of shape
             `(batch_size, output_sequence_length)` regardless of how many tokens
-            resulted from the splitting step. Defaults to `None`.
+            resulted from the splitting step. Defaults to `None`. If `ragged`
+            is `True` then `output_sequence_length` may still truncate the
+            output.
         pad_to_max_tokens: Only valid in  `"multi_hot"`, `"count"`,
             and `"tf_idf"` modes. If `True`, the output will have
             its feature axis padded to `max_tokens` even if the number
@@ -315,13 +317,6 @@ class TextVectorization(Layer):
                 f"output_mode={output_mode}"
             )
 
-        if ragged and output_sequence_length is not None:
-            raise ValueError(
-                "`output_sequence_length` must not be set if ragged "
-                f"is True. Received: ragged={ragged} and "
-                f"output_sequence_length={output_sequence_length}"
-            )
-
         self._max_tokens = max_tokens
         self._standardize = standardize
         self._split = split
@@ -402,7 +397,7 @@ class TextVectorization(Layer):
         During `adapt()`, the layer will build a vocabulary of all string tokens
         seen in the dataset, sorted by occurrence count, with ties broken by
         sort order of the tokens (high to low). At the end of `adapt()`, if
-        `max_tokens` is set, the vocabulary wil be truncated to `max_tokens`
+        `max_tokens` is set, the vocabulary will be truncated to `max_tokens`
         size. For example, adapting a layer with `max_tokens=1000` will compute
         the 1000 most frequent tokens occurring in the input dataset. If
         `output_mode='tf-idf'`, `adapt()` will also learn the document
@@ -497,6 +492,10 @@ class TextVectorization(Layer):
             config["split"] = serialization_lib.deserialize_keras_object(
                 config["split"]
             )
+
+        if isinstance(config["ngrams"], list):
+            config["ngrams"] = tuple(config["ngrams"])
+
         return cls(**config)
 
     def set_vocabulary(self, vocabulary, idf_weights=None):
@@ -582,21 +581,19 @@ class TextVectorization(Layer):
 
         lookup_data = self._lookup_layer.call(inputs)
 
-        # For any non-int output, we can return directly from the underlying
-        # layer.
+        # For non-int output, we can return directly from the underlying layer.
         if self._output_mode != "int":
-            outputs = lookup_data
-
-        if self._ragged:
-            outputs = lookup_data
+            return backend_utils.convert_tf_tensor(lookup_data)
 
         # If we have a ragged tensor, we can pad during the conversion to dense.
-        if isinstance(lookup_data, tf.RaggedTensor):
+        if isinstance(lookup_data, tf.RaggedTensor) and not self._ragged:
             shape = lookup_data.shape.as_list()
             # If output sequence length is None, to_tensor will pad the last
             # dimension to the bounding shape of the ragged dimension.
             shape[-1] = self._output_sequence_length
             outputs = lookup_data.to_tensor(default_value=0, shape=shape)
+        else:
+            outputs = lookup_data
 
         # If we have a dense tensor, we need to pad/trim directly.
         if self._output_sequence_length is not None:
@@ -606,21 +603,17 @@ class TextVectorization(Layer):
             # Maybe pad the output. We need to be careful to use dynamic shape
             # here as required_space_to_batch_paddings requires a fully known
             # shape.
-            shape = tf.shape(outputs)
-            padded_shape = tf.concat(
-                (shape[:-1], [self._output_sequence_length]), 0
-            )
-            padding, _ = tf.required_space_to_batch_paddings(
-                shape, padded_shape
-            )
-            outputs = tf.pad(outputs, padding)
+            if not self._ragged:
+                shape = tf.shape(outputs)
+                padded_shape = tf.concat(
+                    (shape[:-1], [self._output_sequence_length]), 0
+                )
+                padding, _ = tf.required_space_to_batch_paddings(
+                    shape, padded_shape
+                )
+                outputs = tf.pad(outputs, padding)
 
-        if (
-            backend.backend() != "tensorflow"
-            and not backend_utils.in_tf_graph()
-        ):
-            outputs = backend.convert_to_tensor(outputs)
-        return outputs
+        return backend_utils.convert_tf_tensor(outputs)
 
     def save_own_variables(self, store):
         self._lookup_layer.save_own_variables(store)

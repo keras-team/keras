@@ -195,9 +195,9 @@ class GRUCell(Layer, DropoutRNNCell):
                 )
 
         if training and 0.0 < self.dropout < 1.0:
-            inputs *= dp_mask
+            inputs = inputs * dp_mask
         if training and 0.0 < self.recurrent_dropout < 1.0:
-            h_tm1 *= rec_dp_mask
+            h_tm1 = h_tm1 * rec_dp_mask
 
         if self.implementation == 1:
             inputs_z = inputs

@@ -1,3 +1,5 @@
+import inspect
+
 from keras.api_export import keras_export
 from keras.metrics.accuracy_metrics import Accuracy
 from keras.metrics.accuracy_metrics import BinaryAccuracy
@@ -191,10 +193,12 @@ def get(identifier):
     if isinstance(identifier, dict):
         obj = deserialize(identifier)
     elif isinstance(identifier, str):
-        obj = deserialize(identifier)
+        obj = ALL_OBJECTS_DICT.get(identifier, None)
     else:
         obj = identifier
     if callable(obj):
+        if inspect.isclass(obj):
+            obj = obj()
         return obj
     else:
         raise ValueError(f"Could not interpret metric identifier: {identifier}")

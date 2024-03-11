@@ -4,6 +4,7 @@ In this file we use a convolution model. Training loop is written in the
 vanilla torch way, and we compare the performance between building model with
 Keras and torch.
 """
+
 import numpy as np
 import torch
 import torch.nn as nn

@@ -89,17 +89,30 @@ class SeedGenerator:
             self.state.assign((seed_state + 1) * 5387 % 933199)
         return new_seed_value
 
+    def get_config(self):
+        return {"seed": self._initial_seed}
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
 
 def global_seed_generator():
     if jax_utils.is_in_jax_tracing_scope():
         raise ValueError(
-            "When tracing a JAX function, "
+            "[JAX RNG] When tracing a JAX function, "
             "you should only use seeded random ops, e.g. "
             "you should create a `SeedGenerator` instance, attach it "
             "to your layer/model, and pass the instance as the `seed` "
             "argument when calling random ops. Unseeded random ops "
             "would get incorrectly traced by JAX and would become constant "
-            "after tracing."
+            "after tracing. Example:\n\n"
+            "```\n"
+            "# Make sure to set the seed generator as a layer attribute\n"
+            "self.seed_generator = keras.random.SeedGenerator(seed=1337)\n"
+            "...\n"
+            "out = keras.random.normal(shape=(1,), seed=self.seed_generator)\n"
+            "```"
         )
     gen = global_state.get_global_attribute("global_seed_generator")
     if gen is None:

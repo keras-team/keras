@@ -105,5 +105,5 @@ class NormalizationTest(testing.TestCase, parameterized.TestCase):
         layer = layers.Normalization()
         data = np.random.random((32, 4))
         layer.adapt(data)
-        with core.device("meta"):
+        with core.device_scope("meta"):
             layer(data)

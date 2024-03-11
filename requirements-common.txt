@@ -9,6 +9,7 @@ pandas
 absl-py
 requests
 h5py
+ml-dtypes
 protobuf
 google
 tensorboard-plugin-profile

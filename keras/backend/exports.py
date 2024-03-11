@@ -27,3 +27,8 @@ class Variable(BackendVariable):
 @keras_export("keras.name_scope")
 class name_scope(backend_name_scope):
     pass
+
+
+@keras_export("keras.device")
+def device(device_name):
+    return backend.device_scope(device_name)

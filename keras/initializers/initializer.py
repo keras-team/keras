@@ -79,3 +79,6 @@ class Initializer:
             An `Initializer` instance.
         """
         return cls(**config)
+
+    def clone(self):
+        return self.__class__.from_config(self.get_config())

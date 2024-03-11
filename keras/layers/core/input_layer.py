@@ -26,6 +26,8 @@ class InputLayer(Layer):
                 "Argument `input_shape` is deprecated. Use `shape` instead."
             )
             shape = kwargs.pop("input_shape")
+        if "batch_input_shape" in kwargs:
+            batch_shape = kwargs.pop("batch_input_shape")
 
         if shape is not None and batch_shape is not None:
             raise ValueError(

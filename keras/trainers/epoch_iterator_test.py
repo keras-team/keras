@@ -9,7 +9,7 @@ from keras.trainers import epoch_iterator
 
 
 class TestEpochIterator(testing.TestCase):
-    def _test_basic_flow(self, return_type):
+    def test_basic_flow(self):
         x = np.random.random((100, 16))
         y = np.random.random((100, 4))
         sample_weight = np.random.random((100,))
@@ -23,21 +23,12 @@ class TestEpochIterator(testing.TestCase):
             shuffle=shuffle,
         )
         steps_seen = []
-        for step, batch in iterator.enumerate_epoch(return_type=return_type):
+        for step, batch in iterator.enumerate_epoch():
             batch = batch[0]
             steps_seen.append(step)
             self.assertEqual(len(batch), 3)
-            if return_type == "np":
-                self.assertIsInstance(batch[0], np.ndarray)
-            else:
-                self.assertIsInstance(batch[0], tf.Tensor)
+            self.assertIsInstance(batch[0], np.ndarray)
         self.assertEqual(steps_seen, [0, 1, 2, 3, 4, 5, 6])
-
-    def test_basic_flow_np(self):
-        self._test_basic_flow("np")
-
-    def test_basic_flow_tf(self):
-        self._test_basic_flow("tf")
 
     def test_insufficient_data(self):
         batch_size = 8
@@ -97,7 +88,7 @@ class TestEpochIterator(testing.TestCase):
             torch_dataset, batch_size=8, shuffle=True
         )
         iterator = epoch_iterator.EpochIterator(torch_dataloader)
-        for _, batch in iterator.enumerate_epoch(return_type="np"):
+        for _, batch in iterator.enumerate_epoch():
             batch = batch[0]
             self.assertEqual(batch[0].shape, (8, 2))
             self.assertEqual(batch[1].shape, (8, 1))
@@ -180,14 +171,3 @@ class TestEpochIterator(testing.TestCase):
         x = "unsupported_data"
         with self.assertRaisesRegex(ValueError, "Unrecognized data type"):
             _ = epoch_iterator.EpochIterator(x=x)
-
-    def test_invalid_return_type_in_get_iterator(self):
-        x = np.random.random((100, 16))
-        y = np.random.random((100, 4))
-        epoch_iter = epoch_iterator.EpochIterator(x=x, y=y)
-
-        with self.assertRaisesRegex(
-            ValueError,
-            "Argument `return_type` must be one of `{'np', 'tf', 'auto'}`",
-        ):
-            _ = epoch_iter._get_iterator("unsupported")

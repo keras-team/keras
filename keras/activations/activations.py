@@ -374,6 +374,29 @@ def hard_sigmoid(x):
     return ops.hard_sigmoid(x)
 
 
+@keras_export(["keras.activations.hard_silu", "keras.activations.hard_swish"])
+def hard_silu(x):
+    """Hard SiLU activation function, also known as Hard Swish.
+
+    It is defined as:
+
+    - `0` if `if x < -3`
+    - `x` if `x > 3`
+    - `x * (x + 3) / 6` if `-3 <= x <= 3`
+
+    It's a faster, piecewise linear approximation of the silu activation.
+
+    Args:
+        x: Input tensor.
+
+    Reference:
+
+    - [A Howard, 2019](https://arxiv.org/abs/1905.02244)
+    """
+    x = backend.convert_to_tensor(x)
+    return ops.hard_silu(x)
+
+
 @keras_export("keras.activations.linear")
 def linear(x):
     """Linear activation function (pass-through).

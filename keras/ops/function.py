@@ -213,7 +213,7 @@ def map_graph(inputs, outputs):
     """
     # "depth" is number of operations between output Node and the Node.
     # Nodes are ordered from inputs -> outputs.
-    nodes_in_decreasing_depth, operation_indices = _build_map(outputs)
+    nodes_in_decreasing_depth, operation_indices = _build_map(inputs, outputs)
     network_nodes = {
         make_node_key(node.operation, node.operation._inbound_nodes.index(node))
         for node in nodes_in_decreasing_depth
@@ -317,7 +317,7 @@ def map_graph(inputs, outputs):
     return network_nodes, nodes_by_depth, operations, operations_by_depth
 
 
-def _build_map(outputs):
+def _build_map(inputs, outputs):
     """Topologically sort nodes in order from inputs to outputs.
 
     It uses a depth-first search to topologically sort nodes that appear in the
@@ -345,6 +345,7 @@ def _build_map(outputs):
     operation_indices = {}  # operation -> in traversal order.
     for output in tree.flatten(outputs):
         _build_map_helper(
+            inputs,
             output,
             finished_nodes,
             nodes_in_progress,
@@ -355,6 +356,7 @@ def _build_map(outputs):
 
 
 def _build_map_helper(
+    inputs,
     tensor,
     finished_nodes,
     nodes_in_progress,
@@ -389,9 +391,10 @@ def _build_map_helper(
 
     # Propagate to all previous tensors connected to this node.
     nodes_in_progress.add(node)
-    if not node.is_input:
+    if not node.is_input and tensor not in tree.flatten(inputs):
         for tensor in node.input_tensors:
             _build_map_helper(
+                inputs,
                 tensor,
                 finished_nodes,
                 nodes_in_progress,

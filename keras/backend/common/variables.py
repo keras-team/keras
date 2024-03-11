@@ -6,6 +6,7 @@ from keras.backend.common import global_state
 from keras.backend.common.name_scope import current_path
 from keras.backend.common.stateless_scope import get_stateless_scope
 from keras.backend.common.stateless_scope import in_stateless_scope
+from keras.utils.module_utils import tensorflow as tf
 from keras.utils.naming import auto_name
 
 
@@ -30,6 +31,8 @@ class KerasVariable:
         self._dtype = dtype
         self._shape = None
         self._initializer = None
+        self._regularizer = None
+        self._constraint = None
         self._trainable = trainable
         if isinstance(initializer, str):
             from keras import initializers
@@ -119,7 +122,7 @@ class KerasVariable:
             if value is not None:
                 return self._maybe_autocast(value)
         if self._value is None:
-            # Unitialized variable. Return a placeholder.
+            # Uninitialized variable. Return a placeholder.
             # This is fine because it's only ever used
             # in during shape inference / graph tracing
             # (anything else would be a bug, to be fixed.)
@@ -173,6 +176,38 @@ class KerasVariable:
     @trainable.setter
     def trainable(self, value):
         self._trainable = value
+
+    @property
+    def regularizer(self):
+        return self._regularizer
+
+    @regularizer.setter
+    def regularizer(self, value):
+        from keras.regularizers import Regularizer
+
+        if value is not None and not isinstance(value, Regularizer):
+            raise ValueError(
+                "Invalid value for attribute `regularizer`. Expected an "
+                "instance of `keras.regularizers.Regularizer`, or `None`. "
+                f"Received: regularizer={value}"
+            )
+        self._regularizer = value
+
+    @property
+    def constraint(self):
+        return self._constraint
+
+    @constraint.setter
+    def constraint(self, value):
+        from keras.constraints import Constraint
+
+        if value is not None and not isinstance(value, Constraint):
+            raise ValueError(
+                "Invalid value for attribute `constraint`. Expected an "
+                "instance of `keras.constraints.Constraint`, or `None`. "
+                f"Received: constraint={value}"
+            )
+        self._constraint = value
 
     def __repr__(self):
         return (
@@ -378,7 +413,9 @@ PYTHON_DTYPES_MAP = {
 }
 
 
-@keras_export("keras.backend.standardize_dtype")
+@keras_export(
+    ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
+)
 def standardize_dtype(dtype):
     if dtype is None:
         return config.floatx()
@@ -389,6 +426,8 @@ def standardize_dtype(dtype):
         "torch" in str(dtype) or "jax.numpy" in str(dtype)
     ):
         dtype = str(dtype).split(".")[-1]
+    elif hasattr(dtype, "__name__"):
+        dtype = dtype.__name__
 
     if dtype not in ALLOWED_DTYPES:
         raise ValueError(f"Invalid dtype: {dtype}")
@@ -401,6 +440,11 @@ def standardize_shape(shape):
             raise ValueError("Undefined shapes are not supported.")
         if not hasattr(shape, "__iter__"):
             raise ValueError(f"Cannot convert '{shape}' to a shape.")
+        if config.backend() == "tensorflow":
+            if isinstance(shape, tf.TensorShape):
+                # `tf.TensorShape` may contain `Dimension` objects.
+                # We need to convert the items in it to either int or `None`
+                shape = shape.as_list()
         shape = tuple(shape)
 
     if config.backend() == "torch":
@@ -411,13 +455,13 @@ def standardize_shape(shape):
     for e in shape:
         if e is None:
             continue
-        if config.backend() == "jax" and str(e) == "b":
-            # JAX2TF tracing represents `None` dimensions as `b`
+        if config.backend() == "jax" and "_DimExpr" in str(type(e)):
+            # JAX2TF tracing uses JAX-native dimension expressions
             continue
-        if not isinstance(e, int):
+        if not is_int_dtype(type(e)):
             raise ValueError(
                 f"Cannot convert '{shape}' to a shape. "
-                f"Found invalid entry '{e}'. "
+                f"Found invalid entry '{e}' of type '{type(e)}'. "
             )
         if e < 0:
             raise ValueError(

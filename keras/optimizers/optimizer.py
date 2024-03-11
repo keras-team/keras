@@ -10,6 +10,10 @@ elif backend.backend() == "torch":
     from keras.backend.torch.optimizers import TorchOptimizer
 
     BackendOptimizer = TorchOptimizer
+elif backend.backend() == "jax":
+    from keras.backend.jax.optimizer import JaxOptimizer
+
+    BackendOptimizer = JaxOptimizer
 else:
     BackendOptimizer = base_optimizer.BaseOptimizer
 

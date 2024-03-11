@@ -90,7 +90,9 @@ def rnn(
 
     flattened_inputs = tree.flatten(inputs)
     time_steps = flattened_inputs[0].shape[0]
-    time_steps_t = tf.shape(flattened_inputs[0])[0]
+    time_steps_t = (
+        tf.shape(flattened_inputs[0])[0] if time_steps is None else time_steps
+    )
 
     for input_ in flattened_inputs:
         input_.shape.with_rank_at_least(3)
@@ -242,9 +244,11 @@ def rnn(
             for i, inp in enumerate(flattened_inputs)
         )
         input_ta = tuple(
-            ta.unstack(input_)
-            if not go_backwards
-            else ta.unstack(tf.reverse(input_, [0]))
+            (
+                ta.unstack(input_)
+                if not go_backwards
+                else ta.unstack(tf.reverse(input_, [0]))
+            )
             for ta, input_ in zip(input_ta, flattened_inputs)
         )
 
@@ -441,7 +445,6 @@ def rnn(
     return last_output, outputs, new_states
 
 
-@tf.function
 def gru(
     inputs,
     initial_state,
@@ -457,7 +460,6 @@ def gru(
     time_major=False,
     reset_after=True,
 ):
-    inputs_supported = _do_rnn_inputs_support_cudnn(mask, time_major)
     cudnn_supported = cudnn_ok(
         activation,
         recurrent_activation,
@@ -465,7 +467,7 @@ def gru(
         use_bias=bias is not None,
         reset_after=reset_after,
     )
-    if not cudnn_supported or not inputs_supported:
+    if not cudnn_supported or mask is not None:
         raise NotImplementedError
 
     from keras.backend.tensorflow import Variable
@@ -532,21 +534,6 @@ def _do_lstm_arguments_support_cudnn(
         in (activations.sigmoid, tf.sigmoid, ops.sigmoid)
         and not unroll
         and use_bias
-    )
-
-
-def _do_rnn_inputs_support_cudnn(mask, time_major):
-    if tf.sysconfig.get_build_info()["is_rocm_build"]:
-        if mask is not None:
-            return tf.reduce_all(mask)
-        return True
-    if mask is None:
-        return True
-    if time_major:
-        mask = tf.transpose(mask)
-    return tf.logical_and(
-        _is_sequence_right_padded(mask),
-        tf.logical_not(_has_fully_masked_sequence(mask)),
     )
 
 
@@ -655,7 +642,6 @@ def _is_gpu_available():
     return bool(tf.config.list_logical_devices("GPU"))
 
 
-@tf.function(autograph=False)
 def _cudnn_gru(
     inputs,
     initial_state,
@@ -802,7 +788,6 @@ def cudnn_ok(
     return args_supported and _is_gpu_available()
 
 
-@tf.function
 def lstm(
     inputs,
     initial_state_h,
@@ -818,11 +803,10 @@ def lstm(
     unroll=False,
     time_major=False,
 ):
-    inputs_supported = _do_rnn_inputs_support_cudnn(mask, time_major)
     cudnn_supported = cudnn_ok(
         activation, recurrent_activation, unroll, use_bias=bias is not None
     )
-    if not cudnn_supported or not inputs_supported:
+    if not cudnn_supported or mask is not None:
         raise NotImplementedError
 
     from keras.backend.tensorflow import Variable
@@ -855,7 +839,6 @@ def lstm(
         raise NotImplementedError
 
 
-@tf.function(autograph=False)
 def _cudnn_lstm(
     inputs,
     initial_state_h,

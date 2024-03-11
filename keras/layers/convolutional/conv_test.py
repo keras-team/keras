@@ -3,6 +3,7 @@ import pytest
 from absl.testing import parameterized
 from numpy.lib.stride_tricks import as_strided
 
+from keras import constraints
 from keras import layers
 from keras import testing
 
@@ -205,9 +206,9 @@ def np_conv3d(
             (*new_kenel_size_tuple, ch_in, ch_out),
             dtype=kernel_weights.dtype,
         )
-        new_kernel_weights[
-            ::h_dilation, ::w_dilation, ::d_dilation
-        ] = kernel_weights
+        new_kernel_weights[::h_dilation, ::w_dilation, ::d_dilation] = (
+            kernel_weights
+        )
         kernel_weights = new_kernel_weights
         h_kernel, w_kernel, d_kernel = kernel_weights.shape[:3]
 
@@ -485,25 +486,56 @@ class ConvBasicTest(testing.TestCase, parameterized.TestCase):
 
     def test_bad_init_args(self):
         # `filters` is not positive.
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid value for argument `filters`. Expected a "
+            "strictly positive value. Received filters=0.",
+        ):
             layers.Conv1D(filters=0, kernel_size=1)
 
         # `kernel_size` has 0.
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"The `kernel_size` argument must be a tuple of \d+ "
+            r"integers. Received kernel_size=\(1, 0\), including values \{0\} "
+            r"that do not satisfy `value > 0`",
+        ):
             layers.Conv2D(filters=2, kernel_size=(1, 0))
 
         # `strides` has 0.
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"The `strides` argument must be a tuple of \d+ "
+            r"integers. Received strides=\(1, 0\), including values \{0\} that "
+            r"do not satisfy `value > 0`",
+        ):
             layers.Conv2D(filters=2, kernel_size=(2, 2), strides=(1, 0))
 
         # `dilation_rate > 1` while `strides > 1`.
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`strides > 1` not supported in conjunction with "
+            r"`dilation_rate > 1`. Received: strides=\(2, 2\) and "
+            r"dilation_rate=\(2, 1\)",
+        ):
             layers.Conv2D(
                 filters=2, kernel_size=(2, 2), strides=2, dilation_rate=(2, 1)
             )
 
+        # `groups` is not strictly positive.
+        with self.assertRaisesRegex(
+            ValueError,
+            "The number of groups must be a positive integer. "
+            "Received: groups=0.",
+        ):
+            layers.Conv2D(filters=5, kernel_size=(2, 2), groups=0)
+
         # `filters` cannot be divided by `groups`.
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            "The number of filters must be evenly divisible by the"
+            " number of groups. Received: groups=2, filters=5.",
+        ):
             layers.Conv2D(filters=5, kernel_size=(2, 2), groups=2)
 
 
@@ -782,4 +814,20 @@ class ConvCorrectnessTest(testing.TestCase, parameterized.TestCase):
             dilation_rate=dilation_rate,
             groups=groups,
         )
-        self.assertAllClose(outputs, expected, rtol=5e-4)
+        self.assertAllClose(outputs, expected, rtol=1e-3)
+
+    def test_conv_constraints(self):
+        layer = layers.Conv2D(
+            filters=4,
+            kernel_size=3,
+            kernel_constraint="non_neg",
+        )
+        layer.build((None, 5, 5, 3))
+        self.assertIsInstance(layer.kernel.constraint, constraints.NonNeg)
+        layer = layers.Conv2D(
+            filters=4,
+            kernel_size=3,
+            bias_constraint="non_neg",
+        )
+        layer.build((None, 5, 5, 3))
+        self.assertIsInstance(layer.bias.constraint, constraints.NonNeg)

@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras.backend import standardize_dtype
+from keras.backend.common import dtypes
 from keras.backend.jax.math import fft as jax_fft
 from keras.backend.jax.math import fft2 as jax_fft2
 from keras.backend.numpy.core import convert_to_tensor
@@ -16,9 +17,9 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     valid_segment_ids = segment_ids[valid_indices]
 
     data_shape = list(valid_data.shape)
-    data_shape[
-        0
-    ] = num_segments  # Replace first dimension (which corresponds to segments)
+    data_shape[0] = (
+        num_segments  # Replace first dimension (which corresponds to segments)
+    )
 
     if sorted:
         result = np.zeros(data_shape, dtype=valid_data.dtype)
@@ -43,9 +44,9 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     valid_segment_ids = segment_ids[valid_indices]
 
     data_shape = list(valid_data.shape)
-    data_shape[
-        0
-    ] = num_segments  # Replace first dimension (which corresponds to segments)
+    data_shape[0] = (
+        num_segments  # Replace first dimension (which corresponds to segments)
+    )
 
     if sorted:
         result = np.zeros(data_shape, dtype=valid_data.dtype)
@@ -308,7 +309,21 @@ def erf(x):
     return np.array(scipy.special.erf(x))
 
 
+def erfinv(x):
+    return np.array(scipy.special.erfinv(x))
+
+
 def solve(a, b):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
     return np.linalg.solve(a, b)
+
+
+def norm(x, ord=None, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or dtype == "bool":
+        dtype = dtypes.result_type(x.dtype, "float32")
+    return np.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims).astype(
+        dtype
+    )

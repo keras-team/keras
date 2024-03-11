@@ -67,6 +67,11 @@ def hard_sigmoid(x):
     return tnn.hardsigmoid(x)
 
 
+def hard_silu(x):
+    x = convert_to_tensor(x)
+    return tnn.hardswish(x)
+
+
 def elu(x, alpha=1.0):
     x = convert_to_tensor(x)
     return tnn.elu(x, alpha)
@@ -87,24 +92,36 @@ def gelu(x, approximate=True):
 
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    # TODO: tnn.softmax doesn't support float16 using cpu
+    if get_device() == "cpu" and standardize_dtype(x.dtype) == "float16":
+        x = cast(x, "float32")
     if axis is None:
         # Unlike numpy, PyTorch will handle axis=None as axis=-1.
         # We need this workaround for the reduction on every dim.
         output = torch.reshape(x, [-1])
         output = tnn.softmax(output, dim=-1)
-        return torch.reshape(output, x.shape)
-    return tnn.softmax(x, dim=axis)
+        output = torch.reshape(output, x.shape)
+    else:
+        output = tnn.softmax(x, dim=axis)
+    return cast(output, dtype)
 
 
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    # TODO: tnn.log_softmax doesn't support float16 using cpu
+    if get_device() == "cpu" and standardize_dtype(x.dtype) == "float16":
+        x = cast(x, "float32")
     if axis is None:
         # Unlike numpy, PyTorch will handle axis=None as axis=-1.
         # We need this workaround for the reduction on every dim.
         output = torch.reshape(x, [-1])
         output = tnn.log_softmax(output, dim=-1)
-        return torch.reshape(output, x.shape)
-    return tnn.log_softmax(x, dim=axis)
+        output = torch.reshape(output, x.shape)
+    else:
+        output = tnn.log_softmax(x, dim=axis)
+    return cast(output, dtype)
 
 
 def _compute_padding_length(
@@ -184,7 +201,7 @@ def _transpose_spatial_inputs(inputs):
 
 
 def _transpose_spatial_outputs(outputs):
-    # Undo the tranpose in `_transpose_spatial_inputs`.
+    # Undo the transpose in `_transpose_spatial_inputs`.
     num_spatial_dims = len(outputs.shape) - 2
     if num_spatial_dims == 1:
         outputs = torch.permute(outputs, (0, 2, 1))
@@ -550,7 +567,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
     dims = output.dim()
     if axis != -1 and axis != dims:
         new_axes_order = list(range(dims))
-        new_axes_order[axis] = -1  # Shifts output to axis positon
+        new_axes_order[axis] = -1  # Shifts output to axis position
         # Shift remaining axes with offset by 1 since output moved to `axis`.
         for ax in range(axis + 1, dims):
             new_axes_order[ax] -= 1
@@ -559,6 +576,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
 
 
 def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+    x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
     outputs = torch.amax(
         one_hot(cast(x, "int32"), num_classes, axis=axis, dtype=dtype),
@@ -666,7 +684,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # gradient is zero.
     variance = torch.mean(
         torch.square(x), dim=axes, keepdim=True
-    ) - torch.square(mean.detach())
+    ) - torch.square(mean)
 
     if not keepdims:
         mean = torch.squeeze(mean, axes)
@@ -692,38 +710,52 @@ def batch_normalization(
     x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
 ):
     x = convert_to_tensor(x)
-    mean = convert_to_tensor(mean).detach()
-    variance = convert_to_tensor(variance).detach()
+    mean = convert_to_tensor(mean)
+    variance = convert_to_tensor(variance)
+
+    shape = [1] * len(x.shape)
+    shape[axis] = mean.shape[0]
+    mean = torch.reshape(mean, shape)
+    variance = torch.reshape(variance, shape)
+
     if offset is not None:
         offset = convert_to_tensor(offset)
+        offset = torch.reshape(offset, shape)
+    else:
+        offset = torch.zeros_like(mean)
     if scale is not None:
         scale = convert_to_tensor(scale)
+        scale = torch.reshape(scale, shape)
+    else:
+        scale = torch.ones_like(variance)
 
-    def _batch_norm():
-        return tnn.batch_norm(
-            input=x,
-            running_mean=mean,
-            running_var=variance,
-            weight=scale,
-            bias=offset,
-            training=False,
-            eps=epsilon,
-        )
+    return (
+        x.subtract(mean)
+        .mul_(variance.add(epsilon).rsqrt_().mul(scale))
+        .add_(offset)
+    )
 
-    if axis == 1:
-        return _batch_norm()
 
-    if axis < 0:
-        axis = len(x.shape) + axis
+def ctc_loss(
+    target,
+    output,
+    target_length,
+    output_length,
+    mask_index=0,
+):
+    target = convert_to_tensor(target)
+    output = convert_to_tensor(output)
+    target_length = convert_to_tensor(target_length)
+    output_length = convert_to_tensor(output_length)
 
-    order = list(range(len(x.shape)))
-    order.pop(axis)
-    order.insert(1, axis)
-    x = x.permute(order)
+    output = torch.transpose(output, 1, 0)
+    logits = tnn.log_softmax(output, dim=-1)
 
-    x = _batch_norm()
-
-    order = list(range(len(x.shape)))
-    order.pop(1)
-    order.insert(axis, 1)
-    return x.permute(order)
+    return tnn.ctc_loss(
+        logits,
+        target,
+        output_length,
+        target_length,
+        blank=mask_index,
+        reduction="none",
+    )

@@ -20,13 +20,22 @@ class AdafactorTest(testing.TestCase):
         )
         self.run_class_serialization_test(optimizer)
 
-    def test_single_step(self):
+    def test_single_step_1d(self):
         optimizer = Adafactor(learning_rate=0.5)
         grads = np.array([1.0, 6.0, 7.0, 2.0])
         vars = backend.Variable([1.0, 2.0, 3.0, 4.0])
         optimizer.apply_gradients(zip([grads], [vars]))
         self.assertAllClose(
             vars, [-0.3693, 0.6307, 1.6307, 2.6307], rtol=1e-4, atol=1e-4
+        )
+
+    def test_single_step_2d(self):
+        optimizer = Adafactor(learning_rate=0.5)
+        grads = np.array([[1.0, 6.0], [7.0, 2.0]])
+        vars = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        optimizer.apply_gradients(zip([grads], [vars]))
+        self.assertAllClose(
+            vars, [[0.7007, -0.0081], [1.2492, 3.4407]], rtol=1e-4, atol=1e-4
         )
 
     def test_weight_decay(self):

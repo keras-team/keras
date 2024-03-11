@@ -35,12 +35,12 @@ class RNNCellWithDropout(layers.Layer, DropoutRNNCell):
     def call(self, inputs, states, training=False):
         if training:
             dp_mask = self.get_dropout_mask(inputs)
-            inputs *= dp_mask
+            inputs = inputs * dp_mask
         prev_output = states[0]
         h = ops.matmul(inputs, self.kernel)
         if training:
             rdp_mask = self.get_recurrent_dropout_mask(prev_output)
-            prev_output *= rdp_mask
+            prev_output = prev_output * rdp_mask
         output = h + ops.matmul(prev_output, self.recurrent_kernel)
         return output, [output]
 

@@ -6,6 +6,7 @@ Last modified: 2023/06/29
 Description: Guide to multi-GPU training for Keras models with TensorFlow.
 Accelerator: GPU
 """
+
 """
 ## Introduction
 

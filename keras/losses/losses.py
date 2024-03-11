@@ -4,7 +4,7 @@ from keras import backend
 from keras import ops
 from keras.api_export import keras_export
 from keras.losses.loss import Loss
-from keras.losses.loss import squeeze_to_same_rank
+from keras.losses.loss import squeeze_or_expand_to_same_rank
 from keras.saving import serialization_lib
 from keras.utils.numerical_utils import normalize
 
@@ -18,7 +18,7 @@ class LossFunctionWrapper(Loss):
         self._fn_kwargs = kwargs
 
     def call(self, y_true, y_pred):
-        y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+        y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
         return self.fn(y_true, y_pred, **self._fn_kwargs)
 
     def get_config(self):
@@ -1150,7 +1150,7 @@ def mean_squared_error(y_true, y_pred):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     return ops.mean(ops.square(y_true - y_pred), axis=-1)
 
 
@@ -1187,7 +1187,7 @@ def mean_absolute_error(y_true, y_pred):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     return ops.mean(ops.abs(y_true - y_pred), axis=-1)
 
 
@@ -1232,7 +1232,7 @@ def mean_absolute_percentage_error(y_true, y_pred):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     epsilon = ops.convert_to_tensor(backend.epsilon())
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     diff = ops.abs((y_true - y_pred) / ops.maximum(ops.abs(y_true), epsilon))
     return 100.0 * ops.mean(diff, axis=-1)
 
@@ -1278,7 +1278,7 @@ def mean_squared_logarithmic_error(y_true, y_pred):
     epsilon = ops.convert_to_tensor(backend.epsilon())
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     first_log = ops.log(ops.maximum(y_pred, epsilon) + 1.0)
     second_log = ops.log(ops.maximum(y_true, epsilon) + 1.0)
     return ops.mean(ops.square(first_log - second_log), axis=-1)
@@ -1318,7 +1318,7 @@ def cosine_similarity(y_true, y_pred, axis=-1):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     y_pred = normalize(y_pred, axis=axis)
     y_true = normalize(y_true, axis=axis)
     return -ops.sum(y_true * y_pred, axis=axis)
@@ -1359,7 +1359,7 @@ def huber(y_true, y_pred, delta=1.0):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     delta = ops.convert_to_tensor(delta)
     error = ops.subtract(y_pred, y_true)
     abs_error = ops.abs(error)
@@ -1412,7 +1412,7 @@ def log_cosh(y_true, y_pred):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     log2 = ops.convert_to_tensor(ops.log(2.0), dtype=y_pred.dtype)
 
     def _logcosh(x):
@@ -1867,3 +1867,70 @@ def binary_focal_crossentropy(
         focal_bce = weight * focal_bce
 
     return ops.mean(focal_bce, axis=axis)
+
+
+@keras_export("keras.losses.CTC")
+class CTC(LossFunctionWrapper):
+    """CTC (Connectionist Temporal Classification) loss.
+
+    Args:
+        y_true: A tensor of shape `(batch_size, target_max_length)` containing
+            the true labels in integer format. `0` always represents
+            the blank/mask index and should not be used for classes.
+        y_pred: A tensor of shape `(batch_size, output_max_length, num_classes)`
+            containing logits (the output of your model).
+            They should *not* be normalized via softmax.
+    """
+
+    def __init__(
+        self,
+        reduction="sum_over_batch_size",
+        name="sparse_categorical_crossentropy",
+    ):
+        super().__init__(
+            ctc,
+            name=name,
+            reduction=reduction,
+        )
+
+    def get_config(self):
+        return {
+            "name": self.name,
+            "reduction": self.reduction,
+        }
+
+
+@keras_export("keras.losses.ctc")
+def ctc(y_true, y_pred):
+    """CTC (Connectionist Temporal Classification) loss.
+
+    Args:
+        y_true: A tensor of shape `(batch_size, max_length)` containing
+            the true labels in integer format. `0` always represents
+            the blank/mask index and should not be used for classes.
+        y_pred: A tensor of shape `(batch_size, max_length, num_classes)`
+            containing logits (the output of your model).
+            They should *not* be normalized via softmax.
+    """
+    if len(ops.shape(y_true)) != 2:
+        raise ValueError(
+            "Targets `y_true` are expected to be a tensor of shape "
+            "`(batch_size, max_length)` in integer format. "
+            f"Received: y_true.shape={ops.shape(y_true)}"
+        )
+    if len(ops.shape(y_pred)) != 3:
+        raise ValueError(
+            "Logits `y_pred` are expected to be a tensor of shape "
+            "`(batch_size, max_length, num_classes)`. "
+            f"Received: y_pred.shape={ops.shape(y_pred)}"
+        )
+
+    batch_length = ops.cast(ops.shape(y_true)[0], dtype="int32")
+    input_length = ops.cast(ops.shape(y_pred)[1], dtype="int32")
+    label_length = ops.cast(ops.shape(y_true)[1], dtype="int32")
+    input_length = input_length * ops.ones((batch_length,), dtype="int32")
+    label_length = label_length * ops.ones((batch_length,), dtype="int32")
+
+    return ops.ctc_loss(
+        y_true, y_pred, label_length, input_length, mask_index=0
+    )

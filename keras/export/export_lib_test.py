@@ -1,6 +1,6 @@
 """Tests for inference-only model/layer exporting utilities."""
+
 import os
-import sys
 
 import numpy as np
 import pytest
@@ -28,10 +28,6 @@ def get_model():
 @pytest.mark.skipif(
     backend.backend() not in ("tensorflow", "jax"),
     reason="Export only currently supports the TF and JAX backends.",
-)
-@pytest.mark.skipif(
-    backend.backend() == "jax" and sys.modules["jax"].__version__ > "0.4.15",
-    reason="The export API is only compatible with JAX version <= 0.4.15.",
 )
 class ExportArchiveTest(testing.TestCase):
     def test_standard_model_export(self):
@@ -80,7 +76,7 @@ class ExportArchiveTest(testing.TestCase):
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
-        reason="Registering a tf.function endpoint is only in TF backend.",
+        reason="This test is native to the TF backend.",
     )
     def test_endpoint_registration_tf_function(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -117,6 +113,141 @@ class ExportArchiveTest(testing.TestCase):
         self.assertLen(revived_model.variables, 8)
         self.assertLen(revived_model.trainable_variables, 6)
         self.assertLen(revived_model.non_trainable_variables, 2)
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="This test is native to the JAX backend.",
+    )
+    def test_jax_endpoint_registration_tf_function(self):
+        model = get_model()
+        ref_input = np.random.normal(size=(3, 10))
+        model(ref_input)
+
+        # build a JAX function
+        def model_call(x):
+            return model(x)
+
+        from jax import default_backend as jax_device
+        from jax.experimental import jax2tf
+
+        native_jax_compatible = not (
+            jax_device() == "gpu"
+            and len(tf.config.list_physical_devices("GPU")) == 0
+        )
+        # now, convert JAX function
+        converted_model_call = jax2tf.convert(
+            model_call,
+            native_serialization=native_jax_compatible,
+            polymorphic_shapes=["(b, 10)"],
+        )
+
+        # you can now build a TF inference function
+        @tf.function(
+            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+            autograph=False,
+        )
+        def infer_fn(x):
+            return converted_model_call(x)
+
+        ref_output = infer_fn(ref_input)
+
+        # Export with TF inference function as endpoint
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model")
+        export_archive = export_lib.ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint("serve", infer_fn)
+        export_archive.write_out(temp_filepath)
+
+        # Reload and verify outputs
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertFalse(hasattr(revived_model, "_tracked"))
+        self.assertAllClose(
+            ref_output, revived_model.serve(ref_input), atol=1e-6
+        )
+        self.assertLen(revived_model.variables, 8)
+        self.assertLen(revived_model.trainable_variables, 6)
+        self.assertLen(revived_model.non_trainable_variables, 2)
+
+        # Assert all variables wrapped as `tf.Variable`
+        assert isinstance(export_archive.variables[0], tf.Variable)
+        assert isinstance(export_archive.trainable_variables[0], tf.Variable)
+        assert isinstance(
+            export_archive.non_trainable_variables[0], tf.Variable
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="This test is native to the JAX backend.",
+    )
+    def test_jax_multi_unknown_endpoint_registration(self):
+        window_size = 100
+
+        X = np.random.random((1024, window_size, 1))
+        Y = np.random.random((1024, window_size, 1))
+
+        model = models.Sequential(
+            [
+                layers.Dense(128, activation="relu"),
+                layers.Dense(64, activation="relu"),
+                layers.Dense(1, activation="relu"),
+            ]
+        )
+
+        model.compile(optimizer="adam", loss="mse")
+
+        model.fit(X, Y, batch_size=32)
+
+        # build a JAX function
+        def model_call(x):
+            return model(x)
+
+        from jax import default_backend as jax_device
+        from jax.experimental import jax2tf
+
+        native_jax_compatible = not (
+            jax_device() == "gpu"
+            and len(tf.config.list_physical_devices("GPU")) == 0
+        )
+        # now, convert JAX function
+        converted_model_call = jax2tf.convert(
+            model_call,
+            native_serialization=native_jax_compatible,
+            polymorphic_shapes=["(b, t, 1)"],
+        )
+
+        # you can now build a TF inference function
+        @tf.function(
+            input_signature=[
+                tf.TensorSpec(shape=(None, None, 1), dtype=tf.float32)
+            ],
+            autograph=False,
+        )
+        def infer_fn(x):
+            return converted_model_call(x)
+
+        ref_input = np.random.random((1024, window_size, 1))
+        ref_output = infer_fn(ref_input)
+
+        # Export with TF inference function as endpoint
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model")
+        export_archive = export_lib.ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint("serve", infer_fn)
+        export_archive.write_out(temp_filepath)
+
+        # Reload and verify outputs
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertFalse(hasattr(revived_model, "_tracked"))
+        self.assertAllClose(
+            ref_output, revived_model.serve(ref_input), atol=1e-6
+        )
+        self.assertLen(revived_model.variables, 6)
+        self.assertLen(revived_model.trainable_variables, 6)
+        self.assertLen(revived_model.non_trainable_variables, 0)
+
+        # Assert all variables wrapped as `tf.Variable`
+        assert isinstance(export_archive.variables[0], tf.Variable)
+        assert isinstance(export_archive.trainable_variables[0], tf.Variable)
 
     def test_layer_export(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_layer")
@@ -540,18 +671,6 @@ class ExportArchiveTest(testing.TestCase):
         self.assertAllClose(
             ref_output, revived_model.serve(ref_input), atol=1e-6
         )
-
-
-@pytest.mark.skipif(
-    backend.backend() != "jax" or sys.modules["jax"].__version__ <= "0.4.15",
-    reason="This test is for invalid JAX versions, i.e. versions > 0.4.15.",
-)
-class VersionTest(testing.TestCase):
-    def test_invalid_jax_version(self):
-        with self.assertRaisesRegex(
-            ValueError, "only compatible with JAX version"
-        ):
-            _ = export_lib.ExportArchive()
 
 
 @pytest.mark.skipif(

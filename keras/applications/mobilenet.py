@@ -295,7 +295,9 @@ def _conv_block(inputs, filters, alpha, kernel=(3, 3), strides=(1, 1)):
             Can be a single integer to specify the same value for all
             spatial dimensions. Specifying any stride value != 1 is
             incompatible with specifying any `dilation_rate`
-            value != 1. # Input shape
+            value != 1.
+
+    Input shape:
         4D tensor with shape: `(samples, channels, rows, cols)` if
             data_format='channels_first'
         or 4D tensor with shape: `(samples, rows, cols, channels)` if
@@ -358,7 +360,8 @@ def _depthwise_conv_block(
             all spatial dimensions. Specifying any stride value != 1 is
             incompatible with specifying any `dilation_rate` value != 1.
         block_id: Integer, a unique identification designating the block number.
-            # Input shape
+
+    Input shape:
         4D tensor with shape: `(batch, channels, rows, cols)` if
             data_format='channels_first'
         or 4D tensor with shape: `(batch, rows, cols, channels)` if

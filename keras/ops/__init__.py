@@ -10,6 +10,7 @@ from keras.backend import random
 from keras.ops import image
 from keras.ops import operation_utils
 from keras.ops.core import *  # noqa: F403
+from keras.ops.linalg import *  # noqa: F403
 from keras.ops.math import *  # noqa: F403
 from keras.ops.nn import *  # noqa: F403
 from keras.ops.numpy import *  # noqa: F403

@@ -8,6 +8,7 @@ from absl.testing import parameterized
 from keras import backend
 from keras import testing
 from keras.backend.common.keras_tensor import KerasTensor
+from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import math as kmath
 
 
@@ -175,22 +176,6 @@ class MathOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         result = kmath.logsumexp(x)
         self.assertEqual(result.shape, ())
 
-    def test_qr(self):
-        x = KerasTensor((None, 4, 3), dtype="float32")
-        q, r = kmath.qr(x, mode="reduced")
-        qref, rref = np.linalg.qr(np.ones((2, 4, 3)), mode="reduced")
-        qref_shape = (None,) + qref.shape[1:]
-        rref_shape = (None,) + rref.shape[1:]
-        self.assertEqual(q.shape, qref_shape)
-        self.assertEqual(r.shape, rref_shape)
-
-        q, r = kmath.qr(x, mode="complete")
-        qref, rref = np.linalg.qr(np.ones((2, 4, 3)), mode="complete")
-        qref_shape = (None,) + qref.shape[1:]
-        rref_shape = (None,) + rref.shape[1:]
-        self.assertEqual(q.shape, qref_shape)
-        self.assertEqual(r.shape, rref_shape)
-
     def test_extract_sequences(self):
         # Defined dimension
         x = KerasTensor((None, 32), dtype="float32")
@@ -331,18 +316,6 @@ class MathOpsStaticShapeTest(testing.TestCase):
         result = kmath.logsumexp(x)
         self.assertEqual(result.shape, ())
 
-    def test_qr(self):
-        x = KerasTensor((4, 3), dtype="float32")
-        q, r = kmath.qr(x, mode="reduced")
-        qref, rref = np.linalg.qr(np.ones((4, 3)), mode="reduced")
-        self.assertEqual(q.shape, qref.shape)
-        self.assertEqual(r.shape, rref.shape)
-
-        q, r = kmath.qr(x, mode="complete")
-        qref, rref = np.linalg.qr(np.ones((4, 3)), mode="complete")
-        self.assertEqual(q.shape, qref.shape)
-        self.assertEqual(r.shape, rref.shape)
-
     def test_extract_sequences(self):
         x = KerasTensor((10, 16), dtype="float32")
         sequence_length = 3
@@ -418,12 +391,6 @@ class MathOpsStaticShapeTest(testing.TestCase):
             fft_length,
         )
         self.assertEqual(output.shape, ref.shape)
-
-    def test_solve(self):
-        x1 = KerasTensor((2, 2), dtype="float32")
-        x2 = KerasTensor((2, 2), dtype="float32")
-        outputs = kmath.solve(x1, x2)
-        self.assertEqual(outputs.shape, (2, 2))
 
 
 class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -623,18 +590,6 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         outputs = kmath.logsumexp(x, axis=1)
         expected = np.log(np.sum(np.exp(x), axis=1))
         self.assertAllClose(outputs, expected)
-
-    def test_qr(self):
-        x = np.random.random((4, 5))
-        q, r = kmath.qr(x, mode="reduced")
-        qref, rref = np.linalg.qr(x, mode="reduced")
-        self.assertAllClose(qref, q)
-        self.assertAllClose(rref, r)
-
-        q, r = kmath.qr(x, mode="complete")
-        qref, rref = np.linalg.qr(x, mode="complete")
-        self.assertAllClose(qref, q)
-        self.assertAllClose(rref, r)
 
     def test_extract_sequences(self):
         # Test 1D case.
@@ -872,64 +827,72 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         output_from_edge_erf_op = kmath.erf(edge_values)
         self.assertAllClose(expected_output, output_from_edge_erf_op, atol=1e-4)
 
-    def test_solve(self):
-        x1 = np.array([[1, 2], [4, 5]], dtype="float32")
-        x2 = np.array([[2, 4], [8, 10]], dtype="float32")
-        output = kmath.solve(x1, x2)
-        expected_result = np.array([[2, 0], [0, 2]], dtype="float32")
-        self.assertAllClose(output, expected_result)
+    def test_erfinv_operation_basic(self):
+        # Sample values for testing
+        sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
 
+        # Expected output using numpy's approximation of the error function
+        expected_output = scipy.special.erfinv(sample_values)
 
-class QrOpTest(testing.TestCase):
-    def test_qr_init_mode_reduced(self):
-        qr_op = kmath.Qr(mode="reduced")
-        self.assertIsNotNone(qr_op)
+        # Output from the erf operation in keras_core
+        output_from_erfinv_op = kmath.erfinv(sample_values)
 
-    def test_qr_init_mode_complete(self):
-        qr_op = kmath.Qr(mode="complete")
-        self.assertIsNotNone(qr_op)
+        # Assert that the outputs are close
+        self.assertAllClose(expected_output, output_from_erfinv_op, atol=1e-4)
 
-    def test_qr_init_invalid_mode(self):
-        invalid_mode = "invalid_mode"
-        expected_error = (
-            r"`mode` argument value not supported. "
-            r"Expected one of \{'reduced', 'complete'\}. "
-            f"Received: mode={invalid_mode}"
+    def test_erfinv_operation_dtype(self):
+        # Test for float32 and float64 data types
+        for dtype in ("float32", "float64"):
+            sample_values = np.array(
+                [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], dtype=dtype
+            )
+            expected_output = scipy.special.erfinv(sample_values)
+            output_from_erfinv_op = kmath.erfinv(sample_values)
+            self.assertAllClose(
+                expected_output, output_from_erfinv_op, atol=1e-4
+            )
+
+    def test_erfinv_operation_edge_cases(self):
+        # Test for edge cases
+        edge_values = np.array([1e5, -1e5, 1e-5, -1e-5], dtype=np.float64)
+        expected_output = scipy.special.erfinv(edge_values)
+        output_from_edge_erfinv_op = kmath.erfinv(edge_values)
+        self.assertAllClose(
+            expected_output, output_from_edge_erfinv_op, atol=1e-4
         )
-        with self.assertRaisesRegex(ValueError, expected_error):
-            kmath.Qr(mode=invalid_mode)
 
-    def test_compute_output_spec_low_rank(self):
-        qr_op = kmath.Qr(mode="reduced")
-        low_rank_input = np.random.rand(3)
-        with self.assertRaisesRegex(
-            ValueError, r"Input should have rank >= 2. Received: .*"
-        ):
-            qr_op.compute_output_spec(low_rank_input)
 
-    def test_compute_output_spec_undefined_dimensions(self):
-        qr_op = kmath.Qr(mode="reduced")
-        undefined_dim_input = KerasTensor(shape=(None, 4), dtype="float32")
-        with self.assertRaisesRegex(
-            ValueError,
-            r"Input should have its last 2 dimensions "
-            r"fully-defined. Received: .*",
-        ):
-            qr_op.compute_output_spec(undefined_dim_input)
+class MathDtypeTest(testing.TestCase, parameterized.TestCase):
+    """Test the floating dtype to verify that the behavior matches JAX."""
 
-    def test_qr_call_mode_reduced(self):
-        qr_op = kmath.Qr(mode="reduced")
-        test_input = np.random.rand(10, 10)
-        q, r = qr_op.call(test_input)
-        self.assertEqual(q.shape, (10, 10))
-        self.assertEqual(r.shape, (10, 10))
+    # TODO: Using uint64 will lead to weak type promotion (`float`),
+    # resulting in different behavior between JAX and Keras. Currently, we
+    # are skipping the test for uint64
+    ALL_DTYPES = [
+        x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
+    ] + [None]
+    INT_DTYPES = [x for x in ALLOWED_DTYPES if "int" in x and x != "uint64"]
+    FLOAT_DTYPES = [x for x in ALLOWED_DTYPES if "float" in x]
 
-    def test_qr_call_mode_complete(self):
-        qr_op = kmath.Qr(mode="complete")
-        test_input = np.random.rand(10, 10)
-        q, r = qr_op.call(test_input)
-        self.assertEqual(q.shape, (10, 10))
-        self.assertEqual(r.shape, (10, 10))
+    if backend.backend() == "torch":
+        # TODO: torch doesn't support uint16, uint32 and uint64
+        ALL_DTYPES = [
+            x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
+        ]
+        INT_DTYPES = [
+            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
+        ]
+
+    def setUp(self):
+        from jax.experimental import enable_x64
+
+        self.jax_enable_x64 = enable_x64()
+        self.jax_enable_x64.__enter__()
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        self.jax_enable_x64.__exit__(None, None, None)
+        return super().tearDown()
 
 
 class ExtractSequencesOpTest(testing.TestCase):
@@ -976,3 +939,230 @@ class ExtractSequencesOpTest(testing.TestCase):
             (input_shape[1] - sequence_length) // sequence_stride
         ) + 1
         return (input_shape[0], num_sequences, sequence_length)
+
+
+class SegmentSumTest(testing.TestCase):
+    def test_segment_sum_call(self):
+        data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32)
+        segment_ids = np.array([0, 0, 1], dtype=np.int32)
+        num_segments = 2
+        sorted_segments = False
+        segment_sum_op = kmath.SegmentSum(
+            num_segments=num_segments, sorted=sorted_segments
+        )
+        output = segment_sum_op.call(data, segment_ids)
+        expected_output = np.array([[5, 7, 9], [7, 8, 9]], dtype=np.float32)
+        self.assertAllClose(output, expected_output)
+
+
+class SegmentMaxTest(testing.TestCase):
+    def test_segment_max_call(self):
+        data = np.array([[1, 4, 7], [2, 5, 8], [3, 6, 9]], dtype=np.float32)
+        segment_ids = np.array([0, 0, 1], dtype=np.int32)
+        num_segments = 2
+        sorted_segments = False
+        segment_max_op = kmath.SegmentMax(
+            num_segments=num_segments, sorted=sorted_segments
+        )
+        output = segment_max_op.call(data, segment_ids)
+        expected_output = np.array([[2, 5, 8], [3, 6, 9]], dtype=np.float32)
+        self.assertAllClose(output, expected_output)
+
+
+class TopKTest(testing.TestCase):
+    def test_top_k_call_values(self):
+        data = np.array([[1, 3, 2], [4, 6, 5]], dtype=np.float32)
+        k = 2
+        sorted_flag = True
+        top_k_op = kmath.TopK(k=k, sorted=sorted_flag)
+        values, _ = top_k_op.call(data)
+        expected_values = np.array([[3, 2], [6, 5]], dtype=np.float32)
+        self.assertAllClose(values, expected_values)
+
+    def test_top_k_call_indices(self):
+        data = np.array([[1, 3, 2], [4, 6, 5]], dtype=np.float32)
+        k = 2
+        sorted_flag = True
+        top_k_op = kmath.TopK(k=k, sorted=sorted_flag)
+        _, indices = top_k_op.call(data)
+        expected_indices = np.array([[1, 2], [1, 2]], dtype=np.int32)
+        self.assertAllClose(indices, expected_indices)
+
+
+class InTopKTest(testing.TestCase):
+    def test_in_top_k_call(self):
+        targets = np.array([2, 0, 1], dtype=np.int32)
+        predictions = np.array(
+            [[0.1, 0.2, 0.7], [1.0, 0.2, 0.3], [0.2, 0.6, 0.2]],
+            dtype=np.float32,
+        )
+        k = 2
+        in_top_k_op = kmath.InTopK(k=k)
+        output = in_top_k_op.call(targets, predictions)
+        expected_output = np.array([True, True, True], dtype=bool)
+        self.assertAllEqual(output, expected_output)
+
+
+class LogsumexpTest(testing.TestCase):
+    def test_logsumexp_call(self):
+        x = np.array([[1, 2], [3, 4]], dtype=np.float32)
+        axis = 0
+        keepdims = True
+        logsumexp_op = kmath.Logsumexp(axis=axis, keepdims=keepdims)
+        output = logsumexp_op.call(x)
+        expected_output = np.log(
+            np.sum(np.exp(x), axis=axis, keepdims=keepdims)
+        )
+        self.assertAllClose(output, expected_output)
+
+
+class FFTTest(testing.TestCase):
+    def test_fft_input_not_tuple_or_list(self):
+        fft_op = kmath.FFT()
+        with self.assertRaisesRegex(
+            ValueError, "Input `x` should be a tuple of two tensors"
+        ):
+            fft_op.compute_output_spec(np.array([1, 2, 3]))
+
+    def test_fft_input_parts_different_shapes(self):
+        fft_op = kmath.FFT()
+        real = np.array([1, 2, 3])
+        imag = np.array([1, 2])
+        with self.assertRaisesRegex(
+            ValueError,
+            "Both the real and imaginary parts should have the same shape",
+        ):
+            fft_op.compute_output_spec((real, imag))
+
+    def test_fft_input_not_1d(self):
+        fft_op = kmath.FFT()
+        real = np.array(1)
+        imag = np.array(1)
+        with self.assertRaisesRegex(ValueError, "Input should have rank >= 1"):
+            fft_op.compute_output_spec((real, imag))
+
+    def test_fft_last_axis_not_fully_defined(self):
+        fft_op = kmath.FFT()
+        real = KerasTensor(shape=(None,), dtype="float32")
+        imag = KerasTensor(shape=(None,), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError, "Input should have its -1th axis fully-defined"
+        ):
+            fft_op.compute_output_spec((real, imag))
+
+    def test_fft_init_default_axis(self):
+        fft_op = kmath.FFT()
+        self.assertEqual(fft_op.axis, -1, "Default axis should be -1")
+
+
+class FFT2Test(testing.TestCase):
+    def test_fft2_correct_input(self):
+        fft2_op = kmath.FFT2()
+        real_part = np.random.rand(2, 3, 4)
+        imag_part = np.random.rand(2, 3, 4)
+        # This should not raise any errors
+        fft2_op.compute_output_spec((real_part, imag_part))
+
+    def test_fft2_incorrect_input_type(self):
+        fft2_op = kmath.FFT2()
+        incorrect_input = np.array([1, 2, 3])  # Not a tuple or list
+        with self.assertRaisesRegex(
+            ValueError, "should be a tuple of two tensors"
+        ):
+            fft2_op.compute_output_spec(incorrect_input)
+
+    def test_fft2_mismatched_shapes(self):
+        fft2_op = kmath.FFT2()
+        real_part = np.random.rand(2, 3, 4)
+        imag_part = np.random.rand(2, 3)  # Mismatched shape
+        with self.assertRaisesRegex(
+            ValueError,
+            "Both the real and imaginary parts should have the same shape",
+        ):
+            fft2_op.compute_output_spec((real_part, imag_part))
+
+    def test_fft2_low_rank(self):
+        fft2_op = kmath.FFT2()
+        low_rank_input = np.random.rand(3)  # Rank of 1
+        with self.assertRaisesRegex(ValueError, "Input should have rank >= 2"):
+            fft2_op.compute_output_spec((low_rank_input, low_rank_input))
+
+    def test_fft2_undefined_dimensions(self):
+        fft2_op = kmath.FFT2()
+        real_part = KerasTensor(shape=(None, None, 3), dtype="float32")
+        imag_part = KerasTensor(shape=(None, None, 3), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError, "Input should have its .* axes fully-defined"
+        ):
+            fft2_op.compute_output_spec((real_part, imag_part))
+
+
+class RFFTTest(testing.TestCase):
+    def test_rfft_low_rank_input(self):
+        rfft_op = kmath.RFFT()
+        low_rank_input = np.array(5)
+        with self.assertRaisesRegex(ValueError, "Input should have rank >= 1"):
+            rfft_op.compute_output_spec(low_rank_input)
+
+    def test_rfft_defined_fft_length(self):
+        fft_length = 10
+        rfft_op = kmath.RFFT(fft_length=fft_length)
+        input_tensor = np.random.rand(3, 8)
+
+        expected_last_dimension = fft_length // 2 + 1
+        expected_shape = input_tensor.shape[:-1] + (expected_last_dimension,)
+
+        output_tensors = rfft_op.compute_output_spec(input_tensor)
+        for output_tensor in output_tensors:
+            self.assertEqual(output_tensor.shape, expected_shape)
+
+        def test_rfft_undefined_fft_length_defined_last_dim(self):
+            rfft_op = kmath.RFFT()
+            input_tensor = np.random.rand(3, 8)
+            expected_last_dimension = input_tensor.shape[-1] // 2 + 1
+            expected_shape = input_tensor.shape[:-1] + (
+                expected_last_dimension,
+            )
+            output_tensors = rfft_op.compute_output_spec(input_tensor)
+            for output_tensor in output_tensors:
+                self.assertEqual(output_tensor.shape, expected_shape)
+
+    def test_rfft_undefined_fft_length_undefined_last_dim(self):
+        rfft_op = kmath.RFFT()
+        input_tensor = KerasTensor(shape=(None, None), dtype="float32")
+        expected_shape = input_tensor.shape[:-1] + (None,)
+        output_tensors = rfft_op.compute_output_spec(input_tensor)
+        for output_tensor in output_tensors:
+            self.assertEqual(output_tensor.shape, expected_shape)
+
+
+class ISTFTTest(testing.TestCase):
+    def test_istft_incorrect_input_type(self):
+        istft_op = kmath.ISTFT(
+            sequence_length=5, sequence_stride=2, fft_length=10
+        )
+        incorrect_input = np.array([1, 2, 3])
+        with self.assertRaisesRegex(
+            ValueError, "should be a tuple of two tensors"
+        ):
+            istft_op.compute_output_spec(incorrect_input)
+
+    def test_istft_mismatched_shapes(self):
+        istft_op = kmath.ISTFT(
+            sequence_length=5, sequence_stride=2, fft_length=10
+        )
+        real_part = np.random.rand(2, 3, 4)
+        imag_part = np.random.rand(2, 3)
+        with self.assertRaisesRegex(
+            ValueError,
+            "Both the real and imaginary parts should have the same shape",
+        ):
+            istft_op.compute_output_spec((real_part, imag_part))
+
+    def test_istft_low_rank_input(self):
+        istft_op = kmath.ISTFT(
+            sequence_length=5, sequence_stride=2, fft_length=10
+        )
+        low_rank_input = np.random.rand(3)
+        with self.assertRaisesRegex(ValueError, "Input should have rank >= 2"):
+            istft_op.compute_output_spec((low_rank_input, low_rank_input))

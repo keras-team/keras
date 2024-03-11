@@ -277,7 +277,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 (x, y, sample_weight), validation_split=validation_split
             )
 
-        if validation_data:
+        if validation_data is not None:
             (
                 val_x,
                 val_y,
@@ -314,6 +314,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         callbacks.on_train_begin()
         training_logs = None
         logs = None
+        initial_epoch = self._initial_epoch or initial_epoch
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)
@@ -331,7 +332,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             epoch_logs = self.get_metrics_result()
 
             # Run validation.
-            if validation_data and self._should_eval(epoch, validation_freq):
+            if validation_data is not None and self._should_eval(
+                epoch, validation_freq
+            ):
                 # Create EpochIterator for evaluation and cache it.
                 if getattr(self, "_eval_epoch_iterator", None) is None:
                     self._eval_epoch_iterator = TFEpochIterator(
@@ -629,13 +632,16 @@ class TFEpochIterator(EpochIterator):
     def __init__(self, distribute_strategy=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._distribute_strategy = distribute_strategy
-        dataset = self.data_adapter.get_tf_dataset()
+        dataset = self._get_iterator()
         if not isinstance(dataset, tf.distribute.DistributedDataset):
             dataset = self._distribute_strategy.experimental_distribute_dataset(
                 dataset
             )
         self._distributed_dataset = dataset
         self._steps_seen = 0
+
+    def _get_iterator(self):
+        return self.data_adapter.get_tf_dataset()
 
     def enumerate_epoch(self):
         if self.steps_per_epoch:

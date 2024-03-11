@@ -9,6 +9,7 @@ from keras.backend.common.backend_utils import (
 )
 from keras.backend.config import epsilon
 from keras.backend.tensorflow.core import cast
+from keras.backend.tensorflow.core import convert_to_tensor
 
 
 def relu(x):
@@ -51,8 +52,12 @@ def leaky_relu(x, negative_slope=0.2):
 
 
 def hard_sigmoid(x):
-    x = x / 6.0 + 0.5
-    return tf.clip_by_value(x, 0.0, 1.0)
+    x = convert_to_tensor(x)
+    return relu6(x + tf.constant(3.0, x.dtype)) / tf.constant(6.0, x.dtype)
+
+
+def hard_silu(x):
+    return x * hard_sigmoid(x)
 
 
 def elu(x, alpha=1.0):
@@ -68,7 +73,31 @@ def selu(x):
 
 
 def gelu(x, approximate=True):
-    return tf.nn.gelu(x, approximate)
+    x = convert_to_tensor(x)
+    # we need to explicitly implement gelu because bfloat16 will trigger
+    # DTypePromotionError when using enable_numpy_behavior()
+    if approximate:
+        coeff = tf.constant(0.044715, x.dtype)
+        return (
+            tf.constant(0.5, x.dtype)
+            * x
+            * (
+                tf.constant(1.0, x.dtype)
+                + tf.math.tanh(
+                    tf.constant(0.7978845608028654, x.dtype)
+                    * (x + coeff * tf.pow(x, 3))
+                )
+            )
+        )
+    else:
+        return (
+            tf.constant(0.5, x.dtype)
+            * x
+            * (
+                tf.constant(1.0, x.dtype)
+                + tf.math.erf(x / tf.constant(1.4142135623730951, x.dtype))
+            )
+        )
 
 
 def softmax(x, axis=-1):
@@ -114,7 +143,7 @@ def _transpose_spatial_inputs(inputs):
 
 
 def _transpose_spatial_outputs(outputs):
-    # Undo the tranpose in `_transpose_spatial_inputs`.
+    # Undo the transpose in `_transpose_spatial_inputs`.
     num_spatial_dims = len(outputs.shape) - 2
     if num_spatial_dims == 1:
         outputs = tf.transpose(outputs, (0, 2, 1))
@@ -416,10 +445,12 @@ def conv_transpose(
 
 
 def one_hot(x, num_classes, axis=-1, dtype="float32"):
+    x = convert_to_tensor(x)
     return tf.one_hot(x, num_classes, axis=axis, dtype=dtype)
 
 
 def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+    x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
     outputs = tf.reduce_max(
         one_hot(cast(x, "int32"), num_classes, axis=axis, dtype=dtype),
@@ -652,26 +683,37 @@ def binary_crossentropy(target, output, from_logits=False):
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
+    # The dynamic range of float16 is too limited for statistics. As a
+    # workaround, we simply perform the operations on float32 and convert back
+    # to float16
+    need_cast = False
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype in ("float16", "bfloat16"):
+        need_cast = True
+        x = cast(x, "float32")
+
     if synchronized:
-        return _compute_moments_sync(x, axes, keepdims)
+        mean, variance = _compute_moments_sync(x, axes, keepdims)
     else:
-        return _compute_moments(x, axes, keepdims)
+        mean, variance = _compute_moments(x, axes, keepdims)
+    if need_cast:
+        # avoid overflow and underflow when casting from float16 to float32
+        mean = tf.clip_by_value(mean, tf.float16.min, tf.float16.max)
+        variance = tf.clip_by_value(variance, tf.float16.min, tf.float16.max)
+        mean = cast(mean, ori_dtype)
+        variance = cast(variance, ori_dtype)
+    return mean, variance
 
 
 def _compute_moments_sync(x, axes, keepdims):
-    # The dynamic range of fp16 is too limited to support the collection
-    # of sufficient statistics. As a workaround we simply perform the
-    # operations on 32-bit floats before converting the mean and
-    # variance back to fp16
-    y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
     replica_ctx = tf.distribute.get_replica_context()
     if not replica_ctx:
         return _compute_moments(x, axes, keepdims)
 
-    local_count = tf.ones_like(y, name="count")
+    local_count = tf.ones_like(x, name="count")
 
-    local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
-    local_squared_sum = tf.reduce_sum(tf.square(y), axis=axes, keepdims=True)
+    local_sum = tf.reduce_sum(x, axis=axes, keepdims=True)
+    local_squared_sum = tf.reduce_sum(tf.square(x), axis=axes, keepdims=True)
     local_count = tf.reduce_sum(local_count, axis=axes, keepdims=True)
 
     # TODO(b/163099951): batch the all-reduces once we sort out the
@@ -691,48 +733,12 @@ def _compute_moments_sync(x, axes, keepdims):
     if not keepdims:
         mean = tf.squeeze(mean, axes)
         variance = tf.squeeze(variance, axes)
-    if x.dtype == tf.float16:
-        return (
-            tf.cast(mean, tf.float16),
-            tf.cast(variance, tf.float16),
-        )
+
     return mean, variance
 
 
 def _compute_moments(x, axes, keepdims):
-    # The dynamic range of float16 is too limited for statistics. As a
-    # workaround, we simply perform the operations on float32 and convert back
-    # to float16
-    need_cast = False
-    ori_dtype = standardize_dtype(x.dtype)
-    if ori_dtype == "float16":
-        need_cast = True
-        x = cast(x, "float32")
-
-    mean = tf.reduce_mean(x, axes, keepdims=True)
-
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    # Note: stop_gradient does not change the gradient to the mean, because that
-    # gradient is zero.
-    # The substraction operation does not guarantee a non-negative
-    # result given float precision, so we clamp it to 0.
-    variance = tf.maximum(
-        tf.reduce_mean(tf.square(x), axis=axes, keepdims=True)
-        - tf.square(tf.stop_gradient(mean)),
-        0.0,
-    )
-
-    if not keepdims:
-        mean = tf.squeeze(mean, axes)
-        variance = tf.squeeze(variance, axes)
-    if need_cast:
-        # avoid overflow and underflow when casting from float16 to float32
-        mean = tf.clip_by_value(mean, tf.float16.min, tf.float16.max)
-        variance = tf.clip_by_value(variance, tf.float16.min, tf.float16.max)
-        mean = cast(mean, ori_dtype)
-        variance = cast(variance, ori_dtype)
-    return mean, variance
+    return tf.nn.moments(x, axes, keepdims=keepdims)
 
 
 def batch_normalization(
@@ -755,4 +761,44 @@ def batch_normalization(
         offset=offset,
         scale=scale,
         variance_epsilon=epsilon,
+    )
+
+
+def ctc_loss(
+    target,
+    output,
+    target_length,
+    output_length,
+    mask_index=0,
+):
+    """Runs CTC (Connectionist Temporal Classification) loss on each
+    batch element.
+
+    Arguments:
+        target: Tensor `(batch_size, max_length)` containing the
+            target sequences in integer format.
+        output: Tensor `(batch_size, max_length, num_classes)`
+            containing the output of the softmax.
+        target_length: Tensor `(batch_size,)` containing the sequence length
+            for each target sequence in the batch.
+        output_length: Tensor `(batch_size,)` containing the sequence length
+            for each output sequence in the batch.
+        mask_index: The value in `target` and `output` that represents the
+            blank label.
+
+    Returns:
+        A tensor of shape `(batch_size,)` containing the CTC loss for each
+        sample in the batch.
+    """
+    target = tf.convert_to_tensor(target)
+    target = tf.cast(target, dtype="int32")
+    output = tf.convert_to_tensor(output)
+    output = tf.cast(output, dtype="float32")
+    return tf.nn.ctc_loss(
+        labels=target,
+        logits=output,
+        label_length=target_length,
+        logit_length=output_length,
+        blank_index=mask_index,
+        logits_time_major=False,
     )

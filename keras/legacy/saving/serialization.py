@@ -1,4 +1,5 @@
 """Legacy serialization logic for Keras models."""
+
 import contextlib
 import inspect
 import json
@@ -396,9 +397,9 @@ def class_and_config_for_serialized_keras_object(
             # rare case.  This issue does not occur if a string field has a
             # naming conflict with a custom object, since the config of an
             # object will always be a dict.
-            deserialized_objects[
-                key
-            ] = object_registration.get_registered_object(item, custom_objects)
+            deserialized_objects[key] = (
+                object_registration.get_registered_object(item, custom_objects)
+            )
     for key, item in deserialized_objects.items():
         cls_config[key] = deserialized_objects[key]
 

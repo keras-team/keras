@@ -126,7 +126,7 @@ def convert_to_numpy(x):
         x.set_shape(x_shape)
     elif isinstance(x, tf.IndexedSlices):
         x = tf.convert_to_tensor(x)
-    return np.array(x)
+    return np.asarray(x)
 
 
 def is_tensor(x):
@@ -142,6 +142,8 @@ def shape(x):
     tensor values when the shape is unknown (this is tf specific, as dynamic
     shapes do not apply in other backends).
     """
+    if isinstance(x, KerasTensor):
+        return x.shape
     if not tf.is_tensor(x):
         x = tf.convert_to_tensor(x)
     dynamic = tf.shape(x)
@@ -232,12 +234,20 @@ def while_loop(
     loop_vars,
     maximum_iterations=None,
 ):
-    return tf.while_loop(
+    is_tuple = isinstance(loop_vars, (tuple, list))
+    loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
+
+    def _body(*args):
+        outputs = body(*args)
+        return tuple(outputs) if is_tuple else (outputs,)
+
+    outputs = tf.while_loop(
         cond,
-        body,
+        _body,
         loop_vars,
         maximum_iterations=maximum_iterations,
     )
+    return outputs if is_tuple else outputs[0]
 
 
 def fori_loop(lower, upper, body_fun, init_val):
@@ -285,5 +295,5 @@ class name_scope(base_name_scope):
             self._tf_name_scope.__exit__(*args, **kwargs)
 
 
-def device(device):
-    return tf.device(device)
+def device_scope(device_name):
+    return tf.device(device_name)
