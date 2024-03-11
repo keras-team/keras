@@ -3,11 +3,11 @@
 import datetime
 import io
 import json
+import os
+import re
 import tempfile
 import warnings
 import zipfile
-import re
-import os
 
 import ml_dtypes
 import numpy as np
@@ -37,7 +37,9 @@ _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
 _ASSETS_DIRNAME = "assets"
 
 
-def save_model(model, filepath, weights_format="h5", sharded=False, shard_size=None):
+def save_model(
+    model, filepath, weights_format="h5", sharded=False, shard_size=None
+):
     """Save a zip-archive representing a Keras model to the given filepath.
 
     The zip-based archive contains the following structure:
@@ -116,7 +118,9 @@ def save_model(model, filepath, weights_format="h5", sharded=False, shard_size=N
                     max_size=max_size,
                 )
             else:
-                weights_store = H5IOStore(_VARS_FNAME + ".h5", archive=zf, mode="w")
+                weights_store = H5IOStore(
+                    _VARS_FNAME + ".h5", archive=zf, mode="w"
+                )
         elif weights_format == "npz":
             weights_store = NpzIOStore(
                 _VARS_FNAME + ".npz", archive=zf, mode="w"
@@ -182,7 +186,9 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
                     mode="r",
                 )
             else:
-                weights_store = H5IOStore(_VARS_FNAME + ".h5", archive=zf, mode="r")
+                weights_store = H5IOStore(
+                    _VARS_FNAME + ".h5", archive=zf, mode="r"
+                )
         elif _VARS_FNAME + ".npz" in all_filenames:
             weights_store = NpzIOStore(
                 _VARS_FNAME + ".npz", archive=zf, mode="r"
@@ -666,17 +672,20 @@ class ShardedH5IOStore:
         self.max_size = convert_str_bytes_to_int(max_size)
         self.current_shard_size = 0
 
-        self.var_shard_map_filename = str(root_path).replace(".weights.h5", ".weights.json")
+        self.var_shard_map_filename = str(root_path).replace(
+            ".weights.h5", ".weights.json"
+        )
         if not os.path.exists(self.var_shard_map_filename):
             if self.mode == "w":
                 self.var_shard_map = {}
-            if self.mode =="r":
+            if self.mode == "r":
                 raise FileNotFoundError(
                     f"Loading a sharded `.weights.h5` file requires "
                     "its corresponding sharding map JSON file "
                     f"{self.var_shard_map_filename} in the same directory. "
-                    "Please ensure all weights files and the sharding map JSON file "
-                    "are in the same directory when loading a sharded weights file."
+                    "Please ensure all weights files and the sharding map "
+                    "JSON file are in the same directory when loading a "
+                    "sharded weights file."
                 )
         else:
             with open(self.var_shard_map_filename, "r") as map_file:
@@ -730,7 +739,9 @@ class ShardedH5IOStore:
             return self.h5_file[path]["vars"]
 
         # If not found, check shard map and switch files
-        filename = self.var_shard_map.get(path) or self.var_shard_map.get("/" + path +"/vars")
+        filename = self.var_shard_map.get(path) or self.var_shard_map.get(
+            "/" + path + "/vars"
+        )
         if filename is not None and self.h5_file.name != filename:
             new_file = self._change_access_file(filename)
             if "vars" in new_file[path]:
@@ -749,7 +760,6 @@ class ShardedH5IOStore:
             self.io_file.close()
 
 
-
 def convert_str_bytes_to_int(size):
     if size.upper().endswith("GB"):
         return int(size[:-2]) * (10**9)
@@ -764,10 +774,12 @@ def convert_str_bytes_to_int(size):
 
 
 def resolve_duplicate_filename(path, path_list):
-    pattern = re.compile("_\d\.weights\.h5")
+    pattern = re.compile(r"_\d\.weights\.h5")
     pre_duplicate = pattern.split(path)[0]  # Check for pre-existing duplicate
     if not pre_duplicate.endswith(".weights.h5"):
-        match_list = list(filter(lambda x: x.startswith(pre_duplicate), path_list))
+        match_list = list(
+            filter(lambda x: x.startswith(pre_duplicate), path_list)
+        )
         if len(match_list) > 1:
             return pre_duplicate + "_" + str(len(match_list)) + ".weights.h5"
     return path.replace(".weights.h5", "_1.weights.h5")

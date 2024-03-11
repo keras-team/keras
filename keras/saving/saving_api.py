@@ -99,7 +99,12 @@ def save_model(model, filepath, overwrite=True, **kwargs):
             return
 
     if str(filepath).endswith(".keras"):
-        saving_lib.save_model(model, filepath)
+        saving_lib.save_model(
+            model,
+            filepath,
+            sharded=sharded,
+            shard_size=shard_size,
+        )
     elif str(filepath).endswith((".h5", ".hdf5")):
         legacy_h5_format.save_model_to_hdf5(
             model, filepath, overwrite, include_optimizer
