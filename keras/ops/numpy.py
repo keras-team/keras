@@ -4610,7 +4610,7 @@ class Sin(Operation):
 
 @keras_export(["keras.ops.sin", "keras.ops.numpy.sin"])
 def sin(x):
-    """Trigonomeric sine, element-wise.
+    """Trigonometric sine, element-wise.
 
     Arguments:
         x: Input tensor.
