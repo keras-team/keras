@@ -111,7 +111,12 @@ def convert_to_tensor(x, dtype=None, sparse=None):
             x = tf.convert_to_tensor(x)
             return tf.cast(x, dtype)
         return tf.convert_to_tensor(x, dtype=dtype)
-    elif dtype is not None:
+    elif dtype is not None and not x.dtype == dtype:
+        if isinstance(x, tf.SparseTensor):
+            x_shape = x.shape
+            x = tf.cast(x, dtype)
+            x.set_shape(x_shape)
+            return x
         return tf.cast(x, dtype=dtype)
     else:
         return x

@@ -53,7 +53,10 @@ class StatelessScope:
                     "all keys in argument `mapping` must be KerasVariable "
                     f"instances. Received instead: {k}"
                 )
-            v = backend.convert_to_tensor(v, dtype=k.dtype)
+            if isinstance(v, KerasVariable):
+                v = backend.cast(v.value, dtype=k.dtype)
+            else:
+                v = backend.convert_to_tensor(v, dtype=k.dtype)
             if k.shape != v.shape:
                 raise ValueError(
                     "Invalid variable value in StatelessScope: "
