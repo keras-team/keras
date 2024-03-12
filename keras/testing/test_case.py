@@ -244,7 +244,19 @@ class TestCase(unittest.TestCase):
 
         def run_output_asserts(layer, output, eager=False):
             if expected_output_shape is not None:
-                if isinstance(expected_output_shape, tuple):
+                if isinstance(expected_output_shape, tuple) and isinstance(expected_output_shape[0], tuple):
+                    self.assertEqual(
+                        len(output),
+                        len(expected_output_shape),
+                        msg="Unexpected number of outputs",
+                    )
+                    output_shape = tuple(v.shape for v in output)
+                    self.assertEqual(
+                        expected_output_shape,
+                        output_shape,
+                        msg="Unexpected output shape",
+                    )
+                elif isinstance(expected_output_shape, tuple):
                     self.assertEqual(
                         expected_output_shape,
                         output.shape,
@@ -258,7 +270,7 @@ class TestCase(unittest.TestCase):
                         msg="Unexpected output dict keys",
                     )
                     output_shape = {
-                        k: v.shape for k, v in expected_output_shape.items()
+                        k: v.shape for k, v in output.items()
                     }
                     self.assertEqual(
                         expected_output_shape,
@@ -272,19 +284,60 @@ class TestCase(unittest.TestCase):
                         len(expected_output_shape),
                         msg="Unexpected number of outputs",
                     )
-                    output_shape = [v.shape for v in expected_output_shape]
+                    output_shape = [v.shape for v in output]
                     self.assertEqual(
                         expected_output_shape,
                         output_shape,
                         msg="Unexpected output shape",
                     )
             if expected_output_dtype is not None:
-                output_dtype = tree.flatten(output)[0].dtype
-                self.assertEqual(
-                    expected_output_dtype,
-                    backend.standardize_dtype(output_dtype),
-                    msg="Unexpected output dtype",
-                )
+                if isinstance(expected_output_dtype, tuple):
+                    self.assertEqual(
+                        len(output),
+                        len(expected_output_dtype),
+                        msg="Unexpected number of outputs",
+                    )
+                    output_dtype = tuple(backend.standardize_dtype(v.dtype) for v in output)
+                    self.assertEqual(
+                        expected_output_dtype,
+                        output_dtype,
+                        msg="Unexpected output dtype",
+                    )
+                elif isinstance(expected_output_dtype, dict):
+                    self.assertIsInstance(output, dict)
+                    self.assertEqual(
+                        set(output.keys()),
+                        set(expected_output_dtype.keys()),
+                        msg="Unexpected output dict keys",
+                    )
+                    output_dtype = {
+                        k: backend.standardize_dtype(v.dtype) for k, v in output.items()
+                    }
+                    self.assertEqual(
+                        expected_output_dtype,
+                        output_dtype,
+                        msg="Unexpected output dtype",
+                    )
+                elif isinstance(expected_output_dtype, list):
+                    self.assertIsInstance(output, list)
+                    self.assertEqual(
+                        len(output),
+                        len(expected_output_dtype),
+                        msg="Unexpected number of outputs",
+                    )
+                    output_dtype = [backend.standardize_dtype(v.dtype) for v in output]
+                    self.assertEqual(
+                        expected_output_dtype,
+                        output_dtype,
+                        msg="Unexpected output dtype",
+                    )
+                else:
+                    output_dtype = tree.flatten(output)[0].dtype
+                    self.assertEqual(
+                        expected_output_dtype,
+                        backend.standardize_dtype(output_dtype),
+                        msg="Unexpected output dtype",
+                    )
             if expected_output_sparse:
                 for x in tree.flatten(output):
                     if isinstance(x, KerasTensor):
