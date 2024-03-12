@@ -244,7 +244,9 @@ class TestCase(unittest.TestCase):
 
         def run_output_asserts(layer, output, eager=False):
             if expected_output_shape is not None:
-                if isinstance(expected_output_shape, tuple) and isinstance(expected_output_shape[0], tuple):
+                if isinstance(expected_output_shape, tuple) and isinstance(
+                    expected_output_shape[0], tuple
+                ):
                     self.assertEqual(
                         len(output),
                         len(expected_output_shape),
@@ -269,9 +271,7 @@ class TestCase(unittest.TestCase):
                         set(expected_output_shape.keys()),
                         msg="Unexpected output dict keys",
                     )
-                    output_shape = {
-                        k: v.shape for k, v in output.items()
-                    }
+                    output_shape = {k: v.shape for k, v in output.items()}
                     self.assertEqual(
                         expected_output_shape,
                         output_shape,
@@ -297,7 +297,9 @@ class TestCase(unittest.TestCase):
                         len(expected_output_dtype),
                         msg="Unexpected number of outputs",
                     )
-                    output_dtype = tuple(backend.standardize_dtype(v.dtype) for v in output)
+                    output_dtype = tuple(
+                        backend.standardize_dtype(v.dtype) for v in output
+                    )
                     self.assertEqual(
                         expected_output_dtype,
                         output_dtype,
@@ -311,7 +313,8 @@ class TestCase(unittest.TestCase):
                         msg="Unexpected output dict keys",
                     )
                     output_dtype = {
-                        k: backend.standardize_dtype(v.dtype) for k, v in output.items()
+                        k: backend.standardize_dtype(v.dtype)
+                        for k, v in output.items()
                     }
                     self.assertEqual(
                         expected_output_dtype,
@@ -325,7 +328,9 @@ class TestCase(unittest.TestCase):
                         len(expected_output_dtype),
                         msg="Unexpected number of outputs",
                     )
-                    output_dtype = [backend.standardize_dtype(v.dtype) for v in output]
+                    output_dtype = [
+                        backend.standardize_dtype(v.dtype) for v in output
+                    ]
                     self.assertEqual(
                         expected_output_dtype,
                         output_dtype,
