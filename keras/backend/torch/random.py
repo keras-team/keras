@@ -197,8 +197,10 @@ def gamma(shape, alpha, dtype=None, seed=None):
     alpha = torch.broadcast_to(convert_to_tensor(alpha), shape)
     beta = torch.ones(shape, device=get_device())
     prev_rng_state = torch.random.get_rng_state()
-    first_seed, second_seed = draw_seed(seed)
-    torch.manual_seed(first_seed + second_seed)
+    # Do not draw seed during symbolic execution
+    if not get_device() == "meta":
+        first_seed, second_seed = draw_seed(seed)
+        torch.manual_seed(first_seed + second_seed)
     gamma_distribution = torch.distributions.gamma.Gamma(alpha, beta)
     sample = gamma_distribution.sample().type(dtype)
     torch.random.set_rng_state(prev_rng_state)
@@ -211,8 +213,10 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
     counts = torch.broadcast_to(convert_to_tensor(counts), shape)
     probabilities = torch.broadcast_to(convert_to_tensor(probabilities), shape)
     prev_rng_state = torch.random.get_rng_state()
-    first_seed, second_seed = draw_seed(seed)
-    torch.manual_seed(first_seed + second_seed)
+    # Do not draw seed during symbolic execution
+    if not get_device() == "meta":
+        first_seed, second_seed = draw_seed(seed)
+        torch.manual_seed(first_seed + second_seed)
     binomial_distribution = torch.distributions.binomial.Binomial(
         total_count=counts, probs=probabilities
     )
@@ -227,8 +231,10 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
     alpha = torch.broadcast_to(convert_to_tensor(alpha), shape)
     beta = torch.broadcast_to(convert_to_tensor(beta), shape)
     prev_rng_state = torch.random.get_rng_state()
-    first_seed, second_seed = draw_seed(seed)
-    torch.manual_seed(first_seed + second_seed)
+    # Do not draw seed during symbolic execution
+    if not get_device() == "meta":
+        first_seed, second_seed = draw_seed(seed)
+        torch.manual_seed(first_seed + second_seed)
     beta_distribution = torch.distributions.beta.Beta(
         concentration1=alpha, concentration0=beta
     )
