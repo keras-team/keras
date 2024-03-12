@@ -417,26 +417,14 @@ class TestCase(unittest.TestCase):
 
             if run_mixed_precision_check:
                 layer = layer_cls(**{**init_kwargs, "dtype": "mixed_float16"})
-                input_spec = tree.map_structure(
-                    lambda spec: KerasTensor(
-                        spec.shape,
-                        dtype=layer.compute_dtype
-                        if layer.autocast and backend.is_float_dtype(spec.dtype)
-                        else spec.dtype,
-                    ),
-                    keras_tensor_inputs,
-                )
                 if isinstance(input_data, dict):
                     output_data = layer(**input_data, **call_kwargs)
-                    output_spec = layer.compute_output_spec(**input_spec)
                 else:
                     output_data = layer(input_data, **call_kwargs)
-                    output_spec = layer.compute_output_spec(input_spec)
-                for tensor, spec in zip(
-                    tree.flatten(output_data), tree.flatten(output_spec)
-                ):
+                for tensor in tree.flatten(output_data):
                     dtype = standardize_dtype(tensor.dtype)
-                    self.assertEqual(dtype, spec.dtype)
+                    if is_float_dtype(dtype):
+                        self.assertEqual(dtype, "float16")
                 for weight in layer.weights:
                     dtype = standardize_dtype(weight.dtype)
                     if is_float_dtype(dtype):
