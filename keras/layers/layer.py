@@ -983,6 +983,7 @@ class Layer(BackendLayer, Operation):
             return super().compute_output_spec(*args, **kwargs)
         else:
             # Use compute_output_shape() to return the right output spec
+            print(self._call_signature.parameters.values())
             call_spec = CallSpec(self._call_signature, args, kwargs)
             shapes_dict = get_shapes_dict(call_spec)
             shapes_dict = update_shapes_dict_for_target_fn(
