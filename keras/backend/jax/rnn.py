@@ -1,11 +1,10 @@
 import contextlib
 
-import tree
 from jax import lax
 from jax import numpy as jnp
 
 from keras.backend.common import stateless_scope
-from keras.utils.nest import pack_sequence_as
+from keras.utils import tree
 
 
 def rnn(
@@ -86,7 +85,7 @@ def rnn(
 
         def _get_input_tensor(time):
             inp = [t_[time] for t_ in processed_input]
-            return pack_sequence_as(inputs, inp)
+            return tree.pack_sequence_as(inputs, inp)
 
         if mask is not None:
             mask_list = unstack(mask)
@@ -119,7 +118,7 @@ def rnn(
                         tiled_mask_t, flat_new_states, flat_states
                     )
                 )
-                states = pack_sequence_as(states, flat_final_states)
+                states = tree.pack_sequence_as(states, flat_final_states)
 
                 if return_all_outputs:
                     successive_outputs.append(output)

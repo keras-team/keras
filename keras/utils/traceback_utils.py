@@ -4,11 +4,10 @@ import traceback
 import types
 from functools import wraps
 
-import tree
-
 from keras import backend
 from keras.api_export import keras_export
 from keras.backend.common import global_state
+from keras.utils import tree
 
 _EXCLUDED_PATHS = (
     os.path.abspath(os.path.join(__file__, "..", "..")),

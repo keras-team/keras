@@ -1,5 +1,3 @@
-import tree
-
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -11,6 +9,7 @@ from keras.layers.input_spec import InputSpec
 from keras.layers.layer import Layer
 from keras.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras.layers.rnn.rnn import RNN
+from keras.utils import tree
 
 
 @keras_export("keras.layers.GRUCell")

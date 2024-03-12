@@ -1,5 +1,3 @@
-import tree
-
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -12,6 +10,7 @@ from keras.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras.layers.rnn.rnn import RNN
 from keras.ops import operation_utils
 from keras.utils import argument_validation
+from keras.utils import tree
 
 
 class ConvLSTMCell(Layer, DropoutRNNCell):

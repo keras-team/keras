@@ -1,5 +1,3 @@
-import tree
-
 from keras import backend
 from keras import ops
 from keras.api_export import keras_export
@@ -8,6 +6,7 @@ from keras.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras.layers.rnn.stacked_rnn_cells import StackedRNNCells
 from keras.saving import serialization_lib
 from keras.utils import tracking
+from keras.utils import tree
 
 
 @keras_export("keras.layers.RNN")

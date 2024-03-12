@@ -1,6 +1,42 @@
 import tree
 
 
+def is_nested(structure):
+    return tree.is_nested(structure)
+
+
+def flatten(structure):
+    return tree.flatten(structure)
+
+
+def map_structure(func, *structures, **kwargs):
+    return tree.map_structure(func, *structures, **kwargs)
+
+
+def map_structure_up_to(shallow_structure, func, *structures, **kwargs):
+    return tree.map_structure_up_to(
+        shallow_structure, func, *structures, **kwargs
+    )
+
+
+def assert_same_structure(a, b, check_types=True):
+    return tree.assert_same_structure(a, b, check_types=check_types)
+
+
+def sequence_like(instance, args):
+    """Converts the sequence `args` to the same type as `instance`.
+
+    Args:
+      instance: an instance of `tuple`, `list`, `namedtuple`, `dict`, or
+          `collections.OrderedDict`.
+      args: elements to be converted to the `instance` type.
+
+    Returns:
+      `args` with the type of `instance`.
+    """
+    return tree._sequence_like(instance, args)
+
+
 def pack_sequence_as(structure, flat_sequence, sequence_fn=None):
     """Implements sequence packing, i.e. nest.pack_sequence_as()."""
     is_nested_fn = tree.is_nested

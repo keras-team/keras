@@ -2,7 +2,6 @@ import warnings
 
 import numpy as np
 import torch
-import tree
 from packaging.version import parse
 
 from keras import backend
@@ -12,6 +11,7 @@ from keras.trainers import trainer as base_trainer
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.epoch_iterator import EpochIterator
 from keras.utils import traceback_utils
+from keras.utils import tree
 
 
 class TorchTrainer(base_trainer.Trainer):

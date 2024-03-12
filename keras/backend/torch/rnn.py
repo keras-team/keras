@@ -1,8 +1,7 @@
 import torch
-import tree
 
 from keras.backend.torch.core import convert_to_tensor
-from keras.utils.nest import pack_sequence_as
+from keras.utils import tree
 
 
 def rnn(
@@ -86,7 +85,7 @@ def rnn(
 
         def _get_input_tensor(time):
             inp = [t_[time] for t_ in processed_input]
-            return pack_sequence_as(inputs, inp)
+            return tree.pack_sequence_as(inputs, inp)
 
         if mask is not None:
             mask_list = torch.unbind(mask)
@@ -119,7 +118,7 @@ def rnn(
                         tiled_mask_t, flat_new_states, flat_states
                     )
                 )
-                states = pack_sequence_as(states, flat_final_states)
+                states = tree.pack_sequence_as(states, flat_final_states)
 
                 if return_all_outputs:
                     successive_outputs.append(output)
@@ -176,7 +175,7 @@ def rnn(
         )
 
         # Get the time(0) input and compute the output for that.
-        input_time_zero = pack_sequence_as(
+        input_time_zero = tree.pack_sequence_as(
             inputs, [inp[0] for inp in flattened_inputs]
         )
         # output_time_zero is used to determine the cell output shape.
@@ -265,7 +264,7 @@ def rnn(
                 """
                 current_input = tuple(ta[time] for ta in input_ta)
                 # maybe set shape.
-                current_input = pack_sequence_as(inputs, current_input)
+                current_input = tree.pack_sequence_as(inputs, current_input)
                 mask_t = masking_fn(time)
                 output, new_states = step_function(
                     current_input, tuple(states) + tuple(constants)
@@ -287,7 +286,7 @@ def rnn(
                 flat_final_state = compute_masked_output(
                     mask_t, flat_new_state, flat_state
                 )
-                new_states = pack_sequence_as(new_states, flat_final_state)
+                new_states = tree.pack_sequence_as(new_states, flat_final_state)
 
                 ta_index_to_write = time if return_all_outputs else 0
                 for ta, out in zip(output_ta_t, flat_new_output):
@@ -325,7 +324,7 @@ def rnn(
                     Tuple: `(time + 1,output_ta_t) + tuple(new_states)`
                 """
                 current_input = tuple(ta[time] for ta in input_ta)
-                current_input = pack_sequence_as(inputs, current_input)
+                current_input = tree.pack_sequence_as(inputs, current_input)
                 output, new_states = step_function(
                     current_input, tuple(states) + tuple(constants)
                 )
@@ -336,7 +335,9 @@ def rnn(
                 for ta, out in zip(output_ta_t, flat_output):
                     ta[ta_index_to_write] = out
 
-                new_states = pack_sequence_as(initial_states, flat_new_state)
+                new_states = tree.pack_sequence_as(
+                    initial_states, flat_new_state
+                )
                 return (time + 1, output_ta_t) + tuple(new_states)
 
             it = 0
@@ -361,8 +362,8 @@ def rnn(
         outputs = tuple(_stack(o) for o in output_ta)
         last_output = tuple(o[-1] for o in outputs)
 
-        outputs = pack_sequence_as(output_time_zero, outputs)
-        last_output = pack_sequence_as(output_time_zero, last_output)
+        outputs = tree.pack_sequence_as(output_time_zero, outputs)
+        last_output = tree.pack_sequence_as(output_time_zero, last_output)
 
     if not time_major:
         outputs = tree.map_structure(swap_batch_timestep, outputs)

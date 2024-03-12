@@ -1,9 +1,8 @@
-import tree
-
 from keras import ops
 from keras.api_export import keras_export
 from keras.layers.layer import Layer
 from keras.saving import serialization_lib
+from keras.utils import tree
 
 
 @keras_export("keras.layers.StackedRNNCells")

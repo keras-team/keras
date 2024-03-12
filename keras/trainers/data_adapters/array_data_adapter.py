@@ -1,13 +1,12 @@
 import math
 
 import numpy as np
-import tree
 
 from keras import backend
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.data_adapters.data_adapter import DataAdapter
+from keras.utils import tree
 from keras.utils.dataset_utils import is_torch_tensor
-from keras.utils.nest import lists_to_tuples
 
 try:
     import pandas
@@ -410,7 +409,7 @@ def convert_to_arrays(arrays):
         return x
 
     arrays = tree.map_structure(convert_single_array, arrays)
-    return lists_to_tuples(arrays)
+    return tree.lists_to_tuples(arrays)
 
 
 def is_tf_ragged_tensor(x):

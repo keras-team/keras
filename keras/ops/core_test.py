@@ -3,7 +3,6 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-import tree
 from absl.testing import parameterized
 
 from keras import backend
@@ -16,6 +15,7 @@ from keras import testing
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import core
+from keras.utils import tree
 
 
 class CoreOpsStaticShapeTest(testing.TestCase):

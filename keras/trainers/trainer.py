@@ -1,8 +1,6 @@
 import platform
 import warnings
 
-import tree
-
 from keras import backend
 from keras import metrics as metrics_module
 from keras import ops
@@ -14,6 +12,7 @@ from keras.trainers.compile_utils import CompileMetrics
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.utils import traceback_utils
 from keras.utils import tracking
+from keras.utils import tree
 
 
 class Trainer:

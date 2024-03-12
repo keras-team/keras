@@ -4,7 +4,6 @@ import os
 import ml_dtypes
 import numpy as np
 import torch
-import tree
 
 from keras.backend.common import KerasVariable
 from keras.backend.common import global_state
@@ -13,7 +12,7 @@ from keras.backend.common.dtypes import result_type
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.config import floatx
-from keras.utils.nest import pack_sequence_as
+from keras.utils import tree
 
 SUPPORTS_SPARSE_TENSORS = False
 
@@ -322,7 +321,7 @@ def compute_output_spec(fn, *args, **kwargs):
                     if e != shape[i]:
                         shape[i] = None
                 flat_out.append(KerasTensor(shape, standardize_dtype(x1.dtype)))
-            outputs = pack_sequence_as(outputs_1, flat_out)
+            outputs = tree.pack_sequence_as(outputs_1, flat_out)
 
         output_spec = tree.map_structure(convert_torch_to_keras_tensor, outputs)
     return output_spec

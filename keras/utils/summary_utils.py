@@ -9,11 +9,11 @@ import rich.markup
 # See https://github.com/keras-team/keras/issues/448
 # for below imports
 import rich.table
-import tree
 
 from keras import backend
 from keras.utils import dtype_utils
 from keras.utils import io_utils
+from keras.utils import tree
 
 
 def count_params(weights):

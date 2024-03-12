@@ -2,8 +2,6 @@ import copy
 import inspect
 import warnings
 
-import tree
-
 from keras import backend
 from keras import ops
 from keras.backend.common import global_state
@@ -20,7 +18,7 @@ from keras.ops.function import make_node_key
 from keras.ops.node import Node
 from keras.saving import serialization_lib
 from keras.utils import tracking
-from keras.utils.nest import pack_sequence_as
+from keras.utils import tree
 
 
 class Functional(Function, Model):
@@ -758,7 +756,7 @@ def clone_graph_nodes(inputs, outputs):
             op_id_mapping[id(kt_input._keras_history[0])] = (
                 cloned_input._keras_history[0]
             )
-    cloned_inputs = pack_sequence_as(inputs, cloned_inputs)
+    cloned_inputs = tree.pack_sequence_as(inputs, cloned_inputs)
 
     for kt_output in tree.flatten(outputs):
         cpy = clone_single_keras_tensor(kt_output)
@@ -766,7 +764,7 @@ def clone_graph_nodes(inputs, outputs):
         cpy._keras_history = kt_output._keras_history
         cloned_outputs.append(cpy)
         kt_id_mapping[id(kt_output)] = cpy
-    cloned_outputs = pack_sequence_as(outputs, cloned_outputs)
+    cloned_outputs = tree.pack_sequence_as(outputs, cloned_outputs)
 
     for node in nodes_to_clone:
         if id(node.operation) in op_id_mapping:

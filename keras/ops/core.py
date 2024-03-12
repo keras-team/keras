@@ -15,7 +15,6 @@ custom_gradient
 """
 
 import numpy as np
-import tree
 
 from keras import backend
 from keras.api_export import keras_export
@@ -23,6 +22,7 @@ from keras.backend import KerasTensor
 from keras.backend import any_symbolic_tensors
 from keras.ops.operation import Operation
 from keras.utils import traceback_utils
+from keras.utils import tree
 
 
 class Scatter(Operation):

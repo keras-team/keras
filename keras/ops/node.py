@@ -1,9 +1,8 @@
 import collections
 
-import tree
-
 from keras.backend import KerasTensor
 from keras.ops.symbolic_arguments import SymbolicArguments
+from keras.utils import tree
 
 
 class Node:

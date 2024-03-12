@@ -3,7 +3,6 @@ import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 import ml_dtypes
 import numpy as np
-import tree
 
 from keras.backend.common import KerasVariable
 from keras.backend.common import global_state
@@ -11,6 +10,7 @@ from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.jax import distribution_lib
+from keras.utils import tree
 
 SUPPORTS_SPARSE_TENSORS = True
 

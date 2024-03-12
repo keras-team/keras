@@ -98,12 +98,17 @@ def set_backend(backend):
     keras.config.set_backend("jax")
     ```
 
-    Note that this will **NOT** convert the type of any already
-    instantiated objects, except for the `keras` module itself.
+    ⚠️ WARNING ⚠️: Using this function is dangerous and should be done
+    carefully. Changing the backend will **NOT** convert
+    the type of any already-instantiated objects.
     Thus, any layers / tensors / etc. already created will no
     longer be usable without errors. It is strongly recommended **not**
     to keep around **any** Keras-originated objects instances created
     before calling `set_backend()`.
+
+    This includes any function or class instance that uses any Keras
+    functionality. All such code needs to be re-executed after calling
+    `set_backend()`.
     """
     os.environ["KERAS_BACKEND"] = backend
     # Clear module cache.

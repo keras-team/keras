@@ -1,7 +1,6 @@
 import json
 import threading
 
-import tree
 from absl import logging
 
 from keras import backend
@@ -12,6 +11,7 @@ from keras import models
 from keras import optimizers
 from keras.legacy.saving import serialization
 from keras.saving import object_registration
+from keras.utils import tree
 
 MODULE_OBJECTS = threading.local()
 

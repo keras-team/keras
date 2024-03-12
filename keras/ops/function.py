@@ -1,12 +1,10 @@
 import collections
 
-import tree
-
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend.config import backend
 from keras.ops.operation import Operation
-from keras.utils.nest import pack_sequence_as
+from keras.utils import tree
 
 
 @keras_export("keras.Function")
@@ -160,7 +158,7 @@ class Function(Operation):
         for x in self.outputs:
             output_tensors.append(tensor_dict[id(x)])
 
-        return pack_sequence_as(self._outputs_struct, output_tensors)
+        return tree.pack_sequence_as(self._outputs_struct, output_tensors)
 
     def _assert_input_compatibility(self, inputs):
         try:

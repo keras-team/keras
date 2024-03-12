@@ -21,8 +21,6 @@ import inspect
 import warnings
 from functools import wraps
 
-import tree
-
 from keras import backend
 from keras import constraints
 from keras import dtype_policies
@@ -41,6 +39,7 @@ from keras.utils import python_utils
 from keras.utils import summary_utils
 from keras.utils import traceback_utils
 from keras.utils import tracking
+from keras.utils import tree
 from keras.utils.shape_utils import map_shape_structure
 
 if backend.backend() == "tensorflow":

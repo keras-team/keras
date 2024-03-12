@@ -1,10 +1,10 @@
 import math
 
 import numpy as np
-import tree
 
 from keras import backend
 from keras.api_export import keras_export
+from keras.utils import tree
 from keras.utils.dataset_utils import is_torch_tensor
 
 try:

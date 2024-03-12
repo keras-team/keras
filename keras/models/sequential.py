@@ -1,8 +1,6 @@
 import copy
 import inspect
 
-import tree
-
 from keras.api_export import keras_export
 from keras.backend.common import global_state
 from keras.layers.core.input_layer import InputLayer
@@ -12,6 +10,7 @@ from keras.legacy.saving import serialization as legacy_serialization
 from keras.models.functional import Functional
 from keras.models.model import Model
 from keras.saving import serialization_lib
+from keras.utils import tree
 
 
 @keras_export(["keras.Sequential", "keras.models.Sequential"])

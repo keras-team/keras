@@ -1,11 +1,11 @@
 import itertools
 
 import numpy as np
-import tree
 
 from keras import backend
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.data_adapters.data_adapter import DataAdapter
+from keras.utils import tree
 
 
 class GeneratorDataAdapter(DataAdapter):

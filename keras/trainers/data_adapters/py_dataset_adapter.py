@@ -8,12 +8,12 @@ import weakref
 from contextlib import closing
 
 import numpy as np
-import tree
 
 from keras import backend
 from keras.api_export import keras_export
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.data_adapters.data_adapter import DataAdapter
+from keras.utils import tree
 
 
 @keras_export(["keras.utils.PyDataset", "keras.utils.Sequence"])

@@ -4,7 +4,6 @@ import tempfile
 import unittest
 
 import numpy as np
-import tree
 
 from keras import backend
 from keras import ops
@@ -15,6 +14,7 @@ from keras.backend.common.global_state import clear_session
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.models import Model
 from keras.utils import traceback_utils
+from keras.utils import tree
 from keras.utils.shape_utils import map_shape_structure
 
 
