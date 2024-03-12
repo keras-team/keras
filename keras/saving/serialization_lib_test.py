@@ -94,6 +94,19 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(layer.trainable, restored.trainable)
         self.assertEqual(layer.compute_dtype, restored.compute_dtype)
 
+    def test_numpy_get_item_layer(self):
+        def tuples_to_lists_str(x):
+            return str(x).replace("(", "[").replace(")", "]")
+
+        input = keras.layers.Input(shape=(2,))
+        layer = input[:, 1]
+        model = keras.Model(input, layer)
+        serialized, _, reserialized = self.roundtrip(model)
+        # Anticipate JSON roundtrip mapping tuples to lists:
+        serialized_str = tuples_to_lists_str(serialized)
+        reserialized_str = tuples_to_lists_str(reserialized)
+        self.assertEqual(serialized_str, reserialized_str)
+
     def test_tensors_and_shapes(self):
         x = ops.random.normal((2, 2), dtype="float64")
         obj = {"x": x}
