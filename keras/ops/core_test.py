@@ -512,7 +512,9 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         def log1pexp(x):
             e = ops.exp(x)
 
-            def grad(upstream):
+            def grad(*args, upstream = None):
+                if upstream == None:
+                    upstream, = args
                 return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
 
             return ops.log(1 + e), grad
