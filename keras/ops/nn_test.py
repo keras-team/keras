@@ -2,10 +2,12 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+import keras
 from keras import backend
 from keras import layers
 from keras import losses
 from keras import models
+from keras import ops
 from keras import testing
 from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
@@ -83,6 +85,22 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.softmax(x).shape, (None, 2, 3))
         self.assertEqual(knn.softmax(x, axis=1).shape, (None, 2, 3))
         self.assertEqual(knn.softmax(x, axis=-1).shape, (None, 2, 3))
+
+    def test_softmax_in_graph(self):
+        class SoftmaxLayer(keras.Layer):
+            def call(self, x):
+                return ops.softmax(x, axis=-1)
+
+        class Model(keras.Model):
+            def __init__(self):
+                x = keras.Input(shape=(None,))
+                y = SoftmaxLayer()(x)
+                super().__init__(inputs=x, outputs=y)
+
+        # Make sure Keras is able to compile the model graph
+        model = Model()
+        x = ops.array([[1.0, 2.0, 3.0, 4.0]])
+        model.predict(x)
 
     def test_log_softmax(self):
         x = KerasTensor([None, 2, 3])
