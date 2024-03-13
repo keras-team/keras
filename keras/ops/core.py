@@ -636,7 +636,7 @@ def custom_gradient(f):
     operations.
 
     Args:
-        forward_fn: Function `forward_fn(*args)` that returns a tuple
+        f: Function `f(*args)` that returns a tuple
             `(output, grad_fn)`, where:
             - `args` is a sequence of (nested structures of) tensor inputs to
                 the function.
@@ -651,8 +651,8 @@ def custom_gradient(f):
 
     Returns:
         A function `h(*args)` which returns the same value as
-        `forward_fn(*args)[0]` and whose gradient is determined by
-        `forward_fn(*args)[1]`.
+        `f(*args)[0]` and whose gradient is determined by
+        `f(*args)[1]`.
 
 
     Example:
@@ -672,9 +672,9 @@ def custom_gradient(f):
     ```
 
     Note that the grad function that returns gradient computations 
-    requires args as well as an upstream keyword argument, depending 
+    requires `args` as well as an `upstream` keyword argument, depending 
     upon the backend being set. In JAX and TensorFlow backends, 
-    it requires only one argument, whereas it might use upstream keyword 
+    it requires only one argument, whereas it might use `upstream` keyword 
     arguments in the case of PyTorch backend.
     """
     return backend.core.custom_gradient(f)
