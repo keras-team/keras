@@ -426,6 +426,7 @@ class TestCase(unittest.TestCase):
                     ),
                     keras_tensor_inputs,
                 )
+
                 if isinstance(input_data, dict):
                     output_data = layer(**input_data, **call_kwargs)
                     output_spec = layer.compute_output_spec(**input_spec)
