@@ -663,7 +663,7 @@ def custom_gradient(f):
         e = ops.exp(x)
 
         def grad(*args, upstream = None):
-            if upstream = None:
+            if upstream == None:
                 upstream, = args
                 
             return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
