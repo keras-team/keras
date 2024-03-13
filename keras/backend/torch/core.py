@@ -451,7 +451,7 @@ class custom_gradient:
 
 class CustomGradientFunction(torch.autograd.Function):
     """
-    Autograd function for custom gradients.
+    CustomGradientFunction is a PyTorch autograd function enabling custom forward and backward passes for gradient computation.
     """
     @staticmethod
     def forward(ctx, forward_fn, *args, **kwargs):
