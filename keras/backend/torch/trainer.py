@@ -8,6 +8,7 @@ from keras import backend
 from keras import callbacks as callbacks_module
 from keras import optimizers as optimizers_module
 from keras.trainers import trainer as base_trainer
+from keras.trainers.data_adapters import array_slicing
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.epoch_iterator import EpochIterator
 from keras.utils import traceback_utils
@@ -193,7 +194,7 @@ class TorchTrainer(base_trainer.Trainer):
                 x,
                 y,
                 sample_weight,
-            ), validation_data = data_adapter_utils.train_validation_split(
+            ), validation_data = array_slicing.train_validation_split(
                 (x, y, sample_weight), validation_split=validation_split
             )
 

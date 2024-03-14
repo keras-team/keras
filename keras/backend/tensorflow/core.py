@@ -129,6 +129,8 @@ def convert_to_numpy(x):
         x.set_shape(x_shape)
     elif isinstance(x, tf.IndexedSlices):
         x = tf.convert_to_tensor(x)
+    elif isinstance(x, tf.RaggedTensor):
+        x = x.to_tensor()
     return np.asarray(x)
 
 
@@ -161,7 +163,13 @@ def shape(x):
 
 def cast(x, dtype):
     dtype = standardize_dtype(dtype)
-    return tf.cast(x, dtype=dtype)
+    if isinstance(x, tf.SparseTensor):
+        x_shape = x.shape
+        x = tf.cast(x, dtype)
+        x.set_shape(x_shape)
+        return x
+    else:
+        return tf.cast(x, dtype=dtype)
 
 
 def compute_output_spec(fn, *args, **kwargs):

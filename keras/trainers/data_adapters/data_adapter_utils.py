@@ -1,28 +1,8 @@
-import math
-
 import numpy as np
 
 from keras import backend
 from keras.api_export import keras_export
 from keras.utils import tree
-from keras.utils.dataset_utils import is_torch_tensor
-
-try:
-    import pandas
-except ImportError:
-    pandas = None
-
-
-# Leave jax, tf, and torch arrays off this list. Instead we will use
-# `__array__` to detect these types. Doing so allows us to avoid importing a
-# backend framework we are not currently using just to do type-checking.
-ARRAY_TYPES = (np.ndarray,)
-if backend.backend() == "tensorflow":
-    from keras.utils.module_utils import tensorflow as tf
-
-    ARRAY_TYPES = ARRAY_TYPES + (tf.RaggedTensor,)
-if pandas:
-    ARRAY_TYPES = ARRAY_TYPES + (pandas.Series, pandas.DataFrame)
 
 
 @keras_export("keras.utils.unpack_x_y_sample_weight")
@@ -132,79 +112,6 @@ def check_data_cardinality(data):
         raise ValueError(msg)
 
 
-def sync_shuffle(data, num_samples=None):
-    if num_samples is None:
-        num_samples_set = set(int(i.shape[0]) for i in tree.flatten(data))
-        assert len(num_samples_set) == 1
-        num_samples = num_samples_set.pop()
-    p = np.random.permutation(num_samples)
-    return tree.map_structure(lambda x: x[p], data)
-
-
-def train_validation_split(arrays, validation_split):
-    """Split arrays into train and validation subsets in deterministic order.
-
-    The last part of data will become validation data.
-
-    Args:
-        arrays: Tensors to split. Allowed inputs are arbitrarily nested
-            structures of Tensors and NumPy arrays.
-        validation_split: Float between 0 and 1. The proportion of the dataset
-            to include in the validation split. The rest of the dataset will be
-            included in the training split.
-
-    Returns:
-        `(train_arrays, validation_arrays)`
-    """
-
-    def _can_split(t):
-        return backend.is_tensor(t) or isinstance(t, ARRAY_TYPES) or t is None
-
-    flat_arrays = tree.flatten(arrays)
-    unsplitable = [type(t) for t in flat_arrays if not _can_split(t)]
-    if unsplitable:
-        raise ValueError(
-            "Argument `validation_split` is only supported "
-            "for tensors or NumPy arrays."
-            f"Found incompatible type in the input: {unsplitable}"
-        )
-
-    if all(t is None for t in flat_arrays):
-        return arrays, arrays
-
-    first_non_none = None
-    for t in flat_arrays:
-        if t is not None:
-            first_non_none = t
-            break
-
-    # Assumes all arrays have the same batch shape or are `None`.
-    batch_dim = int(first_non_none.shape[0])
-    split_at = int(math.floor(batch_dim * (1.0 - validation_split)))
-
-    if split_at == 0 or split_at == batch_dim:
-        raise ValueError(
-            f"Training data contains {batch_dim} samples, which is not "
-            "sufficient to split it into a validation and training set as "
-            f"specified by `validation_split={validation_split}`. Either "
-            "provide more data, or a different value for the "
-            "`validation_split` argument."
-        )
-
-    def _split(t, start, end):
-        if t is None:
-            return t
-        return t[start:end]
-
-    train_arrays = tree.map_structure(
-        lambda x: _split(x, start=0, end=split_at), arrays
-    )
-    val_arrays = tree.map_structure(
-        lambda x: _split(x, start=split_at, end=batch_dim), arrays
-    )
-    return train_arrays, val_arrays
-
-
 def class_weight_to_sample_weights(y, class_weight):
     sample_weight = np.ones(shape=(y.shape[0],), dtype=backend.floatx())
     if len(y.shape) > 1:
@@ -257,3 +164,95 @@ def get_torch_dataloader(iterable):
     dataset = ConverterIterableDataset(iterable)
     # `batch_size=None` indicates that we should not re-batch
     return torch_data.DataLoader(dataset, batch_size=None)
+
+
+def is_tensorflow_tensor(value):
+    if hasattr(value, "__class__"):
+        if value.__class__.__name__ in ("RaggedTensor", "SparseTensor"):
+            return "tensorflow.python." in str(value.__class__.__module__)
+        for parent in value.__class__.__mro__:
+            if parent.__name__ in ("Tensor") and "tensorflow.python." in str(
+                parent.__module__
+            ):
+                return True
+    return False
+
+
+def is_tensorflow_ragged(value):
+    if hasattr(value, "__class__"):
+        return (
+            value.__class__.__name__ == "RaggedTensor"
+            and "tensorflow.python." in str(value.__class__.__module__)
+        )
+    return False
+
+
+def is_tensorflow_sparse(value):
+    if hasattr(value, "__class__"):
+        return (
+            value.__class__.__name__ == "SparseTensor"
+            and "tensorflow.python." in str(value.__class__.__module__)
+        )
+    return False
+
+
+def is_jax_array(value):
+    if hasattr(value, "__class__"):
+        for parent in value.__class__.__mro__:
+            if parent.__name__ == "Array" and str(parent.__module__) == "jax":
+                return True
+    return is_jax_sparse(value)  # JAX sparse arrays do not extend jax.Array
+
+
+def is_jax_sparse(value):
+    if hasattr(value, "__class__"):
+        return str(value.__class__.__module__).startswith(
+            "jax.experimental.sparse"
+        )
+    return False
+
+
+def is_torch_tensor(value):
+    if hasattr(value, "__class__"):
+        for parent in value.__class__.__mro__:
+            if parent.__name__ == "Tensor" and str(parent.__module__).endswith(
+                "torch"
+            ):
+                return True
+    return False
+
+
+def is_scipy_sparse(x):
+    return str(x.__class__.__module__).startswith("scipy.sparse") and hasattr(
+        x, "tocoo"
+    )
+
+
+def scipy_sparse_to_tf_sparse(x):
+    from keras.utils.module_utils import tensorflow as tf
+
+    coo = x.tocoo()
+    indices = np.concatenate(
+        (np.expand_dims(coo.row, 1), np.expand_dims(coo.col, 1)), axis=1
+    )
+    return tf.SparseTensor(indices, coo.data, coo.shape)
+
+
+def scipy_sparse_to_jax_sparse(x):
+    import jax.experimental.sparse as jax_sparse
+
+    return jax_sparse.BCOO.from_scipy_sparse(x)
+
+
+def tf_sparse_to_jax_sparse(x):
+    import jax.experimental.sparse as jax_sparse
+
+    values = np.asarray(x.values)
+    indices = np.asarray(x.indices)
+    return jax_sparse.BCOO((values, indices), shape=x.shape)
+
+
+def jax_sparse_to_tf_sparse(x):
+    from keras.utils.module_utils import tensorflow as tf
+
+    return tf.SparseTensor(x.indices, x.data, x.shape)
