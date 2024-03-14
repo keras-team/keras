@@ -1,7 +1,8 @@
 import jax
+import jax.experimental.sparse as jax_sparse
 import numpy as np
 import pandas
-import pytest
+import scipy
 import tensorflow as tf
 import torch
 from absl.testing import parameterized
@@ -13,29 +14,53 @@ from keras.trainers.data_adapters import array_data_adapter
 
 
 class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
-    def make_array(self, array_type, shape, dtype="float32"):
+    def make_array(self, array_type, shape, dtype):
         x = np.array([[i] * shape[1] for i in range(shape[0])], dtype=dtype)
         if array_type == "np":
             return x
         elif array_type == "tf":
             return tf.constant(x)
+        elif array_type == "tf_ragged":
+            return tf.RaggedTensor.from_tensor(x)
+        elif array_type == "tf_sparse":
+            return tf.sparse.from_dense(x)
         elif array_type == "jax":
             return jax.numpy.array(x)
+        elif array_type == "jax_sparse":
+            return jax_sparse.BCOO.fromdense(x)
         elif array_type == "torch":
             return torch.as_tensor(x)
-        elif array_type == "pandas":
+        elif array_type == "pandas_data_frame":
             return pandas.DataFrame(x)
+        elif array_type == "pandas_series":
+            return pandas.Series(x[:, 0])
+        elif array_type == "scipy_sparse":
+            return scipy.sparse.coo_matrix(x)
 
     @parameterized.named_parameters(
         named_product(
-            array_type=["np", "tf", "jax", "torch", "pandas"],
+            array_type=[
+                "np",
+                "tf",
+                "tf_ragged",
+                "tf_sparse",
+                "jax",
+                "jax_sparse",
+                "torch",
+                "pandas_data_frame",
+                "pandas_series",
+                "scipy_sparse",
+            ],
+            array_dtype=["float32", "float64"],
             iterator_type=["np", "tf", "jax", "torch"],
             shuffle=[False, "batch", True],
         )
     )
-    def test_basic_flow(self, array_type, iterator_type, shuffle):
-        x = self.make_array(array_type, (34, 4))
-        y = self.make_array(array_type, (34, 2))
+    def test_basic_flow(self, array_type, array_dtype, iterator_type, shuffle):
+        x = self.make_array(array_type, (34, 4), array_dtype)
+        y = self.make_array(array_type, (34, 2), "int32")
+        xdim1 = 1 if array_type == "pandas_series" else 4
+        ydim1 = 1 if array_type == "pandas_series" else 2
 
         adapter = array_data_adapter.ArrayDataAdapter(
             x,
@@ -55,34 +80,63 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
             expected_class = np.ndarray
         elif iterator_type == "tf":
             it = adapter.get_tf_dataset()
-            expected_class = tf.Tensor
+            if array_type == "tf_ragged":
+                expected_class = tf.RaggedTensor
+                xdim1 = None
+                ydim1 = None
+            elif array_type in ("tf_sparse", "jax_sparse", "scipy_sparse"):
+                expected_class = tf.SparseTensor
+            else:
+                expected_class = tf.Tensor
         elif iterator_type == "jax":
             it = adapter.get_jax_iterator()
-            expected_class = jax.Array
+            if array_type in ("tf_sparse", "jax_sparse", "scipy_sparse"):
+                expected_class = jax_sparse.JAXSparse
+            else:
+                expected_class = jax.Array
         elif iterator_type == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
 
-        sample_order = []
+        x_order = []
+        y_order = []
         for i, batch in enumerate(it):
             self.assertEqual(len(batch), 2)
             bx, by = batch
             self.assertIsInstance(bx, expected_class)
             self.assertIsInstance(by, expected_class)
-            self.assertEqual(bx.dtype, by.dtype)
-            self.assertContainsExactSubsequence(str(bx.dtype), "float32")
+            self.assertEqual(
+                backend.standardize_dtype(bx.dtype), backend.floatx()
+            )
+            self.assertEqual(backend.standardize_dtype(by.dtype), "int32")
             if i < 2:
-                self.assertEqual(bx.shape, (16, 4))
-                self.assertEqual(by.shape, (16, 2))
+                self.assertEqual(bx.shape, (16, xdim1))
+                self.assertEqual(by.shape, (16, ydim1))
             else:
-                self.assertEqual(bx.shape, (2, 4))
-                self.assertEqual(by.shape, (2, 2))
-            for i in range(by.shape[0]):
-                sample_order.append(by[i, 0])
+                self.assertEqual(bx.shape, (2, xdim1))
+                self.assertEqual(by.shape, (2, ydim1))
+
+            if isinstance(bx, tf.SparseTensor):
+                bx = tf.sparse.to_dense(bx)
+                by = tf.sparse.to_dense(by)
+            if isinstance(bx, jax_sparse.JAXSparse):
+                bx = bx.todense()
+                by = by.todense()
+            x_batch_order = [float(bx[j, 0]) for j in range(bx.shape[0])]
+            y_batch_order = [float(by[j, 0]) for j in range(by.shape[0])]
+            x_order.extend(x_batch_order)
+            y_order.extend(y_batch_order)
+
+            if shuffle == "batch":
+                self.assertAllClose(
+                    sorted(x_batch_order), range(i * 16, i * 16 + bx.shape[0])
+                )
+
+        self.assertAllClose(x_order, y_order)
         if shuffle:
-            self.assertNotAllClose(sample_order, list(range(34)))
+            self.assertNotAllClose(x_order, list(range(34)))
         else:
-            self.assertAllClose(sample_order, list(range(34)))
+            self.assertAllClose(x_order, list(range(34)))
 
     def test_multi_inputs_and_outputs(self):
         x1 = np.random.random((34, 1))
@@ -103,10 +157,8 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
             self.assertEqual(len(batch), 3)
             bx, by, bw = batch
             self.assertIsInstance(bx, dict)
-            # NOTE: the y list was converted to a tuple for tf.data
-            # compatibility.
-            self.assertIsInstance(by, tuple)
-            self.assertIsInstance(bw, tuple)
+            self.assertIsInstance(by, list)
+            self.assertIsInstance(bw, list)
 
             self.assertIsInstance(bx["x1"], np.ndarray)
             self.assertIsInstance(bx["x2"], np.ndarray)
@@ -195,74 +247,3 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
     def test_errors(self):
         # TODO
         pass
-
-    @parameterized.named_parameters(
-        named_product(array_type=["np", "tf", "jax", "torch", "pandas"])
-    )
-    def test_integer_inputs(self, array_type):
-        x1 = self.make_array(array_type, (4, 4), dtype="float64")
-        x2 = self.make_array(array_type, (4, 4), dtype="int32")
-        y = self.make_array(array_type, (4, 2))
-
-        adapter = array_data_adapter.ArrayDataAdapter(
-            (x1, x2),
-            y=y,
-            sample_weight=None,
-            batch_size=4,
-            steps=None,
-            shuffle=False,
-        )
-
-        (x1, x2), y = next(adapter.get_numpy_iterator())
-        self.assertEqual(x1.dtype, backend.floatx())
-        self.assertEqual(x2.dtype, "int32")
-
-    def test_pandas_series(self):
-        x = pandas.Series(np.ones((10,)))
-        y = np.ones((10,))
-
-        adapter = array_data_adapter.ArrayDataAdapter(
-            x,
-            y=y,
-            sample_weight=None,
-            batch_size=4,
-            steps=None,
-            shuffle=False,
-        )
-
-        self.assertEqual(adapter.num_batches, 3)
-        self.assertEqual(adapter.batch_size, 4)
-        self.assertEqual(adapter.has_partial_batch, True)
-        self.assertEqual(adapter.partial_batch_size, 2)
-
-        x, y = next(adapter.get_numpy_iterator())
-        self.assertEqual(x.dtype, backend.floatx())
-        self.assertIsInstance(x, np.ndarray)
-        self.assertEqual(x.shape, (4, 1))
-
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason="Only tensorflow supports raggeds",
-    )
-    def test_tf_ragged(self):
-        x = tf.ragged.constant([[1, 2], [1, 2, 3], [1, 2], [1], []], "float64")
-        y = np.ones((5,))
-
-        adapter = array_data_adapter.ArrayDataAdapter(
-            x,
-            y=y,
-            sample_weight=None,
-            batch_size=2,
-            steps=None,
-            shuffle=False,
-        )
-
-        self.assertEqual(adapter.num_batches, 3)
-        self.assertEqual(adapter.batch_size, 2)
-        self.assertEqual(adapter.has_partial_batch, True)
-        self.assertEqual(adapter.partial_batch_size, 1)
-
-        x, y = next(adapter.get_numpy_iterator())
-        self.assertEqual(x.dtype, backend.floatx())
-        self.assertIsInstance(x, tf.RaggedTensor)
-        self.assertEqual(x.shape, (2, None))

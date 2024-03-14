@@ -1,17 +1,12 @@
+import functools
 import math
 
 import numpy as np
 
-from keras import backend
+from keras.trainers.data_adapters import array_slicing
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.data_adapters.data_adapter import DataAdapter
 from keras.utils import tree
-from keras.utils.dataset_utils import is_torch_tensor
-
-try:
-    import pandas
-except ImportError:
-    pandas = None
 
 
 class ArrayDataAdapter(DataAdapter):
@@ -33,7 +28,6 @@ class ArrayDataAdapter(DataAdapter):
                 f"Received invalid types: x={x}"
             )
 
-        x, y, sample_weight = convert_to_arrays((x, y, sample_weight))
         if sample_weight is not None:
             if class_weight is not None:
                 raise ValueError(
@@ -41,7 +35,17 @@ class ArrayDataAdapter(DataAdapter):
                     "at the same time."
                 )
             if tree.is_nested(y):
-                if isinstance(sample_weight, np.ndarray):
+                if isinstance(sample_weight, (list, tuple, dict)):
+                    try:
+                        tree.assert_same_structure(y, sample_weight)
+                    except ValueError:
+                        raise ValueError(
+                            "You should provide one `sample_weight` array per "
+                            "output in `y`. The two structures did not match:\n"
+                            f"- y: {y}\n"
+                            f"- sample_weight: {sample_weight}\n"
+                        )
+                else:
                     is_samplewise = len(sample_weight.shape) == 1 or (
                         len(sample_weight.shape) == 2
                         and sample_weight.shape[1] == 1
@@ -59,16 +63,6 @@ class ArrayDataAdapter(DataAdapter):
                     sample_weight = tree.map_structure(
                         lambda _: sample_weight, y
                     )
-                else:
-                    try:
-                        tree.assert_same_structure(y, sample_weight)
-                    except ValueError:
-                        raise ValueError(
-                            "You should provide one `sample_weight` array per "
-                            "output in `y`. The two structures did not match:\n"
-                            f"- y: {y}\n"
-                            f"- sample_weight: {sample_weight}\n"
-                        )
         if class_weight is not None:
             if tree.is_nested(y):
                 raise ValueError(
@@ -97,29 +91,20 @@ class ArrayDataAdapter(DataAdapter):
         self._shuffle = shuffle
 
     def get_numpy_iterator(self):
-        inputs = self._inputs
-        if self._shuffle and self._shuffle != "batch":
-            inputs = data_adapter_utils.sync_shuffle(
-                inputs, num_samples=self._num_samples
-            )
-        for i in range(self._size):
-            start = i * self._batch_size
-            stop = min((i + 1) * self._batch_size, self._num_samples)
-            if self._shuffle == "batch":
+        inputs = array_slicing.convert_to_sliceable(
+            self._inputs, target_backend="numpy"
+        )
 
-                def slice_and_shuffle(x):
-                    return data_adapter_utils.sync_shuffle(
-                        x[start:stop], num_samples=(stop - start)
-                    )
+        def slice_and_convert_to_numpy(sliceable, indices=None):
+            x = sliceable[indices]
+            x = sliceable.convert_to_numpy(x)
+            return x
 
-                yield tree.map_structure(slice_and_shuffle, inputs)
-            else:
-                yield tree.map_structure(lambda x: x[start:stop], inputs)
+        return self._get_iterator(slice_and_convert_to_numpy, inputs)
 
     def get_tf_dataset(self):
         from keras.utils.module_utils import tensorflow as tf
 
-        inputs = self._inputs
         shuffle = self._shuffle
         batch_size = self._batch_size
         num_samples = self._num_samples
@@ -203,14 +188,29 @@ class ArrayDataAdapter(DataAdapter):
             Returns:
                 A Dataset of input batches matching the batch indices.
             """
+            inputs = array_slicing.convert_to_sliceable(
+                self._inputs, target_backend="tensorflow"
+            )
+            inputs = tree.lists_to_tuples(inputs)
+
             dataset = tf.data.Dataset.zip(
                 (indices_dataset, tf.data.Dataset.from_tensors(inputs).repeat())
             )
 
             def grab_batch(i, data):
-                return tree.map_structure(
-                    lambda d: tf.gather(d, i, axis=0), data
-                )
+
+                def grab_one(x):
+                    if isinstance(x, array_slicing.TensorflowSparseWrapper):
+                        return array_slicing.slice_tensorflow_sparse_wrapper(
+                            x, i
+                        )
+                    if isinstance(x, (list, tuple, dict)):
+                        return None
+                    if tf.is_tensor(x):
+                        return tf.gather(x, i, axis=0)
+                    return x
+
+                return tree.traverse(grab_one, data)
 
             dataset = dataset.map(
                 grab_batch, num_parallel_calls=tf.data.AUTOTUNE
@@ -230,15 +230,10 @@ class ArrayDataAdapter(DataAdapter):
             return dataset
 
         indices_dataset = indices_dataset.flat_map(slice_batch_indices)
-
-        dataset = slice_inputs(indices_dataset, inputs)
-
         if shuffle == "batch":
+            indices_dataset = indices_dataset.map(tf.random.shuffle)
 
-            def shuffle_batch(*batch):
-                return tree.map_structure(tf.random.shuffle, batch)
-
-            dataset = dataset.map(shuffle_batch)
+        dataset = slice_inputs(indices_dataset, self._inputs)
 
         options = tf.data.Options()
         options.experimental_distribute.auto_shard_policy = (
@@ -248,7 +243,19 @@ class ArrayDataAdapter(DataAdapter):
         return dataset.prefetch(tf.data.AUTOTUNE)
 
     def get_jax_iterator(self):
-        return data_adapter_utils.get_jax_iterator(self.get_numpy_iterator())
+        from keras.backend.jax.core import convert_to_tensor
+
+        inputs = array_slicing.convert_to_sliceable(
+            self._inputs, target_backend="jax"
+        )
+
+        def slice_and_convert_to_jax(sliceable, indices=None):
+            x = sliceable[indices]
+            x = sliceable.convert_to_jax_compatible(x)
+            x = convert_to_tensor(x)
+            return x
+
+        return self._get_iterator(slice_and_convert_to_jax, inputs)
 
     def get_torch_dataloader(self):
         import torch
@@ -260,8 +267,11 @@ class ArrayDataAdapter(DataAdapter):
                 self.array = array
 
             def __getitems__(self, indices):
-                def slice_and_convert(x):
-                    return convert_to_tensor(np.take(x, indices, axis=0))
+                def slice_and_convert(sliceable):
+                    x = sliceable[indices]
+                    x = sliceable.convert_to_torch_compatible(x)
+                    x = convert_to_tensor(x)
+                    return x
 
                 return tree.map_structure(slice_and_convert, self.array)
 
@@ -305,10 +315,33 @@ class ArrayDataAdapter(DataAdapter):
         def no_op_collate(batch):
             return batch
 
-        dataset = ArrayDataset(self._inputs)
+        inputs = array_slicing.convert_to_sliceable(
+            self._inputs, target_backend="torch"
+        )
+        dataset = ArrayDataset(inputs)
         return torch.utils.data.DataLoader(
             dataset, batch_sampler=batch_sampler, collate_fn=no_op_collate
         )
+
+    def _get_iterator(self, slice_and_convert_fn, inputs):
+        global_permutation = None
+        if self._shuffle and self._shuffle != "batch":
+            global_permutation = np.random.permutation(self._num_samples)
+
+        for i in range(self._size):
+            start = i * self._batch_size
+            stop = min((i + 1) * self._batch_size, self._num_samples)
+            if self._shuffle == "batch":
+                indices = np.random.permutation(stop - start) + start
+            elif self._shuffle:
+                indices = global_permutation[start:stop]
+            else:
+                indices = slice(start, stop)
+
+            slice_indices_and_convert_fn = functools.partial(
+                slice_and_convert_fn, indices=indices
+            )
+            yield tree.map_structure(slice_indices_and_convert_fn, inputs)
 
     @property
     def num_batches(self):
@@ -338,79 +371,6 @@ def can_convert_arrays(arrays):
         otherwise.
     """
 
-    def can_convert_single_array(x):
-        is_none = x is None
-        known_type = isinstance(x, data_adapter_utils.ARRAY_TYPES)
-        convertable_type = hasattr(x, "__array__")
-        return is_none or known_type or convertable_type
-
     return all(
-        tree.flatten(tree.map_structure(can_convert_single_array, arrays))
+        tree.flatten(tree.map_structure(array_slicing.can_slice_array, arrays))
     )
-
-
-def convert_to_arrays(arrays):
-    """Process array-like inputs.
-
-    This function:
-
-    - Converts tf.Tensors to NumPy arrays.
-    - Converts `pandas.Series` to `np.ndarray`
-    - Converts `list`s to `tuple`s (for `tf.data` support).
-
-    Args:
-        inputs: Structure of `Tensor`s, NumPy arrays, or tensor-like.
-
-    Returns:
-        Structure of NumPy `ndarray`s.
-    """
-
-    def convert_single_array(x):
-        if x is None:
-            return x
-        if pandas is not None:
-            if isinstance(x, pandas.Series):
-                x = np.expand_dims(x.to_numpy(), axis=-1)
-            elif isinstance(x, pandas.DataFrame):
-                x = x.to_numpy()
-        if is_tf_ragged_tensor(x):
-            from keras.utils.module_utils import tensorflow as tf
-
-            # Convert floats to floatx.
-            if (
-                backend.is_float_dtype(x.dtype)
-                and not backend.standardize_dtype(x.dtype) == backend.floatx()
-            ):
-                x = tf.cast(x, backend.floatx())
-            return x
-        if not isinstance(x, np.ndarray):
-            # Using `__array__` should handle `tf.Tensor`, `jax.np.ndarray`,
-            # `torch.Tensor`, as well as any other tensor-like object that has
-            # added numpy support.
-            if hasattr(x, "__array__"):
-                if is_torch_tensor(x):
-                    x = x.cpu()
-                x = np.asarray(x)
-            else:
-                raise ValueError(
-                    "Expected a NumPy array, tf.Tensor, tf.RaggedTensor, "
-                    "jax.np.ndarray, torch.Tensor, Pandas Dataframe, or "
-                    "Pandas Series. Received invalid input: "
-                    f"{x} (of type {type(x)})"
-                )
-        if x.dtype == object:
-            return x
-        # Convert floats to floatx.
-        if (
-            backend.is_float_dtype(x.dtype)
-            and not backend.standardize_dtype(x.dtype) == backend.floatx()
-        ):
-            x = x.astype(backend.floatx())
-        return x
-
-    arrays = tree.map_structure(convert_single_array, arrays)
-    return tree.lists_to_tuples(arrays)
-
-
-def is_tf_ragged_tensor(x):
-    return x.__class__.__name__ == "RaggedTensor"
