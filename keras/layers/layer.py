@@ -1429,7 +1429,7 @@ class CallSpec:
                 tensor_args.append(value)
                 tensor_arg_names.append(name)
                 tensor_arg_dict[name] = value
-            elif tree.is_nested(value):
+            elif tree.is_nested(value) and len(value) > 0:
                 flat_values = tree.flatten(value)
                 if all(is_backend_tensor_or_symbolic(x) for x in flat_values):
                     tensor_args.append(value)
