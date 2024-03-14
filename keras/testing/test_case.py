@@ -6,14 +6,14 @@ import unittest
 import numpy as np
 import tree
 
-from keras import backend
-from keras import ops
-from keras import utils
 from keras.backend.common import is_float_dtype
 from keras.backend.common import standardize_dtype
 from keras.backend.common.global_state import clear_session
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.models import Model
+from keras.src import backend
+from keras.src import ops
+from keras.src import utils
 from keras.utils import traceback_utils
 from keras.utils.shape_utils import map_shape_structure
 
@@ -420,9 +420,12 @@ class TestCase(unittest.TestCase):
                 input_spec = tree.map_structure(
                     lambda spec: KerasTensor(
                         spec.shape,
-                        dtype=layer.compute_dtype
-                        if layer.autocast and backend.is_float_dtype(spec.dtype)
-                        else spec.dtype,
+                        dtype=(
+                            layer.compute_dtype
+                            if layer.autocast
+                            and backend.is_float_dtype(spec.dtype)
+                            else spec.dtype
+                        ),
                     ),
                     keras_tensor_inputs,
                 )
