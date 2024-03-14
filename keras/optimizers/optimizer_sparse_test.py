@@ -8,6 +8,26 @@ from keras import ops
 from keras import optimizers
 from keras import testing
 
+
+class ScatterUpdateOptimizer(optimizers.Optimizer):
+    def __init__(self):
+        super().__init__(learning_rate=0.001)
+
+    def build(self, variables):
+        if self.built:
+            return
+        super().build(variables)
+        self.momentums = [
+            self.add_variable_from_reference(v, name="momentum")
+            for v in variables
+        ]
+
+    def update_step(self, grad, variable, learning_rate):
+        momentum = self.momentums[self._get_variable_index(variable)]
+        self.assign(momentum, ops.cast(grad, momentum.dtype))
+        self.assign(variable, ops.cast(grad, variable.dtype))
+
+
 TEST_CASES = [
     {
         "testcase_name": "adadelta",
@@ -96,6 +116,12 @@ TEST_CASES = [
         "testcase_name": "sgd_momentum_nesterov",
         "optimizer_class": optimizers.SGD,
         "init_kwargs": {"momentum": 0.05, "nesterov": True},
+    },
+    {
+        "testcase_name": "scatter_update",
+        "optimizer_class": ScatterUpdateOptimizer,
+        "expect_model_sparse_variable_updates": True,
+        "expect_optimizer_sparse_variable_updates": True,
     },
 ]
 
