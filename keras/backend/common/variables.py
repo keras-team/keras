@@ -390,6 +390,8 @@ ALLOWED_DTYPES = {
     "float16",
     "float32",
     "float64",
+    "complex64",
+    "complex128",
     "uint8",
     "uint16",
     "uint32",
