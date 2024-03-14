@@ -17,6 +17,7 @@ from keras.backend.common.backend_utils import canonicalize_axis
 from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.backend.tensorflow import sparse
 from keras.backend.tensorflow.core import convert_to_tensor
+from keras.utils import tree
 
 
 @sparse.elementwise_binary_union(tf.sparse.add)
@@ -95,7 +96,7 @@ def _normalize_einsum_subscripts(subscripts):
 
 
 def einsum(subscripts, *operands, **kwargs):
-    operands = tf.nest.map_structure(convert_to_tensor, operands)
+    operands = tree.map_structure(convert_to_tensor, operands)
     subscripts = _normalize_einsum_subscripts(subscripts)
 
     def is_valid_for_custom_ops(subscripts, *operands):
@@ -240,7 +241,7 @@ def einsum(subscripts, *operands, **kwargs):
         # output_type="int32"
         if "int" in compute_dtype and output_type is None:
             compute_dtype = config.floatx()
-        operands = tf.nest.map_structure(
+        operands = tree.map_structure(
             lambda x: tf.cast(x, compute_dtype), operands
         )
         result = use_custom_ops(subscripts, *operands, output_type=output_type)
@@ -248,7 +249,7 @@ def einsum(subscripts, *operands, **kwargs):
         # TODO: tf.einsum doesn't support integer dtype with gpu
         if "int" in compute_dtype:
             compute_dtype = config.floatx()
-        operands = tf.nest.map_structure(
+        operands = tree.map_structure(
             lambda x: tf.cast(x, compute_dtype), operands
         )
         result = tf.einsum(subscripts, *operands, **kwargs)
@@ -763,11 +764,11 @@ def concatenate(xs, axis=0):
                 )
                 for x in xs
             ]
-    xs = tf.nest.map_structure(convert_to_tensor, xs)
+    xs = tree.map_structure(convert_to_tensor, xs)
     dtype_set = set([x.dtype for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        xs = tf.nest.map_structure(lambda x: tf.cast(x, dtype), xs)
+        xs = tree.map_structure(lambda x: tf.cast(x, dtype), xs)
     return tf.concat(xs, axis=axis)
 
 
@@ -872,7 +873,7 @@ def digitize(x, bins):
     bins = list(bins)
 
     # bins must be float type
-    bins = tf.nest.map_structure(lambda x: float(x), bins)
+    bins = tree.map_structure(lambda x: float(x), bins)
 
     # TODO: tf.raw_ops.Bucketize doesn't support bool, bfloat16, float16, int8
     # int16, uint8, uint16, uint32
@@ -1023,7 +1024,7 @@ def hstack(xs):
     dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        xs = tf.nest.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
+        xs = tree.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
     rank = tf.rank(xs[0])
     return tf.cond(
         tf.equal(rank, 1),
@@ -1328,9 +1329,7 @@ def ndim(x):
 def nonzero(x):
     x = convert_to_tensor(x)
     result = tf.unstack(tf.where(tf.cast(x, "bool")), x.shape.rank, axis=1)
-    return tf.nest.map_structure(
-        lambda indices: tf.cast(indices, "int32"), result
-    )
+    return tree.map_structure(lambda indices: tf.cast(indices, "int32"), result)
 
 
 def not_equal(x1, x2):
@@ -1620,7 +1619,7 @@ def stack(x, axis=0):
     dtype_set = set([getattr(a, "dtype", type(a)) for a in x])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        x = tf.nest.map_structure(lambda a: convert_to_tensor(a, dtype), x)
+        x = tree.map_structure(lambda a: convert_to_tensor(a, dtype), x)
     return tf.stack(x, axis=axis)
 
 
@@ -1807,7 +1806,7 @@ def vstack(xs):
     dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        xs = tf.nest.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
+        xs = tree.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
     return tf.concat(xs, axis=0)
 
 
