@@ -19,15 +19,15 @@ if backend() == "tensorflow":
     )
 
 
-@keras_export("keras.utils.tree.is_nested")
+@keras_export("keras.tree.is_nested")
 def is_nested(structure):
     """Checks if a given structure is nested.
 
     Examples:
 
-    >>> keras.utils.tree.is_nested(42)
+    >>> keras.tree.is_nested(42)
     False
-    >>> keras.utils.tree.is_nested({"foo": 42})
+    >>> keras.tree.is_nested({"foo": 42})
     True
 
     Args:
@@ -42,7 +42,7 @@ def is_nested(structure):
     )
 
 
-@keras_export("keras.utils.tree.traverse")
+@keras_export("keras.tree.traverse")
 def traverse(func, structure, top_down=True):
     """Traverses the given nested structure, applying the given function.
 
@@ -52,16 +52,16 @@ def traverse(func, structure, top_down=True):
 
     Examples:
 
-    >>> visited = []
-    >>> tree_traverse(visited.append, [(1, 2), [3], {"a": 4}], top_down=True)
+    >>> v = []
+    >>> keras.tree.traverse(v.append, [(1, 2), [3], {"a": 4}], top_down=True)
     [(1, 2), [3], {'a': 4}]
-    >>> visited
+    >>> v
     [[(1, 2), [3], {'a': 4}], (1, 2), 1, 2, [3], 3, {'a': 4}, 4]
 
-    >>> visited = []
-    >>> tree_traverse(visited.append, [(1, 2), [3], {"a": 4}], top_down=False)
+    >>> v = []
+    >>> keras.tree.traverse(v.append, [(1, 2), [3], {"a": 4}], top_down=False)
     [(1, 2), [3], {'a': 4}]
-    >>> visited
+    >>> v
     [1, 2, (1, 2), 3, [3], 4, {'a': 4}, [(1, 2), [3], {'a': 4}]]
 
     Args:
@@ -118,7 +118,7 @@ def traverse(func, structure, top_down=True):
     return None if ret is _MAP_TO_NONE else ret
 
 
-@keras_export("keras.utils.tree.flatten")
+@keras_export("keras.tree.flatten")
 def flatten(structure):
     """Flattens a possibly nested structure into a list.
 
@@ -133,13 +133,13 @@ def flatten(structure):
 
     Examples:
 
-    >>> keras.utils.tree.flatten([[1, 2, 3], [4, [5], [[6]]]])
+    >>> keras.tree.flatten([[1, 2, 3], [4, [5], [[6]]]])
     [1, 2, 3, 4, 5, 6]
-    >>> keras.utils.tree.flatten(None)
+    >>> keras.tree.flatten(None)
     [None]
-    >>> keras.utils.tree.flatten(1)
+    >>> keras.tree.flatten(1)
     [1]
-    >>> keras.utils.tree.flatten({100: 'world!', 6: 'Hello'})
+    >>> keras.tree.flatten({100: 'world!', 6: 'Hello'})
     ['Hello', 'world!']
 
     Args:
@@ -157,7 +157,7 @@ def flatten(structure):
     return leaves
 
 
-@keras_export("keras.utils.tree.unflatten_as")
+@keras_export("keras.tree.unflatten_as")
 def unflatten_as(structure, flat_sequence):
     """Unflattens a sequence into a given structure.
 
@@ -174,11 +174,11 @@ def unflatten_as(structure, flat_sequence):
 
     Examples:
 
-    >>> keras.utils.tree.unflatten_as([[1, 2], [[3], [4]]], [5, 6, 7, 8])
+    >>> keras.tree.unflatten_as([[1, 2], [[3], [4]]], [5, 6, 7, 8])
     [[5, 6], [[7], [8]]]
-    >>> keras.utils.tree.unflatten_as(None, [1])
+    >>> keras.tree.unflatten_as(None, [1])
     1
-    >>> keras.utils.tree.unflatten_as({1: None, 2: None}, ['Hello', 'world!'])
+    >>> keras.tree.unflatten_as({1: None, 2: None}, ['Hello', 'world!'])
     {1: 'Hello', 2: 'world!'}
 
     Args:
@@ -206,21 +206,21 @@ def unflatten_as(structure, flat_sequence):
     return structure_spec.unflatten(flat_sequence)
 
 
-@keras_export("keras.utils.tree.map_structure")
+@keras_export("keras.tree.map_structure")
 def map_structure(func, *structures):
     """Maps `func` through given structures.
 
     Examples:
 
     >>> structure = [[1], [2], [3]]
-    >>> keras.utils.tree.map_structure(lambda v: v**2, structure)
+    >>> keras.tree.map_structure(lambda v: v**2, structure)
     [[1], [4], [9]]
-    >>> keras.utils.tree.map_structure(lambda x, y: x * y, structure, structure)
+    >>> keras.tree.map_structure(lambda x, y: x * y, structure, structure)
     [[1], [4], [9]]
 
     >>> Foo = collections.namedtuple('Foo', ['a', 'b'])
     >>> structure = Foo(a=1, b=2)
-    >>> keras.utils.tree.map_structure(lambda v: v * 2, structure)
+    >>> keras.tree.map_structure(lambda v: v * 2, structure)
     Foo(a=2, b=4)
 
     Args:
@@ -241,7 +241,7 @@ def map_structure(func, *structures):
     )
 
 
-@keras_export("keras.utils.tree.map_structure_up_to")
+@keras_export("keras.tree.map_structure_up_to")
 def map_structure_up_to(shallow_structure, func, *structures):
     """Maps `func` through given structures up to `shallow_structure`.
 
@@ -252,11 +252,11 @@ def map_structure_up_to(shallow_structure, func, *structures):
 
     >>> shallow_structure = [None, None]
     >>> structure = [[1, 1], [2, 2]]
-    >>> keras.utils.tree.map_structure_up_to(shallow_structure, len, structure)
+    >>> keras.tree.map_structure_up_to(shallow_structure, len, structure)
     [2, 2]
 
     >>> shallow_structure = [None, [None, None]]
-    >>> keras.utils.tree.map_structure_up_to(shallow_structure, str, structure)
+    >>> keras.tree.map_structure_up_to(shallow_structure, str, structure)
     ['[1, 1]', ['2', '2']]
 
     Args:
@@ -274,7 +274,7 @@ def map_structure_up_to(shallow_structure, func, *structures):
     )
 
 
-@keras_export("keras.utils.tree.assert_same_structure")
+@keras_export("keras.tree.assert_same_structure")
 def assert_same_structure(a, b, check_types=True):
     """Asserts that two structures are nested in the same way.
 
@@ -283,12 +283,12 @@ def assert_same_structure(a, b, check_types=True):
 
     Examples:
 
-    >>> keras.utils.tree.assert_same_structure([(0, 1)], [(2, 3)])
+    >>> keras.tree.assert_same_structure([(0, 1)], [(2, 3)])
 
     >>> Foo = collections.namedtuple('Foo', ['a', 'b'])
     >>> AlsoFoo = collections.namedtuple('Foo', ['a', 'b'])
-    >>> keras.utils.tree.assert_same_structure(Foo(0, 1), Foo(2, 3))
-    >>> keras.utils.tree.assert_same_structure(Foo(0, 1), AlsoFoo(2, 3))
+    >>> keras.tree.assert_same_structure(Foo(0, 1), Foo(2, 3))
+    >>> keras.tree.assert_same_structure(Foo(0, 1), AlsoFoo(2, 3))
     Traceback (most recent call last):
         ...
     ValueError: `a` and `b` don't have the same structure.
@@ -323,7 +323,7 @@ def assert_same_structure(a, b, check_types=True):
             )
 
 
-@keras_export("keras.utils.tree.pack_sequence_as")
+@keras_export("keras.tree.pack_sequence_as")
 def pack_sequence_as(structure, flat_sequence, sequence_fn=None):
     """Returns a given flattened sequence packed into a given structure.
 
@@ -342,29 +342,29 @@ def pack_sequence_as(structure, flat_sequence, sequence_fn=None):
 
     >>> structure = {"key3": "", "key1": "", "key2": ""}
     >>> flat_sequence = ["value1", "value2", "value3"]
-    >>> keras.utils.tree.pack_sequence_as(structure, flat_sequence)
+    >>> keras.tree.pack_sequence_as(structure, flat_sequence)
     {"key3": "value3", "key1": "value1", "key2": "value2"}
 
     >>> structure = (("a", "b"), ("c", "d", "e"), "f")
     >>> flat_sequence = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-    >>> keras.utils.tree.pack_sequence_as(structure, flat_sequence)
+    >>> keras.tree.pack_sequence_as(structure, flat_sequence)
     ((1.0, 2.0), (3.0, 4.0, 5.0), 6.0)
 
     >>> structure = {"key3": {"c": ("alpha", "beta"), "a": ("gamma")},
     ... "key1": {"e": "val1", "d": "val2"}}
     >>> flat_sequence = ["val2", "val1", 3.0, 1.0, 2.0]
-    >>> keras.utils.tree.pack_sequence_as(structure, flat_sequence)
+    >>> keras.tree.pack_sequence_as(structure, flat_sequence)
     {'key3': {'c': (1.0, 2.0), 'a': 3.0}, 'key1': {'e': 'val1', 'd': 'val2'}}
 
     >>> structure = ["a"]
     >>> flat_sequence = [np.array([[1, 2], [3, 4]])]
-    >>> keras.utils.tree.pack_sequence_as(structure, flat_sequence)
+    >>> keras.tree.pack_sequence_as(structure, flat_sequence)
     [array([[1, 2],
        [3, 4]])]
 
     >>> structure = ["a"]
     >>> flat_sequence = [keras.ops.ones([2, 2])]
-    >>> keras.utils.tree.pack_sequence_as(structure, flat_sequence)
+    >>> keras.tree.pack_sequence_as(structure, flat_sequence)
     [array([[1., 1.],
        [1., 1.]]]
 
@@ -425,7 +425,7 @@ def pack_sequence_as(structure, flat_sequence, sequence_fn=None):
     return sequence_fn(structure, packed)
 
 
-@keras_export("keras.utils.tree.lists_to_tuples")
+@keras_export("keras.tree.lists_to_tuples")
 def lists_to_tuples(structure):
     """Converts `list`s to `tuple`s."""
 
