@@ -58,7 +58,7 @@ jobs:
           coverage xml --include='keras/applications/*' -o apps-coverage.xml
       - name: Codecov keras.applications
         if: ${{ steps.filter.outputs.applications == 'true' }}
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v3
         with:
           env_vars: PYTHON,KERAS_HOME
           flags: keras.applications,keras.applications-${{ matrix.backend }}
