@@ -22,12 +22,6 @@ if backend() == "tensorflow":
 @keras_export("keras.utils.tree.is_nested")
 def is_nested(structure):
     """Checks if a given structure is nested.
-def traverse(func, structure, top_down=True):
-    return tree.traverse(func, structure, top_down=top_down)
-
-
-def assert_same_structure(a, b, check_types=True):
-    return tree.assert_same_structure(a, b, check_types=check_types)
 
     Examples:
 
@@ -46,6 +40,82 @@ def assert_same_structure(a, b, check_types=True):
     return not optree.tree_is_leaf(
         structure, none_is_leaf=True, namespace="keras"
     )
+
+
+@keras_export("keras.utils.tree.traverse")
+def traverse(func, structure, top_down=True):
+    """Traverses the given nested structure, applying the given function.
+
+    The traversal is depth-first. If `top_down` is True (default), parents
+    are returned before their children (giving the option to avoid traversing
+    into a sub-tree).
+
+    Examples:
+
+    >>> visited = []
+    >>> tree_traverse(visited.append, [(1, 2), [3], {"a": 4}], top_down=True)
+    [(1, 2), [3], {'a': 4}]
+    >>> visited
+    [[(1, 2), [3], {'a': 4}], (1, 2), 1, 2, [3], 3, {'a': 4}, 4]
+
+    >>> visited = []
+    >>> tree_traverse(visited.append, [(1, 2), [3], {"a": 4}], top_down=False)
+    [(1, 2), [3], {'a': 4}]
+    >>> visited
+    [1, 2, (1, 2), 3, [3], 4, {'a': 4}, [(1, 2), [3], {'a': 4}]]
+
+    Args:
+        func: The function to be applied to each sub-nest of the structure.
+
+        When traversing top-down:
+            If `func(subtree) is None` the traversal continues into the
+            sub-tree.
+            If `func(subtree) is not None` the traversal does not continue
+            into the sub-tree. The sub-tree will be replaced by `func(subtree)`
+            in the returned structure (to replace the sub-tree with `None`, use
+            the special value `_MAP_TO_NONE`).
+
+        When traversing bottom-up:
+            If `func(subtree) is None` the traversed sub-tree is returned
+            unaltered.
+            If `func(subtree) is not None` the sub-tree will be replaced by
+            `func(subtree)` in the returned structure (to replace the sub-tree
+            with None, use the special value `_MAP_TO_NONE`).
+
+        structure: The structure to traverse.
+        top_down: If True, parent structures will be visited before their
+            children.
+
+    Returns:
+        The structured output from the traversal.
+    """
+
+    # From https://github.com/google/jax/pull/19695
+    def traverse_children():
+        children, treedef = optree.tree_flatten(
+            structure,
+            is_leaf=lambda x: x is not structure,
+            none_is_leaf=True,
+            namespace="keras",
+        )
+        if treedef.num_nodes == 1 and treedef.num_leaves == 1:
+            return structure
+        else:
+            return optree.tree_unflatten(
+                treedef,
+                [traverse(func, c, top_down=top_down) for c in children],
+            )
+
+    if top_down:
+        ret = func(structure)
+        if ret is None:
+            return traverse_children()
+    else:
+        traversed_structure = traverse_children()
+        ret = func(traversed_structure)
+        if ret is None:
+            return traversed_structure
+    return None if ret is _MAP_TO_NONE else ret
 
 
 @keras_export("keras.utils.tree.flatten")
@@ -367,6 +437,16 @@ def lists_to_tuples(structure):
     return pack_sequence_as(
         structure, flatten(structure), sequence_fn=sequence_fn
     )
+
+
+class _MapToNone:
+    """A special object used as a sentinel within `traverse`."""
+
+    def __repr__(self):
+        return "keras.utils.tree._MAP_TO_NONE"
+
+
+_MAP_TO_NONE = _MapToNone()
 
 
 def _yield_flat_up_to(shallow_tree, input_tree, path=()):

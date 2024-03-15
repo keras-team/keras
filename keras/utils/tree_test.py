@@ -254,3 +254,38 @@ class TreeTest(testing.TestCase):
         self.assertEqual(tree.lists_to_tuples(structure), ((1,), (2, 3)))
         structure = [[1], [2, [3]]]
         self.assertEqual(tree.lists_to_tuples(structure), ((1,), (2, (3,))))
+
+    def test_traverse(self):
+        # Lists to tuples
+        structure = [(1, 2), [3], {"a": [4]}]
+        self.assertEqual(
+            ((1, 2), (3,), {"a": (4,)}),
+            tree.traverse(
+                lambda x: tuple(x) if isinstance(x, list) else x,
+                structure,
+                top_down=False,
+            ),
+        )
+        # EarlyTermination
+        structure = [(1, [2]), [3, (4, 5, 6)]]
+        visited = []
+
+        def visit(x):
+            visited.append(x)
+            return "X" if isinstance(x, tuple) and len(x) > 2 else None
+
+        output = tree.traverse(visit, structure)
+        self.assertEqual([(1, [2]), [3, "X"]], output)
+        self.assertEqual(
+            [
+                [(1, [2]), [3, (4, 5, 6)]],
+                (1, [2]),
+                1,
+                [2],
+                2,
+                [3, (4, 5, 6)],
+                3,
+                (4, 5, 6),
+            ],
+            visited,
+        )
