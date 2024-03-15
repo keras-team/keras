@@ -248,6 +248,8 @@ def _get_next_sample(
     Yields:
         data_sample: The next sample.
     """
+    from keras.trainers.data_adapters.data_adapter_utils import is_torch_tensor
+
     try:
         dataset_iterator = iter(dataset_iterator)
         first_sample = next(dataset_iterator)
@@ -291,16 +293,6 @@ def _get_next_sample(
                     )
                     data_size_warning_flag = False
         yield sample
-
-
-def is_torch_tensor(value):
-    if hasattr(value, "__class__"):
-        for parent in value.__class__.__mro__:
-            if parent.__name__ == "Tensor" and str(parent.__module__).endswith(
-                "torch"
-            ):
-                return True
-    return False
 
 
 def is_torch_dataset(dataset):

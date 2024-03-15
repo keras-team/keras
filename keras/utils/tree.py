@@ -22,6 +22,12 @@ if backend() == "tensorflow":
 @keras_export("keras.utils.tree.is_nested")
 def is_nested(structure):
     """Checks if a given structure is nested.
+def traverse(func, structure, top_down=True):
+    return tree.traverse(func, structure, top_down=top_down)
+
+
+def assert_same_structure(a, b, check_types=True):
+    return tree.assert_same_structure(a, b, check_types=check_types)
 
     Examples:
 

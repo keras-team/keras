@@ -42,6 +42,15 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
             "(as it is incompatible with tf.distribute)."
         )
 
+    def assign(self, variable, value):
+        if isinstance(variable, KerasVariable):
+            variable = variable.value
+        value = tf.cast(value, variable.dtype)
+        if isinstance(value, tf.IndexedSlices):
+            variable.scatter_update(value)
+        else:
+            variable.assign(value)
+
     def assign_add(self, variable, value):
         if isinstance(variable, KerasVariable):
             variable = variable.value

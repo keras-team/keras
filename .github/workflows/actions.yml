@@ -63,6 +63,7 @@ jobs:
           env_vars: PYTHON,KERAS_HOME
           flags: keras.applications,keras.applications-${{ matrix.backend }}
           files: apps-coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
       - name: Test integrations
         if: ${{ matrix.backend != 'numpy'}}
