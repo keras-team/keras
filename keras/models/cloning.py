@@ -261,7 +261,7 @@ def _clone_functional_model(model, input_tensors=None, clone_function=None):
             )
         try:
             tree.assert_same_structure(input_tensors, model.input)
-        except TypeError as e:
+        except (ValueError, TypeError) as e:
             raise ValueError(
                 "`input_tensors` must have the same structure as model.input"
                 f"\nReference structure: {model.input}"

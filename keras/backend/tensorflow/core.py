@@ -9,6 +9,7 @@ from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.name_scope import name_scope as base_name_scope
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.common.stateless_scope import in_stateless_scope
+from keras.utils import tree
 from keras.utils.naming import auto_name
 
 SUPPORTS_SPARSE_TENSORS = True
@@ -189,7 +190,7 @@ def compute_output_spec(fn, *args, **kwargs):
                         )
                 return x
 
-            args, kwargs = tf.nest.map_structure(
+            args, kwargs = tree.map_structure(
                 convert_keras_tensor_to_tf, (args, kwargs)
             )
             tf_out = fn(*args, **kwargs)
@@ -201,9 +202,7 @@ def compute_output_spec(fn, *args, **kwargs):
                     )
                 return x
 
-            output_spec = tf.nest.map_structure(
-                convert_tf_to_keras_tensor, tf_out
-            )
+            output_spec = tree.map_structure(convert_tf_to_keras_tensor, tf_out)
     return output_spec
 
 
