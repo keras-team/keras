@@ -7,16 +7,6 @@ import optree
 from keras.api_export import keras_export
 from keras.backend.config import backend
 
-try:
-    import wrapt
-
-    ObjectProxy = wrapt.ObjectProxy
-except ImportError:
-
-    class ObjectProxy(object):
-        """Stub-class for `wrapt.ObjectProxy``."""
-
-
 # Register backend-specific node classes
 if backend() == "tensorflow":
     from tensorflow.python.trackable.data_structures import ListWrapper
@@ -448,20 +438,13 @@ def _sequence_like(instance, args):
         # We can't directly construct mapping views, so we create a list instead
         return list(args)
     elif optree.is_namedtuple(instance):
-        if isinstance(instance, ObjectProxy):
-            instance_type = type(instance.__wrapped__)
-        else:
-            instance_type = type(instance)
+        instance_type = type(instance)
         try:
             return instance_type(*args)
         except Exception as e:
             raise TypeError(
                 f"Couldn't traverse {instance!r} with arguments {args}"
             ) from e
-    elif isinstance(instance, ObjectProxy):
-        # For object proxies, first create the underlying type and then re-wrap
-        # it in the proxy type.
-        return type(instance)(_sequence_like(instance.__wrapped__, args))
     else:
         # Not a namedtuple
         return type(instance)(args)

@@ -789,7 +789,6 @@ class CoreOpsCallsTests(testing.TestCase):
 
     def test_cond_check_output_spec_other_types(self):
         cond_op = core.Cond()
-        # Create mock objects with dtype and shape attributes
         mock_spec1 = KerasTensor(shape=(2, 2), dtype="float32")
         mock_spec2 = KerasTensor(shape=(2, 2), dtype="float32")
         self.assertTrue(cond_op._check_output_spec(mock_spec1, mock_spec2))
