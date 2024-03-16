@@ -2,10 +2,11 @@ import tensorflow as tf
 
 from keras import backend
 from keras.backend.common import KerasVariable
+from keras.backend.tensorflow.trackable import KerasAutoTrackable
 from keras.optimizers import base_optimizer
 
 
-class TFOptimizer(base_optimizer.BaseOptimizer):
+class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
     """A class for Tensorflow specific optimizer logic.
 
     The major behavior change for this class is for tf.distribute.
