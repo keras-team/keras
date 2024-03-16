@@ -1,6 +1,7 @@
+import itertools
+
 import numpy as np
 
-from keras import backend
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.data_adapters.data_adapter import DataAdapter
 from keras.utils import tree
@@ -19,6 +20,7 @@ class TorchDataLoaderAdapter(DataAdapter):
             )
 
         self._dataloader = dataloader
+        self._output_signature = None
         self._batch_size = dataloader.batch_size
         self._num_batches = None
         self._partial_batch_size = None
@@ -44,35 +46,23 @@ class TorchDataLoaderAdapter(DataAdapter):
     def get_tf_dataset(self):
         from keras.utils.module_utils import tensorflow as tf
 
-        output_signature = self.peek_and_get_tensor_spec()
+        if self._output_signature is None:
+            batches = list(
+                itertools.islice(
+                    self._dataloader,
+                    data_adapter_utils.NUM_BATCHES_FOR_TENSOR_SPEC,
+                )
+            )
+            self._output_signature = tuple(
+                data_adapter_utils.get_tensor_spec(batches)
+            )
         return tf.data.Dataset.from_generator(
             self.get_numpy_iterator,
-            output_signature=output_signature,
+            output_signature=self._output_signature,
         )
 
     def get_torch_dataloader(self):
         return self._dataloader
-
-    def peek_and_get_tensor_spec(self):
-        from keras.utils.module_utils import tensorflow as tf
-
-        batch_data = next(iter(self._dataloader))
-
-        def get_tensor_spec(x):
-            shape = x.shape
-            if len(shape) < 1:
-                raise ValueError(
-                    "When passing a Pytorch DataLoader to a Keras model, "
-                    "the arrays returned by the generator "
-                    "must be at least rank 1. Received: "
-                    f"{x} of rank {len(x.shape)}"
-                )
-            shape = list(shape)
-            shape[0] = None  # The batch size is not guaranteed to be static.
-            dtype = backend.standardize_dtype(x.dtype)
-            return tf.TensorSpec(shape=shape, dtype=dtype)
-
-        return tuple(tree.map_structure(get_tensor_spec, batch_data))
 
     @property
     def num_batches(self):

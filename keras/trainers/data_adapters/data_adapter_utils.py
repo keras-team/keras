@@ -4,6 +4,8 @@ from keras import backend
 from keras.api_export import keras_export
 from keras.utils import tree
 
+NUM_BATCHES_FOR_TENSOR_SPEC = 2
+
 
 @keras_export("keras.utils.unpack_x_y_sample_weight")
 def unpack_x_y_sample_weight(data):
@@ -123,6 +125,54 @@ def class_weight_to_sample_weights(y, class_weight):
     for i in range(y.shape[0]):
         sample_weight[i] = class_weight.get(int(y[i]), 1.0)
     return sample_weight
+
+
+def get_tensor_spec(batches):
+    """Return the common tensor spec for a list of batches.
+
+    Args:
+        batches: list of structures of tensors. The structures must be
+            identical, but the shape at each leaf may be different.
+    Returns: the common tensor spec for all the batches.
+    """
+    from keras.utils.module_utils import tensorflow as tf
+
+    def get_single_tensor_spec(*tensors):
+        x = tensors[0]
+        rank = len(x.shape)
+        if rank < 1:
+            raise ValueError(
+                "When passing a dataset to a Keras model, the arrays must "
+                f"be at least rank 1. Received: {x} of rank {len(x.shape)}."
+            )
+        for t in tensors:
+            if len(t.shape) != rank:
+                raise ValueError(
+                    "When passing a dataset to a Keras model, the "
+                    "corresponding arrays in each batch must have the same "
+                    f"rank. Received: {x} and {t}"
+                )
+        shape = []
+        # Merge shapes: go through each dimension one by one and keep the
+        # common values
+        for dims in zip(*[list(x.shape) for x in tensors]):
+            dims_set = set(dims)
+            shape.append(dims_set.pop() if len(dims_set) == 1 else None)
+        shape[0] = None  # batch size may not be static
+
+        dtype = backend.standardize_dtype(x.dtype)
+        if isinstance(x, tf.RaggedTensor):
+            return tf.RaggedTensorSpec(shape=shape, dtype=dtype)
+        if (
+            isinstance(x, tf.SparseTensor)
+            or is_scipy_sparse(x)
+            or is_jax_sparse(x)
+        ):
+            return tf.SparseTensorSpec(shape=shape, dtype=dtype)
+        else:
+            return tf.TensorSpec(shape=shape, dtype=dtype)
+
+    return tree.map_structure(get_single_tensor_spec, *batches)
 
 
 def get_jax_iterator(iterable):
