@@ -173,9 +173,6 @@ class FloatDTypePolicy(DTypePolicy):
             return "float16", "float32"
         elif name == "mixed_bfloat16":
             return "bfloat16", "float32"
-        elif name == "uint8":
-            dtype = backend.standardize_dtype(name)
-            return dtype, dtype
         try:
             dtype = backend.standardize_dtype(name)
             return dtype, dtype

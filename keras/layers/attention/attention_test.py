@@ -345,5 +345,11 @@ class AttentionTest(testing.TestCase):
 
     def test_attention_compute_output_shape(self):
         layer = layers.Attention()
-        input_shape = [(2, 8, 7), (2, 8, 5), (2, 8, 7)]  # Shapes of Q, V, K
-        self.assertAllEqual(layer.compute_output_shape(input_shape) == (2, 8, 5))
+
+        query = np.random.random((2, 3, 4))
+        value = np.random.random((2, 3, 5))
+        key = np.random.random((2, 3, 4))
+        layer = layers.Attention()
+        output = layer([query, value, key])
+        self.assertAllEqual(output.shape, value.shape)
+        self.assertAllEqual(layer.compute_output_shape(input_shape=[query.shape, value.shape, key.shape]), value.shape)
