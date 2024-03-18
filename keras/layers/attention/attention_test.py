@@ -342,3 +342,19 @@ class AttentionTest(testing.TestCase):
             computed_mask = layer.compute_mask(inputs=dummy_inputs, mask=mask)
             computed_mask = ops.convert_to_numpy(computed_mask)
             self.assertTrue(np.array_equal(computed_mask, valid_mask))
+
+    def test_attention_compute_output_shape(self):
+        layer = layers.Attention()
+
+        query = np.random.random((2, 3, 4))
+        value = np.random.random((2, 3, 5))
+        key = np.random.random((2, 3, 4))
+        layer = layers.Attention()
+        output = layer([query, value, key])
+        self.assertAllEqual(output.shape, value.shape)
+        self.assertAllEqual(
+            layer.compute_output_shape(
+                input_shape=[query.shape, value.shape, key.shape]
+            ),
+            output.shape,
+        )
