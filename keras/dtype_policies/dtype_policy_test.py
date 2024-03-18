@@ -103,6 +103,13 @@ class FloatDTypePolicyTest(test_case.TestCase):
         self.assertEqual(policy.compute_dtype, "float16")
         self.assertEqual(policy.name, "mixed_float16")
 
+    def test_properties_uint8(self):
+        """Test properties for 'uint8'."""
+        policy = FloatDTypePolicy("uint8")
+        self.assertEqual(policy.compute_dtype, "uint8")
+        self.assertEqual(policy.variable_dtype, "uint8")
+        self.assertEqual(policy.name, "uint8")
+
     def test_repr(self):
         """Test __repr__ method."""
         policy = FloatDTypePolicy("mixed_float16")
