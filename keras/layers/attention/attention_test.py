@@ -356,5 +356,5 @@ class AttentionTest(testing.TestCase):
             layer.compute_output_shape(
                 input_shape=[query.shape, value.shape, key.shape]
             ),
-            value.shape,
+            output.shape,
         )
