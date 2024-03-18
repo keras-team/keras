@@ -352,4 +352,9 @@ class AttentionTest(testing.TestCase):
         layer = layers.Attention()
         output = layer([query, value, key])
         self.assertAllEqual(output.shape, value.shape)
-        self.assertAllEqual(layer.compute_output_shape(input_shape=[query.shape, value.shape, key.shape]), value.shape)
+        self.assertAllEqual(
+            layer.compute_output_shape(
+                input_shape=[query.shape, value.shape, key.shape]
+            ),
+            value.shape,
+        )
