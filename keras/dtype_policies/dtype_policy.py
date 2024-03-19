@@ -21,7 +21,13 @@ class DTypePolicy:
     `keras.config.set_dtype_policy`.
 
     Args:
-        name: The policy name, which determines the compute and variable dtypes.
+        name: ```Literal['bfloat16', 'bool', 'complex128', 'complex64',
+                         'double', 'float16', 'float32', 'float64', 'half',
+                         'int16', 'int32', 'int64', 'int8', 'mixed_bfloat16',
+                         'mixed_float16', 'qint16', 'qint32', 'qint8',
+                         'quint16', 'quint8', 'resource', 'uint16', 'uint32',
+                         'uint64', 'uint8', 'variant']```.
+            The policy name, which determines the compute and variable dtypes.
             Can be any dtype name, such as `"float32"` or `"float64"`,
             which causes both the compute and variable dtypes
             will be that dtype.
