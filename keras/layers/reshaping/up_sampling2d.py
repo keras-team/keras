@@ -140,11 +140,8 @@ class UpSampling2D(Layer):
         Returns:
             A tensor.
         """
-        if data_format == "channels_first":
-            rows, cols = 2, 3
-        elif data_format == "channels_last":
-            rows, cols = 1, 2
-        else:
+        rows, cols = 1, 2
+        if data_format not in {"channels_last", "channels_first"}:
             raise ValueError(f"Invalid `data_format` argument: {data_format}")
 
         if data_format == "channels_first":
