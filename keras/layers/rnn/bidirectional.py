@@ -187,7 +187,7 @@ class Bidirectional(Wrapper):
         if self.return_state:
             if self.merge_mode is None:
                 return output_shape + state_shape + copy.copy(state_shape)
-            return [output_shape] + state_shape + copy.copy(state_shape)
+            return [output_shape] + [state_shape] + [copy.copy(state_shape)]
         return output_shape
 
     def call(
