@@ -10,7 +10,7 @@ class UpSampling1D(Layer):
 
     Repeats each temporal step `size` times along the time axis.
 
-    Examples:
+    Example:
 
     >>> input_shape = (2, 2, 3)
     >>> x = np.arange(np.prod(input_shape)).reshape(input_shape)

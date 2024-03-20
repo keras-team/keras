@@ -35,7 +35,7 @@ class RMSprop(optimizer.Optimizer):
             expensive in terms of computation and memory. Defaults to `False`.
         {{base_optimizer_keyword_args}}
 
-    Usage:
+    Example:
 
     >>> opt = keras.optimizers.RMSprop(learning_rate=0.1)
     >>> var1 = keras.backend.Variable(10.0)

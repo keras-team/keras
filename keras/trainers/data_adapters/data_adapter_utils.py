@@ -16,7 +16,7 @@ def unpack_x_y_sample_weight(data):
     This utility makes it easy to support data of the form `(x,)`,
     `(x, y)`, or `(x, y, sample_weight)`.
 
-    Standalone usage:
+    Example:
 
     >>> features_batch = ops.ones((10, 5))
     >>> labels_batch = ops.zeros((10, 5))
@@ -57,7 +57,7 @@ def pack_x_y_sample_weight(x, y=None, sample_weight=None):
     This is a convenience utility for packing data into the tuple formats
     that `Model.fit()` uses.
 
-    Standalone usage:
+    Example:
 
     >>> x = ops.ones((10, 1))
     >>> data = pack_x_y_sample_weight(x)

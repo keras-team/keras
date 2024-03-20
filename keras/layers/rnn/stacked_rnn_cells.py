@@ -14,7 +14,7 @@ class StackedRNNCells(Layer):
     Args:
       cells: List of RNN cell instances.
 
-    Examples:
+    Example:
 
     ```python
     batch_size = 3

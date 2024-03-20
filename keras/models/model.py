@@ -563,7 +563,7 @@ class Model(Trainer, Layer):
 def model_from_json(json_string, custom_objects=None):
     """Parses a JSON model configuration string and returns a model instance.
 
-    Usage:
+    Example:
 
     >>> model = keras.Sequential([
     ...     keras.layers.Dense(5, input_shape=(3,)),

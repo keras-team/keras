@@ -29,7 +29,7 @@ def batch_dot(x, y, axes=None):
         `y` has been summed over.
         (`dot_axes[1]` = 2) `output_shape` = `(100, 30)`
 
-    Examples:
+    Example:
 
     >>> x_batch = np.ones(shape=(32, 20, 1))
     >>> y_batch = np.ones(shape=(32, 30, 20))
@@ -209,7 +209,7 @@ class Dot(Merge):
     inputs. e.g. with `axes=(1, 2)`, the dot product of `x`, and `y`
     will result in a tensor with shape `(2, 5, 10)`
 
-    Examples:
+    Example:
 
     >>> x = np.arange(10).reshape(1, 5, 2)
     >>> y = np.arange(10, 20).reshape(1, 2, 5)

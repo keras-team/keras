@@ -10,7 +10,7 @@ from keras.utils import argument_validation
 class ZeroPadding3D(Layer):
     """Zero-padding layer for 3D data (spatial or spatio-temporal).
 
-    Examples:
+    Example:
 
     >>> input_shape = (1, 1, 2, 2, 3)
     >>> x = np.arange(np.prod(input_shape)).reshape(input_shape)

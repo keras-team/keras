@@ -186,8 +186,6 @@ class IoU(_IoUBase):
 
     Examples:
 
-    Standalone usage:
-
     >>> # cm = [[1, 1],
     >>> #        [1, 1]]
     >>> # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
@@ -338,9 +336,9 @@ class BinaryIoU(IoU):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Examples:
+    Example:
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.BinaryIoU(target_class_ids=[0, 1], threshold=0.3)
     >>> m.update_state([0, 1, 0, 1], [0.1, 0.2, 0.4, 0.7])
@@ -459,9 +457,9 @@ class MeanIoU(IoU):
             is used to determine each sample's most likely associated label.
         axis: (Optional) The dimension containing the logits. Defaults to `-1`.
 
-    Examples:
+    Example:
 
-    Standalone usage:
+    Example:
 
     >>> # cm = [[1, 1],
     >>> #        [1, 1]]
@@ -572,9 +570,9 @@ class OneHotIoU(IoU):
             is used to determine each sample's most likely associated label.
         axis: (Optional) The dimension containing the logits. Defaults to `-1`.
 
-    Examples:
+    Example:
 
-    Standalone usage:
+    Example:
 
     >>> y_true = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0], [1, 0, 0]])
     >>> y_pred = np.array([[0.2, 0.3, 0.5], [0.1, 0.2, 0.7], [0.5, 0.3, 0.1],
@@ -688,9 +686,9 @@ class OneHotMeanIoU(MeanIoU):
             associated label.
         axis: (Optional) The dimension containing the logits. Defaults to `-1`.
 
-    Examples:
+    Example:
 
-    Standalone usage:
+    Example:
 
     >>> y_true = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0], [1, 0, 0]])
     >>> y_pred = np.array([[0.2, 0.3, 0.5], [0.1, 0.2, 0.7], [0.5, 0.3, 0.1],

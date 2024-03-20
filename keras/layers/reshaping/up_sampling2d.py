@@ -14,7 +14,7 @@ class UpSampling2D(Layer):
     (specified by the `interpolation` argument). Use `interpolation=nearest`
     to repeat the rows and columns of the data.
 
-    Examples:
+    Example:
 
     >>> input_shape = (2, 2, 1, 3)
     >>> x = np.arange(np.prod(input_shape)).reshape(input_shape)

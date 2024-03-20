@@ -41,7 +41,7 @@ class Tracker:
     still get tracked. This is done by wrapping these
     collections into an equivalent, tracking-aware object.
 
-    Usage:
+    Example:
 
     ```python
     def __init__(self):
