@@ -60,8 +60,6 @@ class MeanAbsoluteError(reduction_metrics.MeanMetricWrapper):
 
     Examples:
 
-    Standalone usage:
-
     >>> m = keras.metrics.MeanAbsoluteError()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]])
     >>> m.result()
@@ -105,9 +103,9 @@ class MeanAbsolutePercentageError(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Examples:
+    Example:
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.MeanAbsolutePercentageError()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]])
@@ -152,9 +150,9 @@ class MeanSquaredLogarithmicError(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Examples:
+    Example:
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.MeanSquaredLogarithmicError()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]])
@@ -199,9 +197,9 @@ class RootMeanSquaredError(reduction_metrics.Mean):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Examples:
+    Example:
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.RootMeanSquaredError()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]])
@@ -272,9 +270,9 @@ class CosineSimilarity(reduction_metrics.MeanMetricWrapper):
         axis: (Optional) Defaults to `-1`. The dimension along which the cosine
             similarity is computed.
 
-    Examples:
+    Example:
 
-    Standalone usage:
+    Example:
 
     >>> # l2_norm(y_true) = [[0., 1.], [1./1.414, 1./1.414]]
     >>> # l2_norm(y_pred) = [[1., 0.], [1./1.414, 1./1.414]]
@@ -325,9 +323,9 @@ class LogCoshError(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Examples:
+    Example:
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.LogCoshError()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]])

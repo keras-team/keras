@@ -48,9 +48,7 @@ def clone_model(model, input_tensors=None, clone_function=None):
         differently from the original model if a custom `clone_function`
         modifies the layer.
 
-    Examples:
-
-    Basic usage:
+    Example:
 
     ```python
     # Create a test Sequential model.

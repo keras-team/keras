@@ -43,7 +43,7 @@ class TFGraphScope:
 class DynamicBackend:
     """A class that can be used to switch from one backend to another.
 
-    Usage:
+    Example:
 
     ```python
     backend = DynamicBackend("tensorflow")

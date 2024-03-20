@@ -82,7 +82,7 @@ class Conv3D(BaseConv):
     Raises:
         ValueError: when both `strides > 1` and `dilation_rate > 1`.
 
-    Examples:
+    Example:
 
     >>> x = np.random.rand(4, 10, 10, 10, 128)
     >>> y = keras.layers.Conv3D(32, 3, activation='relu')(x)

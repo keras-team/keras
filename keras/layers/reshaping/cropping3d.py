@@ -9,7 +9,7 @@ from keras.utils import argument_validation
 class Cropping3D(Layer):
     """Cropping layer for 3D data (e.g. spatial or spatio-temporal).
 
-    Examples:
+    Example:
 
     >>> input_shape = (2, 28, 28, 10, 3)
     >>> x = np.arange(np.prod(input_shape)).reshape(input_shape)

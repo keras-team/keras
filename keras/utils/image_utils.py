@@ -41,7 +41,7 @@ if pil_image_resampling is not None:
 def array_to_img(x, data_format=None, scale=True, dtype=None):
     """Converts a 3D NumPy array to a PIL Image instance.
 
-    Usage:
+    Example:
 
     ```python
     from PIL import Image
@@ -116,7 +116,7 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
 def img_to_array(img, data_format=None, dtype=None):
     """Converts a PIL Image instance to a NumPy array.
 
-    Usage:
+    Example:
 
     ```python
     from PIL import Image
@@ -194,7 +194,7 @@ def load_img(
 ):
     """Loads an image into PIL format.
 
-    Usage:
+    Example:
 
     ```python
     image = keras.utils.load_img(image_path)
