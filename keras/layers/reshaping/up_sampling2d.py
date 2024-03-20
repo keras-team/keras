@@ -140,11 +140,7 @@ class UpSampling2D(Layer):
         Returns:
             A tensor.
         """
-        if data_format == "channels_first":
-            rows, cols = 2, 3
-        elif data_format == "channels_last":
-            rows, cols = 1, 2
-        else:
+        if data_format not in {"channels_last", "channels_first"}:
             raise ValueError(f"Invalid `data_format` argument: {data_format}")
 
         if data_format == "channels_first":
@@ -163,8 +159,8 @@ class UpSampling2D(Layer):
             # will be traced as a symbolic variable (specifically
             # a `FakeTensor`) which does not have a `tolist()` method.
             new_shape = (
-                x.shape[rows] * height_factor,
-                x.shape[cols] * width_factor,
+                x.shape[1] * height_factor,
+                x.shape[2] * width_factor,
             )
             x = ops.image.resize(x, new_shape, interpolation=interpolation)
         if data_format == "channels_first":
