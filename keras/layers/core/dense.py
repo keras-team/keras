@@ -102,13 +102,18 @@ class Dense(Layer):
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
-        self._kernel = self.add_weight(
-            name="kernel",
-            shape=(input_dim, self.units),
-            initializer=self.kernel_initializer,
-            regularizer=self.kernel_regularizer,
-            constraint=self.kernel_constraint,
-        )
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            self.quantized_build(
+                input_shape, mode=self.dtype_policy.quantization_mode
+            )
+        else:
+            self._kernel = self.add_weight(
+                name="kernel",
+                shape=(input_dim, self.units),
+                initializer=self.kernel_initializer,
+                regularizer=self.kernel_regularizer,
+                constraint=self.kernel_constraint,
+            )
         if self.use_bias:
             self.bias = self.add_weight(
                 name="bias",
@@ -120,11 +125,12 @@ class Dense(Layer):
         else:
             self.bias = None
         self.input_spec = InputSpec(min_ndim=2, axes={-1: input_dim})
-        self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            self.quantize(self.dtype_policy.quantization_mode)
+            if self.bias is not None:
+                self.bias.trainable = False
+        self.built = True
 
     @property
     def kernel(self):
@@ -140,20 +146,6 @@ class Dense(Layer):
 
     def call(self, inputs):
         x = ops.matmul(inputs, self.kernel)
-        if self.bias is not None:
-            x = ops.add(x, self.bias)
-        if self.activation is not None:
-            x = self.activation(x)
-        return x
-
-    def quantized_call(self, inputs):
-        if self.lora_enabled:
-            raise ValueError("`quantized_call` doesn't support lora weights")
-        inputs, inputs_scale = self.inputs_quantizer(inputs)
-        x = ops.matmul(inputs, self.kernel)
-        # De-scale outputs
-        x = ops.cast(x, self.compute_dtype)
-        x = ops.divide(x, ops.multiply(inputs_scale, self.kernel_scale))
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:
@@ -200,6 +192,82 @@ class Dense(Layer):
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank
+
+    def save_own_variables(self, store):
+        if not self.lora_enabled:
+            return super().save_own_variables(store)
+
+        kernel_value = self.kernel
+        store["0"] = kernel_value
+        if self.use_bias:
+            store["1"] = self.bias
+
+    def load_own_variables(self, store):
+        if not self.lora_enabled:
+            return super().load_own_variables(store)
+        self._kernel.assign(store["0"])
+        if self.use_bias:
+            self.bias.assign(store["1"])
+        self.lora_kernel_a.assign(np.zeros(self.lora_kernel_a.shape))
+        self.lora_kernel_b.assign(np.zeros(self.lora_kernel_b.shape))
+
+    def get_config(self):
+        base_config = super().get_config()
+        config = {
+            "units": self.units,
+            "activation": activations.serialize(self.activation),
+            "use_bias": self.use_bias,
+            "kernel_initializer": initializers.serialize(
+                self.kernel_initializer
+            ),
+            "bias_initializer": initializers.serialize(self.bias_initializer),
+            "kernel_regularizer": regularizers.serialize(
+                self.kernel_regularizer
+            ),
+            "bias_regularizer": regularizers.serialize(self.bias_regularizer),
+            "kernel_constraint": constraints.serialize(self.kernel_constraint),
+            "bias_constraint": constraints.serialize(self.bias_constraint),
+        }
+        if self.lora_rank:
+            config["lora_rank"] = self.lora_rank
+        return {**base_config, **config}
+
+    """Quantization-related methods"""
+
+    def quantized_build(self, input_shape, mode):
+        input_dim = input_shape[-1]
+        kernel_shape = (input_dim, self.units)
+        if mode == "int8":
+            self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
+            self._kernel = self.add_weight(
+                name="kernel",
+                shape=kernel_shape,
+                initializer="zeros",
+                dtype="int8",
+                trainable=False,
+            )
+            kernel_scale_shape = (1, kernel_shape[1])
+            self.kernel_scale = self.add_weight(
+                name="kernel_scale",
+                shape=kernel_scale_shape,
+                initializer="zeros",
+                dtype=self.compute_dtype,
+                trainable=False,
+            )
+
+    def quantized_call(self, inputs):
+        if self.lora_enabled:
+            raise ValueError("`quantized_call` doesn't support lora weights")
+        inputs, inputs_scale = self.inputs_quantizer(inputs)
+        x = ops.matmul(inputs, self.kernel)
+        # De-scale outputs
+        x = ops.cast(x, self.compute_dtype)
+        x = ops.divide(x, ops.multiply(inputs_scale, self.kernel_scale))
+        if self.bias is not None:
+            x = ops.add(x, self.bias)
+        if self.activation is not None:
+            x = self.activation(x)
+        return x
 
     def quantize(self, mode):
         self._check_quantize_args(mode, self.compute_dtype)
@@ -261,42 +329,3 @@ class Dense(Layer):
             self.lora_kernel_b = self._untrack_variable(self.lora_kernel_b)
             self._tracker.lock()
             self.lora_rank = None
-
-    def save_own_variables(self, store):
-        if not self.lora_enabled:
-            return super().save_own_variables(store)
-
-        kernel_value = self.kernel
-        store["0"] = kernel_value
-        if self.use_bias:
-            store["1"] = self.bias
-
-    def load_own_variables(self, store):
-        if not self.lora_enabled:
-            return super().load_own_variables(store)
-        self._kernel.assign(store["0"])
-        if self.use_bias:
-            self.bias.assign(store["1"])
-        self.lora_kernel_a.assign(np.zeros(self.lora_kernel_a.shape))
-        self.lora_kernel_b.assign(np.zeros(self.lora_kernel_b.shape))
-
-    def get_config(self):
-        base_config = super().get_config()
-        config = {
-            "units": self.units,
-            "activation": activations.serialize(self.activation),
-            "use_bias": self.use_bias,
-            "kernel_initializer": initializers.serialize(
-                self.kernel_initializer
-            ),
-            "bias_initializer": initializers.serialize(self.bias_initializer),
-            "kernel_regularizer": regularizers.serialize(
-                self.kernel_regularizer
-            ),
-            "bias_regularizer": regularizers.serialize(self.bias_regularizer),
-            "kernel_constraint": constraints.serialize(self.kernel_constraint),
-            "bias_constraint": constraints.serialize(self.bias_constraint),
-        }
-        if self.lora_rank:
-            config["lora_rank"] = self.lora_rank
-        return {**base_config, **config}

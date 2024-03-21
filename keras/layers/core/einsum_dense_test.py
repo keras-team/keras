@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras import backend
 from keras import constraints
 from keras import layers
 from keras import models
@@ -382,6 +383,13 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         layer.build((None, 3))
         layer.quantize("int8")
 
+        # Verify weights dtype
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype),
+            layer.compute_dtype,
+        )
+
         # Try eager call
         x = np.random.random((2, 3))
         _ = layer(x)
@@ -412,6 +420,19 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         layer.quantize("int8")
         x = np.random.random((2, 3))
         _ = layer(x)
+
+        # Try building with quantized dtype policy
+        layer = layers.EinsumDense(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+            dtype="int8_from_mixed_bfloat16",
+        )
+        layer.build((None, 3))
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype), "bfloat16"
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_dtype_argument(self):
