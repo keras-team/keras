@@ -1,6 +1,5 @@
 import os
 
-import flax
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -20,6 +19,11 @@ from keras.saving import object_registration
 from keras.utils import tree
 from keras.utils.jax_layer import FlaxLayer
 from keras.utils.jax_layer import JaxLayer
+
+try:
+    import flax
+except ImportError:
+    flax = None
 
 num_classes = 10
 input_shape = (28, 28, 1)  # Excluding batch_size
@@ -65,93 +69,106 @@ def jax_stateful_apply(params, state, inputs, training):
     return outputs, state
 
 
-@object_registration.register_keras_serializable()
-class FlaxTrainingIndependentModel(flax.linen.Module):
-    @flax.linen.compact
-    def forward(self, inputs):
-        x = inputs
-        x = flax.linen.Conv(features=32, kernel_size=(3, 3))(x)
-        x = flax.linen.relu(x)
-        x = flax.linen.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
-        x = flax.linen.Conv(features=64, kernel_size=(3, 3))(x)
-        x = flax.linen.relu(x)
-        x = flax.linen.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
-        x = x.reshape((x.shape[0], -1))  # flatten
-        x = flax.linen.Dense(features=200)(x)
-        x = flax.linen.relu(x)
-        x = flax.linen.Dense(features=10)(x)
-        x = flax.linen.softmax(x)
-        return x
+if flax is not None:
 
-    def get_config(self):
-        return {}
+    @object_registration.register_keras_serializable()
+    class FlaxTrainingIndependentModel(flax.linen.Module):
+        @flax.linen.compact
+        def forward(self, inputs):
+            x = inputs
+            x = flax.linen.Conv(features=32, kernel_size=(3, 3))(x)
+            x = flax.linen.relu(x)
+            x = flax.linen.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
+            x = flax.linen.Conv(features=64, kernel_size=(3, 3))(x)
+            x = flax.linen.relu(x)
+            x = flax.linen.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
+            x = x.reshape((x.shape[0], -1))  # flatten
+            x = flax.linen.Dense(features=200)(x)
+            x = flax.linen.relu(x)
+            x = flax.linen.Dense(features=10)(x)
+            x = flax.linen.softmax(x)
+            return x
 
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
+        def get_config(self):
+            return {}
 
+        @classmethod
+        def from_config(cls, config):
+            return cls(**config)
 
-@object_registration.register_keras_serializable()
-class FlaxDropoutModel(flax.linen.Module):
-    @flax.linen.compact
-    def my_apply(self, inputs, training):
-        x = inputs
-        x = flax.linen.Conv(features=32, kernel_size=(3, 3))(x)
-        x = flax.linen.relu(x)
-        x = flax.linen.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
-        x = flax.linen.Conv(features=64, kernel_size=(3, 3))(x)
-        x = flax.linen.relu(x)
-        x = flax.linen.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
-        x = x.reshape((x.shape[0], -1))  # flatten
-        x = flax.linen.Dense(features=200)(x)
-        x = flax.linen.Dropout(rate=0.3, deterministic=not training)(x)
-        x = flax.linen.relu(x)
-        x = flax.linen.Dense(features=10)(x)
-        x = flax.linen.softmax(x)
-        return x
+    @object_registration.register_keras_serializable()
+    class FlaxDropoutModel(flax.linen.Module):
+        @flax.linen.compact
+        def my_apply(self, inputs, training):
+            x = inputs
+            x = flax.linen.Conv(features=32, kernel_size=(3, 3))(x)
+            x = flax.linen.relu(x)
+            x = flax.linen.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
+            x = flax.linen.Conv(features=64, kernel_size=(3, 3))(x)
+            x = flax.linen.relu(x)
+            x = flax.linen.avg_pool(x, window_shape=(2, 2), strides=(2, 2))
+            x = x.reshape((x.shape[0], -1))  # flatten
+            x = flax.linen.Dense(features=200)(x)
+            x = flax.linen.Dropout(rate=0.3, deterministic=not training)(x)
+            x = flax.linen.relu(x)
+            x = flax.linen.Dense(features=10)(x)
+            x = flax.linen.softmax(x)
+            return x
 
-    def get_config(self):
-        return {}
+        def get_config(self):
+            return {}
 
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
+        @classmethod
+        def from_config(cls, config):
+            return cls(**config)
 
+    @object_registration.register_keras_serializable()
+    def flax_dropout_wrapper(module, x, training):
+        return module.my_apply(x, training)
 
-@object_registration.register_keras_serializable()
-def flax_dropout_wrapper(module, x, training):
-    return module.my_apply(x, training)
+    @object_registration.register_keras_serializable()
+    class FlaxBatchNormModel(flax.linen.Module):
+        @flax.linen.compact
+        def __call__(self, inputs, training=False):
+            ura = not training
+            x = inputs
+            x = flax.linen.Conv(
+                features=12, kernel_size=(3, 3), use_bias=False
+            )(x)
+            x = flax.linen.BatchNorm(use_running_average=ura, use_scale=False)(
+                x
+            )
+            x = flax.linen.relu(x)
+            x = flax.linen.Conv(
+                features=24, kernel_size=(6, 6), strides=(2, 2)
+            )(x)
+            x = flax.linen.BatchNorm(use_running_average=ura, use_scale=False)(
+                x
+            )
+            x = flax.linen.relu(x)
+            x = flax.linen.Conv(
+                features=32, kernel_size=(6, 6), strides=(2, 2)
+            )(x)
+            x = flax.linen.BatchNorm(use_running_average=ura, use_scale=False)(
+                x
+            )
+            x = x.reshape((x.shape[0], -1))  # flatten
+            x = flax.linen.Dense(features=200, use_bias=True)(x)
+            x = flax.linen.BatchNorm(use_running_average=ura, use_scale=False)(
+                x
+            )
+            x = flax.linen.Dropout(rate=0.3, deterministic=not training)(x)
+            x = flax.linen.relu(x)
+            x = flax.linen.Dense(features=10)(x)
+            x = flax.linen.softmax(x)
+            return x
 
+        def get_config(self):
+            return {}
 
-@object_registration.register_keras_serializable()
-class FlaxBatchNormModel(flax.linen.Module):
-    @flax.linen.compact
-    def __call__(self, inputs, training=False):
-        ura = not training
-        x = inputs
-        x = flax.linen.Conv(features=12, kernel_size=(3, 3), use_bias=False)(x)
-        x = flax.linen.BatchNorm(use_running_average=ura, use_scale=False)(x)
-        x = flax.linen.relu(x)
-        x = flax.linen.Conv(features=24, kernel_size=(6, 6), strides=(2, 2))(x)
-        x = flax.linen.BatchNorm(use_running_average=ura, use_scale=False)(x)
-        x = flax.linen.relu(x)
-        x = flax.linen.Conv(features=32, kernel_size=(6, 6), strides=(2, 2))(x)
-        x = flax.linen.BatchNorm(use_running_average=ura, use_scale=False)(x)
-        x = x.reshape((x.shape[0], -1))  # flatten
-        x = flax.linen.Dense(features=200, use_bias=True)(x)
-        x = flax.linen.BatchNorm(use_running_average=ura, use_scale=False)(x)
-        x = flax.linen.Dropout(rate=0.3, deterministic=not training)(x)
-        x = flax.linen.relu(x)
-        x = flax.linen.Dense(features=10)(x)
-        x = flax.linen.softmax(x)
-        return x
-
-    def get_config(self):
-        return {}
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
+        @classmethod
+        def from_config(cls, config):
+            return cls(**config)
 
 
 @pytest.mark.skipif(
@@ -297,6 +314,7 @@ class TestJaxLayer(testing.TestCase, parameterized.TestCase):
         verify_identical_model(model3)
 
         # export, load back and compare results
+        # TODO: fix and reenable this.
         path = os.path.join(self.get_temp_dir(), "jax_layer_export")
         # export_archive = export_lib.ExportArchive()
         # export_archive.track(model2)
