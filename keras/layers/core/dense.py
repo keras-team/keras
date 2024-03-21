@@ -125,12 +125,12 @@ class Dense(Layer):
         else:
             self.bias = None
         self.input_spec = InputSpec(min_ndim=2, axes={-1: input_dim})
+        self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
             if self.bias is not None:
                 self.bias.trainable = False
-        self.built = True
 
     @property
     def kernel(self):
