@@ -170,10 +170,11 @@ if flax is not None:
         def from_config(cls, config):
             return cls(**config)
 
-    FLAX_MODEL_CLASSES = {
+    FLAX_OBJECTS = {
         "FlaxTrainingIndependentModel": FlaxTrainingIndependentModel,
         "FlaxBatchNormModel": FlaxBatchNormModel,
         "FlaxDropoutModel": FlaxDropoutModel,
+        "flax_dropout_wrapper": flax_dropout_wrapper,
     }
 
 
@@ -401,7 +402,7 @@ class TestJaxLayer(testing.TestCase, parameterized.TestCase):
             "flax_model_class": "FlaxDropoutModel",
             "flax_model_method": None,
             "init_kwargs": {
-                "method": flax_dropout_wrapper,
+                "method": "flax_dropout_wrapper",
             },
             "trainable_weights": 8,
             "trainable_params": 648226,
@@ -429,7 +430,9 @@ class TestJaxLayer(testing.TestCase, parameterized.TestCase):
         non_trainable_weights,
         non_trainable_params,
     ):
-        flax_model_class = FLAX_MODEL_CLASSES.get(flax_model_class)
+        flax_model_class = FLAX_OBJECTS.get(flax_model_class)
+        if "method" in init_kwargs:
+            init_kwargs["method"] = FLAX_OBJECTS.get(init_kwargs["method"])
 
         def create_wrapper(**kwargs):
             params = kwargs.pop("params") if "params" in kwargs else None
