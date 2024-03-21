@@ -420,6 +420,7 @@ class TestJaxLayer(testing.TestCase, parameterized.TestCase):
             "non_trainable_params": 536,
         },
     )
+    @pytest.mark.skipif(flax is None, reason="Flax library is not available.")
     def test_flax_layer(
         self,
         flax_model_class,
@@ -575,6 +576,7 @@ class TestJaxLayer(testing.TestCase, parameterized.TestCase):
         test_output = model(test_inputs)
         self.assertAllClose(test_output, np.ones((2, 60, 3)))
 
+    @pytest.mark.skipif(flax is None, reason="Flax library is not available.")
     def test_with_flax_state_no_params(self):
         class MyFlaxLayer(flax.linen.Module):
             @flax.linen.compact

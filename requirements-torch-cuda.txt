@@ -8,5 +8,6 @@ torchvision==0.17.1+cu121
 
 # Jax cpu-only version (needed for testing).
 jax[cpu]
+flax
 
 -r requirements-common.txt
