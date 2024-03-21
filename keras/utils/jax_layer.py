@@ -3,16 +3,12 @@ import inspect
 import numpy as np
 
 from keras import backend
+from keras import ops
 from keras.api_export import keras_export
 from keras.layers.layer import Layer
 from keras.saving import serialization_lib
 from keras.utils import shape_utils
 from keras.utils import tracking
-
-try:
-    import jax
-except ImportError:
-    jax = None
 
 
 @keras_export("keras.layers.JaxLayer")
@@ -271,6 +267,8 @@ class JaxLayer(Layer):
 
     @tracking.no_automatic_dependency_tracking
     def _create_variables(self, values, trainable):
+        import jax
+
         """Create a structure of variables from a structure of JAX arrays.
 
         `values` is traversed via JAX's `tree_map`. When a leaf is a JAX array
@@ -356,7 +354,7 @@ class JaxLayer(Layer):
         # Initialize `params` and `state` if needed by calling `init_fn`.
         def create_input(shape):
             shape = [d if d is not None else 1 for d in shape]
-            return jax.numpy.ones(shape)
+            return ops.ones(shape)
 
         init_inputs = shape_utils.map_shape_structure(create_input, input_shape)
         init_args = []
@@ -380,6 +378,8 @@ class JaxLayer(Layer):
         self.tracked_state = self._create_variables(init_state, trainable=False)
 
     def call(self, inputs, training=False):
+        import jax
+
         def unwrap_variable(variable):
             return None if variable is None else variable.value
 
