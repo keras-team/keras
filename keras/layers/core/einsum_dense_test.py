@@ -423,7 +423,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
 
         # Try building with quantized dtype policy
         layer = layers.EinsumDense(
-            equation="abcde,afce->acdbf",
+            equation="abcde,afce->acdbf",  # Test reduce and transpose
             output_shape=(2, 4, 8, 16),
             bias_axes="d",
             dtype="int8_from_mixed_bfloat16",
@@ -434,11 +434,21 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             backend.standardize_dtype(layer.kernel_scale.dtype), "bfloat16"
         )
         layer = layers.EinsumDense(
-            equation="a,b->ab",
+            equation="a,b->ab",  # Test expand
             output_shape=(4,),
             dtype="int8_from_float32",
         )
         layer.build((None,))
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
+        )
+        layer = layers.EinsumDense(
+            equation="ab,ab->a",  # Test squeeze
+            output_shape=(2,),
+            dtype="int8_from_float32",
+        )
+        layer.build((2, 4))
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
         self.assertEqual(
             backend.standardize_dtype(layer.kernel_scale.dtype), "float32"

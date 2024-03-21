@@ -323,9 +323,9 @@ class EinsumDense(Layer):
             kernel_scale_shape[self._kernel_reduced_axes] = 1
             kernel_scale_shape = kernel_scale_shape[self._kernel_transpose_axes]
             kernel_scale_shape = kernel_scale_shape.tolist()
-            for a in self._kernel_expand_axes:
+            for a in sorted(self._kernel_expand_axes):
                 kernel_scale_shape.insert(a, 1)
-            for a in self._kernel_squeeze_axes:
+            for a in sorted(self._kernel_squeeze_axes, reverse=True):
                 kernel_scale_shape.pop(a)
             self.kernel_scale = self.add_weight(
                 name="kernel_scale",
