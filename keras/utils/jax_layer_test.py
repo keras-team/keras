@@ -170,6 +170,12 @@ if flax is not None:
         def from_config(cls, config):
             return cls(**config)
 
+    FLAX_MODEL_CLASSES = {
+        "FlaxTrainingIndependentModel": FlaxTrainingIndependentModel,
+        "FlaxBatchNormModel": FlaxBatchNormModel,
+        "FlaxDropoutModel": FlaxDropoutModel,
+    }
+
 
 @pytest.mark.skipif(
     backend.backend() != "jax",
@@ -382,7 +388,7 @@ class TestJaxLayer(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         {
             "testcase_name": "training_independent_bound_method",
-            "flax_model_class": FlaxTrainingIndependentModel,
+            "flax_model_class": "FlaxTrainingIndependentModel",
             "flax_model_method": "forward",
             "init_kwargs": {},
             "trainable_weights": 8,
@@ -392,7 +398,7 @@ class TestJaxLayer(testing.TestCase, parameterized.TestCase):
         },
         {
             "testcase_name": "training_rng_unbound_method",
-            "flax_model_class": FlaxDropoutModel,
+            "flax_model_class": "FlaxDropoutModel",
             "flax_model_method": None,
             "init_kwargs": {
                 "method": flax_dropout_wrapper,
@@ -404,7 +410,7 @@ class TestJaxLayer(testing.TestCase, parameterized.TestCase):
         },
         {
             "testcase_name": "training_rng_state_no_method",
-            "flax_model_class": FlaxBatchNormModel,
+            "flax_model_class": "FlaxBatchNormModel",
             "flax_model_method": None,
             "init_kwargs": {},
             "trainable_weights": 13,
@@ -423,6 +429,8 @@ class TestJaxLayer(testing.TestCase, parameterized.TestCase):
         non_trainable_weights,
         non_trainable_params,
     ):
+        flax_model_class = FLAX_MODEL_CLASSES.get(flax_model_class)
+
         def create_wrapper(**kwargs):
             params = kwargs.pop("params") if "params" in kwargs else None
             state = kwargs.pop("state") if "state" in kwargs else None
