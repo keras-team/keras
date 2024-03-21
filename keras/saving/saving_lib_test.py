@@ -4,6 +4,7 @@ import json
 import os
 import warnings
 import zipfile
+from io import BytesIO
 from pathlib import Path
 from unittest import mock
 
@@ -585,6 +586,29 @@ class SavingTest(testing.TestCase):
         self.assertAllClose(
             np.array(new_model.layers[2].kernel), new_layer_kernel_value
         )
+
+    def test_save_to_fileobj(self) -> None:
+        model = keras.Sequential(
+            [keras.layers.Dense(1, input_shape=(1,)), keras.layers.Dense(1)]
+        )
+        model.compile(optimizer="adam", loss="mse")
+
+        out = BytesIO()
+        saving_lib.save_model(model, out)
+        out.seek(0)
+        model = saving_lib.load_model(out)
+
+        model.fit(np.array([1, 2]), np.array([1, 2]))
+        pred1 = model.predict(np.array([1, 2]))
+
+        out = BytesIO()
+        saving_lib.save_model(model, out)
+        out.seek(0)
+        new_model = saving_lib.load_model(out)
+
+        pred2 = new_model.predict(np.array([1, 2]))
+
+        self.assertAllClose(pred1, pred2, atol=1e-5)
 
 
 @pytest.mark.requires_trainable_backend
