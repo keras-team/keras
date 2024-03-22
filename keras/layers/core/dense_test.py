@@ -305,6 +305,10 @@ class DenseTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
 
+    @pytest.mark.skipif(
+        backend.backend() not in ("jax", "tensorflow"),
+        reason=f"{backend.backend()} doesn't support `custom_gradient`.",
+    )
     def test_quantize_int8(self):
         layer = layers.Dense(units=16)
         layer.build((None, 8))
@@ -385,6 +389,7 @@ class DenseTest(testing.TestCase):
         ):
             layer.quantize("int8")
 
+    @pytest.mark.requires_trainable_backend
     def test_quantize_when_lora_enabled(self):
         # Note that saving and loading with lora_enabled and quantized are
         # lossy, so we use a weak correctness test for model outputs (atol=0.5).

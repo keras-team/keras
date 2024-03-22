@@ -374,6 +374,10 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             supports_masking=False,
         )
 
+    @pytest.mark.skipif(
+        backend.backend() not in ("jax", "tensorflow"),
+        reason=f"{backend.backend()} doesn't support `custom_gradient`.",
+    )
     def test_quantize_int8(self):
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
@@ -497,6 +501,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         ):
             layer.quantize("int8")
 
+    @pytest.mark.requires_trainable_backend
     def test_quantize_when_lora_enabled(self):
         config = dict(
             equation="ab,bcd->acd",

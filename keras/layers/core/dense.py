@@ -189,6 +189,8 @@ class Dense(Layer):
         self.lora_rank = rank
 
     def save_own_variables(self, store):
+        if not self.built:
+            return
         kernel_value, kernel_scale = self._get_kernel_with_merged_lora()
         store["0"] = kernel_value
         if self.use_bias:
@@ -197,6 +199,10 @@ class Dense(Layer):
             store["2"] = kernel_scale
 
     def load_own_variables(self, store):
+        if not self.lora_enabled:
+            self._check_load_own_variables(store)
+        if not self.built:
+            return
         self._kernel.assign(store["0"])
         if self.use_bias:
             self.bias.assign(store["1"])
