@@ -310,6 +310,13 @@ class DenseTest(testing.TestCase):
         layer.build((None, 8))
         layer.quantize("int8")
 
+        # Verify weights dtype
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype),
+            layer.variable_dtype,
+        )
+
         # Try eager call
         x = np.random.random((2, 8))
         _ = layer(x)
@@ -336,6 +343,14 @@ class DenseTest(testing.TestCase):
         layer.quantize("int8")
         x = np.random.random((2, 8))
         _ = layer(x)
+
+        # Try building with quantized dtype policy
+        layer = layers.Dense(units=16, dtype="int8_from_mixed_bfloat16")
+        layer.build((None, 8))
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_dtype_argument(self):
