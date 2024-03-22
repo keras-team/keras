@@ -504,7 +504,6 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         backend.backend() not in ("tensorflow", "jax", "torch"),
         reason=f"{backend.backend()} doesn't support `custom_gradient`.",
     )
-
     def test_custom_gradient(self):
 
         # function to test custom_gradient on
@@ -512,9 +511,9 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         def log1pexp(x):
             e = ops.exp(x)
 
-            def grad(*args, upstream = None):
-                if upstream == None:
-                    upstream, = args
+            def grad(*args, upstream=None):
+                if upstream is None:
+                    (upstream,) = args
                 return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
 
             return ops.log(1 + e), grad
@@ -545,12 +544,10 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         elif backend.backend() == "torch":
             import torch
 
-            x = torch.tensor(100.0, requires_grad = True) # x = ops.convert_to_tensor(100.0) is NOT supported Yet!
+            x = torch.tensor(100.0, requires_grad=True)
             z = log1pexp(x)
             z.sum().backward()
             self.assertEqual(ops.convert_to_numpy(x.grad), 1.0)
-
-
 
 
 class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):

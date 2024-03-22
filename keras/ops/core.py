@@ -655,44 +655,49 @@ def custom_gradient(f):
         `f(*args)[1]`.
 
 
-    Example:
+    Examples:
 
-    [Backend-invariant]
+    1. Backend-agnostic example.
+
     ```python
     @ops.custom_gradient
     def log1pexp(x):
         e = ops.exp(x)
 
         def grad(*args, upstream=None):
-            if upstream == None:
-                upstream, = args
-                
+            if upstream is None:
+                (upstream,) = args
             return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
 
         return ops.log(1 + e), grad
     ```
 
-    Note that the grad function that returns gradient computations 
-    requires `args` as well as an `upstream` keyword argument, depending 
-    upon the backend being set. In JAX and TensorFlow backends, 
-    it requires only one argument, whereas it might use `upstream` keyword 
-    arguments in the case of PyTorch backend.
+    Note that the grad function that returns gradient computation
+    requires `args` as well as an `upstream` keyword argument, depending
+    on the backend being set. With the JAX and TensorFlow backends,
+    it requires only one argument, whereas it might use the `upstream`
+    argument in the case of the PyTorch backend.
 
-    Example: When working with TensorFlow/JAX backend, `grad(upstream)`
-    is sufficient. In PyTorch `grad` function requires `*args` as well
-    as `upstream`, `def grad(*args, upstream)`. Follow the previous
-    example to use `@ops.custom_gradient` in all three backends.
+    When working with TensorFlow/JAX backend, `grad(upstream)`
+    is sufficient. With PyTorch, the `grad` function requires
+    `*args` as well as `upstream`, e.g. `def grad(*args, upstream)`.
+    Follow the previous example to use `@ops.custom_gradient` in
+    a way that is compatible with all backends.
 
-    [JAX, TensorFlow-specific backend example]
+    2. Here's JAX & TensorFlow-specific example:
+
     ```python
     @ops.custom_gradient
     def log1pexp(x):
         e = ops.exp(x)
-        def grad(upstream=None):
+        def grad(upstream):
             return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
         return ops.log(1 + e), grad
     ```
-    [PyTorch-specific backend example]
+
+    3. Lastly, here's a PyTorch-specific example,
+    using `*args` & `upstream`:
+
     ```python
     @ops.custom_gradient
     def log1pexp(x):
