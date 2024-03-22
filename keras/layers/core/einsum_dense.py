@@ -335,7 +335,9 @@ class EinsumDense(Layer):
     def quantized_call(self, inputs):
         @ops.custom_gradient
         def einsum_with_inputs_gradient(inputs, kernel, kernel_scale):
-            def grad_fn(upstream):
+            def grad_fn(*args, upstream=None):
+                if upstream is None:
+                    (upstream,) = args
                 float_kernel = ops.divide(
                     ops.cast(kernel, dtype=self.compute_dtype),
                     kernel_scale,
