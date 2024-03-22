@@ -542,7 +542,7 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             dz_dx = jax.grad(log1pexp_nan)(x)
             self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
             self.assertTrue(ops.isnan(dz_dx))
-        elif backend.backend() == "pytorch":
+        elif backend.backend() == "torch":
             import torch
 
             z = log1pexp(x)
