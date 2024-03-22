@@ -545,6 +545,7 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         elif backend.backend() == "torch":
             import torch
 
+            x = torch.tensor(100.0, requires_grad = True) # x = ops.convert_to_tensor(100.0) is NOT supported Yet!
             z = log1pexp(x)
             z.sum().backward()
             self.assertEqual(ops.convert_to_numpy(x.grad), 1.0)
