@@ -501,15 +501,20 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertFalse(ops.is_tensor([1, 2, 3]))
 
     @pytest.mark.skipif(
-        backend.backend() not in ("tensorflow", "jax"),
+        backend.backend() not in ("tensorflow", "jax", "torch"),
         reason=f"{backend.backend()} doesn't support `custom_gradient`.",
     )
+
     def test_custom_gradient(self):
+
+        # function to test custom_gradient on
         @ops.custom_gradient
         def log1pexp(x):
             e = ops.exp(x)
 
-            def grad(upstream):
+            def grad(*args, upstream = None):
+                if upstream == None:
+                    upstream, = args
                 return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
 
             return ops.log(1 + e), grad
@@ -529,14 +534,23 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 z = log1pexp_nan(x)
             dy_dx = tape1.gradient(y, x)
             dz_dx = tape2.gradient(z, x)
+            self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
         elif backend.backend() == "jax":
             import jax
 
             dy_dx = jax.grad(log1pexp)(x)
             dz_dx = jax.grad(log1pexp_nan)(x)
+            self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
+            self.assertTrue(ops.isnan(dz_dx))
+        elif backend.backend() == "torch":
+            import torch
 
-        self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
-        self.assertTrue(ops.isnan(dz_dx))
+            x = torch.tensor(100.0, requires_grad = True) # x = ops.convert_to_tensor(100.0) is NOT supported Yet!
+            z = log1pexp(x)
+            z.sum().backward()
+            self.assertEqual(ops.convert_to_numpy(x.grad), 1.0)
+
+
 
 
 class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):

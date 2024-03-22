@@ -635,35 +635,70 @@ def custom_gradient(f):
     a more efficient or numerically stable gradient for a sequence of
     operations.
 
-    Note that `custom_gradient` only supports TensorFlow and JAX backends.
-
     Args:
-        f: Function `f(*x)` that returns a tuple `(y, grad_fn)` where:
-            - `x` is a sequence of (nested structures of) tensor inputs to the
-                function.
-            - `y` is a (nested structure of) tensor outputs of applying
-                operations in `f` to `x`.
-            - `grad_fn` is a function with the signature `g(*grad_ys)` which
-                returns a list of tensors the same size as (flattened) `x`: the
-                derivatives of tensors in `y` with respect to the tensors in
-                `x`. `grad_ys` is a sequence of tensors the same size as
-                (flattened) `y` holding the initial value gradients for each
-                tensor in `y`.
+        f: Function `f(*args)` that returns a tuple
+            `(output, grad_fn)`, where:
+            - `args` is a sequence of (nested structures of) tensor inputs to
+                the function.
+            - `output` is a (nested structure of) tensor outputs of applying
+                operations in `forward_fn` to `args`.
+            - `grad_fn` is a function with the signature `grad_fn(*args,
+                upstream)` which returns a tuple of tensors the same size as
+                (flattened) `args`: the derivatives of tensors in `output` with
+                respect to the tensors in `args`. `upstream` is a tensor or
+                sequence of tensors holding the initial value gradients for each
+                tensor in `output`.
 
     Returns:
-        A function `h(x)` which returns the same value as `f(x)[0]` and whose
-        gradient is determined by `f(x)[1]`.
+        A function `h(*args)` which returns the same value as
+        `f(*args)[0]` and whose gradient is determined by
+        `f(*args)[1]`.
+
 
     Example:
 
+    [Backend-invariant]
     ```python
     @ops.custom_gradient
     def log1pexp(x):
         e = ops.exp(x)
 
-        def grad(upstream):
+        def grad(*args, upstream=None):
+            if upstream == None:
+                upstream, = args
+                
             return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
 
+        return ops.log(1 + e), grad
+    ```
+
+    Note that the grad function that returns gradient computations 
+    requires `args` as well as an `upstream` keyword argument, depending 
+    upon the backend being set. In JAX and TensorFlow backends, 
+    it requires only one argument, whereas it might use `upstream` keyword 
+    arguments in the case of PyTorch backend.
+
+    Example: When working with TensorFlow/JAX backend, `grad(upstream)`
+    is sufficient. In PyTorch `grad` function requires `*args` as well
+    as `upstream`, `def grad(*args, upstream)`. Follow the previous
+    example to use `@ops.custom_gradient` in all three backends.
+
+    [JAX, TensorFlow-specific backend example]
+    ```python
+    @ops.custom_gradient
+    def log1pexp(x):
+        e = ops.exp(x)
+        def grad(upstream=None):
+            return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
+        return ops.log(1 + e), grad
+    ```
+    [PyTorch-specific backend example]
+    ```python
+    @ops.custom_gradient
+    def log1pexp(x):
+        e = ops.exp(x)
+        def grad(*args, upstream):
+            return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
         return ops.log(1 + e), grad
     ```
     """
