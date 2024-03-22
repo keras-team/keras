@@ -330,8 +330,7 @@ class EinsumDense(Layer):
             self.kernel_scale = self.add_weight(
                 name="kernel_scale",
                 shape=kernel_scale_shape,
-                initializer="zeros",
-                dtype=self.compute_dtype,
+                initializer="ones",
                 trainable=False,
             )
 
@@ -411,7 +410,6 @@ class EinsumDense(Layer):
                 shape=kernel_scale.shape,
                 # Prevent adding a large constant to the computation graph
                 initializer=lambda shape, dtype: kernel_scale,
-                dtype=self.compute_dtype,
                 trainable=False,
             )
             if self.bias is not None:

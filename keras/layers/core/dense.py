@@ -236,22 +236,19 @@ class Dense(Layer):
 
     def quantized_build(self, input_shape, mode):
         input_dim = input_shape[-1]
-        kernel_shape = (input_dim, self.units)
         if mode == "int8":
             self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
             self._kernel = self.add_weight(
                 name="kernel",
-                shape=kernel_shape,
+                shape=(input_dim, self.units),
                 initializer="zeros",
                 dtype="int8",
                 trainable=False,
             )
-            kernel_scale_shape = (1, kernel_shape[1])
             self.kernel_scale = self.add_weight(
                 name="kernel_scale",
-                shape=kernel_scale_shape,
-                initializer="zeros",
-                dtype=self.compute_dtype,
+                shape=(self.units,),
+                initializer="ones",
                 trainable=False,
             )
 
@@ -282,7 +279,9 @@ class Dense(Layer):
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
                 self._kernel, axis=0
             )
-            kernel_scale = ops.cast(kernel_scale, self.compute_dtype)
+            kernel_scale = ops.cast(
+                ops.squeeze(kernel_scale, axis=0), self.compute_dtype
+            )
             self._tracker.unlock()
             self._untrack_variable(self._kernel)
             self._kernel = self.add_weight(
@@ -295,10 +294,9 @@ class Dense(Layer):
             )
             self.kernel_scale = self.add_weight(
                 name="kernel_scale",
-                shape=kernel_scale.shape,
+                shape=(self.units,),
                 # Prevent adding a large constant to the computation graph
                 initializer=lambda shape, dtype: kernel_scale,
-                dtype=self.compute_dtype,
                 trainable=False,
             )
             if self.bias is not None:

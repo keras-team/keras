@@ -387,7 +387,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
         self.assertEqual(
             backend.standardize_dtype(layer.kernel_scale.dtype),
-            layer.compute_dtype,
+            layer.variable_dtype,
         )
 
         # Try eager call
@@ -431,7 +431,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         layer.build((1, 8, 2, 4, 32))
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
         self.assertEqual(
-            backend.standardize_dtype(layer.kernel_scale.dtype), "bfloat16"
+            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
         )
         layer = layers.EinsumDense(
             equation="a,b->ab",  # Test expand

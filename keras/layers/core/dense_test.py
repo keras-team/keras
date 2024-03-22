@@ -314,7 +314,7 @@ class DenseTest(testing.TestCase):
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
         self.assertEqual(
             backend.standardize_dtype(layer.kernel_scale.dtype),
-            layer.compute_dtype,
+            layer.variable_dtype,
         )
 
         # Try eager call
@@ -349,7 +349,7 @@ class DenseTest(testing.TestCase):
         layer.build((None, 8))
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
         self.assertEqual(
-            backend.standardize_dtype(layer.kernel_scale.dtype), "bfloat16"
+            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
         )
 
     @pytest.mark.requires_trainable_backend
