@@ -662,7 +662,7 @@ def custom_gradient(f):
     def log1pexp(x):
         e = ops.exp(x)
 
-        def grad(*args, upstream = None):
+        def grad(*args, upstream=None):
             if upstream == None:
                 upstream, = args
                 
