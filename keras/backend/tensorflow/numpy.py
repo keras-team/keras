@@ -601,6 +601,8 @@ def arccos(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
+    elif standardize_dtype(x.dtype) in ["complex64", "complex128"]:
+        dtype = dtypes.result_type(x.dtype, complex)
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
@@ -623,6 +625,8 @@ def arcsin(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
+    elif standardize_dtype(x.dtype) in ["complex64", "complex128"]:
+        dtype = dtypes.result_type(x.dtype, complex)
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
@@ -634,6 +638,8 @@ def arcsinh(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
+    elif standardize_dtype(x.dtype) in ["complex64", "complex128"]:
+        dtype = dtypes.result_type(x.dtype, complex)
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
@@ -645,6 +651,8 @@ def arctan(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
+    elif standardize_dtype(x.dtype) in ["complex64", "complex128"]:
+        dtype = dtypes.result_type(x.dtype, complex)
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
@@ -665,6 +673,8 @@ def arctanh(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
+    elif standardize_dtype(x.dtype) in ["complex64", "complex128"]:
+        dtype = dtypes.result_type(x.dtype, complex)
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
@@ -791,6 +801,8 @@ def cos(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
+    elif standardize_dtype(x.dtype) in ["complex64", "complex128"]:
+        dtype = dtypes.result_type(x.dtype, complex)
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
@@ -802,6 +814,8 @@ def cosh(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
+    elif standardize_dtype(x.dtype) in ["complex64", "complex128"]:
+        dtype = dtypes.result_type(x.dtype, complex)
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
@@ -1566,6 +1580,8 @@ def sin(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
+    elif standardize_dtype(x.dtype) in ["complex64", "complex128"]:
+        dtype = dtypes.result_type(x.dtype, complex)
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
@@ -1577,6 +1593,8 @@ def sinh(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
+    elif standardize_dtype(x.dtype) in ["complex64", "complex128"]:
+        dtype = dtypes.result_type(x.dtype, complex)
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
@@ -1677,6 +1695,8 @@ def tan(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
+    elif standardize_dtype(x.dtype) in ["complex64", "complex128"]:
+        dtype = dtypes.result_type(x.dtype, complex)
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
@@ -1688,6 +1708,8 @@ def tanh(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
+    elif standardize_dtype(x.dtype) in ["complex64", "complex128"]:
+        dtype = dtypes.result_type(x.dtype, complex)
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)

@@ -22,7 +22,8 @@ INT_TYPES = [
     "int64",
 ]
 FLOAT_TYPES = ["bfloat16", "float16", "float32", "float64"]
-WEAK_TYPES = ["int", "float"]
+COMPLEX_TYPES = ["complex64", "complex128"]
+WEAK_TYPES = ["int", "float", "complex"]
 
 
 def _type_promotion_lattice():
@@ -33,7 +34,8 @@ def _type_promotion_lattice():
     (b1,) = BOOL_TYPES
     (u1, u2, u4, u8, i1, i2, i4, i8) = INT_TYPES
     bf, f2, f4, f8 = FLOAT_TYPES
-    i_, f_ = WEAK_TYPES
+    c4, c8 = COMPLEX_TYPES
+    i_, f_, c_ = WEAK_TYPES
     out = {
         b1: [i_],
         u1: [i2, u2],
@@ -45,11 +47,14 @@ def _type_promotion_lattice():
         i2: [i4],
         i4: [i8],
         i8: [f_],
-        f_: [bf, f2],
+        f_: [bf, f2, c_],
         bf: [f4],
         f2: [f4],
-        f4: [f8],
-        f8: [],
+        f4: [f8, c4],
+        f8: [c8],
+        c_: [c4],
+        c4: [c8],
+        c8: [],
     }
     return out
 
