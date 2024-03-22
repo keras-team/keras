@@ -189,8 +189,11 @@ class Dense(Layer):
         self.lora_rank = rank
 
     def save_own_variables(self, store):
+        # Do nothing if the layer isn't yet built
         if not self.built:
             return
+        # The keys of the `store` is determined because the defualt ordering
+        # will be changed after quantization
         kernel_value, kernel_scale = self._get_kernel_with_merged_lora()
         store["0"] = kernel_value
         if self.use_bias:
@@ -201,8 +204,11 @@ class Dense(Layer):
     def load_own_variables(self, store):
         if not self.lora_enabled:
             self._check_load_own_variables(store)
+        # Do nothing if the layer isn't yet built
         if not self.built:
             return
+        # The keys of the `store` is determined because the defualt ordering
+        # will be changed after quantization
         self._kernel.assign(store["0"])
         if self.use_bias:
             self.bias.assign(store["1"])
