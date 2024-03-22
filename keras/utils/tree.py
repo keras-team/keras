@@ -439,6 +439,25 @@ def lists_to_tuples(structure):
     )
 
 
+def map_shape_structure(func, structure):
+    """Variant of tree.map_structure that operates on shape tuples."""
+
+    def is_shape_tuple(x):
+        return isinstance(x, (list, tuple)) and all(
+            isinstance(e, (int, type(None))) for e in x
+        )
+
+    if not callable(func):
+        raise TypeError(f"`func` must be callable. Received: func={func}")
+    return optree.tree_map(
+        func,
+        structure,
+        is_leaf=is_shape_tuple,
+        none_is_leaf=True,
+        namespace="keras",
+    )
+
+
 class _MapToNone:
     """A special object used as a sentinel within `traverse`."""
 
