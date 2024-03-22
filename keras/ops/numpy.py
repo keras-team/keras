@@ -223,7 +223,10 @@ class Absolute(Operation):
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+        output_dtype = dtypes.result_type(
+            backend.numpy.abs(backend.numpy.zeros((), dtype=x.dtype)).dtype
+        )
+        return KerasTensor(x.shape, dtype=output_dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.absolute", "keras.ops.numpy.absolute"])
@@ -4840,6 +4843,10 @@ class Std(Operation):
         output_dtype = backend.standardize_dtype(x.dtype)
         if "int" in output_dtype or output_dtype == "bool":
             output_dtype = backend.floatx()
+        else:
+            output_dtype = dtypes.result_type(
+                backend.numpy.std(backend.numpy.zeros((), dtype=x.dtype)).dtype
+                )
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=output_dtype,
@@ -5866,7 +5873,9 @@ class Var(Operation):
         return backend.numpy.var(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        output_dtype = dtypes.result_type(
+            backend.numpy.var(backend.numpy.zeros((), dtype=x.dtype)).dtype
+        )
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=output_dtype,

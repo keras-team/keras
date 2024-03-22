@@ -4591,6 +4591,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype = standardize_dtype(jnp.add(x_jax, 1).dtype)
             if dtype == "float64":
                 expected_dtype = "float64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             elif dtype == "int64":
                 expected_dtype = "int64"
             if backend.backend() == "jax":
@@ -4607,6 +4609,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype = standardize_dtype(jnp.add(x_jax, 1.0).dtype)
             if dtype == "float64":
                 expected_dtype = "float64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
 
@@ -4718,6 +4722,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype = standardize_dtype(jnp.subtract(x_jax, 1).dtype)
             if dtype == "float64":
                 expected_dtype = "float64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             elif dtype == "int64":
                 expected_dtype = "int64"
             if backend.backend() == "jax":
@@ -4734,6 +4740,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype = standardize_dtype(jnp.subtract(x_jax, 1.0).dtype)
             if dtype == "float64":
                 expected_dtype = "float64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
 
@@ -4813,6 +4821,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype = standardize_dtype(jnp.multiply(x_jax, 1).dtype)
             if dtype == "float64":
                 expected_dtype = "float64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             elif dtype == "int64":
                 expected_dtype = "int64"
             if backend.backend() == "jax":
@@ -4829,6 +4839,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype = standardize_dtype(jnp.multiply(x_jax, 1.0).dtype)
             if dtype == "float64":
                 expected_dtype = "float64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
 
@@ -4855,6 +4867,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_max(self, dtype):
         import jax.numpy as jnp
+
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("max doesn't support complex dtype")
 
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
@@ -4930,6 +4945,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_amax(self, dtype):
         import jax.numpy as jnp
 
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("amax doesn't support complex dtype")
+
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.amax(x_jax).dtype)
@@ -4942,6 +4960,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_amin(self, dtype):
         import jax.numpy as jnp
+
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("amin doesn't support complex dtype")
 
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
@@ -4989,6 +5010,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_argmax(self, dtype):
         import jax.numpy as jnp
 
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("argmax doesn't support complex dtype")
+
         if dtype == "bool":
             value = [[True, False, True], [False, True, False]]
         else:
@@ -5007,6 +5031,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_argmin(self, dtype):
         import jax.numpy as jnp
 
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("argmin doesn't support complex dtype")
+
         if dtype == "bool":
             value = [[True, False, True], [False, True, False]]
         else:
@@ -5024,6 +5051,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_argsort(self, dtype):
         import jax.numpy as jnp
+
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("argsort doesn't support complex dtype")
 
         if dtype == "bool":
             value = [[True, False, True], [False, True, False]]
@@ -5161,6 +5191,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_arctan2(self, dtypes):
         import jax.numpy as jnp
 
+        if "complex128" in dtypes or "complex64" in dtypes:
+            self.skipTest("arctan2 doesn't support complex dtype")
+        else:
+            dtype1, dtype2 = dtypes
+
         dtype1, dtype2 = dtypes
         x1 = knp.ones((1,), dtype=dtype1)
         x2 = knp.ones((1,), dtype=dtype2)
@@ -5280,6 +5315,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_ceil(self, dtype):
         import jax.numpy as jnp
 
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("ceil doesn't support complex dtype")
+
         if dtype is None:
             dtype = backend.floatx()
         if dtype == "bool":
@@ -5303,6 +5341,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_clip(self, dtype):
         import jax.numpy as jnp
+
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("clip doesn't support complex dtype")
 
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
@@ -5405,6 +5446,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_cross(self, dtypes):
         import jax.numpy as jnp
 
+        if "complex128" in dtypes or "complex64" in dtypes:
+            self.skipTest("cross doesn't support complex dtype")
+        else:
+            dtype1, dtype2 = dtypes
+
         dtype1, dtype2 = dtypes
         x1 = knp.ones((1, 1, 3), dtype=dtype1)
         x2 = knp.ones((1, 1, 3), dtype=dtype2)
@@ -5497,6 +5543,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_digitize(self, dtype):
         import jax.numpy as jnp
 
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("digitize doesn't support complex dtype")
+
         x = knp.ones((1,), dtype=dtype)
         bins = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
@@ -5528,7 +5577,14 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             x1_jax = jnp.ones((1,), dtype=dtype1)
             x2_jax = jnp.ones((1,), dtype=dtype2)
             expected_dtype = standardize_dtype(jnp.divide(x1_jax, x2_jax).dtype)
-            if "float64" in (dtype1, dtype2):
+
+            if "complex128" in (dtype1, dtype2):
+                expected_dtype = "complex128"
+            elif "complex64" in (dtype1, dtype2) and "float64" in (dtype1, dtype2):
+                expected_dtype = "complex128"
+            elif "complex64" in (dtype1, dtype2):
+                expected_dtype = "complex64"
+            elif "float64" in (dtype1, dtype2):
                 expected_dtype = "float64"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
@@ -5556,6 +5612,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype = standardize_dtype(jnp.divide(x_jax, 1).dtype)
             if dtype == "float64":
                 expected_dtype = "float64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
 
@@ -5570,6 +5628,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype = standardize_dtype(jnp.divide(x_jax, 1.0).dtype)
             if dtype == "float64":
                 expected_dtype = "float64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
 
@@ -5842,6 +5902,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_floor(self, dtype):
         import jax.numpy as jnp
 
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("floor doesn't support complex dtype")
+
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.floor(x_jax).dtype)
@@ -5860,7 +5923,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_floor_divide(self, dtypes):
         import jax.numpy as jnp
 
-        dtype1, dtype2 = dtypes
+        if "complex128" in dtypes or "complex64" in dtypes:
+            self.skipTest("floor_divide doesn't support complex dtype")
+        else:
+            dtype1, dtype2 = dtypes
+
         x1 = knp.ones((), dtype=dtype1)
         x2 = knp.ones((), dtype=dtype2)
         x1_jax = jnp.ones((), dtype=dtype1)
@@ -5881,6 +5948,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_floor_divide_python_types(self, dtype):
         import jax.experimental
         import jax.numpy as jnp
+
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("floor_divide doesn't support complex dtype")
 
         # We have to disable x64 for jax since jnp.floor_divide doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
@@ -5963,6 +6033,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_greater(self, dtypes):
         import jax.numpy as jnp
 
+        if "complex128" in dtypes or "complex64" in dtypes:
+            self.skipTest("greater doesn't support complex dtype")
+        else:
+            dtype1, dtype2 = dtypes
+
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
         x2 = knp.ones((), dtype=dtype2)
@@ -5983,6 +6058,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     )
     def test_greater_equal(self, dtypes):
         import jax.numpy as jnp
+
+        if "complex128" in dtypes or "complex64" in dtypes:
+            self.skipTest("greater_equal doesn't support complex dtype")
+        else:
+            dtype1, dtype2 = dtypes
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
@@ -6064,6 +6144,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_isfinite(self, dtype):
         import jax.numpy as jnp
 
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("isfinite doesn't support complex dtype")
+
         x = knp.ones((), dtype=dtype)
         x_jax = jnp.ones((), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.isfinite(x_jax).dtype)
@@ -6080,6 +6163,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_isinf(self, dtype):
         import jax.numpy as jnp
 
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("isinf doesn't support complex dtype")
+
         x = knp.ones((), dtype=dtype)
         x_jax = jnp.ones((), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.isinf(x_jax).dtype)
@@ -6093,6 +6179,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_isnan(self, dtype):
         import jax.numpy as jnp
+
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("isnan doesn't support complex dtype")
 
         x = knp.ones((), dtype=dtype)
         x_jax = jnp.ones((), dtype=dtype)
@@ -6109,6 +6198,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     )
     def test_less(self, dtypes):
         import jax.numpy as jnp
+
+        if "complex128" in dtypes or "complex64" in dtypes:
+            self.skipTest("less doesn't support complex dtype")
+        else:
+            dtype1, dtype2 = dtypes
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
@@ -6130,6 +6224,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     )
     def test_less_equal(self, dtypes):
         import jax.numpy as jnp
+
+        if "complex128" in dtypes or "complex64" in dtypes:
+            self.skipTest("less_equal doesn't support complex dtype")
+        else:
+            dtype1, dtype2 = dtypes
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
@@ -6248,6 +6347,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     )
     def test_logaddexp(self, dtypes):
         import jax.numpy as jnp
+
+        if "complex128" in dtypes or "complex64" in dtypes:
+            self.skipTest("logaddexp doesn't support complex dtype")
+        else:
+            dtype1, dtype2 = dtypes
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((3, 3), dtype=dtype1)
@@ -6392,6 +6496,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_maximum(self, dtypes):
         import jax.numpy as jnp
 
+        if "complex128" in dtypes or "complex64" in dtypes:
+            self.skipTest("maximum doesn't support complex dtype")
+        else:
+            dtype1, dtype2 = dtypes
+
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
         x2 = knp.ones((), dtype=dtype2)
@@ -6411,6 +6520,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_maximum_python_types(self, dtype):
         import jax.experimental
         import jax.numpy as jnp
+
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("maximum doesn't support complex dtype")
 
         # We have to disable x64 for jax since jnp.maximum doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`.
@@ -6451,6 +6563,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_median(self, dtype):
         import jax.numpy as jnp
+
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("median doesn't support complex dtype")
 
         x = knp.ones((3, 3), dtype=dtype)
         x_jax = jnp.ones((3, 3), dtype=dtype)
@@ -6496,6 +6611,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_min(self, dtype):
         import jax.numpy as jnp
 
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("min doesn't support complex dtype")
+
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.min(x_jax).dtype)
@@ -6508,6 +6626,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     )
     def test_minimum(self, dtypes):
         import jax.numpy as jnp
+
+        if "complex128" in dtypes or "complex64" in dtypes:
+            self.skipTest("minimum doesn't support complex dtype")
+        else:
+            dtype1, dtype2 = dtypes
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
@@ -6528,6 +6651,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_minimum_python_types(self, dtype):
         import jax.experimental
         import jax.numpy as jnp
+
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("minimum doesn't support complex dtype")
 
         # We have to disable x64 for jax since jnp.minimum doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`.
@@ -6571,6 +6697,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_mod(self, dtypes):
         import jax.numpy as jnp
 
+        if "complex128" in dtypes or "complex64" in dtypes:
+            self.skipTest("mod doesn't support complex dtype")
+        else:
+            dtype1, dtype2 = dtypes
+
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
         x2 = knp.ones((), dtype=dtype2)
@@ -6604,6 +6735,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_nan_to_num(self, dtype):
         import jax.numpy as jnp
+
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("nan_to_num doesn't support complex dtype")
 
         x = knp.ones((), dtype=dtype)
         x_jax = jnp.ones((), dtype=dtype)
@@ -6750,6 +6884,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype = standardize_dtype(jnp.power(x_jax, 1).dtype)
             if dtype == "float64":
                 expected_dtype = "float64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             elif dtype == "int64":
                 expected_dtype = "int64"
             if backend.backend() == "jax":
@@ -6766,6 +6902,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype = standardize_dtype(jnp.power(x_jax, 1.0).dtype)
             if dtype == "float64":
                 expected_dtype = "float64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
 
@@ -6798,6 +6936,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_quantile(self, dtype):
         import jax.numpy as jnp
+
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("quantile doesn't support complex dtype")
 
         x = knp.ones((3,), dtype=dtype)
         x_jax = jnp.ones((3,), dtype=dtype)
@@ -6888,6 +7029,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
 
         if dtype == "bool":
             self.skipTest("round doesn't support bool dtype")
+        elif dtype in ["complex64", "complex128"]:
+            self.skipTest("round doesn't support complex dtype")
+
         x = knp.ones((), dtype=dtype)
         x_jax = jnp.ones((), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.round(x_jax).dtype)
@@ -6955,6 +7099,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_sort(self, dtype):
         import jax.numpy as jnp
+
+        if dtype in ["complex64", "complex128"]:
+            self.skipTest("sort doesn't support complex dtype")
 
         x = knp.ones((2,), dtype=dtype)
         x_jax = jnp.ones((2,), dtype=dtype)
@@ -7240,6 +7387,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 expected_dtype = "float64"
             elif dtype == "int64":
                 expected_dtype = "int64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
 
@@ -7333,7 +7482,13 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype = standardize_dtype(
                 jnp.true_divide(x1_jax, x2_jax).dtype
             )
-            if "float64" in (dtype1, dtype2):
+            if "complex128" in (dtype1, dtype2):
+                expected_dtype = "complex128"
+            elif "complex64" in (dtype1, dtype2) and "float64" in (dtype1, dtype2):
+                expected_dtype = "complex128"
+            elif "complex64" in (dtype1, dtype2):
+                expected_dtype = "complex64"
+            elif "float64" in (dtype1, dtype2):
                 expected_dtype = "float64"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
@@ -7351,7 +7506,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
 
         x = knp.ones((2,), dtype=dtype)
         x_jax = jnp.ones((2,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.var(x_jax).dtype)
+        expected_dtype = standardize_dtype(jnp.var(x_jax, dtype=dtype).dtype)
         if dtype == "int64":
             expected_dtype = backend.floatx()
 
@@ -7444,6 +7599,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             )
             if dtype == "float64":
                 expected_dtype = "float64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             elif dtype == "int64":
                 expected_dtype = "int64"
             if backend.backend() == "jax":
@@ -7463,6 +7620,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             )
             if dtype == "float64":
                 expected_dtype = "float64"
+            elif dtype == "complex128":
+                expected_dtype = "complex128"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
 

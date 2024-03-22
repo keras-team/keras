@@ -211,6 +211,7 @@ BIT64_TO_BIT32_DTYPE = {
     "int64": "int32",
     "uint64": "uint32",
     "float64": "float32",
+    "complex128": "complex64",
 }
 
 
