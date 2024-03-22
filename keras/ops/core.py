@@ -657,6 +657,7 @@ def custom_gradient(f):
 
     Example:
 
+    [Backend-invariant]
     ```python
     @ops.custom_gradient
     def log1pexp(x):
@@ -676,5 +677,29 @@ def custom_gradient(f):
     upon the backend being set. In JAX and TensorFlow backends, 
     it requires only one argument, whereas it might use `upstream` keyword 
     arguments in the case of PyTorch backend.
+
+    Example: When working with TensorFlow/JAX backend, `grad(upstream)`
+    is sufficient. In PyTorch `grad` function requires `*args` as well
+    as `upstream`, `def grad(*args, upstream)`. Follow the previous
+    example to use `@ops.custom_gradient` in all three backends.
+
+    [JAX, TensorFlow-specific backend example]
+    ```python
+    @ops.custom_gradient
+    def log1pexp(x):
+        e = ops.exp(x)
+        def grad(upstream=None):
+            return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
+        return ops.log(1 + e), grad
+    ```
+    [PyTorch-specific backend example]
+    ```python
+    @ops.custom_gradient
+    def log1pexp(x):
+        e = ops.exp(x)
+        def grad(*args, upstream):
+            return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
+        return ops.log(1 + e), grad
+    ```
     """
     return backend.core.custom_gradient(f)
