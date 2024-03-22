@@ -501,7 +501,7 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertFalse(ops.is_tensor([1, 2, 3]))
 
     @pytest.mark.skipif(
-        backend.backend() not in ("tensorflow", "jax", "pytorch"),
+        backend.backend() not in ("tensorflow", "jax", "torch"),
         reason=f"{backend.backend()} doesn't support `custom_gradient`.",
     )
 
