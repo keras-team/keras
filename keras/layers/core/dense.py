@@ -1,5 +1,3 @@
-import numpy as np
-
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -128,9 +126,6 @@ class Dense(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            if self.bias is not None:
-                self.bias.trainable = False
 
     @property
     def kernel(self):
@@ -194,22 +189,22 @@ class Dense(Layer):
         self.lora_rank = rank
 
     def save_own_variables(self, store):
-        if not self.lora_enabled:
-            return super().save_own_variables(store)
-
-        kernel_value = self.kernel
+        kernel_value, kernel_scale = self._get_kernel_with_merged_lora()
         store["0"] = kernel_value
         if self.use_bias:
             store["1"] = self.bias
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            store["2"] = kernel_scale
 
     def load_own_variables(self, store):
-        if not self.lora_enabled:
-            return super().load_own_variables(store)
         self._kernel.assign(store["0"])
         if self.use_bias:
             self.bias.assign(store["1"])
-        self.lora_kernel_a.assign(np.zeros(self.lora_kernel_a.shape))
-        self.lora_kernel_b.assign(np.zeros(self.lora_kernel_b.shape))
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            self.kernel_scale.assign(store["2"])
+        if self.lora_enabled:
+            self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
+            self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
 
     def get_config(self):
         base_config = super().get_config()
@@ -253,13 +248,32 @@ class Dense(Layer):
             )
 
     def quantized_call(self, inputs):
+        @ops.custom_gradient
+        def matmul_with_inputs_gradient(inputs, kernel, kernel_scale):
+            def grad_fn(upstream):
+                float_kernel = ops.divide(
+                    ops.cast(kernel, dtype=self.compute_dtype),
+                    kernel_scale,
+                )
+                inputs_grad = ops.matmul(upstream, ops.transpose(float_kernel))
+                return (inputs_grad, None, None)
+
+            inputs, inputs_scale = self.inputs_quantizer(inputs)
+            x = ops.matmul(inputs, kernel)
+            # De-scale outputs
+            x = ops.cast(x, self.compute_dtype)
+            x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
+            return x, grad_fn
+
+        x = matmul_with_inputs_gradient(
+            inputs,
+            ops.convert_to_tensor(self._kernel),
+            ops.convert_to_tensor(self.kernel_scale),
+        )
         if self.lora_enabled:
-            raise ValueError("`quantized_call` doesn't support lora weights")
-        inputs, inputs_scale = self.inputs_quantizer(inputs)
-        x = ops.matmul(inputs, self.kernel)
-        # De-scale outputs
-        x = ops.cast(x, self.compute_dtype)
-        x = ops.divide(x, ops.multiply(inputs_scale, self.kernel_scale))
+            lora_x = ops.matmul(inputs, self.lora_kernel_a)
+            lora_x = ops.matmul(lora_x, self.lora_kernel_b)
+            x = ops.add(x, lora_x)
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:
@@ -271,17 +285,13 @@ class Dense(Layer):
         if mode == "int8":
             if backend.standardize_dtype(self._kernel.dtype) == "int8":
                 raise ValueError("`quantize` can only be done once per layer.")
-            # Merge lora-related parameters to make use of fully int8 kernel
-            self._merge_lora_into_kernel()
             # Configure `self.inputs_quantizer`
             self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
             # Quantize `self._kernel` to int8 and compute corresponding scale
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
                 self._kernel, axis=0
             )
-            kernel_scale = ops.cast(
-                ops.squeeze(kernel_scale, axis=0), self.compute_dtype
-            )
+            kernel_scale = ops.squeeze(kernel_scale, axis=0)
             self._tracker.unlock()
             self._untrack_variable(self._kernel)
             self._kernel = self.add_weight(
@@ -299,8 +309,6 @@ class Dense(Layer):
                 initializer=lambda shape, dtype: kernel_scale,
                 trainable=False,
             )
-            if self.bias is not None:
-                self.bias.trainable = False
             self._tracker.lock()
         else:
             NotImplementedError(
@@ -315,15 +323,21 @@ class Dense(Layer):
             quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
             self.dtype_policy = dtype_policies.get(quantized_dtype)
 
-    def _merge_lora_into_kernel(self, untrack=False):
-        if not self.lora_enabled:
-            return
-        # Merge lora-enabled kernel into kernel
-        self._kernel.assign(self.kernel)
-        self.lora_enabled = False
-        if untrack:
-            self._tracker.unlock()
-            self.lora_kernel_a = self._untrack_variable(self.lora_kernel_a)
-            self.lora_kernel_b = self._untrack_variable(self.lora_kernel_b)
-            self._tracker.lock()
-            self.lora_rank = None
+    def _get_kernel_with_merged_lora(self):
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            kernel_value = self._kernel
+            kernel_scale = self.kernel_scale
+            if self.lora_enabled:
+                # Dequantize & quantize to merge lora weights into int8 kernel
+                # Note that this is a lossy compression
+                kernel_value = ops.divide(kernel_value, kernel_scale)
+                kernel_value = ops.add(
+                    kernel_value,
+                    ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                )
+                kernel_value, kernel_scale = quantizers.abs_max_quantize(
+                    kernel_value, axis=0
+                )
+                kernel_scale = ops.squeeze(kernel_scale, axis=0)
+            return kernel_value, kernel_scale
+        return self.kernel, None
