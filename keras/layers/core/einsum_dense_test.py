@@ -10,6 +10,7 @@ from keras import layers
 from keras import models
 from keras import saving
 from keras import testing
+from keras.export import export_lib
 
 
 class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
@@ -375,8 +376,8 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() not in ("jax", "tensorflow"),
-        reason=f"{backend.backend()} doesn't support `custom_gradient`.",
+        backend.backend() == "numpy",
+        reason=f"{backend.backend()} does not support ops.custom_gradient.",
     )
     def test_quantize_int8(self):
         layer = layers.EinsumDense(
@@ -560,3 +561,24 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         new_model.save_weights(temp_filepath)
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
+
+        # Test export and TFSMLayer reloading when using tensorflow backend
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+            ref_input = tf.random.normal((32, 3))
+            ref_output = model(ref_input)
+            export_lib.export_model(model, temp_filepath)
+            reloaded_layer = export_lib.TFSMLayer(temp_filepath)
+            self.assertAllClose(
+                reloaded_layer(ref_input), ref_output, atol=1e-7
+            )
+            self.assertLen(reloaded_layer.weights, len(model.weights))
+            self.assertLen(
+                reloaded_layer.trainable_weights, len(model.trainable_weights)
+            )
+            self.assertLen(
+                reloaded_layer.non_trainable_weights,
+                len(model.non_trainable_weights),
+            )
