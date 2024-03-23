@@ -354,6 +354,7 @@ class EinsumDense(Layer):
                 self._input_squeeze_axes,
                 self._kernel_squeeze_axes,
                 self._custom_gradient_equation,
+                self._kernel_reverse_transpose_axes,
             ) = _analyze_quantization_info(self.equation, self.input_spec.ndim)
             self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
             self._kernel = self.add_weight(
@@ -384,9 +385,22 @@ class EinsumDense(Layer):
             def grad_fn(*args, upstream=None):
                 if upstream is None:
                     (upstream,) = args
+                # De-scale kernel
+                _kernel_scale = kernel_scale  # Overcome UnboundLocalError
+                if self._kernel_squeeze_axes:
+                    _kernel_scale = ops.expand_dims(
+                        _kernel_scale, axis=self._kernel_squeeze_axes
+                    )
+                if self._kernel_expand_axes:
+                    _kernel_scale = ops.squeeze(
+                        _kernel_scale, axis=self._kernel_expand_axes
+                    )
+                _kernel_scale = ops.transpose(
+                    _kernel_scale, self._kernel_reverse_transpose_axes
+                )
                 float_kernel = ops.divide(
                     ops.cast(kernel, dtype=self.compute_dtype),
-                    kernel_scale,
+                    _kernel_scale,
                 )
                 # From https://stackoverflow.com/a/47609896
                 inputs_grad = ops.einsum(
@@ -443,6 +457,7 @@ class EinsumDense(Layer):
                 self._input_squeeze_axes,
                 self._kernel_squeeze_axes,
                 self._custom_gradient_equation,
+                self._kernel_reverse_transpose_axes,
             ) = _analyze_quantization_info(self.equation, self.input_spec.ndim)
             # Configure `self.inputs_quantizer`
             self.inputs_quantizer = quantizers.AbsMaxQuantizer(
@@ -789,6 +804,12 @@ def _analyze_quantization_info(equation, input_shape):
         weight_transpose_axes.insert(index, ori_index)
     # Prepare equation for `einsum_with_inputs_gradient`
     custom_gradient_equation = f"{output_spec},{weight_spec}->{input_spec}"
+    weight_reverse_transpose_axes = [
+        i
+        for (_, i) in sorted(
+            (v, i) for (i, v) in enumerate(weight_transpose_axes)
+        )
+    ]
     return (
         input_reduced_axes,
         weight_reduced_axes,
@@ -799,4 +820,5 @@ def _analyze_quantization_info(equation, input_shape):
         input_squeeze_axes,
         weight_squeeze_axes,
         custom_gradient_equation,
+        weight_reverse_transpose_axes,
     )
