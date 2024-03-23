@@ -6,7 +6,6 @@ from keras.api_export import keras_export
 from keras.layers.layer import Layer
 from keras.saving import serialization_lib
 from keras.utils import python_utils
-from keras.utils import shape_utils
 from keras.utils import tree
 
 
@@ -86,7 +85,7 @@ class Lambda(Layer):
         if self._output_shape is None:
             # Leverage backend shape inference
             try:
-                inputs = shape_utils.map_shape_structure(
+                inputs = tree.map_shape_structure(
                     lambda x: backend.KerasTensor(x, dtype=self.compute_dtype),
                     input_shape,
                 )
@@ -108,7 +107,7 @@ class Lambda(Layer):
         def _add_batch(shape):
             return (batch_size,) + shape
 
-        return shape_utils.map_shape_structure(_add_batch, self._output_shape)
+        return tree.map_shape_structure(_add_batch, self._output_shape)
 
     def call(self, inputs, mask=None, training=None):
         # We must copy for thread safety,

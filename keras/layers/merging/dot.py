@@ -262,7 +262,10 @@ class Dot(Merge):
 
     def build(self, input_shape):
         # Used purely for shape validation.
-        if not isinstance(input_shape[0], tuple) or len(input_shape) != 2:
+        if (
+            not isinstance(input_shape[0], (tuple, list))
+            or len(input_shape) != 2
+        ):
             raise ValueError(
                 f"A `Dot` layer should be called on a list of 2 inputs. "
                 f"Received: input_shape={input_shape}"
