@@ -47,7 +47,7 @@ class RandomNormal(Initializer):
         self.mean = mean
         self.stddev = stddev
         self._init_seed = seed
-        self.seed = seed or random.make_default_seed()
+        self.seed = seed if seed is not None else random.make_default_seed()
         super().__init__()
 
     def __call__(self, shape, dtype=None):
@@ -107,7 +107,7 @@ class TruncatedNormal(Initializer):
         self.mean = mean
         self.stddev = stddev
         self._init_seed = seed
-        self.seed = seed or random.make_default_seed()
+        self.seed = seed if seed is not None else random.make_default_seed()
         super().__init__()
 
     def __call__(self, shape, dtype=None):
@@ -164,7 +164,7 @@ class RandomUniform(Initializer):
         self.minval = minval
         self.maxval = maxval
         self._init_seed = seed
-        self.seed = seed or random.make_default_seed()
+        self.seed = seed if seed is not None else random.make_default_seed()
         super().__init__()
 
     def __call__(self, shape, dtype=None):
@@ -268,7 +268,7 @@ class VarianceScaling(Initializer):
         self.mode = mode
         self.distribution = distribution
         self._init_seed = seed
-        self.seed = seed or random.make_default_seed()
+        self.seed = seed if seed is not None else random.make_default_seed()
 
     def __call__(self, shape, dtype=None):
         scale = self.scale
@@ -669,7 +669,7 @@ class OrthogonalInitializer(Initializer):
     def __init__(self, gain=1.0, seed=None):
         self.gain = gain
         self._init_seed = seed
-        self.seed = seed or random.make_default_seed()
+        self.seed = seed if seed is not None else random.make_default_seed()
 
     def __call__(self, shape, dtype=None):
         if len(shape) < 2:
