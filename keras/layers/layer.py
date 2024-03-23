@@ -1111,17 +1111,21 @@ class Layer(BackendLayer, Operation):
 
     def _check_quantize_args(self, mode, compute_dtype):
         if not self.built:
-            raise ValueError("Cannot quantize on a layer that isn't yet built.")
+            raise ValueError(
+                "Cannot quantize a layer that isn't yet built. "
+                f"Layer '{self.name}' (of type '{self.__class__.__name__}') "
+                "is not built yet."
+            )
         if mode not in ("int8",):
             raise ValueError(
                 f"`quantize` must be one of ('int8'). Received: mode={mode}"
             )
         if mode == "int8" and compute_dtype == "float16":
             raise ValueError(
-                f"mode='{mode}' doesn't work well with "
+                f"Quantization mode='{mode}' doesn't work well with "
                 "compute_dtype='float16'. Consider loading model/layer with "
-                "other dtype policy such as 'mixed_bfloat16' before calling "
-                "`quantize`."
+                "another dtype policy such as 'mixed_bfloat16' or "
+                "'mixed_float16' before calling `quantize()`."
             )
 
     def save_own_variables(self, store):
