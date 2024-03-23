@@ -6,8 +6,8 @@ from keras import backend
 from keras.api_export import keras_export
 from keras.layers.layer import Layer
 from keras.saving import serialization_lib
-from keras.utils import shape_utils
 from keras.utils import tracking
+from keras.utils import tree
 from keras.utils.module_utils import jax
 
 
@@ -354,7 +354,7 @@ class JaxLayer(Layer):
             shape = [d if d is not None else 1 for d in shape]
             return jax.numpy.ones(shape)
 
-        init_inputs = shape_utils.map_shape_structure(create_input, input_shape)
+        init_inputs = tree.map_shape_structure(create_input, input_shape)
         init_args = []
         for argument_name in self.init_fn_arguments:
             if argument_name == "rng":
