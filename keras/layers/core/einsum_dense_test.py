@@ -480,7 +480,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             bias_axes="d",
         )
         with self.assertRaisesRegex(
-            ValueError, "Cannot quantize on a layer that isn't yet built."
+            ValueError, "Cannot quantize a layer that isn't yet built."
         ):
             layer.quantize("int8")
 
