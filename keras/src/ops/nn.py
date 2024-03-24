@@ -1907,8 +1907,11 @@ def ctc_decode(
             the vocabulary. Defaults to `None`.
 
     Returns:
-        A tuple of a list of decoded sequences and a list of
-        the negative of the sum of the probability logits 
+        A tuple containing:
+        
+        - a list of decoded sequences.
+        
+        - a list of the negative of the sum of the probability logits 
         (if strategy is `"greedy"`) or the log probability (if strategy is
         `"beam_search"`) for each sequence.
     """
