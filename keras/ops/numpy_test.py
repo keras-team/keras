@@ -2208,6 +2208,13 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
 
+        subscripts = "abc,dc->abd"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(20).reshape([5, 4]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
         subscripts = "abc,dce->abde"
         x = np.arange(24).reshape([2, 3, 4]).astype("float32")
         y = np.arange(120).reshape([5, 4, 6]).astype("float32")

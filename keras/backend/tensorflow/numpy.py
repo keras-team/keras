@@ -108,6 +108,7 @@ def einsum(subscripts, *operands, **kwargs):
             "ab,bc->ac",
             "ab,cb->ac",
             "abc,cd->abd",
+            "abc,dc->abd",
             "abcd,abde->abce",
             "abcd,abed->abce",
             "abcd,acbe->adbe",
@@ -203,6 +204,9 @@ def einsum(subscripts, *operands, **kwargs):
             y = tf.reshape(y, [c, -1])
             result = tf.matmul(x, y, output_type=output_type)
             return tf.reshape(result, [-1, b, d, e])
+        elif subscripts == "abc,dc->abd":
+            y = tf.transpose(y, [1, 0])
+            return tf.matmul(x, y, output_type=output_type)
         elif subscripts == "abc,dce->abde":
             _, b1, c1 = x.shape
             d2, c2, e2 = y.shape
