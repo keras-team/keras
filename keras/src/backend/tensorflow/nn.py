@@ -860,7 +860,7 @@ def ctc_decode(
     Returns:
         A tuple of a list of `SparseTensor` containing the decoded sequences
         and a list of `Tensor` containing the negative of the sum of probability
-        logits (if strategy is `"greedy"`) or the log probability (if strategy 
+        logits (if strategy is `"greedy"`) or the log probability (if strategy
         is `"beam_search"`) for each sequence.
     """
     inputs = tf.convert_to_tensor(inputs)
