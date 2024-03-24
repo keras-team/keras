@@ -48,7 +48,9 @@ class RandomCrop(TFDataLayer):
         super().__init__(name=name, **kwargs)
         self.height = height
         self.width = width
-        self.seed = seed or backend.random.make_default_seed()
+        self.seed = (
+            seed if seed is not None else backend.random.make_default_seed()
+        )
         self.generator = SeedGenerator(seed)
         self.data_format = backend.standardize_data_format(data_format)
 

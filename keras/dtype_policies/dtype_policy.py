@@ -64,7 +64,7 @@ class DTypePolicy:
         # For backwards compatibility
         # TODO: We should consider deprecating this behavior
         if cls is __class__:
-            if "int8" in name:
+            if name.startswith("int8"):
                 return QuantizedDTypePolicy(name)
             return FloatDTypePolicy(name)
         return super().__new__(cls)
@@ -250,7 +250,7 @@ def set_dtype_policy(policy):
     """
     if not isinstance(policy, DTypePolicy):
         if isinstance(policy, str):
-            if "int8" in policy:
+            if policy.startswith("int8"):
                 policy = QuantizedDTypePolicy(policy)
             else:
                 policy = FloatDTypePolicy(policy)

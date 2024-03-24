@@ -9,11 +9,9 @@ from contextlib import closing
 
 import numpy as np
 
-from keras import backend
 from keras.api_export import keras_export
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.data_adapters.data_adapter import DataAdapter
-from keras.utils import tree
 
 
 @keras_export(["keras.utils.PyDataset", "keras.utils.Sequence"])
@@ -188,28 +186,6 @@ class PyDatasetAdapter(DataAdapter):
         self.shuffle = shuffle
         self._output_signature = None
 
-    def _set_tf_output_signature(self):
-        from keras.utils.module_utils import tensorflow as tf
-
-        def get_tensor_spec(x):
-            shape = x.shape
-            if len(shape) < 1:
-                raise ValueError(
-                    "The arrays returned by PyDataset.__getitem__() "
-                    "must be at least rank 1. Received: "
-                    f"{x} of rank {len(x.shape)}"
-                )
-            shape = list(shape)
-            shape[0] = None  # The batch size is not guaranteed to be static.
-            dtype = backend.standardize_dtype(x.dtype)
-            return tf.TensorSpec(shape=shape, dtype=dtype)
-
-        # Grab the first example
-        batch = self.py_dataset[0]
-        # Run checks on it and format it
-        batch = self._standardize_batch(batch)
-        self._output_signature = tree.map_structure(get_tensor_spec, batch)
-
     def _standardize_batch(self, batch):
         if isinstance(batch, dict):
             return batch
@@ -287,7 +263,15 @@ class PyDatasetAdapter(DataAdapter):
         from keras.utils.module_utils import tensorflow as tf
 
         if self._output_signature is None:
-            self._set_tf_output_signature()
+            num_samples = min(
+                data_adapter_utils.NUM_BATCHES_FOR_TENSOR_SPEC,
+                len(self.py_dataset),
+            )
+            batches = [
+                self._standardize_batch(self.py_dataset[i])
+                for i in range(num_samples)
+            ]
+            self._output_signature = data_adapter_utils.get_tensor_spec(batches)
 
         ds = tf.data.Dataset.from_generator(
             self._get_iterator,

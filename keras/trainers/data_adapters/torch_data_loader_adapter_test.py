@@ -141,3 +141,46 @@ class TestTorchDataLoaderAdapter(testing.TestCase, parameterized.TestCase):
             self.assertEqual(batch_count, math.ceil(10 / batch_size))
         else:
             self.assertEqual(batch_count, 10)
+
+    @parameterized.named_parameters(
+        named_product(iterator_type=["np", "tf", "jax", "torch"])
+    )
+    def test_with_different_shapes(self, iterator_type):
+        x = (
+            [np.ones([4], "float32")] * 16
+            + [np.ones([5], "float32")] * 16
+            + [np.ones([6], "float32")] * 2
+        )
+        y = np.ones((34, 2), "float32")
+        ds = torch.utils.data.StackDataset(x, y)
+        dataloader = torch.utils.data.DataLoader(ds, batch_size=16)
+        adapter = TorchDataLoaderAdapter(dataloader)
+
+        self.assertEqual(adapter.num_batches, 3)
+        self.assertEqual(adapter.batch_size, 16)
+        self.assertEqual(adapter.has_partial_batch, True)
+        self.assertEqual(adapter.partial_batch_size, 2)
+
+        if iterator_type == "np":
+            it = adapter.get_numpy_iterator()
+        elif iterator_type == "tf":
+            it = adapter.get_tf_dataset()
+        elif iterator_type == "jax":
+            it = adapter.get_jax_iterator()
+        elif iterator_type == "torch":
+            it = adapter.get_torch_dataloader()
+
+        for i, batch in enumerate(it):
+            self.assertEqual(len(batch), 2)
+            bx, by = batch
+            self.assertEqual(bx.dtype, by.dtype)
+            self.assertContainsExactSubsequence(str(bx.dtype), "float32")
+            if i == 0:
+                self.assertEqual(bx.shape, (16, 4))
+                self.assertEqual(by.shape, (16, 2))
+            elif i == 1:
+                self.assertEqual(bx.shape, (16, 5))
+                self.assertEqual(by.shape, (16, 2))
+            else:
+                self.assertEqual(bx.shape, (2, 6))
+                self.assertEqual(by.shape, (2, 2))

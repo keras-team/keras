@@ -85,7 +85,7 @@ class SeparableConv1D(BaseSeparableConv):
         A 3D tensor representing
         `activation(separable_conv1d(inputs, kernel) + bias)`.
 
-    Examples:
+    Example:
 
     >>> x = np.random.rand(4, 10, 12)
     >>> y = keras.layers.SeparableConv1D(3, 4, 3, 2, activation='relu')(x)

@@ -8,6 +8,7 @@ from keras.layers import Layer
 from keras.models import Functional
 from keras.models import Sequential
 from keras.utils import io_utils
+from keras.utils import tree
 from keras.utils.module_utils import tensorflow as tf
 
 
@@ -143,16 +144,16 @@ class ExportArchive:
             # Variables in the lists below are actually part of the trackables
             # that get saved, because the lists are created in __init__.
             if backend.backend() == "jax":
-                self._tf_trackable.variables += tf.nest.flatten(
-                    tf.nest.map_structure(tf.Variable, resource.variables)
+                self._tf_trackable.variables += tree.flatten(
+                    tree.map_structure(tf.Variable, resource.variables)
                 )
-                self._tf_trackable.trainable_variables += tf.nest.flatten(
-                    tf.nest.map_structure(
+                self._tf_trackable.trainable_variables += tree.flatten(
+                    tree.map_structure(
                         tf.Variable, resource.trainable_variables
                     )
                 )
-                self._tf_trackable.non_trainable_variables += tf.nest.flatten(
-                    tf.nest.map_structure(
+                self._tf_trackable.non_trainable_variables += tree.flatten(
+                    tree.map_structure(
                         tf.Variable, resource.non_trainable_variables
                     )
                 )
@@ -362,9 +363,7 @@ class ExportArchive:
                 f"{list(set(type(v) for v in variables))}"
             )
         if backend.backend() == "jax":
-            variables = tf.nest.flatten(
-                tf.nest.map_structure(tf.Variable, variables)
-            )
+            variables = tree.flatten(tree.map_structure(tf.Variable, variables))
         setattr(self._tf_trackable, name, list(variables))
 
     def write_out(self, filepath, options=None):
@@ -470,7 +469,7 @@ class ExportArchive:
 
     def _spec_to_poly_shape(self, spec):
         if isinstance(spec, (dict, list)):
-            return tf.nest.map_structure(self._spec_to_poly_shape, spec)
+            return tree.map_structure(self._spec_to_poly_shape, spec)
         spec_shape = spec.shape
         spec_shape = str(spec_shape).replace("None", "b")
         return spec_shape
@@ -500,7 +499,7 @@ def export_model(model, filepath):
     export_archive = ExportArchive()
     export_archive.track(model)
     if isinstance(model, (Functional, Sequential)):
-        input_signature = tf.nest.map_structure(_make_tensor_spec, model.inputs)
+        input_signature = tree.map_structure(_make_tensor_spec, model.inputs)
         if isinstance(input_signature, list) and len(input_signature) > 1:
             input_signature = [input_signature]
         export_archive.add_endpoint("serve", model.__call__, input_signature)

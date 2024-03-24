@@ -15,7 +15,6 @@ from keras.backend.common.keras_tensor import KerasTensor
 from keras.models import Model
 from keras.utils import traceback_utils
 from keras.utils import tree
-from keras.utils.shape_utils import is_shape_tuple
 
 
 class TestCase(unittest.TestCase):
@@ -230,16 +229,9 @@ class TestCase(unittest.TestCase):
             elif not isinstance(input_shape, tuple):
                 raise ValueError("The type of input_shape is not supported")
         if input_shape is not None and input_dtype is None:
-            if isinstance(input_shape, tuple) and is_shape_tuple(
-                input_shape[0]
-            ):
-                input_dtype = ["float32"] * len(input_shape)
-            elif isinstance(input_shape, dict):
-                input_dtype = {k: "float32" for k in input_shape.keys()}
-            elif isinstance(input_shape, list):
-                input_dtype = ["float32"] * len(input_shape)
-            else:
-                input_dtype = "float32"
+            input_dtype = tree.map_shape_structure(
+                lambda _: "float32", input_shape
+            )
 
         # Serialization test.
         layer = layer_cls(**init_kwargs)
@@ -611,6 +603,12 @@ def create_eager_tensors(input_shape, dtype, sparse):
             for k, v in input_shape.items()
         }
     return map_shape_dtype_structure(create_fn, input_shape, dtype)
+
+
+def is_shape_tuple(x):
+    return isinstance(x, (list, tuple)) and all(
+        isinstance(e, (int, type(None))) for e in x
+    )
 
 
 def map_shape_dtype_structure(fn, shape, dtype):

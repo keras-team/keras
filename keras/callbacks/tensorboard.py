@@ -90,8 +90,6 @@ class TensorBoard(Callback):
 
     Examples:
 
-    Basic usage:
-
     ```python
     tensorboard_callback = keras.callbacks.TensorBoard(log_dir="./logs")
     model.fit(x_train, y_train, epochs=2, callbacks=[tensorboard_callback])

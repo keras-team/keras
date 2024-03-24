@@ -436,8 +436,55 @@ def unstack(x, num=None, axis=0):
     return x.unbind(axis)
 
 
-def custom_gradient(fun):
-    # TODO: Support this function
-    raise NotImplementedError(
-        "`custom_gradient` is not supported with torch backend"
-    )
+class custom_gradient:
+    """Decorator for custom gradients.
+
+    Args:
+        forward_fn: Forward pass function.
+    """
+
+    def __init__(self, forward_fn):
+        self.forward_fn = forward_fn
+
+    def __call__(self, *args, **kwargs):
+        return CustomGradientFunction.apply(self.forward_fn, *args, **kwargs)
+
+
+class CustomGradientFunction(torch.autograd.Function):
+    """Enables custom forward & backward passes for gradient computation."""
+
+    @staticmethod
+    def forward(ctx, forward_fn, *args, **kwargs):
+        """Forward pass computation specification.
+
+        Args:
+            ctx: Context object.
+            forward_fn: Function to compute forward pass.
+            *args: Arguments for the forward pass.
+            **kwargs: Keyword arguments for the forward pass.
+        """
+        ctx.forward_fn = forward_fn
+        ctx.save_for_backward(*args)
+        try:
+            output, ctx.grad_fn = forward_fn(*args, **kwargs)
+        except:
+            output = forward_fn(*args, **kwargs)
+            ctx.grad_fn = lambda *args, **kwargs: torch.full((), float("nan"))
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        """Backward pass computation specification.
+
+        Args:
+            ctx: Context object.
+            grad_output: Gradient with respect to the output.
+        """
+        args = ctx.saved_tensors
+        grad_fn = ctx.grad_fn
+        if grad_fn is None:
+            raise ValueError("grad_fn must be provided for custom gradient")
+        grads = grad_fn(*args, upstream=grad_output)
+        if not isinstance(grads, tuple):
+            grads = (grads,)
+        return (None,) + grads

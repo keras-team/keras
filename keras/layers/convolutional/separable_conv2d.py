@@ -86,7 +86,7 @@ class SeparableConv2D(BaseSeparableConv):
         A 4D tensor representing
         `activation(separable_conv2d(inputs, kernel) + bias)`.
 
-    Examples:
+    Example:
 
     >>> x = np.random.rand(4, 10, 10, 12)
     >>> y = keras.layers.SeparableConv2D(3, 4, 3, 2, activation='relu')(x)

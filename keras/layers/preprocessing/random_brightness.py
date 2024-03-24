@@ -41,7 +41,7 @@ class RandomBrightness(TFDataLayer):
         the valid range of RGB colors, and
         rescaled based on the `value_range` if needed.
 
-    Sample usage:
+    Example:
 
     ```python
     random_bright = keras.layers.RandomBrightness(factor=0.2)

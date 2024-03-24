@@ -14,7 +14,7 @@ def get(identifier):
     if isinstance(identifier, dict):
         return serialization_lib.deserialize_keras_object(identifier)
     if isinstance(identifier, str):
-        if "int8" in identifier:
+        if identifier.startswith("int8"):
             return QuantizedDTypePolicy(identifier)
         else:
             return FloatDTypePolicy(identifier)

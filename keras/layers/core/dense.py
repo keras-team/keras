@@ -102,13 +102,18 @@ class Dense(Layer):
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
-        self._kernel = self.add_weight(
-            name="kernel",
-            shape=(input_dim, self.units),
-            initializer=self.kernel_initializer,
-            regularizer=self.kernel_regularizer,
-            constraint=self.kernel_constraint,
-        )
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            self.quantized_build(
+                input_shape, mode=self.dtype_policy.quantization_mode
+            )
+        else:
+            self._kernel = self.add_weight(
+                name="kernel",
+                shape=(input_dim, self.units),
+                initializer=self.kernel_initializer,
+                regularizer=self.kernel_regularizer,
+                constraint=self.kernel_constraint,
+            )
         if self.use_bias:
             self.bias = self.add_weight(
                 name="bias",
@@ -124,7 +129,8 @@ class Dense(Layer):
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            self.quantize(self.dtype_policy.quantization_mode)
+            if self.bias is not None:
+                self.bias.trainable = False
 
     @property
     def kernel(self):
@@ -140,20 +146,6 @@ class Dense(Layer):
 
     def call(self, inputs):
         x = ops.matmul(inputs, self.kernel)
-        if self.bias is not None:
-            x = ops.add(x, self.bias)
-        if self.activation is not None:
-            x = self.activation(x)
-        return x
-
-    def quantized_call(self, inputs):
-        if self.lora_enabled:
-            raise ValueError("`quantized_call` doesn't support lora weights")
-        inputs, inputs_scale = self.inputs_quantizer(inputs)
-        x = ops.matmul(inputs, self.kernel)
-        # De-scale outputs
-        x = ops.cast(x, self.compute_dtype)
-        x = ops.divide(x, ops.multiply(inputs_scale, self.kernel_scale))
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:
@@ -201,67 +193,6 @@ class Dense(Layer):
         self.lora_enabled = True
         self.lora_rank = rank
 
-    def quantize(self, mode):
-        self._check_quantize_args(mode, self.compute_dtype)
-        if mode == "int8":
-            if backend.standardize_dtype(self._kernel.dtype) == "int8":
-                raise ValueError("`quantize` can only be done once per layer.")
-            # Merge lora-related parameters to make use of fully int8 kernel
-            self._merge_lora_into_kernel()
-            # Configure `self.inputs_quantizer`
-            self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
-            # Quantize `self._kernel` to int8 and compute corresponding scale
-            kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                self._kernel, axis=0
-            )
-            kernel_scale = ops.cast(kernel_scale, self.compute_dtype)
-            self._tracker.unlock()
-            self._untrack_variable(self._kernel)
-            self._kernel = self.add_weight(
-                name="kernel",
-                shape=self._kernel.shape,
-                # Prevent adding a large constant to the computation graph
-                initializer=lambda shape, dtype: kernel_value,
-                dtype="int8",
-                trainable=False,
-            )
-            self.kernel_scale = self.add_weight(
-                name="kernel_scale",
-                shape=kernel_scale.shape,
-                # Prevent adding a large constant to the computation graph
-                initializer=lambda shape, dtype: kernel_scale,
-                dtype=self.compute_dtype,
-                trainable=False,
-            )
-            if self.bias is not None:
-                self.bias.trainable = False
-            self._tracker.lock()
-        else:
-            NotImplementedError(
-                "Invalid quantization mode. Expected 'int8'. "
-                f"Received: mode={mode}"
-            )
-
-        # Set new dtype policy
-        if not isinstance(
-            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-        ):
-            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
-            self.dtype_policy = dtype_policies.get(quantized_dtype)
-
-    def _merge_lora_into_kernel(self, untrack=False):
-        if not self.lora_enabled:
-            return
-        # Merge lora-enabled kernel into kernel
-        self._kernel.assign(self.kernel)
-        self.lora_enabled = False
-        if untrack:
-            self._tracker.unlock()
-            self.lora_kernel_a = self._untrack_variable(self.lora_kernel_a)
-            self.lora_kernel_b = self._untrack_variable(self.lora_kernel_b)
-            self._tracker.lock()
-            self.lora_rank = None
-
     def save_own_variables(self, store):
         if not self.lora_enabled:
             return super().save_own_variables(store)
@@ -300,3 +231,99 @@ class Dense(Layer):
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
         return {**base_config, **config}
+
+    """Quantization-related methods"""
+
+    def quantized_build(self, input_shape, mode):
+        input_dim = input_shape[-1]
+        if mode == "int8":
+            self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
+            self._kernel = self.add_weight(
+                name="kernel",
+                shape=(input_dim, self.units),
+                initializer="zeros",
+                dtype="int8",
+                trainable=False,
+            )
+            self.kernel_scale = self.add_weight(
+                name="kernel_scale",
+                shape=(self.units,),
+                initializer="ones",
+                trainable=False,
+            )
+
+    def quantized_call(self, inputs):
+        if self.lora_enabled:
+            raise ValueError("`quantized_call` doesn't support lora weights")
+        inputs, inputs_scale = self.inputs_quantizer(inputs)
+        x = ops.matmul(inputs, self.kernel)
+        # De-scale outputs
+        x = ops.cast(x, self.compute_dtype)
+        x = ops.divide(x, ops.multiply(inputs_scale, self.kernel_scale))
+        if self.bias is not None:
+            x = ops.add(x, self.bias)
+        if self.activation is not None:
+            x = self.activation(x)
+        return x
+
+    def quantize(self, mode):
+        self._check_quantize_args(mode, self.compute_dtype)
+        if mode == "int8":
+            if backend.standardize_dtype(self._kernel.dtype) == "int8":
+                raise ValueError("`quantize` can only be done once per layer.")
+            # Merge lora-related parameters to make use of fully int8 kernel
+            self._merge_lora_into_kernel()
+            # Configure `self.inputs_quantizer`
+            self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
+            # Quantize `self._kernel` to int8 and compute corresponding scale
+            kernel_value, kernel_scale = quantizers.abs_max_quantize(
+                self._kernel, axis=0
+            )
+            kernel_scale = ops.cast(
+                ops.squeeze(kernel_scale, axis=0), self.compute_dtype
+            )
+            self._tracker.unlock()
+            self._untrack_variable(self._kernel)
+            self._kernel = self.add_weight(
+                name="kernel",
+                shape=self._kernel.shape,
+                # Prevent adding a large constant to the computation graph
+                initializer=lambda shape, dtype: kernel_value,
+                dtype="int8",
+                trainable=False,
+            )
+            self.kernel_scale = self.add_weight(
+                name="kernel_scale",
+                shape=(self.units,),
+                # Prevent adding a large constant to the computation graph
+                initializer=lambda shape, dtype: kernel_scale,
+                trainable=False,
+            )
+            if self.bias is not None:
+                self.bias.trainable = False
+            self._tracker.lock()
+        else:
+            NotImplementedError(
+                "Invalid quantization mode. Expected 'int8'. "
+                f"Received: mode={mode}"
+            )
+
+        # Set new dtype policy
+        if not isinstance(
+            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+        ):
+            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
+            self.dtype_policy = dtype_policies.get(quantized_dtype)
+
+    def _merge_lora_into_kernel(self, untrack=False):
+        if not self.lora_enabled:
+            return
+        # Merge lora-enabled kernel into kernel
+        self._kernel.assign(self.kernel)
+        self.lora_enabled = False
+        if untrack:
+            self._tracker.unlock()
+            self.lora_kernel_a = self._untrack_variable(self.lora_kernel_a)
+            self.lora_kernel_b = self._untrack_variable(self.lora_kernel_b)
+            self._tracker.lock()
+            self.lora_rank = None

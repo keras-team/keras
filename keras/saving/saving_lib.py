@@ -36,7 +36,7 @@ _ASSETS_DIRNAME = "assets"
 
 
 def save_model(model, filepath, weights_format="h5"):
-    """Save a zip-archive representing a Keras model to the given filepath.
+    """Save a zip-archive representing a Keras model to the given file or path.
 
     The zip-based archive contains the following structure:
 
@@ -59,12 +59,6 @@ def save_model(model, filepath, weights_format="h5"):
     container (list, tuple, or dict), and the container is referenced via a
     layer attribute.
     """
-    filepath = str(filepath)
-    if not filepath.endswith(".keras"):
-        raise ValueError(
-            "Invalid `filepath` argument: expected a `.keras` extension. "
-            f"Received: filepath={filepath}"
-        )
     if weights_format == "h5" and h5py is None:
         raise ImportError("h5py must be installed in order to save a model.")
 
@@ -77,6 +71,28 @@ def save_model(model, filepath, weights_format="h5"):
             stacklevel=2,
         )
 
+    if isinstance(filepath, io.IOBase):
+        _save_model_to_fileobj(model, filepath, weights_format)
+        return
+
+    filepath = str(filepath)
+    if not filepath.endswith(".keras"):
+        raise ValueError(
+            "Invalid `filepath` argument: expected a `.keras` extension. "
+            f"Received: filepath={filepath}"
+        )
+    if file_utils.is_remote_path(filepath):
+        # Remote path. Zip to local memory byte io and copy to remote
+        zip_filepath = io.BytesIO()
+        _save_model_to_fileobj(model, zip_filepath, weights_format)
+        with file_utils.File(filepath, "wb") as f:
+            f.write(zip_filepath.getvalue())
+    else:
+        with open(filepath, "wb") as f:
+            _save_model_to_fileobj(model, f, weights_format)
+
+
+def _save_model_to_fileobj(model, fileobj, weights_format):
     with ObjectSharingScope():
         serialized_model_dict = serialize_keras_object(model)
     config_json = json.dumps(serialized_model_dict)
@@ -86,13 +102,8 @@ def save_model(model, filepath, weights_format="h5"):
             "date_saved": datetime.datetime.now().strftime("%Y-%m-%d@%H:%M:%S"),
         }
     )
-    if file_utils.is_remote_path(filepath):
-        # Remote path. Zip to local memory byte io and copy to remote
-        zip_filepath = io.BytesIO()
-    else:
-        zip_filepath = filepath
 
-    with zipfile.ZipFile(zip_filepath, "w") as zf:
+    with zipfile.ZipFile(fileobj, "w") as zf:
         with zf.open(_METADATA_FILENAME, "w") as f:
             f.write(metadata_json.encode())
         with zf.open(_CONFIG_FILENAME, "w") as f:
@@ -123,24 +134,28 @@ def save_model(model, filepath, weights_format="h5"):
         weights_store.close()
         asset_store.close()
 
-    if file_utils.is_remote_path(filepath):
-        with file_utils.File(filepath, "wb") as f:
-            f.write(zip_filepath.getvalue())
-
 
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     """Load a zip archive representing a Keras model."""
-
-    filepath = str(filepath)
-    if not filepath.endswith(".keras"):
-        raise ValueError(
-            "Invalid filename: expected a `.keras` extension. "
-            f"Received: filepath={filepath}"
+    if isinstance(filepath, io.IOBase):
+        return _load_model_from_fileobj(
+            filepath, custom_objects, compile, safe_mode
         )
+    else:
+        filepath = str(filepath)
+        if not filepath.endswith(".keras"):
+            raise ValueError(
+                "Invalid filename: expected a `.keras` extension. "
+                f"Received: filepath={filepath}"
+            )
+        with open(filepath, "rb") as f:
+            return _load_model_from_fileobj(
+                f, custom_objects, compile, safe_mode
+            )
 
-    with file_utils.File(filepath, mode="r+b") as gfile_handle, zipfile.ZipFile(
-        gfile_handle, "r"
-    ) as zf:
+
+def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
+    with zipfile.ZipFile(fileobj, "r") as zf:
         with zf.open(_CONFIG_FILENAME, "r") as f:
             config_json = f.read()
 

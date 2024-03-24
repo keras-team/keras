@@ -13,7 +13,7 @@ class ZeroPadding2D(Layer):
     This layer can add rows and columns of zeros at the top, bottom, left and
     right side of an image tensor.
 
-    Examples:
+    Example:
 
     >>> input_shape = (1, 1, 2, 2)
     >>> x = np.arange(np.prod(input_shape)).reshape(input_shape)

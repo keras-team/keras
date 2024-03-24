@@ -225,7 +225,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             outputs = one_step_on_data_distributed(data[:1])
             for single_step_data in data[1:]:
                 step_outputs = one_step_on_data_distributed([single_step_data])
-                outputs = tf.nest.map_structure(
+                outputs = tree.map_structure(
                     lambda t1, t2: concat([t1, t2]), outputs, step_outputs
                 )
             return outputs
@@ -473,7 +473,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
         def append_to_outputs(batch_outputs, outputs):
             if outputs is None:
-                outputs = tf.nest.map_structure(
+                outputs = tree.map_structure(
                     lambda batch_output: [batch_output],
                     batch_outputs,
                 )
@@ -521,7 +521,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         outputs = tree.map_structure_up_to(
             batch_outputs, potentially_ragged_concat, outputs
         )
-        return tf.nest.map_structure(convert_to_np_if_not_ragged, outputs)
+        return tree.map_structure(convert_to_np_if_not_ragged, outputs)
 
     def train_on_batch(
         self,
@@ -549,7 +549,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             yield (x, y, sample_weight)
 
         logs = self.train_function(data())
-        logs = tf.nest.map_structure(lambda x: np.array(x), logs)
+        logs = tree.map_structure(lambda x: np.array(x), logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -568,7 +568,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             yield (x, y, sample_weight)
 
         logs = self.test_function(data())
-        logs = tf.nest.map_structure(lambda x: np.array(x), logs)
+        logs = tree.map_structure(lambda x: np.array(x), logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -576,7 +576,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
     def predict_on_batch(self, x):
         self.make_predict_function()
         batch_outputs = self.predict_function([(x,)])
-        batch_outputs = tf.nest.map_structure(
+        batch_outputs = tree.map_structure(
             convert_to_np_if_not_ragged, batch_outputs
         )
         return batch_outputs
@@ -771,7 +771,7 @@ def reduce_per_replica(values, strategy, reduction):
                 f"Received: reduction={reduction}."
             )
 
-    return tf.nest.map_structure(_reduce, values)
+    return tree.map_structure(_reduce, values)
 
 
 def _multi_worker_concat(v, strategy):

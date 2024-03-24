@@ -40,7 +40,6 @@ from keras.utils import summary_utils
 from keras.utils import traceback_utils
 from keras.utils import tracking
 from keras.utils import tree
-from keras.utils.shape_utils import map_shape_structure
 
 if backend.backend() == "tensorflow":
     from keras.backend.tensorflow.layer import TFLayer as BackendLayer
@@ -1017,7 +1016,7 @@ class Layer(BackendLayer, Operation):
                 return KerasTensor(output_shape, dtype=self.compute_dtype)
             # Case: nested. Could be a tuple/list of shapes, or a dict of
             # shapes. Could be deeply nested.
-            return map_shape_structure(
+            return tree.map_shape_structure(
                 lambda s: KerasTensor(s, dtype=self.compute_dtype), output_shape
             )
 
@@ -1111,17 +1110,21 @@ class Layer(BackendLayer, Operation):
 
     def _check_quantize_args(self, mode, compute_dtype):
         if not self.built:
-            raise ValueError("Cannot quantize on a layer that isn't yet built.")
+            raise ValueError(
+                "Cannot quantize a layer that isn't yet built. "
+                f"Layer '{self.name}' (of type '{self.__class__.__name__}') "
+                "is not built yet."
+            )
         if mode not in ("int8",):
             raise ValueError(
                 f"`quantize` must be one of ('int8'). Received: mode={mode}"
             )
         if mode == "int8" and compute_dtype == "float16":
             raise ValueError(
-                f"mode='{mode}' doesn't work well with "
+                f"Quantization mode='{mode}' doesn't work well with "
                 "compute_dtype='float16'. Consider loading model/layer with "
-                "other dtype policy such as 'mixed_bfloat16' before calling "
-                "`quantize`."
+                "another dtype policy such as 'mixed_bfloat16' or "
+                "'mixed_float16' before calling `quantize()`."
             )
 
     def save_own_variables(self, store):
@@ -1264,7 +1267,7 @@ class Layer(BackendLayer, Operation):
 
     def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).
-        input_tensors = map_shape_structure(
+        input_tensors = tree.map_shape_structure(
             lambda s: backend.KerasTensor(s), input_shape
         )
         try:

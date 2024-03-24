@@ -8,6 +8,7 @@ torchvision>=0.16.0
 
 # Jax.
 jax[cpu]
+flax
 
 # Common deps.
 -r requirements-common.txt

@@ -44,7 +44,7 @@ setup(
         "rich",
         "namex",
         "h5py",
-        "dm-tree",
+        "optree",
         "ml-dtypes",
     ],
     # Supported Python versions

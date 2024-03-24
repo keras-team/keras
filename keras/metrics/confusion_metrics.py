@@ -97,7 +97,7 @@ class FalsePositives(_ConfusionMatrixConditionCount):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Examples:
 
     >>> m = keras.metrics.FalsePositives()
     >>> m.update_state([0, 1, 0, 0], [0, 0, 1, 1])
@@ -141,7 +141,7 @@ class FalseNegatives(_ConfusionMatrixConditionCount):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.FalseNegatives()
     >>> m.update_state([0, 1, 1, 1], [0, 1, 0, 0])
@@ -185,7 +185,7 @@ class TrueNegatives(_ConfusionMatrixConditionCount):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.TrueNegatives()
     >>> m.update_state([0, 1, 0, 0], [1, 1, 0, 0])
@@ -229,7 +229,7 @@ class TruePositives(_ConfusionMatrixConditionCount):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.TruePositives()
     >>> m.update_state([0, 1, 1, 1], [1, 0, 1, 1])
@@ -291,7 +291,7 @@ class Precision(Metric):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.Precision()
     >>> m.update_state([0, 1, 1, 1], [1, 0, 1, 1])
@@ -449,7 +449,7 @@ class Recall(Metric):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.Recall()
     >>> m.update_state([0, 1, 1, 1], [1, 0, 1, 1])
@@ -710,7 +710,7 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.SensitivityAtSpecificity(0.5)
     >>> m.update_state([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8])
@@ -814,7 +814,7 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.SpecificityAtSensitivity(0.5)
     >>> m.update_state([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8])
@@ -909,7 +909,7 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.PrecisionAtRecall(0.5)
     >>> m.update_state([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8])
@@ -999,7 +999,7 @@ class RecallAtPrecision(SensitivitySpecificityBase):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.RecallAtPrecision(0.8)
     >>> m.update_state([0, 0, 1, 1], [0, 0.5, 0.3, 0.9])
@@ -1155,7 +1155,7 @@ class AUC(Metric):
         when using a keras loss, the `from_logits` constructor argument of the
         loss should match the AUC `from_logits` constructor argument.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.AUC(num_thresholds=3)
     >>> m.update_state([0, 0, 1, 1], [0, 0.5, 0.3, 0.9])

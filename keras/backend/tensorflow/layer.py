@@ -3,6 +3,7 @@ import tensorflow as tf
 from keras.backend.tensorflow.trackable import KerasAutoTrackable
 from keras.utils import tf_utils
 from keras.utils import tracking
+from keras.utils import tree
 
 
 class TFLayer(KerasAutoTrackable):
@@ -27,16 +28,16 @@ class TFLayer(KerasAutoTrackable):
         if self._saved_model_inputs_spec is not None:
             return  # Already set.
 
-        inputs_spec = tf.nest.map_structure(tf_utils.get_tensor_spec, inputs)
-        args_spec = tf.nest.map_structure(tf_utils.get_tensor_spec, args or [])
+        inputs_spec = tree.map_structure(tf_utils.get_tensor_spec, inputs)
+        args_spec = tree.map_structure(tf_utils.get_tensor_spec, args or [])
         kwargs_spec = {}
         # Filter out non-tensor arguments from kwargs.
         for key, kwarg in kwargs.items():
-            flat_kwarg = tf.nest.flatten(kwarg)
+            flat_kwarg = tree.flatten(kwarg)
             flat_specs = [tf_utils.get_tensor_spec(x) for x in flat_kwarg]
             if any(s is None for s in flat_specs):
                 continue
-            kwargs_spec[key] = tf.nest.pack_sequence_as(kwarg, flat_specs)
+            kwargs_spec[key] = tree.pack_sequence_as(kwarg, flat_specs)
 
         self._saved_model_inputs_spec = inputs_spec
         self._saved_model_arg_spec = (
@@ -94,7 +95,7 @@ class TFLayer(KerasAutoTrackable):
 
         if inputs is not None:
             input_signature = [
-                tf.nest.map_structure(
+                tree.map_structure(
                     lambda x: tf.TensorSpec(x.shape, self.compute_dtype),
                     inputs,
                 )
@@ -108,7 +109,7 @@ class TFLayer(KerasAutoTrackable):
                 ]
             else:
                 input_signature = [
-                    tf.nest.map_structure(
+                    tree.map_structure(
                         lambda x: tf.TensorSpec(x.shape, self.compute_dtype),
                         shapes_dict,
                     )

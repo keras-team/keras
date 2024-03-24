@@ -10,5 +10,6 @@ torchvision>=0.16.0
 # TODO: 0.4.24 has an updated Cuda version breaks Jax CI.
 --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 jax[cuda12_pip]==0.4.23
+flax
 
 -r requirements-common.txt

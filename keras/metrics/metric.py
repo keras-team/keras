@@ -14,7 +14,7 @@ class Metric:
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     ```python
     m = SomeMetric(...)

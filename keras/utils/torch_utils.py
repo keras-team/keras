@@ -23,7 +23,7 @@ class TorchModuleWrapper(Layer):
             it once).
         name: The name of the layer (string).
 
-    Examples:
+    Example:
 
     Here's an example of how the `TorchModuleWrapper` can be used with vanilla
     PyTorch modules.

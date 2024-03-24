@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 
@@ -147,3 +149,29 @@ class OptimizerTest(testing.TestCase):
             optimizer._accumulated_gradients[0], [[1.0, 1.0], [1.0, 1.0]]
         )
         self.assertAllClose(optimizer.iterations, 4)
+
+    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="Requires TF")
+    def test_tf_checkpointing(self):
+        import tensorflow as tf
+
+        model = models.Sequential([layers.Dense(2)])
+        optimizer = optimizers.Adam()
+        x, y = np.random.random((1, 2)), np.random.random((1, 2))
+        model.compile(optimizer, "mse")
+        model.train_on_batch(x, y)
+        ref_pred = model.predict(x)
+
+        # Both model and optimizer are Trackables
+        checkpoint = tf.train.Checkpoint(model, optimizer=optimizer)
+        temp_filepath = os.path.join(self.get_temp_dir(), "tf_ckpt")
+        save_path = checkpoint.save(temp_filepath)
+
+        # Keep training the model (predictions now differ)
+        model.train_on_batch(x, y)
+        pred = model.predict(x)
+        self.assertNotAllClose(pred, ref_pred, atol=1e-3)
+
+        # Restore the model and check prediction correctness
+        checkpoint.restore(save_path)
+        pred = model.predict(x)
+        self.assertAllClose(pred, ref_pred, atol=1e-5)

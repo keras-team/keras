@@ -88,7 +88,7 @@ class DepthwiseConv2D(BaseDepthwiseConv):
     Raises:
         ValueError: when both `strides > 1` and `dilation_rate > 1`.
 
-    Examples:
+    Example:
 
     >>> x = np.random.rand(4, 10, 10, 12)
     >>> y = keras.layers.DepthwiseConv2D(3, 3, activation='relu')(x)

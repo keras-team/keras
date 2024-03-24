@@ -11,7 +11,7 @@ class Cropping2D(Layer):
 
     It crops along spatial dimensions, i.e. height and width.
 
-    Examples:
+    Example:
 
     >>> input_shape = (2, 28, 28, 3)
     >>> x = np.arange(np.prod(input_shape)).reshape(input_shape)

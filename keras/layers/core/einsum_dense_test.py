@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras import backend
 from keras import constraints
 from keras import layers
 from keras import models
@@ -382,6 +383,13 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         layer.build((None, 3))
         layer.quantize("int8")
 
+        # Verify weights dtype
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype),
+            layer.variable_dtype,
+        )
+
         # Try eager call
         x = np.random.random((2, 3))
         _ = layer(x)
@@ -412,6 +420,39 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         layer.quantize("int8")
         x = np.random.random((2, 3))
         _ = layer(x)
+
+        # Try building with quantized dtype policy
+        layer = layers.EinsumDense(
+            equation="abcde,afce->acdbf",  # Test reduce and transpose
+            output_shape=(2, 4, 8, 16),
+            bias_axes="d",
+            dtype="int8_from_mixed_bfloat16",
+        )
+        layer.build((1, 8, 2, 4, 32))
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
+        )
+        layer = layers.EinsumDense(
+            equation="a,b->ab",  # Test expand
+            output_shape=(4,),
+            dtype="int8_from_float32",
+        )
+        layer.build((None,))
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
+        )
+        layer = layers.EinsumDense(
+            equation="ab,ab->a",  # Test squeeze
+            output_shape=(2,),
+            dtype="int8_from_float32",
+        )
+        layer.build((2, 4))
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_dtype_argument(self):

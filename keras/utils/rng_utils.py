@@ -21,11 +21,16 @@ def set_random_seed(seed):
 
     ```python
     import random
-    import numpy as np
-    from keras.utils.module_utils import tensorflow as tf
     random.seed(seed)
+
+    import numpy as np
     np.random.seed(seed)
+
+    import tensorflow as tf  # Only if TF is installed
     tf.random.set_seed(seed)
+
+    import torch  # Only if the backend is 'torch'
+    torch.manual_seed(seed)
     ```
 
     Note that the TensorFlow seed is set even if you're not using TensorFlow
