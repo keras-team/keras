@@ -104,9 +104,14 @@ def einsum(subscripts, *operands, **kwargs):
         # `None`.
         if subscripts in [
             "a,b->ab",
+            "ab,b->a",
             "ab,bc->ac",
+            "ab,cb->ac",
             "abc,cd->abd",
+            "abc,dc->abd",
+            "abcd,abde->abce",
             "abcd,abed->abce",
+            "abcd,acbe->adbe",
             "abcd,adbe->acbe",
             "abcd,aecd->acbe",
             "abcd,aecd->aceb",
@@ -127,9 +132,30 @@ def einsum(subscripts, *operands, **kwargs):
             if None in (b, c, d, e):
                 return False
             return True
+        elif subscripts == "abc,dec->abde":
+            _, b1, c1 = operands[0].shape
+            d2, e2, c2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
         elif subscripts == "abcd,cde->abe":
             _, b1, c1, d1 = operands[0].shape
             c2, d2, e2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
+        elif subscripts == "abcd,ced->abe":
+            _, b1, c1, d1 = operands[0].shape
+            c2, e2, d2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
+        elif subscripts == "abcd,ecd->abe":
+            _, b1, c1, d1 = operands[0].shape
+            e2, c2, d2 = operands[1].shape
             b, c, d, e = b1, c1 or c2, d1 or d2, e2
             if None in (b, c, d, e):
                 return False
@@ -160,7 +186,14 @@ def einsum(subscripts, *operands, **kwargs):
             x = tf.expand_dims(x, axis=-1)
             y = tf.expand_dims(y, axis=0)
             return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "ab,b->a":
+            y = tf.expand_dims(y, axis=-1)
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.squeeze(result, axis=-1)
         elif subscripts == "ab,bc->ac":
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "ab,cb->ac":
+            y = tf.transpose(y, [1, 0])
             return tf.matmul(x, y, output_type=output_type)
         elif subscripts == "abc,cd->abd":
             return tf.matmul(x, y, output_type=output_type)
@@ -171,6 +204,9 @@ def einsum(subscripts, *operands, **kwargs):
             y = tf.reshape(y, [c, -1])
             result = tf.matmul(x, y, output_type=output_type)
             return tf.reshape(result, [-1, b, d, e])
+        elif subscripts == "abc,dc->abd":
+            y = tf.transpose(y, [1, 0])
+            return tf.matmul(x, y, output_type=output_type)
         elif subscripts == "abc,dce->abde":
             _, b1, c1 = x.shape
             d2, c2, e2 = y.shape
@@ -179,9 +215,24 @@ def einsum(subscripts, *operands, **kwargs):
             y = tf.reshape(y, [c, -1])
             result = tf.matmul(x, y, output_type=output_type)
             return tf.reshape(result, [-1, b, d, e])
+        elif subscripts == "abc,dec->abde":
+            _, b1, c1 = x.shape
+            d2, e2, c2 = y.shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            y = tf.transpose(y, [2, 0, 1])  # cde
+            y = tf.reshape(y, [c, -1])
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.reshape(result, [-1, b, d, e])
+        elif subscripts == "abcd,abde->abce":
+            return tf.matmul(x, y, output_type=output_type)
         elif subscripts == "abcd,abed->abce":
             y = tf.transpose(y, [0, 1, 3, 2])
             return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,acbe->adbe":
+            x = tf.transpose(x, [0, 1, 3, 2])
+            y = tf.transpose(y, [0, 2, 1, 3])
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.transpose(result, [0, 2, 1, 3])
         elif subscripts == "abcd,adbe->acbe":
             y = tf.transpose(y, [0, 2, 1, 3])  # abde
             result = tf.matmul(x, y, output_type=output_type)  # abce
@@ -200,6 +251,22 @@ def einsum(subscripts, *operands, **kwargs):
             c2, d2, e2 = y.shape
             b, c, d, e = b1, c1 or c2, d1 or d2, e2
             x = tf.reshape(x, [-1, b, c * d])
+            y = tf.reshape(y, [-1, e])
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,ced->abe":
+            _, b1, c1, d1 = x.shape
+            c2, e2, d2 = y.shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            x = tf.reshape(x, [-1, b, c * d])
+            y = tf.transpose(y, [0, 2, 1])
+            y = tf.reshape(y, [-1, e])
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,ecd->abe":
+            _, b1, c1, d1 = x.shape
+            e2, c2, d2 = y.shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            x = tf.reshape(x, [-1, b, c * d])
+            y = tf.transpose(y, [1, 2, 0])
             y = tf.reshape(y, [-1, e])
             return tf.matmul(x, y, output_type=output_type)
         elif subscripts == "abcde,aebf->adbcf":

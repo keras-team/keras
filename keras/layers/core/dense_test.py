@@ -372,7 +372,7 @@ class DenseTest(testing.TestCase):
     def test_quantize_on_unbuilt_layer(self):
         layer = layers.Dense(units=2)
         with self.assertRaisesRegex(
-            ValueError, "Cannot quantize on a layer that isn't yet built."
+            ValueError, "Cannot quantize a layer that isn't yet built."
         ):
             layer.quantize("int8")
 
