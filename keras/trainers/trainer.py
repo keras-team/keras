@@ -336,6 +336,18 @@ class Trainer:
             total_loss = ops.sum(losses)
         return total_loss
 
+    def _update_loss_tracker(self, loss, num_samples):
+        """Update the loss tracker.
+
+        Args:
+            loss: A scalar. The averaged loss value for the batch.
+            num_samples: Integer. The number of samples in the batch.
+        """
+        # The sample weight here is not the one passed to fit() or evaluate().
+        # It is only used for counting the total number of samples to average
+        # the loss.
+        self._loss_tracker.update_state(loss, sample_weight=num_samples)
+
     def compute_metrics(self, x, y, y_pred, sample_weight=None):
         """Update metric states and collect all metrics to be returned.
 

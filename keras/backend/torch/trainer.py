@@ -52,7 +52,7 @@ class TorchTrainer(base_trainer.Trainer):
         loss = self.compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
         )
-        self._loss_tracker.update_state([loss] * x.shape[0])
+        self._update_loss_tracker(loss, tree.flatten(x)[0].shape[0])
         if self.optimizer is not None:
             loss = self.optimizer.scale_loss(loss)
 
@@ -86,7 +86,7 @@ class TorchTrainer(base_trainer.Trainer):
         loss = self.compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
         )
-        self._loss_tracker.update_state([loss] * x.shape[0])
+        self._update_loss_tracker(loss, tree.flatten(x)[0].shape[0])
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def predict_step(self, data):
