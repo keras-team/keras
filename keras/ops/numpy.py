@@ -1240,14 +1240,18 @@ def average(x, axis=None, weights=None):
 
 
 class Bincount(Operation):
-    def __init__(self, weights=None, minlength=0):
+    def __init__(self, weights=None, minlength=0, sparse=False):
         super().__init__()
         self.weights = weights
         self.minlength = minlength
+        self.sparse = sparse
 
     def call(self, x):
         return backend.numpy.bincount(
-            x, weights=self.weights, minlength=self.minlength
+            x,
+            weights=self.weights,
+            minlength=self.minlength,
+            sparse=self.sparse,
         )
 
     def compute_output_spec(self, x):
@@ -1258,11 +1262,13 @@ class Bincount(Operation):
             dtype = dtypes.result_type(*dtypes_to_resolve)
         else:
             dtype = "int32"
-        return KerasTensor(list(x.shape[:-1]) + [None], dtype=dtype)
+        return KerasTensor(
+            list(x.shape[:-1]) + [None], dtype=dtype, sparse=self.sparse
+        )
 
 
 @keras_export(["keras.ops.bincount", "keras.ops.numpy.bincount"])
-def bincount(x, weights=None, minlength=0):
+def bincount(x, weights=None, minlength=0, sparse=False):
     """Count the number of occurrences of each value in a tensor of integers.
 
     Args:
@@ -1278,6 +1284,8 @@ def bincount(x, weights=None, minlength=0):
             this number of bins in the output tensor. If greater than
             `max(x) + 1`, each value of the output at an index higher than
             `max(x)` is set to 0.
+        sparse: Whether to return a sparse tensor; for backends that support
+            sparse tensors.
 
     Returns:
         1D tensor where each element gives the number of occurrence(s) of its
@@ -1298,8 +1306,12 @@ def bincount(x, weights=None, minlength=0):
     array([0, 1, 2, 1, 0, 0], dtype=int32)
     """
     if any_symbolic_tensors((x,)):
-        return Bincount(weights=weights, minlength=minlength).symbolic_call(x)
-    return backend.numpy.bincount(x, weights=weights, minlength=minlength)
+        return Bincount(
+            weights=weights, minlength=minlength, sparse=sparse
+        ).symbolic_call(x)
+    return backend.numpy.bincount(
+        x, weights=weights, minlength=minlength, sparse=sparse
+    )
 
 
 class BroadcastTo(Operation):
@@ -5913,9 +5925,11 @@ class Sum(Operation):
         # TODO: torch doesn't support uint32
         if backend.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
+        sparse = getattr(x, "sparse", False)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=dtype,
+            sparse=sparse,
         )
 
 

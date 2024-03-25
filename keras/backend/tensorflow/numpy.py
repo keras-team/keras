@@ -16,6 +16,7 @@ from keras.backend.common import dtypes
 from keras.backend.common.backend_utils import canonicalize_axis
 from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.backend.tensorflow import sparse
+from keras.backend.tensorflow.core import cast
 from keras.backend.tensorflow.core import convert_to_tensor
 from keras.utils import tree
 
@@ -35,7 +36,7 @@ def add(x1, x2):
     return tf.add(x1, x2)
 
 
-def bincount(x, weights=None, minlength=0):
+def bincount(x, weights=None, minlength=0, sparse=False):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype]
     if standardize_dtype(x.dtype) not in ["int32", "int64"]:
@@ -56,19 +57,24 @@ def bincount(x, weights=None, minlength=0):
                 weights = tf.cast(weights, tf.float32)
     else:
         dtype = "int32"
-    if isinstance(x, tf.SparseTensor):
+    if sparse or isinstance(x, tf.SparseTensor):
         output = tf.sparse.bincount(
             x,
             weights=weights,
             minlength=minlength,
             axis=-1,
         )
-        output = tf.cast(output, dtype)
+        actual_length = output.shape[-1]
+        if actual_length is None:
+            actual_length = tf.shape(output)[-1]
+        output = cast(output, dtype)
         if x.shape.rank == 1:
-            output_shape = (minlength,)
+            output_shape = (actual_length,)
         else:
-            batch_size = tf.shape(output)[0]
-            output_shape = (batch_size, minlength)
+            batch_size = output.shape[0]
+            if batch_size is None:
+                batch_size = tf.shape(output)[0]
+            output_shape = (batch_size, actual_length)
         return tf.SparseTensor(
             indices=output.indices,
             values=output.values,
@@ -946,11 +952,11 @@ def digitize(x, bins):
     # int16, uint8, uint16, uint32
     ori_dtype = standardize_dtype(x.dtype)
     if ori_dtype in ("bool", "int8", "int16", "uint8", "uint16"):
-        x = tf.cast(x, "int32")
+        x = cast(x, "int32")
     elif ori_dtype == "uint32":
-        x = tf.cast(x, "int64")
+        x = cast(x, "int64")
     elif ori_dtype in ("bfloat16", "float16"):
-        x = tf.cast(x, "float32")
+        x = cast(x, "float32")
 
     if isinstance(x, tf.RaggedTensor):
         return tf.ragged.map_flat_values(
@@ -2032,7 +2038,11 @@ def sum(x, axis=None, keepdims=False):
         dtype = "int32"
     elif dtype in ("uint8", "uint16"):
         dtype = "uint32"
-    x = tf.cast(x, dtype)
+    x = cast(x, dtype)
+    if isinstance(x, tf.SparseTensor):
+        return tf.sparse.reduce_sum(
+            x, axis=axis, keepdims=keepdims, output_is_sparse=True
+        )
     return tf.reduce_sum(x, axis=axis, keepdims=keepdims)
 
 

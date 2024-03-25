@@ -1,22 +1,32 @@
 import numpy as np
+from absl.testing import parameterized
 from tensorflow import data as tf_data
 
+from keras import backend
 from keras import layers
 from keras import testing
 
+TEST_CASES = [{"testcase_name": "dense", "sparse": False}]
+if backend.SUPPORTS_SPARSE_TENSORS:
+    TEST_CASES += [{"testcase_name": "sparse", "sparse": True}]
 
-class CategoryEncodingTest(testing.TestCase):
-    def test_count_output(self):
+
+class CategoryEncodingTest(testing.TestCase, parameterized.TestCase):
+    @parameterized.named_parameters(TEST_CASES)
+    def test_count_output(self, sparse):
         input_array = np.array([1, 2, 3, 1])
         expected_output = np.array([0, 2, 1, 1, 0, 0])
 
         num_tokens = 6
         expected_output_shape = (num_tokens,)
 
-        layer = layers.CategoryEncoding(num_tokens=6, output_mode="count")
+        layer = layers.CategoryEncoding(
+            num_tokens=num_tokens, output_mode="count", sparse=sparse
+        )
         int_data = layer(input_array)
         self.assertEqual(expected_output_shape, int_data.shape)
         self.assertAllClose(int_data, expected_output)
+        self.assertSparse(int_data, sparse)
 
         # Test symbolic call.
         output = layer(
@@ -24,47 +34,60 @@ class CategoryEncodingTest(testing.TestCase):
         )
         self.assertEqual(expected_output_shape, output.shape)
         self.assertEqual("float32", output.dtype)
+        self.assertSparse(output, sparse)
 
-    def test_count_weighted_output(self):
+    @parameterized.named_parameters(TEST_CASES)
+    def test_count_weighted_output(self, sparse):
         input_array = np.array([[0, 1], [0, 0], [1, 2], [3, 1]])
         count_weights = np.array(
             [[0.1, 0.2], [0.1, 0.1], [0.2, 0.3], [0.4, 0.2]]
         )
         expected_output = np.array(
             [
-                [0.1, 0.2, 0.0, 0.0],
-                [0.2, 0.0, 0.0, 0.0],
-                [0.0, 0.2, 0.3, 0.0],
-                [0.0, 0.2, 0.0, 0.4],
+                [0.1, 0.2, 0.0, 0.0, 0.0, 0.0],
+                [0.2, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.2, 0.3, 0.0, 0.0, 0.0],
+                [0.0, 0.2, 0.0, 0.4, 0.0, 0.0],
             ]
         )
 
-        num_tokens = 4
-        expected_output_shape = (num_tokens, num_tokens)
+        num_tokens = 6
+        expected_output_shape = (input_array.shape[0], num_tokens)
 
-        layer = layers.CategoryEncoding(num_tokens=4, output_mode="count")
+        layer = layers.CategoryEncoding(
+            num_tokens=num_tokens, output_mode="count", sparse=sparse
+        )
         int_data = layer(input_array, count_weights=count_weights)
         self.assertEqual(expected_output_shape, int_data.shape)
         self.assertAllClose(int_data, expected_output)
+        self.assertSparse(int_data, sparse)
 
         # Test symbolic call.
         output = layer(
-            layers.Input(batch_shape=input_array.shape, dtype="int32")
+            layers.Input(batch_shape=input_array.shape, dtype="int32"),
+            count_weights=layers.Input(
+                batch_shape=input_array.shape, dtype="float32"
+            ),
         )
         self.assertEqual(expected_output_shape, output.shape)
         self.assertEqual("float32", output.dtype)
+        self.assertSparse(output, sparse)
 
-    def test_batched_count_output(self):
+    @parameterized.named_parameters(TEST_CASES)
+    def test_batched_count_output(self, sparse):
         input_array = np.array([[1, 2, 3, 1], [0, 3, 1, 0]])
         expected_output = np.array([[0, 2, 1, 1, 0, 0], [2, 1, 0, 1, 0, 0]])
 
         num_tokens = 6
         expected_output_shape = (2, num_tokens)
 
-        layer = layers.CategoryEncoding(num_tokens=6, output_mode="count")
+        layer = layers.CategoryEncoding(
+            num_tokens=num_tokens, output_mode="count", sparse=sparse
+        )
         int_data = layer(input_array)
         self.assertEqual(expected_output_shape, int_data.shape)
         self.assertAllClose(int_data, expected_output)
+        self.assertSparse(int_data, sparse)
 
         # Test symbolic call.
         output = layer(
@@ -72,8 +95,10 @@ class CategoryEncodingTest(testing.TestCase):
         )
         self.assertEqual(expected_output_shape, output.shape)
         self.assertEqual("float32", output.dtype)
+        self.assertSparse(output, sparse)
 
-    def test_multi_hot(self):
+    @parameterized.named_parameters(TEST_CASES)
+    def test_multi_hot(self, sparse):
         input_data = np.array([3, 2, 0, 1])
         expected_output = np.array([1, 1, 1, 1, 0, 0])
         num_tokens = 6
@@ -81,11 +106,12 @@ class CategoryEncodingTest(testing.TestCase):
 
         # Test call on layer directly.
         layer = layers.CategoryEncoding(
-            num_tokens=num_tokens, output_mode="multi_hot"
+            num_tokens=num_tokens, output_mode="multi_hot", sparse=sparse
         )
         output_data = layer(input_data)
         self.assertAllClose(expected_output, output_data)
         self.assertEqual(expected_output_shape, output_data.shape)
+        self.assertSparse(output_data, sparse)
 
         # Test symbolic call.
         output = layer(
@@ -93,20 +119,23 @@ class CategoryEncodingTest(testing.TestCase):
         )
         self.assertEqual(expected_output_shape, output.shape)
         self.assertEqual("float32", output.dtype)
+        self.assertSparse(output, sparse)
 
-    def test_batched_multi_hot(self):
+    @parameterized.named_parameters(TEST_CASES)
+    def test_batched_multi_hot(self, sparse):
         input_data = np.array([[3, 2, 0, 1], [3, 2, 0, 1]])
         expected_output = np.array([[1, 1, 1, 1, 0, 0], [1, 1, 1, 1, 0, 0]])
         num_tokens = 6
-        expected_output_shape = (2, num_tokens)
+        expected_output_shape = (input_data.shape[0], num_tokens)
 
         # Test call on layer directly.
         layer = layers.CategoryEncoding(
-            num_tokens=num_tokens, output_mode="multi_hot"
+            num_tokens=num_tokens, output_mode="multi_hot", sparse=sparse
         )
         output_data = layer(input_data)
         self.assertAllClose(expected_output, output_data)
         self.assertEqual(expected_output_shape, output_data.shape)
+        self.assertSparse(output_data, sparse)
 
         # Test symbolic call.
         output = layer(
@@ -114,27 +143,30 @@ class CategoryEncodingTest(testing.TestCase):
         )
         self.assertEqual(expected_output_shape, output.shape)
         self.assertEqual("float32", output.dtype)
+        self.assertSparse(output, sparse)
 
-    def test_one_hot(self):
+    @parameterized.named_parameters(TEST_CASES)
+    def test_one_hot(self, sparse):
         input_data = np.array([3, 2, 0, 1])
         expected_output = np.array(
             [
-                [0, 0, 0, 1],
-                [0, 0, 1, 0],
-                [1, 0, 0, 0],
-                [0, 1, 0, 0],
+                [0, 0, 0, 1, 0, 0],
+                [0, 0, 1, 0, 0, 0],
+                [1, 0, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0, 0],
             ]
         )
-        num_tokens = 4
-        expected_output_shape = (num_tokens, num_tokens)
+        num_tokens = 6
+        expected_output_shape = (input_data.shape[0], num_tokens)
 
         # Test call on layer directly.
         layer = layers.CategoryEncoding(
-            num_tokens=num_tokens, output_mode="one_hot"
+            num_tokens=num_tokens, output_mode="one_hot", sparse=sparse
         )
         output_data = layer(input_data)
         self.assertAllClose(expected_output, output_data)
         self.assertEqual(expected_output_shape, output_data.shape)
+        self.assertSparse(output_data, sparse)
 
         # Test symbolic call.
         output = layer(
@@ -142,35 +174,38 @@ class CategoryEncodingTest(testing.TestCase):
         )
         self.assertEqual(expected_output_shape, output.shape)
         self.assertEqual("float32", output.dtype)
+        self.assertSparse(output, sparse)
 
-    def test_batched_one_hot(self):
+    @parameterized.named_parameters(TEST_CASES)
+    def test_batched_one_hot(self, sparse):
         input_data = np.array([[3, 2, 0, 1], [3, 2, 0, 1]])
         expected_output = np.array(
             [
                 [
-                    [0, 0, 0, 1],
-                    [0, 0, 1, 0],
-                    [1, 0, 0, 0],
-                    [0, 1, 0, 0],
+                    [0, 0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0, 0],
+                    [1, 0, 0, 0, 0, 0],
+                    [0, 1, 0, 0, 0, 0],
                 ],
                 [
-                    [0, 0, 0, 1],
-                    [0, 0, 1, 0],
-                    [1, 0, 0, 0],
-                    [0, 1, 0, 0],
+                    [0, 0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0, 0],
+                    [1, 0, 0, 0, 0, 0],
+                    [0, 1, 0, 0, 0, 0],
                 ],
             ]
         )
-        num_tokens = 4
-        expected_output_shape = (2, num_tokens, num_tokens)
+        num_tokens = 6
+        expected_output_shape = input_data.shape[0:2] + (num_tokens,)
 
         # Test call on layer directly.
         layer = layers.CategoryEncoding(
-            num_tokens=num_tokens, output_mode="one_hot"
+            num_tokens=num_tokens, output_mode="one_hot", sparse=sparse
         )
         output_data = layer(input_data)
         self.assertAllClose(expected_output, output_data)
         self.assertEqual(expected_output_shape, output_data.shape)
+        self.assertSparse(output_data, sparse)
 
         # Test symbolic call.
         output = layer(
@@ -178,6 +213,7 @@ class CategoryEncodingTest(testing.TestCase):
         )
         self.assertEqual(expected_output_shape, output.shape)
         self.assertEqual("float32", output.dtype)
+        self.assertSparse(output, sparse)
 
     def test_tf_data_compatibility(self):
         layer = layers.CategoryEncoding(

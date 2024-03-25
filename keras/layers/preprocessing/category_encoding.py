@@ -1,4 +1,5 @@
 from keras.api_export import keras_export
+from keras.backend import KerasTensor
 from keras.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras.utils import backend_utils
 
@@ -73,6 +74,8 @@ class CategoryEncoding(TFDataLayer):
             For all output modes, currently only output up to rank 2 is
             supported.
             Defaults to `"multi_hot"`.
+        sparse: Whether to return a sparse tensor; for backends that support
+            sparse tensors.
 
     Call arguments:
         inputs: A 1D or 2D tensor of integer inputs.
@@ -81,7 +84,9 @@ class CategoryEncoding(TFDataLayer):
             Not used in `"multi_hot"` or `"one_hot"` modes.
     """
 
-    def __init__(self, num_tokens=None, output_mode="multi_hot", **kwargs):
+    def __init__(
+        self, num_tokens=None, output_mode="multi_hot", sparse=False, **kwargs
+    ):
         super().__init__(**kwargs)
 
         # Support deprecated names for output_modes.
@@ -104,14 +109,26 @@ class CategoryEncoding(TFDataLayer):
             )
         self.num_tokens = num_tokens
         self.output_mode = output_mode
+        self.sparse = sparse
         self._allow_non_tensor_positional_args = True
         self._convert_input_args = False
 
     def _count(self, inputs, axis=-1, count_weights=None):
+        # We don't use `ops.bincount` here because its output has a dynamic
+        # shape (the last dimension is calculated from the highest value of
+        # `inputs`). Instead, we reimplement a narrower use case where
+        # `minlength` and `maxlength` (not supported by `ops.bincount`) are a
+        # static value and the same value of `self.num_tokens`. Also, we don't
+        # need to support indices that are negative or greater than
+        # `self.num_tokens`.
         reduction_axis = 1 if len(inputs.shape) > 1 else 0
 
         one_hot_encoding = self.backend.nn.one_hot(
-            inputs, self.num_tokens, axis=axis, dtype=self.dtype
+            inputs,
+            self.num_tokens,
+            axis=axis,
+            dtype=self.dtype,
+            sparse=self.sparse,
         )
         if count_weights is not None:
             split_weights = self.backend.numpy.split(
@@ -132,17 +149,15 @@ class CategoryEncoding(TFDataLayer):
 
     def _encode(self, inputs, count_weights=None):
         if self.output_mode == "multi_hot":
-            outputs = self.backend.nn.multi_hot(
-                inputs, self.num_tokens, dtype=self.dtype
+            return self.backend.nn.multi_hot(
+                inputs, self.num_tokens, dtype=self.dtype, sparse=self.sparse
             )
         elif self.output_mode == "one_hot":
-            outputs = self.backend.nn.one_hot(
-                inputs, self.num_tokens, dtype=self.dtype
+            return self.backend.nn.one_hot(
+                inputs, self.num_tokens, dtype=self.dtype, sparse=self.sparse
             )
         elif self.output_mode == "count":
-            outputs = self._count(inputs, count_weights=count_weights)
-
-        return outputs
+            return self._count(inputs, count_weights=count_weights)
 
     def compute_output_shape(self, input_shape):
         if self.output_mode == "one_hot":
@@ -151,6 +166,12 @@ class CategoryEncoding(TFDataLayer):
             else:
                 return tuple(input_shape[:-1] + (self.num_tokens,))
         return tuple(input_shape[:-1] + (self.num_tokens,))
+
+    def compute_output_spec(self, inputs, count_weights=None):
+        output_shape = self.compute_output_shape(inputs.shape)
+        return KerasTensor(
+            output_shape, dtype=self.compute_dtype, sparse=self.sparse
+        )
 
     def get_config(self):
         config = {

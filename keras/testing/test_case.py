@@ -75,6 +75,29 @@ class TestCase(unittest.TestCase):
     def assertLen(self, iterable, expected_len, msg=None):
         self.assertEqual(len(iterable), expected_len, msg=msg)
 
+    def assertSparse(self, x, sparse=True):
+        if isinstance(x, KerasTensor):
+            self.assertEqual(x.sparse, sparse)
+        elif backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            if sparse:
+                self.assertIsInstance(x, tf.SparseTensor)
+            else:
+                self.assertNotIsInstance(x, tf.SparseTensor)
+        elif backend.backend() == "jax":
+            import jax.experimental.sparse as jax_sparse
+
+            if sparse:
+                self.assertIsInstance(x, jax_sparse.JAXSparse)
+            else:
+                self.assertNotIsInstance(x, jax_sparse.JAXSparse)
+        else:
+            self.assertFalse(
+                sparse,
+                f"Backend {backend.backend()} does not support sparse tensors",
+            )
+
     def run_class_serialization_test(self, instance, custom_objects=None):
         from keras.saving import custom_object_scope
         from keras.saving import deserialize_keras_object
@@ -381,21 +404,7 @@ class TestCase(unittest.TestCase):
                     )
             if expected_output_sparse:
                 for x in tree.flatten(output):
-                    if isinstance(x, KerasTensor):
-                        self.assertTrue(x.sparse)
-                    elif backend.backend() == "tensorflow":
-                        import tensorflow as tf
-
-                        self.assertIsInstance(x, tf.SparseTensor)
-                    elif backend.backend() == "jax":
-                        import jax.experimental.sparse as jax_sparse
-
-                        self.assertIsInstance(x, jax_sparse.JAXSparse)
-                    else:
-                        self.fail(
-                            "Sparse is unsupported with "
-                            f"backend {backend.backend()}"
-                        )
+                    self.assertSparse(x)
             if eager:
                 if expected_output is not None:
                     self.assertEqual(type(expected_output), type(output))

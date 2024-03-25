@@ -120,7 +120,6 @@ class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
         )
         self.assertEqual(v.dtype, "float32")
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
-        print("open scope")
         with AutocastScope("float16"):
             self.assertEqual(
                 backend.standardize_dtype(v.value.dtype), "float16"

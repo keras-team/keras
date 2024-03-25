@@ -1255,15 +1255,20 @@ def conv_transpose(
 
 
 class OneHot(Operation):
-    def __init__(self, num_classes, axis=-1, dtype=None):
+    def __init__(self, num_classes, axis=-1, dtype=None, sparse=False):
         super().__init__()
         self.num_classes = num_classes
         self.axis = axis
         self.dtype = dtype or backend.floatx()
+        self.sparse = sparse
 
     def call(self, x):
         return backend.nn.one_hot(
-            x, self.num_classes, axis=self.axis, dtype=self.dtype
+            x,
+            self.num_classes,
+            axis=self.axis,
+            dtype=self.dtype,
+            sparse=self.sparse,
         )
 
     def compute_output_spec(self, x):
@@ -1277,11 +1282,11 @@ class OneHot(Operation):
                 f"axis must be -1 or between [0, {len(x.shape)}), but "
                 f"received {self.axis}."
             )
-        return KerasTensor(x_shape, dtype=self.dtype)
+        return KerasTensor(x_shape, dtype=self.dtype, sparse=self.sparse)
 
 
 @keras_export(["keras.ops.one_hot", "keras.ops.nn.one_hot"])
-def one_hot(x, num_classes, axis=-1, dtype=None):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     """Converts integer tensor `x` into a one-hot tensor.
 
     The one-hot encoding is a representation where each integer value is
@@ -1297,6 +1302,8 @@ def one_hot(x, num_classes, axis=-1, dtype=None):
             `-1`, which represents the last axis.
         dtype: (Optional) Data type of the output tensor. If not
             provided, it defaults to the default data type of the backend.
+        sparse: Whether to return a sparse tensor; for backends that support
+            sparse tensors.
 
     Returns:
         Integer tensor: One-hot encoded tensor with the same shape as `x`
@@ -1314,9 +1321,15 @@ def one_hot(x, num_classes, axis=-1, dtype=None):
            [1. 0. 0. 0.]], shape=(4, 4), dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return OneHot(num_classes, axis=axis, dtype=dtype).symbolic_call(x)
+        return OneHot(
+            num_classes, axis=axis, dtype=dtype, sparse=sparse
+        ).symbolic_call(x)
     return backend.nn.one_hot(
-        x, num_classes, axis=axis, dtype=dtype or backend.floatx()
+        x,
+        num_classes,
+        axis=axis,
+        dtype=dtype or backend.floatx(),
+        sparse=sparse,
     )
 
 
@@ -1558,16 +1571,17 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
 class MultiHot(Operation):
     def __init__(
-        self, num_classes=None, axis=-1, dtype=None, name=None, **kwargs
+        self, num_classes=None, axis=-1, dtype=None, sparse=False, **kwargs
     ):
         if num_classes is None and "num_tokens" in kwargs:
             num_classes = kwargs.pop("num_tokens")
         if num_classes is None:
             raise ValueError("Argument `num_classes` must be specified.")
-        super().__init__(name, **kwargs)
+        super().__init__(**kwargs)
         self.num_classes = num_classes
         self.axis = axis
         self.dtype = dtype or backend.floatx()
+        self.sparse = sparse
 
     def call(self, inputs):
         return backend.nn.multi_hot(
@@ -1594,7 +1608,7 @@ class MultiHot(Operation):
         else:
             x_shape = [x_shape[0]] + x_shape[2:]
 
-        return KerasTensor(x_shape, dtype=inputs.dtype)
+        return KerasTensor(x_shape, dtype=inputs.dtype, sparse=self.sparse)
 
 
 @keras_export(
@@ -1603,7 +1617,9 @@ class MultiHot(Operation):
         "keras.ops.nn.multi_hot",
     ]
 )
-def multi_hot(inputs, num_classes=None, axis=-1, dtype=None, **kwargs):
+def multi_hot(
+    inputs, num_classes=None, axis=-1, dtype=None, sparse=False, **kwargs
+):
     """Encodes integer labels as multi-hot vectors.
 
     This function encodes integer labels as multi-hot vectors, where each label
@@ -1616,6 +1632,8 @@ def multi_hot(inputs, num_classes=None, axis=-1, dtype=None, **kwargs):
             added. Defaults to `-1`, which corresponds to the last dimension.
         dtype: (optional) The data type of the resulting tensor. Default
             is backend's float type.
+        sparse: Whether to return a sparse tensor; for backends that support
+            sparse tensors.
 
     Returns:
         Tensor: The multi-hot encoded tensor.
@@ -1633,14 +1651,14 @@ def multi_hot(inputs, num_classes=None, axis=-1, dtype=None, **kwargs):
         raise ValueError("Argument `num_classes` must be specified.")
 
     if any_symbolic_tensors((inputs,)):
-        return MultiHot(num_classes, axis, dtype).symbolic_call(inputs)
+        return MultiHot(num_classes, axis, dtype, sparse).symbolic_call(inputs)
 
-    return backend.nn.multi_hot(inputs, num_classes, axis, dtype)
+    return backend.nn.multi_hot(inputs, num_classes, axis, dtype, sparse)
 
 
 class Moments(Operation):
-    def __init__(self, axes, keepdims=False, synchronized=False, name=None):
-        super().__init__(name)
+    def __init__(self, axes, keepdims=False, synchronized=False):
+        super().__init__()
         self.axes = axes
         self.keepdims = keepdims
         self.synchronized = synchronized
@@ -1709,8 +1727,8 @@ def moments(x, axes, keepdims=False, synchronized=False):
 
 
 class BatchNorm(Operation):
-    def __init__(self, axis, epsilon, name=None):
-        super().__init__(name)
+    def __init__(self, axis, epsilon):
+        super().__init__()
         self.axis = axis
         self.epsilon = epsilon
 
