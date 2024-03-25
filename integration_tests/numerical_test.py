@@ -7,6 +7,8 @@ keras.backend.set_image_data_format("channels_last")
 tf_keras.backend.set_image_data_format("channels_last")
 
 NUM_CLASSES = 10
+BATCH_SIZE = 32
+EPOCHS = 1
 
 
 def build_mnist_data(num_classes):
@@ -23,11 +25,7 @@ def build_mnist_data(num_classes):
     y_train = keras.utils.to_categorical(y_train, num_classes)
     y_test = keras.utils.to_categorical(y_test, num_classes)
 
-    print("x_train shape:", x_train.shape)
-    print(x_train.shape[0], "train samples")
-    print(x_test.shape[0], "test samples")
-
-    return x_train, y_train, x_test, y_test
+    return x_train[:100], y_train[:100]
 
 
 def build_keras_model(keras_module, num_classes):
@@ -44,45 +42,60 @@ def build_keras_model(keras_module, num_classes):
             keras_module.layers.Conv2D(
                 64, kernel_size=(3, 3), activation="relu"
             ),
-            # TODO: Renable the following line.
-            # keras_module.layers.BatchNormalization(scale=False, center=True),
+            keras_module.layers.BatchNormalization(scale=False, center=True),
             keras_module.layers.MaxPooling2D(pool_size=(2, 2)),
             keras_module.layers.Flatten(),
             keras_module.layers.Dense(num_classes, activation="softmax"),
         ]
     )
-
-    model.summary()
     return model
 
 
-def train_model(model, x, y):
-    batch_size = 256
-    epochs = 1
-
+def compile_model(model):
     model.compile(
-        loss="mse", optimizer="adam", metrics=["accuracy"], jit_compile=False
+        loss="categorical_crossentropy",
+        optimizer="adam",
+        metrics=["mae", "accuracy"],
+        jit_compile=False,
+        run_eagerly=True,
     )
 
+
+def train_model(model, x, y):
     return model.fit(
         x,
         y,
-        batch_size=batch_size,
-        epochs=epochs,
-        validation_split=0.1,
+        batch_size=BATCH_SIZE,
+        epochs=EPOCHS,
         shuffle=False,
+        verbose=0,
     )
 
 
 def eval_model(model, x, y):
-    score = model.evaluate(x, y, verbose=0)
-    print("Test loss:", score[0])
-    print("Test accuracy:", score[1])
+    score = model.evaluate(x, y, verbose=0, batch_size=BATCH_SIZE)
+    print(score)
     return score
 
 
+def check_history(h1, h2):
+    for key in h1.history.keys():
+        print(f"{key}:")
+        print(h1.history[key])
+        print(h2.history[key])
+        np.testing.assert_allclose(
+            h1.history[key],
+            h2.history[key],
+            atol=1e-3,
+        )
+
+
+def predict_model(model, x):
+    return model.predict(x, batch_size=BATCH_SIZE, verbose=0)
+
+
 def numerical_test():
-    x_train, y_train, x_test, y_test = build_mnist_data(NUM_CLASSES)
+    x_train, y_train = build_mnist_data(NUM_CLASSES)
     keras_model = build_keras_model(keras, NUM_CLASSES)
     tf_keras_model = build_keras_model(tf_keras, NUM_CLASSES)
 
@@ -93,15 +106,34 @@ def numerical_test():
     for kw, kcw in zip(keras_model.weights, tf_keras_model.weights):
         np.testing.assert_allclose(kw.numpy(), kcw.numpy())
 
+    compile_model(keras_model)
+    compile_model(tf_keras_model)
+
+    print("Checking training histories:")
     keras_history = train_model(keras_model, x_train, y_train)
     tf_keras_history = train_model(tf_keras_model, x_train, y_train)
+    check_history(keras_history, tf_keras_history)
+    print("Training histories match.")
+    print()
 
-    for key in keras_history.history.keys():
-        np.testing.assert_allclose(
-            keras_history.history[key],
-            tf_keras_history.history[key],
-            atol=1e-3,
-        )
+    print("Checking trained weights:")
+    for kw, kcw in zip(keras_model.weights, tf_keras_model.weights):
+        np.testing.assert_allclose(kw.numpy(), kcw.numpy(), atol=1e-3)
+    print("Trained weights match.")
+    print()
+
+    print("Checking predict:")
+    outputs1 = predict_model(keras_model, x_train)
+    outputs2 = predict_model(tf_keras_model, x_train)
+    np.testing.assert_allclose(outputs1, outputs2, atol=1e-3)
+    print("Predict results match.")
+    print()
+
+    print("Checking evaluate:")
+    score1 = eval_model(keras_model, x_train, y_train)
+    score2 = eval_model(tf_keras_model, x_train, y_train)
+    np.testing.assert_allclose(score1, score2, atol=1e-3)
+    print("Evaluate results match.")
 
 
 if __name__ == "__main__":

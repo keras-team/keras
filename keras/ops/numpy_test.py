@@ -2173,9 +2173,23 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
 
+        subscripts = "ab,b->a"
+        x = np.arange(6).reshape([2, 3]).astype("float32")
+        y = np.arange(3).reshape([3]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
         subscripts = "ab,bc->ac"
         x = np.arange(6).reshape([2, 3]).astype("float32")
         y = np.arange(12).reshape([3, 4]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "ab,cb->ac"
+        x = np.arange(6).reshape([2, 3]).astype("float32")
+        y = np.arange(12).reshape([4, 3]).astype("float32")
         self.assertAllClose(
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
@@ -2194,6 +2208,13 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
 
+        subscripts = "abc,dc->abd"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(20).reshape([5, 4]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
         subscripts = "abc,dce->abde"
         x = np.arange(24).reshape([2, 3, 4]).astype("float32")
         y = np.arange(120).reshape([5, 4, 6]).astype("float32")
@@ -2201,9 +2222,30 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
 
+        subscripts = "abc,dec->abde"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(120).reshape([5, 6, 4]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,abde->abce"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(180).reshape([2, 3, 5, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
         subscripts = "abcd,abed->abce"
         x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
         y = np.arange(180).reshape([2, 3, 6, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,acbe->adbe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(144).reshape([2, 4, 3, 6]).astype("float32")
         self.assertAllClose(
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
@@ -2232,6 +2274,20 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         subscripts = "abcd,cde->abe"
         x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
         y = np.arange(120).reshape([4, 5, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,ced->abe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(120).reshape([4, 6, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,ecd->abe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(120).reshape([6, 4, 5]).astype("float32")
         self.assertAllClose(
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
@@ -5668,15 +5724,23 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         dtype1, dtype2 = dtypes
         for subscripts in [
             "a,b->ab",
+            "ab,b->a",
             "ab,bc->ac",
+            "ab,cb->ac",
             "abc,cd->abd",
             "abc,cde->abde",
+            "abc,dc->abd",
             "abc,dce->abde",
+            "abc,dec->abde",
+            "abcd,abde->abce",
             "abcd,abed->abce",
+            "abcd,acbe->adbe",
             "abcd,adbe->acbe",
             "abcd,aecd->acbe",
             "abcd,aecd->aceb",
             "abcd,cde->abe",
+            "abcd,ced->abe",
+            "abcd,ecd->abe",
             "abcde,aebf->adbcf",
             "abcde,afce->acdbf",
         ]:

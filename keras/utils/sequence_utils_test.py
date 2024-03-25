@@ -22,6 +22,33 @@ class PadSequencesTest(testing.TestCase):
         b = sequence_utils.pad_sequences(a, maxlen=3, value=1)
         self.assertAllClose(b, [[1, 1, 1], [1, 1, 2], [1, 2, 3]])
 
+    def test_pad_sequences_float(self):
+        a = [[1.2], [1.2, 2.3], [1.2, 2.3, 3.4]]
+
+        # test padding
+        b = sequence_utils.pad_sequences(
+            a, maxlen=3, padding="pre", dtype="float32"
+        )
+        self.assertAllClose(b, [[0, 0, 1.2], [0, 1.2, 2.3], [1.2, 2.3, 3.4]])
+        b = sequence_utils.pad_sequences(
+            a, maxlen=3, padding="post", dtype="float32"
+        )
+        self.assertAllClose(b, [[1.2, 0, 0], [1.2, 2.3, 0], [1.2, 2.3, 3.4]])
+
+        # test truncating
+        b = sequence_utils.pad_sequences(
+            a, maxlen=2, truncating="pre", dtype="float32"
+        )
+        self.assertAllClose(b, [[0, 1.2], [1.2, 2.3], [2.3, 3.4]])
+        b = sequence_utils.pad_sequences(
+            a, maxlen=2, truncating="post", dtype="float32"
+        )
+        self.assertAllClose(b, [[0, 1.2], [1.2, 2.3], [1.2, 2.3]])
+
+        # test value
+        b = sequence_utils.pad_sequences(a, maxlen=3, value=1, dtype="float32")
+        self.assertAllClose(b, [[1, 1, 1.2], [1, 1.2, 2.3], [1.2, 2.3, 3.4]])
+
     def test_pad_sequences_str(self):
         a = [["1"], ["1", "2"], ["1", "2", "3"]]
 
