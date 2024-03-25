@@ -729,3 +729,7 @@ def ctc_decode(
             merge_repeated=merge_repeated,
             mask_index=mask_index,
         )
+    else:
+        raise ValueError(
+            f"Invalid strategy {strategy}. Supported values: 'greedy'"
+        )

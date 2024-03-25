@@ -883,5 +883,6 @@ def ctc_decode(
         )
     else:
         raise ValueError(
-            "Invalid strategy. Supported values are 'greedy' and 'beam_search'."
+            f"Invalid strategy {strategy}. Supported values are "
+            "'greedy' and 'beam_search'."
         )

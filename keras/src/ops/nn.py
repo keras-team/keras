@@ -1918,8 +1918,8 @@ def ctc_decode(
 
     if any_symbolic_tensors((inputs, sequence_lengths)):
         raise NotImplementedError(
-            "CTC decoding is not supported in graph mode. "
-            "Please use eager mode for decoding."
+            "CTC decoding is not supported with KerasTensors. Use it inside "
+            "the call() method of a Layer or the predict_step method of a model."
         )
 
     return backend.nn.ctc_decode(
