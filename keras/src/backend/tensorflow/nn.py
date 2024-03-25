@@ -868,14 +868,14 @@ def ctc_decode(
 
     sequence_length = tf.convert_to_tensor(sequence_length)
     if strategy == "greedy":
-        decoded, probs = tf.nn.ctc_greedy_decoder(
+        return tf.nn.ctc_greedy_decoder(
             inputs=inputs,
             sequence_length=sequence_length,
             merge_repeated=merge_repeated,
             blank_index=mask_index,
         )
     elif strategy == "beam_search":
-        decoded, probs = tf.nn.ctc_beam_search_decoder(
+        return tf.nn.ctc_beam_search_decoder(
             inputs=inputs,
             sequence_length=sequence_length,
             beam_width=beam_width,
@@ -885,5 +885,3 @@ def ctc_decode(
         raise ValueError(
             "Invalid strategy. Supported values are 'greedy' and 'beam_search'."
         )
-
-    return decoded, probs
