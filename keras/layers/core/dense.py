@@ -344,9 +344,11 @@ class Dense(Layer):
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
             self._tracker.unlock()
             self._untrack_variable(self._kernel)
+            kernel_shape = self._kernel.shape
+            del self._kernel
             self._kernel = self.add_weight(
                 name="kernel",
-                shape=self._kernel.shape,
+                shape=kernel_shape,
                 # Prevent adding a large constant to the computation graph
                 initializer=lambda shape, dtype: kernel_value,
                 dtype="int8",
