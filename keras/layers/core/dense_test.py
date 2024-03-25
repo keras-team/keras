@@ -11,6 +11,7 @@ from keras import ops
 from keras import saving
 from keras import testing
 from keras.backend.common import keras_tensor
+from keras.export import export_lib
 
 
 class DenseTest(testing.TestCase):
@@ -305,6 +306,10 @@ class DenseTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason=f"{backend.backend()} does not support ops.custom_gradient.",
+    )
     def test_quantize_int8(self):
         layer = layers.Dense(units=16)
         layer.build((None, 8))
@@ -362,8 +367,8 @@ class DenseTest(testing.TestCase):
             },
             input_shape=(2, 3, 4),
             expected_output_shape=(2, 3, 5),
-            expected_num_trainable_weights=0,
-            expected_num_non_trainable_weights=3,
+            expected_num_trainable_weights=1,
+            expected_num_non_trainable_weights=2,
             expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=True,
@@ -384,3 +389,82 @@ class DenseTest(testing.TestCase):
             ValueError, "`quantize` can only be done once per layer."
         ):
             layer.quantize("int8")
+
+    @pytest.mark.requires_trainable_backend
+    def test_quantize_when_lora_enabled(self):
+        # Note that saving and loading with lora_enabled and quantized are
+        # lossy, so we use a weak correctness test for model outputs (atol=0.5).
+        config = dict(units=16)
+        layer = layers.Dense(**config)
+        layer.build((None, 8))
+        layer.enable_lora(4)
+        layer.quantize("int8")
+        self.assertLen(layer.trainable_weights, 3)
+        self.assertLen(layer.non_trainable_weights, 2)
+
+        # Try calling fit()
+        init_lora_a_kernel_value = layer.lora_kernel_a.numpy()
+        init_lora_b_kernel_value = layer.lora_kernel_b.numpy()
+        x = np.random.random((64, 8))
+        y = np.random.random((64, 16))
+        model = models.Sequential([layer])
+        model.compile(optimizer="sgd", loss="mse")
+        model.fit(x, y, epochs=2)
+
+        final_lora_a_kernel_value = layer.lora_kernel_a.numpy()
+        final_lora_b_kernel_value = layer.lora_kernel_b.numpy()
+        diff_a = np.max(
+            np.abs(init_lora_a_kernel_value - final_lora_a_kernel_value)
+        )
+        diff_b = np.max(
+            np.abs(init_lora_b_kernel_value - final_lora_b_kernel_value)
+        )
+        self.assertGreater(diff_a, 0.0)
+        self.assertGreater(diff_b, 0.0)
+
+        # Try saving and reloading the model
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_lora_model.keras"
+        )
+        model.save(temp_filepath)
+        new_model = saving.load_model(temp_filepath)
+        self.assertTrue(new_model.layers[0].lora_enabled)
+        self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
+
+        # Try saving and reloading the model's weights only
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_lora_model.weights.h5"
+        )
+        model.save_weights(temp_filepath)
+        new_model = models.Sequential([layers.Dense(**config)])
+        new_model.build((None, 8))
+        new_model.quantize("int8")
+        new_model.load_weights(temp_filepath)
+        self.assertFalse(new_model.layers[0].lora_enabled)
+        self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
+
+        # Try loading a normal checkpoint into a lora model
+        new_model.save_weights(temp_filepath)
+        model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
+
+        # Test export and TFSMLayer reloading when using tensorflow backend
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+            ref_input = tf.random.normal((32, 8))
+            ref_output = model(ref_input)
+            export_lib.export_model(model, temp_filepath)
+            reloaded_layer = export_lib.TFSMLayer(temp_filepath)
+            self.assertAllClose(
+                reloaded_layer(ref_input), ref_output, atol=1e-7
+            )
+            self.assertLen(reloaded_layer.weights, len(model.weights))
+            self.assertLen(
+                reloaded_layer.trainable_weights, len(model.trainable_weights)
+            )
+            self.assertLen(
+                reloaded_layer.non_trainable_weights,
+                len(model.non_trainable_weights),
+            )
