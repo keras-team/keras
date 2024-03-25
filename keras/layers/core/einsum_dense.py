@@ -445,6 +445,12 @@ class EinsumDense(Layer):
     def quantize(self, mode):
         import gc
 
+        # Prevent quantization of the subclasses
+        if type(self) is not EinsumDense:
+            raise NotImplementedError(
+                f"Layer {self.__class__.__name__} does not have a `quantize()` "
+                "method implemented."
+            )
         self._check_quantize_args(mode, self.compute_dtype)
         if mode == "int8":
             if backend.standardize_dtype(self._kernel.dtype) == "int8":

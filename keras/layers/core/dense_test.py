@@ -381,6 +381,15 @@ class DenseTest(testing.TestCase):
         ):
             layer.quantize("int8")
 
+    def test_quantize_on_subclass(self):
+        class MyDense(layers.Dense):
+            pass
+
+        layer = MyDense(units=16)
+        layer.build((None, 8))
+        with self.assertRaises(NotImplementedError):
+            layer.quantize("int8")
+
     def test_quantize_when_already_quantized(self):
         layer = layers.Dense(units=2)
         layer.build((None, 2))

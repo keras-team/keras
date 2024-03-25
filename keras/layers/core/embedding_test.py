@@ -291,6 +291,14 @@ class EmbeddingTest(test_case.TestCase):
         ):
             layer.quantize("int8")
 
+    def test_quantize_on_subclass(self):
+        class MyEmbedding(layers.Embedding):
+            pass
+
+        layer = MyEmbedding(10, 16)
+        with self.assertRaises(NotImplementedError):
+            layer.quantize("int8")
+
     def test_quantize_when_already_quantized(self):
         layer = layers.Embedding(10, 16)
         layer.build()
