@@ -310,34 +310,29 @@ class EmbeddingTest(test_case.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_when_lora_enabled(self):
-        config = dict(
-            equation="ab,bcd->acd",
-            output_shape=(8, 32),
-            bias_axes=None,
-        )
-        layer = layers.EinsumDense(**config)
-        layer.build((None, 3))
-        layer.enable_lora(2)
+        layer = layers.Embedding(10, 16)
+        layer.build()
+        layer.enable_lora(4)
         layer.quantize("int8")
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, 2)
 
         # Try calling fit()
-        init_lora_a_kernel_value = layer.lora_kernel_a.numpy()
-        init_lora_b_kernel_value = layer.lora_kernel_b.numpy()
-        x = np.random.random((64, 3))
-        y = np.random.random((64, 8, 32))
+        init_lora_a_embeddings_value = layer.lora_embeddings_a.numpy()
+        init_lora_b_embeddings_value = layer.lora_embeddings_b.numpy()
+        x = np.random.randint(0, 9, size=(64, 3))
+        y = np.random.random((64, 3, 16))
         model = models.Sequential([layer])
         model.compile(optimizer="sgd", loss="mse")
-        model.fit(x, y, epochs=2)
+        model.fit(x, y)
 
-        final_lora_a_kernel_value = layer.lora_kernel_a.numpy()
-        final_lora_b_kernel_value = layer.lora_kernel_b.numpy()
+        final_lora_a_embeddings_value = layer.lora_embeddings_a.numpy()
+        final_lora_b_embeddings_value = layer.lora_embeddings_b.numpy()
         diff_a = np.max(
-            np.abs(init_lora_a_kernel_value - final_lora_a_kernel_value)
+            np.abs(init_lora_a_embeddings_value - final_lora_a_embeddings_value)
         )
         diff_b = np.max(
-            np.abs(init_lora_b_kernel_value - final_lora_b_kernel_value)
+            np.abs(init_lora_b_embeddings_value - final_lora_b_embeddings_value)
         )
         self.assertGreater(diff_a, 0.0)
         self.assertGreater(diff_b, 0.0)
@@ -356,8 +351,9 @@ class EmbeddingTest(test_case.TestCase):
             self.get_temp_dir(), "quantized_lora_model.weights.h5"
         )
         model.save_weights(temp_filepath)
-        new_model = models.Sequential([layers.EinsumDense(**config)])
-        new_model.build((None, 3))
+        new_model = models.Sequential(
+            [layers.Input((3,), dtype="int32"), layers.Embedding(10, 16)]
+        )
         new_model.quantize("int8")
         new_model.load_weights(temp_filepath)
         self.assertFalse(new_model.layers[0].lora_enabled)
