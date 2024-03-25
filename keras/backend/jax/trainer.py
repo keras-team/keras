@@ -104,8 +104,8 @@ class JAXTrainer(base_trainer.Trainer):
                 for ref_v, v in zip(self.metrics_variables, metrics_variables)
             ]
         ) as scope:
-            self._update_loss_tracker(
-                unscaled_loss, tree.flatten(x)[0].shape[0]
+            self._loss_tracker.update_state(
+                unscaled_loss, sample_weight=tree.flatten(x)[0].shape[0]
             )
             logs = self.compute_metrics(x, y, y_pred, sample_weight)
 
@@ -148,8 +148,8 @@ class JAXTrainer(base_trainer.Trainer):
                 for ref_v, v in zip(self.metrics_variables, metrics_variables)
             ]
         ) as scope:
-            self._update_loss_tracker(
-                unscaled_loss, tree.flatten(x)[0].shape[0]
+            self._loss_tracker.update_state(
+                unscaled_loss, sample_weight=tree.flatten(x)[0].shape[0]
             )
             logs = self.compute_metrics(x, y, y_pred, sample_weight)
 
