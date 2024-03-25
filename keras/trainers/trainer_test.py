@@ -587,6 +587,26 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertEqual(step_count.test_count, 3)
 
     @pytest.mark.requires_trainable_backend
+    def test_fit_with_different_batch_size_same_loss(self):
+        x = np.random.rand(100, 4)
+        y = np.ones((100, 1))
+        model = ExampleModel(units=1)
+        model.trainable = False
+        model.compile(loss="mse")
+        loss1 = model.fit(x, y, batch_size=80).history["loss"]
+        loss2 = model.fit(x, y, batch_size=100).history["loss"]
+        self.assertAllClose(loss1, loss2)
+
+    def test_evaluate_with_different_batch_size_same_loss(self):
+        x = np.random.rand(100, 4)
+        y = np.ones((100, 1))
+        model = ExampleModel(units=1)
+        model.compile(loss="mse")
+        loss1 = model.evaluate(x, y, batch_size=80)
+        loss2 = model.evaluate(x, y, batch_size=100)
+        self.assertAllClose(loss1, loss2)
+
+    @pytest.mark.requires_trainable_backend
     def test_adds_loss_scaling_optimizer(self):
         model = TrainingTestingLayer(dtype="mixed_float16")
         model.compile(optimizer="rmsprop", loss="mse")
