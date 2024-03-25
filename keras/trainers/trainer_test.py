@@ -1046,6 +1046,28 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             sorted(list(eval_out_2.keys())), ["loss", "mean_absolute_error"]
         )
 
+    def test_evaluate_return_list_respect_metrics_order(self):
+        def metrics_zero(y_true, y_pred):
+            return 0.0
+
+        def metrics_one(y_true, y_pred):
+            return 1.0
+
+        model = ExampleModel(units=3)
+        model.compile(
+            optimizer="sgd", loss="mse", metrics=[metrics_zero, metrics_one]
+        )
+        eval_out = model.evaluate(np.ones((3, 2)), np.ones((3, 3)))
+        self.assertEqual(eval_out[1], 0.0)
+        self.assertEqual(eval_out[2], 1.0)
+
+        model.compile(
+            optimizer="sgd", loss="mse", metrics=[metrics_one, metrics_zero]
+        )
+        eval_out = model.evaluate(np.ones((3, 2)), np.ones((3, 3)))
+        self.assertEqual(eval_out[1], 1.0)
+        self.assertEqual(eval_out[2], 0.0)
+
     @pytest.mark.requires_trainable_backend
     def test_nested_inputs(self):
         model = ListModel(units=2)

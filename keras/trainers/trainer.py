@@ -865,7 +865,14 @@ class Trainer:
 
     def _flatten_metrics_in_order(self, logs):
         """Turns `logs` dict into a list as per key order of `metrics_names`."""
-        metric_names = [m.name for m in self.metrics]
+        metric_names = []
+        for metric in self.metrics:
+            if isinstance(metric, CompileMetrics):
+                metric_names += [
+                    sub_metric.name for sub_metric in metric.metrics
+                ]
+            else:
+                metric_names.append(metric.name)
         results = []
         for name in metric_names:
             if name in logs:
