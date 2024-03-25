@@ -443,6 +443,8 @@ class EinsumDense(Layer):
         return x
 
     def quantize(self, mode):
+        import gc
+
         self._check_quantize_args(mode, self.compute_dtype)
         if mode == "int8":
             if backend.standardize_dtype(self._kernel.dtype) == "int8":
@@ -505,6 +507,9 @@ class EinsumDense(Layer):
         ):
             quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
             self.dtype_policy = dtype_policies.get(quantized_dtype)
+
+        # Release memory manually because sometimes the backend doesn't
+        gc.collect()
 
     def _get_kernel_with_merged_lora(self):
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
