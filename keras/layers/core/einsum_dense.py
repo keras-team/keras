@@ -424,7 +424,7 @@ class EinsumDense(Layer):
                 )
             # De-scale outputs
             x = ops.cast(x, self.compute_dtype)
-            x = ops.divide(x, ops.multiply(inputs_scale, self.kernel_scale))
+            x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
             return x, grad_fn
 
         x = einsum_with_inputs_gradient(
@@ -433,8 +433,8 @@ class EinsumDense(Layer):
             ops.convert_to_tensor(self.kernel_scale),
         )
         if self.lora_enabled:
-            lora_kernel = ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
-            lora_x = ops.einsum(self.equation, inputs, lora_kernel)
+            lora_x = ops.einsum(self.equation, inputs, self.lora_kernel_a)
+            lora_x = ops.matmul(lora_x, self.lora_kernel_b)
             x = ops.add(x, lora_x)
         if self.bias is not None:
             x += self.bias
@@ -445,6 +445,12 @@ class EinsumDense(Layer):
     def quantize(self, mode):
         import gc
 
+        # Prevent quantization of the subclasses
+        if type(self) is not EinsumDense:
+            raise NotImplementedError(
+                f"Layer {self.__class__.__name__} does not have a `quantize()` "
+                "method implemented."
+            )
         self._check_quantize_args(mode, self.compute_dtype)
         if mode == "int8":
             if backend.standardize_dtype(self._kernel.dtype) == "int8":
@@ -482,9 +488,11 @@ class EinsumDense(Layer):
                 )
             self._tracker.unlock()
             self._untrack_variable(self._kernel)
+            kernel_shape = self._kernel.shape
+            del self._kernel
             self._kernel = self.add_weight(
                 name="kernel",
-                shape=self._kernel.shape,
+                shape=kernel_shape,
                 # Prevent adding a large constant to the computation graph
                 initializer=lambda shape, dtype: kernel_value,
                 dtype="int8",

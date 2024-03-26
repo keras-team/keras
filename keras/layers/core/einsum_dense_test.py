@@ -8,6 +8,7 @@ from keras import backend
 from keras import constraints
 from keras import layers
 from keras import models
+from keras import ops
 from keras import saving
 from keras import testing
 from keras.export import export_lib
@@ -386,6 +387,8 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             bias_axes="d",
         )
         layer.build((None, 3))
+        x = np.random.random((2, 3))
+        y_float = layer(x)
         layer.quantize("int8")
 
         # Verify weights dtype
@@ -395,9 +398,10 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             layer.variable_dtype,
         )
 
-        # Try eager call
-        x = np.random.random((2, 3))
-        _ = layer(x)
+        # Try eager call and verify output correctness
+        y_quantized = layer(x)
+        mse = ops.mean(ops.square(y_float - y_quantized))
+        self.assertLess(mse, 1e-3)  # A weak correctness test
 
         # Try saving and reloading the model
         model = models.Sequential([layer])
@@ -487,6 +491,19 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         with self.assertRaisesRegex(
             ValueError, "Cannot quantize a layer that isn't yet built."
         ):
+            layer.quantize("int8")
+
+    def test_quantize_on_subclass(self):
+        class MyEinsumDense(layers.EinsumDense):
+            pass
+
+        layer = MyEinsumDense(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer.build((None, 3))
+        with self.assertRaises(NotImplementedError):
             layer.quantize("int8")
 
     def test_quantize_when_already_quantized(self):

@@ -331,6 +331,12 @@ class Dense(Layer):
     def quantize(self, mode):
         import gc
 
+        # Prevent quantization of the subclasses
+        if type(self) is not Dense:
+            raise NotImplementedError(
+                f"Layer {self.__class__.__name__} does not have a `quantize()` "
+                "method implemented."
+            )
         self._check_quantize_args(mode, self.compute_dtype)
         if mode == "int8":
             if backend.standardize_dtype(self._kernel.dtype) == "int8":
@@ -344,9 +350,11 @@ class Dense(Layer):
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
             self._tracker.unlock()
             self._untrack_variable(self._kernel)
+            kernel_shape = self._kernel.shape
+            del self._kernel
             self._kernel = self.add_weight(
                 name="kernel",
-                shape=self._kernel.shape,
+                shape=kernel_shape,
                 # Prevent adding a large constant to the computation graph
                 initializer=lambda shape, dtype: kernel_value,
                 dtype="int8",
