@@ -111,6 +111,13 @@ class CenterCrop(TFDataLayer):
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
+        if isinstance(input_shape[0], (list, tuple)) or len(
+            input_shape
+        ) not in (3, 4):
+            raise ValueError(
+                "`input_shape` must be a non-nested tuple or list "
+                "of rank-1 with size 3 (unbatched) or 4 (batched). "
+            )
         if len(input_shape) == 4:
             if self.data_format == "channels_last":
                 input_shape[1] = self.height
