@@ -280,9 +280,12 @@ class Embedding(Layer):
         # not needed
         if backend.standardize_dtype(inputs.dtype) not in ("int32", "int64"):
             inputs = ops.cast(inputs, "int32")
-        # De-scale embeddings
-        embeddings = ops.divide(self._embeddings, self.embeddings_scale)
-        outputs = ops.take(embeddings, inputs, axis=0)
+        outputs = ops.take(self._embeddings, inputs, axis=0)
+        # De-scale outputs
+        outputs = ops.cast(outputs, self.compute_dtype)
+        outputs = ops.divide(
+            outputs, ops.expand_dims(self.embeddings_scale, axis=0)
+        )
         if self.lora_enabled:
             lora_outputs = ops.take(self.lora_embeddings_a, inputs, axis=0)
             lora_outputs = ops.matmul(lora_outputs, self.lora_embeddings_b)

@@ -313,6 +313,8 @@ class DenseTest(testing.TestCase):
     def test_quantize_int8(self):
         layer = layers.Dense(units=16)
         layer.build((None, 8))
+        x = np.random.random((2, 8))
+        y_float = layer(x)
         layer.quantize("int8")
 
         # Verify weights dtype
@@ -322,9 +324,10 @@ class DenseTest(testing.TestCase):
             layer.variable_dtype,
         )
 
-        # Try eager call
-        x = np.random.random((2, 8))
-        _ = layer(x)
+        # Try eager call and verify output correctness
+        y_quantized = layer(x)
+        mse = ops.mean(ops.square(y_float - y_quantized))
+        self.assertLess(mse, 1e-3)  # A weak correctness test
 
         # Try saving and reloading the model
         model = models.Sequential([layer])

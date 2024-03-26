@@ -7,6 +7,7 @@ from keras import backend
 from keras import constraints
 from keras import layers
 from keras import models
+from keras import ops
 from keras import saving
 from keras.export import export_lib
 from keras.testing import test_case
@@ -218,6 +219,8 @@ class EmbeddingTest(test_case.TestCase):
     def test_quantize_int8(self):
         layer = layers.Embedding(10, 16)
         layer.build()
+        x = np.random.randint(0, 9, size=(64, 3))
+        y_float = layer(x)
         layer.quantize("int8")
 
         # Verify weights dtype
@@ -229,9 +232,10 @@ class EmbeddingTest(test_case.TestCase):
             layer.variable_dtype,
         )
 
-        # Try eager call
-        x = np.random.randint(0, 9, size=(64, 3))
-        _ = layer(x)
+        # Try eager call and verify output correctness
+        y_quantized = layer(x)
+        mse = ops.mean(ops.square(y_float - y_quantized))
+        self.assertLess(mse, 1e-3)  # A weak correctness test
 
         # Try saving and reloading the model
         model = models.Sequential([layer])
@@ -282,6 +286,23 @@ class EmbeddingTest(test_case.TestCase):
             expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=False,
+        )
+        self.run_layer_test(
+            layers.Embedding,
+            {
+                "input_dim": 5,
+                "output_dim": 4,
+                "mask_zero": True,
+                "dtype": "int8_from_float32",
+            },
+            input_shape=(2, 3),
+            input_dtype="int64",
+            expected_output_shape=(2, 3, 4),
+            expected_num_trainable_weights=0,
+            expected_num_non_trainable_weights=2,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=True,
         )
 
     def test_quantize_on_unbuilt_layer(self):

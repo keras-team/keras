@@ -8,6 +8,7 @@ from keras import backend
 from keras import constraints
 from keras import layers
 from keras import models
+from keras import ops
 from keras import saving
 from keras import testing
 from keras.export import export_lib
@@ -386,6 +387,8 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             bias_axes="d",
         )
         layer.build((None, 3))
+        x = np.random.random((2, 3))
+        y_float = layer(x)
         layer.quantize("int8")
 
         # Verify weights dtype
@@ -395,9 +398,10 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             layer.variable_dtype,
         )
 
-        # Try eager call
-        x = np.random.random((2, 3))
-        _ = layer(x)
+        # Try eager call and verify output correctness
+        y_quantized = layer(x)
+        mse = ops.mean(ops.square(y_float - y_quantized))
+        self.assertLess(mse, 1e-3)  # A weak correctness test
 
         # Try saving and reloading the model
         model = models.Sequential([layer])
