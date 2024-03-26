@@ -155,7 +155,8 @@ class ExportArchive:
                     )
                 )
                 self._tf_trackable.variables = (
-                    self._tf_trackable.trainable_variables + self._tf_trackable.non_trainable_variables  # noqa: E501
+                    self._tf_trackable.trainable_variables
+                    + self._tf_trackable.non_trainable_variables
                 )
             else:
                 self._tf_trackable.variables += resource.variables
