@@ -859,14 +859,14 @@ def ctc_decode(
 
     Returns:
         A tuple of a list of `SparseTensor` containing the decoded sequences
-        and a list of `Tensor` containing the negative of the sum of probability
+        and a `Tensor` containing the negative of the sum of probability
         logits (if strategy is `"greedy"`) or the log probability (if strategy
         is `"beam_search"`) for each sequence.
     """
     inputs = tf.convert_to_tensor(inputs)
     inputs = tf.transpose(inputs, (1, 0, 2))
 
-    sequence_length = tf.convert_to_tensor(sequence_length)
+    sequence_length = tf.convert_to_tensor(sequence_length, dtype="int32")
     if strategy == "greedy":
         return tf.nn.ctc_greedy_decoder(
             inputs=inputs,
