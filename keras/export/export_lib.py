@@ -144,9 +144,6 @@ class ExportArchive:
             # Variables in the lists below are actually part of the trackables
             # that get saved, because the lists are created in __init__.
             if backend.backend() == "jax":
-                self._tf_trackable.variables += tree.flatten(
-                    tree.map_structure(tf.Variable, resource.variables)
-                )
                 self._tf_trackable.trainable_variables += tree.flatten(
                     tree.map_structure(
                         tf.Variable, resource.trainable_variables
@@ -156,6 +153,10 @@ class ExportArchive:
                     tree.map_structure(
                         tf.Variable, resource.non_trainable_variables
                     )
+                )
+                self._tf_trackable.variables = (
+                    self._tf_trackable.trainable_variables
+                    + self._tf_trackable.non_trainable_variables
                 )
             else:
                 self._tf_trackable.variables += resource.variables
