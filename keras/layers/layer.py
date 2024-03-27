@@ -424,6 +424,7 @@ class Layer(BackendLayer, Operation):
         initializer,
         dtype=None,
         trainable=True,
+        autocast=True,
         regularizer=None,
         constraint=None,
         name=None,
@@ -437,6 +438,7 @@ class Layer(BackendLayer, Operation):
             initializer=initializer,
             dtype=dtype,
             trainable=trainable,
+            autocast=autocast,
             regularizer=regularizer,
             constraint=constraint,
             name=name,
@@ -448,6 +450,7 @@ class Layer(BackendLayer, Operation):
         initializer=None,
         dtype=None,
         trainable=True,
+        autocast=True,
         regularizer=None,
         constraint=None,
         name=None,
@@ -455,29 +458,28 @@ class Layer(BackendLayer, Operation):
         """Add a weight variable to the layer.
 
         Args:
-            shape: Shape tuple for the variable.
-                Must be fully-defined (no `None` entries).
-                Defaults to `()` (scalar) if unspecified.
-            initializer: Initializer object to use to
-                populate the initial variable value,
-                or string name of a built-in initializer
-                (e.g. `"random_normal"`). If unspecified,
-                defaults to `"glorot_uniform"`
-                for floating-point variables and to `"zeros"`
+            shape: Shape tuple for the variable. Must be fully-defined
+                (no `None` entries). Defaults to `()` (scalar) if unspecified.
+            initializer: Initializer object to use to populate the initial
+                variable value, or string name of a built-in initializer
+                (e.g. `"random_normal"`). If unspecified, defaults to
+                `"glorot_uniform"` for floating-point variables and to `"zeros"`
                 for all other types (e.g. int, bool).
-            dtype: Dtype of the variable to create,
-                e.g. `"float32"`. If unspecified,
-                defaults to the layer's
-                variable dtype (which itself defaults to
-                `"float32"` if unspecified).
-            trainable: Boolean, whether the variable should
-                be trainable via backprop or whether its
-                updates are managed manually.
-            constraint: Contrainst object to call on the
-                variable after any optimizer update,
-                or string name of a built-in constraint.
-            name: String name of the variable. Useful
-                for debugging purposes.
+            dtype: Dtype of the variable to create, e.g. `"float32"`. If
+                unspecified, defaults to the layer's variable dtype
+                (which itself defaults to `"float32"` if unspecified).
+            trainable: Boolean, whether the variable should be trainable via
+                backprop or whether its updates are managed manually. Defaults
+                to `True`.
+            autocast: Boolean, whether to autocast the variable when accessing
+                it. Defaults to `True`.
+            regularizer: Regularizer object to call to apply penalty on the
+                weight. These penalties are summed into the loss function
+                during optimization. Defaults to `None`.
+            constraint: Contrainst object to call on the variable after any
+                optimizer update, or string name of a built-in constraint.
+                Defaults to `None`.
+            name: String name of the variable. Useful for debugging purposes.
         """
         self._check_super_called()
         if shape is None:
@@ -498,6 +500,7 @@ class Layer(BackendLayer, Operation):
                 shape=shape,
                 dtype=dtype,
                 trainable=trainable,
+                autocast=autocast,
                 name=name,
             )
         # Will be added to layer.losses

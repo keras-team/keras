@@ -12,7 +12,13 @@ from keras.utils.naming import auto_name
 
 class KerasVariable:
     def __init__(
-        self, initializer, shape=None, dtype=None, trainable=True, name=None
+        self,
+        initializer,
+        shape=None,
+        dtype=None,
+        trainable=True,
+        autocast=True,
+        name=None,
     ):
         name = name or auto_name(self.__class__.__name__)
         if not isinstance(name, str) or "/" in name:
@@ -34,6 +40,7 @@ class KerasVariable:
         self._regularizer = None
         self._constraint = None
         self._trainable = trainable
+        self._autocast = autocast
         if isinstance(initializer, str):
             from keras import initializers
 
@@ -107,7 +114,7 @@ class KerasVariable:
 
     def _maybe_autocast(self, value):
         autocast_scope = get_autocast_scope()
-        if autocast_scope is not None:
+        if self._autocast and autocast_scope is not None:
             return autocast_scope.maybe_cast(value)
         return value
 
@@ -157,7 +164,11 @@ class KerasVariable:
     @property
     def dtype(self):
         autocast_scope = get_autocast_scope()
-        if autocast_scope is not None and is_float_dtype(self._dtype):
+        if (
+            self._autocast
+            and autocast_scope is not None
+            and is_float_dtype(self._dtype)
+        ):
             return autocast_scope.dtype
         return self._dtype
 
