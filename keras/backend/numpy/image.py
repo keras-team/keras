@@ -12,6 +12,26 @@ RESIZE_INTERPOLATIONS = (
     "bicubic",
 )
 
+def rgb_to_grayscale(image, data_format="channels_last"):
+    if len(image.shape) == 4:
+        if data_format == "channels_last":
+            size = (image.shape[0],) + size + (image.shape[-1],)
+        else:
+            size = (image.shape[0], image.shape[1]) + size
+    elif len(image.shape) == 3:
+        if data_format == "channels_last":
+            size = size + (image.shape[-1],)
+        else:
+            size = (image.shape[0],) + size
+    else:
+        raise ValueError(
+            "Invalid input rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"image.shape={image.shape}"
+        )
+    red, green, blue = image[:,:,0], image[:,:,1], image[:,:,2]
+    grayscale_image = 0.2989 * red + 0.5870 * green + 0.1140 * blue
+    return np.array(grayscale_image)
 
 def resize(
     image,
