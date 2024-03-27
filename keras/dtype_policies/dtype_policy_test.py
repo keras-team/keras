@@ -61,6 +61,32 @@ class DTypePolicyTest(test_case.TestCase):
         new_policy = DTypePolicy.from_config(config)
         self.assertEqual(new_policy.name, "mixed_float16")
 
+    def test_deepcopy(self):
+        """Test builtin serialization methods."""
+        import copy
+        import pickle
+
+        # copy.deepcopy
+        policy = DTypePolicy("mixed_float16")
+        copied_policy = copy.deepcopy(policy)
+        self.assertEqual(
+            repr(copied_policy), '<FloatDTypePolicy "mixed_float16">'
+        )
+        # copy.copy
+        copied_policy = copy.copy(policy)
+        self.assertEqual(
+            repr(copied_policy), '<FloatDTypePolicy "mixed_float16">'
+        )
+        # pickle
+        temp_dir = self.get_temp_dir()
+        with open(f"{temp_dir}/policy.pickle", "wb") as f:
+            pickle.dump(policy, f)
+        with open(f"{temp_dir}/policy.pickle", "rb") as f:
+            copied_policy = pickle.load(f)
+        self.assertEqual(
+            repr(copied_policy), '<FloatDTypePolicy "mixed_float16">'
+        )
+
 
 class FloatDTypePolicyTest(test_case.TestCase):
     def test_initialization_valid_name(self):

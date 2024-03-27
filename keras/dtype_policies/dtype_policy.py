@@ -69,6 +69,10 @@ class DTypePolicy:
             return FloatDTypePolicy(name)
         return super().__new__(cls)
 
+    def __getnewargs__(self):
+        # To support `copy`, `deepcopy` and `pickle`
+        return (self._name,)
+
     def __init__(self, name):
         self._name = name
         self._compute_dtype = backend.floatx()
