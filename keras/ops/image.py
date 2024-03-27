@@ -7,6 +7,53 @@ from keras.ops.operation import Operation
 from keras.ops.operation_utils import compute_conv_output_shape
 
 
+class rgb_to_grayscale(Operation):
+    def __init__(
+        self,
+        data_format="channels_last",
+    ):
+        self.data_format = data_format
+    def call(self, image):
+        return backend.image.rgb_to_grayscale(
+            image,
+            data_format=self.data_format,
+        )
+    def compute_output_spec(self, image):
+        if len(image.shape) == 3:
+            return KerasTensor(
+                self.size + (image.shape[-1],), dtype=image.dtype
+            )
+        elif len(image.shape) == 4:
+            if self.data_format == "channels_last":
+                return KerasTensor(
+                    (image.shape[0],) + self.size + (image.shape[-1],),
+                    dtype=image.dtype,
+                )
+            else:
+                return KerasTensor(
+                    (image.shape[0], image.shape[1]) + self.size,
+                    dtype=image.dtype,
+                )
+        raise ValueError(
+            "Invalid input rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"image.shape={image.shape}"
+        )
+
+@keras_export("keras.ops.image.rgb_to_grayscale")
+def rgb_to_grayscale(
+    image,
+    data_format="channels_last",
+):
+    if any_symbolic_tensors((image,)):
+        return rgb_to_grayscale(
+            data_format=data_format,
+        ).symbolic_call(image)
+    return backend.image.rgb_to_grayscale(
+        image,
+        data_format=data_format,
+    )
+    
 class Resize(Operation):
     def __init__(
         self,
