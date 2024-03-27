@@ -55,6 +55,36 @@ class WrapperLayer(keras.layers.Wrapper):
 
 
 class SerializationLibTest(testing.TestCase):
+    @staticmethod
+    def serialization_tuple_to_list(obj):
+        """Converts tuples to lists in the nested serialized structure.
+
+        This is necessary because the serialization through JSON will convert
+        tuples to lists, and we need to transform the original so it can be
+        consistently compared to the deserialized version.
+
+        Args:
+            obj: A nested structure of tuples and other types.
+
+        Returns:
+            The same structure with tuples converted to lists.
+        """
+        if isinstance(obj, (tuple, list)):
+            return [__class__.serialization_tuple_to_list(x) for x in obj]
+        if isinstance(obj, dict):
+            # Not assuming tuples as keys: JSON only allows strings as keys.
+            return {
+                k: __class__.serialization_tuple_to_list(v)
+                for k, v in obj.items()
+            }
+        return obj
+
+    def assertEqual(self, a, b, msg=None):
+        """Custom assertEqual() that accepts the implicit tuple-to-list conversion caused by JSON."""
+        a = self.serialization_tuple_to_list(a)
+        b = self.serialization_tuple_to_list(b)
+        return super().assertEqual(a, b, msg)
+
     def roundtrip(self, obj, custom_objects=None, safe_mode=True):
         serialized = serialization_lib.serialize_keras_object(obj)
         json_data = json.dumps(serialized)
@@ -73,6 +103,7 @@ class SerializationLibTest(testing.TestCase):
             np.array([0.0, 1.0]),
             np.float32(1.0),
             ["hello", 0, "world", 1.0, True],
+            ("hello", 0, "world", 1.0, True),
             {"1": "hello", "2": 0, "3": True},
             {"1": "hello", "2": [True, False]},
             slice(None, 20, 1),
@@ -93,6 +124,13 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(layer.name, restored.name)
         self.assertEqual(layer.trainable, restored.trainable)
         self.assertEqual(layer.compute_dtype, restored.compute_dtype)
+
+    def test_numpy_get_item_layer(self):
+        input = keras.layers.Input(shape=(2,))
+        layer = input[:, 1]
+        model = keras.Model(input, layer)
+        serialized, restored, reserialized = self.roundtrip(model)
+        self.assertEqual(serialized, reserialized)
 
     def test_tensors_and_shapes(self):
         x = ops.random.normal((2, 2), dtype="float64")

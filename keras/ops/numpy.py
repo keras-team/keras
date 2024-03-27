@@ -2707,6 +2707,8 @@ class GetItem(Operation):
             remaining_key = [key]
         elif isinstance(key, tuple):
             remaining_key = list(key)
+        elif isinstance(key, list):
+            remaining_key = key.copy()
         else:
             raise ValueError(
                 f"Unsupported key type for array slice. Recieved: `{key}`"
