@@ -57,7 +57,7 @@ class JAXTrainer(base_trainer.Trainer):
             # Note that this is needed for the regularization loss, which need
             # the latest value of train/non-trainable variables.
             loss = self.compute_loss(
-                x, y, y_pred, sample_weight, allow_empty=True
+                x, y, y_pred, sample_weight=sample_weight, allow_empty=True
             )
         if losses:
             loss += ops.sum(losses)
