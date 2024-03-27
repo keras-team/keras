@@ -91,7 +91,7 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):
         as part of the saved model, the model is already
         compiled. Otherwise, the model is uncompiled and
         a warning will be displayed. When `compile` is set
-        to False, the compilation is omitted without any
+        to `False`, the compilation is omitted without any
         warning.
 
     Raises:

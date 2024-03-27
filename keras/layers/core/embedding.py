@@ -48,8 +48,8 @@ class Embedding(Layer):
             may take variable length input. If this is `True`,
             then all subsequent layers in the model need
             to support masking or an exception will be raised.
-            If mask_zero is set to True, as a consequence,
-            index 0 cannot be used in the vocabulary (input_dim should
+            If `mask_zero` is set to `True`, as a consequence,
+            index 0 cannot be used in the vocabulary (`input_dim` should
             equal size of vocabulary + 1).
         lora_rank: Optional integer. If set, the layer's forward pass
             will implement LoRA (Low-Rank Adaptation)

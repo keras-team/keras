@@ -6,8 +6,8 @@ def standardize_tuple(value, n, name, allow_zero=False):
         n: int. The size of the tuple to be returned.
         name: string. The name of the argument being validated, e.g. "strides"
             or "kernel_size". This is only used to format error messages.
-        allow_zero: bool, defaults to False. A ValueError will raised if zero is
-            received and this param is False.
+        allow_zero: bool, defaults to `False`. A `ValueError` will raised
+            if zero is received and this argument is `False`.
 
     Returns:
         A tuple of n integers.

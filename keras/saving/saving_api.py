@@ -126,7 +126,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         safe_mode: Boolean, whether to disallow unsafe `lambda` deserialization.
             When `safe_mode=False`, loading an object has the potential to
             trigger arbitrary code execution. This argument is only
-            applicable to the Keras v3 model format. Defaults to True.
+            applicable to the Keras v3 model format. Defaults to `True`.
 
     Returns:
         A Keras model instance. If the original model was compiled,

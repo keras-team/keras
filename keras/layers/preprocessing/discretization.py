@@ -102,12 +102,11 @@ class Discretization(TFDataLayer):
 
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
-                "`sparse` can only be set to True with the "
-                "TensorFlow backend."
+                "`sparse=True` can only be used with the " "TensorFlow backend."
             )
         if sparse and output_mode == "int":
             raise ValueError(
-                "`sparse` may only be true if `output_mode` is "
+                "`sparse=True` may only be used if `output_mode` is "
                 "`'one_hot'`, `'multi_hot'`, or `'count'`. "
                 f"Received: sparse={sparse} and "
                 f"output_mode={output_mode}"

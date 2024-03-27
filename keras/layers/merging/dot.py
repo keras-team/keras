@@ -366,7 +366,7 @@ def dot(inputs, axes=-1, **kwargs):
             axis or axes along which to take the dot product.
         normalize: Whether to L2-normalize samples along the
             dot product axis before taking the dot product.
-            If set to True, then the output of the dot product
+            If set to `True`, then the output of the dot product
             is the cosine proximity between the two samples.
         **kwargs: Standard layer keyword arguments.
 

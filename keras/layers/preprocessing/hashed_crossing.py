@@ -89,8 +89,7 @@ class HashedCrossing(Layer):
         super().__init__(name=name, dtype=dtype)
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
-                "`sparse` can only be set to True with the "
-                "TensorFlow backend."
+                "`sparse=True` can only be used with the " "TensorFlow backend."
             )
 
         argument_validation.validate_string_arg(

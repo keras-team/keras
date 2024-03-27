@@ -1136,7 +1136,7 @@ class AUC(Metric):
             should be flattened into a single label before AUC computation. In
             the latter case, when multilabel data is passed to AUC, each
             label-prediction pair is treated as an individual data point. Should
-            be set to False for multi-class data.
+            be set to `False` for multi-class data.
         num_labels: (Optional) The number of labels, used when `multi_label` is
             True. If `num_labels` is not specified, then state variables get
             created on the first call to `update_state`.

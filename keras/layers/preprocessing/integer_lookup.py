@@ -318,22 +318,21 @@ class IntegerLookup(IndexLookup):
         if max_tokens is not None and max_tokens <= 1:
             raise ValueError(
                 "If `max_tokens` is set for `IntegerLookup`, it must be "
-                f"greater than 1. Received: max_tokens={max_tokens}."
+                f"greater than 1. Received: max_tokens={max_tokens}"
             )
         if num_oov_indices < 0:
             raise ValueError(
                 "The value of `num_oov_indices` argument for `IntegerLookup` "
-                "must >= 0. Received num_oov_indices="
-                f"{num_oov_indices}."
+                "must >= 0. Received: num_oov_indices="
+                f"{num_oov_indices}"
             )
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
-                "`sparse` can only be set to True with the "
-                "TensorFlow backend."
+                "`sparse=True` can only be used with the " "TensorFlow backend."
             )
         if vocabulary_dtype != "int64":
             raise ValueError(
-                "Only vocabulary_dtype='int64' is supported "
+                "Only `vocabulary_dtype='int64'` is supported "
                 "at this time. Received: "
                 f"vocabulary_dtype={vocabulary_dtype}"
             )

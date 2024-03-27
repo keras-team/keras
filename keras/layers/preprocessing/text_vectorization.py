@@ -226,13 +226,11 @@ class TextVectorization(Layer):
             )
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
-                "`sparse` can only be set to True with the "
-                "TensorFlow backend."
+                "`sparse=True` can only be used with the " "TensorFlow backend."
             )
         if ragged and backend.backend() != "tensorflow":
             raise ValueError(
-                "`ragged` can only be set to True with the "
-                "TensorFlow backend."
+                "`ragged=True` can only be used with the " "TensorFlow backend."
             )
 
         # 'standardize' must be one of

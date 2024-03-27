@@ -29,7 +29,7 @@ class Adafactor(optimizer.Optimizer):
         clip_threshold: float, defaults to 1.0. Clipping threshold. This is a
             part of Adafactor algorithm, independent from `clipnorm`,
             `clipvalue`, and `global_clipnorm`.
-        relative_step: bool, defaults to True. If `learning_rate` is a
+        relative_step: bool, defaults to `True`. If `learning_rate` is a
             constant and `relative_step=True`, learning rate will be adjusted
             based on current iterations. This is a default learning rate decay
             in Adafactor.

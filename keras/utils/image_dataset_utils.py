@@ -407,8 +407,8 @@ def load_image(
 
     if pad_to_aspect_ratio and crop_to_aspect_ratio:
         raise ValueError(
-            "Only one of pad_to_aspect_ratio, crop_to_aspect_ratio"
-            " can be set to True"
+            "Only one of `pad_to_aspect_ratio`, `crop_to_aspect_ratio`"
+            " can be set to `True`."
         )
 
     if crop_to_aspect_ratio:

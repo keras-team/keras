@@ -15,7 +15,7 @@ class RandomRotation(TFDataLayer):
 
     By default, random rotations are only applied during training.
     At inference time, the layer does nothing. If you need to apply random
-    rotations at inference time, set `training` to True when calling the layer.
+    rotations at inference time, pass `training=True` when calling the layer.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
     of integer or floating point dtype.

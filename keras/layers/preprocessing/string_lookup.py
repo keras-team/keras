@@ -314,8 +314,7 @@ class StringLookup(IndexLookup):
             )
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
-                "`sparse` can only be set to True with the "
-                "TensorFlow backend."
+                "`sparse=True` can only be used with the " "TensorFlow backend."
             )
         super().__init__(
             max_tokens=max_tokens,

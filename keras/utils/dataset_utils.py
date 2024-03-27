@@ -519,7 +519,7 @@ def index_directory(
             to control the order of the classes
             (otherwise alphanumerical order is used).
         shuffle: Whether to shuffle the data. Defaults to `True`.
-            If set to False, sorts the data in alphanumeric order.
+            If set to `False`, sorts the data in alphanumeric order.
         seed: Optional random seed for shuffling.
         follow_links: Whether to visits subdirectories pointed to by symlinks.
         verbose: Whether the function prints number of files found and classes.
