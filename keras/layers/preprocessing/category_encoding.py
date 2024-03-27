@@ -160,8 +160,19 @@ class CategoryEncoding(TFDataLayer):
             return self._count(inputs, count_weights=count_weights)
 
     def compute_output_shape(self, input_shape):
+        # Treat rank-0 inputs inconsistent with actual output .
+        if (input_shape is not None) & (len(input_shape) == 0):
+            # If output_mode == "multi_hot" return same shape .
+            if self.output_mode == "multi_hot":
+                return input_shape
+            # If output_mode == "one_hot" append num_tokens to shape .
+            # This is inline with actual output .
+            elif self.output_mode == "one_hot":
+                return (self.num_tokens,)
         if self.output_mode == "one_hot":
             if input_shape[-1] != 1:
+                return tuple(input_shape + (self.num_tokens,))
+            elif len(input_shape) == 1:
                 return tuple(input_shape + (self.num_tokens,))
             else:
                 return tuple(input_shape[:-1] + (self.num_tokens,))
