@@ -471,8 +471,8 @@ class Layer(BackendLayer, Operation):
             trainable: Boolean, whether the variable should be trainable via
                 backprop or whether its updates are managed manually. Defaults
                 to `True`.
-            autocast: Boolean, whether to autocast the variable when accessing
-                it. Defaults to `True`.
+            autocast: Boolean, whether to autocast layers variables when
+                accessing them. Defaults to `True`.
             regularizer: Regularizer object to call to apply penalty on the
                 weight. These penalties are summed into the loss function
                 during optimization. Defaults to `None`.
