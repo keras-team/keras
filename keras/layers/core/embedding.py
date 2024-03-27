@@ -1,8 +1,9 @@
-import numpy as np
-
+from keras import backend
 from keras import constraints
+from keras import dtype_policies
 from keras import initializers
 from keras import ops
+from keras import quantizers
 from keras import regularizers
 from keras.api_export import keras_export
 from keras.layers.layer import Layer
@@ -91,14 +92,19 @@ class Embedding(Layer):
         self.lora_enabled = False
 
     def build(self, input_shape=None):
-        self._embeddings = self.add_weight(
-            shape=(self.input_dim, self.output_dim),
-            initializer=self.embeddings_initializer,
-            name="embeddings",
-            regularizer=self.embeddings_regularizer,
-            constraint=self.embeddings_constraint,
-            trainable=True,
-        )
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            self.quantized_build(
+                input_shape, mode=self.dtype_policy.quantization_mode
+            )
+        else:
+            self._embeddings = self.add_weight(
+                shape=(self.input_dim, self.output_dim),
+                initializer=self.embeddings_initializer,
+                name="embeddings",
+                regularizer=self.embeddings_regularizer,
+                constraint=self.embeddings_constraint,
+                trainable=True,
+            )
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
@@ -159,20 +165,39 @@ class Embedding(Layer):
         self.embeddings.trainable = False
         self._tracker.lock()
         self.lora_enabled = True
+        self.lora_rank = rank
 
     def save_own_variables(self, store):
-        if not self.lora_enabled:
-            return super().save_own_variables(store)
-
-        embeddings_value = self.embeddings
+        # Do nothing if the layer isn't yet built
+        if not self.built:
+            return
+        # The keys of the `store` will be saved as determined because the
+        # default ordering will change after quantization
+        embeddings_value, embeddings_scale = (
+            self._get_embeddings_with_merged_lora()
+        )
         store["0"] = embeddings_value
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            store["1"] = embeddings_scale
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
-            return super().load_own_variables(store)
+            self._check_load_own_variables(store)
+        # Do nothing if the layer isn't yet built
+        if not self.built:
+            return
+        # The keys of the `store` will be saved as determined because the
+        # default ordering will change after quantization
         self._embeddings.assign(store["0"])
-        self.lora_embeddings_a.assign(np.zeros(self.lora_embeddings_a.shape))
-        self.lora_embeddings_b.assign(np.zeros(self.lora_embeddings_b.shape))
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            self.embeddings_scale.assign(store["1"])
+        if self.lora_enabled:
+            self.lora_embeddings_a.assign(
+                ops.zeros(self.lora_embeddings_a.shape)
+            )
+            self.lora_embeddings_b.assign(
+                ops.zeros(self.lora_embeddings_b.shape)
+            )
 
     def get_config(self):
         base_config = super().get_config()
@@ -196,3 +221,150 @@ class Embedding(Layer):
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
         return {**base_config, **config}
+
+    def _check_load_own_variables(self, store):
+        all_vars = self._trainable_variables + self._non_trainable_variables
+        if len(store.keys()) != len(all_vars):
+            if len(all_vars) == 0 and not self.built:
+                raise ValueError(
+                    f"Layer '{self.name}' was never built "
+                    "and thus it doesn't have any variables. "
+                    f"However the weights file lists {len(store.keys())} "
+                    "variables for this layer.\n"
+                    "In most cases, this error indicates that either:\n\n"
+                    "1. The layer is owned by a parent layer that "
+                    "implements a `build()` method, but calling the "
+                    "parent's `build()` method did NOT create the state of "
+                    f"the child layer '{self.name}'. A `build()` method "
+                    "must create ALL state for the layer, including "
+                    "the state of any children layers.\n\n"
+                    "2. You need to implement "
+                    "the `def build_from_config(self, config)` method "
+                    f"on layer '{self.name}', to specify how to rebuild "
+                    "it during loading. "
+                    "In this case, you might also want to implement the "
+                    "method that generates the build config at saving time, "
+                    "`def get_build_config(self)`. "
+                    "The method `build_from_config()` is meant "
+                    "to create the state "
+                    "of the layer (i.e. its variables) upon deserialization.",
+                )
+            raise ValueError(
+                f"Layer '{self.name}' expected {len(all_vars)} variables, "
+                "but received "
+                f"{len(store.keys())} variables during loading. "
+                f"Expected: {[v.name for v in all_vars]}"
+            )
+
+    """Quantization-related methods"""
+
+    def quantized_build(self, input_shape, mode):
+        if mode == "int8":
+            self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
+            self._embeddings = self.add_weight(
+                name="embeddings",
+                shape=(self.input_dim, self.output_dim),
+                initializer="zeros",
+                dtype="int8",
+                trainable=False,
+            )
+            self.embeddings_scale = self.add_weight(
+                name="embeddings_scale",
+                shape=(self.output_dim,),
+                initializer="ones",
+                trainable=False,
+            )
+
+    def quantized_call(self, inputs):
+        # We cannot update quantized self._embeddings, so the custom gradient is
+        # not needed
+        if backend.standardize_dtype(inputs.dtype) not in ("int32", "int64"):
+            inputs = ops.cast(inputs, "int32")
+        outputs = ops.take(self._embeddings, inputs, axis=0)
+        # De-scale outputs
+        outputs = ops.cast(outputs, self.compute_dtype)
+        outputs = ops.divide(
+            outputs, ops.expand_dims(self.embeddings_scale, axis=0)
+        )
+        if self.lora_enabled:
+            lora_outputs = ops.take(self.lora_embeddings_a, inputs, axis=0)
+            lora_outputs = ops.matmul(lora_outputs, self.lora_embeddings_b)
+            outputs = ops.add(outputs, lora_outputs)
+        return outputs
+
+    def quantize(self, mode):
+        import gc
+
+        # Prevent quantization of the subclasses
+        if type(self) is not Embedding:
+            raise NotImplementedError(
+                f"Layer {self.__class__.__name__} does not have a `quantize()` "
+                "method implemented."
+            )
+        self._check_quantize_args(mode, self.compute_dtype)
+        if mode == "int8":
+            if backend.standardize_dtype(self._embeddings.dtype) == "int8":
+                raise ValueError("`quantize` can only be done once per layer.")
+            # Configure `self.inputs_quantizer`
+            self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
+            # Quantize `self._embeddings` to int8 and compute corresponding
+            # scale
+            embeddings_value, embeddings_scale = quantizers.abs_max_quantize(
+                self._embeddings, axis=0
+            )
+            embeddings_scale = ops.squeeze(embeddings_scale, axis=0)
+            self._tracker.unlock()
+            self._untrack_variable(self._embeddings)
+            del self._embeddings
+            self._embeddings = self.add_weight(
+                name="embeddings",
+                shape=(self.input_dim, self.output_dim),
+                # Prevent adding a large constant to the computation graph
+                initializer=lambda shape, dtype: embeddings_value,
+                dtype="int8",
+                trainable=False,
+            )
+            self.embeddings_scale = self.add_weight(
+                name="embeddings_scale",
+                shape=(self.output_dim,),
+                # Prevent adding a large constant to the computation graph
+                initializer=lambda shape, dtype: embeddings_scale,
+                trainable=False,
+            )
+            self._tracker.lock()
+        else:
+            NotImplementedError(
+                "Invalid quantization mode. Expected 'int8'. "
+                f"Received: mode={mode}"
+            )
+
+        # Set new dtype policy
+        if not isinstance(
+            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+        ):
+            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
+            self.dtype_policy = dtype_policies.get(quantized_dtype)
+
+        # Release memory manually because sometimes the backend doesn't
+        gc.collect()
+
+    def _get_embeddings_with_merged_lora(self):
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            embeddings_value = self._embeddings
+            embeddings_scale = self.embeddings_scale
+            if self.lora_enabled:
+                # Dequantize & quantize to merge lora weights into embeddings
+                # Note that this is a lossy compression
+                embeddings_value = ops.divide(
+                    embeddings_value, embeddings_scale
+                )
+                embeddings_value = ops.add(
+                    embeddings_value,
+                    ops.matmul(self.lora_embeddings_a, self.lora_embeddings_b),
+                )
+                embeddings_value, embeddings_scale = (
+                    quantizers.abs_max_quantize(embeddings_value, axis=0)
+                )
+                embeddings_scale = ops.squeeze(embeddings_scale, axis=0)
+            return embeddings_value, embeddings_scale
+        return self.embeddings, None

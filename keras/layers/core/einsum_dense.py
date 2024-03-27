@@ -184,9 +184,6 @@ class EinsumDense(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            if self.bias is not None:
-                self.bias.trainable = False
 
     @property
     def kernel(self):
@@ -248,22 +245,34 @@ class EinsumDense(Layer):
         self.lora_rank = rank
 
     def save_own_variables(self, store):
-        if not self.lora_enabled:
-            return super().save_own_variables(store)
-
-        kernel_value = self.kernel
+        # Do nothing if the layer isn't yet built
+        if not self.built:
+            return
+        # The keys of the `store` will be saved as determined because the
+        # default ordering will change after quantization
+        kernel_value, kernel_scale = self._get_kernel_with_merged_lora()
         store["0"] = kernel_value
         if self.bias is not None:
             store["1"] = self.bias
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            store["2"] = kernel_scale
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
-            return super().load_own_variables(store)
+            self._check_load_own_variables(store)
+        # Do nothing if the layer isn't yet built
+        if not self.built:
+            return
+        # The keys of the `store` will be saved as determined because the
+        # default ordering will change after quantization
         self._kernel.assign(store["0"])
         if self.bias is not None:
             self.bias.assign(store["1"])
-        self.lora_kernel_a.assign(np.zeros(self.lora_kernel_a.shape))
-        self.lora_kernel_b.assign(np.zeros(self.lora_kernel_b.shape))
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            self.kernel_scale.assign(store["2"])
+        if self.lora_enabled:
+            self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
+            self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
 
     def get_config(self):
         base_config = super().get_config()
@@ -290,6 +299,40 @@ class EinsumDense(Layer):
             config["lora_rank"] = self.lora_rank
         return {**base_config, **config}
 
+    def _check_load_own_variables(self, store):
+        all_vars = self._trainable_variables + self._non_trainable_variables
+        if len(store.keys()) != len(all_vars):
+            if len(all_vars) == 0 and not self.built:
+                raise ValueError(
+                    f"Layer '{self.name}' was never built "
+                    "and thus it doesn't have any variables. "
+                    f"However the weights file lists {len(store.keys())} "
+                    "variables for this layer.\n"
+                    "In most cases, this error indicates that either:\n\n"
+                    "1. The layer is owned by a parent layer that "
+                    "implements a `build()` method, but calling the "
+                    "parent's `build()` method did NOT create the state of "
+                    f"the child layer '{self.name}'. A `build()` method "
+                    "must create ALL state for the layer, including "
+                    "the state of any children layers.\n\n"
+                    "2. You need to implement "
+                    "the `def build_from_config(self, config)` method "
+                    f"on layer '{self.name}', to specify how to rebuild "
+                    "it during loading. "
+                    "In this case, you might also want to implement the "
+                    "method that generates the build config at saving time, "
+                    "`def get_build_config(self)`. "
+                    "The method `build_from_config()` is meant "
+                    "to create the state "
+                    "of the layer (i.e. its variables) upon deserialization.",
+                )
+            raise ValueError(
+                f"Layer '{self.name}' expected {len(all_vars)} variables, "
+                "but received "
+                f"{len(store.keys())} variables during loading. "
+                f"Expected: {[v.name for v in all_vars]}"
+            )
+
     """Quantization-related methods"""
 
     def quantized_build(self, input_shape, mode):
@@ -310,6 +353,8 @@ class EinsumDense(Layer):
                 self._kernel_expand_axes,
                 self._input_squeeze_axes,
                 self._kernel_squeeze_axes,
+                self._custom_gradient_equation,
+                self._kernel_reverse_transpose_axes,
             ) = _analyze_quantization_info(self.equation, self.input_spec.ndim)
             self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
             self._kernel = self.add_weight(
@@ -335,23 +380,62 @@ class EinsumDense(Layer):
             )
 
     def quantized_call(self, inputs):
+        @ops.custom_gradient
+        def einsum_with_inputs_gradient(inputs, kernel, kernel_scale):
+            def grad_fn(*args, upstream=None):
+                if upstream is None:
+                    (upstream,) = args
+                # De-scale kernel
+                _kernel_scale = kernel_scale  # Overcome UnboundLocalError
+                if self._kernel_squeeze_axes:
+                    _kernel_scale = ops.expand_dims(
+                        _kernel_scale, axis=self._kernel_squeeze_axes
+                    )
+                if self._kernel_expand_axes:
+                    _kernel_scale = ops.squeeze(
+                        _kernel_scale, axis=self._kernel_expand_axes
+                    )
+                _kernel_scale = ops.transpose(
+                    _kernel_scale, self._kernel_reverse_transpose_axes
+                )
+                float_kernel = ops.divide(
+                    ops.cast(kernel, dtype=self.compute_dtype),
+                    _kernel_scale,
+                )
+                # From https://stackoverflow.com/a/47609896
+                inputs_grad = ops.einsum(
+                    self._custom_gradient_equation, upstream, float_kernel
+                )
+                return (inputs_grad, None, None)
+
+            inputs, inputs_scale = self.inputs_quantizer(inputs)
+            x = ops.einsum(self.equation, inputs, kernel)
+            # Deal with `inputs_scale`
+            inputs_scale = ops.transpose(
+                inputs_scale, self._input_transpose_axes
+            )
+            if self._input_expand_axes:
+                inputs_scale = ops.expand_dims(
+                    inputs_scale, axis=self._input_expand_axes
+                )
+            if self._input_squeeze_axes:
+                inputs_scale = ops.squeeze(
+                    inputs_scale, axis=self._input_squeeze_axes
+                )
+            # De-scale outputs
+            x = ops.cast(x, self.compute_dtype)
+            x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
+            return x, grad_fn
+
+        x = einsum_with_inputs_gradient(
+            inputs,
+            ops.convert_to_tensor(self._kernel),
+            ops.convert_to_tensor(self.kernel_scale),
+        )
         if self.lora_enabled:
-            raise ValueError("`quantized_call` doesn't support lora weights")
-        inputs, inputs_scale = self.inputs_quantizer(inputs)
-        x = ops.einsum(self.equation, inputs, self.kernel)
-        # Deal with `inputs_scale`
-        inputs_scale = ops.transpose(inputs_scale, self._input_transpose_axes)
-        if self._input_expand_axes:
-            inputs_scale = ops.expand_dims(
-                inputs_scale, axis=self._input_expand_axes
-            )
-        if self._input_squeeze_axes:
-            inputs_scale = ops.squeeze(
-                inputs_scale, axis=self._input_squeeze_axes
-            )
-        # De-scale outputs
-        x = ops.cast(x, self.compute_dtype)
-        x = ops.divide(x, ops.multiply(inputs_scale, self.kernel_scale))
+            lora_x = ops.einsum(self.equation, inputs, self.lora_kernel_a)
+            lora_x = ops.matmul(lora_x, self.lora_kernel_b)
+            x = ops.add(x, lora_x)
         if self.bias is not None:
             x += self.bias
         if self.activation is not None:
@@ -359,12 +443,18 @@ class EinsumDense(Layer):
         return x
 
     def quantize(self, mode):
+        import gc
+
+        # Prevent quantization of the subclasses
+        if type(self) is not EinsumDense:
+            raise NotImplementedError(
+                f"Layer {self.__class__.__name__} does not have a `quantize()` "
+                "method implemented."
+            )
         self._check_quantize_args(mode, self.compute_dtype)
         if mode == "int8":
             if backend.standardize_dtype(self._kernel.dtype) == "int8":
                 raise ValueError("`quantize` can only be done once per layer.")
-            # Merge lora-related parameters to make use of fully int8 kernel
-            self._merge_lora_into_kernel()
             (
                 self._input_reduced_axes,
                 self._kernel_reduced_axes,
@@ -374,6 +464,8 @@ class EinsumDense(Layer):
                 self._kernel_expand_axes,
                 self._input_squeeze_axes,
                 self._kernel_squeeze_axes,
+                self._custom_gradient_equation,
+                self._kernel_reverse_transpose_axes,
             ) = _analyze_quantization_info(self.equation, self.input_spec.ndim)
             # Configure `self.inputs_quantizer`
             self.inputs_quantizer = quantizers.AbsMaxQuantizer(
@@ -383,7 +475,6 @@ class EinsumDense(Layer):
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
                 self._kernel, axis=self._kernel_reduced_axes
             )
-            kernel_scale = ops.cast(kernel_scale, self.compute_dtype)
             kernel_scale = ops.transpose(
                 kernel_scale, self._kernel_transpose_axes
             )
@@ -397,9 +488,11 @@ class EinsumDense(Layer):
                 )
             self._tracker.unlock()
             self._untrack_variable(self._kernel)
+            kernel_shape = self._kernel.shape
+            del self._kernel
             self._kernel = self.add_weight(
                 name="kernel",
-                shape=self._kernel.shape,
+                shape=kernel_shape,
                 # Prevent adding a large constant to the computation graph
                 initializer=lambda shape, dtype: kernel_value,
                 dtype="int8",
@@ -412,8 +505,6 @@ class EinsumDense(Layer):
                 initializer=lambda shape, dtype: kernel_scale,
                 trainable=False,
             )
-            if self.bias is not None:
-                self.bias.trainable = False
             self._tracker.lock()
         else:
             NotImplementedError()
@@ -425,18 +516,39 @@ class EinsumDense(Layer):
             quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
             self.dtype_policy = dtype_policies.get(quantized_dtype)
 
-    def _merge_lora_into_kernel(self, untrack=False):
-        if not self.lora_enabled:
-            return
-        # Merge lora-enabled kernel into kernel
-        self._kernel.assign(self.kernel)
-        self.lora_enabled = False
-        if untrack:
-            self._tracker.unlock()
-            self.lora_kernel_a = self._untrack_variable(self.lora_kernel_a)
-            self.lora_kernel_b = self._untrack_variable(self.lora_kernel_b)
-            self._tracker.lock()
-            self.lora_rank = None
+        # Release memory manually because sometimes the backend doesn't
+        gc.collect()
+
+    def _get_kernel_with_merged_lora(self):
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            kernel_value = self._kernel
+            kernel_scale = self.kernel_scale
+            if self.lora_enabled:
+                # Dequantize & quantize to merge lora weights into int8 kernel
+                # Note that this is a lossy compression
+                kernel_value = ops.divide(kernel_value, kernel_scale)
+                kernel_value = ops.add(
+                    kernel_value,
+                    ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                )
+                kernel_value, kernel_scale = quantizers.abs_max_quantize(
+                    kernel_value, axis=self._kernel_reduced_axes
+                )
+                kernel_scale = ops.transpose(
+                    kernel_scale, self._kernel_transpose_axes
+                )
+                if self._kernel_expand_axes:
+                    kernel_scale = ops.expand_dims(
+                        kernel_scale, axis=self._kernel_expand_axes
+                    )
+                if self._kernel_squeeze_axes:
+                    kernel_scale = ops.squeeze(
+                        kernel_scale, axis=self._kernel_squeeze_axes
+                    )
+        else:
+            kernel_value = self.kernel
+            kernel_scale = None
+        return kernel_value, kernel_scale
 
 
 def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
@@ -703,6 +815,14 @@ def _analyze_quantization_info(equation, input_shape):
         except IndexError:
             weight_squeeze_axes.append(ori_index)
         weight_transpose_axes.insert(index, ori_index)
+    # Prepare equation for `einsum_with_inputs_gradient`
+    custom_gradient_equation = f"{output_spec},{weight_spec}->{input_spec}"
+    weight_reverse_transpose_axes = [
+        i
+        for (_, i) in sorted(
+            (v, i) for (i, v) in enumerate(weight_transpose_axes)
+        )
+    ]
     return (
         input_reduced_axes,
         weight_reduced_axes,
@@ -712,4 +832,6 @@ def _analyze_quantization_info(equation, input_shape):
         weight_expand_axes,
         input_squeeze_axes,
         weight_squeeze_axes,
+        custom_gradient_equation,
+        weight_reverse_transpose_axes,
     )

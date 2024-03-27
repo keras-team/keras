@@ -1,4 +1,5 @@
 import jax
+import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 import numpy as np
 from jax import lax
@@ -404,19 +405,55 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32"):
+def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     x = convert_to_tensor(x)
+    if sparse:
+        if axis < 0:
+            axis = axis + len(x.shape) + 1
+        if dtype is None:
+            dtype = "float32"
+        # We deal with negative inputs by having zeros in the output although
+        # it's useless. It makes shapes static.
+        values = jnp.greater_equal(jnp.ravel(x), 0).astype(dtype)
+        values_count = values.shape[0]
+        indices = [jnp.arange(dim) for dim in x.shape]
+        indices = jnp.meshgrid(*indices, indexing="ij")
+        indices.insert(axis, jnp.maximum(x, 0))  # Deal with negative indices
+        indices = [a.reshape(values_count, 1).astype("int32") for a in indices]
+        indices = jnp.concatenate(indices, axis=1)
+        shape = list(x.shape)
+        shape.insert(axis, num_classes)
+        shape = tuple(shape)
+        return jax_sparse.BCOO(
+            (values, indices),
+            shape=shape,
+            indices_sorted=True,
+            unique_indices=True,
+        )
     return jnn.one_hot(x, num_classes, axis=axis, dtype=dtype)
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
-    outputs = jnp.max(
+    if sparse:
+        result = one_hot(
+            x, num_classes, axis=axis, dtype="int32", sparse=sparse
+        )
+        # JAX's BCOO does not support max reduction, use sum and compare with 0.
+        result = jax_sparse.bcoo_reduce_sum(result, axes=(reduction_axis,))
+        result = jax_sparse.bcoo_sum_duplicates(result)
+        values = jnp.greater_equal(result.data, 0).astype(dtype)
+        return jax_sparse.BCOO(
+            (values, result.indices),
+            shape=result.shape,
+            indices_sorted=True,
+            unique_indices=True,
+        )
+    return jnp.max(
         one_hot(cast(x, "int32"), num_classes, axis=axis, dtype=dtype),
         axis=reduction_axis,
     )
-    return outputs
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):

@@ -392,23 +392,21 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             import tensorflow as tf
 
             x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
-            sparse_class = tf.SparseTensor
         elif backend.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
-            sparse_class = jax_sparse.JAXSparse
         else:
             self.fail(f"Sparse is unsupported with backend {backend.backend()}")
 
         x_default = ops.convert_to_tensor(x)
-        self.assertIsInstance(x_default, sparse_class)
+        self.assertSparse(x_default)
         self.assertAllClose(x, x_default)
         x_sparse = ops.convert_to_tensor(x, sparse=True)
-        self.assertIsInstance(x_sparse, sparse_class)
+        self.assertSparse(x_sparse)
         self.assertAllClose(x, x_sparse)
         x_dense = ops.convert_to_tensor(x, sparse=False)
-        self.assertNotIsInstance(x_dense, sparse_class)
+        self.assertSparse(x_dense, False)
         self.assertAllClose(x, x_dense)
 
         x_numpy = ops.convert_to_numpy(x)

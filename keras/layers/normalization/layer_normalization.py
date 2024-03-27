@@ -158,6 +158,7 @@ class LayerNormalization(Layer):
                 regularizer=self.gamma_regularizer,
                 constraint=self.gamma_constraint,
                 trainable=True,
+                autocast=False,
             )
         else:
             self.gamma = None
@@ -170,6 +171,7 @@ class LayerNormalization(Layer):
                 regularizer=self.beta_regularizer,
                 constraint=self.beta_constraint,
                 trainable=True,
+                autocast=False,
             )
         else:
             self.beta = None

@@ -2022,14 +2022,12 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
                 )
 
             dense_to_sparse = tf.sparse.from_dense
-            sparse_class = tf.SparseTensor
         elif backend.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             dense_to_sparse = functools.partial(
                 jax_sparse.BCOO.fromdense, n_batch=len(x_shape) - 2
             )
-            sparse_class = jax_sparse.JAXSparse
 
         rng = np.random.default_rng(0)
 
@@ -2045,8 +2043,7 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
 
         atol = 0.1 if dtype == "float16" else 1e-4
         self.assertAllClose(knp.matmul(x, y), np.matmul(x_np, y_np), atol=atol)
-        if x_sparse and y_sparse:
-            self.assertIsInstance(knp.matmul(x, y), sparse_class)
+        self.assertSparse(knp.matmul(x, y), x_sparse and y_sparse)
 
     def test_power(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -2173,9 +2170,23 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
 
+        subscripts = "ab,b->a"
+        x = np.arange(6).reshape([2, 3]).astype("float32")
+        y = np.arange(3).reshape([3]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
         subscripts = "ab,bc->ac"
         x = np.arange(6).reshape([2, 3]).astype("float32")
         y = np.arange(12).reshape([3, 4]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "ab,cb->ac"
+        x = np.arange(6).reshape([2, 3]).astype("float32")
+        y = np.arange(12).reshape([4, 3]).astype("float32")
         self.assertAllClose(
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
@@ -2194,6 +2205,13 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
 
+        subscripts = "abc,dc->abd"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(20).reshape([5, 4]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
         subscripts = "abc,dce->abde"
         x = np.arange(24).reshape([2, 3, 4]).astype("float32")
         y = np.arange(120).reshape([5, 4, 6]).astype("float32")
@@ -2201,9 +2219,30 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
 
+        subscripts = "abc,dec->abde"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(120).reshape([5, 6, 4]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,abde->abce"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(180).reshape([2, 3, 5, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
         subscripts = "abcd,abed->abce"
         x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
         y = np.arange(180).reshape([2, 3, 6, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,acbe->adbe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(144).reshape([2, 4, 3, 6]).astype("float32")
         self.assertAllClose(
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
@@ -2232,6 +2271,20 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         subscripts = "abcd,cde->abe"
         x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
         y = np.arange(120).reshape([4, 5, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,ced->abe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(120).reshape([4, 6, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,ecd->abe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(120).reshape([6, 4, 5]).astype("float32")
         self.assertAllClose(
             knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
         )
@@ -3026,7 +3079,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np.average(x, axis=1, weights=weights_1d),
         )
 
-    def test_bincount(self):
+    @parameterized.named_parameters(
+        [
+            {"testcase_name": "dense", "sparse": False},
+            {"testcase_name": "sparse", "sparse": True},
+        ]
+    )
+    def test_bincount(self, sparse):
+        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
+            pytest.skip("Backend does not support sparse tensors")
         if backend.backend() == "tensorflow":
             import tensorflow as tf
 
@@ -3036,31 +3097,42 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         x = np.array([1, 1, 2, 3, 2, 4, 4, 5])
         weights = np.array([0, 0, 3, 2, 1, 1, 4, 2])
         minlength = 3
-        self.assertAllClose(
-            knp.bincount(x, weights=weights, minlength=minlength),
-            np.bincount(x, weights=weights, minlength=minlength),
+        output = knp.bincount(
+            x, weights=weights, minlength=minlength, sparse=sparse
         )
         self.assertAllClose(
-            knp.Bincount(weights=weights, minlength=minlength)(x),
-            np.bincount(x, weights=weights, minlength=minlength),
+            output, np.bincount(x, weights=weights, minlength=minlength)
         )
+        self.assertSparse(output, sparse)
+        output = knp.Bincount(
+            weights=weights, minlength=minlength, sparse=sparse
+        )(x)
+        self.assertAllClose(
+            output, np.bincount(x, weights=weights, minlength=minlength)
+        )
+        self.assertSparse(output, sparse)
+
         x = np.array([[1, 1, 2, 3, 2, 4, 4, 5]])
         weights = np.array([[0, 0, 3, 2, 1, 1, 4, 2]])
         expected_output = np.array([[0, 0, 4, 2, 5, 2]])
-        self.assertAllClose(
-            knp.bincount(x, weights=weights, minlength=minlength),
-            expected_output,
+        output = knp.bincount(
+            x, weights=weights, minlength=minlength, sparse=sparse
         )
-        self.assertAllClose(
-            knp.Bincount(weights=weights, minlength=minlength)(x),
-            expected_output,
-        )
+        self.assertAllClose(output, expected_output)
+        self.assertSparse(output, sparse)
+        output = knp.Bincount(
+            weights=weights, minlength=minlength, sparse=sparse
+        )(x)
+        self.assertAllClose(output, expected_output)
+        self.assertSparse(output, sparse)
+
         # test with weights=None
         expected_output = np.array([[0, 2, 2, 1, 2, 1]])
-        self.assertAllClose(
-            knp.Bincount(weights=None, minlength=minlength)(x),
-            expected_output,
+        output = knp.Bincount(weights=None, minlength=minlength, sparse=sparse)(
+            x
         )
+        self.assertAllClose(output, expected_output)
+        self.assertSparse(output, sparse)
 
     def test_broadcast_to(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -3133,13 +3205,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
             x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
             y = tf.SparseTensor([[0, 0], [1, 1]], [4.0, 5.0], (2, 3))
-            sparse_class = tf.SparseTensor
         elif backend.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
             y = jax_sparse.BCOO(([4.0, 5.0], [[0, 0], [1, 1]]), shape=(2, 3))
-            sparse_class = jax_sparse.JAXSparse
 
         x_np = backend.convert_to_numpy(x)
         y_np = backend.convert_to_numpy(y)
@@ -3171,8 +3241,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np.concatenate([x_np, y_np], axis=axis),
         )
 
-        self.assertIsInstance(knp.concatenate([x, y], axis=axis), sparse_class)
-        self.assertIsInstance(knp.Concatenate(axis=axis)([x, y]), sparse_class)
+        self.assertSparse(knp.concatenate([x, y], axis=axis))
+        self.assertSparse(knp.Concatenate(axis=axis)([x, y]))
 
     def test_conjugate(self):
         x = np.array([[1 + 2j, 2 + 3j], [3 + 4j, 4 + 5j]])
@@ -4261,6 +4331,20 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
             ("mean", "02_k", {"axis": (1, 2), "keepdims": True}, (4, 2, 3)),
             ("mean", "all", {"axis": (0, 1, 2)}, (4, 2, 3)),
             ("mean", "all_k", {"axis": (0, 1, 2), "keepdims": True}, (4, 2, 3)),
+            ("sum", "none", {"axis": None}, (4, 2, 3)),
+            ("sum", "none_k", {"axis": None, "keepdims": True}, (4, 2, 3)),
+            ("sum", "empty", {"axis": ()}, (4, 2, 3)),
+            ("sum", "empty_k", {"axis": (), "keepdims": True}, (4, 2, 3)),
+            ("sum", "0", {"axis": 0}, (4, 2, 3)),
+            ("sum", "0_k", {"axis": 0, "keepdims": True}, (4, 2, 3)),
+            ("sum", "1", {"axis": 1}, (4, 2, 3)),
+            ("sum", "1_k", {"axis": 1, "keepdims": True}, (4, 2, 3)),
+            ("sum", "01", {"axis": (0, 1)}, (4, 2, 3)),
+            ("sum", "01_k", {"axis": (0, 1), "keepdims": True}, (4, 2, 3)),
+            ("sum", "02", {"axis": (1, 2)}, (4, 2, 3)),
+            ("sum", "02_k", {"axis": (1, 2), "keepdims": True}, (4, 2, 3)),
+            ("sum", "all", {"axis": (0, 1, 2)}, (4, 2, 3)),
+            ("sum", "all_k", {"axis": (0, 1, 2), "keepdims": True}, (4, 2, 3)),
             ("expand_dims", "zero", {"axis": 0}, (2, 3)),
             ("expand_dims", "one", {"axis": 1}, (2, 3)),
             ("expand_dims", "minus_two", {"axis": -2}, (2, 3)),
@@ -5668,15 +5752,23 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         dtype1, dtype2 = dtypes
         for subscripts in [
             "a,b->ab",
+            "ab,b->a",
             "ab,bc->ac",
+            "ab,cb->ac",
             "abc,cd->abd",
             "abc,cde->abde",
+            "abc,dc->abd",
             "abc,dce->abde",
+            "abc,dec->abde",
+            "abcd,abde->abce",
             "abcd,abed->abce",
+            "abcd,acbe->adbe",
             "abcd,adbe->acbe",
             "abcd,aecd->acbe",
             "abcd,aecd->aceb",
             "abcd,cde->abe",
+            "abcd,ced->abe",
+            "abcd,ecd->abe",
             "abcde,aebf->adbcf",
             "abcde,afce->acdbf",
         ]:

@@ -16,6 +16,7 @@ from keras.backend.common import dtypes
 from keras.backend.common.backend_utils import canonicalize_axis
 from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.backend.tensorflow import sparse
+from keras.backend.tensorflow.core import cast
 from keras.backend.tensorflow.core import convert_to_tensor
 from keras.utils import tree
 
@@ -35,7 +36,7 @@ def add(x1, x2):
     return tf.add(x1, x2)
 
 
-def bincount(x, weights=None, minlength=0):
+def bincount(x, weights=None, minlength=0, sparse=False):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype]
     if standardize_dtype(x.dtype) not in ["int32", "int64"]:
@@ -56,19 +57,24 @@ def bincount(x, weights=None, minlength=0):
                 weights = tf.cast(weights, tf.float32)
     else:
         dtype = "int32"
-    if isinstance(x, tf.SparseTensor):
+    if sparse or isinstance(x, tf.SparseTensor):
         output = tf.sparse.bincount(
             x,
             weights=weights,
             minlength=minlength,
             axis=-1,
         )
-        output = tf.cast(output, dtype)
+        actual_length = output.shape[-1]
+        if actual_length is None:
+            actual_length = tf.shape(output)[-1]
+        output = cast(output, dtype)
         if x.shape.rank == 1:
-            output_shape = (minlength,)
+            output_shape = (actual_length,)
         else:
-            batch_size = tf.shape(output)[0]
-            output_shape = (batch_size, minlength)
+            batch_size = output.shape[0]
+            if batch_size is None:
+                batch_size = tf.shape(output)[0]
+            output_shape = (batch_size, actual_length)
         return tf.SparseTensor(
             indices=output.indices,
             values=output.values,
@@ -104,9 +110,14 @@ def einsum(subscripts, *operands, **kwargs):
         # `None`.
         if subscripts in [
             "a,b->ab",
+            "ab,b->a",
             "ab,bc->ac",
+            "ab,cb->ac",
             "abc,cd->abd",
+            "abc,dc->abd",
+            "abcd,abde->abce",
             "abcd,abed->abce",
+            "abcd,acbe->adbe",
             "abcd,adbe->acbe",
             "abcd,aecd->acbe",
             "abcd,aecd->aceb",
@@ -127,9 +138,30 @@ def einsum(subscripts, *operands, **kwargs):
             if None in (b, c, d, e):
                 return False
             return True
+        elif subscripts == "abc,dec->abde":
+            _, b1, c1 = operands[0].shape
+            d2, e2, c2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
         elif subscripts == "abcd,cde->abe":
             _, b1, c1, d1 = operands[0].shape
             c2, d2, e2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
+        elif subscripts == "abcd,ced->abe":
+            _, b1, c1, d1 = operands[0].shape
+            c2, e2, d2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
+        elif subscripts == "abcd,ecd->abe":
+            _, b1, c1, d1 = operands[0].shape
+            e2, c2, d2 = operands[1].shape
             b, c, d, e = b1, c1 or c2, d1 or d2, e2
             if None in (b, c, d, e):
                 return False
@@ -160,7 +192,14 @@ def einsum(subscripts, *operands, **kwargs):
             x = tf.expand_dims(x, axis=-1)
             y = tf.expand_dims(y, axis=0)
             return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "ab,b->a":
+            y = tf.expand_dims(y, axis=-1)
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.squeeze(result, axis=-1)
         elif subscripts == "ab,bc->ac":
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "ab,cb->ac":
+            y = tf.transpose(y, [1, 0])
             return tf.matmul(x, y, output_type=output_type)
         elif subscripts == "abc,cd->abd":
             return tf.matmul(x, y, output_type=output_type)
@@ -171,6 +210,9 @@ def einsum(subscripts, *operands, **kwargs):
             y = tf.reshape(y, [c, -1])
             result = tf.matmul(x, y, output_type=output_type)
             return tf.reshape(result, [-1, b, d, e])
+        elif subscripts == "abc,dc->abd":
+            y = tf.transpose(y, [1, 0])
+            return tf.matmul(x, y, output_type=output_type)
         elif subscripts == "abc,dce->abde":
             _, b1, c1 = x.shape
             d2, c2, e2 = y.shape
@@ -179,9 +221,24 @@ def einsum(subscripts, *operands, **kwargs):
             y = tf.reshape(y, [c, -1])
             result = tf.matmul(x, y, output_type=output_type)
             return tf.reshape(result, [-1, b, d, e])
+        elif subscripts == "abc,dec->abde":
+            _, b1, c1 = x.shape
+            d2, e2, c2 = y.shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            y = tf.transpose(y, [2, 0, 1])  # cde
+            y = tf.reshape(y, [c, -1])
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.reshape(result, [-1, b, d, e])
+        elif subscripts == "abcd,abde->abce":
+            return tf.matmul(x, y, output_type=output_type)
         elif subscripts == "abcd,abed->abce":
             y = tf.transpose(y, [0, 1, 3, 2])
             return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,acbe->adbe":
+            x = tf.transpose(x, [0, 1, 3, 2])
+            y = tf.transpose(y, [0, 2, 1, 3])
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.transpose(result, [0, 2, 1, 3])
         elif subscripts == "abcd,adbe->acbe":
             y = tf.transpose(y, [0, 2, 1, 3])  # abde
             result = tf.matmul(x, y, output_type=output_type)  # abce
@@ -200,6 +257,22 @@ def einsum(subscripts, *operands, **kwargs):
             c2, d2, e2 = y.shape
             b, c, d, e = b1, c1 or c2, d1 or d2, e2
             x = tf.reshape(x, [-1, b, c * d])
+            y = tf.reshape(y, [-1, e])
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,ced->abe":
+            _, b1, c1, d1 = x.shape
+            c2, e2, d2 = y.shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            x = tf.reshape(x, [-1, b, c * d])
+            y = tf.transpose(y, [0, 2, 1])
+            y = tf.reshape(y, [-1, e])
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,ecd->abe":
+            _, b1, c1, d1 = x.shape
+            e2, c2, d2 = y.shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            x = tf.reshape(x, [-1, b, c * d])
+            y = tf.transpose(y, [1, 2, 0])
             y = tf.reshape(y, [-1, e])
             return tf.matmul(x, y, output_type=output_type)
         elif subscripts == "abcde,aebf->adbcf":
@@ -879,11 +952,11 @@ def digitize(x, bins):
     # int16, uint8, uint16, uint32
     ori_dtype = standardize_dtype(x.dtype)
     if ori_dtype in ("bool", "int8", "int16", "uint8", "uint16"):
-        x = tf.cast(x, "int32")
+        x = cast(x, "int32")
     elif ori_dtype == "uint32":
-        x = tf.cast(x, "int64")
+        x = cast(x, "int64")
     elif ori_dtype in ("bfloat16", "float16"):
-        x = tf.cast(x, "float32")
+        x = cast(x, "float32")
 
     if isinstance(x, tf.RaggedTensor):
         return tf.ragged.map_flat_values(
@@ -1965,7 +2038,11 @@ def sum(x, axis=None, keepdims=False):
         dtype = "int32"
     elif dtype in ("uint8", "uint16"):
         dtype = "uint32"
-    x = tf.cast(x, dtype)
+    x = cast(x, dtype)
+    if isinstance(x, tf.SparseTensor):
+        return tf.sparse.reduce_sum(
+            x, axis=axis, keepdims=keepdims, output_is_sparse=True
+        )
     return tf.reduce_sum(x, axis=axis, keepdims=keepdims)
 
 

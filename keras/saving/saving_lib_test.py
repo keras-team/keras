@@ -833,7 +833,9 @@ class SavingBattleTest(testing.TestCase):
             def call(self, x):
                 return self.dense(x)
 
-        temp_filepath = "normal_model.weights.h5"
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "normal_model.weights.h5"
+        )
         model_a = NormalModel()
         model_a(np.random.random((2, 2)))
         model_a.save_weights(temp_filepath)

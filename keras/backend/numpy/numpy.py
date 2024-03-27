@@ -260,7 +260,9 @@ def average(x, axis=None, weights=None):
     return np.average(x, weights=weights, axis=axis)
 
 
-def bincount(x, weights=None, minlength=0):
+def bincount(x, weights=None, minlength=0, sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with numpy backend")
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype]
     if weights is not None:

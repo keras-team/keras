@@ -552,7 +552,9 @@ def conv_transpose(
     return outputs
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32"):
+def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with torch backend")
     # Axis is the output axis. By default, PyTorch, outputs to last axis.
     # If axis is not last, change output to axis and shift remaining elements.
     x = convert_to_tensor(x, dtype=torch.long)
@@ -575,7 +577,9 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
     return output
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with torch backend")
     x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
     outputs = torch.amax(
