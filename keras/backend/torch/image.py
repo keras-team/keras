@@ -13,6 +13,7 @@ UNSUPPORTED_INTERPOLATIONS = (
     "lanczos5",
 )
 
+
 def rgb_to_grayscale(image, data_format="channel_last"):
     try:
         import torchvision
@@ -42,6 +43,7 @@ def rgb_to_grayscale(image, data_format="channel_last"):
         elif len(image.shape) == 3:
             grayscale_image = grayscale_image.permute((1, 2, 0))
     return grayscale_image
+
 
 def resize(
     image,

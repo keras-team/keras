@@ -13,6 +13,7 @@ RESIZE_INTERPOLATIONS = (
     "bicubic",
 )
 
+
 def rgb_to_grayscale(image, data_format="channels_last"):
     if data_format == "channel_first":
         if len(image.shape) == 4:
@@ -25,7 +26,7 @@ def rgb_to_grayscale(image, data_format="channels_last"):
                 "or rank 4 (batch of images). Received input with shape: "
                 f"image.shape={image.shape}"
             )
-    red, green, blue = image[:,:,0], image[:,:,1], image[:,:,2]
+    red, green, blue = image[:, :, 0], image[:, :, 1], image[:, :, 2]
     grayscale_image = 0.2989 * red + 0.5870 * green + 0.1140 * blue
     if data_format == "channels_first":
         if len(image.shape) == 4:
@@ -33,6 +34,7 @@ def rgb_to_grayscale(image, data_format="channels_last"):
         elif len(image.shape) == 3:
             grayscale_image = jnp.transpose(grayscale_image, (2, 0, 1))
     return jnp.array(grayscale_image)
+
 
 def resize(
     image,

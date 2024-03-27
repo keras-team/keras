@@ -7,53 +7,81 @@ from keras.ops.operation import Operation
 from keras.ops.operation_utils import compute_conv_output_shape
 
 
-class rgb_to_grayscale(Operation):
+class RGB_to_Grayscale(Operation):
     def __init__(
         self,
         data_format="channels_last",
     ):
         self.data_format = data_format
+
     def call(self, image):
         return backend.image.rgb_to_grayscale(
             image,
             data_format=self.data_format,
         )
+
     def compute_output_spec(self, image):
-        if len(image.shape) == 3:
-            return KerasTensor(
-                self.size + (image.shape[-1],), dtype=image.dtype
+        if len(image.shape) not in (3, 4):
+            raise ValueError(
+                "Invalid image rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"image.shape={image.shape}"
             )
-        elif len(image.shape) == 4:
-            if self.data_format == "channels_last":
-                return KerasTensor(
-                    (image.shape[0],) + self.size + (image.shape[-1],),
-                    dtype=image.dtype,
-                )
-            else:
-                return KerasTensor(
-                    (image.shape[0], image.shape[1]) + self.size,
-                    dtype=image.dtype,
-                )
-        raise ValueError(
-            "Invalid input rank: expected rank 3 (single image) "
-            "or rank 4 (batch of images). Received input with shape: "
-            f"image.shape={image.shape}"
-        )
+
 
 @keras_export("keras.ops.image.rgb_to_grayscale")
 def rgb_to_grayscale(
     image,
     data_format="channels_last",
 ):
+    """Convert RGB images to grayscale.
+
+    This function converts RGB images to grayscale images. It supports both
+    3D and 4D tensors, where the last dimension represents channels.
+
+    Args:
+        image: Input RGB image or batch of RGB images. Must be a 3D tensor
+            with shape `(height, width, channels)` or a 4D tensor with shape
+            `(batch, height, width, channels)`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            Defaults to `"channels_last"`.
+
+    Returns:
+        Grayscale image or batch of grayscale images.
+
+    Examples:
+
+    >>> import numpy as np
+    >>> from tensorflow.keras import ops
+    >>> x = np.random.random((2, 4, 4, 3)) # Batch of 2 RGB images
+    >>> y = ops.image.rgb_to_grayscale(x)
+    >>> y.shape
+    (2, 4, 4, 1)
+
+    >>> x = np.random.random((4, 4, 3)) # Single RGB image
+    >>> y = ops.image.rgb_to_grayscale(x)
+    >>> y.shape
+    (4, 4, 1)
+
+    >>> x = np.random.random((2, 3, 4, 4)) # Batch of 2 RGB images, channels_first
+    >>> y = ops.image.rgb_to_grayscale(x, data_format="channels_first")
+    >>> y.shape
+    (2, 1, 4, 4)
+    """
     if any_symbolic_tensors((image,)):
-        return rgb_to_grayscale(
+        return RGB_to_Grayscale(
             data_format=data_format,
         ).symbolic_call(image)
     return backend.image.rgb_to_grayscale(
         image,
         data_format=data_format,
     )
-    
+
+
 class Resize(Operation):
     def __init__(
         self,
