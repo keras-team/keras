@@ -375,7 +375,9 @@ def average(x, axis=None, weights=None):
     return torch.mean(x, axis)
 
 
-def bincount(x, weights=None, minlength=0):
+def bincount(x, weights=None, minlength=0, sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with torch backend")
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype]
     if weights is not None:

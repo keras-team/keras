@@ -202,6 +202,7 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.multi_hot(x, 5).shape, (None, 1, 5))
         self.assertEqual(knn.multi_hot(x, 5, 1).shape, (None, 3, 1))
         self.assertEqual(knn.multi_hot(x, 5, 2).shape, (None, 5, 1))
+        self.assertSparse(knn.multi_hot(x, 5, sparse=True))
 
     @parameterized.product(dtype=["float32", "int32"])
     def test_multi_hot_dtype(self, dtype):
@@ -555,6 +556,7 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.one_hot(x, 5).shape, (None, 3, 1, 5))
         self.assertEqual(knn.one_hot(x, 5, 1).shape, (None, 5, 3, 1))
         self.assertEqual(knn.one_hot(x, 5, 2).shape, (None, 3, 5, 1))
+        self.assertSparse(knn.one_hot(x, 5, sparse=True))
 
     @parameterized.product(dtype=["float32", "int32"])
     def test_one_hot_dtype(self, dtype):
@@ -1012,6 +1014,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.one_hot(x, 5).shape, (2, 3, 1, 5))
         self.assertEqual(knn.one_hot(x, 5, 1).shape, (2, 5, 3, 1))
         self.assertEqual(knn.one_hot(x, 5, 2).shape, (2, 3, 5, 1))
+        self.assertSparse(knn.one_hot(x, 5, sparse=True))
 
     def test_binary_crossentropy(self):
         x1 = KerasTensor([2, 3, 1])
@@ -1552,54 +1555,63 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertAllClose(outputs, expected)
 
-    def test_one_hot(self):
+    @parameterized.named_parameters(
+        [
+            {"testcase_name": "dense", "sparse": False},
+            {"testcase_name": "sparse", "sparse": True},
+        ]
+    )
+    def test_one_hot(self, sparse):
+        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
+            pytest.skip("Backend does not support sparse tensors")
         # Test 1D one-hot.
         indices_1d = np.array([0, 1, 2, 3])
-        self.assertAllClose(knn.one_hot(indices_1d, 4), np.eye(4)[indices_1d])
-        self.assertAllClose(
-            knn.one_hot(indices_1d, 4, axis=0),
-            np.eye(4)[indices_1d],
-        )
+        output_1d = knn.one_hot(indices_1d, 4, sparse=sparse)
+        self.assertAllClose(output_1d, np.eye(4)[indices_1d])
+        self.assertSparse(output_1d, sparse)
+        output_1d = knn.one_hot(indices_1d, 4, axis=0, sparse=sparse)
+        self.assertAllClose(output_1d, np.eye(4)[indices_1d])
+        self.assertSparse(output_1d, sparse)
 
         # Test 1D list one-hot.
         indices_1d = [0, 1, 2, 3]
-        self.assertAllClose(knn.one_hot(indices_1d, 4), np.eye(4)[indices_1d])
-        self.assertAllClose(
-            knn.one_hot(indices_1d, 4, axis=0),
-            np.eye(4)[indices_1d],
-        )
+        output_1d = knn.one_hot(indices_1d, 4, sparse=sparse)
+        self.assertAllClose(output_1d, np.eye(4)[indices_1d])
+        self.assertSparse(output_1d, sparse)
+        output_1d = knn.one_hot(indices_1d, 4, axis=0, sparse=sparse)
+        self.assertAllClose(output_1d, np.eye(4)[indices_1d])
+        self.assertSparse(output_1d, sparse)
 
         # Test 2D one-hot.
         indices_2d = np.array([[0, 1], [2, 3]])
-        self.assertAllClose(knn.one_hot(indices_2d, 4), np.eye(4)[indices_2d])
+        output_2d = knn.one_hot(indices_2d, 4, sparse=sparse)
+        self.assertAllClose(output_2d, np.eye(4)[indices_2d])
+        self.assertSparse(output_2d, sparse)
+        output_2d = knn.one_hot(indices_2d, 4, axis=2, sparse=sparse)
+        self.assertAllClose(output_2d, np.eye(4)[indices_2d])
+        self.assertSparse(output_2d, sparse)
+        output_2d = knn.one_hot(indices_2d, 4, axis=1, sparse=sparse)
         self.assertAllClose(
-            knn.one_hot(indices_2d, 4, axis=2),
-            np.eye(4)[indices_2d],
+            output_2d, np.transpose(np.eye(4)[indices_2d], (0, 2, 1))
         )
-        self.assertAllClose(
-            knn.one_hot(indices_2d, 4, axis=1),
-            np.transpose(np.eye(4)[indices_2d], (0, 2, 1)),
-        )
+        self.assertSparse(output_2d, sparse)
 
         # Test 1D one-hot with negative inputs
         indices_1d = np.array([0, -1, -1, 3])
+        output_1d = knn.one_hot(indices_1d, 4, sparse=sparse)
         self.assertAllClose(
-            knn.one_hot(indices_1d, 4),
+            output_1d,
             np.array(
                 [
                     [1, 0, 0, 0],
                     [0, 0, 0, 0],
                     [0, 0, 0, 0],
-                    [
-                        0,
-                        0,
-                        0,
-                        1,
-                    ],
+                    [0, 0, 0, 1],
                 ],
                 dtype=np.float32,
             ),
         )
+        self.assertSparse(output_1d, sparse)
 
     def test_binary_crossentropy(self):
         # Test with from_logits=False
@@ -1689,21 +1701,36 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertAllClose(result, [0.001822, 0.000459, 0.169846])
 
-    def test_multi_hot(self):
+    @parameterized.named_parameters(
+        [
+            {"testcase_name": "dense", "sparse": False},
+            {"testcase_name": "sparse", "sparse": True},
+        ]
+    )
+    def test_multi_hot(self, sparse):
+        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
+            pytest.skip("Backend does not support sparse tensors")
+
         # Test 1D multi-hot.
         indices_1d = np.array([0, 1, 2, 3])
         expected_output_1d = np.array([1, 1, 1, 1])
-        self.assertAllClose(knn.multi_hot(indices_1d, 4), expected_output_1d)
+        output_1d = knn.multi_hot(indices_1d, 4, sparse=sparse)
+        self.assertAllClose(output_1d, expected_output_1d)
+        self.assertSparse(output_1d, sparse)
 
         # Test 2D multi-hot.
         indices_2d = np.array([[0, 1], [2, 3]])
         expected_output_2d = np.array([[1, 1, 0, 0], [0, 0, 1, 1]])
-        self.assertAllClose(knn.multi_hot(indices_2d, 4), expected_output_2d)
+        output_2d = knn.multi_hot(indices_2d, 4, sparse=sparse)
+        self.assertAllClose(output_2d, expected_output_2d)
+        self.assertSparse(output_2d, sparse)
 
         # Test 1D multi-hot with negative inputs
         indices_1d = np.array([0, -1, -1, 3])
         expected_output_1d = np.array([1, 0, 0, 1])
-        self.assertAllClose(knn.multi_hot(indices_1d, 4), expected_output_1d)
+        output_1d = knn.multi_hot(indices_1d, 4, sparse=sparse)
+        self.assertAllClose(output_1d, expected_output_1d)
+        self.assertSparse(output_1d, sparse)
 
     def test_moments(self):
         # Test 1D moments

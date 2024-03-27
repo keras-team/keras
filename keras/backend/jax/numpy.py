@@ -9,6 +9,7 @@ from keras.backend.common import dtypes
 from keras.backend.common.backend_utils import canonicalize_axis
 from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.backend.common.variables import standardize_dtype
+from keras.backend.jax import nn
 from keras.backend.jax import sparse
 from keras.backend.jax.core import cast
 from keras.backend.jax.core import convert_to_tensor
@@ -21,7 +22,25 @@ def add(x1, x2):
     return jnp.add(x1, x2)
 
 
-def bincount(x, weights=None, minlength=0):
+def bincount(x, weights=None, minlength=0, sparse=False):
+    if sparse:
+        reduction_axis = 1 if len(x.shape) > 1 else 0
+        maxlength = jnp.maximum(jnp.max(x) + 1, minlength)
+        one_hot_encoding = nn.one_hot(x, maxlength, sparse=sparse)
+        if weights is not None:
+            split_weights = split(
+                weights,
+                weights.shape[reduction_axis],
+                reduction_axis,
+            )
+            stacked_weights = stack(split_weights, axis=reduction_axis)
+            one_hot_encoding = one_hot_encoding * stacked_weights
+
+        outputs = jax_sparse.bcoo_reduce_sum(
+            one_hot_encoding,
+            axes=(reduction_axis,),
+        )
+        return outputs
     if len(x.shape) == 2:
         if weights is None:
 
@@ -1069,6 +1088,26 @@ def var(x, axis=None, keepdims=False):
 
 def sum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    if isinstance(x, jax_sparse.BCOO):
+        if axis is None:
+            axis = tuple(range(len(x.shape)))
+        (
+            canonical_axis,
+            keep_dims_shape,
+            broadcast_dimensions,
+        ) = sparse.axis_shape_dims_for_broadcast_in_dim(
+            axis, x.shape, insert_dims=False
+        )
+        output = jax_sparse.bcoo_reduce_sum(x, axes=canonical_axis)
+        if keepdims:
+            # `bcoo_reduce_sum` does not support keepdims, neither does
+            # sparsify(jnp.sum), so we recreate the empty dimensions.
+            output = jax_sparse.bcoo_broadcast_in_dim(
+                output,
+                shape=keep_dims_shape,
+                broadcast_dimensions=broadcast_dimensions,
+            )
+        return output
     return jnp.sum(x, axis=axis, keepdims=keepdims)
 
 

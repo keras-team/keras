@@ -273,14 +273,12 @@ class MergingLayersTest(testing.TestCase, parameterized.TestCase):
 
             x1 = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
             x3 = tf.SparseTensor([[0, 0], [1, 1]], [4.0, 5.0], (2, 3))
-            sparse_class = tf.SparseTensor
         elif backend.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             # Use n_batch of 1 to be compatible with all ops.
             x1 = jax_sparse.BCOO(([[1.0, 2.0]], [[[0], [2]]]), shape=(2, 3))
             x3 = jax_sparse.BCOO(([[4.0, 5.0]], [[[0], [1]]]), shape=(2, 3))
-            sparse_class = jax_sparse.JAXSparse
         else:
             self.fail(f"Sparse is unsupported with backend {backend.backend()}")
 
@@ -292,5 +290,5 @@ class MergingLayersTest(testing.TestCase, parameterized.TestCase):
         # Merging a sparse tensor with a sparse tensor produces a sparse tensor
         x3_np = backend.convert_to_numpy(x3)
 
-        self.assertIsInstance(layer([x1, x3]), sparse_class)
+        self.assertSparse(layer([x1, x3]))
         self.assertAllClose(layer([x1, x3]), np_op(x1_np, x3_np, **init_kwargs))
