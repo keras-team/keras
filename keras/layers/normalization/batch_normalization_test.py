@@ -4,6 +4,7 @@ from absl.testing import parameterized
 
 from keras import backend
 from keras import layers
+from keras import ops
 from keras import testing
 from keras.losses import MeanSquaredError
 from keras.models import Model
@@ -211,3 +212,12 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
 
         self.assertAllClose(np.mean(out, axis=(0, 1, 2)), 0.0, atol=1e-3)
         self.assertAllClose(np.std(out, axis=(0, 1, 2)), 1.0, atol=1e-3)
+
+    def test_large_value_within_autocast_scope(self):
+        layer = layers.BatchNormalization()
+        layer.build((1, 4, 4, 3))
+        # Use 70000 to trigger overflow for float16
+        large_value = ops.full(layer.moving_variance.shape, 70000)
+        with backend.AutocastScope("float16"):
+            layer.moving_variance.assign(large_value)
+            self.assertAllClose(layer.moving_variance.value, large_value)

@@ -139,6 +139,22 @@ class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
         with AutocastScope("float16"):
             self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
 
+        # Test autocast argument
+        v = backend.Variable(
+            initializer=initializers.RandomNormal(),
+            shape=(2, 2),
+            dtype="float32",
+            autocast=False,
+        )
+        self.assertEqual(v.dtype, "float32")
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+        with AutocastScope("float16"):
+            self.assertEqual(
+                backend.standardize_dtype(v.value.dtype),
+                "float32",  # ignore AutocastScope
+            )
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+
     @parameterized.parameters(
         *((dtype for dtype in ALLOWED_DTYPES if dtype != "string"))
     )
