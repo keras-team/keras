@@ -13,6 +13,11 @@ from keras.ops import image as kimage
 
 
 class ImageOpsDynamicShapeTest(testing.TestCase):
+    def test_rgb_to_grayscale(self):
+        x = KerasTensor([None, 20, 20, 3])
+        out = kimage.rgb_to_grayscale(x)
+        self.assertEqual(out.shape, (None, 20, 20, 1))
+
     def test_resize(self):
         x = KerasTensor([None, 20, 20, 3])
         out = kimage.resize(x, size=(15, 15))
@@ -62,6 +67,11 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
 
 
 class ImageOpsStaticShapeTest(testing.TestCase):
+    def test_rgb_to_grayscale(self):
+        x = KerasTensor([20, 20, 3])
+        out = kimage.rgb_to_grayscale(x)
+        self.assertEqual(out.shape, (20, 20, 1))
+
     def test_resize(self):
         x = KerasTensor([20, 20, 3])
         out = kimage.resize(x, size=(15, 15))
