@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from keras import backend
 from keras import layers
 from keras import ops
 from keras import regularizers
@@ -126,3 +127,12 @@ class LayerNormalizationTest(testing.TestCase):
         inputs = np.arange(5).astype("float32")[None, :]
         out = layer(inputs)
         self.assertAllClose(out, [[0.0, 0.70693, 1.41386, 2.12079, 2.82772]])
+
+    def test_large_value_within_autocast_scope(self):
+        layer = layers.LayerNormalization()
+        layer.build((1, 4, 4, 3))
+        # Use 70000 to trigger overflow for float16
+        large_value = ops.full(layer.gamma.shape, 70000)
+        with backend.AutocastScope("float16"):
+            layer.gamma.assign(large_value)
+            self.assertAllClose(layer.gamma.value, large_value)
