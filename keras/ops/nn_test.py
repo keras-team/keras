@@ -1897,6 +1897,68 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         result = knn.ctc_loss(labels, outputs, label_length, output_length)
         self.assertAllClose(result, np.array([3.4411672, 1.91680186]))
 
+    @pytest.mark.skipif(
+        backend.backend() not in ["tensorflow", "jax"],
+        reason="CTC decode only supported for TF and JAX backends",
+    )
+    def test_ctc_decode(self):
+        inputs = np.array(
+            [
+                [
+                    [0.1, 0.4, 0.2, 0.0],
+                    [0.3, 0.3, 0.4, 0.0],
+                    [0.3, 0.2, 0.4, 0.0],
+                ],
+                [
+                    [0.1, 0.4, 0.7, 0.0],
+                    [0.3, 0.3, 0.4, 0.0],
+                    [0.2, 0.1, 0.1, 0.0],
+                ],
+                [
+                    [0.1, 0.4, 0.2, 0.0],
+                    [0.3, 0.3, 0.2, 0.0],
+                    [0.3, 0.2, 0.4, 0.0],
+                ],
+            ]
+        )
+        labels = np.array([[1, 2], [2, 0], [1, 0]])
+        score_labels = np.array([[-1.2], [-1.3], [-0.4]])
+
+        (decoded,), scores = knn.ctc_decode(
+            inputs, sequence_lengths=[3, 3, 1], strategy="greedy"
+        )
+
+        self.assertAllClose(decoded, labels)
+        self.assertAllClose(scores, score_labels)
+
+        if backend.backend() == "tensorflow":
+            labels = [
+                np.array([[1, 0], [2, 0], [1, 0]]),
+                np.array([[2], [2], [2]]),
+            ]
+            score_labels = np.array(
+                [
+                    [-3.055509, -3.090198],
+                    [-2.361756, -2.739681],
+                    [-1.172442, -1.372442],
+                ]
+            )
+
+            beam_width = 3
+            top_paths = 2
+
+            decoded, scores = knn.ctc_decode(
+                inputs,
+                sequence_lengths=[3, 3, 1],
+                strategy="beam_search",
+                beam_width=beam_width,
+                top_paths=top_paths,
+            )
+
+            for i in range(top_paths):
+                self.assertAllClose(decoded[i], labels[i])
+                self.assertAllClose(scores, score_labels)
+
     def test_normalize(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
         self.assertAllClose(

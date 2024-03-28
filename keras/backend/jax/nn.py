@@ -659,3 +659,90 @@ def ctc_loss(
     )
 
     return -last_alpha_mask[jnp.arange(batch_size), target_length]
+
+
+def ctc_greedy_decode(
+    inputs,
+    sequence_length,
+    merge_repeated=True,
+    mask_index=None,
+):
+    inputs = jnp.array(inputs)
+    sequence_length = jnp.array(sequence_length)
+
+    max_class_indices = jnp.argmax(inputs, axis=-1)
+
+    max_class_scores = jnp.max(inputs, axis=-1)
+    max_class_scores = jnp.where(
+        max_class_indices == mask_index, 0.0, max_class_scores
+    )
+
+    if mask_index is None:
+        mask_index = inputs.shape[-1] - 1
+
+    if merge_repeated:
+        repeat = max_class_indices[:, 1:] == max_class_indices[:, :-1]
+        repeat = repeat & (max_class_indices[:, 1:] != mask_index)
+        repeat = jnp.pad(repeat, ((0, 0), (1, 0)))
+
+        max_class_indices = jnp.where(repeat, mask_index, max_class_indices)
+    else:
+        repeat = jnp.zeros_like(max_class_indices, dtype=bool)
+
+    seqlen_mask = jnp.arange(inputs.shape[1])[None, :]
+    seqlen_mask = seqlen_mask >= sequence_length[:, None]
+    max_class_indices = jnp.where(seqlen_mask, mask_index, max_class_indices)
+
+    def _iterate(prev, x):
+        prev_score, prev_repeat = prev
+        score, repeat = x
+        new_score = score + jnp.where(prev_repeat, prev_score, 0.0)
+        return (new_score, repeat), new_score
+
+    _, scores = lax.scan(
+        _iterate,
+        (
+            jnp.zeros((inputs.shape[0],)),
+            jnp.zeros((inputs.shape[0],), dtype=bool),
+        ),
+        (max_class_scores.transpose(), repeat.transpose()),
+        reverse=True,
+    )
+    scores = scores.transpose()
+
+    indices = [batch[batch != mask_index] for batch in max_class_indices]
+    max_len = max(len(batch) for batch in indices)
+    indices = jnp.array(
+        [jnp.pad(batch, (0, max_len - len(batch))) for batch in indices]
+    )
+
+    scores = jnp.array(
+        [
+            [-jnp.sum(scores_batch[batch != mask_index])]
+            for scores_batch, batch in zip(scores, max_class_indices)
+        ]
+    )
+
+    return [indices], scores
+
+
+def ctc_decode(
+    inputs,
+    sequence_length,
+    strategy,
+    beam_width=100,
+    top_paths=1,
+    merge_repeated=True,
+    mask_index=None,
+):
+    if strategy == "greedy":
+        return ctc_greedy_decode(
+            inputs,
+            sequence_length,
+            merge_repeated=merge_repeated,
+            mask_index=mask_index,
+        )
+    else:
+        raise ValueError(
+            f"Invalid strategy {strategy}. Supported values: 'greedy'"
+        )
