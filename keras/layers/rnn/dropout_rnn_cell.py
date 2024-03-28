@@ -35,7 +35,7 @@ class DropoutRNNCell:
         if self._recurrent_dropout_mask is None and self.recurrent_dropout > 0:
             ones = ops.ones_like(step_input)
             self._recurrent_dropout_mask = backend.random.dropout(
-                ones, rate=self.dropout, seed=self.seed_generator
+                ones, rate=self.recurrent_dropout, seed=self.seed_generator
             )
         return self._recurrent_dropout_mask
 
