@@ -583,7 +583,7 @@ def batch_normalization(
         offset = jnp.reshape(offset, shape)
         res = res + offset
 
-    return x * inv + res
+    return jnp.add(x * inv, res)
 
 
 def ctc_loss(
