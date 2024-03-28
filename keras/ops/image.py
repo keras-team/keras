@@ -507,12 +507,12 @@ def map_coordinates(
 class PadImages(Operation):
     def __init__(
         self,
-        top_padding,
-        bottom_padding,
-        left_padding,
-        right_padding,
-        target_height,
-        target_width,
+        top_padding=None,
+        bottom_padding=None,
+        left_padding=None,
+        right_padding=None,
+        target_height=None,
+        target_width=None,
     ):
         super().__init__()
         self.top_padding = top_padding
