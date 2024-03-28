@@ -19,7 +19,7 @@ def rgb_to_grayscale(image, data_format="channel_last"):
         import torchvision
     except:
         raise ImportError(
-            "The torchvision package is necessary to use `resize` with the "
+            "The torchvision package is necessary to use `rgb_to_grayscale` with the "
             "torch backend. Please install torchvision."
         )
     image = convert_to_tensor(image)

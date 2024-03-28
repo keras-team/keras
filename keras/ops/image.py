@@ -7,7 +7,7 @@ from keras.ops.operation import Operation
 from keras.ops.operation_utils import compute_conv_output_shape
 
 
-class RGB_to_Grayscale(Operation):
+class RGBToGrayscale(Operation):
     def __init__(
         self,
         data_format="channels_last",
@@ -78,7 +78,7 @@ def rgb_to_grayscale(
 
     >>> import numpy as np
     >>> from tensorflow.keras import ops
-    >>> x = np.random.random((2, 4, 4, 3)) # Batch of 2 RGB images
+    >>> x = np.random.random((2, 4, 4, 3))
     >>> y = ops.image.rgb_to_grayscale(x)
     >>> y.shape
     (2, 4, 4, 1)
@@ -88,13 +88,13 @@ def rgb_to_grayscale(
     >>> y.shape
     (4, 4, 1)
 
-    >>> x = np.random.random((2, 3, 4, 4)) # Batch of 2 RGB images, channels_first
+    >>> x = np.random.random((2, 3, 4, 4))
     >>> y = ops.image.rgb_to_grayscale(x, data_format="channels_first")
     >>> y.shape
     (2, 1, 4, 4)
     """
     if any_symbolic_tensors((image,)):
-        return RGB_to_Grayscale(
+        return RGBToGrayscale(
             data_format=data_format,
         ).symbolic_call(image)
     return backend.image.rgb_to_grayscale(

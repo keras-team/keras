@@ -199,6 +199,51 @@ def _fixed_map_coordinates(
 class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     @parameterized.parameters(
         [
+            ("channels_last"),
+            ("channels_first"),
+        ]
+    )
+    def test_rgb_to_grayscale(self, data_format):
+        # Unbatched case
+        if data_format == "channels_first":
+            x = np.random.random((3, 50, 50)) * 255
+        else:
+            x = np.random.random((50, 50, 3)) * 255
+        out = kimage.rgb_to_grayscale(
+            x,
+            data_format=data_format,
+        )
+        if data_format == "channels_first":
+            x = np.transpose(x, (1, 2, 0))
+        ref_out = tf.image.rgb_to_grayscale(
+            x,
+        )
+        if data_format == "channels_first":
+            ref_out = np.transpose(ref_out, (2, 0, 1))
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=0.3)
+
+        # Batched case
+        if data_format == "channels_first":
+            x = np.random.random((2, 3, 50, 50)) * 255
+        else:
+            x = np.random.random((2, 50, 50, 3)) * 255
+        out = kimage.rgb_to_grayscale(
+            x,
+            data_format=data_format,
+        )
+        if data_format == "channels_first":
+            x = np.transpose(x, (0, 2, 3, 1))
+        ref_out = tf.image.rgb_to_grayscale(
+            x,
+        )
+        if data_format == "channels_first":
+            ref_out = np.transpose(ref_out, (0, 3, 1, 2))
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=0.3)
+
+    @parameterized.parameters(
+        [
             ("bilinear", True, "channels_last"),
             ("nearest", True, "channels_last"),
             ("lanczos3", True, "channels_last"),
