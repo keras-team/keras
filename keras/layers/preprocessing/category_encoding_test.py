@@ -145,6 +145,16 @@ class CategoryEncodingTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual("float32", output.dtype)
         self.assertSparse(output, sparse)
 
+        # Test compute_output_shape
+        input_data = np.array((4))
+        layer = layers.CategoryEncoding(
+            num_tokens=num_tokens, output_mode="multi_hot", sparse=sparse
+        )
+        self.assertEqual(
+            layer(input_data).shape,
+            layer.compute_output_shape(input_data.shape),
+        )
+
     @parameterized.named_parameters(TEST_CASES)
     def test_one_hot(self, sparse):
         input_data = np.array([3, 2, 0, 1])
@@ -175,6 +185,24 @@ class CategoryEncodingTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(expected_output_shape, output.shape)
         self.assertEqual("float32", output.dtype)
         self.assertSparse(output, sparse)
+
+        # Test compute_output_shape
+        layer = layers.CategoryEncoding(
+            num_tokens=num_tokens, output_mode="one_hot", sparse=sparse
+        )
+        self.assertEqual(
+            layer(input_data).shape,
+            layer.compute_output_shape(input_data.shape),
+        )
+
+        input_data = np.array((4,))
+        layer = layers.CategoryEncoding(
+            num_tokens=num_tokens, output_mode="one_hot", sparse=sparse
+        )
+        self.assertEqual(
+            layer(input_data).shape,
+            layer.compute_output_shape(input_data.shape),
+        )
 
     @parameterized.named_parameters(TEST_CASES)
     def test_batched_one_hot(self, sparse):
