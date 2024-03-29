@@ -320,7 +320,8 @@ class ExportArchive:
 
                 def stateful_fn(*args, **kwargs):
                     return jax2tf_stateless_fn(
-                        self._tf_trackable.variables, *args, **kwargs
+                        # Change the trackable `ListWrapper` to a plain `list`
+                        list(self._tf_trackable.variables), *args, **kwargs
                     )
 
                 # Note: we truncate the number of parameters to what is
