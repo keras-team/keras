@@ -17,8 +17,8 @@ INT_TYPES = (
 )
 FLOAT_TYPES = ("bfloat16", "float16", "float32", "float64")
 WEAK_TYPES = ("int", "float")
-# We need to separate float8 from float because there is no implicit conversions
-# from float8 dtypes to other dtypes.
+# We need to separate float8 from float because there are no implicit
+# conversions from float8 dtypes to other dtypes.
 # Ref: https://github.com/google/jax/issues/16705
 FLOAT8_TYPES = ("float8_e4m3fn", "float8_e5m2")
 
