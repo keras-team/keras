@@ -7,8 +7,8 @@ from absl.testing import parameterized
 
 from keras import backend
 from keras import testing
+from keras.backend.common import dtypes
 from keras.backend.common.keras_tensor import KerasTensor
-from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import math as kmath
 
 
@@ -869,10 +869,10 @@ class MathDtypeTest(testing.TestCase, parameterized.TestCase):
     # resulting in different behavior between JAX and Keras. Currently, we
     # are skipping the test for uint64
     ALL_DTYPES = [
-        x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
+        x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
     ] + [None]
-    INT_DTYPES = [x for x in ALLOWED_DTYPES if "int" in x and x != "uint64"]
-    FLOAT_DTYPES = [x for x in ALLOWED_DTYPES if "float" in x]
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
+    FLOAT_DTYPES = dtypes.FLOAT_TYPES
 
     if backend.backend() == "torch":
         # TODO: torch doesn't support uint16, uint32 and uint64

@@ -11,9 +11,9 @@ from absl.testing import parameterized
 import keras
 from keras import backend
 from keras import testing
+from keras.backend.common import dtypes
 from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
-from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import numpy as knp
 from keras.testing.test_utils import named_product
 
@@ -4612,10 +4612,10 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     # resulting in different behavior between JAX and Keras. Currently, we
     # are skipping the test for uint64
     ALL_DTYPES = [
-        x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
+        x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
     ] + [None]
-    INT_DTYPES = [x for x in ALLOWED_DTYPES if "int" in x and x != "uint64"]
-    FLOAT_DTYPES = [x for x in ALLOWED_DTYPES if "float" in x]
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
+    FLOAT_DTYPES = dtypes.FLOAT_TYPES
 
     if backend.backend() == "torch":
         # TODO: torch doesn't support uint16, uint32 and uint64
@@ -4625,6 +4625,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         INT_DTYPES = [
             x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
         ]
+    # Remove float8 dtypes for the following tests
+    ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
 
     def setUp(self):
         from jax.experimental import enable_x64
@@ -6247,7 +6249,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 [np.array([0, 1], "float32"), np.array([10, 20], "float32")],
             ],
             num=[0, 1, 5],
-            dtype=FLOAT_DTYPES + [None],
+            dtype=FLOAT_DTYPES + (None,),
         )
     )
     def test_linspace(self, start_and_stop, num, dtype):
@@ -6371,7 +6373,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 [np.array([0, 1], "float32"), np.array([10, 20], "float32")],
             ],
             num=[0, 1, 5],
-            dtype=FLOAT_DTYPES + [None],
+            dtype=FLOAT_DTYPES + (None,),
         )
     )
     def test_logspace(self, start_and_stop, num, dtype):

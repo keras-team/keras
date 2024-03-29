@@ -9,9 +9,9 @@ from keras import losses
 from keras import models
 from keras import ops
 from keras import testing
+from keras.backend.common import dtypes
 from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
-from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.layers.convolutional.conv_test import np_conv1d
 from keras.layers.convolutional.conv_test import np_conv2d
 from keras.layers.convolutional.conv_test import np_conv3d
@@ -1949,7 +1949,7 @@ class TestLogitRecovery(testing.TestCase):
 class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
-    FLOAT_DTYPES = [x for x in ALLOWED_DTYPES if "float" in x]
+    FLOAT_DTYPES = dtypes.FLOAT_TYPES
 
     def setUp(self):
         from jax.experimental import enable_x64

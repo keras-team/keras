@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.api_export import keras_export
 from keras.backend import config
+from keras.backend.common import dtypes
 from keras.backend.common import global_state
 from keras.backend.common.name_scope import current_path
 from keras.backend.common.stateless_scope import get_stateless_scope
@@ -397,40 +398,13 @@ def initialize_all_variables():
     global_state.set_global_attribute("uninitialized_variables", [])
 
 
-ALLOWED_DTYPES = {
-    "float16",
-    "float32",
-    "float64",
-    "uint8",
-    "uint16",
-    "uint32",
-    "uint64",
-    "int8",
-    "int16",
-    "int32",
-    "int64",
-    "bfloat16",
-    "bool",
-    "string",
-}
-
-PYTHON_DTYPES_MAP = {
-    bool: "bool",
-    int: "int64" if config.backend() == "tensorflow" else "int32",
-    float: "float32",
-    str: "string",
-    # special case for string value
-    "int": "int64" if config.backend() == "tensorflow" else "int32",
-}
-
-
 @keras_export(
     ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
 )
 def standardize_dtype(dtype):
     if dtype is None:
         return config.floatx()
-    dtype = PYTHON_DTYPES_MAP.get(dtype, dtype)
+    dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
         dtype = dtype.name
     elif hasattr(dtype, "__str__") and (
@@ -440,7 +414,7 @@ def standardize_dtype(dtype):
     elif hasattr(dtype, "__name__"):
         dtype = dtype.__name__
 
-    if dtype not in ALLOWED_DTYPES:
+    if dtype not in dtypes.ALLOWED_DTYPES:
         raise ValueError(f"Invalid dtype: {dtype}")
     return dtype
 
