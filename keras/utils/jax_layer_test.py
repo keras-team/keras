@@ -321,24 +321,7 @@ class TestJaxLayer(testing.TestCase, parameterized.TestCase):
         verify_identical_model(model3)
 
         # export, load back and compare results
-        # TODO: fix and reenable this.
         path = os.path.join(self.get_temp_dir(), "jax_layer_export")
-        # export_archive = export_lib.ExportArchive()
-        # export_archive.track(model2)
-        # export_archive.add_endpoint(
-        #     "call",
-        #     model2.call,
-        #     input_signature=[
-        #         tf.TensorSpec(
-        #             shape=(None,) + input_shape,
-        #             dtype=tf.float32,
-        #         )
-        #     ],
-        # )
-        # export_archive.write_out(
-        #     path,
-        #     tf.saved_model.SaveOptions(experimental_custom_gradients=False),
-        # )
         export_lib.export_model(model2, path)
         model4 = tf.saved_model.load(path)
         output4 = model4.serve(x_test)
