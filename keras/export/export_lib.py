@@ -1,9 +1,12 @@
 """Library for exporting inference-only Keras models/layers."""
 
+import inspect
+
 from absl import logging
 
 from keras import backend
 from keras.api_export import keras_export
+from keras.backend.common.stateless_scope import StatelessScope
 from keras.layers import Layer
 from keras.models import Functional
 from keras.models import Sequential
@@ -89,6 +92,11 @@ class ExportArchive:
         self._tf_trackable.trainable_variables = []
         self._tf_trackable.non_trainable_variables = []
 
+        if backend.backend() == "jax":
+            self._backend_variables = []
+            self._backend_trainable_variables = []
+            self._backend_non_trainable_variables = []
+
         if backend.backend() not in ("tensorflow", "jax"):
             raise NotImplementedError(
                 "The export API is only compatible with JAX and TF backends."
@@ -144,16 +152,24 @@ class ExportArchive:
             # Variables in the lists below are actually part of the trackables
             # that get saved, because the lists are created in __init__.
             if backend.backend() == "jax":
-                self._tf_trackable.trainable_variables += tree.flatten(
-                    tree.map_structure(
-                        tf.Variable, resource.trainable_variables
-                    )
+
+                trainable_variables = tree.flatten(resource.trainable_variables)
+                non_trainable_variables = tree.flatten(
+                    resource.non_trainable_variables
                 )
-                self._tf_trackable.non_trainable_variables += tree.flatten(
-                    tree.map_structure(
-                        tf.Variable, resource.non_trainable_variables
-                    )
+                self._backend_trainable_variables += trainable_variables
+                self._backend_non_trainable_variables += non_trainable_variables
+                self._backend_variables = (
+                    self._backend_trainable_variables
+                    + self._backend_non_trainable_variables
                 )
+
+                self._tf_trackable.trainable_variables += [
+                    tf.Variable(v) for v in trainable_variables
+                ]
+                self._tf_trackable.non_trainable_variables += [
+                    tf.Variable(v) for v in non_trainable_variables
+                ]
                 self._tf_trackable.variables = (
                     self._tf_trackable.trainable_variables
                     + self._tf_trackable.non_trainable_variables
@@ -281,9 +297,45 @@ class ExportArchive:
             if backend.backend() == "tensorflow":
                 decorated_fn = tf.function(fn, input_signature=input_signature)
             else:  # JAX backend
-                fn = self._convert_jax2tf_function(fn, input_signature)
+
+                # 1. Create a stateless wrapper for `fn`
+                # 2. jax2tf the stateless wrapper
+                # 3. Create a stateful function that binds the variables with
+                #    the jax2tf converted stateless wrapper
+                # 4. Make the signature of the stateful function the same as the
+                #    original function
+                # 5. Wrap in a `tf.function`
+                def stateless_fn(variables, *args, **kwargs):
+                    state_mapping = zip(self._backend_variables, variables)
+                    with StatelessScope(state_mapping=state_mapping):
+                        return fn(*args, **kwargs)
+
+                variables_spec = [
+                    _make_tensor_spec(v) for v in self._backend_variables
+                ]
+
+                jax2tf_stateless_fn = self._convert_jax2tf_function(
+                    stateless_fn, [variables_spec] + input_signature
+                )
+
+                def stateful_fn(*args, **kwargs):
+                    return jax2tf_stateless_fn(
+                        self._tf_trackable.variables, *args, **kwargs
+                    )
+
+                # Note: we truncate the number of parameters to what is
+                # specified by `input_signature`.
+                fn_signature = inspect.signature(fn)
+                fn_parameters = list(fn_signature.parameters.values())
+                stateful_fn.__signature__ = inspect.Signature(
+                    parameters=fn_parameters[0 : len(input_signature)],
+                    return_annotation=fn_signature.return_annotation,
+                )
+
                 decorated_fn = tf.function(
-                    fn, input_signature=input_signature, autograph=False
+                    stateful_fn,
+                    input_signature=input_signature,
+                    autograph=False,
                 )
             self._endpoint_signatures[name] = input_signature
         else:

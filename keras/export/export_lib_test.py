@@ -9,10 +9,20 @@ import tensorflow as tf
 from keras import backend
 from keras import layers
 from keras import models
+from keras import random
 from keras import testing
 from keras import utils
 from keras.export import export_lib
 from keras.saving import saving_lib
+
+
+class RandomLayer(layers.Layer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.seed_generator = backend.random.SeedGenerator()
+
+    def call(self, inputs):
+        return inputs + random.uniform(inputs.shape, seed=self.seed_generator)
 
 
 def get_model():
@@ -41,6 +51,16 @@ class ExportArchiveTest(testing.TestCase):
         self.assertAllClose(
             ref_output, revived_model.serve(ref_input), atol=1e-6
         )
+
+    def test_model_with_rng_export(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = models.Sequential([RandomLayer()])
+        ref_input = tf.random.normal((3, 10))
+        ref_output = model(ref_input)
+
+        export_lib.export_model(model, temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertEqual(ref_output.shape, revived_model.serve(ref_input).shape)
 
     def test_low_level_model_export(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -452,12 +472,6 @@ class ExportArchiveTest(testing.TestCase):
             atol=1e-6,
         )
 
-    # TODO(nkovela): Remove test when argument name preservation
-    # workaround is created for JAX backend.
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason="JAX2TF has issues with argument name preservation.",
-    )
     def test_non_standard_layer_signature_with_kwargs(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_layer")
 
