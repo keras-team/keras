@@ -42,6 +42,8 @@ TORCH_DTYPES = {
     "int64": torch.int64,
     "bfloat16": torch.bfloat16,
     "bool": torch.bool,
+    "float8_e4m3fn": torch.float8_e4m3fn,
+    "float8_e5m2": torch.float8_e5m2,
 }
 
 

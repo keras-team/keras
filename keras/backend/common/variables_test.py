@@ -4,7 +4,7 @@ from absl.testing import parameterized
 
 from keras import backend
 from keras import initializers
-from keras.backend.common.variables import ALLOWED_DTYPES
+from keras.backend.common import dtypes
 from keras.backend.common.variables import AutocastScope
 from keras.backend.common.variables import KerasVariable
 from keras.backend.common.variables import shape_equal
@@ -156,7 +156,7 @@ class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
 
     @parameterized.parameters(
-        *((dtype for dtype in ALLOWED_DTYPES if dtype != "string"))
+        *((dtype for dtype in dtypes.ALLOWED_DTYPES if dtype != "string"))
     )
     def test_standardize_dtype(self, dtype):
         """Tests standardize_dtype for all ALLOWED_DTYPES except string."""

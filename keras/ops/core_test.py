@@ -12,8 +12,8 @@ from keras import models
 from keras import ops
 from keras import optimizers
 from keras import testing
+from keras.backend.common import dtypes
 from keras.backend.common.keras_tensor import KerasTensor
-from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import core
 from keras.utils import tree
 
@@ -465,6 +465,27 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(x.shape, y.shape)
         self.assertTrue(hasattr(y, "_keras_history"))
 
+    @parameterized.named_parameters(
+        ("float8_e4m3fn", "float8_e4m3fn"), ("float8_e5m2", "float8_e5m2")
+    )
+    def test_cast_float8(self, float8_dtype):
+        # Cast to float8 and cast back
+        x = ops.ones((2,), dtype="float32")
+        y = ops.cast(x, float8_dtype)
+        self.assertIn(float8_dtype, str(y.dtype))
+        x = ops.cast(y, "float32")
+        self.assertIn("float32", str(x.dtype))
+
+        x = ops.KerasTensor((2,), dtype="float32")
+        y = ops.cast(x, float8_dtype)
+        self.assertEqual(float8_dtype, y.dtype)
+        self.assertEqual(x.shape, y.shape)
+        self.assertTrue(hasattr(y, "_keras_history"))
+        x = ops.cast(y, "float32")
+        self.assertEqual("float32", x.dtype)
+        self.assertEqual(x.shape, y.shape)
+        self.assertTrue(hasattr(x, "_keras_history"))
+
     def test_vectorized_map(self):
         def fn(x):
             return x + 1
@@ -555,7 +576,7 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
     # resulting in different behavior between JAX and Keras. Currently, we
     # are skipping the test for uint64
     ALL_DTYPES = [
-        x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
+        x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
     ] + [None]
 
     if backend.backend() == "torch":
@@ -563,6 +584,8 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         ALL_DTYPES = [
             x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
         ]
+    # Remove float8 dtypes for the following tests
+    ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
 
     @parameterized.parameters(
         ((), None, backend.floatx()),
