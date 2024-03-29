@@ -488,7 +488,7 @@ class FlaxLayer(JaxLayer):
     ```python
     class MyFlaxModule(flax.linen.Module):
         @flax.linen.compact
-        def forward(self, input1, input1, deterministic):
+        def forward(self, input1, input2, deterministic):
             ...
             return outputs
 
@@ -497,7 +497,7 @@ class FlaxLayer(JaxLayer):
         return module.forward(input1, input2, not training)
 
     flax_module = MyFlaxModule()
-    keras_layer = FlaxLayer(flax_module)
+    keras_layer = FlaxLayer(
         module=flax_module,
         method=my_flax_module_wrapper,
     )
