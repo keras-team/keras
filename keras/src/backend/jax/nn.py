@@ -670,15 +670,15 @@ def ctc_greedy_decode(
     inputs = jnp.array(inputs)
     sequence_length = jnp.array(sequence_length)
 
+    if mask_index is None:
+        mask_index = inputs.shape[-1] - 1
+
     max_class_indices = jnp.argmax(inputs, axis=-1)
 
     max_class_scores = jnp.max(inputs, axis=-1)
     max_class_scores = jnp.where(
         max_class_indices == mask_index, 0.0, max_class_scores
     )
-
-    if mask_index is None:
-        mask_index = inputs.shape[-1] - 1
 
     if merge_repeated:
         repeat = max_class_indices[:, 1:] == max_class_indices[:, :-1]
