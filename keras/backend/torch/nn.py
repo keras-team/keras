@@ -47,9 +47,9 @@ def softsign(x):
     return tnn.softsign(x)
 
 
-def silu(x, beta=1.0):
+def silu(x):
     x = convert_to_tensor(x)
-    return x * sigmoid(beta * x)
+    return tnn.silu(x)
 
 
 def log_sigmoid(x):
