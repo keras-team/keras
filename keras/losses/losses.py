@@ -1987,13 +1987,13 @@ def dice(y_true, y_pred):
     Returns:
         Dice loss value.
     """
-    y_true = ops.convert_to_tensor(y_true)
     y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.cast(y_true, y_pred.dtype)
 
     inputs = ops.reshape(y_true, [-1])
     targets = ops.reshape(y_pred, [-1])
 
-    intersection = ops.sum(ops.dot(inputs, targets))
+    intersection = ops.sum(inputs * targets)
     dice = ops.divide(
         2.0 * intersection,
         ops.sum(y_true) + ops.sum(y_pred) + backend.epsilon(),
