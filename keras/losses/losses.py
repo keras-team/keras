@@ -1948,8 +1948,6 @@ class Dice(LossFunctionWrapper):
     Args:
         y_true: tensor of true targets.
         y_pred: tensor of predicted targets.
-        smooth: coefficient to avoid division by zero when both `y_true`
-            and `y_pred` do not contain any foreground pixels.
 
     Returns:
         Dice loss value.
@@ -1957,7 +1955,6 @@ class Dice(LossFunctionWrapper):
 
     def __init__(
         self,
-        smooth=1e-6,
         reduction="sum_over_batch_size",
         name="dice",
     ):
@@ -1965,20 +1962,17 @@ class Dice(LossFunctionWrapper):
             dice,
             name=name,
             reduction=reduction,
-            smooth=smooth,
         )
-        self.smooth = smooth
 
     def get_config(self):
         return {
             "name": self.name,
             "reduction": self.reduction,
-            "smooth": self.smooth,
         }
 
 
 @keras_export("keras.losses.dice")
-def dice(y_true, y_pred, smooth=1e-6):
+def dice(y_true, y_pred):
     """Computes the Dice loss value between `y_true` and `y_pred`.
 
     Formula:
@@ -1989,21 +1983,20 @@ def dice(y_true, y_pred, smooth=1e-6):
     Args:
         y_true: tensor of true targets.
         y_pred: tensor of predicted targets.
-        smooth: coefficient to avoid division by zero when both `y_true`
-            and `y_pred` do not contain any foreground pixels.
 
     Returns:
         Dice loss value.
     """
-    y_true = ops.cast(y_true, dtype="float32")
-    y_pred = ops.cast(y_pred, dtype="float32")
+    y_true = ops.convert_to_tensor(y_true)
+    y_pred = ops.convert_to_tensor(y_pred)
 
     inputs = ops.reshape(y_true, [-1])
     targets = ops.reshape(y_pred, [-1])
 
     intersection = ops.sum(ops.dot(inputs, targets))
     dice = ops.divide(
-        2.0 * intersection + smooth, ops.sum(y_true) + ops.sum(y_pred) + smooth
+        2.0 * intersection,
+        ops.sum(y_true) + ops.sum(y_pred) + backend.epsilon(),
     )
 
     return 1 - dice

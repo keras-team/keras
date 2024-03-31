@@ -1400,13 +1400,6 @@ class DiceTest(testing.TestCase):
         output = losses.Dice()(y_true, y_pred)
         self.assertAllClose(output, -0.55555546)
 
-    def test_with_smoothing(self):
-        y_true = np.array(([[1, 2], [1, 2]]))
-        y_pred = np.array(([[4, 1], [6, 1]]))
-        smooth = 10
-        output = losses.Dice()(y_true, y_pred, smooth)
-        self.assertAllClose(output, -5.5555544)
-
     def test_binary_segmentation(self):
         y_true = np.array(
             ([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])
