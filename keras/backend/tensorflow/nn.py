@@ -40,8 +40,8 @@ def softsign(x):
     return tf.nn.softsign(x)
 
 
-def silu(x, beta=1.0):
-    return tf.nn.silu(x, beta=beta)
+def silu(x):
+    return tf.nn.silu(x)
 
 
 def log_sigmoid(x):
