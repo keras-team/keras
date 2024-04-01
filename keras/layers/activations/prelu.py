@@ -2,10 +2,10 @@ from keras import activations
 from keras import constraints
 from keras import initializers
 from keras import regularizers
+from keras import ops
 from keras.api_export import keras_export
 from keras.layers.input_spec import InputSpec
 from keras.layers.layer import Layer
-from keras.utils.module_utils import tensorflow as tf
 
 
 @keras_export("keras.layers.PReLU")
@@ -76,7 +76,7 @@ class PReLU(Layer):
     def call(self, inputs):
         pos = activations.relu(inputs)
         neg = -self.alpha * activations.relu(-inputs)
-        neg = tf.where(tf.math.is_nan(neg), tf.zeros_like(neg), neg)
+        neg = ops.where(ops.isnan(neg), ops.zeros_like(neg), neg)
         return pos + neg
 
     def get_config(self):
