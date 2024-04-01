@@ -37,3 +37,31 @@ class PReLUTest(testing.TestCase):
         prelu_layer.alpha.assign(weights)
         ref_out = np_prelu(inputs, weights)
         self.assertAllClose(prelu_layer(inputs), ref_out)
+
+    def test_prelu_inf_weight_pos(self):
+        input = np.random.rand(1)
+        prelu_layer = prelu.PReLU(
+            alpha_initializer="glorot_uniform",
+            alpha_regularizer="l1",
+            alpha_constraint="non_neg",
+        )
+        prelu_layer.build(input.shape)
+
+        weight = np.inf
+        prelu_layer.alpha.assign(weight)
+        #for a positive input, the output should be the same as the input
+        self.assertAllClose(prelu_layer(input), input)
+
+    def test_prelu_inf_weight_neg(self):
+        input = -np.random.rand(1)
+        prelu_layer = prelu.PReLU(
+            alpha_initializer="glorot_uniform",
+            alpha_regularizer="l1",
+            alpha_constraint="non_neg",
+        )
+        prelu_layer.build(input.shape)
+
+        weight = np.inf
+        prelu_layer.alpha.assign(weight)
+        #for a negative input, the output should be weight * input (which is -inf)
+        self.assertAllClose(prelu_layer(input), -np.inf)
