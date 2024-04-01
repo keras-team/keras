@@ -360,7 +360,10 @@ def print_summary(
 
     # Output captured summary for non-interactive logging.
     if print_fn:
-        print_fn(console.end_capture(), line_break=False)
+        if print_fn is io_utils.print_msg:
+            print_fn(console.end_capture(), line_break=False)
+        else:
+            print_fn(console.end_capture())
 
 
 def get_layer_index_bound_by_layer_name(layers, layer_range=None):
