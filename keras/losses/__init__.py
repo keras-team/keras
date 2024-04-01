@@ -4,6 +4,7 @@ from keras.losses.losses import BinaryCrossentropy
 from keras.losses.losses import CategoricalCrossentropy
 from keras.losses.losses import CategoricalHinge
 from keras.losses.losses import CosineSimilarity
+from keras.losses.losses import Dice
 from keras.losses.losses import Hinge
 from keras.losses.losses import Huber
 from keras.losses.losses import KLDivergence
@@ -21,6 +22,7 @@ from keras.losses.losses import categorical_crossentropy
 from keras.losses.losses import categorical_hinge
 from keras.losses.losses import cosine_similarity
 from keras.losses.losses import ctc
+from keras.losses.losses import dice
 from keras.losses.losses import hinge
 from keras.losses.losses import huber
 from keras.losses.losses import kl_divergence
@@ -56,6 +58,8 @@ ALL_OBJECTS = {
     Hinge,
     SquaredHinge,
     CategoricalHinge,
+    # Image segmentation
+    Dice,
     # Probabilistic
     kl_divergence,
     poisson,
@@ -74,6 +78,8 @@ ALL_OBJECTS = {
     hinge,
     squared_hinge,
     categorical_hinge,
+    # Image segmentation
+    dice,
 }
 
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}

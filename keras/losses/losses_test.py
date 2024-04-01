@@ -1388,3 +1388,24 @@ class CTCTest(testing.TestCase):
         y_true = np.array(([[1, 2, 1, 0], [1, 2, 0, 2]]))
         output = losses.CTC()(y_true, logits)
         self.assertAllClose(output, 4.389582)
+
+
+class DiceTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(losses.Dice(name="mydice"))
+
+    def test_correctness(self):
+        y_true = np.array(([[1, 2], [1, 2]]))
+        y_pred = np.array(([[4, 1], [6, 1]]))
+        output = losses.Dice()(y_true, y_pred)
+        self.assertAllClose(output, -0.55555546)
+
+    def test_binary_segmentation(self):
+        y_true = np.array(
+            ([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])
+        )
+        y_pred = np.array(
+            ([[0, 1, 0, 1], [1, 0, 1, 1], [0, 1, 0, 1], [1, 0, 1, 1]])
+        )
+        output = losses.Dice()(y_true, y_pred)
+        self.assertAllClose(output, 0.77777773)

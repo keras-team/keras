@@ -1934,3 +1934,69 @@ def ctc(y_true, y_pred):
     return ops.ctc_loss(
         y_true, y_pred, label_length, input_length, mask_index=0
     )
+
+
+@keras_export("keras.losses.Dice")
+class Dice(LossFunctionWrapper):
+    """Computes the Dice loss value between `y_true` and `y_pred`.
+
+    Formula:
+    ```python
+    loss = 1 - (2 * sum(y_true * y_pred)) / (sum(y_true) + sum(y_pred))
+    ```
+
+    Args:
+        y_true: tensor of true targets.
+        y_pred: tensor of predicted targets.
+
+    Returns:
+        Dice loss value.
+    """
+
+    def __init__(
+        self,
+        reduction="sum_over_batch_size",
+        name="dice",
+    ):
+        super().__init__(
+            dice,
+            name=name,
+            reduction=reduction,
+        )
+
+    def get_config(self):
+        return {
+            "name": self.name,
+            "reduction": self.reduction,
+        }
+
+
+@keras_export("keras.losses.dice")
+def dice(y_true, y_pred):
+    """Computes the Dice loss value between `y_true` and `y_pred`.
+
+    Formula:
+    ```python
+    loss = 1 - (2 * sum(y_true * y_pred)) / (sum(y_true) + sum(y_pred))
+    ```
+
+    Args:
+        y_true: tensor of true targets.
+        y_pred: tensor of predicted targets.
+
+    Returns:
+        Dice loss value.
+    """
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.cast(y_true, y_pred.dtype)
+
+    inputs = ops.reshape(y_true, [-1])
+    targets = ops.reshape(y_pred, [-1])
+
+    intersection = ops.sum(inputs * targets)
+    dice = ops.divide(
+        2.0 * intersection,
+        ops.sum(y_true) + ops.sum(y_pred) + backend.epsilon(),
+    )
+
+    return 1 - dice
