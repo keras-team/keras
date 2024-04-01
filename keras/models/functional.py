@@ -15,6 +15,7 @@ from keras.models.model import Model
 from keras.ops.function import Function
 from keras.ops.function import _build_map
 from keras.ops.function import make_node_key
+from keras.ops.node import KerasHistory
 from keras.ops.node import Node
 from keras.saving import serialization_lib
 from keras.utils import tracking
@@ -391,7 +392,7 @@ class Functional(Function, Model):
                 if node_key in self._nodes:
                     # The node is relevant to the model:
                     # add to filtered_inbound_nodes.
-                    node_data = serialize_node(node, node_reindexing_map)
+                    node_data = serialize_node(node, own_nodes=self._nodes)
                     if node_data is not None:
                         filtered_inbound_nodes.append(node_data)
 
@@ -594,13 +595,33 @@ def unpack_singleton(x):
     return x
 
 
-def serialize_node(node, node_reindexing_map):
+def serialize_node(node, own_nodes=()):
     if not node.input_tensors:
         # Does not need to be serialized.
         return
 
+    def serialize_keras_tensor(x):
+        # Serialize KerasTensor while converting
+        # node indices to only include nodes relevant to `own_nodes`.
+        if isinstance(x, backend.KerasTensor):
+            operation, node_index, tensor_index = x._keras_history
+            irrelevant_node_count = 0
+            for node in operation._inbound_nodes[:node_index]:
+                if node not in own_nodes:
+                    irrelevant_node_count += 1
+            x._keras_history = KerasHistory(
+                operation, node_index - irrelevant_node_count, tensor_index
+            )
+            serialized = serialization_lib.serialize_keras_object(x)
+            x._keras_history = KerasHistory(operation, node_index, tensor_index)
+            return serialized
+        return x
+
     args = node.arguments.args
     kwargs = node.arguments.kwargs
+
+    args = tree.map_structure(serialize_keras_tensor, args)
+    kwargs = tree.map_structure(serialize_keras_tensor, kwargs)
     return {
         "args": serialization_lib.serialize_keras_object(args),
         "kwargs": serialization_lib.serialize_keras_object(kwargs),

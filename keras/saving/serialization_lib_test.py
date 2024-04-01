@@ -327,6 +327,18 @@ class SerializationLibTest(testing.TestCase):
         self.assertIs(layers[0].activation, layers[1].activation)
         self.assertIs(new_layers[0].activation, new_layers[1].activation)
 
+    def test_layer_sharing(self):
+        seq = keras.Sequential(
+            [
+                keras.Input(shape=(3,)),
+                keras.layers.Dense(5),
+                keras.layers.Softmax(),
+            ],
+        )
+        func = keras.Model(inputs=seq.inputs, outputs=seq.outputs)
+        serialized, deserialized, reserialized = self.roundtrip(func)
+        self.assertLen(deserialized.layers, 3)
+
 
 @keras.saving.register_keras_serializable()
 class MyDense(keras.layers.Layer):
