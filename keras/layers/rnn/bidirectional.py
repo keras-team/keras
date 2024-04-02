@@ -186,12 +186,8 @@ class Bidirectional(Wrapper):
 
         if self.return_state:
             if self.merge_mode is None:
-                return (
-                    tuple(output_shape) + state_shape + state_shape
-                )
-            return (
-                tuple([output_shape]) + (state_shape) + (state_shape)
-            )
+                return tuple(output_shape) + state_shape + state_shape
+            return tuple([output_shape]) + (state_shape) + (state_shape)
         return tuple(output_shape)
 
     def call(
