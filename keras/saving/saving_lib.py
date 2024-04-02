@@ -237,7 +237,6 @@ def load_weights_only(model, filepath, skip_mismatch=False):
 
     Note: only supports h5 for now.
     """
-    temp_dir = None
     archive = None
     filepath = str(filepath)
     if filepath.endswith(".weights.h5"):
@@ -262,8 +261,6 @@ def load_weights_only(model, filepath, skip_mismatch=False):
         error_msgs=error_msgs,
     )
     weights_store.close()
-    if temp_dir and file_utils.exists(temp_dir):
-        file_utils.rmtree(temp_dir)
     if archive:
         archive.close()
 
