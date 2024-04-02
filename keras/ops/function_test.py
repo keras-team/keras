@@ -127,13 +127,13 @@ class FunctionTest(testing.TestCase):
     def test_function_with_empty_outputs(self):
         x = keras_tensor.KerasTensor((None, 3))
         with self.assertRaisesRegex(
-            ValueError, "`outputs` argument cannot be empty."
+            ValueError, "`outputs` argument cannot be empty"
         ):
             _ = function.Function(inputs=x, outputs=[])
 
     def test_function_with_empty_inputs(self):
         x = keras_tensor.KerasTensor((None, 3))
         with self.assertRaisesRegex(
-            ValueError, "`inputs` argument cannot be empty."
+            ValueError, "`inputs` argument cannot be empty"
         ):
             _ = function.Function(inputs=[], outputs=x)
