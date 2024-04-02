@@ -267,6 +267,27 @@ class DenseTest(testing.TestCase):
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
     @pytest.mark.requires_trainable_backend
+    def test_lora_weight_name(self):
+
+        class MyModel(models.Model):
+            def __init__(self):
+                super().__init__(name="mymodel")
+                self.dense = layers.Dense(16, name="dense")
+
+            def build(self, input_shape):
+                self.dense.build(input_shape)
+
+            def call(self, x):
+                return self.dense(x)
+
+        model = MyModel()
+        model.build((None, 8))
+        model.dense.enable_lora(4)
+        self.assertEqual(
+            model.dense.lora_kernel_a.path, "mymodel/dense/lora_kernel_a"
+        )
+
+    @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
         self.run_layer_test(
             layers.Dense,

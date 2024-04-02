@@ -11,9 +11,13 @@ class name_scope:
             and the previous caller matches the current caller,
             and the previous name matches the current name,
             do not reenter a new namespace.
+        override_parent: Can be used to provide an absolute path
+            which would override any previously opened name scopes.
     """
 
-    def __init__(self, name, caller=None, deduplicate=True):
+    def __init__(
+        self, name, caller=None, deduplicate=True, override_parent=None
+    ):
         if not isinstance(name, str) or "/" in name:
             raise ValueError(
                 "Argument `name` must be a string and "
@@ -23,6 +27,13 @@ class name_scope:
         self.name = name
         self.caller = caller
         self.deduplicate = deduplicate
+        self.override_parent = override_parent
+        if (
+            override_parent is None
+            and deduplicate
+            and getattr(caller, "_parent_path", None) is not None
+        ):
+            self.override_parent = caller._parent_path
         self._pop_on_exit = False
 
     def __enter__(self):
@@ -54,4 +65,9 @@ def current_path():
     name_scope_stack = global_state.get_global_attribute("name_scope_stack")
     if name_scope_stack is None:
         return ""
-    return "/".join(x.name for x in name_scope_stack)
+    parts = []
+    for entry in name_scope_stack:
+        if entry.override_parent is not None:
+            parts = [p for p in entry.override_parent.split("/") if p]
+        parts.append(entry.name)
+    return "/".join(parts)

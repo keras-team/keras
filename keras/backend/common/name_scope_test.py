@@ -34,3 +34,15 @@ class NameScopeTest(testing.TestCase):
             name_scope("foo/bar")
         with self.assertRaisesRegex(ValueError, "must be a string"):
             name_scope(4)
+
+    def test_override_parent(self):
+        self.assertEqual(current_path(), "")
+        with name_scope("outer"):
+            self.assertEqual(current_path(), "outer")
+            with name_scope("middle", override_parent="/absolute/path"):
+                self.assertEqual(current_path(), "absolute/path/middle")
+                with name_scope("inner"):
+                    self.assertEqual(
+                        current_path(), "absolute/path/middle/inner"
+                    )
+            self.assertEqual(current_path(), "outer")

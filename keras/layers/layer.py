@@ -218,7 +218,7 @@ class Layer(BackendLayer, Operation):
 
         @wraps(original_build_method)
         def build_wrapper(*args, **kwargs):
-            with backend.name_scope(obj.name, caller=obj):
+            with obj._open_name_scope():
                 original_build_method(*args, **kwargs)
             # Record build config.
             signature = inspect.signature(original_build_method)
@@ -289,6 +289,8 @@ class Layer(BackendLayer, Operation):
         self._allow_non_tensor_positional_args = False
         # Dict of shapes that were used to call `build()`.
         self._build_shapes_dict = None
+        # Parent path
+        self._parent_path = None
         self._initializer_tracker()
 
     @tracking.no_automatic_dependency_tracking
@@ -494,7 +496,7 @@ class Layer(BackendLayer, Operation):
             else:
                 initializer = "zeros"
         initializer = initializers.get(initializer)
-        with backend.name_scope(self.name, caller=self):
+        with self._open_name_scope():
             variable = backend.Variable(
                 initializer=initializer,
                 shape=shape,
@@ -737,7 +739,7 @@ class Layer(BackendLayer, Operation):
 
         ################
         # 4. Call build
-        with backend.name_scope(self.name, caller=self):
+        with self._open_name_scope():
             self._maybe_build(call_spec)
 
         ##########################
@@ -792,7 +794,7 @@ class Layer(BackendLayer, Operation):
         ####################
         # 7. Call the layer.
         try:
-            with backend.name_scope(self.name, caller=self):
+            with self._open_name_scope():
                 current_scope = backend.get_autocast_scope()
                 new_scope = None
                 if current_scope is not None:
@@ -1400,6 +1402,11 @@ class Layer(BackendLayer, Operation):
             "dtype": self.dtype_policy.name,
         }
         return {**base_config, **config}
+
+    def _open_name_scope(self):
+        if self._parent_path is None:
+            self._parent_path = current_path()
+        return backend.name_scope(self.name, caller=self)
 
 
 def is_backend_tensor_or_symbolic(x):
