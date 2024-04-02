@@ -182,15 +182,15 @@ class Bidirectional(Wrapper):
             output_shape[-1] *= 2
             output_shape = tuple(output_shape)
         elif self.merge_mode is None:
-            output_shape = [output_shape, copy.copy(output_shape)]
+            output_shape = [output_shape, output_shape]
 
         if self.return_state:
             if self.merge_mode is None:
                 return (
-                    tuple(output_shape) + state_shape + copy.copy(state_shape)
+                    tuple(output_shape) + state_shape + state_shape
                 )
             return (
-                tuple([output_shape]) + (state_shape) + (copy.copy(state_shape))
+                tuple([output_shape]) + (state_shape) + (state_shape)
             )
         return tuple(output_shape)
 
