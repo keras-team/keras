@@ -169,7 +169,7 @@ class DiscretizationTest(testing.TestCase, parameterized.TestCase):
         reason="Sparse tensor only works in TensorFlow",
     )
     def test_sparse_output(self, output_mode, input_array, expected_output):
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         x = np.array(input_array)
         layer = layers.Discretization(

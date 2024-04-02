@@ -46,7 +46,7 @@ class TFDataLayer(Layer):
 
     @tracking.no_automatic_dependency_tracking
     def _get_seed_generator(self, backend=None):
-        if backend is None or backend == keras.backend.backend():
+        if backend is None or backend == keras.src.backend.backend():
             return self.generator
         if not hasattr(self, "_backend_generators"):
             self._backend_generators = {}

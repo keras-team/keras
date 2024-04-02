@@ -471,7 +471,7 @@ def gru(
     if not cudnn_supported or mask is not None:
         raise NotImplementedError
 
-    from keras.backend.tensorflow import Variable
+    from keras.src.backend.tensorflow import Variable
 
     if isinstance(kernel, Variable):
         kernel = kernel.value
@@ -810,7 +810,7 @@ def lstm(
     if not cudnn_supported or mask is not None:
         raise NotImplementedError
 
-    from keras.backend.tensorflow import Variable
+    from keras.src.backend.tensorflow import Variable
 
     if isinstance(kernel, Variable):
         kernel = kernel.value

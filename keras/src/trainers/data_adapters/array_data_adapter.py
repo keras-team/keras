@@ -103,7 +103,7 @@ class ArrayDataAdapter(DataAdapter):
         return self._get_iterator(slice_and_convert_to_numpy, inputs)
 
     def get_tf_dataset(self):
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         shuffle = self._shuffle
         batch_size = self._batch_size
@@ -243,7 +243,7 @@ class ArrayDataAdapter(DataAdapter):
         return dataset.prefetch(tf.data.AUTOTUNE)
 
     def get_jax_iterator(self):
-        from keras.backend.jax.core import convert_to_tensor
+        from keras.src.backend.jax.core import convert_to_tensor
 
         inputs = array_slicing.convert_to_sliceable(
             self._inputs, target_backend="jax"
@@ -260,7 +260,7 @@ class ArrayDataAdapter(DataAdapter):
     def get_torch_dataloader(self):
         import torch
 
-        from keras.backend.torch.core import convert_to_tensor
+        from keras.src.backend.torch.core import convert_to_tensor
 
         class ArrayDataset(torch.utils.data.Dataset):
             def __init__(self, array):

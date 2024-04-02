@@ -260,7 +260,7 @@ class PyDatasetAdapter(DataAdapter):
         return data_adapter_utils.get_jax_iterator(self._get_iterator())
 
     def get_tf_dataset(self):
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         if self._output_signature is None:
             num_samples = min(

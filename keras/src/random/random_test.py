@@ -84,7 +84,7 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertLessEqual(ops.max(res), max)
         self.assertGreaterEqual(ops.max(res), min)
         # Torch has incomplete dtype support for uints; will remap some dtypes.
-        if keras.backend.backend() != "torch":
+        if keras.src.backend.backend() != "torch":
             self.assertEqual(backend.standardize_dtype(res.dtype), dtype)
 
     @parameterized.parameters(
@@ -115,7 +115,7 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertGreater(ops.sum(x_res == 0), 2)
 
     @pytest.mark.skipif(
-        keras.backend.backend() != "jax",
+        keras.src.backend.backend() != "jax",
         reason="This test requires `jax` as the backend.",
     )
     def test_dropout_jax_jit_stateless(self):
@@ -126,7 +126,7 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
 
         @jax.jit
         def train_step(x):
-            with keras.backend.StatelessScope():
+            with keras.src.backend.StatelessScope():
                 x = keras.layers.Dropout(rate=0.1)(x, training=True)
             return x
 
@@ -141,7 +141,7 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(x.shape, (2, 3, 5, 7))
 
     @pytest.mark.skipif(
-        keras.backend.backend() != "jax",
+        keras.src.backend.backend() != "jax",
         reason="This test requires `jax` as the backend.",
     )
     def test_jax_rngkey_seed(self):
@@ -156,7 +156,7 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertIsInstance(x, jnp.ndarray)
 
     @pytest.mark.skipif(
-        keras.backend.backend() != "jax",
+        keras.src.backend.backend() != "jax",
         reason="This test requires `jax` as the backend.",
     )
     def test_jax_unseed_disallowed_during_tracing(self):

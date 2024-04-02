@@ -13,7 +13,7 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     if backend.backend() == "torch":
-        from keras.backend.torch.core import to_torch_dtype
+        from keras.src.backend.torch.core import to_torch_dtype
 
         # TODO: torch doesn't support uint64.
         ALL_DTYPES = []

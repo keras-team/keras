@@ -11,7 +11,7 @@ elif backend.backend() == "torch":
     BackendVariable = backend.torch.core.Variable
     backend_name_scope = backend.common.name_scope.name_scope
 elif backend.backend() == "numpy":
-    from keras.backend.numpy.core import Variable as NumpyVariable
+    from keras.src.backend.numpy.core import Variable as NumpyVariable
 
     BackendVariable = NumpyVariable
     backend_name_scope = backend.common.name_scope.name_scope

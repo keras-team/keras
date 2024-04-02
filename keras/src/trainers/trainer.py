@@ -958,7 +958,7 @@ def model_supports_jit(model):
     # XLA not supported with TF on MacOS GPU
     if platform.system() == "Darwin" and "arm" in platform.processor().lower():
         if backend.backend() == "tensorflow":
-            from keras.utils.module_utils import tensorflow as tf
+            from keras.src.utils.module_utils import tensorflow as tf
 
             if tf.config.list_physical_devices("GPU"):
                 return False

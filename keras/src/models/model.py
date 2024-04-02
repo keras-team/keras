@@ -16,13 +16,13 @@ from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
 
 if backend.backend() == "tensorflow":
-    from keras.backend.tensorflow.trainer import TensorFlowTrainer as Trainer
+    from keras.src.backend.tensorflow.trainer import TensorFlowTrainer as Trainer
 elif backend.backend() == "jax":
-    from keras.backend.jax.trainer import JAXTrainer as Trainer
+    from keras.src.backend.jax.trainer import JAXTrainer as Trainer
 elif backend.backend() == "torch":
-    from keras.backend.torch.trainer import TorchTrainer as Trainer
+    from keras.src.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "numpy":
-    from keras.backend.numpy.trainer import NumpyTrainer as Trainer
+    from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement the Trainer class."

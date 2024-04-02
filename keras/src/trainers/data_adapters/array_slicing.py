@@ -124,7 +124,7 @@ class NumpySliceable(Sliceable):
 
 class TensorflowSliceable(Sliceable):
     def __getitem__(self, indices):
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         if isinstance(indices, slice):
             return self.array[indices]
@@ -133,13 +133,13 @@ class TensorflowSliceable(Sliceable):
 
     @classmethod
     def cast(cls, x, dtype):
-        from keras.backend.tensorflow.core import cast
+        from keras.src.backend.tensorflow.core import cast
 
         return cast(x, dtype)
 
     @classmethod
     def convert_to_numpy(cls, x):
-        from keras.backend.tensorflow.core import convert_to_numpy
+        from keras.src.backend.tensorflow.core import convert_to_numpy
 
         return convert_to_numpy(x)
 
@@ -175,7 +175,7 @@ class TensorflowSparseSliceable(TensorflowSliceable):
 
     @classmethod
     def convert_to_torch_compatible(cls, x):
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         return tf.sparse.to_dense(x)
 
@@ -186,7 +186,7 @@ class JaxSliceable(Sliceable):
 
     @classmethod
     def convert_to_numpy(cls, x):
-        from keras.backend.jax.core import convert_to_numpy
+        from keras.src.backend.jax.core import convert_to_numpy
 
         return convert_to_numpy(x)
 
@@ -206,13 +206,13 @@ class JaxSparseSliceable(JaxSliceable):
 class TorchSliceable(Sliceable):
     @classmethod
     def cast(cls, x, dtype):
-        from keras.backend.torch.core import cast
+        from keras.src.backend.torch.core import cast
 
         return cast(x, dtype)
 
     @classmethod
     def convert_to_numpy(cls, x):
-        from keras.backend.torch.core import convert_to_numpy
+        from keras.src.backend.torch.core import convert_to_numpy
 
         return convert_to_numpy(x)
 
@@ -293,7 +293,7 @@ TensorflowSparseWrapper = collections.namedtuple(
 
 
 def to_tensorflow_sparse_wrapper(sparse):
-    from keras.utils.module_utils import tensorflow as tf
+    from keras.src.utils.module_utils import tensorflow as tf
 
     row_ids = sparse.indices[:, 0]
     row_splits = tf.experimental.RowPartition.from_value_rowids(
@@ -308,7 +308,7 @@ def to_tensorflow_sparse_wrapper(sparse):
 
 
 def slice_tensorflow_sparse_wrapper(sparse_wrapper, indices):
-    from keras.utils.module_utils import tensorflow as tf
+    from keras.src.utils.module_utils import tensorflow as tf
 
     if isinstance(indices, slice):
         sparse_indices = sparse_wrapper.ragged_indices[indices]

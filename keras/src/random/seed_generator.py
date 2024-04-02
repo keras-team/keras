@@ -126,7 +126,7 @@ def make_default_seed():
 
 
 def draw_seed(seed):
-    from keras.backend import convert_to_tensor
+    from keras.src.backend import convert_to_tensor
 
     if isinstance(seed, SeedGenerator):
         return seed.next()

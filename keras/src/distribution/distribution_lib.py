@@ -452,7 +452,7 @@ class DataParallel(Distribution):
             distribute as tf_data_distribute,
         )
 
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         if not isinstance(dataset, tf.data.Dataset):
             raise ValueError(
@@ -594,7 +594,7 @@ class ModelParallel(Distribution):
             distribute as tf_data_distribute,
         )
 
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         if not isinstance(dataset, tf.data.Dataset):
             raise ValueError(

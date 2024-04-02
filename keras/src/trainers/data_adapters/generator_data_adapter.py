@@ -26,7 +26,7 @@ class GeneratorDataAdapter(DataAdapter):
         return data_adapter_utils.get_numpy_iterator(self.generator)
 
     def get_jax_iterator(self):
-        from keras.backend.jax.core import convert_to_tensor
+        from keras.src.backend.jax.core import convert_to_tensor
 
         def convert_to_jax(x):
             if data_adapter_utils.is_scipy_sparse(x):
@@ -39,7 +39,7 @@ class GeneratorDataAdapter(DataAdapter):
             yield tree.map_structure(convert_to_jax, batch)
 
     def get_tf_dataset(self):
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         def convert_to_tf(x):
             if data_adapter_utils.is_scipy_sparse(x):

@@ -1809,7 +1809,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         reason="synchronized=True only implemented for TF backend",
     )
     def test_moments_sync_with_distribution_strategy(self, dtype):
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         # Config 2 CPUs for testing.
         logical_cpus = tf.config.list_logical_devices("CPU")

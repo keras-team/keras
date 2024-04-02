@@ -19,13 +19,13 @@ from keras.src.optimizers.rmsprop import RMSprop
 from keras.src.testing.test_utils import named_product
 
 if backend.backend() == "jax":
-    from keras.backend.jax.trainer import JAXTrainer as Trainer
+    from keras.src.backend.jax.trainer import JAXTrainer as Trainer
 elif backend.backend() == "torch":
-    from keras.backend.torch.trainer import TorchTrainer as Trainer
+    from keras.src.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "tensorflow":
-    from keras.backend.tensorflow.trainer import TensorFlowTrainer as Trainer
+    from keras.src.backend.tensorflow.trainer import TensorFlowTrainer as Trainer
 elif backend.backend() == "numpy":
-    from keras.backend.numpy.trainer import NumpyTrainer as Trainer
+    from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
 else:
     raise ImportError(f"Invalid backend: {backend.backend()}")
 
@@ -992,11 +992,11 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        keras.backend.backend() != "tensorflow",
+        keras.src.backend.backend() != "tensorflow",
         reason="Only tensorflow supports raggeds",
     )
     def test_trainer_with_raggeds(self, model_class):
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         def loss_fn(y, y_pred, sample_weight=None):
             return 0

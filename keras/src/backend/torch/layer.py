@@ -33,7 +33,7 @@ class TorchLayer(torch.nn.Module):
             and not isinstance(value, Layer)
             and not name == "torch_params"
         ):
-            from keras.utils.torch_utils import TorchModuleWrapper
+            from keras.src.utils.torch_utils import TorchModuleWrapper
 
             if not isinstance(self, TorchModuleWrapper):
                 value = TorchModuleWrapper(value)

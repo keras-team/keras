@@ -207,7 +207,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
 
     def _tf_apply(self, grads, trainable_variables=None):
         """Tensorflow specific logic for apply, which handles distribution."""
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         if tf.distribute.in_cross_replica_context():
             raise ValueError("apply() must be called in a replica context.")

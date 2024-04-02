@@ -255,7 +255,7 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
         reason="Tests for MirroredVariable under tf backend",
     )
     def test_variable_numpy_scalar(self):
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         strategy = tf.distribute.MirroredStrategy(["cpu:0", "cpu:1"])
         with strategy.scope():

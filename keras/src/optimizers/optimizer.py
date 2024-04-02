@@ -3,15 +3,15 @@ from keras.src.api_export import keras_export
 from keras.src.optimizers import base_optimizer
 
 if backend.backend() == "tensorflow":
-    from keras.backend.tensorflow.optimizer import TFOptimizer
+    from keras.src.backend.tensorflow.optimizer import TFOptimizer
 
     BackendOptimizer = TFOptimizer
 elif backend.backend() == "torch":
-    from keras.backend.torch.optimizers import TorchOptimizer
+    from keras.src.backend.torch.optimizers import TorchOptimizer
 
     BackendOptimizer = TorchOptimizer
 elif backend.backend() == "jax":
-    from keras.backend.jax.optimizer import JaxOptimizer
+    from keras.src.backend.jax.optimizer import JaxOptimizer
 
     BackendOptimizer = JaxOptimizer
 else:

@@ -79,7 +79,7 @@ class TorchModuleWrapper(Layer):
         super().__init__(name=name, **kwargs)
         import torch.nn as nn
 
-        from keras.backend.torch.core import get_device
+        from keras.src.backend.torch.core import get_device
 
         if (
             isinstance(module, nn.modules.lazy.LazyModuleMixin)
@@ -98,7 +98,7 @@ class TorchModuleWrapper(Layer):
         return self.module.parameters(recurse=recurse)
 
     def _track_module_parameters(self):
-        from keras.backend.torch import Variable
+        from keras.src.backend.torch import Variable
 
         for param in self.module.parameters():
             # The Variable will reuse the raw `param`

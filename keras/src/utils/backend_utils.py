@@ -13,7 +13,7 @@ def in_tf_graph():
         return True
 
     if "tensorflow" in sys.modules:
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         return not tf.executing_eagerly()
     return False
@@ -67,15 +67,15 @@ class DynamicBackend:
 
     def __getattr__(self, name):
         if self._backend == "tensorflow":
-            from keras.backend import tensorflow as tf_backend
+            from keras.src.backend import tensorflow as tf_backend
 
             return getattr(tf_backend, name)
         if self._backend == "jax":
-            from keras.backend import jax as jax_backend
+            from keras.src.backend import jax as jax_backend
 
             return getattr(jax_backend, name)
         if self._backend == "torch":
-            from keras.backend import torch as torch_backend
+            from keras.src.backend import torch as torch_backend
 
             return getattr(torch_backend, name)
         if self._backend == "numpy":

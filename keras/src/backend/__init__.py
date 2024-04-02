@@ -30,15 +30,15 @@ from keras.src.backend.config import standardize_data_format
 
 # Import backend functions.
 if backend() == "tensorflow":
-    from keras.backend.tensorflow import *  # noqa: F403
+    from keras.src.backend.tensorflow import *  # noqa: F403
 elif backend() == "jax":
-    from keras.backend.jax import *  # noqa: F403
+    from keras.src.backend.jax import *  # noqa: F403
 elif backend() == "torch":
-    from keras.backend.torch import *  # noqa: F403
+    from keras.src.backend.torch import *  # noqa: F403
 
     distribution_lib = None
 elif backend() == "numpy":
-    from keras.backend.numpy import *  # noqa: F403
+    from keras.src.backend.numpy import *  # noqa: F403
 
     distribution_lib = None
 else:

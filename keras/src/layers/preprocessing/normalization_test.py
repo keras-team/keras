@@ -100,7 +100,7 @@ class NormalizationTest(testing.TestCase, parameterized.TestCase):
         reason="Test symbolic call for torch meta device.",
     )
     def test_call_on_meta_device_after_built(self):
-        from keras.backend.torch import core
+        from keras.src.backend.torch import core
 
         layer = layers.Normalization()
         data = np.random.random((32, 4))

@@ -412,7 +412,7 @@ def load_image(
         )
 
     if crop_to_aspect_ratio:
-        from keras.backend import tensorflow as tf_backend
+        from keras.src.backend import tensorflow as tf_backend
 
         if data_format == "channels_first":
             img = tf.transpose(img, (2, 0, 1))

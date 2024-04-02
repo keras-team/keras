@@ -17,7 +17,7 @@ class TFDatasetAdapter(DataAdapter):
                 shard the input dataset into per worker/process dataset
                 instance.
         """
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import tensorflow as tf
 
         if not isinstance(
             dataset, (tf.data.Dataset, tf.distribute.DistributedDataset)
@@ -35,7 +35,7 @@ class TFDatasetAdapter(DataAdapter):
         self._dataset = dataset
 
     def get_numpy_iterator(self):
-        from keras.backend.tensorflow.core import convert_to_numpy
+        from keras.src.backend.tensorflow.core import convert_to_numpy
 
         for batch in self._dataset:
             yield tree.map_structure(convert_to_numpy, batch)
@@ -43,9 +43,9 @@ class TFDatasetAdapter(DataAdapter):
     def get_jax_iterator(self):
         import jax.experimental.sparse as jax_sparse
 
-        from keras.backend.jax.core import convert_to_tensor
-        from keras.backend.tensorflow.core import convert_to_numpy
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.src.backend.jax.core import convert_to_tensor
+        from keras.src.backend.tensorflow.core import convert_to_numpy
+        from keras.src.utils.module_utils import tensorflow as tf
 
         def convert_to_jax(x):
             # We use numpy as an intermediary because the conversion
@@ -107,7 +107,7 @@ def make_class_weight_map_fn(class_weight):
         A function that can be used with `tf.data.Dataset.map` to apply class
         weighting.
     """
-    from keras.utils.module_utils import tensorflow as tf
+    from keras.src.utils.module_utils import tensorflow as tf
 
     class_weight_tensor = tf.convert_to_tensor(
         [

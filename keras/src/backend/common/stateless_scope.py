@@ -39,7 +39,7 @@ class StatelessScope:
         initialize_variables=True,
     ):
         from keras import backend
-        from keras.backend.common.variables import KerasVariable
+        from keras.src.backend.common.variables import KerasVariable
 
         self.collect_losses = collect_losses
         self.initialize_variables = initialize_variables
@@ -90,7 +90,7 @@ class StatelessScope:
             # We're back in eager scope;
             # if any variables were created within the stateless
             # scope, we initialize them here.
-            from keras.backend.common.variables import initialize_all_variables
+            from keras.src.backend.common.variables import initialize_all_variables
 
             initialize_all_variables()
 

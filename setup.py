@@ -23,8 +23,8 @@ def get_version(rel_path):
 
 HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
-if os.path.exists("keras/version.py"):
-    VERSION = get_version("keras/version.py")
+if os.path.exists("keras/src/version.py"):
+    VERSION = get_version("keras/src/version.py")
 else:
     VERSION = get_version("keras/__init__.py")
 

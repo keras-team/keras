@@ -42,13 +42,13 @@ from keras.src.utils import tracking
 from keras.src.utils import tree
 
 if backend.backend() == "tensorflow":
-    from keras.backend.tensorflow.layer import TFLayer as BackendLayer
+    from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
 elif backend.backend() == "jax":
-    from keras.backend.jax.layer import JaxLayer as BackendLayer
+    from keras.src.backend.jax.layer import JaxLayer as BackendLayer
 elif backend.backend() == "torch":
-    from keras.backend.torch.layer import TorchLayer as BackendLayer
+    from keras.src.backend.torch.layer import TorchLayer as BackendLayer
 elif backend.backend() == "numpy":
-    from keras.backend.numpy.layer import NumpyLayer as BackendLayer
+    from keras.src.backend.numpy.layer import NumpyLayer as BackendLayer
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement a layer mixin class."

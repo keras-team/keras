@@ -135,7 +135,7 @@ def get_tensor_spec(batches):
             identical, but the shape at each leaf may be different.
     Returns: the common tensor spec for all the batches.
     """
-    from keras.utils.module_utils import tensorflow as tf
+    from keras.src.utils.module_utils import tensorflow as tf
 
     def get_single_tensor_spec(*tensors):
         x = tensors[0]
@@ -176,7 +176,7 @@ def get_tensor_spec(batches):
 
 
 def get_jax_iterator(iterable):
-    from keras.backend.jax.core import convert_to_tensor
+    from keras.src.backend.jax.core import convert_to_tensor
 
     for batch in iterable:
         yield tree.map_structure(convert_to_tensor, batch)
@@ -201,7 +201,7 @@ def get_numpy_iterator(iterable):
 def get_torch_dataloader(iterable):
     import torch.utils.data as torch_data
 
-    from keras.backend.torch.core import convert_to_tensor
+    from keras.src.backend.torch.core import convert_to_tensor
 
     class ConverterIterableDataset(torch_data.IterableDataset):
         def __init__(self, iterable):
@@ -279,7 +279,7 @@ def is_scipy_sparse(x):
 
 
 def scipy_sparse_to_tf_sparse(x):
-    from keras.utils.module_utils import tensorflow as tf
+    from keras.src.utils.module_utils import tensorflow as tf
 
     coo = x.tocoo()
     indices = np.concatenate(
@@ -303,6 +303,6 @@ def tf_sparse_to_jax_sparse(x):
 
 
 def jax_sparse_to_tf_sparse(x):
-    from keras.utils.module_utils import tensorflow as tf
+    from keras.src.utils.module_utils import tensorflow as tf
 
     return tf.SparseTensor(x.indices, x.data, x.shape)
