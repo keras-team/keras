@@ -847,6 +847,39 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             bins = KerasTensor((2, 3, 4))
             knp.digitize(x, bins)
 
+    def test_correlate_mode_valid(self):
+        x = KerasTensor((3,))
+        y = KerasTensor((3,))
+        self.assertEqual(knp.correlate(x, y).shape, (1,))
+        self.assertTrue(knp.correlate(x, y).dtype == "float32")
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((3,))
+            y = KerasTensor((3, 4))
+            knp.correlate(x, y)
+
+    def test_correlate_mode_same(self):
+        x = KerasTensor((3,))
+        y = KerasTensor((3,))
+        self.assertEqual(knp.correlate(x, y, mode="same").shape, (3,))
+        self.assertTrue(knp.correlate(x, y, mode="same").dtype == "float32")
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((3,))
+            y = KerasTensor((3, 4))
+            knp.correlate(x, y, mode="same")
+
+    def test_correlate_mode_full(self):
+        x = KerasTensor((3,))
+        y = KerasTensor((3,))
+        self.assertEqual(knp.correlate(x, y, mode="full").shape, (5,))
+        self.assertTrue(knp.correlate(x, y, mode="full").dtype == "float32")
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((3))
+            y = KerasTensor((3, 4))
+            knp.correlate(x, y, mode="full")
+
 
 class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_mean(self):
@@ -4065,6 +4098,44 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.LogicalXor()(x, True), np.logical_xor(x, True))
         self.assertAllClose(knp.LogicalXor()(True, x), np.logical_xor(True, x))
 
+    def test_correlate(self):
+        x = np.array([1, 2, 3])
+        y = np.array([0, 1, 0.5])
+        self.assertAllClose(knp.correlate(x, y), np.correlate(x, y))
+        self.assertAllClose(
+            knp.correlate(x, y, mode="same"), np.correlate(x, y, mode="same")
+        )
+        self.assertAllClose(
+            knp.correlate(x, y, mode="full"), np.correlate(x, y, mode="full")
+        )
+
+        self.assertAllClose(knp.Correlate()(x, y), np.correlate(x, y))
+        self.assertAllClose(
+            knp.Correlate(mode="same")(x, y), np.correlate(x, y, mode="same")
+        )
+        self.assertAllClose(
+            knp.Correlate(mode="full")(x, y), np.correlate(x, y, mode="full")
+        )
+
+    def test_correlate_different_size(self):
+        x = np.array([1, 2, 3, 4, 5, 6])
+        y = np.array([0, 1, 0.5])
+        self.assertAllClose(knp.correlate(x, y), np.correlate(x, y))
+        self.assertAllClose(
+            knp.correlate(x, y, mode="same"), np.correlate(x, y, mode="same")
+        )
+        self.assertAllClose(
+            knp.correlate(x, y, mode="full"), np.correlate(x, y, mode="full")
+        )
+
+        self.assertAllClose(knp.Correlate()(x, y), np.correlate(x, y))
+        self.assertAllClose(
+            knp.Correlate(mode="same")(x, y), np.correlate(x, y, mode="same")
+        )
+        self.assertAllClose(
+            knp.Correlate(mode="full")(x, y), np.correlate(x, y, mode="full")
+        )
+
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
     def test_ones(self):
@@ -5469,6 +5540,27 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(standardize_dtype(knp.copy(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Copy().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_correlate(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((3,), dtype=dtype1)
+        x2 = knp.ones((3,), dtype=dtype2)
+        x1_jax = jnp.ones((3,), dtype=dtype1)
+        x2_jax = jnp.ones((3,), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.correlate(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.correlate(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Correlate().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 

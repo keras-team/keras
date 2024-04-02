@@ -1520,3 +1520,50 @@ def floor_divide(x1, x2):
 def logical_xor(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.logical_xor(x1, x2)
+
+
+def correlate(x1, x2, mode="valid"):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    if dtype == "int64":
+        dtype = "float64"
+    elif dtype not in ["bfloat16", "float16", "float64"]:
+        dtype = "float32"
+
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+
+    x1_len, x2_len = x1.size(0), x2.size(0)
+
+    if x1.shape[:-1] != x2.shape[:-1]:
+        new_shape = [max(i, j) for i, j in zip(x1.shape[:-1], x2.shape[:-1])]
+        x1 = torch.broadcast_to(x1, new_shape + [x1.shape[-1]])
+        x2 = torch.broadcast_to(x2, new_shape + [x2.shape[-1]])
+
+    num_signals = torch.tensor(x1.shape[:-1]).prod()
+    x1 = torch.reshape(x1, (int(num_signals), x1.size(-1)))
+    x2 = torch.reshape(x2, (int(num_signals), x2.size(-1)))
+
+    output = torch.nn.functional.conv1d(
+        x1, x2.unsqueeze(1), groups=x1.size(0), padding=x2.size(-1) - 1
+    )
+    output_shape = x1.shape[:-1] + (-1,)
+    result = output.reshape(output_shape)
+
+    if mode == "valid":
+        target_length = (
+            builtins.max(x1_len, x2_len) - builtins.min(x1_len, x2_len) + 1
+        )
+        start_idx = (result.size(-1) - target_length) // 2
+        result = result[..., start_idx : start_idx + target_length]
+
+    if mode == "same":
+        start_idx = (result.size(-1) - x1_len) // 2
+        result = result[..., start_idx : start_idx + x1_len]
+
+    return torch.squeeze(result)
