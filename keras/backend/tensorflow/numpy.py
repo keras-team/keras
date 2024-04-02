@@ -2069,3 +2069,45 @@ def logical_xor(x1, x2):
     x1 = tf.cast(x1, "bool")
     x2 = tf.cast(x2, "bool")
     return tf.math.logical_xor(x1, x2)
+
+
+def correlate(x1, x2, mode="valid"):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    if dtype == tf.int64:
+        dtype = tf.float64
+    elif dtype not in [tf.bfloat16, tf.float16, tf.float64]:
+        dtype = tf.float32
+
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    x1_len, x2_len = int(x1.shape[0]), int(x2.shape[0])
+
+    if mode == "full":
+        full_len = x1_len + x2_len - 1
+
+        x1_pad = (full_len - x1_len) / 2
+        x2_pad = (full_len - x2_len) / 2
+
+        x1 = tf.pad(
+            x1, paddings=[[tf.math.floor(x1_pad), tf.math.ceil(x1_pad)]]
+        )
+        x2 = tf.pad(
+            x2, paddings=[[tf.math.floor(x2_pad), tf.math.ceil(x2_pad)]]
+        )
+
+        x1 = tf.reshape(x1, (1, full_len, 1))
+        x2 = tf.reshape(x2, (full_len, 1, 1))
+
+        return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding="SAME"))
+
+    x1 = tf.reshape(x1, (1, x1_len, 1))
+    x2 = tf.reshape(x2, (x2_len, 1, 1))
+
+    return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding=mode.upper()))

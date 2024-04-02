@@ -29,6 +29,7 @@ concatenate
 conj
 conjugate
 copy
+correlate
 cos
 cosh
 count_nonzero
@@ -6085,3 +6086,70 @@ def logical_xor(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return LogicalXor().symbolic_call(x1, x2)
     return backend.numpy.logical_xor(x1, x2)
+
+
+class Correlate(Operation):
+    def __init__(self, mode="valid"):
+        super().__init__()
+        self.mode = mode
+
+    def call(self, x1, x2):
+        return backend.numpy.correlate(x1, x2, mode=self.mode)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        if len(x1_shape) != 1:
+            raise ValueError(
+                "`x1` must be a 1-dimensional tensor, but received"
+                + f"shape {x1_shape}"
+            )
+        if len(x2_shape) != 1:
+            raise ValueError(
+                "`x2` must be a 1-dimensional tensor, but received"
+                + f"shape {x2_shape}"
+            )
+        x1_len, x2_len = x1_shape[0], x2_shape[0]
+        output_shape = (
+            np.maximum(x1_len, x2_len) - np.minimum(x1_len, x2_len) + 1,
+        )
+        if self.mode == "same":
+            output_shape = (np.maximum(x1_len, x2_len),)
+        elif self.mode == "full":
+            output_shape = (x1_len + x2_len - 1,)
+        if self.mode not in ("valid", "same", "full"):
+            raise ValueError(
+                "`mode` must be either `valid`, `same`, or `full`, but"
+                f"received: {self.mode}"
+            )
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        if output_dtype == "int64":
+            output_dtype = "float64"
+        elif output_dtype not in ["bfloat16", "float16", "float64"]:
+            output_dtype = "float32"
+        return KerasTensor(output_shape, dtype=output_dtype)
+
+
+@keras_export(["keras.ops.correlate", "keras.ops.numpy.correlate"])
+def correlate(x1, x2, mode="valid"):
+    """Compute the cross-correlation of two 1-dimensional tensors.
+
+    Args:
+        x1: First 1-dimensional input tensor of length M.
+        x2: Second 1-dimensional input tensor of length N.
+        mode: Either `valid`, `same` or `full`.
+            By default the mode is set to `valid`, which returns
+            an output of length max(M, N) - min(M, N) + 1.
+            `same` returns an output of length max(M, N).
+            `full` mode returns the convolution at each point of
+            overlap, with an output length of N+M-1
+
+    Returns:
+        Output tensor, cross-correlation of `x1` and `x2`.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Correlate(mode=mode).symbolic_call(x1, x2)
+    return backend.numpy.correlate(x1, x2, mode=mode)

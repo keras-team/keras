@@ -1075,3 +1075,18 @@ def floor_divide(x1, x2):
 
 def logical_xor(x1, x2):
     return np.logical_xor(x1, x2)
+
+
+def correlate(x1, x2, mode="valid"):
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    if dtype == "int64":
+        dtype = "float64"
+    elif dtype not in ["bfloat16", "float16", "float64"]:
+        dtype = "float32"
+
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
+    return np.correlate(x1, x2, mode)
