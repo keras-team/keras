@@ -258,6 +258,43 @@ class SparseCategoricalAccuracyTest(testing.TestCase):
         result = sp_cat_acc_obj.result()
         self.assertAllClose(result, np.array([1.0, 1.0]))
 
+    def test_squeeze_y_true_shape(self):
+        sp_cat_acc_obj = accuracy_metrics.SparseCategoricalAccuracy(
+            name="sparse_categorical_accuracy", dtype="float32"
+        )
+        # True labels are in the shape (num_samples, 1) should be squeezed.
+        y_true = np.array([[0], [1], [2]])
+        y_pred = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+        sp_cat_acc_obj.update_state(y_true, y_pred)
+        result = sp_cat_acc_obj.result()
+        self.assertAllClose(result, 1.0, atol=1e-4)
+
+    def test_cast_y_pred_to_match_y_true_dtype(self):
+        sp_cat_acc_obj = accuracy_metrics.SparseCategoricalAccuracy(
+            name="sparse_categorical_accuracy", dtype="float32"
+        )
+        # True labels are integers, while predictions are floats.
+        y_true = np.array([0, 1, 2], dtype=np.int32)
+        y_pred = np.array(
+            [[0.9, 0.1, 0.0], [0.0, 0.9, 0.1], [0.1, 0.0, 0.9]],
+            dtype=np.float64,
+        )
+        sp_cat_acc_obj.update_state(y_true, y_pred)
+        result = sp_cat_acc_obj.result()
+        self.assertAllClose(result, 1.0, atol=1e-4)
+
+    def test_reshape_matches_to_original_y_true_shape(self):
+        sp_cat_acc_obj = accuracy_metrics.SparseCategoricalAccuracy(
+            name="sparse_categorical_accuracy", dtype="float32"
+        )
+        # True labels have an additional dimension that needs to be squeezed.
+        y_true = np.array([[0], [1]])
+        # Predictions must trigger a reshape of matches.
+        y_pred = np.array([[0.9, 0.1], [0.1, 0.9]])
+        sp_cat_acc_obj.update_state(y_true, y_pred)
+        result = sp_cat_acc_obj.result()
+        self.assertAllClose(result, 1.0, atol=1e-4)
+
 
 class TopKCategoricalAccuracyTest(testing.TestCase):
     def test_config(self):
