@@ -218,6 +218,46 @@ class SparseCategoricalAccuracyTest(testing.TestCase):
         result = sp_cat_acc_obj.result()
         self.assertAllClose(result, 0.3, atol=1e-3)
 
+    def test_squeeze_y_true(self):
+        sp_cat_acc_obj = accuracy_metrics.SparseCategoricalAccuracy(
+            name="sparse_categorical_accuracy", dtype="float32"
+        )
+        # Scenario with 100% accuracy for simplicity
+        # y_true is a 2D tensor with shape (3, 1) to test squeeze
+        y_true = np.array([[0], [1], [2]])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.05, 0.9, 0.05], [0.05, 0.05, 0.9]]
+        )
+        sp_cat_acc_obj.update_state(y_true, y_pred)
+        result = sp_cat_acc_obj.result()
+        self.assertAllClose(result, 1.0, atol=1e-4)
+
+    def test_cast_y_pred_dtype(self):
+        sp_cat_acc_obj = accuracy_metrics.SparseCategoricalAccuracy(
+            name="sparse_categorical_accuracy", dtype="float32"
+        )
+        # Scenario with 100% accuracy for simplicity
+        # y_true is a 1D tensor with shape (2,) to test cast
+        y_true = np.array([0, 1], dtype=np.int64)
+        y_pred = np.array([[0.9, 0.1], [0.1, 0.9]], dtype=np.float32)
+        sp_cat_acc_obj.update_state(y_true, y_pred)
+        result = sp_cat_acc_obj.result()
+        self.assertAllClose(result, 1.0, atol=1e-4)
+
+    def test_reshape_matches(self):
+        sp_cat_acc_obj = accuracy_metrics.SparseCategoricalAccuracy(
+            name="sparse_categorical_accuracy", dtype="float32"
+        )
+        # Scenario with 100% accuracy for simplicity
+        # y_true is a 2D tensor with shape (2, 1) to test reshape
+        y_true = np.array([[0], [0]], dtype=np.int64)
+        y_pred = np.array(
+            [[[0.9, 0.1, 0.0], [0.8, 0.15, 0.05]]], dtype=np.float32
+        )
+        sp_cat_acc_obj.update_state(y_true, y_pred)
+        result = sp_cat_acc_obj.result()
+        self.assertAllClose(result, np.array([1.0, 1.0]))
+
 
 class TopKCategoricalAccuracyTest(testing.TestCase):
     def test_config(self):
