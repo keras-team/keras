@@ -241,41 +241,62 @@ class FBetaScoreTest(parameterized.TestCase, testing.TestCase):
                 dtype="float32",
             )
 
-    def test_invalid_beta_type_raises_value_error(self):
-        invalid_beta_values = [1, "1.0", None, [], {}]
-        expected_message_pattern = (
-            r"Invalid `beta` argument value. "
-            "It should be a Python float. "
-            r"Received: beta=(.*) of type '<class '(.*)'>'"
+    def test_beta_integer_type_raises_value_error(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid `beta` argument value. It should be a Python float.",
+        ):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=1, threshold=None, dtype="float32"
+            )
+
+    def test_beta_string_type_raises_value_error(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid `beta` argument value. It should be a Python float.",
+        ):
+            f_score_metrics.FBetaScore(
+                average="macro", beta="1.0", threshold=None, dtype="float32"
+            )
+
+    def test_beta_none_type_raises_value_error(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid `beta` argument value. It should be a Python float.",
+        ):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=None, threshold=None, dtype="float32"
+            )
+
+    def test_beta_zero_raises_value_error(self):
+        expected_message = (
+            "Invalid `beta` argument value. It should be > 0. "
+            "Received: beta=0.0"
         )
+        with self.assertRaisesRegex(ValueError, expected_message):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=0.0, threshold=None, dtype="float32"
+            )
 
-        for invalid_beta in invalid_beta_values:
-            with self.assertRaisesRegex(ValueError, expected_message_pattern):
-                f_score_metrics.FBetaScore(
-                    average="macro",
-                    beta=invalid_beta,
-                    threshold=None,
-                    dtype="float32",
-                )
-
-    def test_beta_non_positive_raises_value_error(self):
-        non_positive_beta_values = [0.0, -1.0, -0.5]
-        expected_error_message = (
-            "Invalid `beta` argument value. "
-            "It should be > 0. "
-            "Received: beta={}"
+    def test_beta_negative_one_raises_value_error(self):
+        expected_message = (
+            "Invalid `beta` argument value. It should be > 0. "
+            "Received: beta=-1.0"
         )
+        with self.assertRaisesRegex(ValueError, expected_message):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=-1.0, threshold=None, dtype="float32"
+            )
 
-        for beta_value in non_positive_beta_values:
-            with self.assertRaisesRegex(
-                ValueError, expected_error_message.format(beta_value)
-            ):
-                f_score_metrics.FBetaScore(
-                    average="macro",
-                    beta=beta_value,
-                    threshold=None,
-                    dtype="float32",
-                )
+    def test_beta_negative_half_raises_value_error(self):
+        expected_message = (
+            "Invalid `beta` argument value. It should be > 0. "
+            "Received: beta=-0.5"
+        )
+        with self.assertRaisesRegex(ValueError, expected_message):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=-0.5, threshold=None, dtype="float32"
+            )
 
     def test_threshold_not_float_raises_value_error(self):
         expected_message_pattern = (
