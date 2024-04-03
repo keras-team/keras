@@ -295,6 +295,19 @@ class SparseCategoricalAccuracyTest(testing.TestCase):
         result = sp_cat_acc_obj.result()
         self.assertAllClose(result, 1.0, atol=1e-4)
 
+    def test_matching_shapes_without_squeeze(self):
+        sp_cat_acc_obj = accuracy_metrics.SparseCategoricalAccuracy(
+            name="sparse_categorical_accuracy", dtype="float32"
+        )
+        y_true = np.array([2, 1, 0], dtype=np.int32)
+        y_pred = np.array(
+            [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]],
+            dtype=np.float32,
+        )
+        sp_cat_acc_obj.update_state(y_true, y_pred)
+        result = sp_cat_acc_obj.result()
+        self.assertAllClose(result, 1.0, atol=1e-4)
+
 
 class TopKCategoricalAccuracyTest(testing.TestCase):
     def test_config(self):
