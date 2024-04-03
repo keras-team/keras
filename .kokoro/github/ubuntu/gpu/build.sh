@@ -26,7 +26,7 @@ pip install -U psutil
 if [ "$KERAS_BACKEND" == "tensorflow" ]
 then
    echo "TensorFlow backend detected."
-   pip install -r requirements-tensorflow-cuda.txt --progress-bar off
+   pip install -r requirements-tensorflow-cuda.txt --progress-bar off --timeout 1000
    pip uninstall -y keras keras-nightly
    echo "Check that TensorFlow uses GPU"
    python3 -c 'import tensorflow as tf;print(tf.__version__);print(tf.config.list_physical_devices("GPU"))'
@@ -42,7 +42,7 @@ fi
 if [ "$KERAS_BACKEND" == "jax" ]
 then
    echo "JAX backend detected."
-   pip install -r requirements-jax-cuda.txt --progress-bar off
+   pip install -r requirements-jax-cuda.txt --progress-bar off --timeout 1000
    pip uninstall -y keras keras-nightly
    python3 -c 'import jax;print(jax.__version__);print(jax.default_backend())'
    # Raise error if GPU is not detected.
@@ -62,7 +62,7 @@ fi
 if [ "$KERAS_BACKEND" == "torch" ]
 then
    echo "PyTorch backend detected."
-   pip install -r requirements-torch-cuda.txt --progress-bar off
+   pip install -r requirements-torch-cuda.txt --progress-bar off --timeout 1000
    pip uninstall -y keras keras-nightly
    python3 -c 'import torch;print(torch.__version__);print(torch.cuda.is_available())'
    # Raise error if GPU is not detected.
