@@ -304,6 +304,7 @@ class SparseCategoricalAccuracyTest(testing.TestCase):
             [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]],
             dtype=np.float32,
         )
+        # No need to squeeze or reshape.
         sp_cat_acc_obj.update_state(y_true, y_pred)
         result = sp_cat_acc_obj.result()
         self.assertAllClose(result, 1.0, atol=1e-4)
