@@ -222,8 +222,8 @@ class SparseCategoricalAccuracyTest(testing.TestCase):
         sp_cat_acc_obj = accuracy_metrics.SparseCategoricalAccuracy(
             name="sparse_categorical_accuracy", dtype="float32"
         )
-        # Scenario with 100% accuracy for simplicity
-        # y_true is a 2D tensor with shape (3, 1) to test squeeze
+        # Scenario with 100% accuracy for simplicity.
+        # y_true is a 2D tensor with shape (3, 1) to test squeeze.
         y_true = np.array([[0], [1], [2]])
         y_pred = np.array(
             [[0.9, 0.05, 0.05], [0.05, 0.9, 0.05], [0.05, 0.05, 0.9]]
@@ -236,8 +236,8 @@ class SparseCategoricalAccuracyTest(testing.TestCase):
         sp_cat_acc_obj = accuracy_metrics.SparseCategoricalAccuracy(
             name="sparse_categorical_accuracy", dtype="float32"
         )
-        # Scenario with 100% accuracy for simplicity
-        # y_true is a 1D tensor with shape (2,) to test cast
+        # Scenario with 100% accuracy for simplicity.
+        # y_true is a 1D tensor with shape (2,) to test cast.
         y_true = np.array([0, 1], dtype=np.int64)
         y_pred = np.array([[0.9, 0.1], [0.1, 0.9]], dtype=np.float32)
         sp_cat_acc_obj.update_state(y_true, y_pred)
@@ -248,8 +248,8 @@ class SparseCategoricalAccuracyTest(testing.TestCase):
         sp_cat_acc_obj = accuracy_metrics.SparseCategoricalAccuracy(
             name="sparse_categorical_accuracy", dtype="float32"
         )
-        # Scenario with 100% accuracy for simplicity
-        # y_true is a 2D tensor with shape (2, 1) to test reshape
+        # Scenario with 100% accuracy for simplicity.
+        # y_true is a 2D tensor with shape (2, 1) to test reshape.
         y_true = np.array([[0], [0]], dtype=np.int64)
         y_pred = np.array(
             [[[0.9, 0.1, 0.0], [0.8, 0.15, 0.05]]], dtype=np.float32
