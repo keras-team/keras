@@ -353,6 +353,33 @@ class FBetaScoreTest(parameterized.TestCase, testing.TestCase):
                 average="macro", beta=1.0, threshold=-0.5, dtype="float32"
             )
 
+    def test_non_2d_input_shapes_raises_value_error(self):
+        fbeta = f_score_metrics.FBetaScore(beta=1.0, dtype="float32")
+        y_true_shape = (2, 3, 4)
+        y_pred_shape = (2, 3, 4)
+        expected_error_message = (
+            "FBetaScore expects 2D inputs with shape "
+            r"\(batch_size, output_dim\)\. Received input "
+            r"shapes: y_pred\.shape=\(2, 3, 4\) and "
+            r"y_true\.shape=\(2, 3, 4\)\."
+        )
+        with self.assertRaisesRegex(ValueError, expected_error_message):
+            fbeta._build(y_true_shape, y_pred_shape)
+
+    def test_undefined_output_dim_raises_value_error(self):
+        fbeta = f_score_metrics.FBetaScore(beta=1.0, dtype="float32")
+        y_true_shape = (2, None)
+        y_pred_shape = (2, None)
+        expected_error_message = (
+            "FBetaScore expects 2D inputs with shape "
+            r"\(batch_size, output_dim\), with output_dim fully "
+            r"defined \(not None\)\. Received input "
+            r"shapes: y_pred\.shape=\(2, None\) and "
+            r"y_true\.shape=\(2, None\)\."
+        )
+        with self.assertRaisesRegex(ValueError, expected_error_message):
+            fbeta._build(y_true_shape, y_pred_shape)
+
 
 class F1ScoreTest(testing.TestCase):
     def test_config(self):
