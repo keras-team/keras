@@ -116,7 +116,7 @@ class ExportArchive:
 
     def track(self, resource):
         """Track the variables (and other assets) of a layer or model.
-        
+
         By default, all variables used by an endpoint function
         are automatically tracked when you call `add_endpoint()`.
         However, non-variables assets such as lookup tables

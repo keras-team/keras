@@ -208,7 +208,7 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
     return model
 
 
-def save_weights_only(model, filepath):
+def save_weights_only(model, filepath, objects_to_skip=None):
     """Save only the weights of a model to a target filepath (.weights.h5).
 
     Note: only supports h5 for now.
@@ -222,17 +222,23 @@ def save_weights_only(model, filepath):
             f"Received: filepath={filepath}"
         )
     weights_store = H5IOStore(filepath, mode="w")
+    if objects_to_skip is not None:
+        visited_trackables = set(id(o) for o in objects_to_skip)
+    else:
+        visited_trackables = set()
     _save_state(
         model,
         weights_store=weights_store,
         assets_store=None,
         inner_path="",
-        visited_trackables=set(),
+        visited_trackables=visited_trackables,
     )
     weights_store.close()
 
 
-def load_weights_only(model, filepath, skip_mismatch=False):
+def load_weights_only(
+    model, filepath, skip_mismatch=False, objects_to_skip=None
+):
     """Load the weights of a model from a filepath (.keras or .weights.h5).
 
     Note: only supports h5 for now.
@@ -249,6 +255,11 @@ def load_weights_only(model, filepath, skip_mismatch=False):
         )
 
     failed_trackables = set()
+    print("objects_to_skip", objects_to_skip)
+    if objects_to_skip is not None:
+        visited_trackables = set(id(o) for o in objects_to_skip)
+    else:
+        visited_trackables = set()
     error_msgs = {}
     _load_state(
         model,
@@ -256,7 +267,7 @@ def load_weights_only(model, filepath, skip_mismatch=False):
         assets_store=None,
         inner_path="",
         skip_mismatch=skip_mismatch,
-        visited_trackables=set(),
+        visited_trackables=visited_trackables,
         failed_trackables=failed_trackables,
         error_msgs=error_msgs,
     )
