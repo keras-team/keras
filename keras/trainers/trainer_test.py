@@ -1308,7 +1308,6 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
                 self, x=None, y=None, y_pred=None, sample_weight=None
             ):
                 loss = super().compute_loss(x, y, y_pred, sample_weight)
-                print("loss", loss)
                 self.custom_metric.update_state(loss * 4)
                 return loss
 
