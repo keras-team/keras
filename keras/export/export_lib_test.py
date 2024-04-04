@@ -80,16 +80,88 @@ class ExportArchiveTest(testing.TestCase):
         export_archive.track(model)
         export_archive.add_endpoint(
             "call",
-            model.call,
-            input_signature=[
-                tf.TensorSpec(
-                    shape=(None, 10),
-                    dtype=tf.float32,
-                )
-            ],
+            model.__call__,
+            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
         )
         export_archive.write_out(temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(
+            ref_output, revived_model.call(ref_input), atol=1e-6
+        )
+
+    def test_low_level_model_export_with_alias(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+
+        model = get_model()
+        ref_input = tf.random.normal((3, 10))
+        ref_output = model(ref_input)
+
+        export_archive = export_lib.ExportArchive()
+        export_archive.track(model)
+        fn = export_archive.add_endpoint(
+            "call",
+            model.__call__,
+            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+        )
+        export_archive.write_out(
+            temp_filepath,
+            tf.saved_model.SaveOptions(function_aliases={"call_alias": fn}),
+        )
+        revived_model = tf.saved_model.load(
+            temp_filepath,
+            options=tf.saved_model.LoadOptions(
+                experimental_load_function_aliases=True
+            ),
+        )
+        self.assertAllClose(
+            ref_output,
+            revived_model.function_aliases["call_alias"](ref_input),
+            atol=1e-6,
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="This test is only for the JAX backend.",
+    )
+    def test_low_level_model_export_with_jax2tf_kwargs(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+
+        model = get_model()
+        ref_input = tf.random.normal((3, 10))
+        ref_output = model(ref_input)
+
+        export_archive = export_lib.ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint(
+            "call",
+            model.__call__,
+            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+            jax2tf_kwargs={
+                "native_serialization": True,
+                "native_serialization_platforms": ("cpu", "tpu"),
+            },
+        )
+        with self.assertRaisesRegex(
+            ValueError, "native_serialization_platforms.*bogus"
+        ):
+            export_archive.add_endpoint(
+                "call2",
+                model.__call__,
+                input_signature=[
+                    tf.TensorSpec(shape=(None, 10), dtype=tf.float32)
+                ],
+                jax2tf_kwargs={
+                    "native_serialization": True,
+                    "native_serialization_platforms": ("cpu", "bogus"),
+                },
+            )
+        export_archive.write_out(temp_filepath)
+        revived_model = tf.saved_model.load(
+            temp_filepath,
+            options=tf.saved_model.LoadOptions(
+                experimental_load_function_aliases=True
+            ),
+        )
         self.assertAllClose(
             ref_output, revived_model.call(ref_input), atol=1e-6
         )
@@ -281,12 +353,7 @@ class ExportArchiveTest(testing.TestCase):
         export_archive.add_endpoint(
             "call",
             layer.call,
-            input_signature=[
-                tf.TensorSpec(
-                    shape=(None, 10),
-                    dtype=tf.float32,
-                )
-            ],
+            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
         )
         export_archive.write_out(temp_filepath)
         revived_layer = tf.saved_model.load(temp_filepath)
@@ -309,17 +376,11 @@ class ExportArchiveTest(testing.TestCase):
         export_archive.track(model)
         export_archive.add_endpoint(
             "serve",
-            model.call,
+            model.__call__,
             input_signature=[
                 [
-                    tf.TensorSpec(
-                        shape=(None, 2),
-                        dtype=tf.float32,
-                    ),
-                    tf.TensorSpec(
-                        shape=(None, 2),
-                        dtype=tf.float32,
-                    ),
+                    tf.TensorSpec(shape=(None, 2), dtype=tf.float32),
+                    tf.TensorSpec(shape=(None, 2), dtype=tf.float32),
                 ]
             ],
         )
@@ -349,17 +410,11 @@ class ExportArchiveTest(testing.TestCase):
         export_archive.track(model)
         export_archive.add_endpoint(
             "serve",
-            model.call,
+            model.__call__,
             input_signature=[
                 {
-                    "x1": tf.TensorSpec(
-                        shape=(None, 2),
-                        dtype=tf.float32,
-                    ),
-                    "x2": tf.TensorSpec(
-                        shape=(None, 2),
-                        dtype=tf.float32,
-                    ),
+                    "x1": tf.TensorSpec(shape=(None, 2), dtype=tf.float32),
+                    "x2": tf.TensorSpec(shape=(None, 2), dtype=tf.float32),
                 }
             ],
         )
@@ -411,22 +466,12 @@ class ExportArchiveTest(testing.TestCase):
         export_archive.add_endpoint(
             "call_1",
             layer_1.call,
-            input_signature=[
-                tf.TensorSpec(
-                    shape=(None, 4),
-                    dtype=tf.float32,
-                ),
-            ],
+            input_signature=[tf.TensorSpec(shape=(None, 4), dtype=tf.float32)],
         )
         export_archive.add_endpoint(
             "call_2",
             layer_2.call,
-            input_signature=[
-                tf.TensorSpec(
-                    shape=(None, 5),
-                    dtype=tf.float32,
-                ),
-            ],
+            input_signature=[tf.TensorSpec(shape=(None, 5), dtype=tf.float32)],
         )
         export_archive.write_out(temp_filepath)
         revived_layer = tf.saved_model.load(temp_filepath)
@@ -454,14 +499,8 @@ class ExportArchiveTest(testing.TestCase):
             "call",
             layer.call,
             input_signature=[
-                tf.TensorSpec(
-                    shape=(None, 2, 2),
-                    dtype=tf.float32,
-                ),
-                tf.TensorSpec(
-                    shape=(None, 2, 2),
-                    dtype=tf.float32,
-                ),
+                tf.TensorSpec(shape=(None, 2, 2), dtype=tf.float32),
+                tf.TensorSpec(shape=(None, 2, 2), dtype=tf.float32),
             ],
         )
         export_archive.write_out(temp_filepath)
@@ -485,14 +524,8 @@ class ExportArchiveTest(testing.TestCase):
             "call",
             layer.call,
             input_signature=[
-                tf.TensorSpec(
-                    shape=(None, 2, 2),
-                    dtype=tf.float32,
-                ),
-                tf.TensorSpec(
-                    shape=(None, 2, 2),
-                    dtype=tf.float32,
-                ),
+                tf.TensorSpec(shape=(None, 2, 2), dtype=tf.float32),
+                tf.TensorSpec(shape=(None, 2, 2), dtype=tf.float32),
             ],
         )
         export_archive.write_out(temp_filepath)
@@ -519,13 +552,8 @@ class ExportArchiveTest(testing.TestCase):
         export_archive.track(model)
         export_archive.add_endpoint(
             "call",
-            model.call,
-            input_signature=[
-                tf.TensorSpec(
-                    shape=(None, 10),
-                    dtype=tf.float32,
-                )
-            ],
+            model.__call__,
+            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
         )
         export_archive.add_variable_collection(
             "my_vars", model.layers[1].weights
@@ -572,23 +600,15 @@ class ExportArchiveTest(testing.TestCase):
         export_archive.track(model)
         export_archive.add_endpoint(
             "call",
-            model.call,
-            input_signature=[
-                tf.TensorSpec(
-                    shape=(None, 3),
-                    dtype=tf.float32,
-                )
-            ],
+            model.__call__,
+            input_signature=[tf.TensorSpec(shape=(None, 3), dtype=tf.float32)],
         )
         with self.assertRaisesRegex(ValueError, "already taken"):
             export_archive.add_endpoint(
                 "call",
-                model.call,
+                model.__call__,
                 input_signature=[
-                    tf.TensorSpec(
-                        shape=(None, 3),
-                        dtype=tf.float32,
-                    )
+                    tf.TensorSpec(shape=(None, 3), dtype=tf.float32)
                 ],
             )
 
@@ -611,7 +631,7 @@ class ExportArchiveTest(testing.TestCase):
         ):
             export_archive.add_endpoint(
                 "call",
-                model.call,
+                model.__call__,
             )
 
         # Set endpoint that has never been called
@@ -664,13 +684,8 @@ class ExportArchiveTest(testing.TestCase):
         export_archive = export_lib.ExportArchive()
         export_archive.add_endpoint(
             "call",
-            model.call,
-            input_signature=[
-                tf.TensorSpec(
-                    shape=(None, 3),
-                    dtype=tf.float32,
-                )
-            ],
+            model.__call__,
+            input_signature=[tf.TensorSpec(shape=(None, 3), dtype=tf.float32)],
         )
         export_archive.write_out(temp_filepath)
 
