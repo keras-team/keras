@@ -1292,6 +1292,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertAlmostEqual(cbk.eager_call_counter_predict, 4)
         self.assertAlmostEqual(model.predict_counter.numpy(), 4)
 
+    @pytest.mark.requires_trainable_backend
     def test_metric_update_in_compute_loss(self):
 
         class MyModel(keras.Model):
