@@ -12,6 +12,7 @@ class RGBToGrayscale(Operation):
         self,
         data_format="channels_last",
     ):
+        super().__init__()
         self.data_format = data_format
 
     def call(self, image):
