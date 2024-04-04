@@ -1,7 +1,9 @@
 from keras.api_export import keras_export
 from keras.losses.loss import Loss
 from keras.losses.losses import BinaryCrossentropy
+from keras.losses.losses import BinaryFocalCrossentropy
 from keras.losses.losses import CategoricalCrossentropy
+from keras.losses.losses import CategoricalFocalCrossentropy
 from keras.losses.losses import CategoricalHinge
 from keras.losses.losses import CosineSimilarity
 from keras.losses.losses import Dice
@@ -18,7 +20,9 @@ from keras.losses.losses import Poisson
 from keras.losses.losses import SparseCategoricalCrossentropy
 from keras.losses.losses import SquaredHinge
 from keras.losses.losses import binary_crossentropy
+from keras.losses.losses import binary_focal_crossentropy
 from keras.losses.losses import categorical_crossentropy
+from keras.losses.losses import categorical_focal_crossentropy
 from keras.losses.losses import categorical_hinge
 from keras.losses.losses import cosine_similarity
 from keras.losses.losses import ctc
@@ -44,7 +48,9 @@ ALL_OBJECTS = {
     KLDivergence,
     Poisson,
     BinaryCrossentropy,
+    BinaryFocalCrossentropy,
     CategoricalCrossentropy,
+    CategoricalFocalCrossentropy,
     SparseCategoricalCrossentropy,
     # Regression
     MeanSquaredError,
@@ -64,7 +70,9 @@ ALL_OBJECTS = {
     kl_divergence,
     poisson,
     binary_crossentropy,
+    binary_focal_crossentropy,
     categorical_crossentropy,
+    categorical_focal_crossentropy,
     sparse_categorical_crossentropy,
     # Regression
     mean_squared_error,
