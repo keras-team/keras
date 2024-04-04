@@ -727,9 +727,9 @@ def median(x, axis=None, keepdims=False):
 
     result = jnp.median(x, axis=axis, keepdims=keepdims)
 
-    # TODO: jnp.median failed to keepdims when axis is None
+    # TODO: with jax < 0.4.26 jnp.median failed to keepdims when axis is None
     if keepdims is True and axis is None:
-        for _ in range(x.ndim - 1):
+        while result.ndim < x.ndim:
             result = jnp.expand_dims(result, axis=-1)
     return result
 
@@ -818,9 +818,10 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
     result = jnp.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
-    # TODO: jnp.quantile failed to keepdims when axis is None
+    # TODO: with jax < 0.4.26 jnp.quantile failed to keepdims when axis is None
     if keepdims is True and axis is None:
-        for _ in range(x.ndim - 1):
+        result_ndim = x.ndim + (1 if len(q.shape) > 0 else 0)
+        while result.ndim < result_ndim:
             result = jnp.expand_dims(result, axis=-1)
     return result
 
