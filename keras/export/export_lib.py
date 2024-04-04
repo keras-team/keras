@@ -115,7 +115,19 @@ class ExportArchive:
         return self._tf_trackable.non_trainable_variables
 
     def track(self, resource):
-        """Track the variables (and other assets) of a layer or model."""
+        """Track the variables (and other assets) of a layer or model.
+        
+        By default, all variables used by an endpoint function
+        are automatically tracked when you call `add_endpoint()`.
+        However, non-variables assets such as lookup tables
+        need to be tracked manually. Note that lookup tables
+        used by built-in Keras layers
+        (`TextVectorization`, `IntegerLookup`, `StringLookup`)
+        are automatically tracked in `add_endpoint()`.
+
+        Arguments:
+            resource: A trackable TensorFlow resource.
+        """
         if backend.backend() == "tensorflow" and not isinstance(
             resource, tf.__internal__.tracking.Trackable
         ):
