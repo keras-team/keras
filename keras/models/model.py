@@ -1,6 +1,5 @@
 import inspect
 import json
-import os
 import warnings
 
 from keras import backend
@@ -9,9 +8,7 @@ from keras.api_export import keras_export
 from keras.layers.layer import Layer
 from keras.models.variable_mapping import map_trackable_variables
 from keras.saving import saving_api
-from keras.saving import saving_lib
 from keras.trainers import trainer as base_trainer
-from keras.utils import io_utils
 from keras.utils import summary_utils
 from keras.utils import traceback_utils
 
@@ -315,20 +312,7 @@ class Model(Trainer, Layer):
                 at the target location, or instead ask the user
                 via an interactive prompt.
         """
-        if not str(filepath).endswith(".weights.h5"):
-            raise ValueError(
-                "The filename must end in `.weights.h5`. "
-                f"Received: filepath={filepath}"
-            )
-        try:
-            exists = os.path.exists(filepath)
-        except TypeError:
-            exists = False
-        if exists and not overwrite:
-            proceed = io_utils.ask_to_proceed_with_overwrite(filepath)
-            if not proceed:
-                return
-        saving_lib.save_weights_only(self, filepath)
+        return saving_api.save_weights(self, filepath, overwrite=True)
 
     @traceback_utils.filter_traceback
     def load_weights(self, filepath, skip_mismatch=False, **kwargs):
