@@ -904,3 +904,18 @@ class LayerTest(testing.TestCase):
         layer.custom_change_dtype()
         self.assertEqual(layer.w.dtype, "int8")
         self.assertEqual(layer.w.trainable, False)
+
+    def test_trainable_init_arg(self):
+        inputs = layers.Input(shape=(1,))
+        layer = layers.Dense(2, trainable=False)
+        outputs = layer(inputs)
+        model = models.Model(inputs, outputs)
+
+        self.assertFalse(layer.trainable)
+        self.assertLen(layer.trainable_variables, 0)
+        self.assertLen(model.trainable_variables, 0)
+
+        layer.trainable = True
+        self.assertTrue(layer.trainable)
+        self.assertLen(layer.trainable_variables, 2)
+        self.assertLen(model.trainable_variables, 2)
