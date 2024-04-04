@@ -6,6 +6,7 @@ from keras import backend
 from keras.api_export import keras_export
 from keras.layers.layer import Layer
 from keras.saving import serialization_lib
+from keras.utils import jax_utils
 from keras.utils import tracking
 from keras.utils import tree
 from keras.utils.module_utils import jax
@@ -228,9 +229,11 @@ class JaxLayer(Layer):
         super().__init__(**kwargs)
         self.call_fn = call_fn
         self.init_fn = init_fn
+        self.seed_generator = backend.random.SeedGenerator(seed)
         self.tracked_params = self._create_variables(params, trainable=True)
         self.tracked_state = self._create_variables(state, trainable=False)
-        self.seed_generator = backend.random.SeedGenerator(seed)
+        if self.params is not None or self.state is not None:
+            self.built = True
 
         self.call_fn_arguments = self._validate_signature(
             call_fn,
@@ -311,7 +314,8 @@ class JaxLayer(Layer):
         else:
             self.state = variables
 
-        return jax.tree_util.tree_flatten(variables)
+        flat_variables, _ = jax.tree_util.tree_flatten(variables)
+        return flat_variables
 
     def _get_init_rng(self):
         """
@@ -349,6 +353,11 @@ class JaxLayer(Layer):
         if self.params is not None or self.state is not None:
             return
 
+        if jax_utils.is_in_jax_tracing_scope():
+            # This exception is not actually shown, it is caught and a detailed
+            # warning about calling 'build' is printed.
+            raise ValueError("'JaxLayer' cannot be built in tracing scope")
+
         # Initialize `params` and `state` if needed by calling `init_fn`.
         def create_input(shape):
             shape = [d if d is not None else 1 for d in shape]
@@ -374,6 +383,7 @@ class JaxLayer(Layer):
             init_params, trainable=True
         )
         self.tracked_state = self._create_variables(init_state, trainable=False)
+        self.built = True
 
     def call(self, inputs, training=False):
         def unwrap_variable(variable):
