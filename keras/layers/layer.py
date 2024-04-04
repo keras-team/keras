@@ -455,6 +455,7 @@ class Layer(BackendLayer, Operation):
         autocast=True,
         regularizer=None,
         constraint=None,
+        aggregation="mean",
         name=None,
     ):
         """Add a weight variable to the layer.
@@ -481,6 +482,10 @@ class Layer(BackendLayer, Operation):
             constraint: Contrainst object to call on the variable after any
                 optimizer update, or string name of a built-in constraint.
                 Defaults to `None`.
+            aggregation: String, one of `'mean'`, `'sum'`,
+                `'only_first_replica'`. Annotates the variable with the type
+                of multi-replica aggregation to be used for this variable
+                when writing custom data parallel training loops.
             name: String name of the variable. Useful for debugging purposes.
         """
         self._check_super_called()
@@ -503,6 +508,7 @@ class Layer(BackendLayer, Operation):
                 dtype=dtype,
                 trainable=trainable,
                 autocast=autocast,
+                aggregation=aggregation,
                 name=name,
             )
         # Will be added to layer.losses

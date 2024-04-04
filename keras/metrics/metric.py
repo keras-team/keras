@@ -179,7 +179,9 @@ class Metric:
     def dtype(self):
         return self._dtype
 
-    def add_variable(self, shape, initializer, dtype=None, name=None):
+    def add_variable(
+        self, shape, initializer, dtype=None, aggregation="sum", name=None
+    ):
         self._check_super_called()
         with backend.name_scope(self.name.replace("/", ">"), caller=self):
             initializer = initializers.get(initializer)
@@ -188,6 +190,7 @@ class Metric:
                 shape=shape,
                 dtype=dtype,
                 trainable=False,
+                aggregation=aggregation,
                 name=name,
             )
         # Prevent double-tracking

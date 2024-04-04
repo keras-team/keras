@@ -101,7 +101,11 @@ class BaseOptimizer:
         # (since int64 is disallowed in JAX) and to int64 in TF.
         with backend.name_scope(self.name, caller=self):
             iterations = backend.Variable(
-                0, name="iteration", dtype="int", trainable=False
+                0,
+                name="iteration",
+                dtype="int",
+                trainable=False,
+                aggregation="only_first_replica",
             )
         self._track_variable(iterations)
         self.iterations = iterations
@@ -128,6 +132,7 @@ class BaseOptimizer:
                     name="learning_rate",
                     dtype=backend.floatx(),
                     trainable=False,
+                    aggregation="only_first_replica",
                 )
             self._track_variable(learning_rate)
             self._learning_rate = learning_rate
@@ -176,6 +181,7 @@ class BaseOptimizer:
         shape,
         initializer="zeros",
         dtype=None,
+        aggregation="mean",
         name=None,
     ):
         self._check_super_called()
@@ -186,6 +192,7 @@ class BaseOptimizer:
                 shape=shape,
                 dtype=dtype,
                 trainable=False,
+                aggregation=aggregation,
                 name=name,
             )
         self._track_variable(variable)

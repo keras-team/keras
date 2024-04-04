@@ -19,6 +19,7 @@ class KerasVariable:
         dtype=None,
         trainable=True,
         autocast=True,
+        aggregation="mean",
         name=None,
     ):
         name = name or auto_name(self.__class__.__name__)
@@ -27,6 +28,12 @@ class KerasVariable:
                 "Argument `name` must be a string and "
                 "cannot contain character `/`. "
                 f"Received: name={name}"
+            )
+        if aggregation not in ("mean", "sum", "only_first_replica"):
+            raise ValueError(
+                "Invalid valid for argument `aggregation`. Expected "
+                "one of {'mean', 'sum', 'only_first_replica'}. "
+                f"Received: aggregation={aggregation}"
             )
         self.name = name
         parent_path = current_path()
@@ -42,6 +49,7 @@ class KerasVariable:
         self._constraint = None
         self._trainable = trainable
         self._autocast = autocast
+        self._aggregation = aggregation
         if isinstance(initializer, str):
             from keras import initializers
 
@@ -121,6 +129,10 @@ class KerasVariable:
 
     def numpy(self):
         return np.array(self)
+
+    @property
+    def aggregation(self):
+        return self._aggregation
 
     @property
     def value(self):
