@@ -468,7 +468,7 @@ def gru(
         use_bias=bias is not None,
         reset_after=reset_after,
     )
-    if not cudnn_supported or mask is not None:
+    if not cudnn_supported:
         raise NotImplementedError
 
     from keras.backend.tensorflow import Variable
@@ -831,7 +831,7 @@ def lstm(
     cudnn_supported = cudnn_ok(
         activation, recurrent_activation, unroll, use_bias=bias is not None
     )
-    if not cudnn_supported or mask is not None:
+    if not cudnn_supported:
         raise NotImplementedError
 
     from keras.backend.tensorflow import Variable
