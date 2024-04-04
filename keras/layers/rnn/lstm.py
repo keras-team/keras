@@ -412,6 +412,9 @@ class LSTM(RNN):
             Unrolling can speed-up a RNN,
             although it tends to be more memory-intensive.
             Unrolling is only suitable for short sequences.
+        use_cudnn: Whether to use a cuDNN-backed implementation. `"auto"` will
+            attempt to use cuDNN when feasible, and will fallback to the
+            default implementation if not.
 
     Call arguments:
         inputs: A 3D tensor, with shape `(batch, timesteps, feature)`.
@@ -454,6 +457,7 @@ class LSTM(RNN):
         go_backwards=False,
         stateful=False,
         unroll=False,
+        use_cudnn="auto",
         **kwargs,
     ):
         cell = LSTMCell(
@@ -490,11 +494,22 @@ class LSTM(RNN):
             **kwargs,
         )
         self.input_spec = InputSpec(ndim=3)
-        if backend.backend() == "tensorflow" and backend.cudnn_ok(
-            cell.activation,
-            cell.recurrent_activation,
-            self.unroll,
-            cell.use_bias,
+        if use_cudnn not in ("auto", True, False):
+            raise ValueError(
+                "Invalid valid received for argument `use_cudnn`. "
+                "Expected one of {'auto', True, False}. "
+                f"Received: use_cudnn={use_cudnn}"
+            )
+        self.use_cudnn = use_cudnn
+        if (
+            backend.backend() == "tensorflow"
+            and backend.cudnn_ok(
+                cell.activation,
+                cell.recurrent_activation,
+                self.unroll,
+                cell.use_bias,
+            )
+            and use_cudnn in (True, "auto")
         ):
             self.supports_jit = False
 
@@ -502,33 +517,41 @@ class LSTM(RNN):
         if tree.is_nested(mask):
             mask = mask[0]
 
-        if not self.dropout and not self.recurrent_dropout:
-            try:
-                # Backends are allowed to specify (optionally) optimized
-                # implementation of the inner LSTM loop. In the case of
-                # TF for instance, it will leverage cuDNN when feasible, and
-                # it will raise NotImplementedError otherwise.
-                out = backend.lstm(
-                    sequences,
-                    initial_state[0],
-                    initial_state[1],
-                    mask,
-                    kernel=self.cell.kernel,
-                    recurrent_kernel=self.cell.recurrent_kernel,
-                    bias=self.cell.bias,
-                    activation=self.cell.activation,
-                    recurrent_activation=self.cell.recurrent_activation,
-                    return_sequences=self.return_sequences,
-                    go_backwards=self.go_backwards,
-                    unroll=self.unroll,
-                )
-                # We disable jit_compile for the model in this case,
-                # since cuDNN ops aren't XLA compatible.
-                if backend.backend() == "tensorflow":
-                    self.supports_jit = False
-                return out
-            except NotImplementedError:
-                pass
+        if self.use_cudnn in ("auto", True):
+            if not self.dropout and not self.recurrent_dropout:
+                try:
+                    # Backends are allowed to specify (optionally) optimized
+                    # implementation of the inner LSTM loop. In the case of
+                    # TF for instance, it will leverage cuDNN when feasible, and
+                    # it will raise NotImplementedError otherwise.
+                    out = backend.lstm(
+                        sequences,
+                        initial_state[0],
+                        initial_state[1],
+                        mask,
+                        kernel=self.cell.kernel,
+                        recurrent_kernel=self.cell.recurrent_kernel,
+                        bias=self.cell.bias,
+                        activation=self.cell.activation,
+                        recurrent_activation=self.cell.recurrent_activation,
+                        return_sequences=self.return_sequences,
+                        go_backwards=self.go_backwards,
+                        unroll=self.unroll,
+                    )
+                    # We disable jit_compile for the model in this case,
+                    # since cuDNN ops aren't XLA compatible.
+                    if backend.backend() == "tensorflow":
+                        self.supports_jit = False
+                    return out
+                except NotImplementedError:
+                    pass
+        if self.use_cudnn is True:
+            raise ValueError(
+                "use_cudnn=True was specified, "
+                "but cuDNN is not supported for this layer configuration "
+                "with this backend. Pass use_cudnn='auto' to fallback "
+                "to a non-cuDNN implementation."
+            )
         return super().inner_loop(
             sequences, initial_state, mask=mask, training=training
         )

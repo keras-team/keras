@@ -538,39 +538,6 @@ def _do_lstm_arguments_support_cudnn(
     )
 
 
-def _is_sequence_right_padded(mask):
-    """Check the mask tensor and see if it right padded.
-
-    For cuDNN kernel, it uses the sequence length param to skip the tailing
-    timestep. If the data is left padded, or not a strict right padding (has
-    masked value in the middle of the sequence), then cuDNN kernel won't be work
-    properly in those cases.
-
-    Left padded data: [[False, False, True, True, True]].
-    Right padded data: [[True, True, True, False, False]].
-    Mixture of mask/unmasked data: [[True, False, True, False, False]].
-
-    Note that for the mixed data example above, the actually data RNN should see
-    are those 2 Trues (index 0 and 2), the index 1 False should be ignored and
-    not pollute the internal states.
-
-    Args:
-      mask: the Boolean tensor with shape [batch, timestep]
-
-    Returns:
-      boolean scalar tensor, whether the mask is strictly right padded.
-    """
-    max_seq_length = tf.shape(mask)[1]
-    count_of_true = tf.reduce_sum(tf.cast(mask, tf.int32), axis=1)
-    right_padded_mask = tf.sequence_mask(count_of_true, maxlen=max_seq_length)
-    return tf.reduce_all(
-        tf.equal(
-            tf.cast(mask, dtype="bool"),
-            tf.cast(right_padded_mask, dtype="bool"),
-        )
-    )
-
-
 def _has_fully_masked_sequence(mask):
     # Cudnn kernel will error out if the input sequence contains any
     # fully masked data. We walk around this issue by rerouting the computation
@@ -579,6 +546,28 @@ def _has_fully_masked_sequence(mask):
     # check, we inverse the boolean, check if any of the sequence has all True.
     return tf.reduce_any(
         tf.reduce_all(tf.logical_not(tf.cast(mask, dtype="bool")), axis=1)
+    )
+
+
+def _assert_valid_mask(mask):
+    valid = tf.logical_and(
+        tf.logical_not(_has_fully_masked_sequence(mask)),
+        _is_sequence_right_padded(mask),
+    )
+    tf.Assert(
+        valid,
+        [
+            (
+                "You are passing a RNN mask that does not correspond to "
+                "right-padded sequences, while using cuDNN, which is not "
+                "supported. With cuDNN, RNN masks can only be used for "
+                "right-padding, e.g. `[[True, True, False, False]]` would "
+                "be a valid mask, but any mask that isn't just contiguous "
+                "`True`'s on the left and contiguous `False`'s on the right "
+                "would be invalid. You can pass `use_cudnn=False` to your "
+                "RNN layer to stop using cuDNN (this may be slower)."
+            )
+        ],
     )
 
 
@@ -615,6 +604,39 @@ def _standardize_cudnn_weights(weights, biases, shape, transpose_weights=False):
     return tf.concat(weights + biases, axis=0)
 
 
+def _is_sequence_right_padded(mask):
+    """Check the mask tensor and see if it right padded.
+
+    cuDNN uses the sequence length param to skip the tailing
+    timestep. If the data is left padded, or not a strict right padding (has
+    masked value in the middle of the sequence), then cuDNN won't work
+    properly in those cases.
+
+    Left padded data: [[False, False, True, True, True]].
+    Right padded data: [[True, True, True, False, False]].
+    Mixture of mask/unmasked data: [[True, False, True, False, False]].
+
+    Note that for the mixed data example above, the actually data RNN should see
+    are those 2 Trues (index 0 and 2), the index 1 False should be ignored and
+    not pollute the internal states.
+
+    Args:
+        mask: the Boolean tensor with shape [batch, timestep]
+
+    Returns:
+        boolean scalar tensor, whether the mask is strictly right padded.
+    """
+    max_seq_length = tf.shape(mask)[1]
+    count_of_true = tf.reduce_sum(tf.cast(mask, tf.int32), axis=1)
+    right_padded_mask = tf.sequence_mask(count_of_true, maxlen=max_seq_length)
+    return tf.reduce_all(
+        tf.equal(
+            tf.cast(mask, dtype="bool"),
+            tf.cast(right_padded_mask, dtype="bool"),
+        )
+    )
+
+
 def _compute_sequence_length_from_mask(mask, time_major):
     """Calculate the sequence length tensor (1-D) based on the masking tensor.
 
@@ -628,12 +650,13 @@ def _compute_sequence_length_from_mask(mask, time_major):
     padded that could be checked by, e.g., `is_sequence_right_padded()`.
 
     Args:
-      mask: Boolean tensor with shape [batch, timestep] or [timestep, batch] if
-        time_major=True.
-      time_major: Boolean, which indicates whether the mask is time major or
-        batch major.
+        mask: Boolean tensor with shape [batch, timestep] or [timestep, batch]
+            if time_major=True.
+        time_major: Boolean, which indicates whether the mask is time major or
+            batch major.
+
     Returns:
-      sequence_length: 1D int32 tensor.
+        sequence_length: 1D int32 tensor.
     """
     timestep_index = 0 if time_major else 1
     return tf.reduce_sum(tf.cast(mask, tf.int32), axis=timestep_index)
@@ -656,6 +679,7 @@ def _cudnn_gru(
 ):
     """GRU with cuDNN implementation which is only available for GPU."""
     if mask is not None:
+        _assert_valid_mask(mask)
         sequence_lengths = _compute_sequence_length_from_mask(mask, time_major)
     else:
         sequence_lengths = None
@@ -853,6 +877,20 @@ def _cudnn_lstm(
     return_sequences,
 ):
     if mask is not None:
+        is_valid_mask = _is_sequence_right_padded(mask, time_major)
+        tf.Assert(
+            is_valid_mask,
+            message=(
+                "You are passing a RNN mask that does not correspond to "
+                "right-padded sequences, while using cuDNN, which is not "
+                "supported. With cuDNN, RNN masks can only be used for "
+                "right-padding, e.g. `[[True, True, False, False]]` would "
+                "be a valid mask, but any mask that isn't just contiguous "
+                "`True`'s on the left and contiguous `False`'s on the right "
+                "would be invalid. You can pass `use_cudnn=False` to your "
+                "RNN layer to stop using cuDNN (this may be slower)."
+            ),
+        )
         sequence_lengths = _compute_sequence_length_from_mask(mask, time_major)
     else:
         sequence_lengths = None
