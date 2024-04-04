@@ -204,7 +204,7 @@ class JAXTrainer(base_trainer.Trainer):
 
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:
-            return self.train_function
+            return
 
         def one_train_step(state, data):
             data = data[0]
@@ -236,7 +236,7 @@ class JAXTrainer(base_trainer.Trainer):
 
     def make_test_function(self, force=False):
         if self.test_function is not None and not force:
-            return self.test_function
+            return
 
         def one_test_step(state, data):
             data = data[0]
