@@ -7,8 +7,8 @@ from keras import testing
 
 
 class ZeroPadding3DTest(testing.TestCase, parameterized.TestCase):
-    @parameterized.named_parameters(
-        ("channels_first", "channels_first"), ("channels_last", "channels_last")
+    @parameterized.parameters(
+        {"data_format": "channels_first"}, {"data_format": "channels_last"}
     )
     def test_zero_padding_3d(self, data_format):
         inputs = np.random.rand(1, 2, 3, 4, 5)
@@ -74,18 +74,30 @@ class ZeroPadding3DTest(testing.TestCase, parameterized.TestCase):
         else:
             self.assertEqual(padded.shape, (1, 5, 5, None, 15))
 
-    def test_zero_padding_3d_errors_if_padding_argument_invalid(self):
+    @parameterized.parameters(
+        {"padding": (1,)},
+        {"padding": (1, 2)},
+        {"padding": (1, 2, 3, 4)},
+        {"padding": "1"},
+        {"padding": ((1, 2), (3, 4), (5, 6, 7))},
+        {"padding": ((1, 2), (3, 4), (5, -6))},
+        {"padding": ((1, 2), (3, 4), "5")},
+    )
+    def test_zero_padding_3d_errors_if_padding_argument_invalid(self, padding):
         with self.assertRaises(ValueError):
-            layers.ZeroPadding3D(padding=(1,))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding3D(padding=(1, 2))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding3D(padding=(1, 2, 3, 4))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding3D(padding="1")
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding3D(padding=((1, 2), (3, 4), (5, 6, 7)))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding3D(padding=((1, 2), (3, 4), (5, -6)))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding3D(padding=((1, 2), (3, 4), "5"))
+            layers.ZeroPadding3D(padding=padding)
+
+    @parameterized.parameters(
+        {"data_format": "channels_first"},
+        {"data_format": "channels_last"},
+    )
+    def test_zero_padding_3d_get_config(self, data_format):
+        layer = layers.ZeroPadding3D(padding=(1, 2, 3), data_format=data_format)
+        expected_config = {
+            "data_format": data_format,
+            "dtype": layer.dtype_policy.name,
+            "name": layer.name,
+            "padding": ((1, 1), (2, 2), (3, 3)),
+            "trainable": layer.trainable,
+        }
+        self.assertEqual(layer.get_config(), expected_config)

@@ -7,8 +7,9 @@ from keras import testing
 
 
 class ZeroPadding2DTest(testing.TestCase, parameterized.TestCase):
-    @parameterized.named_parameters(
-        ("channels_first", "channels_first"), ("channels_last", "channels_last")
+    @parameterized.parameters(
+        {"data_format": "channels_first"},
+        {"data_format": "channels_last"},
     )
     def test_zero_padding_2d(self, data_format):
         inputs = np.random.rand(1, 2, 3, 4)
@@ -68,16 +69,29 @@ class ZeroPadding2DTest(testing.TestCase, parameterized.TestCase):
         else:
             self.assertEqual(padded.shape, (1, 4, 5, None))
 
-    def test_zero_padding_2d_errors_if_padding_argument_invalid(self):
+    @parameterized.parameters(
+        {"padding": (1,)},
+        {"padding": (1, 2, 3)},
+        {"padding": "1"},
+        {"padding": ((1, 2), (3, 4, 5))},
+        {"padding": ((1, 2), (3, -4))},
+        {"padding": ((1, 2), "3")},
+    )
+    def test_zero_padding_2d_errors_if_padding_argument_invalid(self, padding):
         with self.assertRaises(ValueError):
-            layers.ZeroPadding2D(padding=(1,))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding2D(padding=(1, 2, 3))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding2D(padding="1")
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding2D(padding=((1, 2), (3, 4, 5)))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding2D(padding=((1, 2), (3, -4)))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding2D(padding=((1, 2), "3"))
+            layers.ZeroPadding2D(padding)
+
+    @parameterized.parameters(
+        {"data_format": "channels_first"},
+        {"data_format": "channels_last"},
+    )
+    def test_zero_padding_2d_get_config(self, data_format):
+        layer = layers.ZeroPadding2D(padding=(1, 2), data_format=data_format)
+        expected_config = {
+            "data_format": data_format,
+            "dtype": layer.dtype_policy.name,
+            "name": layer.name,
+            "padding": ((1, 1), (2, 2)),
+            "trainable": layer.trainable,
+        }
+        self.assertEqual(layer.get_config(), expected_config)
