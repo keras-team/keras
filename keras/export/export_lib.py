@@ -195,7 +195,7 @@ class ExportArchive:
                     resource.non_trainable_variables
                 )
 
-    def add_endpoint(self, name, fn, input_signature=None):
+    def add_endpoint(self, name, fn, input_signature=None, jax2tf_kwargs=None):
         """Register a new serving endpoint.
 
         Arguments:
@@ -215,6 +215,13 @@ class ExportArchive:
                 per positional input argument of `fn`). Nested arguments are
                 allowed (see below for an example showing a Functional model
                 with 2 input arguments).
+            jax2tf_kwargs: Dict for additional arguments to pass to `jax2tf`.
+                Supported only when the backend is JAX. See documentation for
+                [`jax2tf.convert`](
+                    https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
+
+        Returns:
+            The `tf.function` wrapping `fn` that was added to the archive.
 
         Example:
 
@@ -305,6 +312,12 @@ class ExportArchive:
         if name in self._endpoint_names:
             raise ValueError(f"Endpoint name '{name}' is already taken.")
 
+        if jax2tf_kwargs and backend.backend() != "jax":
+            raise ValueError(
+                "'jax2tf_kwargs' is only supported with the jax backend. "
+                f"Current backend: {backend.backend()}"
+            )
+
         if input_signature:
             if backend.backend() == "tensorflow":
                 decorated_fn = tf.function(fn, input_signature=input_signature)
@@ -327,7 +340,9 @@ class ExportArchive:
                 ]
 
                 jax2tf_stateless_fn = self._convert_jax2tf_function(
-                    stateless_fn, [variables_spec] + input_signature
+                    stateless_fn,
+                    [variables_spec] + input_signature,
+                    jax2tf_kwargs=jax2tf_kwargs,
                 )
 
                 def stateful_fn(*args, **kwargs):
@@ -385,6 +400,7 @@ class ExportArchive:
                 )
         setattr(self._tf_trackable, name, decorated_fn)
         self._endpoint_names.append(name)
+        return decorated_fn
 
     def add_variable_collection(self, name, variables):
         """Register a set of variables to be retrieved after reloading.
@@ -522,17 +538,24 @@ class ExportArchive:
                     ):
                         self._tf_trackable._misc_assets.append(trackable)
 
-    def _convert_jax2tf_function(self, fn, input_signature):
+    def _convert_jax2tf_function(self, fn, input_signature, jax2tf_kwargs=None):
         from jax.experimental import jax2tf
 
-        native_serialization = self._check_device_compatible()
+        if jax2tf_kwargs is None:
+            jax2tf_kwargs = {}
+        if "native_serialization" not in jax2tf_kwargs:
+            jax2tf_kwargs["native_serialization"] = (
+                self._check_device_compatible()
+            )
+
         shapes = []
         for spec in input_signature:
             shapes.append(self._spec_to_poly_shape(spec))
+
         return jax2tf.convert(
             fn,
             polymorphic_shapes=shapes,
-            native_serialization=native_serialization,
+            **jax2tf_kwargs,
         )
 
     def _spec_to_poly_shape(self, spec):
