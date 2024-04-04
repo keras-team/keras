@@ -972,10 +972,7 @@ class Layer(BackendLayer, Operation):
         non_trainable_variables = []
         for v in self.non_trainable_variables:
             new_v = scope.get_current_value(v)
-            if new_v is not None:
-                non_trainable_variables.append(new_v)
-            else:
-                non_trainable_variables.append(v)
+            non_trainable_variables.append(new_v)
 
         if return_losses:
             return outputs, non_trainable_variables, losses

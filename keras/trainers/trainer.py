@@ -263,7 +263,11 @@ class Trainer:
             m.reset_state()
 
     def compute_loss(
-        self, x=None, y=None, y_pred=None, sample_weight=None, allow_empty=False
+        self,
+        x=None,
+        y=None,
+        y_pred=None,
+        sample_weight=None,
     ):
         """Compute the total loss, validate it, and return it.
 
@@ -308,9 +312,6 @@ class Trainer:
             y: Target data.
             y_pred: Predictions returned by the model (output of `model(x)`)
             sample_weight: Sample weights for weighting the loss function.
-            allow_empty: If `False`, the method will error out if
-                no loss has been computed by the model. If `True`, then
-                if no loss is computed, the method returns 0.
 
         Returns:
             The total loss as a scalar tensor, or `None` if no loss results
@@ -324,7 +325,7 @@ class Trainer:
                 losses.append(loss)
         for loss in self.losses:
             losses.append(ops.cast(loss, dtype=backend.floatx()))
-        if not allow_empty and len(losses) == 0:
+        if backend.backend() != "jax" and len(losses) == 0:
             raise ValueError(
                 "No loss to compute. Provide a `loss` argument in `compile()`."
             )
@@ -335,6 +336,48 @@ class Trainer:
         else:
             total_loss = ops.sum(losses)
         return total_loss
+
+    def stateless_compute_loss(
+        self,
+        trainable_variables,
+        non_trainable_variables,
+        metrics_variables,
+        x=None,
+        y=None,
+        y_pred=None,
+        sample_weight=None,
+    ):
+        var_mapping = list(zip(self.trainable_variables, trainable_variables))
+        var_mapping.extend(
+            zip(self.non_trainable_variables, non_trainable_variables)
+        )
+        var_mapping.extend(zip(self.metrics_variables, metrics_variables))
+        with backend.StatelessScope(state_mapping=var_mapping) as scope:
+            # Note that this is needed for the regularization loss, which need
+            # the latest value of train/non-trainable variables.
+            loss = self.compute_loss(
+                x,
+                y,
+                y_pred,
+                sample_weight=sample_weight,
+            )
+
+        # Update non trainable vars (may have been updated in compute_loss)
+        non_trainable_variables = []
+        for v in self.non_trainable_variables:
+            new_v = scope.get_current_value(v)
+            non_trainable_variables.append(new_v)
+
+        # Update metrics vars (may have been updated in compute_loss)
+        metrics_variables = []
+        for v in self.metrics_variables:
+            new_v = scope.get_current_value(v)
+            metrics_variables.append(new_v)
+        return loss, (
+            trainable_variables,
+            non_trainable_variables,
+            metrics_variables,
+        )
 
     def compute_metrics(self, x, y, y_pred, sample_weight=None):
         """Update metric states and collect all metrics to be returned.

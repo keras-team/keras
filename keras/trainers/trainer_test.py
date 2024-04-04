@@ -1291,3 +1291,31 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         )
         self.assertAlmostEqual(cbk.eager_call_counter_predict, 4)
         self.assertAlmostEqual(model.predict_counter.numpy(), 4)
+
+    def test_metric_update_in_compute_loss(self):
+
+        class MyModel(keras.Model):
+            def __init__(self):
+                super().__init__()
+                self.custom_metric = keras.metrics.Mean(name="custom")
+                self.dense = keras.layers.Dense(2)
+
+            def call(self, x):
+                return self.dense(x)
+
+            def compute_loss(
+                self, x=None, y=None, y_pred=None, sample_weight=None
+            ):
+                loss = super().compute_loss(x, y, y_pred, sample_weight)
+                print("loss", loss)
+                self.custom_metric.update_state(loss * 4)
+                return loss
+
+        model = MyModel()
+        model.compile(optimizer="sgd", loss="mse")
+        x = np.ones((32, 4))
+        y = np.ones((32, 2)) * 2
+        history = model.fit(x, y)
+        self.assertAlmostEqual(
+            history.history["custom"][0], history.history["loss"][0] * 4
+        )

@@ -31,6 +31,7 @@ class JAXTrainer(base_trainer.Trainer):
         self,
         trainable_variables,
         non_trainable_variables,
+        metrics_variables,
         x,
         y,
         sample_weight,
@@ -41,6 +42,8 @@ class JAXTrainer(base_trainer.Trainer):
         kwargs = {}
         if self._call_has_training_arg:
             kwargs["training"] = training
+
+        # Run stateless forward pass
         y_pred, non_trainable_variables, losses = self.stateless_call(
             trainable_variables,
             non_trainable_variables,
@@ -49,25 +52,36 @@ class JAXTrainer(base_trainer.Trainer):
             **kwargs,
         )
 
-        var_mapping = list(zip(self.trainable_variables, trainable_variables))
-        var_mapping.extend(
-            zip(self.non_trainable_variables, non_trainable_variables)
+        loss, variables = self.stateless_compute_loss(
+            trainable_variables,
+            non_trainable_variables,
+            metrics_variables,
+            x=x,
+            y=y,
+            y_pred=y_pred,
+            sample_weight=sample_weight,
         )
-        with backend.StatelessScope(state_mapping=var_mapping):
-            # Note that this is needed for the regularization loss, which need
-            # the latest value of train/non-trainable variables.
-            loss = self.compute_loss(
-                x, y, y_pred, sample_weight=sample_weight, allow_empty=True
-            )
+        (trainable_variables, non_trainable_variables, metrics_variables) = (
+            variables
+        )
+
+        # Sum forward pass losses
         if losses:
             loss += ops.sum(losses)
+
+        # Handle loss scaling
         unscaled_loss = loss
         if training and self.optimizer is not None:
             # Scale loss with a StatelessScope, to use an update scale variable.
             mapping = list(zip(self.optimizer.variables, optimizer_variables))
             with backend.StatelessScope(state_mapping=mapping):
                 loss = self.optimizer.scale_loss(loss)
-        return loss, (unscaled_loss, y_pred, non_trainable_variables)
+        return loss, (
+            unscaled_loss,
+            y_pred,
+            non_trainable_variables,
+            metrics_variables,
+        )
 
     def train_step(self, state, data):
         (
@@ -83,13 +97,16 @@ class JAXTrainer(base_trainer.Trainer):
         (loss, aux), grads = grad_fn(
             trainable_variables,
             non_trainable_variables,
+            metrics_variables,
             x,
             y,
             sample_weight,
             training=True,
             optimizer_variables=optimizer_variables,
         )
-        (unscaled_loss, y_pred, non_trainable_variables) = aux
+        (unscaled_loss, y_pred, non_trainable_variables, metrics_variables) = (
+            aux
+        )
 
         (
             trainable_variables,
@@ -135,12 +152,15 @@ class JAXTrainer(base_trainer.Trainer):
         loss, aux = self.compute_loss_and_updates(
             trainable_variables,
             non_trainable_variables,
+            metrics_variables,
             x,
             y,
             sample_weight,
             training=False,
         )
-        (unscaled_loss, y_pred, non_trainable_variables) = aux
+        (unscaled_loss, y_pred, non_trainable_variables, metrics_variables) = (
+            aux
+        )
 
         with backend.StatelessScope(
             state_mapping=[
