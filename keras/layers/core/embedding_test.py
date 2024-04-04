@@ -114,6 +114,14 @@ class EmbeddingTest(test_case.TestCase):
         layer.build((None, 2))
         self.assertIsInstance(layer.embeddings.constraint, constraints.NonNeg)
 
+    # Test model.trainable_variables when trainable=False in Embedding
+    def test_model_trainable_weights(self):
+        input_layer = layers.Input(shape=(1,))
+        layer = layers.Embedding(3, 2, trainable=False)
+        embedded = layer(input_layer)
+        model = models.Model(inputs=input_layer, outputs=embedded)
+        assert len(model.trainable_variables) == 0
+
     @pytest.mark.requires_trainable_backend
     def test_enable_lora(self):
         layer = layers.Embedding(10, 16)

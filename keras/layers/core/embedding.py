@@ -103,7 +103,7 @@ class Embedding(Layer):
                 name="embeddings",
                 regularizer=self.embeddings_regularizer,
                 constraint=self.embeddings_constraint,
-                trainable=True,
+                trainable=self.trainable,
             )
         self.built = True
         if self.lora_rank:
@@ -173,9 +173,10 @@ class Embedding(Layer):
             return
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
-        embeddings_value, embeddings_scale = (
-            self._get_embeddings_with_merged_lora()
-        )
+        (
+            embeddings_value,
+            embeddings_scale,
+        ) = self._get_embeddings_with_merged_lora()
         store["0"] = embeddings_value
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
             store["1"] = embeddings_scale
@@ -362,9 +363,10 @@ class Embedding(Layer):
                     embeddings_value,
                     ops.matmul(self.lora_embeddings_a, self.lora_embeddings_b),
                 )
-                embeddings_value, embeddings_scale = (
-                    quantizers.abs_max_quantize(embeddings_value, axis=0)
-                )
+                (
+                    embeddings_value,
+                    embeddings_scale,
+                ) = quantizers.abs_max_quantize(embeddings_value, axis=0)
                 embeddings_scale = ops.squeeze(embeddings_scale, axis=0)
             return embeddings_value, embeddings_scale
         return self.embeddings, None
