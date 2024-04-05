@@ -255,7 +255,6 @@ def load_weights_only(
         )
 
     failed_trackables = set()
-    print("objects_to_skip", objects_to_skip)
     if objects_to_skip is not None:
         visited_trackables = set(id(o) for o in objects_to_skip)
     else:
