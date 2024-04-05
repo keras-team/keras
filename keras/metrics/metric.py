@@ -85,7 +85,7 @@ class Metric:
 
     def __init__(self, dtype=None, name=None):
         self.name = name or auto_name(self.__class__.__name__)
-        self._dtype = dtype
+        self._dtype = dtype or backend.floatx()
         self._metrics = []
         self._variables = []
         self._tracker = Tracker(
