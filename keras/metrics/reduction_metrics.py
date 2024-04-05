@@ -10,7 +10,7 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
     mask = getattr(values, "_keras_mask", None)
     values = ops.cast(values, dtype=dtype)
     if sample_weight is not None:
-        sample_weight = ops.cast(sample_weight, dtype=dtype)
+        sample_weight = ops.convert_to_tensor(sample_weight, dtype=dtype)
         if mask is not None:
             sample_weight = losses.loss.apply_mask(
                 sample_weight, mask, dtype=dtype, reduction="sum"
