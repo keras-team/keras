@@ -1,6 +1,8 @@
 """Library for exporting inference-only Keras models/layers."""
 
 import inspect
+import itertools
+import string
 
 from absl import logging
 
@@ -215,10 +217,12 @@ class ExportArchive:
                 per positional input argument of `fn`). Nested arguments are
                 allowed (see below for an example showing a Functional model
                 with 2 input arguments).
-            jax2tf_kwargs: Dict for additional arguments to pass to `jax2tf`.
+            jax2tf_kwargs: Optional. A dict for arguments to pass to `jax2tf`.
                 Supported only when the backend is JAX. See documentation for
                 [`jax2tf.convert`](
                     https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
+                The values for `native_serialization` and `polymorphic_shapes`,
+                if not provided, are automatically computed.
 
         Returns:
             The `tf.function` wrapping `fn` that was added to the archive.
@@ -335,13 +339,9 @@ class ExportArchive:
                     with StatelessScope(state_mapping=state_mapping):
                         return fn(*args, **kwargs)
 
-                variables_spec = [
-                    _make_tensor_spec(v) for v in self._backend_variables
-                ]
-
                 jax2tf_stateless_fn = self._convert_jax2tf_function(
                     stateless_fn,
-                    [variables_spec] + input_signature,
+                    input_signature,
                     jax2tf_kwargs=jax2tf_kwargs,
                 )
 
@@ -543,27 +543,51 @@ class ExportArchive:
 
         if jax2tf_kwargs is None:
             jax2tf_kwargs = {}
+
         if "native_serialization" not in jax2tf_kwargs:
             jax2tf_kwargs["native_serialization"] = (
                 self._check_device_compatible()
             )
 
-        shapes = []
-        for spec in input_signature:
-            shapes.append(self._spec_to_poly_shape(spec))
-
-        return jax2tf.convert(
-            fn,
-            polymorphic_shapes=shapes,
-            **jax2tf_kwargs,
+        variables_shapes = self._to_polymorphic_shape(
+            self._backend_variables, allow_none=False
         )
+        if "polymorphic_shapes" in jax2tf_kwargs:
+            input_shapes = jax2tf_kwargs["polymorphic_shapes"]
+        else:
+            input_shapes = self._to_polymorphic_shape(input_signature)
+        jax2tf_kwargs["polymorphic_shapes"] = [variables_shapes] + input_shapes
 
-    def _spec_to_poly_shape(self, spec):
-        if isinstance(spec, (dict, list)):
-            return tree.map_structure(self._spec_to_poly_shape, spec)
-        spec_shape = spec.shape
-        spec_shape = str(spec_shape).replace("None", "b")
-        return spec_shape
+        return jax2tf.convert(fn, **jax2tf_kwargs)
+
+    def _to_polymorphic_shape(self, struct, allow_none=True):
+        if allow_none:
+            # Generates unique names: a, b, ... z, aa, ab, ... az, ba, ... zz
+            # for unknown non-batch dims. Defined here to be scope per endpoint.
+            dim_names = itertools.chain(
+                string.ascii_lowercase,
+                itertools.starmap(
+                    lambda a, b: a + b,
+                    itertools.product(string.ascii_lowercase, repeat=2),
+                ),
+            )
+
+        def convert_shape(x):
+            poly_shape = []
+            for index, dim in enumerate(list(x.shape)):
+                if dim is not None:
+                    poly_shape.append(str(dim))
+                elif not allow_none:
+                    raise ValueError(
+                        f"Illegal None dimension in {x} with shape {x.shape}"
+                    )
+                elif index == 0:
+                    poly_shape.append("batch")
+                else:
+                    poly_shape.append(next(dim_names))
+            return "(" + ", ".join(poly_shape) + ")"
+
+        return tree.map_structure(convert_shape, struct)
 
     def _check_device_compatible(self):
         from jax import default_backend as jax_device
@@ -612,14 +636,16 @@ def _get_save_spec(model):
         return None
 
     if len(shapes_dict) == 1:
-        return tf.TensorSpec(
-            shape=list(shapes_dict.values())[0], dtype=model.input_dtype
-        )
+        shape = list(shapes_dict.values())[0]
+        shape = (None,) + shape[1:]
+        return tf.TensorSpec(shape=shape, dtype=model.input_dtype)
 
     specs = {}
-    for key, value in shapes_dict.items():
+    for key, shape in shapes_dict.items():
         key = key.rstrip("_shape")
-        specs[key] = tf.TensorSpec(shape=value, dtype=model.input_dtype)
+        shape = (None,) + shape[1:]
+        specs[key] = tf.TensorSpec(shape=shape, dtype=model.input_dtype)
+
     return specs
 
 
@@ -758,7 +784,8 @@ class TFSMLayer(Layer):
 
 
 def _make_tensor_spec(x):
-    return tf.TensorSpec(x.shape, dtype=x.dtype, name=x.name)
+    shape = (None,) + x.shape[1:]
+    return tf.TensorSpec(shape, dtype=x.dtype, name=x.name)
 
 
 def _print_signature(fn, name):
