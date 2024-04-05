@@ -20,7 +20,7 @@ class Embedding(Layer):
     Example:
 
     >>> model = keras.Sequential()
-    >>> model.add(keras.layers.Embedding(1000, 64, input_length=10))
+    >>> model.add(keras.layers.Embedding(1000, 64))
     >>> # The model will take as input an integer matrix of size (batch,
     >>> # input_length), and the largest integer (i.e. word index) in the input
     >>> # should be no larger than 999 (vocabulary size).
