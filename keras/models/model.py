@@ -445,10 +445,10 @@ class Model(Trainer, Layer):
         return json.dumps(model_config, **kwargs)
 
     def export(self, filepath, format="tf_saved_model"):
-        """[TF backend only]* Create a TF SavedModel artifact for inference
-        (e.g. via TF-Serving).
+        """Create a TF SavedModel artifact for inference.
 
-        **Note:** This can currently only be used with the TF backend.
+        **Note:** This can currently only be used with
+        the TensorFlow or JAX backends.
 
         This method lets you export a model to a lightweight SavedModel artifact
         that contains the model's forward pass only (its `call()` method)
