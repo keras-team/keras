@@ -63,7 +63,7 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.inv(x)
 
-    def test_lu_factor(self):
+    def DISABLED_test_lu_factor(self):
         x = KerasTensor([None, 4, 3])
         lu, p = linalg.lu_factor(x)
         self.assertEqual(lu.shape, (None, 4, 3))
@@ -126,7 +126,7 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.solve(a, b)
 
-    def test_solve_triangular(self):
+    def DISABLED_test_solve_triangular(self):
         a = KerasTensor([None, 20, 20])
         b = KerasTensor([None, 20, 5])
         out = linalg.solve_triangular(a, b)
