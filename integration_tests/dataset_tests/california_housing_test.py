@@ -25,6 +25,7 @@ class CaliforniaHousingTest(testing.TestCase):
             california_housing.load_data(version="invalid_version")
 
     def test_seed_reproducibility(self):
+        # Ensure the data is reproducible with the same seed
         seed = 123
         first_load = california_housing.load_data(version="large", seed=seed)
         second_load = california_housing.load_data(version="large", seed=seed)
