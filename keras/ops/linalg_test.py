@@ -64,7 +64,7 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
             linalg.inv(x)
 
     def test_lu_factor(self):
-        if self._jax_uses_gpu():
+        if testing.jax_uses_gpu():
             self.skipTest("Skipping test with JAX + GPU due to temporary error")
 
         x = KerasTensor([None, 4, 3])
@@ -130,7 +130,7 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
             linalg.solve(a, b)
 
     def test_solve_triangular(self):
-        if self._jax_uses_gpu():
+        if testing.jax_uses_gpu():
             self.skipTest("Skipping test with JAX + GPU due to temporary error")
 
         a = KerasTensor([None, 20, 20])
@@ -218,7 +218,7 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
             linalg.inv(x)
 
     def test_lu_factor(self):
-        if self._jax_uses_gpu():
+        if testing.jax_uses_gpu():
             self.skipTest("Skipping test with JAX + GPU due to temporary error")
 
         x = KerasTensor([10, 4, 3])
@@ -278,7 +278,7 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
             linalg.solve(a, b)
 
     def test_solve_triangular(self):
-        if self._jax_uses_gpu():
+        if testing.jax_uses_gpu():
             self.skipTest("Skipping test with JAX + GPU due to temporary error")
 
         a = KerasTensor([4, 3, 3])
@@ -356,7 +356,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_lu_factor(self):
-        if self._jax_uses_gpu():
+        if testing.jax_uses_gpu():
             self.skipTest("Skipping test with JAX + GPU due to temporary error")
 
         def _pivot_matrix(pivots, n):
@@ -480,7 +480,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output, expected_result)
 
     def test_solve_triangular(self):
-        if self._jax_uses_gpu():
+        if testing.jax_uses_gpu():
             self.skipTest("Skipping test with JAX + GPU due to temporary error")
 
         # 2d-case
