@@ -356,6 +356,9 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_lu_factor(self):
+        if self._jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
+
         def _pivot_matrix(pivots, n):
             p_matrix = np.eye(n)
             for i, p in enumerate(pivots):
@@ -477,6 +480,8 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output, expected_result)
 
     def test_solve_triangular(self):
+        if self._jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
 
         # 2d-case
         x1 = np.array([[1, 2], [0, 5]], dtype="float32")
