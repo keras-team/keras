@@ -4562,6 +4562,9 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
     def test_other_unary_symbolic_sparse_correctness(
         self, op_function, op_class, np_op, op_kwargs, input_shape
     ):
+        if self._tensorflow_uses_gpu():
+            self.skipTest("Skipping test with TF + GPU due to XLA error")
+
         x = np.random.random(input_shape)
         if op_function is knp.mean:
             x = create_indexed_slices(x)
