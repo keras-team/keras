@@ -4560,7 +4560,7 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(OTHER_UNARY_OPS_TESTS)
     @pytest.mark.skipif(
-        testing.tensorflow_uses_gpu(), reason="Temporary, XLA error"
+        backend.backend() == "tensorflow", reason="Temporary, XLA error"
     )
     def test_other_unary_symbolic_sparse_correctness(
         self, op_function, op_class, np_op, op_kwargs, input_shape
