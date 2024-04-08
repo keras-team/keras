@@ -363,3 +363,58 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
         new_model.save_weights(temp_filepath)
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
+
+    def test_return_attention_scores_true(self):
+        """Test that the layer returns attention scores along with outputs."""
+        num_heads = 2
+        key_dim = 2
+
+        # Generate dummy input data
+        query = np.random.random((2, 8, 16)).astype(np.float32)
+        value = np.random.random((2, 4, 16)).astype(np.float32)
+
+        # Initialize the MultiHeadAttention layer
+        layer = layers.MultiHeadAttention(num_heads=num_heads, key_dim=key_dim)
+
+        # Call the layer with return_attention_scores=True
+        output, attention_scores = layer(
+            query, value, return_attention_scores=True
+        )
+
+        # Check the shape of the outputs
+        self.assertEqual(output.shape, (2, 8, 16))
+        self.assertEqual(attention_scores.shape, (2, num_heads, 8, 4))
+
+    def test_return_attention_scores_true_and_tuple(self):
+        num_heads = 2
+        key_dim = 2
+
+        query = np.random.random((2, 8, 16)).astype(np.float32)
+        value = np.random.random((2, 4, 16)).astype(np.float32)
+
+        layer = layers.MultiHeadAttention(num_heads=num_heads, key_dim=key_dim)
+
+        outputs = layer(query, value, return_attention_scores=True)
+
+        # Check that outputs is a tuple
+        self.assertIsInstance(
+            outputs, tuple, "Expected the outputs to be a tuple"
+        )
+
+    def test_return_attention_scores_true_tuple_then_unpack(self):
+        num_heads = 2
+        key_dim = 2
+
+        query = np.random.random((2, 8, 16)).astype(np.float32)
+        value = np.random.random((2, 4, 16)).astype(np.float32)
+
+        layer = layers.MultiHeadAttention(num_heads=num_heads, key_dim=key_dim)
+
+        outputs = layer(query, value, return_attention_scores=True)
+
+        # Unpack the outputs
+        output, attention_scores = outputs
+
+        self.assertEqual(output.shape, (2, 8, 16))
+        self.assertEqual(attention_scores.shape, (2, num_heads, 8, 4))
+

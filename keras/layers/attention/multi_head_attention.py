@@ -475,8 +475,9 @@ class MultiHeadAttention(Layer):
         attention_output = self._output_dense(attention_output)
 
         if return_attention_scores:
-            return attention_output, attention_scores
-        return attention_output
+            return (attention_output, attention_scores)
+        else:
+            return attention_output
 
     def _compute_attention_mask(
         self,
