@@ -107,7 +107,7 @@ def save_model(model, filepath, overwrite=True, **kwargs):
             "Invalid filepath extension for saving. "
             "Please add either a `.keras` extension for the native Keras "
             f"format (recommended) or a `.h5` extension. "
-            "Use `tf.saved_model.save()` if you want to export a SavedModel "
+            "Use `model.export(filepath)` if you want to export a SavedModel "
             "for use with TFLite/TFServing/etc. "
             f"Received: filepath={filepath}."
         )
