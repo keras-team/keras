@@ -417,4 +417,3 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
 
         self.assertEqual(output.shape, (2, 8, 16))
         self.assertEqual(attention_scores.shape, (2, num_heads, 8, 4))
-
