@@ -417,3 +417,36 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
 
         self.assertEqual(output.shape, (2, 8, 16))
         self.assertEqual(attention_scores.shape, (2, num_heads, 8, 4))
+
+    def test_return_attention_scores_true_and_tuple_with_keras_input(self):
+        num_heads = 2
+        key_dim = 2
+
+        # Define the input shapes using keras.Input for symbolic tensors
+        query_input = layers.Input(shape=(3, 5))
+        value_input = layers.Input(shape=(3, 5))
+
+        # Initialize the MultiHeadAttention layer
+        layer = layers.MultiHeadAttention(num_heads=num_heads, key_dim=key_dim)
+
+        # Call the layer on the inputs with return_attention_scores=True
+        unpack = layer(query_input, value_input, return_attention_scores=True)
+
+        attention_output, attention_scores = unpack
+
+        # Create a model to be able to run the computation graph
+        model = models.Model(
+            inputs=[query_input, value_input],
+            outputs=[attention_output, attention_scores],
+        )
+
+        # Generate dummy data to pass through the model
+        query_data = np.random.random((2, 3, 5)).astype(np.float32)
+        value_data = np.random.random((2, 3, 5)).astype(np.float32)
+
+        # Run the model to get the output and scores
+        output, scores = model.predict([query_data, value_data])
+
+        # Check the shapes of the outputs
+        self.assertEqual(output.shape, (2, 3, 5))
+        self.assertEqual(scores.shape, (2, num_heads, 3, 3))
