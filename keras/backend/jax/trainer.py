@@ -7,7 +7,6 @@ import numpy as np
 
 from keras import backend
 from keras import callbacks as callbacks_module
-from keras import ops
 from keras import optimizers as optimizers_module
 from keras.backend import distribution_lib as jax_distribution_lib
 from keras.distribution import distribution_lib

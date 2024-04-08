@@ -967,6 +967,7 @@ class Trainer:
                 y,
                 sample_weight,
             ) = data_adapter_utils.unpack_x_y_sample_weight(data_batch)
+
             # Build all model state with `backend.compute_output_spec`.
             try:
                 y_pred = backend.compute_output_spec(self, x)
