@@ -294,8 +294,43 @@ def plot_nested_functional_model():
     )
 
 
+def plot_functional_model_with_splits_and_merges():
+    class SplitLayer(keras.Layer):
+        def call(self, x):
+            return list(keras.ops.split(x, 2, axis=1))
+
+    class ConcatLayer(keras.Layer):
+        def call(self, xs):
+            return keras.ops.concatenate(xs, axis=1)
+
+    inputs = keras.Input((2,))
+    a, b = SplitLayer()(inputs)
+
+    a = keras.layers.Dense(2)(a)
+    b = keras.layers.Dense(2)(b)
+
+    outputs = ConcatLayer()([a, b])
+    model = keras.Model(inputs, outputs)
+
+    plot_model(model, "split-functional.png", expand_nested=True)
+    plot_model(
+        model,
+        "split-functional-show_shapes.png",
+        show_shapes=True,
+        expand_nested=True,
+    )
+    plot_model(
+        model,
+        "split-functional-show_shapes-show_dtype.png",
+        show_shapes=True,
+        show_dtype=True,
+        expand_nested=True,
+    )
+
+
 if __name__ == "__main__":
     plot_sequential_model()
     plot_functional_model()
     plot_subclassed_model()
     plot_nested_functional_model()
+    plot_functional_model_with_splits_and_merges()
