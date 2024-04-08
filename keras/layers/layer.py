@@ -274,6 +274,7 @@ class Layer(BackendLayer, Operation):
         self._trainable = trainable
         self._losses = []
         self._loss_ids = set()
+        self._losses_override = []
 
         self._call_signature = inspect.signature(self.call)
         call_signature_parameters = [
@@ -1091,6 +1092,8 @@ class Layer(BackendLayer, Operation):
     @property
     def losses(self):
         """List of scalar losses from `add_loss`, regularizers and sublayers."""
+        if self._losses_override:
+            return self._losses_override
         losses = self._get_own_losses()
         for layer in self._flatten_layers(include_self=False):
             losses.extend(layer._get_own_losses())

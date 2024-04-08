@@ -1319,3 +1319,29 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertAlmostEqual(
             history.history["custom"][0], history.history["loss"][0] * 4
         )
+
+    @pytest.mark.requires_trainable_backend
+    def test_fwd_pass_loss_presence_in_compute_loss(self):
+
+        class MyModel(keras.Model):
+            def __init__(self):
+                super().__init__()
+                self.custom_metric = keras.metrics.Mean(name="custom")
+                self.dense = keras.layers.Dense(2, activity_regularizer="l2")
+
+            def call(self, x):
+                return self.dense(x)
+
+            def compute_loss(
+                self, x=None, y=None, y_pred=None, sample_weight=None
+            ):
+                loss = super().compute_loss(x, y, y_pred, sample_weight)
+                self.custom_metric.update_state(sum(self.losses))
+                return loss
+
+        model = MyModel()
+        model.compile(optimizer="sgd", loss="mse")
+        x = np.ones((32, 4))
+        y = np.ones((32, 2)) * 2
+        history = model.fit(x, y)
+        self.assertGreater(history.history["custom"][0], 0.0)

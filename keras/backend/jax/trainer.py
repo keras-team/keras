@@ -51,6 +51,10 @@ class JAXTrainer(base_trainer.Trainer):
             return_losses=True,
             **kwargs,
         )
+        if losses:
+            # Make forward pass losses available to compute_loss.
+            self._losses_override.clear()
+            self._losses_override = losses
 
         loss, variables = self.stateless_compute_loss(
             trainable_variables,
@@ -61,13 +65,11 @@ class JAXTrainer(base_trainer.Trainer):
             y_pred=y_pred,
             sample_weight=sample_weight,
         )
+        if losses:
+            self._losses_override.clear()
         (trainable_variables, non_trainable_variables, metrics_variables) = (
             variables
         )
-
-        # Sum forward pass losses
-        if losses:
-            loss += ops.sum(losses)
 
         # Handle loss scaling
         unscaled_loss = loss
