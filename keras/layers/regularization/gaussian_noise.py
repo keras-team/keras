@@ -44,6 +44,7 @@ class GaussianNoise(layers.Layer):
                 shape=ops.shape(inputs),
                 mean=0.0,
                 stddev=self.stddev,
+                dtype=self.compute_dtype,
                 seed=self.seed_generator,
             )
         return inputs

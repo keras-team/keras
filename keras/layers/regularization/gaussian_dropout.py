@@ -44,6 +44,7 @@ class GaussianDropout(layers.Layer):
                 shape=ops.shape(inputs),
                 mean=1.0,
                 stddev=stddev,
+                dtype=self.compute_dtype,
                 seed=self.seed_generator,
             )
         return inputs
