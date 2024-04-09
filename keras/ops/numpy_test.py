@@ -1310,7 +1310,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_ndim(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.ndim(x).shape, (2,))
-    
+
     def test_nonzero(self):
         x = KerasTensor((None, 5, 6))
         self.assertEqual(knp.nonzero(x).shape, (None, None, None))

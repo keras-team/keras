@@ -3991,7 +3991,7 @@ def ndim(x):
 class Nonzero(Operation):
     def call(self, x):
         return backend.numpy.nonzero(x)
-    
+
     def compute_output_spec(self, x):
         return KerasTensor([None] * len(x.shape))
 
