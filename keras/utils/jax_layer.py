@@ -448,7 +448,7 @@ class FlaxLayer(JaxLayer):
 
     This layer enables the use of Flax components in the form of
     [`flax.linen.Module`](
-            https://flax.readthedocs.io/en/latest/flax.linen.html#module)
+        https://flax.readthedocs.io/en/latest/api_reference/flax.linen/module.html)
     instances within Keras when using JAX as the backend for Keras.
 
     The module method to use for the forward pass can be specified via the
@@ -464,7 +464,7 @@ class FlaxLayer(JaxLayer):
     `FlaxLayer` handles the non-trainable state of your model and required RNGs
     automatically. Note that the `mutable` parameter of
     [`flax.linen.Module.apply()`](
-      https://flax.readthedocs.io/en/latest/flax.linen.html#flax.linen.Module.apply)
+        https://flax.readthedocs.io/en/latest/api_reference/flax.linen/module.html#flax.linen.apply)
     is set to `DenyList(["params"])`, therefore making the assumption that all
     the variables outside of the "params" collection are non-trainable weights.
 
@@ -521,10 +521,10 @@ class FlaxLayer(JaxLayer):
             must take the `Module` as the first argument. It is used for both
             `Module.init` and `Module.apply`. Details are documented in the
             `method` argument of [`flax.linen.Module.apply()`](
-              https://flax.readthedocs.io/en/latest/flax.linen.html#flax.linen.Module.apply).
+              https://flax.readthedocs.io/en/latest/api_reference/flax.linen/module.html#flax.linen.apply).
         variables: A `dict` containing all the variables of the module in the
             same format as what is returned by [`flax.linen.Module.init()`](
-              https://flax.readthedocs.io/en/latest/flax.linen.html#flax.linen.Module.init).
+              https://flax.readthedocs.io/en/latest/api_reference/flax.linen/module.html#flax.linen.init).
             It should contain a "params" key and, if applicable, other keys for
             collections of variables for non-trainable state. This allows
             passing trained parameters and learned non-trainable state or
