@@ -12,6 +12,73 @@ from keras.utils.naming import auto_name
 
 
 class KerasVariable:
+    """Represents a backend-agnostic variable in Keras.
+
+    A `Variable` acts as a container for state. It holds a tensor value and can
+     be updated. With the JAX backend, variables are used to implement
+    'functionalization', the pattern of lifting stateful operations out of
+     a piece of computation to turn it into a stateless function.
+
+    Args:
+        initializer: Initial value or callable for initialization. Requires
+            `shape` if a callable is used.
+        shape: Optional. Tuple for the variable's shape, needed if initializer
+            is callable.
+        dtype: Optional. Data type of the variable, defaults to Keras's float
+            type.
+        trainable: Optional. Boolean indicating if variable is trainable.
+            Defaults to True.
+        name: Optional. A unique name for the variable. Automatically generated
+            if not set.
+
+    Attributes:
+        name: The name of the variable (string).
+        path: The path of the variable within the Keras model or layer (string).
+        dtype: The data type of the variable (string).
+        shape: The shape of the variable (tuple of integers).
+        ndim: The number of dimensions of the variable (integer).
+        trainable: Whether the variable is trainable (boolean).
+        value: The current value of the variable (NumPy array or tensor).
+
+    Examples:
+
+
+    # Initializing a KerasVariable with a numpy array
+    >>> import numpy as np
+    >>> from keras.backend.common.variables import KerasVariable
+    >>> initial_array = np.ones((3, 3), dtype='float32')
+    >>> variable_from_array = KerasVariable(initializer=initial_array)
+    >>> print(variable_from_array.value)
+    ... [[1. 1. 1.]
+    ... [1. 1. 1.]
+    ... [1. 1. 1.]]
+
+    # Using a Keras initializer to create a variable
+    >>> from keras.initializers import Ones
+    >>> variable_from_initializer = KerasVariable(
+        initializer=Ones(), shape=(3, 3), dtype="float32"
+    )
+    >>> print(variable_from_initializer.value)
+    ... [[1. 1. 1.]
+    ... [1. 1. 1.]
+    ... [1. 1. 1.]]
+
+    # Updating the value of a variable
+    >>> new_value = np.zeros((3, 3), dtype='float32')
+    >>> variable_from_array.assign(new_value)
+    >>> print(variable_from_array.value)
+    ... [[0. 0. 0.]
+    ... [0. 0. 0.]
+    ... [0. 0. 0.]]
+
+    # Marking a variable as non-trainable
+    >>> non_trainable_variable = KerasVariable(
+            initializer=np.ones((3, 3), dtype="float32"), trainable=False
+        )
+    >>> print(non_trainable_variable.trainable)
+    False
+    """
+
     def __init__(
         self,
         initializer,
