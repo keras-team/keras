@@ -1,5 +1,6 @@
 import copy
 import inspect
+import typing
 
 from keras.api_export import keras_export
 from keras.backend.common import global_state
@@ -59,6 +60,9 @@ class Sequential(Model):
     model.fit(x, y, batch_size=32, epochs=10)
     ```
     """
+
+    def __new__(cls, *args, **kwargs):
+        return typing.cast(Sequential, super().__new__(cls))
 
     def __init__(self, layers=None, trainable=True, name=None):
         super().__init__(trainable=trainable, name=name)
