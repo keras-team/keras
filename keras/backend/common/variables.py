@@ -23,8 +23,8 @@ class KerasVariable:
         initializer: Initial value or callable for initialization.
             If a callable is used, it should take the arguments
             `shape` and `dtype`.
-        shape: Optional. Tuple for the variable's shape. Required if `initializer`
-            is a callable.
+        shape: Optional. Tuple for the variable's shape.
+            Required if `initializer` is a callable.
         dtype: Optional. Data type of the variable. Defaults to the global float
             dtype type (`"float32"` if never configured).
         trainable: Optional. Boolean indicating if variable is trainable.
