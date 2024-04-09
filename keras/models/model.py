@@ -1,5 +1,6 @@
 import inspect
 import json
+import typing
 import warnings
 
 from keras import backend
@@ -27,7 +28,7 @@ else:
 
 
 @keras_export(["keras.Model", "keras.models.Model"])
-class Model(Trainer, Layer):
+class Model(Trainer, base_trainer.Trainer, Layer):
     """A model grouping layers into an object with training/inference features.
 
     There are three ways to instantiate a `Model`:
@@ -138,7 +139,7 @@ class Model(Trainer, Layer):
             from keras.models import functional
 
             return functional.Functional(*args, **kwargs)
-        return super().__new__(cls)
+        return typing.cast(Model, super().__new__(cls))
 
     def __init__(self, *args, **kwargs):
         Trainer.__init__(self)
@@ -599,11 +600,3 @@ def inject_functional_model_class(cls):
     cls.__new__(cls)
 
     return cls
-
-
-Model.fit.__doc__ = base_trainer.Trainer.fit.__doc__
-Model.predict.__doc__ = base_trainer.Trainer.predict.__doc__
-Model.evaluate.__doc__ = base_trainer.Trainer.evaluate.__doc__
-Model.train_on_batch.__doc__ = base_trainer.Trainer.train_on_batch.__doc__
-Model.test_on_batch.__doc__ = base_trainer.Trainer.test_on_batch.__doc__
-Model.predict_on_batch.__doc__ = base_trainer.Trainer.predict_on_batch.__doc__
