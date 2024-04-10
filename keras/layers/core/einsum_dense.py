@@ -199,7 +199,7 @@ class EinsumDense(Layer):
 
     @kernel.setter
     def kernel(self, value):
-        self._kernel.assign(value)
+        self._kernel = value
 
     def compute_output_shape(self, _):
         return self.full_output_shape
