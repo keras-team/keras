@@ -22,6 +22,74 @@ class OptimizerTest(testing.TestCase):
         optimizer.apply_gradients([(grads, v)])
         self.assertAllClose(optimizer.iterations, 2)
 
+    def test_empty_gradients(self):
+        # Test no valid gradient
+        v = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
+        grads = None
+        optimizer = optimizers.SGD(learning_rate=1.0)
+        with self.assertRaisesRegexp(
+            ValueError, "No gradients provided for any variable."
+        ):
+            optimizer.apply_gradients([(grads, v)])
+
+        # Test filtering of empty gradients
+        v2 = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
+        grads2 = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        optimizer = optimizers.SGD(learning_rate=1.0)
+        with self.assertWarns(Warning):
+            optimizer.apply_gradients([(grads, v), (grads2, v2)])
+        self.assertAllClose(v, [[3.0, 4.0], [5.0, 6.0]])
+        self.assertAllClose(v2, [[2.0, 3.0], [4.0, 5.0]])
+
+    def test_clip_args(self):
+        optimizer = optimizers.SGD(learning_rate=1.0, clipnorm=0.1)
+        self.assertEqual(optimizer.clipnorm, 0.1)
+        optimizer = optimizers.SGD(learning_rate=1.0, clipvalue=0.1)
+        self.assertEqual(optimizer.clipvalue, 0.1)
+        optimizer = optimizers.SGD(learning_rate=1.0, global_clipnorm=0.1)
+        self.assertEqual(optimizer.global_clipnorm, 0.1)
+
+        # Test invalid arguments
+        with self.assertRaisesRegex(
+            ValueError,
+            "Only one of `clipnorm`, `clipvalue` and `global_clipnorm` can",
+        ):
+            optimizers.SGD(
+                learning_rate=1.0,
+                clipnorm=0.1,
+                clipvalue=0.1,
+            )
+        with self.assertRaisesRegex(
+            ValueError,
+            "Only one of `clipnorm`, `clipvalue` and `global_clipnorm` can",
+        ):
+            optimizers.SGD(
+                learning_rate=1.0,
+                clipnorm=0.1,
+                global_clipnorm=0.1,
+            )
+
+    def test_clip_norm(self):
+        optimizer = optimizers.SGD(clipnorm=1)
+        grad = backend.convert_to_tensor([100.0, 100.0])
+        clipped_grad = optimizer._clip_gradients([grad])
+        self.assertAllClose(clipped_grad[0], [2**0.5 / 2, 2**0.5 / 2])
+
+    def test_clip_value(self):
+        optimizer = optimizers.SGD(clipvalue=1)
+        grad = backend.convert_to_tensor([100.0, 100.0])
+        clipped_grad = optimizer._clip_gradients([grad])
+        self.assertAllClose(clipped_grad[0], [1.0, 1.0])
+
+    def test_global_clip_norm(self):
+        optimizer = optimizers.SGD(global_clipnorm=1)
+        grad = np.array([50.0, 100.0], dtype="float32")
+        global_norm = np.linalg.norm(grad)
+        clipped_grad = optimizer._clip_gradients(
+            [backend.convert_to_tensor(grad)]
+        )
+        self.assertAllClose(clipped_grad[0], grad / global_norm)
+
     def test_ema(self):
         v = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
         grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
