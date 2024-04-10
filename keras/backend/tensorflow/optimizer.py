@@ -128,12 +128,15 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
     ):
         grads_and_vars = self._all_reduce_sum_gradients(grads_and_vars)
 
-        def apply_grad_to_update_var(var, grad):
+        def apply_grad_to_update_var(var, grad, learning_rate):
             return self.update_step(grad, var, learning_rate)
 
         for grad, var in grads_and_vars:
             distribution.extended.update(
-                var, apply_grad_to_update_var, args=(grad,), group=False
+                var,
+                apply_grad_to_update_var,
+                args=(grad, learning_rate),
+                group=False,
             )
 
     def _all_reduce_sum_gradients(self, grads_and_vars):
