@@ -643,6 +643,9 @@ class BaseOptimizer:
         else:
             self._exclude_from_weight_decay_pattern = None
 
+        # Reset cache
+        self._exclude_from_weight_decay_cache = dict()
+
     def _use_weight_decay(self, variable):
         variable_id = self._var_key(variable)
 
