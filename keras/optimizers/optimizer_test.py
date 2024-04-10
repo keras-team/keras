@@ -22,6 +22,53 @@ class OptimizerTest(testing.TestCase):
         optimizer.apply_gradients([(grads, v)])
         self.assertAllClose(optimizer.iterations, 2)
 
+    def test_empty_gradients(self):
+        # Test no valid gradient
+        v = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
+        grads = None
+        optimizer = optimizers.SGD(learning_rate=1.0)
+        with self.assertRaisesRegexp(
+            ValueError, "No gradients provided for any variable."
+        ):
+            optimizer.apply_gradients([(grads, v)])
+
+        # Test filtering of empty gradients
+        v2 = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
+        grads2 = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        optimizer = optimizers.SGD(learning_rate=1.0)
+        with self.assertWarns(Warning):
+            optimizer.apply_gradients([(grads, v), (grads2, v2)])
+        self.assertAllClose(v, [[3.0, 4.0], [5.0, 6.0]])
+        self.assertAllClose(v2, [[2.0, 3.0], [4.0, 5.0]])
+
+    def test_clip_args(self):
+        optimizer = optimizers.SGD(learning_rate=1.0, clipnorm=0.1)
+        self.assertEqual(optimizer.clipnorm, 0.1)
+        optimizer = optimizers.SGD(learning_rate=1.0, clipvalue=0.1)
+        self.assertEqual(optimizer.clipvalue, 0.1)
+        optimizer = optimizers.SGD(learning_rate=1.0, global_clipnorm=0.1)
+        self.assertEqual(optimizer.global_clipnorm, 0.1)
+
+        # Test invalid arguments
+        with self.assertRaisesRegex(
+            ValueError,
+            "Only one of `clipnorm`, `clipvalue` and `global_clipnorm` can",
+        ):
+            optimizers.SGD(
+                learning_rate=1.0,
+                clipnorm=0.1,
+                clipvalue=0.1,
+            )
+        with self.assertRaisesRegex(
+            ValueError,
+            "Only one of `clipnorm`, `clipvalue` and `global_clipnorm` can",
+        ):
+            optimizers.SGD(
+                learning_rate=1.0,
+                clipnorm=0.1,
+                global_clipnorm=0.1,
+            )
+
     def test_ema(self):
         v = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
         grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
