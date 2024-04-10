@@ -28,6 +28,7 @@ def rgb_to_grayscale(image, data_format="channels_last"):
             )
     red, green, blue = image[:, :, 0], image[:, :, 1], image[:, :, 2]
     grayscale_image = 0.2989 * red + 0.5870 * green + 0.1140 * blue
+    grayscale_image = jnp.expand_dims(grayscale_image, axis=-1)
     if data_format == "channels_first":
         if len(image.shape) == 4:
             grayscale_image = jnp.transpose(grayscale_image, (0, 3, 1, 2))
