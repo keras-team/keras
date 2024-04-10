@@ -243,3 +243,12 @@ class OptimizerTest(testing.TestCase):
         checkpoint.restore(save_path)
         pred = model.predict(x)
         self.assertAllClose(pred, ref_pred, atol=1e-5)
+
+    def test_callable_learning_rate(self):
+        v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        optimizer = optimizers.AdamW(learning_rate=lambda: 0.0001)
+        self.assertAllClose(optimizer.iterations, 0)
+        optimizer.apply_gradients([(grads, v)])
+        self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]], atol=1e-4)
+        self.assertAllClose(optimizer.iterations, 1)
