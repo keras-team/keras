@@ -71,21 +71,23 @@ class OptimizerTest(testing.TestCase):
 
     def test_clip_norm(self):
         optimizer = optimizers.SGD(clipnorm=1)
-        grad = [np.array([100.0, 100.0])]
-        clipped_grad = optimizer._clip_gradients(grad)
+        grad = backend.convert_to_tensor([100.0, 100.0])
+        clipped_grad = optimizer._clip_gradients([grad])
         self.assertAllClose(clipped_grad[0], [2**0.5 / 2, 2**0.5 / 2])
 
     def test_clip_value(self):
         optimizer = optimizers.SGD(clipvalue=1)
-        grad = [np.array([100.0, 100.0])]
-        clipped_grad = optimizer._clip_gradients(grad)
+        grad = backend.convert_to_tensor([100.0, 100.0])
+        clipped_grad = optimizer._clip_gradients([grad])
         self.assertAllClose(clipped_grad[0], [1.0, 1.0])
 
     def test_global_clip_norm(self):
         optimizer = optimizers.SGD(global_clipnorm=1)
-        grad = np.array([50.0, 100.0])
+        grad = np.array([50.0, 100.0], dtype="float32")
         global_norm = np.linalg.norm(grad)
-        clipped_grad = optimizer._clip_gradients([np.array([50.0, 100.0])])
+        clipped_grad = optimizer._clip_gradients(
+            [backend.convert_to_tensor(grad)]
+        )
         self.assertAllClose(clipped_grad[0], grad / global_norm)
 
     def test_ema(self):
