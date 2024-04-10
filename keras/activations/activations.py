@@ -77,7 +77,8 @@ class ReLU(ops.Operation):
         x = backend.convert_to_tensor(x)
         if negative_slope != 0.0:
             if max_value is None and threshold == 0:
-                return backend.nn.leaky_relu(x, negative_slope=negative_slope)
+                # Optimized implementation using TensorFlow's native leaky_relu function
+                return backend.nn.leaky_relu(x, alpha=negative_slope)  # Changed negative_slope to alpha
 
             if threshold != 0:
                 negative_part = backend.nn.relu(-x + threshold)
