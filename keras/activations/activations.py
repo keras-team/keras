@@ -357,9 +357,9 @@ def hard_sigmoid(x):
 
     The hard sigmoid activation is defined as:
 
-    - `0` if `if x < -2.5`
-    - `1` if `x > 2.5`
-    - `0.2 * x + 0.5` if `-2.5 <= x <= 2.5`
+    - `0` if `if x <= -3`
+    - `1` if `x >= 3`
+    - `(x/6) + 0.5` if `-3 < x < 3`
 
     It's a faster, piecewise linear approximation
     of the sigmoid activation.

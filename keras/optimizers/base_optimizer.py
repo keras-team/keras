@@ -75,11 +75,14 @@ class BaseOptimizer:
         self.ema_momentum = ema_momentum
         self.ema_overwrite_frequency = ema_overwrite_frequency
 
-        if self.clipnorm is not None and self.global_clipnorm is not None:
+        clip_args_sum = sum(
+            a is not None for a in [clipnorm, clipvalue, global_clipnorm]
+        )
+        if clip_args_sum > 1:
             raise ValueError(
-                "Only one of `clipnorm` and `global_clipnorm` can "
-                f"be set. Received: clipnorm={self.clipnorm}, "
-                f"global_clipnorm={self.global_clipnorm}"
+                "Only one of `clipnorm`, `clipvalue` and `global_clipnorm` can "
+                f"be set. Received: clipnorm={clipnorm}, "
+                f"clipvalue={clipvalue}, global_clipnorm={global_clipnorm}"
             )
         self.built = False
 
@@ -568,51 +571,40 @@ class BaseOptimizer:
         return self._learning_rate
 
     def _filter_empty_gradients(self, grads, vars):
-        for grad in grads:
-            if grad is None:
-                # Filtering is required.
-                filtered = [
-                    (g, v) for g, v in zip(grads, vars) if g is not None
-                ]
-                if not filtered:
-                    raise ValueError("No gradients provided for any variable.")
-                if len(filtered) < len(grads):
-                    missing_grad_vars = [
-                        v for g, v in zip(grads, vars) if g is None
-                    ]
-                    warnings.warn(
-                        "Gradients do not exist for variables "
-                        f"{[v.name for v in missing_grad_vars]} when "
-                        "minimizing the loss. If using `model.compile()`, "
-                        "did you forget to provide a `loss` argument?"
-                    )
-                return zip(*filtered)
-        return grads, vars
+        filtered_grads = list(grads)
+        filtered_vars = list(vars)
+        missing_grad_vars = []
+
+        # Iterate from right to left for safe popping
+        for i in range(len(filtered_grads) - 1, -1, -1):
+            if filtered_grads[i] is None:
+                filtered_grads.pop(i)
+                v = filtered_vars.pop(i)
+                missing_grad_vars.append(v.name)
+
+        if not filtered_grads:
+            raise ValueError("No gradients provided for any variable.")
+        if missing_grad_vars:
+            warnings.warn(
+                "Gradients do not exist for variables "
+                f"{list(reversed(missing_grad_vars))} when minimizing the loss."
+                " If using `model.compile()`, did you forget to provide a "
+                "`loss` argument?"
+            )
+        return filtered_grads, filtered_vars
 
     def _clip_gradients(self, grads):
         if self.clipnorm and self.clipnorm > 0:
-            clipped_grads = []
-            for g in grads:
-                if g is None:
-                    clipped_grads.append(g)
-                else:
-                    clipped_grads.append(self._clip_by_norm(g))
-            return clipped_grads
-
-        if self.global_clipnorm and self.global_clipnorm > 0:
+            return [
+                self._clip_by_norm(g) if g is not None else g for g in grads
+            ]
+        elif self.global_clipnorm and self.global_clipnorm > 0:
             return clip_by_global_norm(grads, self.global_clipnorm)
-
-        if self.clipvalue and self.clipvalue > 0:
-            clipped_grads = []
-            for g in grads:
-                if g is None:
-                    clipped_grads.append(g)
-                else:
-                    clipped_grads.append(
-                        ops.clip(g, -self.clipvalue, self.clipvalue)
-                    )
-            return clipped_grads
-        return grads
+        elif self.clipvalue and self.clipvalue > 0:
+            v = self.clipvalue
+            return [ops.clip(g, -v, v) if g is not None else g for g in grads]
+        else:
+            return grads
 
     def exclude_from_weight_decay(self, var_list=None, var_names=None):
         """Exclude variables from weight decay.
@@ -623,7 +615,7 @@ class BaseOptimizer:
         name, then the variable is excluded.
 
         Args:
-            var_list: A list of `tf.Variable`s to exclude from weight decay.
+            var_list: A list of `Variable`s to exclude from weight decay.
             var_names: A list of strings. If any string in `var_names` appear
                 in the model variable's name, then this model variable is
                 excluded from weight decay. For example, `var_names=['bias']`
@@ -635,28 +627,52 @@ class BaseOptimizer:
                 "the optimizer is built."
             )
 
+        # Use a `set` for the ids of `var_list` to speed up the searching
         if var_list:
-            self._exclude_from_weight_decay = [
+            self._exclude_from_weight_decay = set(
                 self._var_key(variable) for variable in var_list
-            ]
+            )
         else:
-            self._exclude_from_weight_decay = []
-        self._exclude_from_weight_decay_names = var_names or []
+            self._exclude_from_weight_decay = set()
+
+        # Precompile the pattern for `var_names` to speed up the searching
+        if var_names and len(var_names) > 0:
+            self._exclude_from_weight_decay_pattern = re.compile(
+                "|".join(set(var_names))
+            )
+        else:
+            self._exclude_from_weight_decay_pattern = None
+
+        # Reset cache
+        self._exclude_from_weight_decay_cache = dict()
 
     def _use_weight_decay(self, variable):
-        exclude_from_weight_decay = getattr(
-            self, "_exclude_from_weight_decay", []
-        )
-        exclude_from_weight_decay_names = getattr(
-            self, "_exclude_from_weight_decay_names", []
-        )
         variable_id = self._var_key(variable)
-        for exclude_id in exclude_from_weight_decay:
-            if variable_id == exclude_id:
+
+        # Immediately return the value if `variable_id` hits the cache
+        if not hasattr(self, "_exclude_from_weight_decay_cache"):
+            self._exclude_from_weight_decay_cache = dict()
+        if variable_id in self._exclude_from_weight_decay_cache:
+            return self._exclude_from_weight_decay_cache[variable_id]
+
+        # Determine whether the variable should apply weight decay or not
+        exclude_from_weight_decay = getattr(
+            self, "_exclude_from_weight_decay", set()
+        )
+        exclude_from_weight_decay_pattern = getattr(
+            self, "_exclude_from_weight_decay_pattern", None
+        )
+        if variable_id in exclude_from_weight_decay:
+            self._exclude_from_weight_decay_cache[variable_id] = False
+            return False
+        if exclude_from_weight_decay_pattern is not None:
+            if (
+                re.search(exclude_from_weight_decay_pattern, variable.name)
+                is not None
+            ):
+                self._exclude_from_weight_decay_cache[variable_id] = False
                 return False
-        for name in exclude_from_weight_decay_names:
-            if re.search(name, variable.name) is not None:
-                return False
+        self._exclude_from_weight_decay_cache[variable_id] = True
         return True
 
     def _apply_weight_decay(self, variables):
@@ -868,10 +884,9 @@ base_optimizer_keyword_args = """name: String. The name to use
 
 def global_norm(value_list):
     """Computes the global norm of multiple tensors."""
-    squared_norms = []
-    for v in value_list:
-        if v is not None:
-            squared_norms.append(ops.sum(ops.square(v)))
+    squared_norms = [
+        ops.sum(ops.square(v)) for v in value_list if v is not None
+    ]
     squared_norm = ops.sum(ops.stack(squared_norms))
     return ops.sqrt(squared_norm)
 
@@ -883,10 +898,4 @@ def clip_by_global_norm(value_list, clip_norm):
     # If use_norm is any finite number, this is a no-op. For inf/-inf/NaN,
     # this will make scale NaN.
     scale = scale_for_finite + (use_norm - use_norm)
-    values_clipped = []
-    for v in value_list:
-        if v is None:
-            values_clipped.append(None)
-        else:
-            values_clipped.append(v * scale)
-    return values_clipped
+    return [v * scale if v is not None else v for v in value_list]
