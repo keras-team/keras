@@ -283,7 +283,23 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         )
         layer.build(input_shape)
         kernel = layer.kernel
-        layer.kernel = kernel
+        layer.kernel = kernel + 1.0
+
+    def test_einsum_dense_kernel_setter_error_with_lora(self):
+        equation = "bc...,cde->bde..."
+        bias_axes = "de"
+        input_shape = (2, 1, 2)
+        output_shape = (3, 4)
+        layer = layers.EinsumDense(
+            equation, output_shape=output_shape, bias_axes=bias_axes
+        )
+        layer.build(input_shape)
+        kernel = layer.kernel
+        layer.enable_lora(rank=4)
+        with self.assertRaisesRegex(
+            ValueError, "You cannot add new elements of state"
+        ):
+            layer.kernel = kernel
 
     def test_einsum_dense_constraints(self):
         layer = layers.EinsumDense(
