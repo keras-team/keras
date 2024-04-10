@@ -273,6 +273,18 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         if expected_bias_shape is not None:
             self.assertEqual(layer.bias.shape, expected_bias_shape)
 
+    def test_einsum_dense_kernel_setter(self):
+        equation = "bc...,cde->bde..."
+        bias_axes = "de"
+        input_shape = (2, 1, 2)
+        output_shape = (3, 4)
+        layer = layers.EinsumDense(
+            equation, output_shape=output_shape, bias_axes=bias_axes
+        )
+        layer.build(input_shape)
+        kernel = layer.kernel
+        layer.kernel = kernel
+
     def test_einsum_dense_constraints(self):
         layer = layers.EinsumDense(
             "abc,cde->abde", (1, 3, 4), kernel_constraint="non_neg"
