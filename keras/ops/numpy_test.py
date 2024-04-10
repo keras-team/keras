@@ -3117,59 +3117,68 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(
-        [
-            {"testcase_name": "dense", "sparse": False},
-            {"testcase_name": "sparse", "sparse": True},
-        ]
+        named_product(sparse_input=(False, True), sparse_arg=(False, True))
     )
-    def test_bincount(self, sparse):
-        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
+    def test_bincount(self, sparse_input, sparse_arg):
+        if (sparse_input or sparse_arg) and not backend.SUPPORTS_SPARSE_TENSORS:
             pytest.skip("Backend does not support sparse tensors")
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("bincount does not work in tensorflow gpu")
 
-            if tf.test.is_gpu_available():
-                self.skipTest("bincount does not work in tensorflow gpu")
+        x = x_np = np.array([1, 1, 2, 3, 2, 4, 4, 6])
+        weights = weights_np = np.array([0, 0, 3, 2, 1, 1, 4, 2])
+        if sparse_input:
+            indices = np.array([[1], [3], [5], [7], [9], [11], [13], [15]])
 
-        x = np.array([1, 1, 2, 3, 2, 4, 4, 5])
-        weights = np.array([0, 0, 3, 2, 1, 1, 4, 2])
+            if backend.backend() == "tensorflow":
+                import tensorflow as tf
+
+                x = tf.SparseTensor(indices, x, (16,))
+                weights = tf.SparseTensor(indices, weights, (16,))
+            elif backend.backend() == "jax":
+                from jax.experimental import sparse as jax_sparse
+
+                x = jax_sparse.BCOO((x, indices), shape=(16,))
+                weights = jax_sparse.BCOO((weights, indices), shape=(16,))
+
         minlength = 3
         output = knp.bincount(
-            x, weights=weights, minlength=minlength, sparse=sparse
+            x, weights=weights, minlength=minlength, sparse=sparse_arg
         )
         self.assertAllClose(
-            output, np.bincount(x, weights=weights, minlength=minlength)
+            output, np.bincount(x_np, weights=weights_np, minlength=minlength)
         )
-        self.assertSparse(output, sparse)
+        self.assertSparse(output, sparse_input or sparse_arg)
         output = knp.Bincount(
-            weights=weights, minlength=minlength, sparse=sparse
+            weights=weights, minlength=minlength, sparse=sparse_arg
         )(x)
         self.assertAllClose(
-            output, np.bincount(x, weights=weights, minlength=minlength)
+            output, np.bincount(x_np, weights=weights_np, minlength=minlength)
         )
-        self.assertSparse(output, sparse)
+        self.assertSparse(output, sparse_input or sparse_arg)
 
-        x = np.array([[1, 1, 2, 3, 2, 4, 4, 5]])
-        weights = np.array([[0, 0, 3, 2, 1, 1, 4, 2]])
-        expected_output = np.array([[0, 0, 4, 2, 5, 2]])
+        x = knp.expand_dims(x, 0)
+        weights = knp.expand_dims(weights, 0)
+
+        expected_output = np.array([[0, 0, 4, 2, 5, 0, 2]])
         output = knp.bincount(
-            x, weights=weights, minlength=minlength, sparse=sparse
+            x, weights=weights, minlength=minlength, sparse=sparse_arg
         )
         self.assertAllClose(output, expected_output)
-        self.assertSparse(output, sparse)
+        self.assertSparse(output, sparse_input or sparse_arg)
         output = knp.Bincount(
-            weights=weights, minlength=minlength, sparse=sparse
+            weights=weights, minlength=minlength, sparse=sparse_arg
         )(x)
         self.assertAllClose(output, expected_output)
-        self.assertSparse(output, sparse)
+        self.assertSparse(output, sparse_input or sparse_arg)
 
         # test with weights=None
-        expected_output = np.array([[0, 2, 2, 1, 2, 1]])
-        output = knp.Bincount(weights=None, minlength=minlength, sparse=sparse)(
-            x
-        )
+        expected_output = np.array([[0, 2, 2, 1, 2, 0, 1]])
+        output = knp.Bincount(
+            weights=None, minlength=minlength, sparse=sparse_arg
+        )(x)
         self.assertAllClose(output, expected_output)
-        self.assertSparse(output, sparse)
+        self.assertSparse(output, sparse_input or sparse_arg)
 
     def test_broadcast_to(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -4382,57 +4391,62 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         }
         for op in ELEMENTWISE_UNARY_OPS
     ]
+    OTHER_UNARY_OPS_ARGS = [
+        ("digitize", "", {}, {"bins": np.array([0.1, 0.2, 1.0])}, (4, 2, 3)),
+        ("mean", "none", {"axis": None}, {}, (4, 2, 3)),
+        ("mean", "none_k", {"axis": None, "keepdims": True}, {}, (4, 2, 3)),
+        ("mean", "empty", {"axis": ()}, {}, (4, 2, 3)),
+        ("mean", "empty_k", {"axis": (), "keepdims": True}, {}, (4, 2, 3)),
+        ("mean", "0", {"axis": 0}, {}, (4, 2, 3)),
+        ("mean", "0_k", {"axis": 0, "keepdims": True}, {}, (4, 2, 3)),
+        ("mean", "1", {"axis": 1}, {}, (4, 2, 3)),
+        ("mean", "1_k", {"axis": 1, "keepdims": True}, {}, (4, 2, 3)),
+        ("mean", "01", {"axis": (0, 1)}, {}, (4, 2, 3)),
+        ("mean", "01_k", {"axis": (0, 1), "keepdims": True}, {}, (4, 2, 3)),
+        ("mean", "02", {"axis": (1, 2)}, {}, (4, 2, 3)),
+        ("mean", "02_k", {"axis": (1, 2), "keepdims": True}, {}, (4, 2, 3)),
+        ("mean", "all", {"axis": (0, 1, 2)}, {}, (4, 2, 3)),
+        ("mean", "all_k", {"axis": (0, 1, 2), "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "none", {"axis": None}, {}, (4, 2, 3)),
+        ("sum", "none_k", {"axis": None, "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "empty", {"axis": ()}, {}, (4, 2, 3)),
+        ("sum", "empty_k", {"axis": (), "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "0", {"axis": 0}, {}, (4, 2, 3)),
+        ("sum", "0_k", {"axis": 0, "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "1", {"axis": 1}, {}, (4, 2, 3)),
+        ("sum", "1_k", {"axis": 1, "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "01", {"axis": (0, 1)}, {}, (4, 2, 3)),
+        ("sum", "01_k", {"axis": (0, 1), "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "02", {"axis": (1, 2)}, {}, (4, 2, 3)),
+        ("sum", "02_k", {"axis": (1, 2), "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "all", {"axis": (0, 1, 2)}, {}, (4, 2, 3)),
+        ("sum", "all_k", {"axis": (0, 1, 2), "keepdims": True}, {}, (4, 2, 3)),
+        ("expand_dims", "zero", {"axis": 0}, {}, (2, 3)),
+        ("expand_dims", "one", {"axis": 1}, {}, (2, 3)),
+        ("expand_dims", "minus_two", {"axis": -2}, {}, (2, 3)),
+        ("reshape", "basic", {"newshape": (4, 3, 2)}, {}, (4, 2, 3)),
+        ("reshape", "minus_one", {"newshape": (4, 3, -1)}, {}, (4, 2, 3)),
+        ("reshape", "fewer_dims", {"newshape": (4, 6)}, {}, (4, 2, 3)),
+        ("squeeze", "no_axis_no_op", {}, {}, (2, 3)),
+        ("squeeze", "one", {"axis": 1}, {}, (2, 1, 3)),
+        ("squeeze", "minus_two", {"axis": -2}, {}, (2, 1, 3)),
+        ("squeeze", "no_axis", {}, {}, (2, 1, 3)),
+        ("transpose", "no_axes", {}, {}, (1, 2, 3, 4)),
+        ("transpose", "axes", {"axes": (0, 3, 2, 1)}, {}, (1, 2, 3, 4)),
+    ]
     OTHER_UNARY_OPS_TESTS = [
         {
             "testcase_name": "_".join([op, testcase_name]),
             "op_function": getattr(knp, op),
             "op_class": getattr(knp, snake_to_pascal_case(op)),
             "np_op": getattr(np, op),
+            "init_kwargs": init_kwargs,
             "op_kwargs": op_kwargs,
             "input_shape": input_shape,
         }
-        for op, testcase_name, op_kwargs, input_shape in [
-            ("mean", "none", {"axis": None}, (4, 2, 3)),
-            ("mean", "none_k", {"axis": None, "keepdims": True}, (4, 2, 3)),
-            ("mean", "empty", {"axis": ()}, (4, 2, 3)),
-            ("mean", "empty_k", {"axis": (), "keepdims": True}, (4, 2, 3)),
-            ("mean", "0", {"axis": 0}, (4, 2, 3)),
-            ("mean", "0_k", {"axis": 0, "keepdims": True}, (4, 2, 3)),
-            ("mean", "1", {"axis": 1}, (4, 2, 3)),
-            ("mean", "1_k", {"axis": 1, "keepdims": True}, (4, 2, 3)),
-            ("mean", "01", {"axis": (0, 1)}, (4, 2, 3)),
-            ("mean", "01_k", {"axis": (0, 1), "keepdims": True}, (4, 2, 3)),
-            ("mean", "02", {"axis": (1, 2)}, (4, 2, 3)),
-            ("mean", "02_k", {"axis": (1, 2), "keepdims": True}, (4, 2, 3)),
-            ("mean", "all", {"axis": (0, 1, 2)}, (4, 2, 3)),
-            ("mean", "all_k", {"axis": (0, 1, 2), "keepdims": True}, (4, 2, 3)),
-            ("sum", "none", {"axis": None}, (4, 2, 3)),
-            ("sum", "none_k", {"axis": None, "keepdims": True}, (4, 2, 3)),
-            ("sum", "empty", {"axis": ()}, (4, 2, 3)),
-            ("sum", "empty_k", {"axis": (), "keepdims": True}, (4, 2, 3)),
-            ("sum", "0", {"axis": 0}, (4, 2, 3)),
-            ("sum", "0_k", {"axis": 0, "keepdims": True}, (4, 2, 3)),
-            ("sum", "1", {"axis": 1}, (4, 2, 3)),
-            ("sum", "1_k", {"axis": 1, "keepdims": True}, (4, 2, 3)),
-            ("sum", "01", {"axis": (0, 1)}, (4, 2, 3)),
-            ("sum", "01_k", {"axis": (0, 1), "keepdims": True}, (4, 2, 3)),
-            ("sum", "02", {"axis": (1, 2)}, (4, 2, 3)),
-            ("sum", "02_k", {"axis": (1, 2), "keepdims": True}, (4, 2, 3)),
-            ("sum", "all", {"axis": (0, 1, 2)}, (4, 2, 3)),
-            ("sum", "all_k", {"axis": (0, 1, 2), "keepdims": True}, (4, 2, 3)),
-            ("expand_dims", "zero", {"axis": 0}, (2, 3)),
-            ("expand_dims", "one", {"axis": 1}, (2, 3)),
-            ("expand_dims", "minus_two", {"axis": -2}, (2, 3)),
-            ("reshape", "basic", {"newshape": (4, 3, 2)}, (4, 2, 3)),
-            ("reshape", "minus_one", {"newshape": (4, 3, -1)}, (4, 2, 3)),
-            ("reshape", "fewer_dims", {"newshape": (4, 6)}, (4, 2, 3)),
-            ("squeeze", "no_axis_no_op", {}, (2, 3)),
-            ("squeeze", "one", {"axis": 1}, (2, 1, 3)),
-            ("squeeze", "minus_two", {"axis": -2}, (2, 1, 3)),
-            ("squeeze", "no_axis", {}, (2, 1, 3)),
-            ("transpose", "no_axes", {}, (1, 2, 3, 4)),
-            ("transpose", "axes", {"axes": (0, 3, 2, 1)}, (1, 2, 3, 4)),
-        ]
+        for op, testcase_name, init_kwargs, op_kwargs, input_shape in (
+            OTHER_UNARY_OPS_ARGS
+        )
     ]
 
     BINARY_OPS = [
@@ -4483,30 +4497,38 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(OTHER_UNARY_OPS_TESTS)
     def test_other_unary_symbolic_static_shape(
-        self, op_function, op_class, np_op, op_kwargs, input_shape
+        self, op_function, op_class, np_op, init_kwargs, op_kwargs, input_shape
     ):
         expected_shape = op_function(
-            KerasTensor(input_shape), **op_kwargs
+            KerasTensor(input_shape), **init_kwargs, **op_kwargs
         ).shape
         x = KerasTensor(input_shape, sparse=True)
-        self.assertEqual(op_function(x, **op_kwargs).shape, expected_shape)
-        self.assertTrue(op_function(x, **op_kwargs).sparse)
-        self.assertEqual(op_class(**op_kwargs)(x).shape, expected_shape)
-        self.assertTrue(op_class(**op_kwargs)(x).sparse)
+        self.assertEqual(
+            op_function(x, **init_kwargs, **op_kwargs).shape, expected_shape
+        )
+        self.assertTrue(op_function(x, **init_kwargs, **op_kwargs).sparse)
+        self.assertEqual(
+            op_class(**init_kwargs)(x, **op_kwargs).shape, expected_shape
+        )
+        self.assertTrue(op_class(**init_kwargs)(x, **op_kwargs).sparse)
 
     @parameterized.named_parameters(OTHER_UNARY_OPS_TESTS)
     def test_other_unary_symbolic_dynamic_shape(
-        self, op_function, op_class, np_op, op_kwargs, input_shape
+        self, op_function, op_class, np_op, init_kwargs, op_kwargs, input_shape
     ):
         input_shape = (None,) + input_shape[1:]
         expected_shape = op_function(
-            KerasTensor(input_shape), **op_kwargs
+            KerasTensor(input_shape), **init_kwargs, **op_kwargs
         ).shape
         x = KerasTensor(input_shape, sparse=True)
-        self.assertEqual(op_function(x, **op_kwargs).shape, expected_shape)
-        self.assertTrue(op_function(x, **op_kwargs).sparse)
-        self.assertEqual(op_class(**op_kwargs)(x).shape, expected_shape)
-        self.assertTrue(op_class(**op_kwargs)(x).sparse)
+        self.assertEqual(
+            op_function(x, **init_kwargs, **op_kwargs).shape, expected_shape
+        )
+        self.assertTrue(op_function(x, **init_kwargs, **op_kwargs).sparse)
+        self.assertEqual(
+            op_class(**init_kwargs)(x, **op_kwargs).shape, expected_shape
+        )
+        self.assertTrue(op_class(**init_kwargs)(x, **op_kwargs).sparse)
 
     @parameterized.named_parameters(DENSIFYING_UNARY_OPS_TESTS)
     def test_densifying_unary_sparse_correctness(
@@ -4564,10 +4586,10 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(OTHER_UNARY_OPS_TESTS)
     @pytest.mark.skipif(
-        backend.backend() == "tensorflow", reason="Temporary, XLA error"
+        testing.tensorflow_uses_gpu(), reason="Temporary, XLA error"
     )
-    def test_other_unary_symbolic_sparse_correctness(
-        self, op_function, op_class, np_op, op_kwargs, input_shape
+    def test_other_unary_sparse_correctness(
+        self, op_function, op_class, np_op, init_kwargs, op_kwargs, input_shape
     ):
         x = np.random.random(input_shape)
         if op_function is knp.mean:
@@ -4577,14 +4599,22 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         x_np = backend.convert_to_numpy(x)
 
         self.assertAllClose(
-            op_function(x, **op_kwargs), np_op(x_np, **op_kwargs)
+            op_function(x, **init_kwargs, **op_kwargs),
+            np_op(x_np, **init_kwargs, **op_kwargs),
         )
-        self.assertAllClose(op_class(**op_kwargs)(x), np_op(x_np, **op_kwargs))
+        self.assertAllClose(
+            op_class(**init_kwargs)(x, **op_kwargs),
+            np_op(x_np, **init_kwargs, **op_kwargs),
+        )
         # Reduction operations have complex and backend dependent rules about
         # when the result is sparse and it is dense.
         if op_function is not knp.mean:
-            self.assertSameSparseness(op_function(x, **op_kwargs), x)
-            self.assertSameSparseness(op_class(**op_kwargs)(x), x)
+            self.assertSameSparseness(
+                op_function(x, **init_kwargs, **op_kwargs), x
+            )
+            self.assertSameSparseness(
+                op_class(**init_kwargs)(x, **op_kwargs), x
+            )
 
     @parameterized.named_parameters(
         named_product(
