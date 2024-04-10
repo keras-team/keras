@@ -62,11 +62,12 @@ class Tracker:
     ```
     """
 
-    def __init__(self, config):
+    def __init__(self, config, exclusions=None):
         self.config = config
         self.stored_ids = {name: set() for name in self.config.keys()}
         self.locked = False
         self._lock_violation_msg = None
+        self.exclusions = exclusions or {}
 
     def track(self, attr):
         if not is_tracking_enabled():
@@ -74,7 +75,11 @@ class Tracker:
 
         for store_name, (is_attr_type, _) in self.config.items():
             if is_attr_type(attr):
-                if id(attr) not in self.stored_ids[store_name]:
+                if store_name in self.exclusions:
+                    for excl in self.exclusions[store_name]:
+                        if self.is_in_store(excl, attr):
+                            return attr
+                if not self.is_in_store(store_name, attr):
                     self.add_to_store(store_name, attr)
                 return attr
         if isinstance(attr, tuple):
@@ -111,6 +116,9 @@ class Tracker:
             raise ValueError(self._lock_violation_msg)
         self.config[store_name][1].append(value)
         self.stored_ids[store_name].add(id(value))
+
+    def is_in_store(self, store_name, value):
+        return id(value) in self.stored_ids[store_name]
 
 
 @optree.register_pytree_node_class(namespace="keras")

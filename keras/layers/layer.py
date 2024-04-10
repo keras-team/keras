@@ -292,10 +292,10 @@ class Layer(BackendLayer, Operation):
         self._build_shapes_dict = None
         # Parent path
         self._parent_path = None
-        self._initializer_tracker()
+        self._initialize_tracker()
 
     @tracking.no_automatic_dependency_tracking
-    def _initializer_tracker(self):
+    def _initialize_tracker(self):
         if hasattr(self, "_tracker"):
             return
 
@@ -325,7 +325,8 @@ class Layer(BackendLayer, Operation):
                     lambda x: isinstance(x, backend.random.SeedGenerator),
                     seed_generators,
                 ),
-            }
+            },
+            exclusions={"non_trainable_variables": ["trainable_variables"]},
         )
         if backend.backend() == "tensorflow":
             # Remove attribute tracking for lists (TF-specific attribute)
@@ -1322,7 +1323,7 @@ class Layer(BackendLayer, Operation):
         if hasattr(self, "_tracker"):
             value = self._tracker.track(value)
         elif name != "_tracker":
-            self._initializer_tracker()
+            self._initialize_tracker()
         return super().__setattr__(name, value)
 
     def _check_super_called(self):

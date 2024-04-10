@@ -912,10 +912,16 @@ class LayerTest(testing.TestCase):
         model = models.Model(inputs, outputs)
 
         self.assertFalse(layer.trainable)
-        self.assertLen(layer.trainable_variables, 0)
-        self.assertLen(model.trainable_variables, 0)
+        self.assertLen(layer._trainable_variables, 2)
+        self.assertLen(layer._non_trainable_variables, 0)
+        self.assertLen(layer.trainable_weights, 0)
+        self.assertLen(model.trainable_weights, 0)
+        self.assertLen(model.non_trainable_weights, 2)
 
         layer.trainable = True
         self.assertTrue(layer.trainable)
-        self.assertLen(layer.trainable_variables, 2)
-        self.assertLen(model.trainable_variables, 2)
+        self.assertLen(layer._trainable_variables, 2)
+        self.assertLen(layer._non_trainable_variables, 0)
+        self.assertLen(layer.trainable_weights, 2)
+        self.assertLen(model.trainable_weights, 2)
+        self.assertLen(model.non_trainable_weights, 0)
