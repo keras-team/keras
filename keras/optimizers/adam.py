@@ -77,11 +77,20 @@ class Adam(optimizer.Optimizer):
     def build(self, var_list):
         """Initialize optimizer variables.
 
-        Adam optimizer has 3 types of variables: momentums, velocities and
-        velocity_hat (only set when amsgrad is applied),
+        This method initializes the optimizer variables required by the Adam optimizer algorithm.
+        These variables include momentums, velocities, and velocity_hat (only set when AMSGrad is applied).
 
         Args:
-            var_list: list of model variables to build Adam variables on.
+            var_list (list): List of model variables to build Adam variables on.
+
+        Notes:
+            The Adam optimizer requires the following optimizer variables to be initialized:
+            - Momentums: First-order moments used for momentum calculation.
+            - Velocities: Second-order moments used for velocity calculation.
+            - Velocity_hat (if AMSGrad is True): Additional second-order moments for AMSGrad variant.
+
+        Raises:
+            RuntimeError: If the optimizer has already been built.
         """
         if self.built:
             return

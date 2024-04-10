@@ -13,6 +13,7 @@ from keras.trainers import trainer as base_trainer
 from keras.utils import summary_utils
 from keras.utils import traceback_utils
 
+# Import Trainer classes based on the backend
 if backend.backend() == "tensorflow":
     from keras.backend.tensorflow.trainer import TensorFlowTrainer as Trainer
 elif backend.backend() == "jax":
@@ -27,6 +28,7 @@ else:
     )
 
 
+# Export Model class with aliases
 @keras_export(["keras.Model", "keras.models.Model"])
 class Model(Trainer, base_trainer.Trainer, Layer):
     """A model grouping layers into an object with training/inference features.
