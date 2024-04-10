@@ -1263,8 +1263,11 @@ class Bincount(Operation):
             dtype = dtypes.result_type(*dtypes_to_resolve)
         else:
             dtype = "int32"
+        x_sparse = getattr(x, "sparse", False)
         return KerasTensor(
-            list(x.shape[:-1]) + [None], dtype=dtype, sparse=self.sparse
+            list(x.shape[:-1]) + [None],
+            dtype=dtype,
+            sparse=x_sparse or self.sparse,
         )
 
 
@@ -2072,7 +2075,8 @@ class Digitize(Operation):
                 f"`bins` must be a 1D array. Received: bins={bins} "
                 f"with shape bins.shape={bins_shape}"
             )
-        return KerasTensor(x.shape, dtype="int32")
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype="int32", sparse=sparse)
 
 
 @keras_export(["keras.ops.digitize", "keras.ops.numpy.digitize"])

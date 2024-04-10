@@ -23,18 +23,27 @@ def add(x1, x2):
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
-    if sparse:
+    # Note: bincount is never tracable / jittable because the output shape
+    # depends on the values in x.
+    if sparse or isinstance(x, jax_sparse.BCOO):
+        if isinstance(x, jax_sparse.BCOO):
+            if weights is not None:
+                if not isinstance(weights, jax_sparse.BCOO):
+                    raise ValueError("`x` and `weights` must both be BCOOs")
+                if x.indices is not weights.indices:
+                    # This test works in eager mode only
+                    if not jnp.all(jnp.equal(x.indices, weights.indices)):
+                        raise ValueError(
+                            "`x` and `weights` BCOOs must have the same indices"
+                        )
+                weights = weights.data
+            x = x.data
         reduction_axis = 1 if len(x.shape) > 1 else 0
         maxlength = jnp.maximum(jnp.max(x) + 1, minlength)
-        one_hot_encoding = nn.one_hot(x, maxlength, sparse=sparse)
+        one_hot_encoding = nn.one_hot(x, maxlength, sparse=True)
         if weights is not None:
-            split_weights = split(
-                weights,
-                weights.shape[reduction_axis],
-                reduction_axis,
-            )
-            stacked_weights = stack(split_weights, axis=reduction_axis)
-            one_hot_encoding = one_hot_encoding * stacked_weights
+            expanded_weights = jnp.expand_dims(weights, reduction_axis + 1)
+            one_hot_encoding = one_hot_encoding * expanded_weights
 
         outputs = jax_sparse.bcoo_reduce_sum(
             one_hot_encoding,
@@ -485,6 +494,7 @@ def diff(a, n=1, axis=-1):
     return jnp.diff(a, n=n, axis=axis)
 
 
+@sparse.elementwise_unary(linear=False)
 def digitize(x, bins):
     x = convert_to_tensor(x)
     bins = convert_to_tensor(bins)
