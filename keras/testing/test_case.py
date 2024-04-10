@@ -6,6 +6,7 @@ import unittest
 import numpy as np
 
 from keras import backend
+from keras import distribution
 from keras import ops
 from keras import utils
 from keras.backend.common import is_float_dtype
@@ -547,6 +548,26 @@ class TestCase(unittest.TestCase):
                     dtype = standardize_dtype(weight.dtype)
                     if is_float_dtype(dtype):
                         self.assertEqual(dtype, "float32")
+
+
+def tensorflow_uses_gpu():
+    return backend.backend() == "tensorflow" and uses_gpu()
+
+
+def jax_uses_gpu():
+    return backend.backend() == "jax" and uses_gpu()
+
+
+def torch_uses_gpu():
+    return backend.backend() == "torch" and uses_gpu()
+
+
+def uses_gpu():
+    # Condition used to skip tests when using the GPU
+    devices = distribution.list_devices()
+    if any(d.startswith("gpu") for d in devices):
+        return True
+    return False
 
 
 def create_keras_tensors(input_shape, dtype, sparse):

@@ -5,6 +5,7 @@ import sys
 
 from keras.api_export import keras_export
 from keras.utils import io_utils
+from keras.utils import tree
 
 try:
     # pydot-ng is a fork of pydot that is better maintained.
@@ -105,8 +106,8 @@ def make_layer_label(layer, **kwargs):
     if show_shapes:
         shape = None
         try:
-            shape = layer.output.shape
-        except ValueError:
+            shape = tree.map_structure(lambda x: x.shape, layer.output)
+        except (ValueError, AttributeError):
             pass
         cols.append(
             (
@@ -118,8 +119,8 @@ def make_layer_label(layer, **kwargs):
     if show_dtype:
         dtype = None
         try:
-            dtype = layer.output.dtype
-        except ValueError:
+            dtype = tree.map_structure(lambda x: x.dtype, layer.output)
+        except (ValueError, AttributeError):
             pass
         cols.append(
             (

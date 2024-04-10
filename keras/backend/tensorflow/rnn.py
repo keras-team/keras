@@ -468,7 +468,7 @@ def gru(
         use_bias=bias is not None,
         reset_after=reset_after,
     )
-    if not cudnn_supported or mask is not None:
+    if not cudnn_supported:
         raise NotImplementedError
 
     from keras.backend.tensorflow import Variable
@@ -538,39 +538,6 @@ def _do_lstm_arguments_support_cudnn(
     )
 
 
-def _is_sequence_right_padded(mask):
-    """Check the mask tensor and see if it right padded.
-
-    For cuDNN kernel, it uses the sequence length param to skip the tailing
-    timestep. If the data is left padded, or not a strict right padding (has
-    masked value in the middle of the sequence), then cuDNN kernel won't be work
-    properly in those cases.
-
-    Left padded data: [[False, False, True, True, True]].
-    Right padded data: [[True, True, True, False, False]].
-    Mixture of mask/unmasked data: [[True, False, True, False, False]].
-
-    Note that for the mixed data example above, the actually data RNN should see
-    are those 2 Trues (index 0 and 2), the index 1 False should be ignored and
-    not pollute the internal states.
-
-    Args:
-      mask: the Boolean tensor with shape [batch, timestep]
-
-    Returns:
-      boolean scalar tensor, whether the mask is strictly right padded.
-    """
-    max_seq_length = tf.shape(mask)[1]
-    count_of_true = tf.reduce_sum(tf.cast(mask, tf.int32), axis=1)
-    right_padded_mask = tf.sequence_mask(count_of_true, maxlen=max_seq_length)
-    return tf.reduce_all(
-        tf.equal(
-            tf.cast(mask, dtype="bool"),
-            tf.cast(right_padded_mask, dtype="bool"),
-        )
-    )
-
-
 def _has_fully_masked_sequence(mask):
     # Cudnn kernel will error out if the input sequence contains any
     # fully masked data. We walk around this issue by rerouting the computation
@@ -579,6 +546,28 @@ def _has_fully_masked_sequence(mask):
     # check, we inverse the boolean, check if any of the sequence has all True.
     return tf.reduce_any(
         tf.reduce_all(tf.logical_not(tf.cast(mask, dtype="bool")), axis=1)
+    )
+
+
+def _assert_valid_mask(mask):
+    valid = tf.logical_and(
+        tf.logical_not(_has_fully_masked_sequence(mask)),
+        _is_sequence_right_padded(mask),
+    )
+    tf.Assert(
+        valid,
+        [
+            (
+                "You are passing a RNN mask that does not correspond to "
+                "right-padded sequences, while using cuDNN, which is not "
+                "supported. With cuDNN, RNN masks can only be used for "
+                "right-padding, e.g. `[[True, True, False, False]]` would "
+                "be a valid mask, but any mask that isn't just contiguous "
+                "`True`'s on the left and contiguous `False`'s on the right "
+                "would be invalid. You can pass `use_cudnn=False` to your "
+                "RNN layer to stop using cuDNN (this may be slower)."
+            )
+        ],
     )
 
 
@@ -615,6 +604,39 @@ def _standardize_cudnn_weights(weights, biases, shape, transpose_weights=False):
     return tf.concat(weights + biases, axis=0)
 
 
+def _is_sequence_right_padded(mask):
+    """Check the mask tensor and see if it right padded.
+
+    cuDNN uses the sequence length param to skip the tailing
+    timestep. If the data is left padded, or not a strict right padding (has
+    masked value in the middle of the sequence), then cuDNN won't work
+    properly in those cases.
+
+    Left padded data: [[False, False, True, True, True]].
+    Right padded data: [[True, True, True, False, False]].
+    Mixture of mask/unmasked data: [[True, False, True, False, False]].
+
+    Note that for the mixed data example above, the actually data RNN should see
+    are those 2 Trues (index 0 and 2), the index 1 False should be ignored and
+    not pollute the internal states.
+
+    Args:
+        mask: the Boolean tensor with shape [batch, timestep]
+
+    Returns:
+        boolean scalar tensor, whether the mask is strictly right padded.
+    """
+    max_seq_length = tf.shape(mask)[1]
+    count_of_true = tf.reduce_sum(tf.cast(mask, tf.int32), axis=1)
+    right_padded_mask = tf.sequence_mask(count_of_true, maxlen=max_seq_length)
+    return tf.reduce_all(
+        tf.equal(
+            tf.cast(mask, dtype="bool"),
+            tf.cast(right_padded_mask, dtype="bool"),
+        )
+    )
+
+
 def _compute_sequence_length_from_mask(mask, time_major):
     """Calculate the sequence length tensor (1-D) based on the masking tensor.
 
@@ -628,12 +650,13 @@ def _compute_sequence_length_from_mask(mask, time_major):
     padded that could be checked by, e.g., `is_sequence_right_padded()`.
 
     Args:
-      mask: Boolean tensor with shape [batch, timestep] or [timestep, batch] if
-        time_major=True.
-      time_major: Boolean, which indicates whether the mask is time major or
-        batch major.
+        mask: Boolean tensor with shape [batch, timestep] or [timestep, batch]
+            if time_major=True.
+        time_major: Boolean, which indicates whether the mask is time major or
+            batch major.
+
     Returns:
-      sequence_length: 1D int32 tensor.
+        sequence_length: 1D int32 tensor.
     """
     timestep_index = 0 if time_major else 1
     return tf.reduce_sum(tf.cast(mask, tf.int32), axis=timestep_index)
@@ -656,15 +679,23 @@ def _cudnn_gru(
 ):
     """GRU with cuDNN implementation which is only available for GPU."""
     if mask is not None:
+        _assert_valid_mask(mask)
         sequence_lengths = _compute_sequence_length_from_mask(mask, time_major)
     else:
-        sequence_lengths = None
+        if time_major:
+            batch_dim = tf.shape(inputs)[1]
+            max_sequence_length = tf.shape(inputs)[0]
+        else:
+            batch_dim = tf.shape(inputs)[0]
+            max_sequence_length = tf.shape(inputs)[1]
+        sequence_lengths = tf.fill([batch_dim], max_sequence_length)
 
     if not time_major and sequence_lengths is None:
         inputs = tf.transpose(inputs, perm=(1, 0, 2))
         seq_axis, batch_axis = (0, 1)
     else:
         seq_axis, batch_axis = (0, 1) if time_major else (1, 0)
+
     # For init_h, cuDNN expects one more dim of num_layers before or after batch
     # dim for time major or batch major inputs respectively
     init_h = tf.expand_dims(initial_state, axis=seq_axis)
@@ -695,49 +726,36 @@ def _cudnn_gru(
         transpose_weights=True,
     )
 
-    if sequence_lengths is not None:
-        if go_backwards:
-            # Three reversals are required. E.g.,
-            # normal input = [1, 2, 3, 0, 0]  # where 0 need to be masked
-            # reversed_input_to_cudnn = [3, 2, 1, 0, 0]
-            # output_from_cudnn = [6, 5, 4, 0, 0]
-            # expected_output = [0, 0, 6, 5 ,4]
-            inputs = tf.reverse_sequence(
-                inputs,
-                sequence_lengths,
-                seq_axis=seq_axis,
-                batch_axis=batch_axis,
-            )
-        outputs, h, _, _, _ = tf.raw_ops.CudnnRNNV3(
-            input=inputs,
-            input_h=init_h,
-            input_c=0,
-            params=params,
-            is_training=True,
-            rnn_mode="gru",
-            sequence_lengths=sequence_lengths,
-            time_major=time_major,
+    if go_backwards:
+        # Three reversals are required. E.g.,
+        # normal input = [1, 2, 3, 0, 0]  # where 0 need to be masked
+        # reversed_input_to_cudnn = [3, 2, 1, 0, 0]
+        # output_from_cudnn = [6, 5, 4, 0, 0]
+        # expected_output = [0, 0, 6, 5 ,4]
+        inputs = tf.reverse_sequence(
+            inputs,
+            sequence_lengths,
+            seq_axis=seq_axis,
+            batch_axis=batch_axis,
         )
-        if go_backwards:
-            outputs = tf.reverse_sequence(
-                outputs,
-                sequence_lengths,
-                seq_axis=seq_axis,
-                batch_axis=batch_axis,
-            )
-            outputs = tf.reverse(outputs, axis=[seq_axis])
-    else:
-        if go_backwards:
-            # Reverse axis 0 since the input is already convert to time major.
-            inputs = tf.reverse(inputs, axis=[0])
-        outputs, h, _, _ = tf.raw_ops.CudnnRNN(
-            input=inputs,
-            input_h=init_h,
-            input_c=0,
-            params=params,
-            is_training=True,
-            rnn_mode="gru",
+    outputs, h, _, _, _ = tf.raw_ops.CudnnRNNV3(
+        input=inputs,
+        input_h=init_h,
+        input_c=0,
+        params=params,
+        is_training=True,
+        rnn_mode="gru",
+        sequence_lengths=sequence_lengths,
+        time_major=time_major,
+    )
+    if go_backwards:
+        outputs = tf.reverse_sequence(
+            outputs,
+            sequence_lengths,
+            seq_axis=seq_axis,
+            batch_axis=batch_axis,
         )
+        outputs = tf.reverse(outputs, axis=[seq_axis])
 
     last_output = outputs[-1]
     if not time_major and sequence_lengths is None and return_sequences:
@@ -807,7 +825,7 @@ def lstm(
     cudnn_supported = cudnn_ok(
         activation, recurrent_activation, unroll, use_bias=bias is not None
     )
-    if not cudnn_supported or mask is not None:
+    if not cudnn_supported:
         raise NotImplementedError
 
     from keras.backend.tensorflow import Variable
@@ -853,9 +871,16 @@ def _cudnn_lstm(
     return_sequences,
 ):
     if mask is not None:
+        _assert_valid_mask(mask)
         sequence_lengths = _compute_sequence_length_from_mask(mask, time_major)
     else:
-        sequence_lengths = None
+        if time_major:
+            batch_dim = tf.shape(inputs)[1]
+            max_sequence_length = tf.shape(inputs)[0]
+        else:
+            batch_dim = tf.shape(inputs)[0]
+            max_sequence_length = tf.shape(inputs)[1]
+        sequence_lengths = tf.fill([batch_dim], max_sequence_length)
 
     if not time_major and sequence_lengths is None:
         inputs = tf.transpose(inputs, perm=(1, 0, 2))
@@ -893,52 +918,36 @@ def _cudnn_lstm(
         transpose_weights=True,
     )
 
-    if sequence_lengths is not None:
-        if go_backwards:
-            # Three reversals are required. E.g.,
-            # normal input = [1, 2, 3, 0, 0]  # where 0 need to be masked
-            # reversed_input_to_cudnn = [3, 2, 1, 0, 0]
-            # output_from_cudnn = [6, 5, 4, 0, 0]
-            # expected_output = [0, 0, 6, 5 ,4]
-            inputs = tf.reverse_sequence(
-                inputs,
-                sequence_lengths,
-                seq_axis=seq_axis,
-                batch_axis=batch_axis,
-            )
-        outputs, h, c, _, _ = tf.raw_ops.CudnnRNNV3(
-            input=inputs,
-            input_h=init_h,
-            input_c=init_c,
-            params=params,
-            is_training=True,
-            rnn_mode="lstm",
-            sequence_lengths=sequence_lengths,
-            time_major=time_major,
+    if go_backwards:
+        # Three reversals are required. E.g.,
+        # normal input = [1, 2, 3, 0, 0]  # where 0 need to be masked
+        # reversed_input_to_cudnn = [3, 2, 1, 0, 0]
+        # output_from_cudnn = [6, 5, 4, 0, 0]
+        # expected_output = [0, 0, 6, 5 ,4]
+        inputs = tf.reverse_sequence(
+            inputs,
+            sequence_lengths,
+            seq_axis=seq_axis,
+            batch_axis=batch_axis,
         )
-        if go_backwards:
-            outputs = tf.reverse_sequence(
-                outputs,
-                sequence_lengths,
-                seq_axis=seq_axis,
-                batch_axis=batch_axis,
-            )
-            outputs = tf.reverse(outputs, axis=[seq_axis])
-    else:
-        # # Fill the array with shape [batch] with value of max timesteps.
-        # sequence_length = array_ops.fill([array_ops.shape(inputs)[1]],
-        #                                  array_ops.shape(inputs)[0])
-        if go_backwards:
-            # Reverse axis 0 since the input is already convert to time major.
-            inputs = tf.reverse(inputs, axis=[0])
-        outputs, h, c, _ = tf.raw_ops.CudnnRNN(
-            input=inputs,
-            input_h=init_h,
-            input_c=init_c,
-            params=params,
-            is_training=True,
-            rnn_mode="lstm",
+    outputs, h, c, _, _ = tf.raw_ops.CudnnRNNV3(
+        input=inputs,
+        input_h=init_h,
+        input_c=init_c,
+        params=params,
+        is_training=True,
+        rnn_mode="lstm",
+        sequence_lengths=sequence_lengths,
+        time_major=time_major,
+    )
+    if go_backwards:
+        outputs = tf.reverse_sequence(
+            outputs,
+            sequence_lengths,
+            seq_axis=seq_axis,
+            batch_axis=batch_axis,
         )
+        outputs = tf.reverse(outputs, axis=[seq_axis])
 
     last_output = outputs[-1]
     if not time_major and sequence_lengths is None and return_sequences:

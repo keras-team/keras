@@ -327,6 +327,21 @@ class TestJaxLayer(testing.TestCase, parameterized.TestCase):
         output4 = model4.serve(x_test)
         self.assertAllClose(output1, output4)
 
+        # test subclass model building without a build method
+        class TestModel(models.Model):
+
+            def __init__(self, layer):
+                super().__init__()
+                self._layer = layer
+
+            def call(self, inputs):
+                return self._layer(inputs)
+
+        layer5 = layer_class(**layer_init_kwargs)
+        model5 = TestModel(layer5)
+        output5 = model5(x_test)
+        self.assertNotAllClose(output5, 0.0)
+
     @parameterized.named_parameters(
         {
             "testcase_name": "training_independent",

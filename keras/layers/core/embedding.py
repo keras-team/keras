@@ -1,3 +1,5 @@
+import warnings
+
 from keras import backend
 from keras import constraints
 from keras import dtype_policies
@@ -20,7 +22,7 @@ class Embedding(Layer):
     Example:
 
     >>> model = keras.Sequential()
-    >>> model.add(keras.layers.Embedding(1000, 64, input_length=10))
+    >>> model.add(keras.layers.Embedding(1000, 64))
     >>> # The model will take as input an integer matrix of size (batch,
     >>> # input_length), and the largest integer (i.e. word index) in the input
     >>> # should be no larger than 999 (vocabulary size).
@@ -79,6 +81,11 @@ class Embedding(Layer):
         lora_rank=None,
         **kwargs,
     ):
+        input_length = kwargs.pop("input_length", None)
+        if input_length is not None:
+            warnings.warn(
+                "Argument `input_length` is deprecated. Just remove it."
+            )
         super().__init__(**kwargs)
         self.input_dim = input_dim
         self.output_dim = output_dim

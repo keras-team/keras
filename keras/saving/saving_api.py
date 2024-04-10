@@ -107,7 +107,7 @@ def save_model(model, filepath, overwrite=True, **kwargs):
             "Invalid filepath extension for saving. "
             "Please add either a `.keras` extension for the native Keras "
             f"format (recommended) or a `.h5` extension. "
-            "Use `tf.saved_model.save()` if you want to export a SavedModel "
+            "Use `model.export(filepath)` if you want to export a SavedModel "
             "for use with TFLite/TFServing/etc. "
             f"Received: filepath={filepath}."
         )
@@ -205,6 +205,25 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         )
 
 
+@keras_export("keras.saving.save_weights")
+def save_weights(model, filepath, overwrite=True, **kwargs):
+    if not str(filepath).endswith(".weights.h5"):
+        raise ValueError(
+            "The filename must end in `.weights.h5`. "
+            f"Received: filepath={filepath}"
+        )
+    try:
+        exists = os.path.exists(filepath)
+    except TypeError:
+        exists = False
+    if exists and not overwrite:
+        proceed = io_utils.ask_to_proceed_with_overwrite(filepath)
+        if not proceed:
+            return
+    saving_lib.save_weights_only(model, filepath, **kwargs)
+
+
+@keras_export("keras.saving.load_weights")
 def load_weights(model, filepath, skip_mismatch=False, **kwargs):
     if str(filepath).endswith(".keras"):
         if kwargs:
@@ -213,10 +232,14 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             model, filepath, skip_mismatch=skip_mismatch
         )
     elif str(filepath).endswith(".weights.h5"):
+        objects_to_skip = kwargs.pop("objects_to_skip", None)
         if kwargs:
             raise ValueError(f"Invalid keyword arguments: {kwargs}")
         saving_lib.load_weights_only(
-            model, filepath, skip_mismatch=skip_mismatch
+            model,
+            filepath,
+            skip_mismatch=skip_mismatch,
+            objects_to_skip=objects_to_skip,
         )
     elif str(filepath).endswith(".h5") or str(filepath).endswith(".hdf5"):
         by_name = kwargs.pop("by_name", False)

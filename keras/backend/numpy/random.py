@@ -67,6 +67,7 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
+    dtype = inputs.dtype
     seed = draw_seed(seed)
 
     keep_prob = 1.0 - rate
@@ -85,7 +86,9 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     rng = np.random.default_rng(seed)
     mask = rng.uniform(size=noise_shape) < keep_prob
     mask = np.broadcast_to(mask, inputs.shape)
-    return np.where(mask, inputs / keep_prob, np.zeros_like(inputs))
+    return np.where(
+        mask, (inputs / keep_prob).astype(dtype), np.zeros_like(inputs)
+    )
 
 
 def shuffle(x, axis=0, seed=None):

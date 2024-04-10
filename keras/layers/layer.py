@@ -274,6 +274,7 @@ class Layer(BackendLayer, Operation):
         self._trainable = trainable
         self._losses = []
         self._loss_ids = set()
+        self._losses_override = []
 
         self._call_signature = inspect.signature(self.call)
         call_signature_parameters = [
@@ -455,6 +456,7 @@ class Layer(BackendLayer, Operation):
         autocast=True,
         regularizer=None,
         constraint=None,
+        aggregation="mean",
         name=None,
     ):
         """Add a weight variable to the layer.
@@ -481,6 +483,10 @@ class Layer(BackendLayer, Operation):
             constraint: Contrainst object to call on the variable after any
                 optimizer update, or string name of a built-in constraint.
                 Defaults to `None`.
+            aggregation: String, one of `'mean'`, `'sum'`,
+                `'only_first_replica'`. Annotates the variable with the type
+                of multi-replica aggregation to be used for this variable
+                when writing custom data parallel training loops.
             name: String name of the variable. Useful for debugging purposes.
         """
         self._check_super_called()
@@ -503,6 +509,7 @@ class Layer(BackendLayer, Operation):
                 dtype=dtype,
                 trainable=trainable,
                 autocast=autocast,
+                aggregation=aggregation,
                 name=name,
             )
         # Will be added to layer.losses
@@ -972,10 +979,7 @@ class Layer(BackendLayer, Operation):
         non_trainable_variables = []
         for v in self.non_trainable_variables:
             new_v = scope.get_current_value(v)
-            if new_v is not None:
-                non_trainable_variables.append(new_v)
-            else:
-                non_trainable_variables.append(v)
+            non_trainable_variables.append(new_v)
 
         if return_losses:
             return outputs, non_trainable_variables, losses
@@ -1088,6 +1092,8 @@ class Layer(BackendLayer, Operation):
     @property
     def losses(self):
         """List of scalar losses from `add_loss`, regularizers and sublayers."""
+        if self._losses_override:
+            return self._losses_override
         losses = self._get_own_losses()
         for layer in self._flatten_layers(include_self=False):
             losses.extend(layer._get_own_losses())
@@ -1194,6 +1200,8 @@ class Layer(BackendLayer, Operation):
             self._tracker.add_to_store("trainable_variables", variable)
         else:
             self._tracker.add_to_store("non_trainable_variables", variable)
+        if not self.trainable:
+            variable.trainable = False
 
     def _untrack_variable(self, variable):
         previous_lock_state = self._tracker.locked

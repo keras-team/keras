@@ -119,8 +119,7 @@ def convert_to_tensor(x, dtype=None, sparse=None):
             x.set_shape(x_shape)
             return x
         return tf.cast(x, dtype=dtype)
-    else:
-        return x
+    return x
 
 
 def convert_to_numpy(x):

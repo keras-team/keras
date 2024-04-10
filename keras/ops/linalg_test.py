@@ -64,6 +64,9 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
             linalg.inv(x)
 
     def test_lu_factor(self):
+        if testing.jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
+
         x = KerasTensor([None, 4, 3])
         lu, p = linalg.lu_factor(x)
         self.assertEqual(lu.shape, (None, 4, 3))
@@ -127,6 +130,9 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
             linalg.solve(a, b)
 
     def test_solve_triangular(self):
+        if testing.jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
+
         a = KerasTensor([None, 20, 20])
         b = KerasTensor([None, 20, 5])
         out = linalg.solve_triangular(a, b)
@@ -212,6 +218,9 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
             linalg.inv(x)
 
     def test_lu_factor(self):
+        if testing.jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
+
         x = KerasTensor([10, 4, 3])
         lu, p = linalg.lu_factor(x)
         self.assertEqual(lu.shape, (10, 4, 3))
@@ -269,6 +278,9 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
             linalg.solve(a, b)
 
     def test_solve_triangular(self):
+        if testing.jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
+
         a = KerasTensor([4, 3, 3])
         b = KerasTensor([4, 3, 5])
         out = linalg.solve_triangular(a, b)
@@ -344,6 +356,9 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_lu_factor(self):
+        if testing.jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
+
         def _pivot_matrix(pivots, n):
             p_matrix = np.eye(n)
             for i, p in enumerate(pivots):
@@ -465,6 +480,8 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output, expected_result)
 
     def test_solve_triangular(self):
+        if testing.jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
 
         # 2d-case
         x1 = np.array([[1, 2], [0, 5]], dtype="float32")

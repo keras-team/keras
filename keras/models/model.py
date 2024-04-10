@@ -1,6 +1,6 @@
 import inspect
 import json
-import os
+import typing
 import warnings
 
 from keras import backend
@@ -9,9 +9,7 @@ from keras.api_export import keras_export
 from keras.layers.layer import Layer
 from keras.models.variable_mapping import map_trackable_variables
 from keras.saving import saving_api
-from keras.saving import saving_lib
 from keras.trainers import trainer as base_trainer
-from keras.utils import io_utils
 from keras.utils import summary_utils
 from keras.utils import traceback_utils
 
@@ -30,7 +28,7 @@ else:
 
 
 @keras_export(["keras.Model", "keras.models.Model"])
-class Model(Trainer, Layer):
+class Model(Trainer, base_trainer.Trainer, Layer):
     """A model grouping layers into an object with training/inference features.
 
     There are three ways to instantiate a `Model`:
@@ -141,7 +139,7 @@ class Model(Trainer, Layer):
             from keras.models import functional
 
             return functional.Functional(*args, **kwargs)
-        return super().__new__(cls)
+        return typing.cast(Model, super().__new__(cls))
 
     def __init__(self, *args, **kwargs):
         Trainer.__init__(self)
@@ -315,20 +313,7 @@ class Model(Trainer, Layer):
                 at the target location, or instead ask the user
                 via an interactive prompt.
         """
-        if not str(filepath).endswith(".weights.h5"):
-            raise ValueError(
-                "The filename must end in `.weights.h5`. "
-                f"Received: filepath={filepath}"
-            )
-        try:
-            exists = os.path.exists(filepath)
-        except TypeError:
-            exists = False
-        if exists and not overwrite:
-            proceed = io_utils.ask_to_proceed_with_overwrite(filepath)
-            if not proceed:
-                return
-        saving_lib.save_weights_only(self, filepath)
+        return saving_api.save_weights(self, filepath, overwrite=True)
 
     @traceback_utils.filter_traceback
     def load_weights(self, filepath, skip_mismatch=False, **kwargs):
@@ -461,10 +446,10 @@ class Model(Trainer, Layer):
         return json.dumps(model_config, **kwargs)
 
     def export(self, filepath, format="tf_saved_model"):
-        """[TF backend only]* Create a TF SavedModel artifact for inference
-        (e.g. via TF-Serving).
+        """Create a TF SavedModel artifact for inference.
 
-        **Note:** This can currently only be used with the TF backend.
+        **Note:** This can currently only be used with
+        the TensorFlow or JAX backends.
 
         This method lets you export a model to a lightweight SavedModel artifact
         that contains the model's forward pass only (its `call()` method)
@@ -615,11 +600,3 @@ def inject_functional_model_class(cls):
     cls.__new__(cls)
 
     return cls
-
-
-Model.fit.__doc__ = base_trainer.Trainer.fit.__doc__
-Model.predict.__doc__ = base_trainer.Trainer.predict.__doc__
-Model.evaluate.__doc__ = base_trainer.Trainer.evaluate.__doc__
-Model.train_on_batch.__doc__ = base_trainer.Trainer.train_on_batch.__doc__
-Model.test_on_batch.__doc__ = base_trainer.Trainer.test_on_batch.__doc__
-Model.predict_on_batch.__doc__ = base_trainer.Trainer.predict_on_batch.__doc__

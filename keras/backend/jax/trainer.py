@@ -7,7 +7,6 @@ import numpy as np
 
 from keras import backend
 from keras import callbacks as callbacks_module
-from keras import ops
 from keras import optimizers as optimizers_module
 from keras.backend import distribution_lib as jax_distribution_lib
 from keras.distribution import distribution_lib
@@ -31,6 +30,7 @@ class JAXTrainer(base_trainer.Trainer):
         self,
         trainable_variables,
         non_trainable_variables,
+        metrics_variables,
         x,
         y,
         sample_weight,
@@ -41,6 +41,8 @@ class JAXTrainer(base_trainer.Trainer):
         kwargs = {}
         if self._call_has_training_arg:
             kwargs["training"] = training
+
+        # Run stateless forward pass
         y_pred, non_trainable_variables, losses = self.stateless_call(
             trainable_variables,
             non_trainable_variables,
@@ -48,26 +50,39 @@ class JAXTrainer(base_trainer.Trainer):
             return_losses=True,
             **kwargs,
         )
-
-        var_mapping = list(zip(self.trainable_variables, trainable_variables))
-        var_mapping.extend(
-            zip(self.non_trainable_variables, non_trainable_variables)
-        )
-        with backend.StatelessScope(state_mapping=var_mapping):
-            # Note that this is needed for the regularization loss, which need
-            # the latest value of train/non-trainable variables.
-            loss = self.compute_loss(
-                x, y, y_pred, sample_weight=sample_weight, allow_empty=True
-            )
         if losses:
-            loss += ops.sum(losses)
+            # Make forward pass losses available to compute_loss.
+            self._losses_override.clear()
+            self._losses_override = losses
+
+        loss, variables = self.stateless_compute_loss(
+            trainable_variables,
+            non_trainable_variables,
+            metrics_variables,
+            x=x,
+            y=y,
+            y_pred=y_pred,
+            sample_weight=sample_weight,
+        )
+        if losses:
+            self._losses_override.clear()
+        (trainable_variables, non_trainable_variables, metrics_variables) = (
+            variables
+        )
+
+        # Handle loss scaling
         unscaled_loss = loss
         if training and self.optimizer is not None:
             # Scale loss with a StatelessScope, to use an update scale variable.
             mapping = list(zip(self.optimizer.variables, optimizer_variables))
             with backend.StatelessScope(state_mapping=mapping):
                 loss = self.optimizer.scale_loss(loss)
-        return loss, (unscaled_loss, y_pred, non_trainable_variables)
+        return loss, (
+            unscaled_loss,
+            y_pred,
+            non_trainable_variables,
+            metrics_variables,
+        )
 
     def train_step(self, state, data):
         (
@@ -83,13 +98,16 @@ class JAXTrainer(base_trainer.Trainer):
         (loss, aux), grads = grad_fn(
             trainable_variables,
             non_trainable_variables,
+            metrics_variables,
             x,
             y,
             sample_weight,
             training=True,
             optimizer_variables=optimizer_variables,
         )
-        (unscaled_loss, y_pred, non_trainable_variables) = aux
+        (unscaled_loss, y_pred, non_trainable_variables, metrics_variables) = (
+            aux
+        )
 
         (
             trainable_variables,
@@ -135,12 +153,15 @@ class JAXTrainer(base_trainer.Trainer):
         loss, aux = self.compute_loss_and_updates(
             trainable_variables,
             non_trainable_variables,
+            metrics_variables,
             x,
             y,
             sample_weight,
             training=False,
         )
-        (unscaled_loss, y_pred, non_trainable_variables) = aux
+        (unscaled_loss, y_pred, non_trainable_variables, metrics_variables) = (
+            aux
+        )
 
         with backend.StatelessScope(
             state_mapping=[
@@ -204,7 +225,7 @@ class JAXTrainer(base_trainer.Trainer):
 
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:
-            return self.train_function
+            return
 
         def one_train_step(state, data):
             data = data[0]
@@ -236,7 +257,7 @@ class JAXTrainer(base_trainer.Trainer):
 
     def make_test_function(self, force=False):
         if self.test_function is not None and not force:
-            return self.test_function
+            return
 
         def one_test_step(state, data):
             data = data[0]
