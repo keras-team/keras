@@ -15,7 +15,7 @@ RESIZE_INTERPOLATIONS = (
 
 
 def rgb_to_grayscale(image, data_format="channels_last"):
-    if data_format == "channel_first":
+    if data_format == "channels_first":
         if len(image.shape) == 4:
             image = jnp.transpose(image, (0, 2, 3, 1))
         elif len(image.shape) == 3:
