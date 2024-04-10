@@ -567,7 +567,7 @@ class BaseOptimizer:
         ):
             return self._learning_rate(self.iterations)
         elif callable(self._learning_rate):
-            return self._learning_rate(self.iterations)
+            return self._learning_rate()
         return self._learning_rate
 
     def _filter_empty_gradients(self, grads, vars):
