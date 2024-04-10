@@ -23,6 +23,7 @@ from keras.utils.naming import to_snake_case
 ALL_OBJECTS = {
     Initializer,
     Constant,
+    Identity,
     Ones,
     Zeros,
     GlorotNormal,
