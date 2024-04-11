@@ -255,3 +255,23 @@ class StackedRNNTest(testing.TestCase):
         self.assertAllClose(
             np.array([[136368.0, 136368.0], [692784.0, 692784.0]]), output
         )
+
+    def test_return_state_stacked_lstm_cell(self):
+        layer = layers.RNN(
+            [layers.LSTMCell(10), layers.LSTMCell(10)], return_state=True
+        )
+        out = layer(np.zeros((2, 3, 5)))
+        self.assertLen(out, 3)
+        self.assertEqual(out[0].shape, (2, 10))
+        self.assertEqual(out[1][0].shape, (2, 10))
+        self.assertEqual(out[1][1].shape, (2, 10))
+        self.assertEqual(out[2][0].shape, (2, 10))
+        self.assertEqual(out[2][1].shape, (2, 10))
+
+        shape = layer.compute_output_shape((2, 3, 5))
+        self.assertLen(shape, 3)
+        self.assertEqual(shape[0], (2, 10))
+        self.assertEqual(shape[1][0], (2, 10))
+        self.assertEqual(shape[1][1], (2, 10))
+        self.assertEqual(shape[2][0], (2, 10))
+        self.assertEqual(shape[2][1], (2, 10))
