@@ -2244,3 +2244,56 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(knn.Softsign().symbolic_call(x).dtype),
             expected_dtype,
         )
+
+    def test_softmax_on_axis_with_size_one_warns(self):
+        x = np.array([[1.0]])
+        # Applying softmax on the second axis, which has size 1
+        axis = 1
+
+        # Expected warning message
+        expected_warning_regex = (
+            r"You are using a softmax over axis 1 "
+            r"of a tensor of shape \(1, 1\)\. This axis "
+            r"has size 1\. The softmax operation will always return "
+            r"the value 1, which is likely not what you intended\. "
+            r"Did you mean to use a sigmoid instead\?"
+        )
+
+        with self.assertWarnsRegex(UserWarning, expected_warning_regex):
+            knn.softmax(x, axis)
+
+    def test_normalize_order_validation(self):
+        # Test with a non-integer order
+        with self.assertRaisesRegex(
+            ValueError, "Argument `order` must be an int >= 1"
+        ):
+            knn.normalize(np.array([1, 2, 3]), order="a")
+
+        # Test with a negative integer
+        with self.assertRaisesRegex(
+            ValueError, "Argument `order` must be an int >= 1"
+        ):
+            knn.normalize(np.array([1, 2, 3]), order=-1)
+
+        # Test with zero
+        with self.assertRaisesRegex(
+            ValueError, "Argument `order` must be an int >= 1"
+        ):
+            knn.normalize(np.array([1, 2, 3]), order=0)
+
+        # Test with a floating-point number
+        with self.assertRaisesRegex(
+            ValueError, "Argument `order` must be an int >= 1"
+        ):
+            knn.normalize(np.array([1, 2, 3]), order=2.5)
+
+    def test_check_shape_first_dim_mismatch(self):
+        name1, shape1 = "labels", (2, 3)
+        name2, shape2 = "logits", (3, 4, 5)
+        ctc_loss_instance = knn.CtcLoss(mask_index=-1)
+        with self.assertRaisesRegex(
+            ValueError, "must have the same first dimension"
+        ):
+            ctc_loss_instance._check_shape_first_dim(
+                name1, shape1, name2, shape2
+            )
