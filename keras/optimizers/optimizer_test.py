@@ -252,3 +252,11 @@ class OptimizerTest(testing.TestCase):
         optimizer.apply_gradients([(grads, v)])
         self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]], atol=1e-4)
         self.assertAllClose(optimizer.iterations, 1)
+
+    def test_setting_lr_to_callable_untracks_lr_var(self):
+        adam = optimizers.Adam(learning_rate=0.001)
+        self.assertLen(adam.variables, 2)
+        adam.learning_rate = optimizers.schedules.PolynomialDecay(
+            adam.learning_rate, 4
+        )
+        self.assertLen(adam.variables, 1)
