@@ -180,7 +180,9 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             safe_mode=safe_mode,
         )
     if str(filepath).endswith((".h5", ".hdf5")):
-        return legacy_h5_format.load_model_from_hdf5(filepath)
+        return legacy_h5_format.load_model_from_hdf5(
+            filepath, custom_objects=None, compile=compile
+        )
     elif str(filepath).endswith(".keras"):
         raise ValueError(
             f"File not found: filepath={filepath}. "
