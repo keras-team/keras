@@ -40,7 +40,7 @@ class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
             expected_output_shape=(2, 8, 16),
             expected_num_trainable_weights=4,
             expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
+            expected_num_seed_generators=1,
             expected_num_losses=0,
             supports_masking=True,
             run_training_check=False,

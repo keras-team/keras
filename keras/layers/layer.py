@@ -562,8 +562,10 @@ class Layer(BackendLayer, Operation):
             if id(v) not in seen_ids:
                 variables.append(v)
                 seen_ids.add(id(v))
-        for sg in self._seed_generators:
-            variables.append(sg.state)
+        for sg in self.seed_generators:
+            if id(sg.state) not in seen_ids:
+                variables.append(sg.state)
+                seen_ids.add(id(sg.state))
         for layer in self._layers:
             for v in layer.variables:
                 if id(v) not in seen_ids:
@@ -645,6 +647,22 @@ class Layer(BackendLayer, Operation):
             for metric in layer._metrics:
                 vars.extend(metric.variables)
         return vars
+
+    @property
+    def seed_generators(self):
+        """List of all seed generators."""
+        seed_generators = []
+        seen_ids = set()
+        for sg in self._seed_generators:
+            if id(sg) not in seen_ids:
+                seed_generators.append(sg)
+                seen_ids.add(id(sg))
+        for layer in self._layers:
+            for sg in layer.seed_generators:
+                if id(sg) not in seen_ids:
+                    seed_generators.append(sg)
+                    seen_ids.add(id(sg))
+        return seed_generators
 
     def get_weights(self):
         """Return the values of `layer.weights` as a list of NumPy arrays."""
@@ -1204,12 +1222,18 @@ class Layer(BackendLayer, Operation):
         if not self.trainable:
             variable.trainable = False
 
+        if backend.backend() == "torch" and hasattr(self, "torch_params"):
+            self.torch_params[variable.path] = variable.value
+
     def _untrack_variable(self, variable):
         previous_lock_state = self._tracker.locked
         self._tracker.unlock()
         self._tracker.untrack(variable)
         if previous_lock_state is True:
             self._tracker.lock()
+
+        if backend.backend() == "torch" and hasattr(self, "torch_params"):
+            del self.torch_params[variable.path]
 
     def add_metric(self):
         # Permanently disabled

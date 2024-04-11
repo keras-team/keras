@@ -5,7 +5,9 @@ import numpy as np
 from keras import backend
 from keras.api_export import keras_export
 from keras.backend.common import global_state
+from keras.backend.common.name_scope import current_path
 from keras.utils import jax_utils
+from keras.utils.naming import auto_name
 
 
 @keras_export("keras.random.SeedGenerator")
@@ -44,7 +46,12 @@ class SeedGenerator:
     ```
     """
 
-    def __init__(self, seed=None, **kwargs):
+    def __init__(self, seed=None, name=None, **kwargs):
+        if name is None:
+            name = auto_name(self.__class__.__name__)
+        self.name = name
+        self._parent_path = None
+
         custom_backend = kwargs.pop("backend", None)
         if kwargs:
             raise ValueError(f"Unrecognized keyword arguments: {kwargs}")
@@ -66,13 +73,14 @@ class SeedGenerator:
             dtype = kwargs.get("dtype", None)
             return self.backend.convert_to_tensor([seed, 0], dtype=dtype)
 
-        self.state = self.backend.Variable(
-            seed_initializer,
-            shape=(2,),
-            dtype="uint32",
-            trainable=False,
-            name="seed_generator_state",
-        )
+        with self._open_name_scope():
+            self.state = self.backend.Variable(
+                seed_initializer,
+                shape=(2,),
+                dtype="uint32",
+                trainable=False,
+                name="seed_generator_state",
+            )
 
     def next(self, ordered=True):
         seed_state = self.state
@@ -95,6 +103,11 @@ class SeedGenerator:
     @classmethod
     def from_config(cls, config):
         return cls(**config)
+
+    def _open_name_scope(self):
+        if self._parent_path is None:
+            self._parent_path = current_path()
+        return backend.name_scope(self.name, caller=self)
 
 
 def global_seed_generator():

@@ -291,9 +291,22 @@ class TestCase(unittest.TestCase):
                 )
             if expected_num_seed_generators is not None:
                 self.assertLen(
-                    layer._seed_generators,
+                    layer.seed_generators,
                     expected_num_seed_generators,
-                    msg="Unexpected number of _seed_generators",
+                    msg="Unexpected number of seed_generators",
+                )
+            if (
+                backend.backend() == "torch"
+                and expected_num_trainable_weights is not None
+                and expected_num_non_trainable_weights is not None
+                and expected_num_seed_generators is not None
+            ):
+                self.assertLen(
+                    layer.torch_params,
+                    expected_num_trainable_weights
+                    + expected_num_non_trainable_weights
+                    + expected_num_seed_generators,
+                    msg="Unexpected number of torch_params",
                 )
 
         def run_output_asserts(layer, output, eager=False):

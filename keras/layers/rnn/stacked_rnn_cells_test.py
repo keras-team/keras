@@ -95,7 +95,7 @@ class StackedRNNTest(testing.TestCase):
             expected_output_shape=(2, 3, 5),
             expected_num_trainable_weights=9,
             expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
+            expected_num_seed_generators=3,
             supports_masking=True,
         )
         self.run_layer_test(
@@ -112,7 +112,7 @@ class StackedRNNTest(testing.TestCase):
             expected_output_shape=(2, 3, 5),
             expected_num_trainable_weights=9,
             expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
+            expected_num_seed_generators=3,
             supports_masking=True,
         )
         self.run_layer_test(
@@ -129,7 +129,7 @@ class StackedRNNTest(testing.TestCase):
             expected_output_shape=(2, 3, 5),
             expected_num_trainable_weights=9,
             expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
+            expected_num_seed_generators=3,
             supports_masking=True,
         )
 

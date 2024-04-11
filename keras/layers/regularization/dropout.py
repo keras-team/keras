@@ -49,10 +49,8 @@ class Dropout(Layer):
         self.rate = rate
         self.seed = seed
         self.noise_shape = noise_shape
-        if rate > 0:
-            self.seed_generator = backend.random.SeedGenerator(seed)
+        self.seed_generator = backend.random.SeedGenerator(seed)
         self.supports_masking = True
-        self.built = True
 
     def call(self, inputs, training=False):
         if training and self.rate > 0:
