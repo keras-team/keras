@@ -60,3 +60,18 @@ class QuantizersTest(testing.TestCase):
         self.assertAllClose(
             computed_amax_history[1:], ops.roll(amax_history, -1)[1:]
         )
+
+    def test_quantize_and_dequantize(self):
+        scale = 1.0 / 100.0
+        values = random.uniform([3, 4, 5], minval=-1, maxval=1)
+        qdq_values = quantizers.quantize_and_dequantize(
+            values, scale, "float8_e4m3fn", "float32"
+        )
+        # A loose assertion due to an expected quantization error
+        self.assertAllClose(qdq_values, values, atol=1e-1)
+
+        qdq_values = quantizers.quantize_and_dequantize(
+            values, scale, "float8_e5m2", "float32"
+        )
+        # A loose assertion due to an expected quantization error
+        self.assertAllClose(qdq_values, values, atol=5e-1)
