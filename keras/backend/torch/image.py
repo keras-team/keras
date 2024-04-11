@@ -14,6 +14,38 @@ UNSUPPORTED_INTERPOLATIONS = (
 )
 
 
+def rgb_to_grayscale(image, data_format="channel_last"):
+    try:
+        import torchvision
+    except:
+        raise ImportError(
+            "The torchvision package is necessary to use "
+            "`rgb_to_grayscale` with the torch backend. "
+            "Please install torchvision. "
+        )
+    image = convert_to_tensor(image)
+    if data_format == "channels_last":
+        if image.ndim == 4:
+            image = image.permute((0, 3, 1, 2))
+        elif image.ndim == 3:
+            image = image.permute((2, 0, 1))
+        else:
+            raise ValueError(
+                "Invalid input rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"image.shape={image.shape}"
+            )
+    grayscale_image = torchvision.transforms.functional.rgb_to_grayscale(
+        img=image,
+    )
+    if data_format == "channels_last":
+        if len(image.shape) == 4:
+            grayscale_image = grayscale_image.permute((0, 2, 3, 1))
+        elif len(image.shape) == 3:
+            grayscale_image = grayscale_image.permute((1, 2, 0))
+    return grayscale_image
+
+
 def resize(
     image,
     size,
