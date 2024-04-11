@@ -175,9 +175,9 @@ class TensorflowSparseSliceable(TensorflowSliceable):
 
     @classmethod
     def convert_to_torch_compatible(cls, x):
-        from keras.utils.module_utils import tensorflow as tf
+        from keras.backend.tensorflow import sparse as tf_sparse
 
-        return tf.sparse.to_dense(x)
+        return tf_sparse.sparse_to_dense(x)
 
 
 class JaxSliceable(Sliceable):
