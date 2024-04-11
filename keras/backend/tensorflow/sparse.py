@@ -9,12 +9,14 @@ ones_like_int8 = functools.partial(tf.ones_like, dtype=tf.int8)
 zeros_like_int8 = functools.partial(tf.zeros_like, dtype=tf.int8)
 
 
-def empty_tensor(shape, dtype):
-    return tf.reshape(tf.convert_to_tensor((), dtype=dtype), shape=shape)
-
-
 def sparse_to_dense(x, default_value=None):
     x_shape = x.shape
+    if x_shape.rank == 0:
+        # Workaround for bug on GPU when sparse tensor represents a scalar.
+        if x.values.shape[0] == 0:
+            return tf.constant(default_value, dtype=x.dtype)
+        else:
+            return tf.reshape(x.values, ())
     x = tf.sparse.to_dense(x, default_value=default_value)
     x.set_shape(x_shape)
     return x
@@ -184,9 +186,9 @@ def sparse_intersection_indices_and_values(x1, x2):
 
     def empty_intersection():
         return (
-            empty_tensor((0, x1.shape.rank), dtype=tf.int64),
-            empty_tensor((0,), dtype=x1.values.dtype),
-            empty_tensor((0,), dtype=x2.values.dtype),
+            tf.zeros((0, x1.shape.rank), dtype=tf.int64),
+            tf.zeros((0,), dtype=x1.values.dtype),
+            tf.zeros((0,), dtype=x2.values.dtype),
         )
 
     def non_empty_intersection():
@@ -249,8 +251,8 @@ def indexed_slices_intersection_indices_and_values(x1, x2):
     def empty_intersection():
         return (
             intersection_indices,
-            empty_tensor((0,) + x1.values.shape[1:], x1.dtype),
-            empty_tensor((0,) + x2.values.shape[1:], x2.dtype),
+            tf.zeros((0,) + x1.values.shape[1:], x1.dtype),
+            tf.zeros((0,) + x2.values.shape[1:], x2.dtype),
         )
 
     def non_empty_intersection():
