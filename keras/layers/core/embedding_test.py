@@ -202,13 +202,6 @@ class EmbeddingTest(test_case.TestCase):
         ):
             layer.enable_lora(rank=2)
 
-    def test_enable_lora_on_unbuilt_layer(self):
-        layer = layers.Embedding(input_dim=10, output_dim=16)
-        with self.assertRaisesRegex(
-            ValueError, "Cannot enable lora on a layer that isn't yet built"
-        ):
-            layer.enable_lora(rank=2)
-
     def test_enable_lora_when_already_enabled(self):
         layer = layers.Embedding(input_dim=10, output_dim=16)
         layer.build()
@@ -305,13 +298,6 @@ class EmbeddingTest(test_case.TestCase):
             supports_masking=True,
         )
 
-    def test_quantize_on_unbuilt_layer(self):
-        layer = layers.Embedding(10, 16)
-        with self.assertRaisesRegex(
-            ValueError, "Cannot quantize a layer that isn't yet built."
-        ):
-            layer.quantize("int8")
-
     def test_quantize_on_subclass(self):
         class MyEmbedding(layers.Embedding):
             pass
@@ -405,3 +391,9 @@ class EmbeddingTest(test_case.TestCase):
                 reloaded_layer.non_trainable_weights,
                 len(model.non_trainable_weights),
             )
+
+    def test_weights_constructor_arg(self):
+        layer = layers.Embedding(3, 4, weights=np.ones((3, 4)))
+        self.assertAllClose(layer.embeddings.numpy(), np.ones((3, 4)))
+        layer = layers.Embedding(3, 4, weights=[np.ones((3, 4))])
+        self.assertAllClose(layer.embeddings.numpy(), np.ones((3, 4)))
