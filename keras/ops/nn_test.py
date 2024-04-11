@@ -2299,3 +2299,14 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
             ValueError, "Argument `order` must be an int >= 1"
         ):
             knn.normalize(np.array([1, 2, 3]), order=2.5)
+
+    def test_check_shape_first_dim_mismatch(self):
+        name1, shape1 = "labels", (2, 3)
+        name2, shape2 = "logits", (3, 4, 5)
+        ctc_loss_instance = knn.CtcLoss(mask_index=-1)
+        with self.assertRaisesRegex(
+            ValueError, "must have the same first dimension"
+        ):
+            ctc_loss_instance._check_shape_first_dim(
+                name1, shape1, name2, shape2
+            )
