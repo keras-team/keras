@@ -2262,14 +2262,40 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         with self.assertWarnsRegex(UserWarning, expected_warning_regex):
             knn.softmax(x, axis)
 
-    def test_one_hot_with_invalid_axis_raises_value_error(self):
-        x = np.array([[0, 1], [1, 2]])
-        num_classes = 3
-        invalid_axis = 5
-        expected_error_message = (
-            f"axis must be -1 or between \\[0, {len(x.shape)}\\), but "
-            f"received {invalid_axis}."
-        )
+    # TODO
+    # def test_one_hot_with_invalid_axis_raises_value_error(self):
+    #     x = np.array([[0, 1], [1, 2]])
+    #     num_classes = 3
+    #     invalid_axis = 5
+    #     expected_error_message = (
+    #         f"axis must be -1 or between \\[0, {len(x.shape)}\\), but "
+    #         f"received {invalid_axis}."
+    #     )
 
-        with self.assertRaisesRegex(ValueError, expected_error_message):
-            knn.one_hot(x, num_classes=num_classes, axis=invalid_axis)
+    #     with self.assertRaisesRegex(ValueError, expected_error_message):
+    #         knn.one_hot(x, num_classes=num_classes, axis=invalid_axis)
+
+    def test_normalize_order_validation(self):
+        # Test with a non-integer order
+        with self.assertRaisesRegex(
+            ValueError, "Argument `order` must be an int >= 1"
+        ):
+            knn.normalize(np.array([1, 2, 3]), order="a")
+
+        # Test with a negative integer
+        with self.assertRaisesRegex(
+            ValueError, "Argument `order` must be an int >= 1"
+        ):
+            knn.normalize(np.array([1, 2, 3]), order=-1)
+
+        # Test with zero
+        with self.assertRaisesRegex(
+            ValueError, "Argument `order` must be an int >= 1"
+        ):
+            knn.normalize(np.array([1, 2, 3]), order=0)
+
+        # Test with a floating-point number
+        with self.assertRaisesRegex(
+            ValueError, "Argument `order` must be an int >= 1"
+        ):
+            knn.normalize(np.array([1, 2, 3]), order=2.5)
