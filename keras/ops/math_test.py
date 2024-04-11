@@ -1166,3 +1166,30 @@ class ISTFTTest(testing.TestCase):
         low_rank_input = np.random.rand(3)
         with self.assertRaisesRegex(ValueError, "Input should have rank >= 2"):
             istft_op.compute_output_spec((low_rank_input, low_rank_input))
+
+    def test_compute_output_spec_input_validation(self):
+        irfft_op = kmath.IRFFT()
+
+        # Test with input that is not a tuple or list
+        invalid_input = np.array([1, 2, 3])
+        with self.assertRaisesRegex(
+            ValueError, "Input `x` should be a tuple of two tensors"
+        ):
+            irfft_op.compute_output_spec(invalid_input)
+
+        # Test with input that is a tuple but does not have exactly two elements
+        too_short_input = (np.array([1, 2, 3]),)
+        with self.assertRaisesRegex(
+            ValueError, "Input `x` should be a tuple of two tensors"
+        ):
+            irfft_op.compute_output_spec(too_short_input)
+
+        too_long_input = (
+            np.array([1, 2, 3]),
+            np.array([4, 5, 6]),
+            np.array([7, 8, 9]),
+        )
+        with self.assertRaisesRegex(
+            ValueError, "Input `x` should be a tuple of two tensors"
+        ):
+            irfft_op.compute_output_spec(too_long_input)
