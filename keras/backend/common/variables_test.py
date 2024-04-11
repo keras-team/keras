@@ -783,3 +783,22 @@ class TestStandardizeShapeWithOutTorch(test_case.TestCase):
         shape_valid = [3, 4, 5]
         standardized_shape = standardize_shape(shape_valid)
         self.assertEqual(standardized_shape, (3, 4, 5))
+
+
+class TestKerasVariableErrors(test_case.TestCase):
+    def test_invalid_aggregation_raises_error(self):
+        invalid_aggregation = (
+            "average"  # An example of unsupported aggregation type
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid valid for argument `aggregation`. Expected "
+            "one of {'mean', 'sum', 'only_first_replica'}. "
+            f"Received: aggregation={invalid_aggregation}",
+        ):
+            KerasVariable(
+                initializer=1.0,
+                shape=(1,),
+                dtype="float32",
+                aggregation=invalid_aggregation,
+            )
