@@ -2262,19 +2262,6 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         with self.assertWarnsRegex(UserWarning, expected_warning_regex):
             knn.softmax(x, axis)
 
-    # TODO
-    # def test_one_hot_with_invalid_axis_raises_value_error(self):
-    #     x = np.array([[0, 1], [1, 2]])
-    #     num_classes = 3
-    #     invalid_axis = 5
-    #     expected_error_message = (
-    #         f"axis must be -1 or between \\[0, {len(x.shape)}\\), but "
-    #         f"received {invalid_axis}."
-    #     )
-
-    #     with self.assertRaisesRegex(ValueError, expected_error_message):
-    #         knn.one_hot(x, num_classes=num_classes, axis=invalid_axis)
-
     def test_normalize_order_validation(self):
         # Test with a non-integer order
         with self.assertRaisesRegex(
