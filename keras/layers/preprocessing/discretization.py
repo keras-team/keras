@@ -147,7 +147,6 @@ class Discretization(TFDataLayer):
         self.sparse = sparse
 
         if self.bin_boundaries:
-            self.built = True
             self.summary = None
         else:
             self.summary = np.array([[], []], dtype="float32")

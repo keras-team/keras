@@ -308,7 +308,7 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
         layer.value_dense.enable_lora(2)
 
         self.assertLen(layer.trainable_variables, 7)
-        self.assertLen(layer.non_trainable_variables, 3)
+        self.assertLen(layer.non_trainable_variables, 4)
 
         # Try eager call
         x = {
