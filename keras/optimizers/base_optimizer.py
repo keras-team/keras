@@ -212,9 +212,7 @@ class BaseOptimizer:
             name = reference_variable.path.replace("/", "_") + "_" + name
         else:
             name = (
-                str(reference_variable.name)
-                .replace("/", "_")
-                .replace(":", "_")
+                str(reference_variable.name).replace("/", "_").replace(":", "_")
                 + "_"
                 + name
             )
