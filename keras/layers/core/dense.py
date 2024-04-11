@@ -471,7 +471,7 @@ class Dense(Layer):
                     ops.max(amax_history, axis=0),
                     scale,
                     ops.cast(
-                        float(ml_dtypes.finfo("float8_e4m3fn").max), "float32"
+                        float(ml_dtypes.finfo("float8_e5m2").max), "float32"
                     ),
                 )
                 qdq_upstream = quantizers.quantize_and_dequantize(
@@ -575,6 +575,10 @@ class Dense(Layer):
         ):
             quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
             self.dtype_policy = dtype_policies.get(quantized_dtype)
+
+        # Capture new variables for `TorchLayer`
+        if hasattr(self, "_track_variables"):
+            self._track_variables()
 
         # Release memory manually because sometimes the backend doesn't
         gc.collect()

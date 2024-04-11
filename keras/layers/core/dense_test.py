@@ -9,6 +9,8 @@ from keras import constraints
 from keras import layers
 from keras import models
 from keras import ops
+from keras import optimizers
+from keras import random
 from keras import saving
 from keras import testing
 from keras.backend.common import keras_tensor
@@ -531,6 +533,119 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             expected_num_losses=0,
             supports_masking=True,
         )
+
+    @pytest.mark.requires_trainable_backend
+    def test_quantize_float8(self):
+        import ml_dtypes
+
+        from keras import quantizers
+
+        layer = layers.Dense(units=32)
+        layer.build((None, 16))
+        layer.quantize("float8")
+        optimizer = optimizers.AdamW(learning_rate=0.1)
+        optimizer.build(layer.trainable_variables)
+
+        def loss_fn(x, dy):
+            y = layer(x, training=True)
+            loss = y * ops.cast(dy, y.dtype)
+            return ops.sum(loss)
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            @tf.function(jit_compile=True)
+            def train_one_step(x, dy):
+                with tf.GradientTape() as tape:
+                    loss = loss_fn(x, dy)
+                grads = tape.gradient(loss, layer.trainable_variables)
+                optimizer.apply(grads, layer.trainable_variables)
+
+        elif backend.backend() == "jax":
+            import jax
+
+            def stateless_loss_fn(trainable_variables, x, dy):
+                y = layer.stateless_call(trainable_variables, [], x)[0]
+                loss = y * ops.cast(dy, y.dtype)
+                return ops.sum(loss)
+
+            grad_fn = jax.jit(jax.grad(stateless_loss_fn))
+
+            def train_one_step(x, dy):
+                trainable_variables = [
+                    v.value for v in layer.trainable_variables
+                ]
+                optimizer_variables = [v.value for v in optimizer.variables]
+                grads = grad_fn(trainable_variables, x, dy)
+                trainable_variables, optimizer_variables = (
+                    optimizer.stateless_apply(
+                        optimizer_variables, grads, trainable_variables
+                    )
+                )
+                for variable, value in zip(
+                    layer.trainable_variables, trainable_variables
+                ):
+                    variable.assign(value)
+                for variable, value in zip(
+                    optimizer.variables, optimizer_variables
+                ):
+                    variable.assign(value)
+
+        elif backend.backend() == "torch":
+
+            def train_one_step(x, dy):
+                layer.zero_grad()
+                loss = loss_fn(x, dy)
+                loss.backward()
+                grads = [v.value.grad for v in layer.trainable_variables]
+                optimizer.apply(grads, layer.trainable_variables)
+
+        scale_x, amax_history_x = ops.ones(()), ops.zeros((1024,))
+        scale_k, amax_history_k = ops.ones(()), ops.zeros((1024,))
+        scale_g, amax_history_g = ops.ones(()), ops.zeros((1024,))
+        e4m3_max = ops.cast(
+            float(ml_dtypes.finfo("float8_e4m3fn").max), "float32"
+        )
+        e5m2_max = ops.cast(
+            float(ml_dtypes.finfo("float8_e5m2").max), "float32"
+        )
+
+        for _ in range(3):
+            x = random.normal((16, 16), dtype="float32")
+            g = random.normal((16, 32), dtype="float32")
+            k = ops.convert_to_tensor(layer._kernel)
+
+            # Manually compute the expected amax history and scaling factors.
+            amax_from_history_x = ops.max(amax_history_x)
+            amax_from_history_k = ops.max(amax_history_k)
+            amax_from_history_g = ops.max(amax_history_g)
+            scale_x = quantizers.compute_float8_scale(
+                amax_from_history_x, scale_x, e4m3_max
+            )
+            scale_k = quantizers.compute_float8_scale(
+                amax_from_history_k, scale_k, e4m3_max
+            )
+            scale_g = quantizers.compute_float8_scale(
+                amax_from_history_g, scale_g, e5m2_max
+            )
+            amax_history_x = quantizers.compute_float8_amax_history(
+                x, amax_history_x
+            )
+            amax_history_k = quantizers.compute_float8_amax_history(
+                k, amax_history_k
+            )
+            amax_history_g = quantizers.compute_float8_amax_history(
+                g, amax_history_g
+            )
+
+            train_one_step(x, g)
+
+            self.assertAllClose(layer.inputs_amax_history, amax_history_x)
+            self.assertAllClose(layer.kernel_amax_history, amax_history_k)
+            self.assertAllClose(layer.outputs_grad_amax_history, amax_history_g)
+            self.assertAllClose(layer.inputs_scale, scale_x)
+            self.assertAllClose(layer.kernel_scale, scale_k)
+            self.assertAllClose(layer.outputs_grad_scale, scale_g)
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_float8_fitting(self):
