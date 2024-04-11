@@ -787,9 +787,7 @@ class TestStandardizeShapeWithOutTorch(test_case.TestCase):
 
 class TestKerasVariableErrors(test_case.TestCase):
     def test_invalid_aggregation_raises_error(self):
-        invalid_aggregation = (
-            "average"  # An example of unsupported aggregation type
-        )
+        invalid_aggregation = "average"
         with self.assertRaisesRegex(
             ValueError,
             "Invalid valid for argument `aggregation`. Expected "
