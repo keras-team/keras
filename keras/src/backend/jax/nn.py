@@ -868,6 +868,114 @@ def ctc_beam_search_decode(
     return paths, scores
 
 
+def ctc_beam_search_decode(
+    inputs,
+    sequence_length,
+    beam_width=100,
+    top_paths=1,
+    merge_repeated=True,
+    mask_index=None,
+):
+    inputs = jnp.array(inputs)
+    sequence_length = jnp.array(sequence_length)
+
+    batch_size, max_seq_len, num_classes = inputs.shape
+    inputs = inputs.transpose((1, 0, 2))
+    inputs = jnn.log_softmax(inputs)
+
+    seqlen_mask = jnp.arange(max_seq_len)[None, :] >= sequence_length[:, None]
+    seqlen_mask = seqlen_mask.transpose()
+
+    if mask_index is None:
+        mask_index = inputs.shape[-1] - 1
+
+    _pad = -1
+    init_paths = jnp.full(
+        (batch_size, beam_width, max_seq_len),
+        fill_value=_pad,
+        dtype="int32",
+    )
+    init_scores = jnp.full(
+        (batch_size, beam_width), fill_value=-jnp.inf, dtype="float32"
+    )
+
+    num_init_classes = jnp.min(jnp.array([beam_width, num_classes]))
+    init_classes = jnp.argsort(inputs[0], axis=1)
+    init_classes = init_classes[:, -num_init_classes:][:, ::-1]
+    init_classes = jnp.where(init_classes == mask_index, _pad, init_classes)
+
+    init_inputs = jnp.sort(inputs[0], axis=1)
+    init_inputs = init_inputs[:, -num_init_classes:][:, ::-1]
+
+    init_paths = init_paths.at[:, :num_init_classes, 0].set(init_classes)
+    init_scores = init_scores.at[:, :num_init_classes].set(init_inputs)
+
+    def _extend_batch(prev_paths, prev_scores, x, seqlen_mask):
+        prev_paths = jnp.tile(prev_paths, (num_classes, 1))
+        prev_scores = jnp.tile(prev_scores, (num_classes,))
+
+        path_end_index = jnp.argmax(prev_paths == _pad, axis=1)
+        paths_arange = jnp.arange(num_classes * beam_width)
+        path_tails = prev_paths[paths_arange, path_end_index - 1]
+        path_tails = jnp.where(path_end_index == 0, _pad, path_tails)
+
+        classes = jnp.arange(num_classes).repeat(beam_width)
+        classes = jnp.where(path_tails == classes, _pad, classes)
+        classes = jnp.where(classes == mask_index, _pad, classes)
+
+        paths = prev_paths.at[paths_arange, path_end_index].set(classes)
+
+        x = jnp.repeat(x, beam_width)
+        scores = prev_scores + x
+
+        return paths, scores
+
+    def _prune_batch(paths, scores):
+        paths, unique_inverse = jnp.unique(
+            paths,
+            return_inverse=True,
+            axis=0,
+            size=num_classes * beam_width,
+            fill_value=_pad,
+        )
+        unique_inverse = jnp.squeeze(unique_inverse)
+
+        scores_max = jnp.max(scores)
+        scores_exp = jnp.exp(scores - scores_max)
+
+        scores = jnp.zeros_like(scores).at[unique_inverse].add(scores_exp)
+        scores = jnp.log(scores) + scores_max
+
+        top_indices = jnp.argsort(scores)[-beam_width:][::-1]
+        top_scores = scores[top_indices]
+        top_paths = paths[top_indices]
+
+        return top_paths, top_scores
+
+    def _iterate_batch(paths, scores, x, seqlen_mask):
+        paths, scores = _extend_batch(paths, scores, x, seqlen_mask)
+        paths, scores = _prune_batch(paths, scores)
+        return paths, scores
+
+    def _iterate(prev, x):
+        prev_paths, prev_scores = prev
+        x, seqlen_mask = x
+
+        paths, scores = jax.vmap(_iterate_batch)(
+            prev_paths, prev_scores, x, seqlen_mask
+        )
+
+        return (paths, scores), (paths, scores)
+
+    (paths, scores), _ = lax.scan(
+        _iterate,
+        (init_paths, init_scores),
+        (inputs[1:], seqlen_mask[1:]),
+    )
+
+    return [paths], scores
+
+
 def ctc_decode(
     inputs,
     sequence_length,
