@@ -9,6 +9,7 @@ from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.name_scope import name_scope as base_name_scope
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.common.stateless_scope import in_stateless_scope
+from keras.backend.tensorflow.sparse import sparse_to_dense
 from keras.utils import tree
 from keras.utils.naming import auto_name
 
@@ -100,9 +101,7 @@ class Variable(
 
 def convert_to_tensor(x, dtype=None, sparse=None):
     if isinstance(x, tf.SparseTensor) and sparse is not None and not sparse:
-        x_shape = x.shape
-        x = tf.sparse.to_dense(x)
-        x.set_shape(x_shape)
+        x = sparse_to_dense(x)
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if not tf.is_tensor(x):
@@ -124,9 +123,7 @@ def convert_to_tensor(x, dtype=None, sparse=None):
 
 def convert_to_numpy(x):
     if isinstance(x, tf.SparseTensor):
-        x_shape = x.shape
-        x = tf.sparse.to_dense(x)
-        x.set_shape(x_shape)
+        x = sparse_to_dense(x)
     elif isinstance(x, tf.IndexedSlices):
         x = tf.convert_to_tensor(x)
     elif isinstance(x, tf.RaggedTensor):
