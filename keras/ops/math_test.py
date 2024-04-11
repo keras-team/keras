@@ -1216,3 +1216,42 @@ class ISTFTTest(testing.TestCase):
 
         with self.assertRaisesRegex(ValueError, "Input should have rank >= 1"):
             irfft_op.compute_output_spec((real_part, imag_part))
+
+    def test_with_specified_fft_length(self):
+        fft_length = 10
+        irfft_op = kmath.IRFFT(fft_length=fft_length)
+
+        real_part = np.random.rand(4, 8)
+        imag_part = np.random.rand(4, 8)
+
+        expected_shape = real_part.shape[:-1] + (fft_length,)
+        output_shape = irfft_op.compute_output_spec(
+            (real_part, imag_part)
+        ).shape
+
+        self.assertEqual(output_shape, expected_shape)
+
+    def test_inferred_fft_length_with_defined_last_dimension(self):
+        irfft_op = kmath.IRFFT()
+
+        real_part = np.random.rand(4, 8)
+        imag_part = np.random.rand(4, 8)
+
+        inferred_fft_length = 2 * (real_part.shape[-1] - 1)
+        expected_shape = real_part.shape[:-1] + (inferred_fft_length,)
+        output_shape = irfft_op.compute_output_spec(
+            (real_part, imag_part)
+        ).shape
+
+        self.assertEqual(output_shape, expected_shape)
+
+    def test_undefined_fft_length_and_last_dimension(self):
+        irfft_op = kmath.IRFFT()
+
+        real_part = KerasTensor(shape=(4, None), dtype="float32")
+        imag_part = KerasTensor(shape=(4, None), dtype="float32")
+
+        output_spec = irfft_op.compute_output_spec((real_part, imag_part))
+        expected_shape = real_part.shape[:-1] + (None,)
+
+        self.assertEqual(output_spec.shape, expected_shape)
