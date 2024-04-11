@@ -56,6 +56,7 @@ class InputSpec:
         axes=None,
         allow_last_axis_squeeze=False,
         name=None,
+        ragged=None,
     ):
         self.dtype = (
             backend.standardize_dtype(dtype) if dtype is not None else None
@@ -87,6 +88,7 @@ class InputSpec:
                     "Axis {} is greater than the maximum "
                     "allowed value: {}".format(max_axis, max_dim)
                 )
+        self.ragged = ragged
 
     def __repr__(self):
         spec = [
