@@ -1,5 +1,6 @@
 from keras import backend
 from keras.dtype_policies import dtype_policy
+from keras.dtype_policies.dtype_policy import QUANTIZATION_MODES
 from keras.dtype_policies.dtype_policy import FloatDTypePolicy
 from keras.dtype_policies.dtype_policy import QuantizedDTypePolicy
 
@@ -14,7 +15,7 @@ def get(identifier):
     if isinstance(identifier, dict):
         return serialization_lib.deserialize_keras_object(identifier)
     if isinstance(identifier, str):
-        if identifier.startswith("int8"):
+        if identifier.startswith(QUANTIZATION_MODES):
             return QuantizedDTypePolicy(identifier)
         else:
             return FloatDTypePolicy(identifier)

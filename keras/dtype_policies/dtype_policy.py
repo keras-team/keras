@@ -3,6 +3,8 @@ from keras import ops
 from keras.api_export import keras_export
 from keras.backend.common import global_state
 
+QUANTIZATION_MODES = ("int8", "float8")
+
 
 @keras_export(
     [
@@ -64,7 +66,7 @@ class DTypePolicy:
         # For backwards compatibility
         # TODO: We should consider deprecating this behavior
         if cls is __class__:
-            if name.startswith("int8"):
+            if name.startswith(QUANTIZATION_MODES):
                 return QuantizedDTypePolicy(name)
             return FloatDTypePolicy(name)
         return super().__new__(cls)
@@ -205,15 +207,13 @@ class QuantizedDTypePolicy(DTypePolicy):
     def _parse_name(self, name):
         error_msg = (
             f"Cannot convert '{name}' to a QuantizedDTypePolicy. "
-            "Valid policies include "
-            "'int8_from_float32', 'int8_from_float16', 'int8_from_bfloat16', "
-            "'int8_from_mixed_float16', 'int8_from_mixed_bfloat16'."
+            f"Valid policies include {self._get_all_valid_policies()}."
         )
         split_name = name.split("_from_")
         if len(split_name) != 2:
             raise ValueError(error_msg)
         mode, from_name = split_name
-        if mode not in ("int8",):
+        if mode not in QUANTIZATION_MODES:
             raise ValueError(error_msg)
         if from_name == "mixed_float16":
             return mode, "float16", "float32"
@@ -237,6 +237,24 @@ class QuantizedDTypePolicy(DTypePolicy):
     def __repr__(self):
         return f'<QuantizedDTypePolicy "{self._name}">'
 
+    def _get_all_valid_policies(self):
+        valid_float_policies = [
+            "float32",
+            "float16",
+            "bfloat16",
+            "mixed_float16",
+            "mixed_bfloat16",
+        ]
+        valid_policies = [
+            f"{mode}_from_{policy}"
+            for mode in QUANTIZATION_MODES
+            for policy in valid_float_policies
+        ]
+        # Remove invalid policies
+        valid_policies.remove("int8_from_float16")
+        valid_policies.remove("int8_from_mixed_float16")
+        return valid_policies
+
 
 @keras_export(
     [
@@ -254,7 +272,7 @@ def set_dtype_policy(policy):
     """
     if not isinstance(policy, DTypePolicy):
         if isinstance(policy, str):
-            if policy.startswith("int8"):
+            if policy.startswith(QUANTIZATION_MODES):
                 policy = QuantizedDTypePolicy(policy)
             else:
                 policy = FloatDTypePolicy(policy)

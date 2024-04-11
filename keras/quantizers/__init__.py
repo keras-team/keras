@@ -4,6 +4,9 @@ from keras.api_export import keras_export
 from keras.quantizers.quantizers import AbsMaxQuantizer
 from keras.quantizers.quantizers import Quantizer
 from keras.quantizers.quantizers import abs_max_quantize
+from keras.quantizers.quantizers import compute_float8_amax_history
+from keras.quantizers.quantizers import compute_float8_scale
+from keras.quantizers.quantizers import quantize_and_dequantize
 from keras.saving import serialization_lib
 from keras.utils.naming import to_snake_case
 

@@ -115,6 +115,10 @@ class KerasVariable:
         self._trainable = trainable
         self._autocast = autocast
         self._aggregation = aggregation
+        # `self._overwrite_with_gradient` is an internal property to determine
+        # whether this variable should be overwritten by the computed gradient.
+        # Ref: https://github.com/google/flax/blob/main/flax/linen/fp8_ops.py
+        self._overwrite_with_gradient = False
         if isinstance(initializer, str):
             from keras import initializers
 
@@ -265,6 +269,20 @@ class KerasVariable:
     @trainable.setter
     def trainable(self, value):
         self._trainable = value
+
+    @property
+    def overwrite_with_gradient(self):
+        """Whether this variable should be overwritten by the gradient."""
+        return self._overwrite_with_gradient
+
+    @overwrite_with_gradient.setter
+    def overwrite_with_gradient(self, value):
+        if not isinstance(value, bool):
+            raise TypeError(
+                "`overwrite_with_gradient` must be a boolean. "
+                f"Received: {value}"
+            )
+        self._overwrite_with_gradient = value
 
     @property
     def regularizer(self):

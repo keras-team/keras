@@ -357,14 +357,16 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             mode: The mode of the quantization. Only 'int8' is supported at this
                 time.
         """
+        from keras.dtype_policies import QUANTIZATION_MODES
+
         if not self.built:
             raise ValueError(
                 "The model must be built first before calling `quantize()`."
             )
-        if mode not in ("int8",):
+        if mode not in QUANTIZATION_MODES:
             raise ValueError(
-                "Invalid quantization mode. Expected 'int8'. "
-                f"Received: mode={mode}"
+                "Invalid quantization mode. "
+                f"Expected one of {QUANTIZATION_MODES}. Received: mode={mode}"
             )
         mode_changed = False
         for layer in self._flatten_layers():

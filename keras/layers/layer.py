@@ -1127,9 +1127,11 @@ class Layer(BackendLayer, Operation):
                 f"Layer '{self.name}' (of type '{self.__class__.__name__}') "
                 "is not built yet."
             )
-        if mode not in ("int8",):
+        if mode not in dtype_policies.QUANTIZATION_MODES:
             raise ValueError(
-                f"`quantize` must be one of ('int8'). Received: mode={mode}"
+                "Invalid quantization mode. "
+                f"Expected one of {dtype_policies.QUANTIZATION_MODES}. "
+                f"Received: mode={mode}"
             )
         if mode == "int8" and compute_dtype == "float16":
             raise ValueError(

@@ -601,7 +601,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
     def test_quantize_invalid_args(self):
         model = _get_model()
         with self.assertRaisesRegex(
-            ValueError, "Invalid quantization mode. Expected 'int8'."
+            ValueError, "Invalid quantization mode. Expected one of"
         ):
             model.quantize("abc")
 
