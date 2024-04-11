@@ -1193,3 +1193,26 @@ class ISTFTTest(testing.TestCase):
             ValueError, "Input `x` should be a tuple of two tensors"
         ):
             irfft_op.compute_output_spec(too_long_input)
+
+    def test_mismatched_shapes_input_validation(self):
+        irfft_op = kmath.IRFFT()
+
+        # Create real and imaginary parts with mismatched shapes
+        real_part = np.array([1, 2, 3])
+        imag_part = np.array([[1, 2], [3, 4]])
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Both the real and imaginary parts should have the same shape",
+        ):
+            irfft_op.compute_output_spec((real_part, imag_part))
+
+    def test_insufficient_rank_input_validation(self):
+        irfft_op = kmath.IRFFT()
+
+        # Create real and imaginary parts with insufficient rank (0D)
+        real_part = np.array(1)
+        imag_part = np.array(1)
+
+        with self.assertRaisesRegex(ValueError, "Input should have rank >= 1"):
+            irfft_op.compute_output_spec((real_part, imag_part))
