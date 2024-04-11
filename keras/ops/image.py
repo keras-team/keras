@@ -78,7 +78,7 @@ def rgb_to_grayscale(
     Examples:
 
     >>> import numpy as np
-    >>> from tensorflow.keras import ops
+    >>> from keras import ops
     >>> x = np.random.random((2, 4, 4, 3))
     >>> y = ops.image.rgb_to_grayscale(x)
     >>> y.shape
