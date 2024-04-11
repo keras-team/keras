@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras import backend
 from keras import constraints
@@ -14,7 +15,7 @@ from keras.backend.common import keras_tensor
 from keras.export import export_lib
 
 
-class DenseTest(testing.TestCase):
+class DenseTest(testing.TestCase, parameterized.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_dense_basics(self):
         # 2D case, no bias.
@@ -381,8 +382,45 @@ class DenseTest(testing.TestCase):
             backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
         )
 
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("float8", "float8"),
+    )
+    def test_quantize_on_unbuilt_layer(self, mode):
+        layer = layers.Dense(units=2)
+        with self.assertRaisesRegex(
+            ValueError, "Cannot quantize a layer that isn't yet built."
+        ):
+            layer.quantize(mode)
+
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("float8", "float8"),
+    )
+    def test_quantize_on_subclass(self, mode):
+        class MyDense(layers.Dense):
+            pass
+
+        layer = MyDense(units=16)
+        layer.build((None, 8))
+        with self.assertRaises(NotImplementedError):
+            layer.quantize(mode)
+
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("float8", "float8"),
+    )
+    def test_quantize_when_already_quantized(self, mode):
+        layer = layers.Dense(units=2)
+        layer.build((None, 2))
+        layer.quantize(mode)
+        with self.assertRaisesRegex(
+            ValueError, "`quantize` can only be done once per layer."
+        ):
+            layer.quantize(mode)
+
     @pytest.mark.requires_trainable_backend
-    def test_quantize_dtype_argument(self):
+    def test_quantize_int8_dtype_argument(self):
         self.run_layer_test(
             layers.Dense,
             init_kwargs={
@@ -398,33 +436,8 @@ class DenseTest(testing.TestCase):
             supports_masking=True,
         )
 
-    def test_quantize_on_unbuilt_layer(self):
-        layer = layers.Dense(units=2)
-        with self.assertRaisesRegex(
-            ValueError, "Cannot quantize a layer that isn't yet built."
-        ):
-            layer.quantize("int8")
-
-    def test_quantize_on_subclass(self):
-        class MyDense(layers.Dense):
-            pass
-
-        layer = MyDense(units=16)
-        layer.build((None, 8))
-        with self.assertRaises(NotImplementedError):
-            layer.quantize("int8")
-
-    def test_quantize_when_already_quantized(self):
-        layer = layers.Dense(units=2)
-        layer.build((None, 2))
-        layer.quantize("int8")
-        with self.assertRaisesRegex(
-            ValueError, "`quantize` can only be done once per layer."
-        ):
-            layer.quantize("int8")
-
     @pytest.mark.requires_trainable_backend
-    def test_quantize_when_lora_enabled(self):
+    def test_quantize_int8_when_lora_enabled(self):
         # Note that saving and loading with lora_enabled and quantized are
         # lossy, so we use a weak correctness test for model outputs (atol=0.5).
         config = dict(units=16)
@@ -486,13 +499,84 @@ class DenseTest(testing.TestCase):
             import tensorflow as tf
 
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-            ref_input = tf.random.normal((32, 8))
+            ref_input = tf.random.normal((2, 8))
             ref_output = model(ref_input)
             export_lib.export_model(model, temp_filepath)
             reloaded_layer = export_lib.TFSMLayer(temp_filepath)
             self.assertAllClose(
                 reloaded_layer(ref_input), ref_output, atol=1e-7
             )
+            self.assertLen(reloaded_layer.weights, len(model.weights))
+            self.assertLen(
+                reloaded_layer.trainable_weights, len(model.trainable_weights)
+            )
+            self.assertLen(
+                reloaded_layer.non_trainable_weights,
+                len(model.non_trainable_weights),
+            )
+
+    @pytest.mark.requires_trainable_backend
+    def test_quantize_float8_dtype_argument(self):
+        self.run_layer_test(
+            layers.Dense,
+            init_kwargs={
+                "units": 5,
+                "dtype": "float8_from_mixed_bfloat16",
+            },
+            input_shape=(2, 3, 4),
+            expected_output_shape=(2, 3, 5),
+            expected_num_trainable_weights=8,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=True,
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_quantize_float8_fitting(self):
+        config = dict(units=16)
+        layer = layers.Dense(**config)
+        layer.build((None, 8))
+        layer.quantize("float8")
+        self.assertLen(layer.trainable_weights, 8)
+        self.assertLen(layer.non_trainable_weights, 0)
+
+        # Try calling fit()
+        x = np.random.random((64, 8))
+        y = np.random.random((64, 16))
+        model = models.Sequential([layer])
+        model.compile(optimizer="sgd", loss="mse")
+        model.fit(x, y, epochs=2)
+
+        # Try saving and reloading the model
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_float8_model.keras"
+        )
+        model.save(temp_filepath)
+        new_model = saving.load_model(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Try saving and reloading the model's weights only
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_float8_model.weights.h5"
+        )
+        model.save_weights(temp_filepath)
+        new_model = models.Sequential([layers.Dense(**config)])
+        new_model.build((None, 8))
+        new_model.quantize("float8")
+        new_model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Test export and TFSMLayer reloading when using tensorflow backend
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+            ref_input = tf.random.normal((2, 8))
+            ref_output = model(ref_input)
+            export_lib.export_model(model, temp_filepath)
+            reloaded_layer = export_lib.TFSMLayer(temp_filepath)
+            self.assertAllClose(reloaded_layer(ref_input), ref_output)
             self.assertLen(reloaded_layer.weights, len(model.weights))
             self.assertLen(
                 reloaded_layer.trainable_weights, len(model.trainable_weights)

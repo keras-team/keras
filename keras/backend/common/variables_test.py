@@ -4,6 +4,7 @@ from absl.testing import parameterized
 
 from keras import backend
 from keras import initializers
+from keras import optimizers
 from keras.backend.common import dtypes
 from keras.backend.common.variables import AutocastScope
 from keras.backend.common.variables import KerasVariable
@@ -154,6 +155,23 @@ class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
                 "float32",  # ignore AutocastScope
             )
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+
+    def test_overwrite_with_gradient(self):
+        # Test attr
+        v = backend.Variable(initializer=initializers.Ones(), shape=(2,))
+        self.assertEqual(v.overwrite_with_gradient, False)
+        v.overwrite_with_gradient = True
+        self.assertEqual(v.overwrite_with_gradient, True)
+
+        # Test overwrite with gradient
+        v = backend.Variable(initializer=initializers.Ones(), shape=(2,))
+        v.overwrite_with_gradient = True
+        v2 = backend.Variable(initializer=initializers.Ones(), shape=(2,))
+        optimizer = optimizers.SGD(learning_rate=1.0)
+        grads = backend.convert_to_tensor([3.0, -10.0])
+        optimizer.apply([grads, grads], [v, v2])
+        self.assertAllClose(v, [3.0, -10.0])  # overwritten by its gradient
+        self.assertAllClose(v2, [-2.0, 11.0])  # normal gradient descent
 
     @parameterized.parameters(
         *((dtype for dtype in dtypes.ALLOWED_DTYPES if dtype != "string"))

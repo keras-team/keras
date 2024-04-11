@@ -35,3 +35,28 @@ class QuantizersTest(testing.TestCase):
 
         # Test serialization
         self.run_class_serialization_test(quantizer)
+
+    def test_compute_float8_scale(self):
+        amax = 3.0
+        scale = 4.0
+        dtype_max = 448.0  # float8_e4m3fn
+        # The algorithm for computing the new scale is sourced from
+        # https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/api/jax.html#transformer_engine.jax.update_fp8_metas
+        expected_scale = 1.0 / (dtype_max / amax) / (2**0)
+
+        computed_scale = quantizers.compute_float8_scale(amax, scale, dtype_max)
+        self.assertAllClose(computed_scale, expected_scale)
+
+    def test_compute_float8_amax_history(self):
+        values = random.uniform([3, 4, 5], minval=-1, maxval=1)
+        amax_history = random.uniform([123])
+        amax_from_values = ops.max(ops.abs(values))
+
+        computed_amax_history = quantizers.compute_float8_amax_history(
+            values, amax_history
+        )
+        self.assertAllClose(computed_amax_history[0], amax_from_values)
+        # Shift to left with 1 step
+        self.assertAllClose(
+            computed_amax_history[1:], ops.roll(amax_history, -1)[1:]
+        )

@@ -215,12 +215,14 @@ class QuantizedDTypePolicy(DTypePolicy):
         mode, from_name = split_name
         if mode not in QUANTIZATION_MODES:
             raise ValueError(error_msg)
-        if from_name == "mixed_float16":
+        if from_name == "mixed_float16" and mode != "int8":
             return mode, "float16", "float32"
         elif from_name == "mixed_bfloat16":
             return mode, "bfloat16", "float32"
         try:
             dtype = backend.standardize_dtype(from_name)
+            if dtype == "float16" and mode == "int8":
+                raise ValueError
             return mode, dtype, dtype
         except ValueError:
             raise ValueError(error_msg)

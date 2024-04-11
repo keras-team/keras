@@ -112,7 +112,7 @@ class AbsMaxQuantizer(Quantizer):
 @keras_export(["keras.quantizers.compute_float8_scale"])
 def compute_float8_scale(amax, scale, dtype_max, margin=0):
     # The algorithm for computing the new scale is sourced from
-    #   https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/api/jax.html#transformer_engine.jax.update_fp8_metas
+    # https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/api/jax.html#transformer_engine.jax.update_fp8_metas
     # wherein the `original_scale` corresponds to the reciprocal of the
     # `scale` passed in this function.
     scale = ops.reciprocal(scale)

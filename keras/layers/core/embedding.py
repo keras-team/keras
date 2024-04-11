@@ -99,11 +99,14 @@ class Embedding(Layer):
         self.lora_enabled = False
 
     def build(self, input_shape=None):
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        is_quantized = isinstance(
+            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+        )
+        if is_quantized:
             self.quantized_build(
                 input_shape, mode=self.dtype_policy.quantization_mode
             )
-        else:
+        if not is_quantized or self.dtype_policy.quantization_mode != "int8":
             self._embeddings = self.add_weight(
                 shape=(self.input_dim, self.output_dim),
                 initializer=self.embeddings_initializer,
@@ -185,7 +188,13 @@ class Embedding(Layer):
         )
         store["0"] = embeddings_value
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            store["1"] = embeddings_scale
+            mode = self.dtype_policy.quantization_mode
+            if mode == "int8":
+                store["1"] = embeddings_scale
+            else:
+                raise NotImplementedError(
+                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                )
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
@@ -197,7 +206,13 @@ class Embedding(Layer):
         # default ordering will change after quantization
         self._embeddings.assign(store["0"])
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            self.embeddings_scale.assign(store["1"])
+            mode = self.dtype_policy.quantization_mode
+            if mode == "int8":
+                self.embeddings_scale.assign(store["1"])
+            else:
+                raise NotImplementedError(
+                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                )
         if self.lora_enabled:
             self.lora_embeddings_a.assign(
                 ops.zeros(self.lora_embeddings_a.shape)
@@ -263,26 +278,47 @@ class Embedding(Layer):
                 f"Expected: {[v.name for v in all_vars]}"
             )
 
-    """Quantization-related methods"""
+    """Quantization-related (int8) methods"""
+
+    QUANTIZATION_MODE_ERROR_TEMPLATE = (
+        "Invalid quantization mode. Expected 'int8'. "
+        "Received: quantization_mode={mode}"
+    )
 
     def quantized_build(self, input_shape, mode):
         if mode == "int8":
-            self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
-            self._embeddings = self.add_weight(
-                name="embeddings",
-                shape=(self.input_dim, self.output_dim),
-                initializer="zeros",
-                dtype="int8",
-                trainable=False,
-            )
-            self.embeddings_scale = self.add_weight(
-                name="embeddings_scale",
-                shape=(self.output_dim,),
-                initializer="ones",
-                trainable=False,
+            self._int8_build()
+        else:
+            raise NotImplementedError(
+                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
             )
 
+    def _int8_build(self):
+        self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
+        self._embeddings = self.add_weight(
+            name="embeddings",
+            shape=(self.input_dim, self.output_dim),
+            initializer="zeros",
+            dtype="int8",
+            trainable=False,
+        )
+        self.embeddings_scale = self.add_weight(
+            name="embeddings_scale",
+            shape=(self.output_dim,),
+            initializer="ones",
+            trainable=False,
+        )
+
     def quantized_call(self, inputs):
+        if self.dtype_policy.quantization_mode == "int8":
+            return self._int8_call(inputs)
+        else:
+            mode = self.dtype_policy.quantization_mode
+            raise NotImplementedError(
+                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+            )
+
+    def _int8_call(self, inputs):
         # We cannot update quantized self._embeddings, so the custom gradient is
         # not needed
         if backend.standardize_dtype(inputs.dtype) not in ("int32", "int64"):
@@ -340,9 +376,8 @@ class Embedding(Layer):
             )
             self._tracker.lock()
         else:
-            NotImplementedError(
-                "Invalid quantization mode. Expected 'int8'. "
-                f"Received: mode={mode}"
+            raise NotImplementedError(
+                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
             )
 
         # Set new dtype policy
