@@ -209,6 +209,8 @@ class DenseTest(testing.TestCase):
         layer.enable_lora(4)
         self.assertLen(layer.trainable_weights, 3)
         self.assertLen(layer.non_trainable_weights, 1)
+        if backend.backend() == "torch":
+            self.assertLen(layer.torch_params, 4)
         # Try eager call
         x = np.random.random((64, 8))
         y = np.random.random((64, 16))
@@ -434,6 +436,8 @@ class DenseTest(testing.TestCase):
         layer.quantize("int8")
         self.assertLen(layer.trainable_weights, 3)
         self.assertLen(layer.non_trainable_weights, 2)
+        if backend.backend() == "torch":
+            self.assertLen(layer.torch_params, 5)
 
         # Try calling fit()
         init_lora_a_kernel_value = layer.lora_kernel_a.numpy()

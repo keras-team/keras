@@ -1203,6 +1203,7 @@ class Layer(BackendLayer, Operation):
             self._tracker.add_to_store("non_trainable_variables", variable)
         if not self.trainable:
             variable.trainable = False
+        self._post_track_variable(variable)
 
     def _untrack_variable(self, variable):
         previous_lock_state = self._tracker.locked
@@ -1210,6 +1211,7 @@ class Layer(BackendLayer, Operation):
         self._tracker.untrack(variable)
         if previous_lock_state is True:
             self._tracker.lock()
+        self._post_untrack_variable(variable)
 
     def add_metric(self):
         # Permanently disabled
