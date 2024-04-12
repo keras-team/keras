@@ -77,6 +77,21 @@ class VariableInitializationTest(test_case.TestCase):
         ):
             KerasVariable(initializer=lambda: np.ones((2, 2)))
 
+    def test_invalid_aggregation_raises_error(self):
+        invalid_aggregation = "average"
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid valid for argument `aggregation`. Expected "
+            "one of {'mean', 'sum', 'only_first_replica'}. "
+            f"Received: aggregation={invalid_aggregation}",
+        ):
+            KerasVariable(
+                initializer=1.0,
+                shape=(1,),
+                dtype="float32",
+                aggregation=invalid_aggregation,
+            )
+
 
 class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
     """Tests for KerasVariable._deferred_initialize
@@ -783,20 +798,3 @@ class TestStandardizeShapeWithOutTorch(test_case.TestCase):
         shape_valid = [3, 4, 5]
         standardized_shape = standardize_shape(shape_valid)
         self.assertEqual(standardized_shape, (3, 4, 5))
-
-
-class TestKerasVariableErrors(test_case.TestCase):
-    def test_invalid_aggregation_raises_error(self):
-        invalid_aggregation = "average"
-        with self.assertRaisesRegex(
-            ValueError,
-            "Invalid valid for argument `aggregation`. Expected "
-            "one of {'mean', 'sum', 'only_first_replica'}. "
-            f"Received: aggregation={invalid_aggregation}",
-        ):
-            KerasVariable(
-                initializer=1.0,
-                shape=(1,),
-                dtype="float32",
-                aggregation=invalid_aggregation,
-            )
