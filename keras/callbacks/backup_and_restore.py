@@ -99,8 +99,22 @@ class BackupAndRestore(Callback):
 
     def on_train_begin(self, logs=None):
         """Get training state from temporary file and restore it."""
+        if not self.model.built:
+            raise ValueError(
+                "To use the BackupAndRestore callback, "
+                "you model must be built before you call `fit()`. "
+                f"Model {self.model} is unbuilt. You can build it "
+                "beforehand by calling it on a batch of data."
+            )
         if file_utils.exists(self._weights_path):
+            if (
+                self.model.optimizer is not None
+                and not self.model.optimizer.built
+            ):
+                # Make sure optimizer weights exist before loading.
+                self.model.optimizer.build(self.model.trainable_variables)
             self.model.load_weights(self._weights_path)
+
         if file_utils.exists(self._training_metadata_path):
             with file_utils.File(self._training_metadata_path, "r") as f:
                 training_metadata = json.loads(f.read())
