@@ -238,6 +238,10 @@ def image_dataset_from_directory(
         )
 
     data_format = standardize_data_format(data_format=data_format)
+    if batch_size is not None:
+        shuffle_buffer_size = batch_size * 8
+    else:
+        shuffle_buffer_size = 1024
 
     if subset == "both":
         (
@@ -273,6 +277,9 @@ def image_dataset_from_directory(
             crop_to_aspect_ratio=crop_to_aspect_ratio,
             pad_to_aspect_ratio=pad_to_aspect_ratio,
             data_format=data_format,
+            shuffle=shuffle,
+            shuffle_buffer_size=shuffle_buffer_size,
+            seed=seed,
         )
 
         val_dataset = paths_and_labels_to_dataset(
@@ -286,21 +293,12 @@ def image_dataset_from_directory(
             crop_to_aspect_ratio=crop_to_aspect_ratio,
             pad_to_aspect_ratio=pad_to_aspect_ratio,
             data_format=data_format,
+            shuffle=False,
         )
 
         if batch_size is not None:
-            if shuffle:
-                # Shuffle locally at each iteration
-                train_dataset = train_dataset.shuffle(
-                    buffer_size=batch_size * 8, seed=seed
-                )
             train_dataset = train_dataset.batch(batch_size)
             val_dataset = val_dataset.batch(batch_size)
-        else:
-            if shuffle:
-                train_dataset = train_dataset.shuffle(
-                    buffer_size=1024, seed=seed
-                )
 
         train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
         val_dataset = val_dataset.prefetch(tf.data.AUTOTUNE)
@@ -335,16 +333,13 @@ def image_dataset_from_directory(
             crop_to_aspect_ratio=crop_to_aspect_ratio,
             pad_to_aspect_ratio=pad_to_aspect_ratio,
             data_format=data_format,
+            shuffle=shuffle,
+            shuffle_buffer_size=shuffle_buffer_size,
+            seed=seed,
         )
 
         if batch_size is not None:
-            if shuffle:
-                # Shuffle locally at each iteration
-                dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
             dataset = dataset.batch(batch_size)
-        else:
-            if shuffle:
-                dataset = dataset.shuffle(buffer_size=1024, seed=seed)
 
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
         # Users may need to reference `class_names`.
@@ -367,10 +362,18 @@ def paths_and_labels_to_dataset(
     data_format,
     crop_to_aspect_ratio=False,
     pad_to_aspect_ratio=False,
+    shuffle=False,
+    shuffle_buffer_size=None,
+    seed=None,
 ):
     """Constructs a dataset of images and labels."""
     # TODO(fchollet): consider making num_parallel_calls settable
     path_ds = tf.data.Dataset.from_tensor_slices(image_paths)
+    if shuffle:
+        path_ds = path_ds.shuffle(
+            buffer_size=shuffle_buffer_size or 1024, seed=seed
+        )
+
     args = (
         image_size,
         num_channels,

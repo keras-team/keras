@@ -174,6 +174,10 @@ def audio_dataset_from_directory(
 
     if seed is None:
         seed = np.random.randint(1e6)
+    if batch_size is not None:
+        shuffle_buffer_size = batch_size * 8
+    else:
+        shuffle_buffer_size = 1024
 
     file_paths, labels, class_names = dataset_utils.index_directory(
         directory,
@@ -203,12 +207,13 @@ def audio_dataset_from_directory(
             sampling_rate=sampling_rate,
             output_sequence_length=output_sequence_length,
             ragged=ragged,
+            shuffle=shuffle,
+            shuffle_buffer_size=shuffle_buffer_size,
+            seed=seed,
         )
         train_dataset = prepare_dataset(
             dataset=train_dataset,
             batch_size=batch_size,
-            shuffle=shuffle,
-            seed=seed,
             class_names=class_names,
             output_sequence_length=output_sequence_length,
             ragged=ragged,
@@ -216,8 +221,6 @@ def audio_dataset_from_directory(
         val_dataset = prepare_dataset(
             dataset=val_dataset,
             batch_size=batch_size,
-            shuffle=False,
-            seed=seed,
             class_names=class_names,
             output_sequence_length=output_sequence_length,
             ragged=ragged,
@@ -236,12 +239,13 @@ def audio_dataset_from_directory(
             sampling_rate=sampling_rate,
             output_sequence_length=output_sequence_length,
             ragged=ragged,
+            shuffle=shuffle,
+            shuffle_buffer_size=shuffle_buffer_size,
+            seed=seed,
         )
         dataset = prepare_dataset(
             dataset=dataset,
             batch_size=batch_size,
-            shuffle=shuffle,
-            seed=seed,
             class_names=class_names,
             output_sequence_length=output_sequence_length,
             ragged=ragged,
@@ -252,26 +256,18 @@ def audio_dataset_from_directory(
 def prepare_dataset(
     dataset,
     batch_size,
-    shuffle,
-    seed,
     class_names,
     output_sequence_length,
     ragged,
 ):
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
     if batch_size is not None:
-        if shuffle:
-            dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
-
         if output_sequence_length is None and not ragged:
             dataset = dataset.padded_batch(
                 batch_size, padded_shapes=([None, None], [])
             )
         else:
             dataset = dataset.batch(batch_size)
-    else:
-        if shuffle:
-            dataset = dataset.shuffle(buffer_size=1024, seed=seed)
 
     # Users may need to reference `class_names`.
     dataset.class_names = class_names
@@ -288,6 +284,9 @@ def get_training_and_validation_dataset(
     sampling_rate,
     output_sequence_length,
     ragged,
+    shuffle=False,
+    shuffle_buffer_size=None,
+    seed=None,
 ):
     (
         file_paths_train,
@@ -318,6 +317,9 @@ def get_training_and_validation_dataset(
         sampling_rate=sampling_rate,
         output_sequence_length=output_sequence_length,
         ragged=ragged,
+        shuffle=shuffle,
+        shuffle_buffer_size=shuffle_buffer_size,
+        seed=seed,
     )
 
     val_dataset = paths_and_labels_to_dataset(
@@ -328,6 +330,7 @@ def get_training_and_validation_dataset(
         sampling_rate=sampling_rate,
         output_sequence_length=output_sequence_length,
         ragged=ragged,
+        shuffle=False,
     )
 
     return train_dataset, val_dataset
@@ -344,6 +347,9 @@ def get_dataset(
     sampling_rate,
     output_sequence_length,
     ragged,
+    shuffle=False,
+    shuffle_buffer_size=None,
+    seed=None,
 ):
     file_paths, labels = dataset_utils.get_training_or_validation_split(
         file_paths, labels, validation_split, subset
@@ -354,7 +360,7 @@ def get_dataset(
             f"Allowed format(s): {ALLOWED_FORMATS}"
         )
 
-    dataset = paths_and_labels_to_dataset(
+    return paths_and_labels_to_dataset(
         file_paths=file_paths,
         labels=labels,
         label_mode=label_mode,
@@ -362,9 +368,10 @@ def get_dataset(
         sampling_rate=sampling_rate,
         output_sequence_length=output_sequence_length,
         ragged=ragged,
+        shuffle=shuffle,
+        shuffle_buffer_size=shuffle_buffer_size,
+        seed=seed,
     )
-
-    return dataset
 
 
 def read_and_decode_audio(
@@ -396,9 +403,17 @@ def paths_and_labels_to_dataset(
     sampling_rate,
     output_sequence_length,
     ragged,
+    shuffle=False,
+    shuffle_buffer_size=None,
+    seed=None,
 ):
     """Constructs a fixed-size dataset of audio and labels."""
     path_ds = tf.data.Dataset.from_tensor_slices(file_paths)
+    if shuffle:
+        path_ds = path_ds.shuffle(
+            buffer_size=shuffle_buffer_size or 1024, seed=seed
+        )
+
     audio_ds = path_ds.map(
         lambda x: read_and_decode_audio(
             x, sampling_rate, output_sequence_length

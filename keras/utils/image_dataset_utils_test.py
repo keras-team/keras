@@ -473,3 +473,61 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         )
         sample = next(iter(dataset))
         self.assertEqual(len(sample.shape), 3)
+
+    def test_image_dataset_from_directory_shuffle(self):
+        # TODO: add same test for train/val
+        directory = self._prepare_directory(
+            num_classes=2, count=25, nested_dirs=True
+        )
+        dataset = image_dataset_utils.image_dataset_from_directory(
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            label_mode=None,
+            follow_links=True,
+            shuffle=False,
+        )
+        batches_1 = []
+        batches_2 = []
+        for b in dataset:
+            batches_1.append(b)
+        batches_1 = np.concatenate(batches_1, axis=0)
+        for b in dataset:
+            batches_2.append(b)
+        batches_2 = np.concatenate(batches_2, axis=0)
+        self.assertAllClose(batches_1, batches_2, atol=1e-6)
+
+        dataset = image_dataset_utils.image_dataset_from_directory(
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            label_mode=None,
+            follow_links=True,
+            shuffle=True,
+            seed=1337,
+        )
+        batches_1 = []
+        batches_2 = []
+        for b in dataset:
+            batches_1.append(b)
+        batches_1 = np.concatenate(batches_1, axis=0)
+        for b in dataset:
+            batches_2.append(b)
+        batches_2 = np.concatenate(batches_2, axis=0)
+        self.assertNotAllClose(batches_1, batches_2, atol=1e-6)
+
+        # Test random seed determinism
+        dataset = image_dataset_utils.image_dataset_from_directory(
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            label_mode=None,
+            follow_links=True,
+            shuffle=True,
+            seed=1337,
+        )
+        batches_1_alt = []
+        for b in dataset:
+            batches_1_alt.append(b)
+        batches_1_alt = np.concatenate(batches_1_alt, axis=0)
+        self.assertAllClose(batches_1, batches_1_alt, atol=1e-6)
