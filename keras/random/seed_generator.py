@@ -5,7 +5,6 @@ import numpy as np
 from keras import backend
 from keras.api_export import keras_export
 from keras.backend.common import global_state
-from keras.backend.common.name_scope import current_path
 from keras.utils import jax_utils
 from keras.utils.naming import auto_name
 
@@ -50,7 +49,6 @@ class SeedGenerator:
         if name is None:
             name = auto_name(self.__class__.__name__)
         self.name = name
-        self._parent_path = None
 
         custom_backend = kwargs.pop("backend", None)
         if kwargs:
@@ -73,7 +71,7 @@ class SeedGenerator:
             dtype = kwargs.get("dtype", None)
             return self.backend.convert_to_tensor([seed, 0], dtype=dtype)
 
-        with self._open_name_scope():
+        with backend.name_scope(self.name, caller=self):
             self.state = self.backend.Variable(
                 seed_initializer,
                 shape=(2,),
@@ -103,11 +101,6 @@ class SeedGenerator:
     @classmethod
     def from_config(cls, config):
         return cls(**config)
-
-    def _open_name_scope(self):
-        if self._parent_path is None:
-            self._parent_path = current_path()
-        return backend.name_scope(self.name, caller=self)
 
 
 def global_seed_generator():

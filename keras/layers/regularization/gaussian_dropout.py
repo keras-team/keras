@@ -34,7 +34,8 @@ class GaussianDropout(layers.Layer):
             )
         self.rate = rate
         self.seed = seed
-        self.seed_generator = backend.random.SeedGenerator(seed)
+        if rate > 0:
+            self.seed_generator = backend.random.SeedGenerator(seed)
         self.supports_masking = True
 
     def call(self, inputs, training=False):

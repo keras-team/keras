@@ -25,7 +25,7 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
             expected_output_shape=(2, 8, 16),
             expected_num_trainable_weights=8,
             expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=1,
+            expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=True,
             run_training_check=False,
@@ -84,7 +84,7 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
             expected_output_shape=query_shape,
             expected_num_trainable_weights=8,
             expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=1,
+            expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=True,
             run_training_check=False,
@@ -308,7 +308,7 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
         layer.value_dense.enable_lora(2)
 
         self.assertLen(layer.trainable_variables, 7)
-        self.assertLen(layer.non_trainable_variables, 4)
+        self.assertLen(layer.non_trainable_variables, 3)
 
         # Try eager call
         x = {

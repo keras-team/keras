@@ -13,8 +13,9 @@ class TorchLayer(torch.nn.Module):
         self._track_variables()
 
     def _track_variables(self):
+        # Index given to ParameterDict must be a string
         self.torch_params = torch.nn.ParameterDict(
-            {variable.path: variable.value for variable in self.variables}
+            {str(id(variable)): variable.value for variable in self.variables}
         )
 
     def parameters(self, recurse=True):
