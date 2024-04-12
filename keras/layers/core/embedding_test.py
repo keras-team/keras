@@ -121,6 +121,8 @@ class EmbeddingTest(test_case.TestCase):
         layer.enable_lora(4)
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, 1)
+        if backend.backend() == "torch":
+            self.assertLen(layer.torch_params, 3)
         # Try eager call
         x = np.random.randint(0, 9, size=(64, 3))
         y = np.random.random((64, 3, 16))
@@ -323,6 +325,8 @@ class EmbeddingTest(test_case.TestCase):
         layer.quantize("int8")
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, 2)
+        if backend.backend() == "torch":
+            self.assertLen(layer.torch_params, 4)
 
         # Try calling fit()
         init_lora_a_embeddings_value = layer.lora_embeddings_a.numpy()

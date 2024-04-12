@@ -280,3 +280,11 @@ class Operation:
     def _setattr_hook(self, name, value):
         """Can be overridden for per backend post build actions."""
         return name, value
+
+    def _post_track_variable(self, variable):
+        """Can be overridden for per backend post track actions."""
+        pass
+
+    def _post_untrack_variable(self, variable):
+        """Can be overridden for per backend post untrack actions."""
+        pass

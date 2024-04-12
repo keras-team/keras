@@ -291,9 +291,22 @@ class TestCase(unittest.TestCase):
                 )
             if expected_num_seed_generators is not None:
                 self.assertLen(
-                    layer._seed_generators,
+                    get_seed_generators(layer),
                     expected_num_seed_generators,
-                    msg="Unexpected number of _seed_generators",
+                    msg="Unexpected number of seed_generators",
+                )
+            if (
+                backend.backend() == "torch"
+                and expected_num_trainable_weights is not None
+                and expected_num_non_trainable_weights is not None
+                and expected_num_seed_generators is not None
+            ):
+                self.assertLen(
+                    layer.torch_params,
+                    expected_num_trainable_weights
+                    + expected_num_non_trainable_weights
+                    + expected_num_seed_generators,
+                    msg="Unexpected number of torch_params",
                 )
 
         def run_output_asserts(layer, output, eager=False):
@@ -662,3 +675,15 @@ def map_shape_dtype_structure(fn, shape, dtype):
         raise ValueError(
             f"Cannot map function to unknown objects {shape} and {dtype}"
         )
+
+
+def get_seed_generators(layer):
+    """Get a List of all seed generators in the layer recursively."""
+    seed_generators = []
+    seen_ids = set()
+    for sublayer in layer._flatten_layers(True, True):
+        for sg in sublayer._seed_generators:
+            if id(sg) not in seen_ids:
+                seed_generators.append(sg)
+                seen_ids.add(id(sg))
+    return seed_generators
