@@ -39,3 +39,18 @@ class TorchLayer(torch.nn.Module):
             if not isinstance(self, TorchModuleWrapper):
                 value = TorchModuleWrapper(value)
         return name, value
+
+    def _track_variable(self, variable):
+        super()._track_variable(variable)
+        if hasattr(self, "torch_params"):
+            # Index given to ParameterDict must be a string
+            key = str(id(variable))
+            if key not in self.torch_params:
+                self.torch_params[key] = variable.value
+
+    def _untrack_variable(self, variable):
+        super()._track_variable(variable)
+        if hasattr(self, "torch_params"):
+            # Index given to ParameterDict must be a string
+            key = str(id(variable))
+            self.torch_params.pop(key)

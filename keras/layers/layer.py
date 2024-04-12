@@ -1204,23 +1204,12 @@ class Layer(BackendLayer, Operation):
         if not self.trainable:
             variable.trainable = False
 
-        if backend.backend() == "torch" and hasattr(self, "torch_params"):
-            # Index given to ParameterDict must be a string
-            key = str(id(variable))
-            if key not in self.torch_params:
-                self.torch_params[key] = variable.value
-
     def _untrack_variable(self, variable):
         previous_lock_state = self._tracker.locked
         self._tracker.unlock()
         self._tracker.untrack(variable)
         if previous_lock_state is True:
             self._tracker.lock()
-
-        if backend.backend() == "torch" and hasattr(self, "torch_params"):
-            # Index given to ParameterDict must be a string
-            key = str(id(variable))
-            self.torch_params.pop(key)
 
     def add_metric(self):
         # Permanently disabled
