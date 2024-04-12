@@ -13,6 +13,21 @@ UNSUPPORTED_INTERPOLATIONS = (
     "lanczos5",
 )
 
+def psnr(image1, image2, max_val=224, data_format="channel_last"):
+    image1, image2 = convert_to_tensor(image1), convert_to_tensor(image2)
+    max_val = convert_to_tensor(max_val)
+
+    if data_format == 'channel_last':
+        if len(image1.shape) == 4:
+            image1 = image1.permute(0, 2, 3, 1)
+            image2 = image2.permute(0, 2, 3, 1)
+        elif len(image1.shape) == 3:
+            image1 = image1.permute((2, 0, 1))
+            image2 = image2.permute((2, 0, 1))
+
+    mse = torch.mean((image1 - image2) ** 2)
+    psnr = 20 * torch.log10(max_val) - 10 * torch.log10(mse)
+    return psnr
 
 def rgb_to_grayscale(image, data_format="channel_last"):
     try:

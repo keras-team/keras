@@ -6,13 +6,18 @@ import scipy.ndimage
 import tensorflow as tf
 from absl.testing import parameterized
 
-from keras import backend
+from keras import backend, utils
 from keras import testing
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.ops import image as kimage
 
 
 class ImageOpsDynamicShapeTest(testing.TestCase):
+    def test_psnr(self):
+        """Load 2 images and check psnr values
+        ref: https://github.com/tensorflow/tensorflow/blob/5bc9d26649cca274750ad3625bd93422617eed4b/tensorflow/python/ops/image_ops_test.py#L5694
+        """
+
     def test_rgb_to_grayscale(self):
         x = KerasTensor([None, 20, 20, 3])
         out = kimage.rgb_to_grayscale(x)

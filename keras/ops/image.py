@@ -6,6 +6,55 @@ from keras.backend import any_symbolic_tensors
 from keras.ops.operation import Operation
 from keras.ops.operation_utils import compute_conv_output_shape
 
+class PSNR(Operation):
+    def __init__(
+        self,
+        max_val,
+        data_format="channels_last",
+    ):
+        super().__init__()
+        self.data_format = data_format
+        self.max_val = max_val
+
+    def call(self, image1, image2):
+        return backend.image.psnr(
+            image1,
+            image2,
+            max_val=self.max_val,
+            data_format=self.data_format,
+        )
+
+    def compute_output_spec(self, image1, image2):
+        if len(image1.shape) != len(image2.shape):
+            raise ValueError("Input images must have the same rank")
+
+        if len(image1.shape) not in (3, 4):
+            raise ValueError(
+                "Invalid image rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"image1.shape={image1.shape}, image2.shape={image2.shape}"
+            )
+
+        if len(image1.shape) == 3:
+            if self.data_format == "channels_last":
+                return KerasTensor(image1.shape[:-1] + (1,), dtype=image1.dtype)
+            else:
+                return KerasTensor((1,) + image1.shape[1:], dtype=image1.dtype)
+        elif len(image1.shape) == 4:
+            if self.data_format == "channels_last":
+                return KerasTensor(
+                    (image1.shape[0],) + image1.shape[1:-1] + (1,),
+                    dtype=image1.dtype,
+                )
+            else:
+                return KerasTensor(
+                    (
+                        image1.shape[0],
+                        1,
+                    )
+                    + image1.shape[2:],
+                    dtype=image1.dtype,
+                )
 
 class RGBToGrayscale(Operation):
     def __init__(

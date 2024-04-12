@@ -14,6 +14,22 @@ RESIZE_INTERPOLATIONS = (
     "bicubic",
 )
 
+def psnr(image1, image2, max_val, data_format="channels_last"):
+    if data_format == "channels_first":
+        if len(image1.shape) == 4:
+            image1 = tf.transpose(image1, (0, 2, 3, 1))
+            image2 = tf.transpose(image2, (0, 2, 3, 1))
+        elif len(image1.shape) == 3:
+            image1 = tf.transpose(image1, (1, 2, 0))
+            image2 = tf.transpose(image2, (1, 2, 0))
+        else:
+            raise ValueError(
+                "Invalid input rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"image1.shape={image1.shape}"
+            )
+    psnr = tf.image.psnr(image1, image2, max_val, name=None)
+    return psnr
 
 def rgb_to_grayscale(image, data_format="channels_last"):
     if data_format == "channels_first":
