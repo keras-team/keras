@@ -231,7 +231,7 @@ def save_subset_weights_to_hdf5_group(f, weights):
         weights: List of weight variables.
     """
     weight_values = [backend.convert_to_numpy(w) for w in weights]
-    weight_names = [w.name.encode("utf8") for w in weights]
+    weight_names = [str(w.path).encode("utf8") for w in weights]
     save_attributes_to_hdf5_group(f, "weight_names", weight_names)
     for name, val in zip(weight_names, weight_values):
         param_dset = f.create_dataset(name, val.shape, dtype=val.dtype)
@@ -255,7 +255,7 @@ def save_optimizer_weights_to_hdf5_group(hdf5_group, optimizer):
         symbolic_weights = getattr(optimizer, "weights")
     if symbolic_weights:
         weights_group = hdf5_group.create_group("optimizer_weights")
-        weight_names = [str(w.name).encode("utf8") for w in symbolic_weights]
+        weight_names = [str(w.path).encode("utf8") for w in symbolic_weights]
         save_attributes_to_hdf5_group(
             weights_group, "weight_names", weight_names
         )
@@ -464,7 +464,7 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
                         warnings.warn(
                             f"Skipping loading weights for layer #{k} (named "
                             f"{layer.name}) due to mismatch in shape for "
-                            f"weight {symbolic_weights[i].name}. "
+                            f"weight {symbolic_weights[i].path}. "
                             f"Weight expects shape {expected_shape}. "
                             "Received saved weight "
                             f"with shape {received_shape}",
@@ -473,7 +473,7 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
                         continue
                     raise ValueError(
                         f"Shape mismatch in layer #{k} (named {layer.name}) "
-                        f"for weight {symbolic_weights[i].name}. "
+                        f"for weight {symbolic_weights[i].path}. "
                         f"Weight expects shape {expected_shape}. "
                         "Received saved weight "
                         f"with shape {received_shape}"
@@ -513,7 +513,7 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
                         warnings.warn(
                             "Skipping loading top-level weight for model due "
                             "to mismatch in shape for "
-                            f"weight {symbolic_weights[i].name}. "
+                            f"weight {symbolic_weights[i].path}. "
                             f"Weight expects shape {expected_shape}. "
                             "Received saved weight "
                             f"with shape {received_shape}",
@@ -522,7 +522,7 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
                     else:
                         raise ValueError(
                             "Shape mismatch in model for top-level weight "
-                            f"{symbolic_weights[i].name}. "
+                            f"{symbolic_weights[i].path}. "
                             f"Weight expects shape {expected_shape}. "
                             "Received saved weight "
                             f"with shape {received_shape}"

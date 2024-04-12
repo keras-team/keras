@@ -845,3 +845,19 @@ class SavingBattleTest(testing.TestCase):
         self.assertAllClose(
             model_a.dense.kernel.numpy(), model_b.dense.kernel.numpy()
         )
+
+    def test_legacy_h5_format(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "custom_model.h5")
+
+        inputs = keras.Input((32,))
+        x = MyDense(2)(inputs)
+        outputs = CustomModelX()(x)
+        model = keras.Model(inputs, outputs)
+
+        x = np.random.random((1, 32))
+        ref_out = model(x)
+
+        model.save(temp_filepath)
+        new_model = keras.saving.load_model(temp_filepath)
+        out = new_model(x)
+        self.assertAllClose(ref_out, out, atol=1e-6)
