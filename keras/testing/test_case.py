@@ -28,7 +28,7 @@ class TestCase(unittest.TestCase):
         # clear global state so that test cases are independent
         # required for the jit enabled torch tests since dynamo has
         # a global cache for guards, compiled fn, etc
-        clear_session()
+        clear_session(free_memory=False)
         if traceback_utils.is_traceback_filtering_enabled():
             traceback_utils.disable_traceback_filtering()
 

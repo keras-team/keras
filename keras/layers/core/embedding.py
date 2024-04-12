@@ -53,6 +53,9 @@ class Embedding(Layer):
             If `mask_zero` is set to `True`, as a consequence,
             index 0 cannot be used in the vocabulary (`input_dim` should
             equal size of vocabulary + 1).
+        weights: Optional floating-point matrix of size
+            `(input_dim, output_dim)`. The initial embeddings values
+            to use.
         lora_rank: Optional integer. If set, the layer's forward pass
             will implement LoRA (Low-Rank Adaptation)
             with the provided rank. LoRA sets the layer's embeddings
@@ -78,6 +81,7 @@ class Embedding(Layer):
         embeddings_regularizer=None,
         embeddings_constraint=None,
         mask_zero=False,
+        weights=None,
         lora_rank=None,
         **kwargs,
     ):
@@ -98,7 +102,15 @@ class Embedding(Layer):
         self.lora_rank = lora_rank
         self.lora_enabled = False
 
+        self.build()
+        if weights is not None:
+            if not (isinstance(weights, list) and len(weights) == 1):
+                weights = [weights]
+            self.set_weights(weights)
+
     def build(self, input_shape=None):
+        if self.built:
+            return
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
             self.quantized_build(
                 input_shape, mode=self.dtype_policy.quantization_mode
