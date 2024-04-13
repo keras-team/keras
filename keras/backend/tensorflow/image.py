@@ -3,6 +3,7 @@ import itertools
 import operator
 
 import tensorflow as tf
+import numpy as np
 
 from keras.backend.tensorflow.core import convert_to_tensor
 
@@ -14,22 +15,25 @@ RESIZE_INTERPOLATIONS = (
     "bicubic",
 )
 
-def psnr(image1, image2, max_val, data_format="channels_last"):
-    if data_format == "channels_first":
-        if len(image1.shape) == 4:
-            image1 = tf.transpose(image1, (0, 2, 3, 1))
-            image2 = tf.transpose(image2, (0, 2, 3, 1))
-        elif len(image1.shape) == 3:
-            image1 = tf.transpose(image1, (1, 2, 0))
-            image2 = tf.transpose(image2, (1, 2, 0))
-        else:
-            raise ValueError(
-                "Invalid input rank: expected rank 3 (single image) "
-                "or rank 4 (batch of images). Received input with shape: "
-                f"image1.shape={image1.shape}"
-            )
-    psnr = tf.image.psnr(image1, image2, max_val, name=None)
+
+def psnr(image1, image2, max_val):
+    if image1.shape != image2.shape:
+        raise ValueError(
+            "Image shapes must match for PSNR calculation. "
+            f"Received shapes: image1.shape={image1.shape}, image2.shape={image2.shape}."
+        )
+    max_val = tf.cast(max_val, tf.float32)
+    image1 = tf.cast(image1, tf.float32)
+    image2 = tf.cast(image2, tf.float32)
+    mse = tf.math.reduce_mean(
+        tf.math.squared_difference(image1, image2), [-3, -2, -1]
+    )
+    psnr = tf.math.subtract(
+        20 * tf.math.log(max_val) / tf.math.log(10.0),
+        np.float32(10 / np.log(10)) * tf.math.log(mse),
+    )
     return psnr
+
 
 def rgb_to_grayscale(image, data_format="channels_last"):
     if data_format == "channels_first":

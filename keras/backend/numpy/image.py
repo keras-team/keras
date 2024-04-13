@@ -12,26 +12,21 @@ RESIZE_INTERPOLATIONS = (
     "bicubic",
 )
 
-def psnr(image1, image2, max_val, data_format="channels_last"):
-    if data_format == "channels_first":
-        if len(image1.shape) == 4:
-            image1 = np.transpose(image1, (0, 2, 3, 1))
-            image2 = np.transpose(image2, (0, 2, 3, 1))
-        elif len(image1.shape) == 3:
-            image1 = np.transpose(image1, (1, 2, 0))
-            image2 = np.transpose(image2, (1, 2, 0))
-        else:
-            raise ValueError(
-                "Invalid input rank: expected rank 3 (single image) "
-                "or rank 4 (batch of images). Received input with shape: "
-                f"image1.shape={image1.shape}"
-            )
+
+def psnr(image1, image2, max_val):
+    if image1.shape != image2.shape:
+        raise ValueError(
+            "Image shapes must match for PSNR calculation. "
+            f"Received shapes: image1.shape={image1.shape}, image2.shape={image2.shape}."
+        )
+
     max_val = np.float32(max_val)
     image1 = image1.astype(np.float32)
     image2 = image2.astype(np.float32)
     mse = np.mean(np.square(image1 - image2), axis=(-3, -2, -1))
-    psnr = 20 * np.log10(max_val) - 10 * np.log10(mse)
+    psnr = 20 * np.log(max_val) / np.log(10.0) - (10 / np.log(10)) * np.log(mse)
     return psnr
+
 
 def rgb_to_grayscale(image, data_format="channels_last"):
     if data_format == "channels_first":

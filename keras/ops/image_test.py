@@ -6,7 +6,7 @@ import scipy.ndimage
 import tensorflow as tf
 from absl.testing import parameterized
 
-from keras import backend, utils
+from keras import backend
 from keras import testing
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.ops import image as kimage
@@ -14,9 +14,10 @@ from keras.ops import image as kimage
 
 class ImageOpsDynamicShapeTest(testing.TestCase):
     def test_psnr(self):
-        """Load 2 images and check psnr values
-        ref: https://github.com/tensorflow/tensorflow/blob/5bc9d26649cca274750ad3625bd93422617eed4b/tensorflow/python/ops/image_ops_test.py#L5694
-        """
+        x1 = KerasTensor([None, 20, 20, 3])
+        x2 = KerasTensor([None, 20, 20, 3])
+        out = kimage.psnr(x1, x2, max_val=224)
+        self.assertEqual(out.shape, ())
 
     def test_rgb_to_grayscale(self):
         x = KerasTensor([None, 20, 20, 3])
@@ -72,6 +73,12 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
 
 
 class ImageOpsStaticShapeTest(testing.TestCase):
+    def test_psnr(self):
+        x1 = KerasTensor([None, 20, 20, 3])
+        x2 = KerasTensor([None, 20, 20, 3])
+        out = kimage.psnr(x1, x2, max_val=224)
+        self.assertEqual(out.shape, ())
+
     def test_rgb_to_grayscale(self):
         x = KerasTensor([20, 20, 3])
         out = kimage.rgb_to_grayscale(x)
@@ -202,6 +209,39 @@ def _fixed_map_coordinates(
 
 
 class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+    def test_psnr(self):
+        # Unbatched case
+        x1 = np.random.random((50, 50, 3)) * 255
+        x2 = np.random.random((50, 50, 3)) * 255
+        out = kimage.psnr(
+            x1,
+            x2,
+            max_val=224,
+        )
+        ref_out = tf.image.psnr(
+            x1,
+            x2,
+            max_val=224,
+        )
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=0.3)
+
+        # Batched case
+        x1 = np.random.random((2, 3, 50, 50)) * 255
+        x2 = np.random.random((2, 3, 50, 50)) * 255
+        out = kimage.psnr(
+            x1,
+            x2,
+            max_val=224,
+        )
+        ref_out = tf.image.psnr(
+            x1,
+            x2,
+            max_val=224,
+        )
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=0.3)
+
     @parameterized.parameters(
         [
             ("channels_last"),

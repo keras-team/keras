@@ -6,22 +6,20 @@ from keras.backend import any_symbolic_tensors
 from keras.ops.operation import Operation
 from keras.ops.operation_utils import compute_conv_output_shape
 
+
 class PSNR(Operation):
     def __init__(
         self,
         max_val,
-        data_format="channels_last",
     ):
         super().__init__()
-        self.data_format = data_format
         self.max_val = max_val
 
     def call(self, image1, image2):
         return backend.image.psnr(
-            image1,
-            image2,
+            image1=image1,
+            image2=image2,
             max_val=self.max_val,
-            data_format=self.data_format,
         )
 
     def compute_output_spec(self, image1, image2):
@@ -32,29 +30,59 @@ class PSNR(Operation):
             raise ValueError(
                 "Invalid image rank: expected rank 3 (single image) "
                 "or rank 4 (batch of images). Received input with shape: "
-                f"image1.shape={image1.shape}, image2.shape={image2.shape}"
+                f"image.shape={image1.shape}"
             )
 
-        if len(image1.shape) == 3:
-            if self.data_format == "channels_last":
-                return KerasTensor(image1.shape[:-1] + (1,), dtype=image1.dtype)
-            else:
-                return KerasTensor((1,) + image1.shape[1:], dtype=image1.dtype)
-        elif len(image1.shape) == 4:
-            if self.data_format == "channels_last":
-                return KerasTensor(
-                    (image1.shape[0],) + image1.shape[1:-1] + (1,),
-                    dtype=image1.dtype,
-                )
-            else:
-                return KerasTensor(
-                    (
-                        image1.shape[0],
-                        1,
-                    )
-                    + image1.shape[2:],
-                    dtype=image1.dtype,
-                )
+        return KerasTensor(shape=())
+
+
+@keras_export("keras.ops.image.psnr")
+def psnr(
+    image1,
+    image2,
+    max_val,
+):
+    """Peak Signal-to-Noise Ratio (PSNR) calculation.
+
+    This function calculates the Peak Signal-to-Noise Ratio between two images
+    `image1` and `image2`. PSNR is a measure of the quality of a reconstructed
+    image. The higher the PSNR, the closer the reconstructed image is to the
+    original image.
+
+    Args:
+        image1: The first input image.
+        image2: The second input image. Must have the same shape as `image1`.
+        max_val: The maximum possible pixel value in the images.
+
+    Returns:
+        float: The PSNR value between `image1` and `image2`.
+
+    Examples:
+
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.random.random((2, 4, 4, 3))
+    >>> y = np.random.random((2, 4, 4, 3))
+    >>> max_val = 1.0
+    >>> psnr_value = ops.image.psnr(x, y, max_val)
+    >>> psnr_value
+    20.0
+    """
+    if any_symbolic_tensors(
+        (
+            image1,
+            image2,
+        )
+    ):
+        return PSNR(
+            max_val,
+        ).symbolic_call(image1, image2)
+    return backend.image.psnr(
+        image1,
+        image2,
+        max_val,
+    )
+
 
 class RGBToGrayscale(Operation):
     def __init__(
