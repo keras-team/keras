@@ -216,12 +216,12 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         out = kimage.psnr(
             x1,
             x2,
-            max_val=224,
+            max_val=255,
         )
         ref_out = tf.image.psnr(
             x1,
             x2,
-            max_val=224,
+            max_val=255,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=1e-4)
@@ -232,12 +232,12 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         out = kimage.psnr(
             x1,
             x2,
-            max_val=224,
+            max_val=255,
         )
         ref_out = tf.image.psnr(
             x1,
             x2,
-            max_val=224,
+            max_val=255,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=1e-4)
