@@ -2,8 +2,8 @@ import functools
 import itertools
 import operator
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
 from keras.backend.tensorflow.core import convert_to_tensor
 
