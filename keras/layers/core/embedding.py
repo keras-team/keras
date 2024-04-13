@@ -102,8 +102,8 @@ class Embedding(Layer):
         self.lora_rank = lora_rank
         self.lora_enabled = False
 
-        self.build()
         if weights is not None:
+            self.build()
             if not (isinstance(weights, list) and len(weights) == 1):
                 weights = [weights]
             self.set_weights(weights)
