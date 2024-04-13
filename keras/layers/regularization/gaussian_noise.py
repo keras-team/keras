@@ -35,7 +35,8 @@ class GaussianNoise(layers.Layer):
             )
         self.stddev = stddev
         self.seed = seed
-        self.seed_generator = backend.random.SeedGenerator(seed)
+        if stddev > 0:
+            self.seed_generator = backend.random.SeedGenerator(seed)
         self.supports_masking = True
 
     def call(self, inputs, training=False):

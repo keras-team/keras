@@ -560,7 +560,10 @@ def functional_from_config(cls, config, custom_objects=None):
         if isinstance(tensors, dict):
             return {k: get_tensor(*v) for k, v in tensors.items()}
         else:
-            return [get_tensor(*v) for v in tensors]
+            tensor_list = [get_tensor(*v) for v in tensors]
+            if len(tensor_list) == 1:
+                return tensor_list[0]
+            return tensor_list
 
     input_tensors = map_tensors(config["input_layers"])
     output_tensors = map_tensors(config["output_layers"])

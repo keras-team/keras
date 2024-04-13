@@ -1,3 +1,5 @@
+import inspect
+
 from keras.api_export import keras_export
 from keras.losses.loss import Loss
 from keras.losses.losses import BinaryCrossentropy
@@ -183,6 +185,8 @@ def get(identifier):
         obj = identifier
 
     if callable(obj):
+        if inspect.isclass(obj):
+            obj = obj()
         return obj
     else:
         raise ValueError(f"Could not interpret loss identifier: {identifier}")

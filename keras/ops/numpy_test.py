@@ -4585,9 +4585,6 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         self.assertSameSparseness(op_class()(x), x)
 
     @parameterized.named_parameters(OTHER_UNARY_OPS_TESTS)
-    @pytest.mark.skipif(
-        testing.tensorflow_uses_gpu(), reason="Temporary, XLA error"
-    )
     def test_other_unary_sparse_correctness(
         self, op_function, op_class, np_op, init_kwargs, op_kwargs, input_shape
     ):

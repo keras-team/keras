@@ -211,7 +211,11 @@ class BaseOptimizer:
         if hasattr(reference_variable, "path"):
             name = reference_variable.path.replace("/", "_") + "_" + name
         else:
-            name = str(reference_variable.name).replace(":", "_") + "_" + name
+            name = (
+                str(reference_variable.name).replace("/", "_").replace(":", "_")
+                + "_"
+                + name
+            )
         return self.add_variable(
             shape=reference_variable.shape,
             initializer=initializer,
@@ -509,6 +513,10 @@ class BaseOptimizer:
 
     @learning_rate.setter
     def learning_rate(self, learning_rate):
+        if isinstance(self._learning_rate, backend.Variable):
+            prev_lr_var = self._learning_rate
+        else:
+            prev_lr_var = None
         if isinstance(
             learning_rate, learning_rate_schedule.LearningRateSchedule
         ):
@@ -527,6 +535,11 @@ class BaseOptimizer:
                     "the optimizer with a float `learning_rate` argument."
                 )
             self._learning_rate.assign(learning_rate)
+        if prev_lr_var is not None and not isinstance(
+            self._learning_rate, backend.Variable
+        ):
+            # Untrack learning rate variable
+            self._untrack_variable(prev_lr_var)
 
     def set_weights(self, weights):
         """Set the weights of the optimizer."""
@@ -869,6 +882,13 @@ class BaseOptimizer:
             l2norm, self.clipnorm
         )
         return values_clip
+
+    def _untrack_variable(self, variable):
+        previous_lock_state = self._tracker.locked
+        self._tracker.unlock()
+        self._tracker.untrack(variable)
+        if previous_lock_state is True:
+            self._tracker.lock()
 
 
 base_optimizer_keyword_args = """name: String. The name to use

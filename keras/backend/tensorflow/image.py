@@ -15,6 +15,27 @@ RESIZE_INTERPOLATIONS = (
 )
 
 
+def rgb_to_grayscale(image, data_format="channels_last"):
+    if data_format == "channels_first":
+        if len(image.shape) == 4:
+            image = tf.transpose(image, (0, 2, 3, 1))
+        elif len(image.shape) == 3:
+            image = tf.transpose(image, (1, 2, 0))
+        else:
+            raise ValueError(
+                "Invalid input rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"image.shape={image.shape}"
+            )
+    grayscale_image = tf.image.rgb_to_grayscale(image)
+    if data_format == "channels_first":
+        if len(image.shape) == 4:
+            grayscale_image = tf.transpose(grayscale_image, (0, 3, 1, 2))
+        elif len(image.shape) == 3:
+            grayscale_image = tf.transpose(grayscale_image, (2, 0, 1))
+    return tf.cast(grayscale_image, image.dtype)
+
+
 def resize(
     image,
     size,

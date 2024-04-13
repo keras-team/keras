@@ -82,11 +82,16 @@ class Tracker:
                 if not self.is_in_store(store_name, attr):
                     self.add_to_store(store_name, attr)
                 return attr
+        if isinstance(attr, tuple) and hasattr(attr, "_fields"):
+            # Named tuple case.
+            wrapped_attr = {}
+            for name, e in attr._asdict().items():
+                wrapped_attr[name] = self.track(e)
+            return attr.__class__(**wrapped_attr)
         if isinstance(attr, tuple):
             wrapped_attr = []
             for e in attr:
                 wrapped_attr.append(self.track(e))
-            # This should cover tuples and nametuples
             return attr.__class__(wrapped_attr)
         elif isinstance(attr, list):
             return TrackedList(attr, self)
@@ -119,6 +124,15 @@ class Tracker:
 
     def is_in_store(self, store_name, value):
         return id(value) in self.stored_ids[store_name]
+
+    def replace_tracked_value(self, store_name, old_value, new_value):
+        if not self.is_in_store(store_name, old_value):
+            raise ValueError(f"Unknown value: {old_value}")
+        store_list = self.config[store_name][1]
+        index = store_list.index(old_value)
+        store_list[index] = new_value
+        self.stored_ids[store_name].remove(id(old_value))
+        self.stored_ids[store_name].add(id(new_value))
 
 
 @optree.register_pytree_node_class(namespace="keras")

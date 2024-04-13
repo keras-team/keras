@@ -121,6 +121,8 @@ class EmbeddingTest(test_case.TestCase):
         layer.enable_lora(4)
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, 1)
+        if backend.backend() == "torch":
+            self.assertLen(layer.torch_params, 3)
         # Try eager call
         x = np.random.randint(0, 9, size=(64, 3))
         y = np.random.random((64, 3, 16))
@@ -199,13 +201,6 @@ class EmbeddingTest(test_case.TestCase):
         )
         with self.assertRaisesRegex(
             ValueError, "incompatible with embedding constraints"
-        ):
-            layer.enable_lora(rank=2)
-
-    def test_enable_lora_on_unbuilt_layer(self):
-        layer = layers.Embedding(input_dim=10, output_dim=16)
-        with self.assertRaisesRegex(
-            ValueError, "Cannot enable lora on a layer that isn't yet built"
         ):
             layer.enable_lora(rank=2)
 
@@ -305,13 +300,6 @@ class EmbeddingTest(test_case.TestCase):
             supports_masking=True,
         )
 
-    def test_quantize_on_unbuilt_layer(self):
-        layer = layers.Embedding(10, 16)
-        with self.assertRaisesRegex(
-            ValueError, "Cannot quantize a layer that isn't yet built."
-        ):
-            layer.quantize("int8")
-
     def test_quantize_on_subclass(self):
         class MyEmbedding(layers.Embedding):
             pass
@@ -337,6 +325,8 @@ class EmbeddingTest(test_case.TestCase):
         layer.quantize("int8")
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, 2)
+        if backend.backend() == "torch":
+            self.assertLen(layer.torch_params, 4)
 
         # Try calling fit()
         init_lora_a_embeddings_value = layer.lora_embeddings_a.numpy()
@@ -405,3 +395,9 @@ class EmbeddingTest(test_case.TestCase):
                 reloaded_layer.non_trainable_weights,
                 len(model.non_trainable_weights),
             )
+
+    def test_weights_constructor_arg(self):
+        layer = layers.Embedding(3, 4, weights=np.ones((3, 4)))
+        self.assertAllClose(layer.embeddings.numpy(), np.ones((3, 4)))
+        layer = layers.Embedding(3, 4, weights=[np.ones((3, 4))])
+        self.assertAllClose(layer.embeddings.numpy(), np.ones((3, 4)))

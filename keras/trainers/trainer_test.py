@@ -1078,6 +1078,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             optimizer="sgd", loss="mse", metrics=[metrics_zero, metrics_one]
         )
         eval_out = model.evaluate(np.ones((3, 2)), np.ones((3, 3)))
+        self.assertLen(eval_out, 3)
         self.assertEqual(eval_out[1], 0.0)
         self.assertEqual(eval_out[2], 1.0)
 
@@ -1085,6 +1086,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             optimizer="sgd", loss="mse", metrics=[metrics_one, metrics_zero]
         )
         eval_out = model.evaluate(np.ones((3, 2)), np.ones((3, 3)))
+        self.assertLen(eval_out, 3)
         self.assertEqual(eval_out[1], 1.0)
         self.assertEqual(eval_out[2], 0.0)
 
@@ -1345,3 +1347,52 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         y = np.ones((32, 2)) * 2
         history = model.fit(x, y)
         self.assertGreater(history.history["custom"][0], 0.0)
+
+
+class TrainerDistributeTest(testing.TestCase):
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires tf.distribute"
+    )
+    def test_end_to_end_tf_distribute(self):
+        import tensorflow as tf
+        from tensorflow.python.eager import context
+
+        context._reset_context()
+        cpus = tf.config.list_physical_devices("CPU")
+        tf.config.set_logical_device_configuration(
+            cpus[0],
+            [
+                tf.config.LogicalDeviceConfiguration(),
+                tf.config.LogicalDeviceConfiguration(),
+            ],
+        )
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
+        with strategy.scope():
+            model = keras.Sequential(
+                [
+                    keras.Input((2,)),
+                    keras.layers.Dense(
+                        2,
+                        activation="softmax",
+                        use_bias=False,
+                        kernel_initializer="ones",
+                    ),
+                ]
+            )
+            model.compile(
+                optimizer="sgd",
+                loss="sparse_categorical_crossentropy",
+                metrics=["sparse_categorical_accuracy"],
+            )
+            x = (np.arange(512) / 128).reshape((256, 2))
+            y = (np.arange(256) % 2).reshape((256, 1))
+            out_fit = model.fit(x, y)
+            self.assertLess(
+                out_fit.history["sparse_categorical_accuracy"][0], 0.6
+            )
+            out_eval = model.evaluate(x, y)
+            self.assertLess(out_eval[1], 0.6)
+            out_predict = model.predict(x)
+            self.assertEqual(out_predict.shape, (256, 2))
+
+        context._reset_context()

@@ -160,6 +160,10 @@ def text_dataset_from_directory(
             'When passing `label_mode="binary"`, there must be exactly 2 '
             f"class_names. Received: class_names={class_names}"
         )
+    if batch_size is not None:
+        shuffle_buffer_size = batch_size * 8
+    else:
+        shuffle_buffer_size = 1024
 
     if subset == "both":
         (
@@ -190,6 +194,9 @@ def text_dataset_from_directory(
             label_mode=label_mode,
             num_classes=len(class_names) if class_names else 0,
             max_length=max_length,
+            shuffle=shuffle,
+            shuffle_buffer_size=shuffle_buffer_size,
+            seed=seed,
         )
         val_dataset = paths_and_labels_to_dataset(
             file_paths=file_paths_val,
@@ -197,23 +204,16 @@ def text_dataset_from_directory(
             label_mode=label_mode,
             num_classes=len(class_names) if class_names else 0,
             max_length=max_length,
+            shuffle=False,
         )
+
+        if batch_size is not None:
+            train_dataset = train_dataset.batch(batch_size)
+            val_dataset = val_dataset.batch(batch_size)
 
         train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
         val_dataset = val_dataset.prefetch(tf.data.AUTOTUNE)
-        if batch_size is not None:
-            if shuffle:
-                # Shuffle locally at each iteration
-                train_dataset = train_dataset.shuffle(
-                    buffer_size=batch_size * 8, seed=seed
-                )
-            train_dataset = train_dataset.batch(batch_size)
-            val_dataset = val_dataset.batch(batch_size)
-        else:
-            if shuffle:
-                train_dataset = train_dataset.shuffle(
-                    buffer_size=1024, seed=seed
-                )
+
         # Users may need to reference `class_names`.
         train_dataset.class_names = class_names
         val_dataset.class_names = class_names
@@ -233,26 +233,36 @@ def text_dataset_from_directory(
             label_mode=label_mode,
             num_classes=len(class_names) if class_names else 0,
             max_length=max_length,
+            shuffle=shuffle,
+            shuffle_buffer_size=shuffle_buffer_size,
+            seed=seed,
         )
-        dataset = dataset.prefetch(tf.data.AUTOTUNE)
         if batch_size is not None:
-            if shuffle:
-                # Shuffle locally at each iteration
-                dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
             dataset = dataset.batch(batch_size)
-        else:
-            if shuffle:
-                dataset = dataset.shuffle(buffer_size=1024, seed=seed)
+        dataset = dataset.prefetch(tf.data.AUTOTUNE)
+
         # Users may need to reference `class_names`.
         dataset.class_names = class_names
     return dataset
 
 
 def paths_and_labels_to_dataset(
-    file_paths, labels, label_mode, num_classes, max_length
+    file_paths,
+    labels,
+    label_mode,
+    num_classes,
+    max_length,
+    shuffle=False,
+    shuffle_buffer_size=None,
+    seed=None,
 ):
     """Constructs a dataset of text strings and labels."""
     path_ds = tf.data.Dataset.from_tensor_slices(file_paths)
+    if shuffle:
+        path_ds = path_ds.shuffle(
+            buffer_size=shuffle_buffer_size or 1024, seed=seed
+        )
+
     string_ds = path_ds.map(
         lambda x: path_to_string_content(x, max_length),
         num_parallel_calls=tf.data.AUTOTUNE,

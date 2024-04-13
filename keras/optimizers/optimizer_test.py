@@ -266,3 +266,11 @@ class OptimizerTest(testing.TestCase):
         # `v` is overwritten by its gradient but `v2` is updated normally
         self.assertAllClose(v, [[1.0, 1.0], [1.0, 1.0]])
         self.assertAllClose(v2, [[0.0, 1.0], [2.0, 3.0]])
+
+    def test_setting_lr_to_callable_untracks_lr_var(self):
+        adam = optimizers.Adam(learning_rate=0.001)
+        self.assertLen(adam.variables, 2)
+        adam.learning_rate = optimizers.schedules.PolynomialDecay(
+            adam.learning_rate, 4
+        )
+        self.assertLen(adam.variables, 1)

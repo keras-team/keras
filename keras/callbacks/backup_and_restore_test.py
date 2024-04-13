@@ -44,6 +44,7 @@ class BackupAndRestoreCallbackTest(testing.TestCase):
     def make_model(self):
         model = Sequential(
             [
+                layers.Input((3,)),
                 CanaryLayer(),
                 layers.Dense(1),
             ]
