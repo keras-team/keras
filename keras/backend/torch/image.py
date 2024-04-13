@@ -21,9 +21,9 @@ def psnr(image1, image2, max_val):
             f"Received shapes: image1.shape={image1.shape}, "
             "image2.shape={image2.shape}. "
         )
-    image1, image2 = convert_to_tensor(image1), convert_to_tensor(image2)
-    max_val = convert_to_tensor(max_val)
-    mse = torch.mean((image1 - image2) ** 2)
+    image1, image2 = convert_to_tensor(image1).float(), convert_to_tensor(image2).float()
+    max_val = convert_to_tensor(max_val).float()
+    mse = torch.mean((image1 - image2) ** 2, (-3, -2, -1))
     psnr = 20 * torch.log10(max_val) - 10 * torch.log10(mse)
     return psnr
 
