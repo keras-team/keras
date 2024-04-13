@@ -921,7 +921,7 @@ def ctc_beam_search_decode(
         path_tails = jnp.where(path_end_index == 0, _pad, path_tails)
 
         classes = jnp.arange(num_classes).repeat(beam_width)
-        mask_repeat = ~prev_masked & (classes == path_tails)
+        mask_repeat = ~prev_masked & merge_repeated & (classes == path_tails)
         masked = classes == mask_index
         classes = jnp.where(masked | mask_repeat, _pad, classes)
         paths = prev_paths.at[paths_arange, path_end_index].set(classes)
@@ -996,15 +996,6 @@ def ctc_beam_search_decode(
     paths = [
         [jnp.array(path[path != _pad]) for path in batch] for batch in paths
     ]
-    if merge_repeated:
-        paths = [
-            [
-                path[1:][path[1:] != path[:-1]] if len(path) > 1 else path
-                for path in batch
-            ]
-            for batch in paths
-        ]
-
     max_len = max(len(path) for batch in paths for path in batch)
     paths = jnp.array(
         [
