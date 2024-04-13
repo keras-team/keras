@@ -224,7 +224,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             max_val=224,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out, atol=1e-4)
 
         # Batched case
         x1 = np.random.random((2, 3, 50, 50)) * 255
@@ -240,7 +240,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             max_val=224,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out, atol=1e-4)
 
     @parameterized.parameters(
         [
