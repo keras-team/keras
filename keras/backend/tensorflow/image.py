@@ -20,7 +20,8 @@ def psnr(image1, image2, max_val):
     if image1.shape != image2.shape:
         raise ValueError(
             "Image shapes must match for PSNR calculation. "
-            f"Received shapes: image1.shape={image1.shape}, image2.shape={image2.shape}."
+            f"Received shapes: image1.shape={image1.shape}, "
+            "image2.shape={image2.shape}. "
         )
     max_val = tf.cast(max_val, tf.float32)
     image1 = tf.cast(image1, tf.float32)

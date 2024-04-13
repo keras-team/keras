@@ -18,7 +18,8 @@ def psnr_pt(image1, image2, max_val):
     if image1.shape != image2.shape:
         raise ValueError(
             "Image shapes must match for PSNR calculation. "
-            f"Received shapes: image1.shape={image1.shape}, image2.shape={image2.shape}."
+            f"Received shapes: image1.shape={image1.shape}, "
+            "image2.shape={image2.shape}. "
         )
     image1, image2 = convert_to_tensor(image1), convert_to_tensor(image2)
     max_val = convert_to_tensor(max_val)
