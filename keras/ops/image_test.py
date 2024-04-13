@@ -74,8 +74,8 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
 
 class ImageOpsStaticShapeTest(testing.TestCase):
     def test_psnr(self):
-        x1 = KerasTensor([None, 20, 20, 3])
-        x2 = KerasTensor([None, 20, 20, 3])
+        x1 = KerasTensor([20, 20, 3])
+        x2 = KerasTensor([20, 20, 3])
         out = kimage.psnr(x1, x2, max_val=224)
         self.assertEqual(out.shape, ())
 
