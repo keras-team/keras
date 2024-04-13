@@ -14,7 +14,7 @@ UNSUPPORTED_INTERPOLATIONS = (
 )
 
 
-def psnr_pt(image1, image2, max_val):
+def psnr(image1, image2, max_val):
     if image1.shape != image2.shape:
         raise ValueError(
             "Image shapes must match for PSNR calculation. "
