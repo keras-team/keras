@@ -207,7 +207,7 @@ class QuantizedDTypePolicy(DTypePolicy):
     def _parse_name(self, name):
         error_msg = (
             f"Cannot convert '{name}' to a QuantizedDTypePolicy. "
-            f"Valid policies include {self._get_all_valid_policies()}."
+            f"Valid policies are: {self._get_all_valid_policies()}."
         )
         split_name = name.split("_from_")
         if len(split_name) != 2:

@@ -597,13 +597,13 @@ class BaseOptimizer:
         This method is designed for a special case where we want to overwrite
         the variable directly with its computed gradient. For example, in float8
         training, new `scale` and `amax_history` are computed as gradients, and
-        we want to overwrite them directly instead of following the normal
-        procedure such as gradient clipping and weight decaying.
+        we want to overwrite them directly instead of following the typical
+        procedure such as gradient descent with a learning rate, gradient
+        clipping and weight decaying.
 
-        After the update, the pairs consisting of the gradient and the targeted
-        variable will be filtered out.
+        After the update, the processed pairs will be filtered out.
         """
-        # Shortcut for `tf.Variable` because `tf.Variable` doesn't have
+        # Shortcut for `tf.Variable` because it doesn't have a
         # `overwrite_with_gradient` attr
         if not hasattr(vars[0], "overwrite_with_gradient"):
             return grads, vars

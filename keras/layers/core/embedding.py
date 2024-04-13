@@ -111,7 +111,10 @@ class Embedding(Layer):
     def build(self, input_shape=None):
         if self.built:
             return
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        is_quantized = isinstance(
+            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+        )
+        if is_quantized:
             self.quantized_build(
                 input_shape, mode=self.dtype_policy.quantization_mode
             )
@@ -395,10 +398,6 @@ class Embedding(Layer):
         ):
             quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
             self.dtype_policy = dtype_policies.get(quantized_dtype)
-
-        # Capture new variables for `TorchLayer`
-        if hasattr(self, "_track_variables"):
-            self._track_variables()
 
         # Release memory manually because sometimes the backend doesn't
         gc.collect()

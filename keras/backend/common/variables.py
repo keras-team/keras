@@ -272,7 +272,15 @@ class KerasVariable:
 
     @property
     def overwrite_with_gradient(self):
-        """Whether this variable should be overwritten by the gradient."""
+        """Whether this variable should be overwritten by the gradient.
+
+        This property is designed for a special case where we want to overwrite
+        the variable directly with its computed gradient. For example, in float8
+        training, new `scale` and `amax_history` are computed as gradients, and
+        we want to overwrite them directly instead of following the typical
+        procedure such as gradient descent with a learning rate, gradient
+        clipping and weight decaying.
+        """
         return self._overwrite_with_gradient
 
     @overwrite_with_gradient.setter
