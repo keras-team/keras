@@ -59,6 +59,9 @@ class EinsumDense(Layer):
             computation cost of fine-tuning large dense layers.
             You can also enable LoRA on an existing
             `EinsumDense` layer by calling `layer.enable_lora(rank)`.
+        amax_history_length: Optional integer. The length of the amax history
+            window used for scaling factor computation in float8 training. This
+            parameter will have no effect if not in a float8 training scheme.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
 
     Examples:
@@ -126,7 +129,7 @@ class EinsumDense(Layer):
         kernel_constraint=None,
         bias_constraint=None,
         lora_rank=None,
-        amax_history_length=1024,
+        amax_history_length=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -328,10 +331,11 @@ class EinsumDense(Layer):
             ),
             "kernel_constraint": constraints.serialize(self.kernel_constraint),
             "bias_constraint": constraints.serialize(self.bias_constraint),
-            "amax_history_length": self.amax_history_length,
         }
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
+        if self.amax_history_length:
+            config["amax_history_length"] = self.amax_history_length
         return {**base_config, **config}
 
     def _check_load_own_variables(self, store):
@@ -378,7 +382,14 @@ class EinsumDense(Layer):
 
     def quantized_build(self, input_shape, mode):
         if mode == "int8":
-            self._int8_build(input_shape)
+            shape_data = _analyze_einsum_string(
+                self.equation,
+                self.bias_axes,
+                input_shape,
+                self.partial_output_shape,
+            )
+            kernel_shape, _, _ = shape_data
+            self._int8_build(kernel_shape)
         elif mode == "float8":
             self._float8_build()
         else:
@@ -386,14 +397,12 @@ class EinsumDense(Layer):
                 self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
             )
 
-    def _int8_build(self, input_shape):
-        shape_data = _analyze_einsum_string(
-            self.equation,
-            self.bias_axes,
-            input_shape,
-            self.partial_output_shape,
-        )
-        kernel_shape, _, _ = shape_data
+    def _int8_build(
+        self,
+        kernel_shape,
+        kernel_initializer="zeros",
+        kernel_scale_initializer="ones",
+    ):
         (
             self._input_reduced_axes,
             self._kernel_reduced_axes,
@@ -410,7 +419,7 @@ class EinsumDense(Layer):
         self._kernel = self.add_weight(
             name="kernel",
             shape=kernel_shape,
-            initializer="zeros",
+            initializer=kernel_initializer,
             dtype="int8",
             trainable=False,
         )
@@ -425,11 +434,14 @@ class EinsumDense(Layer):
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
             shape=kernel_scale_shape,
-            initializer="ones",
+            initializer=kernel_scale_initializer,
             trainable=False,
         )
 
     def _float8_build(self):
+        # Defaults to 1024 if not specified
+        if self.amax_history_length is None:
+            self.amax_history_length = 1024
         # We set `trainable=True` because we will use the gradients to overwrite
         # these variables
         scale_kwargs = {
@@ -642,6 +654,7 @@ class EinsumDense(Layer):
                 "method implemented."
             )
         self._check_quantize_args(mode, self.compute_dtype)
+        self._tracker.unlock()
         if mode == "int8":
             if backend.standardize_dtype(self._kernel.dtype) == "int8":
                 raise ValueError("`quantize` can only be done once per layer.")
@@ -676,36 +689,25 @@ class EinsumDense(Layer):
                 kernel_scale = ops.squeeze(
                     kernel_scale, axis=self._kernel_squeeze_axes
                 )
-            self._tracker.unlock()
             self._untrack_variable(self._kernel)
             kernel_shape = self._kernel.shape
             del self._kernel
-            self._kernel = self.add_weight(
-                name="kernel",
-                shape=kernel_shape,
-                # Prevent adding a large constant to the computation graph
-                initializer=lambda shape, dtype: kernel_value,
-                dtype="int8",
-                trainable=False,
+            # Utilize a lambda expression as an initializer to prevent adding a
+            # large constant to the computation graph.
+            self._int8_build(
+                kernel_shape,
+                lambda shape, dtype: kernel_value,
+                lambda shape, dtype: kernel_scale,
             )
-            self.kernel_scale = self.add_weight(
-                name="kernel_scale",
-                shape=kernel_scale.shape,
-                # Prevent adding a large constant to the computation graph
-                initializer=lambda shape, dtype: kernel_scale,
-                trainable=False,
-            )
-            self._tracker.lock()
         elif mode == "float8":
             if hasattr(self, "inputs_amax_history"):
                 raise ValueError("`quantize` can only be done once per layer.")
-            self._tracker.unlock()
             self._float8_build()
-            self._tracker.lock()
         else:
             raise NotImplementedError(
                 self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
             )
+        self._tracker.lock()
 
         # Set new dtype policy
         if not isinstance(

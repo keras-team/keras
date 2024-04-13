@@ -305,19 +305,23 @@ class Embedding(Layer):
                 self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
             )
 
-    def _int8_build(self):
+    def _int8_build(
+        self,
+        embeddings_initializer="zeros",
+        embeddings_scale_initializer="ones",
+    ):
         self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
         self._embeddings = self.add_weight(
             name="embeddings",
             shape=(self.input_dim, self.output_dim),
-            initializer="zeros",
+            initializer=embeddings_initializer,
             dtype="int8",
             trainable=False,
         )
         self.embeddings_scale = self.add_weight(
             name="embeddings_scale",
             shape=(self.output_dim,),
-            initializer="ones",
+            initializer=embeddings_scale_initializer,
             trainable=False,
         )
 
@@ -357,6 +361,7 @@ class Embedding(Layer):
                 "method implemented."
             )
         self._check_quantize_args(mode, self.compute_dtype)
+        self._tracker.unlock()
         if mode == "int8":
             if backend.standardize_dtype(self._embeddings.dtype) == "int8":
                 raise ValueError("`quantize` can only be done once per layer.")
@@ -368,29 +373,19 @@ class Embedding(Layer):
                 self._embeddings, axis=0
             )
             embeddings_scale = ops.squeeze(embeddings_scale, axis=0)
-            self._tracker.unlock()
             self._untrack_variable(self._embeddings)
             del self._embeddings
-            self._embeddings = self.add_weight(
-                name="embeddings",
-                shape=(self.input_dim, self.output_dim),
-                # Prevent adding a large constant to the computation graph
-                initializer=lambda shape, dtype: embeddings_value,
-                dtype="int8",
-                trainable=False,
+            # Utilize a lambda expression as an initializer to prevent adding a
+            # large constant to the computation graph.
+            self._int8_build(
+                lambda shape, dtype: embeddings_value,
+                lambda shape, dtype: embeddings_scale,
             )
-            self.embeddings_scale = self.add_weight(
-                name="embeddings_scale",
-                shape=(self.output_dim,),
-                # Prevent adding a large constant to the computation graph
-                initializer=lambda shape, dtype: embeddings_scale,
-                trainable=False,
-            )
-            self._tracker.lock()
         else:
             raise NotImplementedError(
                 self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
             )
+        self._tracker.lock()
 
         # Set new dtype policy
         if not isinstance(
