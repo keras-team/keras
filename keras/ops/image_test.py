@@ -602,3 +602,157 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             backend.convert_to_numpy(cropped_image),
             atol=1e-5,
         )
+
+    def test_rgb_to_grayscale_invalid_rank_two_tensor(self):
+        rgb_to_gray = kimage.RGBToGrayscale()
+        invalid_image = np.random.uniform(size=(10, 10))
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid image rank: expected rank 3",
+        ):
+            rgb_to_gray.compute_output_spec(invalid_image)
+
+    def test_rgb_to_grayscale_invalid_rank_five_tensor(self):
+        rgb_to_gray = kimage.RGBToGrayscale()
+        invalid_image = np.random.uniform(size=(2, 3, 10, 10, 3))
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid image rank: expected rank 3",
+        ):
+            rgb_to_gray.compute_output_spec(invalid_image)
+
+    def test_rgb_to_grayscale_valid_rank_three_tensor(self):
+        rgb_to_gray = kimage.RGBToGrayscale()
+        valid_image = np.random.uniform(size=(10, 10, 3))
+        output_spec = rgb_to_gray.compute_output_spec(valid_image)
+        self.assertEqual(
+            output_spec.shape,
+            (10, 10, 1),
+            "Output shape should match expected grayscale image shape",
+        )
+
+    def test_rgb_to_grayscale_valid_rank_four_tensor(self):
+        rgb_to_gray = kimage.RGBToGrayscale()
+        valid_image = np.random.uniform(size=(5, 10, 10, 3))
+        output_spec = rgb_to_gray.compute_output_spec(valid_image)
+        self.assertEqual(
+            output_spec.shape,
+            (5, 10, 10, 1),
+            "Output shape should match expected grayscale image shape",
+        )
+
+    def test_affine_transform_compute_output_spec_image_rank_too_low(self):
+        affine_transform = kimage.AffineTransform()
+        # Test with an image of rank 2 (invalid)
+        image_2d = np.random.uniform(size=(10, 10))
+        transform_valid = np.random.uniform(size=(6,))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid image rank: expected rank 3"
+        ):
+            affine_transform.compute_output_spec(image_2d, transform_valid)
+
+    def test_affine_transform_compute_output_spec_image_rank_too_high(self):
+        affine_transform = kimage.AffineTransform()
+        # Test with an image of rank 5 (invalid)
+        image_5d = np.random.uniform(size=(2, 10, 10, 3, 1))
+        transform_valid = np.random.uniform(size=(6,))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid image rank: expected rank 3"
+        ):
+            affine_transform.compute_output_spec(image_5d, transform_valid)
+
+    def test_affine_transform_compute_output_spec_transform_rank_too_high(self):
+        affine_transform = kimage.AffineTransform()
+        # Test with a valid image rank 3
+        image_valid = np.random.uniform(size=(10, 10, 3))
+        # Test with a transform of rank 3 (invalid)
+        transform_invalid_rank3 = np.random.uniform(size=(2, 3, 2))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid transform rank: expected rank 1"
+        ):
+            affine_transform.compute_output_spec(
+                image_valid, transform_invalid_rank3
+            )
+
+    def test_affine_transform_compute_output_spec_transform_rank_too_low(self):
+        affine_transform = kimage.AffineTransform()
+        # Test with a valid image rank 3
+        image_valid = np.random.uniform(size=(10, 10, 3))
+        # Test with a transform of rank 0 (invalid)
+        transform_invalid_rank0 = np.random.uniform(size=())
+        with self.assertRaisesRegex(
+            ValueError, "Invalid transform rank: expected rank 1"
+        ):
+            affine_transform.compute_output_spec(
+                image_valid, transform_invalid_rank0
+            )
+
+    def test_extract_patches_with_invalid_tuple_size(self):
+        size = (3, 3, 3)  # Invalid size, too many dimensions
+        image = np.random.uniform(size=(2, 20, 20, 3))
+        with self.assertRaisesRegex(
+            TypeError, "Expected an int or a tuple of length 2"
+        ):
+            kimage.extract_patches(image, size)
+
+    def test_extract_patches_with_incorrect_type_size(self):
+        size = "5"  # Invalid size type
+        image = np.random.uniform(size=(2, 20, 20, 3))
+        with self.assertRaisesRegex(
+            TypeError, "Expected an int or a tuple of length 2"
+        ):
+            kimage.extract_patches(image, size)
+
+    def test_extract_patches_with_integer_size(self):
+        size = 5
+        # Use float32 for compatibility with TensorFlow convolution operations
+        image = np.random.uniform(size=(1, 20, 20, 3)).astype(np.float32)
+        patches = kimage.extract_patches(image, size)
+        # Expecting 4x4 patches with each patch having 75 values (5x5x3)
+        expected_shape = (1, 4, 4, 75)
+        self.assertEqual(patches.shape, expected_shape)
+
+    def test_extract_patches_with_tuple_size(self):
+        size = (5, 5)
+        image = np.random.uniform(size=(1, 20, 20, 3)).astype(np.float32)
+        patches = kimage.extract_patches(image, size)
+        # Expecting 4x4 patches with each patch having 75 values (5x5x3)
+        expected_shape = (1, 4, 4, 75)
+        self.assertEqual(patches.shape, expected_shape)
+
+    def test_map_coordinates_image_coordinates_rank_mismatch(self):
+        map_coordinates = kimage.MapCoordinates()
+        image = np.random.uniform(size=(10, 10, 3))
+        coordinates = np.random.uniform(size=(2, 10, 10))
+        with self.assertRaisesRegex(
+            ValueError, "must be the same as the rank of `image`"
+        ):
+            map_coordinates.compute_output_spec(image, coordinates)
+
+    def test_map_coordinates_image_coordinates_rank_mismatch_order_zero(self):
+        map_coordinates = kimage.MapCoordinates(order=0)
+        image = np.random.uniform(size=(10, 10, 3))
+        coordinates = np.random.uniform(size=(2, 10, 10))
+        with self.assertRaisesRegex(
+            ValueError, "must be the same as the rank of `image`"
+        ):
+            map_coordinates.compute_output_spec(image, coordinates)
+
+    def test_map_coordinates_coordinates_rank_too_low(self):
+        map_coordinates = kimage.MapCoordinates()
+        image = np.random.uniform(size=(10, 10, 3))
+        coordinates = np.random.uniform(size=(3,))
+        with self.assertRaisesRegex(ValueError, "expected at least rank 2"):
+            map_coordinates.compute_output_spec(image, coordinates)
+
+    def test_map_coordinates_valid_input(self):
+        map_coordinates = kimage.MapCoordinates()
+        image = np.random.uniform(size=(10, 10, 3))
+        coordinates = np.random.uniform(size=(3, 10, 10))
+        output_spec = map_coordinates.compute_output_spec(image, coordinates)
+        expected_shape = (10, 10)
+        self.assertEqual(
+            output_spec.shape,
+            expected_shape,
+            "Output shape should be correct for valid inputs",
+        )

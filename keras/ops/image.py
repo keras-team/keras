@@ -515,7 +515,7 @@ def _extract_patches(
 
 
 class MapCoordinates(Operation):
-    def __init__(self, order, fill_mode="constant", fill_value=0):
+    def __init__(self, order=1, fill_mode="constant", fill_value=0):
         super().__init__()
         self.order = order
         self.fill_mode = fill_mode
