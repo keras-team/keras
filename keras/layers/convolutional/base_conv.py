@@ -1,5 +1,7 @@
 """Keras base class for convolution layers."""
 
+import math
+
 from keras import activations
 from keras import constraints
 from keras import initializers
@@ -92,16 +94,10 @@ class BaseConv(Layer):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
-        trainable=True,
-        name=None,
+        lora_rank=None,
         **kwargs,
     ):
-        super().__init__(
-            trainable=trainable,
-            name=name,
-            activity_regularizer=activity_regularizer,
-            **kwargs,
-        )
+        super().__init__(activity_regularizer=activity_regularizer, **kwargs)
         self.rank = rank
         self.filters = filters
         self.groups = groups
@@ -120,6 +116,8 @@ class BaseConv(Layer):
         self.bias_regularizer = regularizers.get(bias_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
+        self.lora_rank = lora_rank
+        self.lora_enabled = False
         self.input_spec = InputSpec(min_ndim=self.rank + 2)
         self.data_format = self.data_format
 
@@ -187,7 +185,7 @@ class BaseConv(Layer):
         # shape, and make sure the output shape has all positive dimensions.
         self.compute_output_shape(input_shape)
 
-        self.kernel = self.add_weight(
+        self._kernel = self.add_weight(
             name="kernel",
             shape=kernel_shape,
             initializer=self.kernel_initializer,
@@ -209,6 +207,19 @@ class BaseConv(Layer):
         else:
             self.bias = None
         self.built = True
+
+    @property
+    def kernel(self):
+        if not self.built:
+            raise AttributeError(
+                "You must build the layer before accessing `kernel`."
+            )
+        if self.lora_enabled:
+            return self._kernel + ops.reshape(
+                ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                self._kernel.shape,
+            )
+        return self._kernel
 
     def convolution_op(self, inputs, kernel):
         return ops.conv(
@@ -248,6 +259,46 @@ class BaseConv(Layer):
             dilation_rate=self.dilation_rate,
         )
 
+    def enable_lora(
+        self, rank, a_initializer="he_uniform", b_initializer="zeros"
+    ):
+        if self.kernel_constraint:
+            raise ValueError(
+                "Lora is incompatible with kernel constraints. "
+                "In order to enable lora on this layer, remove the "
+                "`kernel_constraint` argument."
+            )
+        if not self.built:
+            raise ValueError(
+                "Cannot enable lora on a layer that isn't yet built."
+            )
+        if self.lora_enabled:
+            raise ValueError(
+                "lora is already enabled. "
+                "This can only be done once per layer."
+            )
+        if self.groups != 1:
+            raise ValueError
+
+        self._tracker.unlock()
+        input_channel = self._kernel.shape[-2]
+        self.lora_kernel_a = self.add_weight(
+            name="lora_kernel_a",
+            shape=(input_channel * math.prod(self.kernel_size), rank),
+            initializer=initializers.get(a_initializer),
+            regularizer=self.kernel_regularizer,
+        )
+        self.lora_kernel_b = self.add_weight(
+            name="lora_kernel_b",
+            shape=(rank, self.filters),
+            initializer=initializers.get(b_initializer),
+            regularizer=self.kernel_regularizer,
+        )
+        self._kernel.trainable = False
+        self._tracker.lock()
+        self.lora_enabled = True
+        self.lora_rank = rank
+
     def get_config(self):
         config = super().get_config()
         config.update(
@@ -282,4 +333,6 @@ class BaseConv(Layer):
                 "bias_constraint": constraints.serialize(self.bias_constraint),
             }
         )
+        if self.lora_rank:
+            config["lora_rank"] = self.lora_rank
         return config
