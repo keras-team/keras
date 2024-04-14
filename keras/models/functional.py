@@ -553,6 +553,10 @@ def functional_from_config(cls, config, custom_objects=None):
     def get_tensor(layer_name, node_index, tensor_index):
         assert layer_name in created_layers
         layer = created_layers[layer_name]
+        if issubclass(layer.__class__, Functional):
+            # Functional models start with a pre-existing node
+            # linking their input to output.
+            node_index -= 1
         layer_output_tensors = layer._inbound_nodes[node_index].output_tensors
         return layer_output_tensors[tensor_index]
 
