@@ -480,7 +480,7 @@ def functional_from_config(cls, config, custom_objects=None):
         layer(*args, **kwargs)
 
     def process_layer(layer_data):
-        """Deserializes a layer, then call it on appropriate inputs.
+        """Deserializes a layer and index its inbound nodes.
 
         Args:
             layer_data: layer config dict.
@@ -553,6 +553,9 @@ def functional_from_config(cls, config, custom_objects=None):
     def get_tensor(layer_name, node_index, tensor_index):
         assert layer_name in created_layers
         layer = created_layers[layer_name]
+        if isinstance(layer, Functional):
+            # Functional models start out with a built-in node.
+            node_index -= 1
         layer_output_tensors = layer._inbound_nodes[node_index].output_tensors
         return layer_output_tensors[tensor_index]
 
@@ -613,8 +616,9 @@ def serialize_node(node, own_nodes=()):
         if isinstance(x, backend.KerasTensor):
             operation, node_index, tensor_index = x._keras_history
             irrelevant_node_count = 0
-            for node in operation._inbound_nodes[:node_index]:
-                if node not in own_nodes:
+            for i, node in enumerate(operation._inbound_nodes[:node_index]):
+                node_key = make_node_key(operation, i)
+                if node_key not in own_nodes:
                     irrelevant_node_count += 1
             x._keras_history = KerasHistory(
                 operation, node_index - irrelevant_node_count, tensor_index
