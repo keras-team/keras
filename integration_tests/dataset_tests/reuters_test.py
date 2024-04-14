@@ -1,7 +1,7 @@
 import numpy as np
 
-from keras import testing
 from keras.datasets import reuters
+from keras.src import testing
 
 
 class ReutersLoadDataTest(testing.TestCase):

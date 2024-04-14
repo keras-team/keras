@@ -1,5 +1,5 @@
-from keras import testing
 from keras.datasets import boston_housing
+from keras.src import testing
 
 
 class BostonHousingTest(testing.TestCase):

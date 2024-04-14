@@ -48,6 +48,14 @@ pip install -r requirements.txt
 
 ```
 python pip_build.py --install
+# Or install the package via setup
+python setup.py -e .
+```
+
+3. Run API generation script when creating PRs:
+
+```
+./shell/api_gen.sh
 ```
 
 #### Adding GPU support

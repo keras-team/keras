@@ -1,7 +1,7 @@
 import numpy as np
 
-from keras import testing
 from keras.datasets import cifar10
+from keras.src import testing
 
 
 class Cifar10LoadDataTest(testing.TestCase):

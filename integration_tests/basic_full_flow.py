@@ -6,7 +6,7 @@ from keras import layers
 from keras import losses
 from keras import metrics
 from keras import optimizers
-from keras import testing
+from keras.src import testing
 
 
 class MyModel(keras.Model):

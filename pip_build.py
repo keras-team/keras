@@ -20,9 +20,8 @@ import datetime
 import glob
 import os
 import pathlib
+import re
 import shutil
-
-import namex
 
 # Needed because importing torch after TF causes the runtime to crash
 import torch  # noqa: F401
@@ -31,112 +30,6 @@ package = "keras"
 build_directory = "tmp_build_dir"
 dist_directory = "dist"
 to_copy = ["setup.py", "README.md"]
-
-
-def ignore_files(_, filenames):
-    return [f for f in filenames if f.endswith("_test.py")]
-
-
-def copy_source_to_build_directory(root_path):
-    # Copy sources (`keras/` directory and setup files) to build
-    # directory
-    os.chdir(root_path)
-    os.mkdir(build_directory)
-    shutil.copytree(
-        package, os.path.join(build_directory, package), ignore=ignore_files
-    )
-    for fname in to_copy:
-        shutil.copy(fname, os.path.join(f"{build_directory}", fname))
-    os.chdir(build_directory)
-
-
-def run_namex_conversion():
-    # Restructure the codebase so that source files live in `keras/src`
-    namex.convert_codebase(package, code_directory="src")
-
-    # Generate API __init__.py files in `keras/`
-    namex.generate_api_files(package, code_directory="src", verbose=True)
-
-
-def create_legacy_directory():
-    # Make keras/_tf_keras/ by copying keras/
-    tf_keras_dirpath_parent = os.path.join(package, "_tf_keras")
-    tf_keras_dirpath = os.path.join(tf_keras_dirpath_parent, "keras")
-    os.makedirs(tf_keras_dirpath)
-    with open(os.path.join(tf_keras_dirpath_parent, "__init__.py"), "w") as f:
-        f.write("from keras._tf_keras import keras\n")
-    with open(os.path.join(package, "__init__.py")) as f:
-        init_file = f.read()
-        init_file = init_file.replace(
-            "from keras import _legacy",
-            "from keras import _tf_keras",
-        )
-    with open(os.path.join(package, "__init__.py"), "w") as f:
-        f.write(init_file)
-    with open(os.path.join(tf_keras_dirpath, "__init__.py"), "w") as f:
-        f.write(init_file)
-    for dirname in os.listdir(package):
-        dirpath = os.path.join(package, dirname)
-        if os.path.isdir(dirpath) and dirname not in (
-            "_legacy",
-            "_tf_keras",
-            "src",
-        ):
-            shutil.copytree(
-                dirpath,
-                os.path.join(tf_keras_dirpath, dirname),
-                ignore=ignore_files,
-            )
-
-    # Copy keras/_legacy/ file contents to keras/_tf_keras/keras
-    legacy_submodules = [
-        path[:-3]
-        for path in os.listdir(os.path.join(package, "src", "legacy"))
-        if path.endswith(".py")
-    ]
-    legacy_submodules += [
-        path
-        for path in os.listdir(os.path.join(package, "src", "legacy"))
-        if os.path.isdir(os.path.join(package, "src", "legacy", path))
-    ]
-
-    for root, _, fnames in os.walk(os.path.join(package, "_legacy")):
-        for fname in fnames:
-            if fname.endswith(".py"):
-                legacy_fpath = os.path.join(root, fname)
-                tf_keras_root = root.replace("/_legacy", "/_tf_keras/keras")
-                core_api_fpath = os.path.join(
-                    root.replace("/_legacy", ""), fname
-                )
-                if not os.path.exists(tf_keras_root):
-                    os.makedirs(tf_keras_root)
-                tf_keras_fpath = os.path.join(tf_keras_root, fname)
-                with open(legacy_fpath) as f:
-                    legacy_contents = f.read()
-                    legacy_contents = legacy_contents.replace(
-                        "keras._legacy", "keras._tf_keras.keras"
-                    )
-                if os.path.exists(core_api_fpath):
-                    with open(core_api_fpath) as f:
-                        core_api_contents = f.read()
-                    core_api_contents = core_api_contents.replace(
-                        "from keras import _tf_keras\n", ""
-                    )
-                    for legacy_submodule in legacy_submodules:
-                        core_api_contents = core_api_contents.replace(
-                            f"from keras import {legacy_submodule}\n",
-                            "",
-                        )
-                        core_api_contents = core_api_contents.replace(
-                            f"keras.{legacy_submodule}",
-                            f"keras._tf_keras.keras.{legacy_submodule}",
-                        )
-                    legacy_contents = core_api_contents + "\n" + legacy_contents
-                with open(tf_keras_fpath, "w") as f:
-                    f.write(legacy_contents)
-
-    # Delete keras/_legacy/
-    shutil.rmtree(os.path.join(package, "_legacy"))
 
 
 def export_version_string(version, is_nightly=False, rc_index=None):
@@ -156,10 +49,15 @@ def export_version_string(version, is_nightly=False, rc_index=None):
         version += "rc" + str(rc_index)
 
     # Make sure to export the __version__ string
-    with open(os.path.join(package, "__init__.py")) as f:
+    with open(os.path.join(package, "src", "version.py")) as f:
         init_contents = f.read()
-    with open(os.path.join(package, "__init__.py"), "w") as f:
-        f.write(init_contents + "\n\n" + f'__version__ = "{version}"\n')
+    with open(os.path.join(package, "src", "version.py"), "w") as f:
+        init_contents = re.sub(
+            "\n__version__ = .*\n",
+            f'\n__version__ = "{version}"\n',
+            init_contents,
+        )
+        f.write(init_contents)
 
 
 def build_and_save_output(root_path, __version__):
@@ -188,20 +86,10 @@ def build_and_save_output(root_path, __version__):
 
 
 def build(root_path, is_nightly=False, rc_index=None):
-    if os.path.exists(build_directory):
-        raise ValueError(f"Directory already exists: {build_directory}")
+    from keras.src.version import __version__  # noqa: E402
 
-    try:
-        copy_source_to_build_directory(root_path)
-        run_namex_conversion()
-        create_legacy_directory()
-        from keras.src.version import __version__  # noqa: E402
-
-        export_version_string(__version__, is_nightly, rc_index)
-        return build_and_save_output(root_path, __version__)
-    finally:
-        # Clean up: remove the build directory (no longer needed)
-        shutil.rmtree(build_directory)
+    export_version_string(__version__, is_nightly, rc_index)
+    return build_and_save_output(root_path, __version__)
 
 
 def install_whl(whl_fpath):

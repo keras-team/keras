@@ -4,10 +4,14 @@ import subprocess
 
 from keras import backend
 
+# For torch, use index url to avoid installing nvidia drivers for the test.
 BACKEND_REQ = {
-    "tensorflow": "tensorflow",
-    "torch": "torch torchvision",
-    "jax": "jax jaxlib",
+    "tensorflow": ("tensorflow-cpu", ""),
+    "torch": (
+        "torch torchvision",
+        "--extra-index-url https://download.pytorch.org/whl/cpu ",
+    ),
+    "jax": ("jax[cpu]", ""),
 }
 
 
@@ -43,16 +47,17 @@ def create_virtualenv():
 
 def manage_venv_installs(whl_path):
     other_backends = list(set(BACKEND_REQ.keys()) - {backend.backend()})
+    backend_pkg, backend_extra_url = BACKEND_REQ[backend.backend()]
     install_setup = [
         # Installs the backend's package and common requirements
-        "pip install " + BACKEND_REQ[backend.backend()],
+        "pip install " + backend_extra_url + backend_pkg,
         "pip install -r requirements-common.txt",
         "pip install pytest",
         # Ensure other backends are uninstalled
         "pip uninstall -y "
-        + BACKEND_REQ[other_backends[0]]
+        + BACKEND_REQ[other_backends[0]][0]
         + " "
-        + BACKEND_REQ[other_backends[1]],
+        + BACKEND_REQ[other_backends[1]][0],
         # Install `.whl` package
         "pip install " + whl_path,
     ]
@@ -63,6 +68,19 @@ def run_keras_flow():
     test_script = [
         # Runs the example script
         "python -m pytest integration_tests/basic_full_flow.py",
+    ]
+    run_commands_venv(test_script)
+
+
+def run_tensorflow_keras_check():
+    test_script = [
+        # Runs the example script
+        'python -c \"import tensorflow as tf;'
+        "assert 'tf.keras.__file__'.endswith('keras/_tf_keras/keras/__init__.py')\"",  # noqa: E501
+        'python -c \"import tensorflow as tf;'
+        "assert 'tf.keras.layers.__file__'.endswith('keras/_tf_keras/keras/layers/__init__.py')\"",  # noqa: E501
+        'python -c \"import tensorflow as tf;'
+        "assert 'tf.keras.legacy.__file__'.endswith('keras/legacy/__init__.py')\"",  # noqa: E501
     ]
     run_commands_venv(test_script)
 
@@ -110,6 +128,10 @@ def test_keras_imports():
         # Runs test of basic flow in Keras Core.
         # Tests for backend-specific imports and `model.fit()`.
         run_keras_flow()
+
+        # Check for `tf.keras`
+        if backend.backend() == "tensorflow":
+            run_tensorflow_keras_check()
 
         # Removes virtual environment and associated files
     finally:
