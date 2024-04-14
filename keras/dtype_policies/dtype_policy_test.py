@@ -3,6 +3,7 @@ from absl.testing import parameterized
 from keras.dtype_policies.dtype_policy import DTypePolicy
 from keras.dtype_policies.dtype_policy import FloatDTypePolicy
 from keras.dtype_policies.dtype_policy import QuantizedDTypePolicy
+from keras.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
 from keras.dtype_policies.dtype_policy import dtype_policy
 from keras.dtype_policies.dtype_policy import set_dtype_policy
 from keras.testing import test_case
@@ -63,13 +64,14 @@ class DTypePolicyTest(test_case.TestCase):
         new_policy = DTypePolicy.from_config(config)
         self.assertEqual(new_policy.name, "mixed_float16")
 
-    def test_deepcopy(self):
+    def test_serialization(self):
         """Test builtin serialization methods."""
         import copy
         import pickle
 
-        # copy.deepcopy
         policy = DTypePolicy("mixed_float16")
+
+        # copy.deepcopy
         copied_policy = copy.deepcopy(policy)
         self.assertEqual(
             repr(copied_policy), '<FloatDTypePolicy "mixed_float16">'
@@ -180,11 +182,11 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         self, from_name, expected_compute_dtype, expected_variable_dtype
     ):
         name = f"float8_from_{from_name}"
-        policy = QuantizedDTypePolicy(name)
+        policy = QuantizedFloat8DTypePolicy(name)
         self.assertEqual(policy.name, name)
         self.assertEqual(policy.compute_dtype, expected_compute_dtype)
         self.assertEqual(policy.variable_dtype, expected_variable_dtype)
-        self.assertEqual(repr(policy), f'<QuantizedDTypePolicy "{name}">')
+        self.assertEqual(repr(policy), f'<QuantizedFloat8DTypePolicy "{name}">')
 
     @parameterized.named_parameters(
         ("abc", "abc"),
@@ -209,6 +211,76 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
 
         new_policy = QuantizedDTypePolicy.from_config(config)
         self.assertEqual(new_policy.name, "int8_from_mixed_bfloat16")
+
+    @parameterized.named_parameters(
+        (
+            "int8_from_mixed_bfloat16",
+            "int8_from_mixed_bfloat16",
+            '<QuantizedDTypePolicy "int8_from_mixed_bfloat16">',
+        ),
+        (
+            "float8_from_mixed_bfloat16",
+            "float8_from_mixed_bfloat16",
+            '<QuantizedFloat8DTypePolicy "float8_from_mixed_bfloat16">',
+        ),
+    )
+    def test_serialization(self, name, repr_str):
+        import copy
+        import pickle
+
+        policy = DTypePolicy(name)
+
+        # copy.deepcopy
+        copied_policy = copy.deepcopy(policy)
+        self.assertEqual(repr(copied_policy), repr_str)
+        # copy.copy
+        copied_policy = copy.copy(policy)
+        self.assertEqual(repr(copied_policy), repr_str)
+        # pickle
+        temp_dir = self.get_temp_dir()
+        with open(f"{temp_dir}/policy.pickle", "wb") as f:
+            pickle.dump(policy, f)
+        with open(f"{temp_dir}/policy.pickle", "rb") as f:
+            copied_policy = pickle.load(f)
+        self.assertEqual(repr(copied_policy), repr_str)
+
+    def test_properties_for_float8(self):
+        policy = QuantizedFloat8DTypePolicy("float8_from_mixed_bfloat16")
+        self.assertEqual(policy.amax_history_length, 1024)
+        policy = QuantizedFloat8DTypePolicy("float8_from_mixed_bfloat16", 512)
+        self.assertEqual(policy.amax_history_length, 512)
+
+    def test_serialization_for_float8(self):
+        import copy
+        import pickle
+
+        policy = QuantizedFloat8DTypePolicy("float8_from_mixed_bfloat16", 123)
+
+        # copy.deepcopy
+        copied_policy = copy.deepcopy(policy)
+        self.assertEqual(
+            repr(copied_policy),
+            '<QuantizedFloat8DTypePolicy "float8_from_mixed_bfloat16">',
+        )
+        self.assertEqual(copied_policy.amax_history_length, 123)
+        # copy.copy
+        copied_policy = copy.copy(policy)
+        self.assertEqual(
+            repr(copied_policy),
+            '<QuantizedFloat8DTypePolicy "float8_from_mixed_bfloat16">',
+        )
+        self.assertEqual(copied_policy.amax_history_length, 123)
+        # pickle
+        temp_dir = self.get_temp_dir()
+        with open(f"{temp_dir}/policy.pickle", "wb") as f:
+            pickle.dump(policy, f)
+        with open(f"{temp_dir}/policy.pickle", "rb") as f:
+            copied_policy = pickle.load(f)
+        self.assertEqual(
+            repr(copied_policy),
+            '<QuantizedFloat8DTypePolicy "float8_from_mixed_bfloat16">',
+        )
+        self.assertEqual(copied_policy.amax_history_length, 123)
 
 
 class DTypePolicyGlobalFunctionsTest(test_case.TestCase):

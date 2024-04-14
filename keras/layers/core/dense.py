@@ -58,9 +58,6 @@ class Dense(Layer):
             computation cost of fine-tuning large dense layers.
             You can also enable LoRA on an existing
             `Dense` layer by calling `layer.enable_lora(rank)`.
-        amax_history_length: Optional integer. The length of the amax history
-            window used for scaling factor computation in float8 training. This
-            parameter will have no effect if not in a float8 training scheme.
 
     Input shape:
         N-D tensor with shape: `(batch_size, ..., input_dim)`.
@@ -86,7 +83,6 @@ class Dense(Layer):
         kernel_constraint=None,
         bias_constraint=None,
         lora_rank=None,
-        amax_history_length=None,
         **kwargs,
     ):
         super().__init__(activity_regularizer=activity_regularizer, **kwargs)
@@ -100,7 +96,6 @@ class Dense(Layer):
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
         self.lora_rank = lora_rank
-        self.amax_history_length = amax_history_length
         self.lora_enabled = False
         self.input_spec = InputSpec(min_ndim=2)
         self.supports_masking = True
@@ -275,8 +270,6 @@ class Dense(Layer):
         }
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
-        if self.amax_history_length:
-            config["amax_history_length"] = self.amax_history_length
         return {**base_config, **config}
 
     def _check_load_own_variables(self, store):
@@ -355,9 +348,14 @@ class Dense(Layer):
         )
 
     def _float8_build(self):
-        # Defaults to 1024 if not specified
-        if self.amax_history_length is None:
-            self.amax_history_length = 1024
+        if not isinstance(
+            self.dtype_policy, dtype_policies.QuantizedFloat8DTypePolicy
+        ):
+            raise TypeError(
+                "`self.dtype_policy` must be the type of "
+                f"QuantizedFloat8DTypePolicy. Received {self.dtype_policy}"
+            )
+        amax_history_length = self.dtype_policy.amax_history_length
         # We set `trainable=True` because we will use the gradients to overwrite
         # these variables
         scale_kwargs = {
@@ -368,7 +366,7 @@ class Dense(Layer):
             "autocast": False,
         }
         amax_history_kwargs = {
-            "shape": (self.amax_history_length,),
+            "shape": (amax_history_length,),
             "initializer": "zeros",
             "dtype": "float32",  # Always be float32
             "trainable": True,
@@ -541,6 +539,14 @@ class Dense(Layer):
                 "method implemented."
             )
         self._check_quantize_args(mode, self.compute_dtype)
+
+        # Set new dtype policy
+        if not isinstance(
+            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+        ):
+            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
+            self.dtype_policy = dtype_policies.get(quantized_dtype)
+
         self._tracker.unlock()
         if mode == "int8":
             if backend.standardize_dtype(self._kernel.dtype) == "int8":
@@ -571,13 +577,6 @@ class Dense(Layer):
                 self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
             )
         self._tracker.lock()
-
-        # Set new dtype policy
-        if not isinstance(
-            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-        ):
-            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
-            self.dtype_policy = dtype_policies.get(quantized_dtype)
 
         # Release memory manually because sometimes the backend doesn't
         gc.collect()

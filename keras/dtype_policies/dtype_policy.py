@@ -57,7 +57,7 @@ class DTypePolicy:
     to explicitly construct a `DTypePolicy` object.
     """
 
-    def __new__(cls, name):
+    def __new__(cls, name, *args, **kwargs):
         if not isinstance(name, str):
             raise TypeError(
                 "'name' must be a string, such as 'mixed_float16'. "
@@ -67,7 +67,7 @@ class DTypePolicy:
         # TODO: We should consider deprecating this behavior
         if cls is __class__:
             if name.startswith(QUANTIZATION_MODES):
-                return QuantizedDTypePolicy(name)
+                return _get_quantized_dtype_policy_by_str(name)
             return FloatDTypePolicy(name)
         return super().__new__(cls)
 
@@ -206,7 +206,7 @@ class QuantizedDTypePolicy(DTypePolicy):
 
     def _parse_name(self, name):
         error_msg = (
-            f"Cannot convert '{name}' to a QuantizedDTypePolicy. "
+            f"Cannot convert '{name}' to a {self.__class__.__name__}. "
             f"Valid policies are: {self._get_all_valid_policies()}."
         )
         split_name = name.split("_from_")
@@ -249,12 +249,55 @@ class QuantizedDTypePolicy(DTypePolicy):
         ]
         valid_policies = [
             f"{mode}_from_{policy}"
-            for mode in QUANTIZATION_MODES
+            for mode in ("int8",)
             for policy in valid_float_policies
         ]
         # Remove invalid policies
         valid_policies.remove("int8_from_float16")
         valid_policies.remove("int8_from_mixed_float16")
+        return valid_policies
+
+
+@keras_export(
+    [
+        "keras.QuantizedFloat8DTypePolicy",
+        "keras.dtype_policies.QuantizedFloat8DTypePolicy",
+    ]
+)
+class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
+    def __init__(self, name, amax_history_length=1024):
+        super().__init__(name)
+        if not isinstance(amax_history_length, int):
+            raise TypeError(
+                "`amax_history_length` must be an integer. "
+                f"Received: amax_history_length={amax_history_length}"
+            )
+        self._amax_history_length = amax_history_length
+
+    @property
+    def amax_history_length(self):
+        """The length of the amax history window.
+
+        This property is used for scaling factor computation in float8 training.
+        """
+        return self._amax_history_length
+
+    def __repr__(self):
+        return f'<QuantizedFloat8DTypePolicy "{self._name}">'
+
+    def _get_all_valid_policies(self):
+        valid_float_policies = [
+            "float32",
+            "float16",
+            "bfloat16",
+            "mixed_float16",
+            "mixed_bfloat16",
+        ]
+        valid_policies = [
+            f"{mode}_from_{policy}"
+            for mode in ("float8")
+            for policy in valid_float_policies
+        ]
         return valid_policies
 
 
@@ -275,7 +318,7 @@ def set_dtype_policy(policy):
     if not isinstance(policy, DTypePolicy):
         if isinstance(policy, str):
             if policy.startswith(QUANTIZATION_MODES):
-                policy = QuantizedDTypePolicy(policy)
+                policy = _get_quantized_dtype_policy_by_str(policy)
             else:
                 policy = FloatDTypePolicy(policy)
         else:
@@ -303,3 +346,18 @@ def dtype_policy():
         policy = FloatDTypePolicy(backend.floatx())
         set_dtype_policy(policy)
     return policy
+
+
+def _get_quantized_dtype_policy_by_str(policy):
+    if not isinstance(policy, str):
+        raise TypeError(f"`policy` must be a string. Received: policy={policy}")
+    if not policy.startswith(QUANTIZATION_MODES):
+        raise ValueError(
+            "`policy` is incompatible with the current supported quantization."
+        )
+    if policy.startswith("int8"):
+        return QuantizedDTypePolicy(policy)
+    elif policy.startswith("float8"):
+        return QuantizedFloat8DTypePolicy(policy)
+    else:
+        raise NotImplementedError
