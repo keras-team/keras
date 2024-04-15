@@ -1,7 +1,5 @@
 """Keras base class for convolution layers."""
 
-import math
-
 from keras import activations
 from keras import constraints
 from keras import initializers
@@ -73,6 +71,15 @@ class BaseConv(Layer):
             are not safe to use when doing asynchronous distributed training.
         bias_constraint: Optional projection function to be applied to the
             bias after being updated by an `Optimizer`.
+        lora_rank: Optional integer. If set, the layer's forward pass
+            will implement LoRA (Low-Rank Adaptation)
+            with the provided rank. LoRA sets the layer's kernel
+            to non-trainable and replaces it with a delta over the
+            original kernel, obtained via multiplying two lower-rank
+            trainable matrices. This can be useful to reduce the
+            computation cost of fine-tuning large dense layers.
+            You can also enable LoRA on an existing layer by calling
+            `layer.enable_lora(rank)`.
     """
 
     def __init__(
@@ -207,6 +214,8 @@ class BaseConv(Layer):
         else:
             self.bias = None
         self.built = True
+        if self.lora_rank:
+            self.enable_lora(self.lora_rank)
 
     @property
     def kernel(self):
@@ -215,9 +224,8 @@ class BaseConv(Layer):
                 "You must build the layer before accessing `kernel`."
             )
         if self.lora_enabled:
-            return self._kernel + ops.reshape(
-                ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
-                self._kernel.shape,
+            return self._kernel + ops.matmul(
+                self.lora_kernel_a, self.lora_kernel_b
             )
         return self._kernel
 
@@ -277,14 +285,10 @@ class BaseConv(Layer):
                 "lora is already enabled. "
                 "This can only be done once per layer."
             )
-        if self.groups != 1:
-            raise ValueError
-
         self._tracker.unlock()
-        input_channel = self._kernel.shape[-2]
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",
-            shape=(input_channel * math.prod(self.kernel_size), rank),
+            shape=self._kernel.shape[:-1] + (rank,),
             initializer=initializers.get(a_initializer),
             regularizer=self.kernel_regularizer,
         )
@@ -298,6 +302,27 @@ class BaseConv(Layer):
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank
+
+    def save_own_variables(self, store):
+        # Do nothing if the layer isn't yet built
+        if not self.built:
+            return
+        store["0"] = self.kernel
+        if self.use_bias:
+            store["1"] = self.bias
+
+    def load_own_variables(self, store):
+        if not self.lora_enabled:
+            self._check_load_own_variables(store)
+        # Do nothing if the layer isn't yet built
+        if not self.built:
+            return
+        self._kernel.assign(store["0"])
+        if self.use_bias:
+            self.bias.assign(store["1"])
+        if self.lora_enabled:
+            self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
+            self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
 
     def get_config(self):
         config = super().get_config()
@@ -336,3 +361,37 @@ class BaseConv(Layer):
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
         return config
+
+    def _check_load_own_variables(self, store):
+        all_vars = self._trainable_variables + self._non_trainable_variables
+        if len(store.keys()) != len(all_vars):
+            if len(all_vars) == 0 and not self.built:
+                raise ValueError(
+                    f"Layer '{self.name}' was never built "
+                    "and thus it doesn't have any variables. "
+                    f"However the weights file lists {len(store.keys())} "
+                    "variables for this layer.\n"
+                    "In most cases, this error indicates that either:\n\n"
+                    "1. The layer is owned by a parent layer that "
+                    "implements a `build()` method, but calling the "
+                    "parent's `build()` method did NOT create the state of "
+                    f"the child layer '{self.name}'. A `build()` method "
+                    "must create ALL state for the layer, including "
+                    "the state of any children layers.\n\n"
+                    "2. You need to implement "
+                    "the `def build_from_config(self, config)` method "
+                    f"on layer '{self.name}', to specify how to rebuild "
+                    "it during loading. "
+                    "In this case, you might also want to implement the "
+                    "method that generates the build config at saving time, "
+                    "`def get_build_config(self)`. "
+                    "The method `build_from_config()` is meant "
+                    "to create the state "
+                    "of the layer (i.e. its variables) upon deserialization.",
+                )
+            raise ValueError(
+                f"Layer '{self.name}' expected {len(all_vars)} variables, "
+                "but received "
+                f"{len(store.keys())} variables during loading. "
+                f"Expected: {[v.name for v in all_vars]}"
+            )
