@@ -557,7 +557,7 @@ class ConvBasicTest(testing.TestCase, parameterized.TestCase):
             "output_shape": (None, 3, 6),
         },
         {
-            "testcase_name": "conv1d_kernel_size1_strides2",
+            "testcase_name": "conv1d_kernel_size2_strides2",
             "conv_cls": layers.Conv1D,
             "filters": 6,
             "kernel_size": 2,
@@ -581,7 +581,7 @@ class ConvBasicTest(testing.TestCase, parameterized.TestCase):
             "output_shape": (None, 3, 3, 6),
         },
         {
-            "testcase_name": "conv2d_kernel_size1_strides2",
+            "testcase_name": "conv2d_kernel_size2_strides2",
             "conv_cls": layers.Conv2D,
             "filters": 6,
             "kernel_size": 2,
@@ -605,7 +605,7 @@ class ConvBasicTest(testing.TestCase, parameterized.TestCase):
             "output_shape": (None, 3, 3, 3, 6),
         },
         {
-            "testcase_name": "conv3d_kernel_size1_strides2",
+            "testcase_name": "conv3d_kernel_size2_strides2",
             "conv_cls": layers.Conv3D,
             "filters": 6,
             "kernel_size": 2,
