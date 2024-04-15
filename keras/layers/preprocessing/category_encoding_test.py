@@ -268,11 +268,9 @@ class CategoryEncodingTest(testing.TestCase, parameterized.TestCase):
             layers.CategoryEncoding(output_mode="multi_hot")
 
     def test_category_encoding_with_invalid_num_tokens(self):
-        # Test with zero which is an invalid number of tokens
         with self.assertRaisesRegex(ValueError, r"`num_tokens` must be >= 1"):
             layers.CategoryEncoding(num_tokens=0, output_mode="multi_hot")
 
-        # Also test with a negative number
         with self.assertRaisesRegex(ValueError, r"`num_tokens` must be >= 1"):
             layers.CategoryEncoding(num_tokens=-1, output_mode="multi_hot")
 
