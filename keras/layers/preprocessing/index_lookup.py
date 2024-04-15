@@ -88,11 +88,11 @@ class IndexLookup(Layer):
 
     def __init__(
         self,
-        max_tokens,
         num_oov_indices,
         mask_token,
         oov_token,
         vocabulary_dtype,
+        max_tokens=None,
         vocabulary=None,
         idf_weights=None,
         invert=False,
