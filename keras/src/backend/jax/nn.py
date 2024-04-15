@@ -668,7 +668,7 @@ def ctc_greedy_decode(
     mask_index=None,
 ):
     inputs = jnp.array(inputs)
-    sequence_length = jnp.array(sequence_length)
+    sequence_length = jnp.array(sequence_length, dtype=jnp.int32)
 
     if mask_index is None:
         mask_index = inputs.shape[-1] - 1
@@ -708,7 +708,7 @@ def ctc_beam_search_decode(
     mask_index=None,
 ):
     inputs = jnp.array(inputs)
-    sequence_length = jnp.array(sequence_length)
+    sequence_length = jnp.array(sequence_length, dtype=jnp.int32)
 
     batch_size, max_seq_len, num_classes = inputs.shape
     inputs = jnn.log_softmax(inputs)
