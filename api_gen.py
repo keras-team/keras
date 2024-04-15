@@ -2,7 +2,8 @@
 
 Usage:
 
-Run via `./shell/api_gen.sh`. This also formats the APIs generated.
+Run via `./shell/format.sh`.
+It generates API and formats user and generated APIs.
 """
 
 import os
