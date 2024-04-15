@@ -2007,9 +2007,9 @@ class Tversky(LossFunctionWrapper):
     """Computes the Tversky loss value between `y_true` and `y_pred`.
 
     This loss function is weighted by the alpha and beta coefficients
-    that penalise false positives and false negatives.
+    that penalize false positives and false negatives.
 
-    With alpha=0.5 and beta=0.5, the loss value becomes equivalent to
+    With `alpha=0.5` and `beta=0.5`, the loss value becomes equivalent to
     Dice Loss.
 
     Args:
@@ -2020,6 +2020,10 @@ class Tversky(LossFunctionWrapper):
 
     Returns:
         Tversky loss value.
+
+    Reference:
+
+    - [Salehi et al., 2017](https://arxiv.org/abs/1706.05721)
     """
 
     def __init__(
@@ -2053,9 +2057,9 @@ def tversky(y_true, y_pred, alpha=0.5, beta=0.5):
     """Computes the Tversky loss value between `y_true` and `y_pred`.
 
     This loss function is weighted by the alpha and beta coefficients
-    that penalise false positives and false negatives.
+    that penalize false positives and false negatives.
 
-    With alpha=0.5 and beta=0.5, the loss value becomes equivalent to
+    With `alpha=0.5` and `beta=0.5`, the loss value becomes equivalent to
     Dice Loss.
 
     Args:
@@ -2066,6 +2070,10 @@ def tversky(y_true, y_pred, alpha=0.5, beta=0.5):
 
     Returns:
         Tversky loss value.
+
+    Reference:
+
+    - [Salehi et al., 2017](https://arxiv.org/abs/1706.05721)
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
