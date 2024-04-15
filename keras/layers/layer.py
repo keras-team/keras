@@ -21,8 +21,6 @@ import inspect
 import warnings
 from functools import wraps
 
-import tree
-
 from keras import backend
 from keras import constraints
 from keras import dtype_policies
@@ -41,7 +39,7 @@ from keras.utils import python_utils
 from keras.utils import summary_utils
 from keras.utils import traceback_utils
 from keras.utils import tracking
-from keras.utils.shape_utils import map_shape_structure
+from keras.utils import tree
 
 if backend.backend() == "tensorflow":
     from keras.backend.tensorflow.layer import TFLayer as BackendLayer
@@ -222,7 +220,7 @@ class Layer(BackendLayer, Operation):
 
         @wraps(original_build_method)
         def build_wrapper(*args, **kwargs):
-            with backend.name_scope(obj.name, caller=obj):
+            with obj._open_name_scope():
                 original_build_method(*args, **kwargs)
             # Record build config.
             signature = inspect.signature(original_build_method)
@@ -247,7 +245,7 @@ class Layer(BackendLayer, Operation):
     ):
         BackendLayer.__init__(self)
         self._lock = False
-        Operation.__init__(self, name=name)
+        Operation.__init__(self, dtype=dtype, name=name)
         self.activity_regularizer = regularizers.get(activity_regularizer)
         input_dim_arg = kwargs.pop("input_dim", None)
         if input_dim_arg is not None:
@@ -270,7 +268,6 @@ class Layer(BackendLayer, Operation):
             )
 
         self.built = False
-        self.dtype_policy = dtype_policies.get(dtype)
         self.autocast = autocast
         self._input_spec = None
         self._called = False
@@ -279,6 +276,7 @@ class Layer(BackendLayer, Operation):
         self._trainable = trainable
         self._losses = []
         self._loss_ids = set()
+        self._losses_override = []
 
         self._call_signature = inspect.signature(self.call)
         call_signature_parameters = [
@@ -294,10 +292,12 @@ class Layer(BackendLayer, Operation):
         self._allow_non_tensor_positional_args = False
         # Dict of shapes that were used to call `build()`.
         self._build_shapes_dict = None
-        self._initializer_tracker()
+        # Parent path
+        self._parent_path = None
+        self._initialize_tracker()
 
     @tracking.no_automatic_dependency_tracking
-    def _initializer_tracker(self):
+    def _initialize_tracker(self):
         if hasattr(self, "_tracker"):
             return
 
@@ -327,7 +327,8 @@ class Layer(BackendLayer, Operation):
                     lambda x: isinstance(x, backend.random.SeedGenerator),
                     seed_generators,
                 ),
-            }
+            },
+            exclusions={"non_trainable_variables": ["trainable_variables"]},
         )
         if backend.backend() == "tensorflow":
             # Remove attribute tracking for lists (TF-specific attribute)
@@ -429,6 +430,7 @@ class Layer(BackendLayer, Operation):
         initializer,
         dtype=None,
         trainable=True,
+        autocast=True,
         regularizer=None,
         constraint=None,
         name=None,
@@ -442,6 +444,7 @@ class Layer(BackendLayer, Operation):
             initializer=initializer,
             dtype=dtype,
             trainable=trainable,
+            autocast=autocast,
             regularizer=regularizer,
             constraint=constraint,
             name=name,
@@ -453,36 +456,41 @@ class Layer(BackendLayer, Operation):
         initializer=None,
         dtype=None,
         trainable=True,
+        autocast=True,
         regularizer=None,
         constraint=None,
+        aggregation="mean",
         name=None,
     ):
         """Add a weight variable to the layer.
 
         Args:
-            shape: Shape tuple for the variable.
-                Must be fully-defined (no `None` entries).
-                Defaults to `()` (scalar) if unspecified.
-            initializer: Initializer object to use to
-                populate the initial variable value,
-                or string name of a built-in initializer
-                (e.g. `"random_normal"`). If unspecified,
-                defaults to `"glorot_uniform"`
-                for floating-point variables and to `"zeros"`
+            shape: Shape tuple for the variable. Must be fully-defined
+                (no `None` entries). Defaults to `()` (scalar) if unspecified.
+            initializer: Initializer object to use to populate the initial
+                variable value, or string name of a built-in initializer
+                (e.g. `"random_normal"`). If unspecified, defaults to
+                `"glorot_uniform"` for floating-point variables and to `"zeros"`
                 for all other types (e.g. int, bool).
-            dtype: Dtype of the variable to create,
-                e.g. `"float32"`. If unspecified,
-                defaults to the layer's
-                variable dtype (which itself defaults to
-                `"float32"` if unspecified).
-            trainable: Boolean, whether the variable should
-                be trainable via backprop or whether its
-                updates are managed manually.
-            constraint: Contrainst object to call on the
-                variable after any optimizer update,
-                or string name of a built-in constraint.
-            name: String name of the variable. Useful
-                for debugging purposes.
+            dtype: Dtype of the variable to create, e.g. `"float32"`. If
+                unspecified, defaults to the layer's variable dtype
+                (which itself defaults to `"float32"` if unspecified).
+            trainable: Boolean, whether the variable should be trainable via
+                backprop or whether its updates are managed manually. Defaults
+                to `True`.
+            autocast: Boolean, whether to autocast layers variables when
+                accessing them. Defaults to `True`.
+            regularizer: Regularizer object to call to apply penalty on the
+                weight. These penalties are summed into the loss function
+                during optimization. Defaults to `None`.
+            constraint: Contrainst object to call on the variable after any
+                optimizer update, or string name of a built-in constraint.
+                Defaults to `None`.
+            aggregation: String, one of `'mean'`, `'sum'`,
+                `'only_first_replica'`. Annotates the variable with the type
+                of multi-replica aggregation to be used for this variable
+                when writing custom data parallel training loops.
+            name: String name of the variable. Useful for debugging purposes.
         """
         self._check_super_called()
         if shape is None:
@@ -497,12 +505,14 @@ class Layer(BackendLayer, Operation):
             else:
                 initializer = "zeros"
         initializer = initializers.get(initializer)
-        with backend.name_scope(self.name, caller=self):
+        with self._open_name_scope():
             variable = backend.Variable(
                 initializer=initializer,
                 shape=shape,
                 dtype=dtype,
                 trainable=trainable,
+                autocast=autocast,
+                aggregation=aggregation,
                 name=name,
             )
         # Will be added to layer.losses
@@ -739,7 +749,7 @@ class Layer(BackendLayer, Operation):
 
         ################
         # 4. Call build
-        with backend.name_scope(self.name, caller=self):
+        with self._open_name_scope():
             self._maybe_build(call_spec)
 
         ##########################
@@ -754,7 +764,7 @@ class Layer(BackendLayer, Operation):
         # across nested calls.
         call_context = self._get_call_context()
 
-        # This is the value explicity passed by the user
+        # This is the value explicitly passed by the user
         training = call_spec.user_arguments_dict.get("training", None)
         if training is None:
             # Wasn't passed explicitly: use context value
@@ -794,7 +804,7 @@ class Layer(BackendLayer, Operation):
         ####################
         # 7. Call the layer.
         try:
-            with backend.name_scope(self.name, caller=self):
+            with self._open_name_scope():
                 current_scope = backend.get_autocast_scope()
                 new_scope = None
                 if current_scope is not None:
@@ -864,6 +874,12 @@ class Layer(BackendLayer, Operation):
             "method implemented."
         )
 
+    def quantized_call(self, *args, **kwargs):
+        raise NotImplementedError(
+            f"Layer {self.__class__.__name__} does not have a "
+            "`quantized_call()` method implemented."
+        )
+
     @traceback_utils.filter_traceback
     def stateless_call(
         self,
@@ -879,7 +895,7 @@ class Layer(BackendLayer, Operation):
             trainable_variables: List of trainable variables of the model.
             non_trainable_variables: List of non-trainable variables of the
                 model.
-            *args: Positional argumets to be passed to `call()`.
+            *args: Positional arguments to be passed to `call()`.
             return_losses: If `True`, `stateless_call()` will return the list of
                 losses created during `call()` as part of its return values.
             **kwargs: Keyword arguments to be passed to `call()`.
@@ -953,7 +969,12 @@ class Layer(BackendLayer, Operation):
         with backend.StatelessScope(
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
-            outputs = self.call(*args, **kwargs)
+            if isinstance(
+                self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+            ):
+                outputs = self.quantized_call(*args, **kwargs)
+            else:
+                outputs = self.call(*args, **kwargs)
             if return_losses:
                 losses = self.losses
 
@@ -961,10 +982,7 @@ class Layer(BackendLayer, Operation):
         non_trainable_variables = []
         for v in self.non_trainable_variables:
             new_v = scope.get_current_value(v)
-            if new_v is not None:
-                non_trainable_variables.append(new_v)
-            else:
-                non_trainable_variables.append(v)
+            non_trainable_variables.append(new_v)
 
         if return_losses:
             return outputs, non_trainable_variables, losses
@@ -1010,7 +1028,7 @@ class Layer(BackendLayer, Operation):
                 return KerasTensor(output_shape, dtype=self.compute_dtype)
             # Case: nested. Could be a tuple/list of shapes, or a dict of
             # shapes. Could be deeply nested.
-            return map_shape_structure(
+            return tree.map_shape_structure(
                 lambda s: KerasTensor(s, dtype=self.compute_dtype), output_shape
             )
 
@@ -1064,18 +1082,21 @@ class Layer(BackendLayer, Operation):
 
     def _get_regularization_losses(self):
         weight_regularization_losses = []
-        for v in self.trainable_weights:
-            regularizer = getattr(v, "regularizer", None)
-            if regularizer is None:
+        for variable in self.trainable_weights:
+            if variable.regularizer is None:
                 continue
             if backend.in_stateless_scope():
-                v = backend.get_stateless_scope().get_current_value(v)
-            weight_regularization_losses.append(regularizer(v))
+                v = backend.get_stateless_scope().get_current_value(variable)
+            else:
+                v = variable
+            weight_regularization_losses.append(variable.regularizer(v))
         return weight_regularization_losses
 
     @property
     def losses(self):
         """List of scalar losses from `add_loss`, regularizers and sublayers."""
+        if self._losses_override:
+            return self._losses_override
         losses = self._get_own_losses()
         for layer in self._flatten_layers(include_self=False):
             losses.extend(layer._get_own_losses())
@@ -1094,6 +1115,31 @@ class Layer(BackendLayer, Operation):
         self._loss_ids.clear()
         for layer in self._layers:
             layer._clear_losses()
+
+    def quantize(self, mode):
+        raise NotImplementedError(
+            f"Layer {self.__class__.__name__} does not have a `quantize()` "
+            "method implemented."
+        )
+
+    def _check_quantize_args(self, mode, compute_dtype):
+        if not self.built:
+            raise ValueError(
+                "Cannot quantize a layer that isn't yet built. "
+                f"Layer '{self.name}' (of type '{self.__class__.__name__}') "
+                "is not built yet."
+            )
+        if mode not in ("int8",):
+            raise ValueError(
+                f"`quantize` must be one of ('int8'). Received: mode={mode}"
+            )
+        if mode == "int8" and compute_dtype == "float16":
+            raise ValueError(
+                f"Quantization mode='{mode}' doesn't work well with "
+                "compute_dtype='float16'. Consider loading model/layer with "
+                "another dtype policy such as 'mixed_bfloat16' or "
+                "'mixed_float16' before calling `quantize()`."
+            )
 
     def save_own_variables(self, store):
         """Saves the state of the layer.
@@ -1157,6 +1203,17 @@ class Layer(BackendLayer, Operation):
             self._tracker.add_to_store("trainable_variables", variable)
         else:
             self._tracker.add_to_store("non_trainable_variables", variable)
+        if not self.trainable:
+            variable.trainable = False
+        self._post_track_variable(variable)
+
+    def _untrack_variable(self, variable):
+        previous_lock_state = self._tracker.locked
+        self._tracker.unlock()
+        self._tracker.untrack(variable)
+        if previous_lock_state is True:
+            self._tracker.lock()
+        self._post_untrack_variable(variable)
 
     def add_metric(self):
         # Permanently disabled
@@ -1222,13 +1279,13 @@ class Layer(BackendLayer, Operation):
                     "your layer. It should create all variables used by the "
                     "layer (e.g. by calling `layer.build()` on all its "
                     "children layers).\n"
-                    f"Exception encoutered: ''{e}''"
+                    f"Exception encountered: ''{e}''"
                 )
         self.build(first_shape)
 
     def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).
-        input_tensors = map_shape_structure(
+        input_tensors = tree.map_shape_structure(
             lambda s: backend.KerasTensor(s), input_shape
         )
         try:
@@ -1270,7 +1327,7 @@ class Layer(BackendLayer, Operation):
         if hasattr(self, "_tracker"):
             value = self._tracker.track(value)
         elif name != "_tracker":
-            self._initializer_tracker()
+            self._initialize_tracker()
         return super().__setattr__(name, value)
 
     def _check_super_called(self):
@@ -1359,6 +1416,11 @@ class Layer(BackendLayer, Operation):
         }
         return {**base_config, **config}
 
+    def _open_name_scope(self):
+        if self._parent_path is None:
+            self._parent_path = current_path()
+        return backend.name_scope(self.name, caller=self)
+
 
 def is_backend_tensor_or_symbolic(x):
     return backend.is_tensor(x) or isinstance(x, backend.KerasTensor)
@@ -1393,7 +1455,7 @@ class CallSpec:
                 tensor_args.append(value)
                 tensor_arg_names.append(name)
                 tensor_arg_dict[name] = value
-            elif tree.is_nested(value):
+            elif tree.is_nested(value) and len(value) > 0:
                 flat_values = tree.flatten(value)
                 if all(is_backend_tensor_or_symbolic(x) for x in flat_values):
                     tensor_args.append(value)

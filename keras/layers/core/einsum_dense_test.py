@@ -4,11 +4,14 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras import backend
 from keras import constraints
 from keras import layers
 from keras import models
+from keras import ops
 from keras import saving
 from keras import testing
+from keras.export import export_lib
 
 
 class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
@@ -293,6 +296,8 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         layer.enable_lora(2)
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, 1)
+        if backend.backend() == "torch":
+            self.assertLen(layer.torch_params, 3)
         # Try eager call
         x = np.random.random((64, 3))
         y = np.random.random((64, 8, 32))
@@ -326,7 +331,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         model.save(temp_filepath)
 
         new_model = saving.load_model(temp_filepath)
-        self.assertFalse(new_model.layers[0].lora_enabled)
+        self.assertTrue(new_model.layers[0].lora_enabled)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
         # Try saving and reloading the model's weights only
@@ -372,3 +377,229 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             expected_num_losses=0,
             supports_masking=False,
         )
+
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason=f"{backend.backend()} does not support ops.custom_gradient.",
+    )
+    def test_quantize_int8(self):
+        layer = layers.EinsumDense(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer.build((None, 3))
+        x = np.random.random((2, 3))
+        y_float = layer(x)
+        layer.quantize("int8")
+
+        # Verify weights dtype
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype),
+            layer.variable_dtype,
+        )
+
+        # Try eager call and verify output correctness
+        y_quantized = layer(x)
+        mse = ops.mean(ops.square(y_float - y_quantized))
+        self.assertLess(mse, 1e-3)  # A weak correctness test
+
+        # Try saving and reloading the model
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_model.keras"
+        )
+        model.save(temp_filepath)
+        new_model = saving.load_model(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Try saving and reloading the model's weights only
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_model.weights.h5"
+        )
+        model.save_weights(temp_filepath)
+
+        # Try lora
+        layer = layers.EinsumDense(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer.build((None, 3))
+        layer.enable_lora(2)
+        layer.quantize("int8")
+        x = np.random.random((2, 3))
+        _ = layer(x)
+
+        # Try building with quantized dtype policy
+        layer = layers.EinsumDense(
+            equation="abcde,afce->acdbf",  # Test reduce and transpose
+            output_shape=(2, 4, 8, 16),
+            bias_axes="d",
+            dtype="int8_from_mixed_bfloat16",
+        )
+        layer.build((1, 8, 2, 4, 32))
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
+        )
+        layer = layers.EinsumDense(
+            equation="a,b->ab",  # Test expand
+            output_shape=(4,),
+            dtype="int8_from_float32",
+        )
+        layer.build((None,))
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
+        )
+        layer = layers.EinsumDense(
+            equation="ab,ab->a",  # Test squeeze
+            output_shape=(2,),
+            dtype="int8_from_float32",
+        )
+        layer.build((2, 4))
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(
+            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_quantize_dtype_argument(self):
+        self.run_layer_test(
+            layers.EinsumDense,
+            init_kwargs={
+                "equation": "ab,bcd->acd",
+                "output_shape": (8, 32),
+                "bias_axes": "d",
+                "dtype": "int8_from_mixed_bfloat16",
+            },
+            input_shape=(2, 3),
+            expected_output_shape=(2, 8, 32),
+            expected_num_trainable_weights=1,
+            expected_num_non_trainable_weights=2,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=False,
+        )
+
+    def test_quantize_on_unbuilt_layer(self):
+        layer = layers.EinsumDense(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        with self.assertRaisesRegex(
+            ValueError, "Cannot quantize a layer that isn't yet built."
+        ):
+            layer.quantize("int8")
+
+    def test_quantize_on_subclass(self):
+        class MyEinsumDense(layers.EinsumDense):
+            pass
+
+        layer = MyEinsumDense(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer.build((None, 3))
+        with self.assertRaises(NotImplementedError):
+            layer.quantize("int8")
+
+    def test_quantize_when_already_quantized(self):
+        layer = layers.EinsumDense(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer.build((None, 3))
+        layer.quantize("int8")
+        with self.assertRaisesRegex(
+            ValueError, "`quantize` can only be done once per layer."
+        ):
+            layer.quantize("int8")
+
+    @pytest.mark.requires_trainable_backend
+    def test_quantize_when_lora_enabled(self):
+        config = dict(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes=None,
+        )
+        layer = layers.EinsumDense(**config)
+        layer.build((None, 3))
+        layer.enable_lora(2)
+        layer.quantize("int8")
+        self.assertLen(layer.trainable_weights, 2)
+        self.assertLen(layer.non_trainable_weights, 2)
+        if backend.backend() == "torch":
+            self.assertLen(layer.torch_params, 4)
+
+        # Try calling fit()
+        init_lora_a_kernel_value = layer.lora_kernel_a.numpy()
+        init_lora_b_kernel_value = layer.lora_kernel_b.numpy()
+        x = np.random.random((64, 3))
+        y = np.random.random((64, 8, 32))
+        model = models.Sequential([layer])
+        model.compile(optimizer="sgd", loss="mse")
+        model.fit(x, y, epochs=2)
+
+        final_lora_a_kernel_value = layer.lora_kernel_a.numpy()
+        final_lora_b_kernel_value = layer.lora_kernel_b.numpy()
+        diff_a = np.max(
+            np.abs(init_lora_a_kernel_value - final_lora_a_kernel_value)
+        )
+        diff_b = np.max(
+            np.abs(init_lora_b_kernel_value - final_lora_b_kernel_value)
+        )
+        self.assertGreater(diff_a, 0.0)
+        self.assertGreater(diff_b, 0.0)
+
+        # Try saving and reloading the model
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_lora_model.keras"
+        )
+        model.save(temp_filepath)
+        new_model = saving.load_model(temp_filepath)
+        self.assertTrue(new_model.layers[0].lora_enabled)
+        self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
+
+        # Try saving and reloading the model's weights only
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_lora_model.weights.h5"
+        )
+        model.save_weights(temp_filepath)
+        new_model = models.Sequential([layers.EinsumDense(**config)])
+        new_model.build((None, 3))
+        new_model.quantize("int8")
+        new_model.load_weights(temp_filepath)
+        self.assertFalse(new_model.layers[0].lora_enabled)
+        self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
+
+        # Try loading a normal checkpoint into a lora model
+        new_model.save_weights(temp_filepath)
+        model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
+
+        # Test export and TFSMLayer reloading when using tensorflow backend
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+            ref_input = tf.random.normal((32, 3))
+            ref_output = model(ref_input)
+            export_lib.export_model(model, temp_filepath)
+            reloaded_layer = export_lib.TFSMLayer(temp_filepath)
+            self.assertAllClose(
+                reloaded_layer(ref_input), ref_output, atol=1e-7
+            )
+            self.assertLen(reloaded_layer.weights, len(model.weights))
+            self.assertLen(
+                reloaded_layer.trainable_weights, len(model.trainable_weights)
+            )
+            self.assertLen(
+                reloaded_layer.non_trainable_weights,
+                len(model.non_trainable_weights),
+            )

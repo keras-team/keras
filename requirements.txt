@@ -1,5 +1,5 @@
 # Tensorflow.
-tf-nightly-cpu==2.16.0.dev20240101  # Pin a working nightly until rc0.
+tensorflow-cpu~=2.16.1  # Pin to TF 2.16
 
 # Torch.
 --extra-index-url https://download.pytorch.org/whl/cpu
@@ -8,6 +8,7 @@ torchvision>=0.16.0
 
 # Jax.
 jax[cpu]
+flax
 
 # MLX
 pybind11[global]

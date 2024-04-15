@@ -1,8 +1,7 @@
-import tree
-
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.layers.layer import Layer
+from keras.utils import tree
 
 
 @keras_export("keras.layers.Identity")

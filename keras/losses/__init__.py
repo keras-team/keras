@@ -1,9 +1,14 @@
+import inspect
+
 from keras.api_export import keras_export
 from keras.losses.loss import Loss
 from keras.losses.losses import BinaryCrossentropy
+from keras.losses.losses import BinaryFocalCrossentropy
 from keras.losses.losses import CategoricalCrossentropy
+from keras.losses.losses import CategoricalFocalCrossentropy
 from keras.losses.losses import CategoricalHinge
 from keras.losses.losses import CosineSimilarity
+from keras.losses.losses import Dice
 from keras.losses.losses import Hinge
 from keras.losses.losses import Huber
 from keras.losses.losses import KLDivergence
@@ -17,10 +22,13 @@ from keras.losses.losses import Poisson
 from keras.losses.losses import SparseCategoricalCrossentropy
 from keras.losses.losses import SquaredHinge
 from keras.losses.losses import binary_crossentropy
+from keras.losses.losses import binary_focal_crossentropy
 from keras.losses.losses import categorical_crossentropy
+from keras.losses.losses import categorical_focal_crossentropy
 from keras.losses.losses import categorical_hinge
 from keras.losses.losses import cosine_similarity
 from keras.losses.losses import ctc
+from keras.losses.losses import dice
 from keras.losses.losses import hinge
 from keras.losses.losses import huber
 from keras.losses.losses import kl_divergence
@@ -42,7 +50,9 @@ ALL_OBJECTS = {
     KLDivergence,
     Poisson,
     BinaryCrossentropy,
+    BinaryFocalCrossentropy,
     CategoricalCrossentropy,
+    CategoricalFocalCrossentropy,
     SparseCategoricalCrossentropy,
     # Regression
     MeanSquaredError,
@@ -56,11 +66,15 @@ ALL_OBJECTS = {
     Hinge,
     SquaredHinge,
     CategoricalHinge,
+    # Image segmentation
+    Dice,
     # Probabilistic
     kl_divergence,
     poisson,
     binary_crossentropy,
+    binary_focal_crossentropy,
     categorical_crossentropy,
+    categorical_focal_crossentropy,
     sparse_categorical_crossentropy,
     # Regression
     mean_squared_error,
@@ -74,6 +88,8 @@ ALL_OBJECTS = {
     hinge,
     squared_hinge,
     categorical_hinge,
+    # Image segmentation
+    dice,
 }
 
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
@@ -169,6 +185,8 @@ def get(identifier):
         obj = identifier
 
     if callable(obj):
+        if inspect.isclass(obj):
+            obj = obj()
         return obj
     else:
         raise ValueError(f"Could not interpret loss identifier: {identifier}")

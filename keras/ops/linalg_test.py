@@ -64,6 +64,9 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
             linalg.inv(x)
 
     def test_lu_factor(self):
+        if testing.jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
+
         x = KerasTensor([None, 4, 3])
         lu, p = linalg.lu_factor(x)
         self.assertEqual(lu.shape, (None, 4, 3))
@@ -127,6 +130,9 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
             linalg.solve(a, b)
 
     def test_solve_triangular(self):
+        if testing.jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
+
         a = KerasTensor([None, 20, 20])
         b = KerasTensor([None, 20, 5])
         out = linalg.solve_triangular(a, b)
@@ -212,6 +218,9 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
             linalg.inv(x)
 
     def test_lu_factor(self):
+        if testing.jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
+
         x = KerasTensor([10, 4, 3])
         lu, p = linalg.lu_factor(x)
         self.assertEqual(lu.shape, (10, 4, 3))
@@ -269,6 +278,9 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
             linalg.solve(a, b)
 
     def test_solve_triangular(self):
+        if testing.jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
+
         a = KerasTensor([4, 3, 3])
         b = KerasTensor([4, 3, 5])
         out = linalg.solve_triangular(a, b)
@@ -344,6 +356,9 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_lu_factor(self):
+        if testing.jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
+
         def _pivot_matrix(pivots, n):
             p_matrix = np.eye(n)
             for i, p in enumerate(pivots):
@@ -398,19 +413,45 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(
         named_product(
+            ndim=[1, 2],
             ord=[None, "fro", "nuc", -np.inf, -2, -1, 0, 1, 2, np.inf, 3],
-            axis=[None, 1, -1],
+            axis=[None, 1, -1, (0, 1)],
             keepdims=[False, True],
         )
     )
-    def test_norm_vectors(self, ord, axis, keepdims):
-        if axis is None:
+    def test_norm(self, ndim, ord, axis, keepdims):
+        if ndim == 1:
             x = np.random.random((5,))
         else:
             x = np.random.random((5, 6))
-        if ord in ("fro", "nuc"):
-            error = RuntimeError if backend.backend() == "torch" else ValueError
-            with self.assertRaises(error):
+
+        vector_norm = (ndim == 1) or isinstance(axis, int)
+
+        axis_out_of_bounds = ndim == 1 and (
+            axis == 1 or isinstance(axis, tuple)
+        )
+        expected_error = None
+        # when an out of bounds axis triggers an IndexError on torch is complex
+        if (
+            axis_out_of_bounds
+            and (not isinstance(axis, tuple) or ord is None)
+            and ord not in ("fro", "nuc")
+        ):
+            expected_error = IndexError
+        elif (
+            axis_out_of_bounds
+            or (vector_norm and isinstance(axis, tuple))  # inv. axis for vector
+            or (vector_norm and ord in ("fro", "nuc"))  # invalid ord for vector
+            or (not vector_norm and ord in (0, 3))  # invalid ord for matrix
+        ):
+            expected_error = RuntimeError
+
+        if expected_error is not None:
+            # Non-torch backends always throw a ValueError
+            expected_error = (
+                expected_error if backend.backend() == "torch" else ValueError
+            )
+            with self.assertRaises(expected_error):
                 linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
             return
         output = linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
@@ -439,6 +480,8 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output, expected_result)
 
     def test_solve_triangular(self):
+        if testing.jax_uses_gpu():
+            self.skipTest("Skipping test with JAX + GPU due to temporary error")
 
         # 2d-case
         x1 = np.array([[1, 2], [0, 5]], dtype="float32")

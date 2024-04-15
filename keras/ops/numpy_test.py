@@ -2,6 +2,7 @@ import contextlib
 import functools
 import itertools
 import math
+import warnings
 
 import numpy as np
 import pytest
@@ -10,9 +11,9 @@ from absl.testing import parameterized
 import keras
 from keras import backend
 from keras import testing
+from keras.backend.common import dtypes
 from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
-from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import numpy as knp
 from keras.testing.test_utils import named_product
 
@@ -846,6 +847,39 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             bins = KerasTensor((2, 3, 4))
             knp.digitize(x, bins)
 
+    def test_correlate_mode_valid(self):
+        x = KerasTensor((3,))
+        y = KerasTensor((3,))
+        self.assertEqual(knp.correlate(x, y).shape, (1,))
+        self.assertTrue(knp.correlate(x, y).dtype == "float32")
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((3,))
+            y = KerasTensor((3, 4))
+            knp.correlate(x, y)
+
+    def test_correlate_mode_same(self):
+        x = KerasTensor((3,))
+        y = KerasTensor((3,))
+        self.assertEqual(knp.correlate(x, y, mode="same").shape, (3,))
+        self.assertTrue(knp.correlate(x, y, mode="same").dtype == "float32")
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((3,))
+            y = KerasTensor((3, 4))
+            knp.correlate(x, y, mode="same")
+
+    def test_correlate_mode_full(self):
+        x = KerasTensor((3,))
+        y = KerasTensor((3,))
+        self.assertEqual(knp.correlate(x, y, mode="full").shape, (5,))
+        self.assertTrue(knp.correlate(x, y, mode="full").dtype == "float32")
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((3))
+            y = KerasTensor((3, 4))
+            knp.correlate(x, y, mode="full")
+
 
 class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_mean(self):
@@ -928,6 +962,13 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             x = KerasTensor((None, 1))
             knp.squeeze(x, axis=0)
+
+        # Multiple axes
+        x = KerasTensor((None, 1, 1, 1))
+        self.assertEqual(knp.squeeze(x, (1, 2)).shape, (None, 1))
+        self.assertEqual(knp.squeeze(x, (-1, -2)).shape, (None, 1))
+        self.assertEqual(knp.squeeze(x, (1, 2, 3)).shape, (None,))
+        self.assertEqual(knp.squeeze(x, (-1, 1)).shape, (None, 1))
 
     def test_transpose(self):
         x = KerasTensor((None, 3))
@@ -1143,6 +1184,11 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.expand_dims(x, 1).shape, (None, 1, 3))
         self.assertEqual(knp.expand_dims(x, -2).shape, (None, 1, 3))
 
+        # Multiple axes
+        self.assertEqual(knp.expand_dims(x, (1, 2)).shape, (None, 1, 1, 3))
+        self.assertEqual(knp.expand_dims(x, (-1, -2)).shape, (None, 3, 1, 1))
+        self.assertEqual(knp.expand_dims(x, (-1, 1)).shape, (None, 1, 3, 1))
+
     def test_expm1(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.expm1(x).shape, (None, 3))
@@ -1264,6 +1310,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_ndim(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.ndim(x).shape, (2,))
+
+    def test_nonzero(self):
+        x = KerasTensor((None, 5, 6))
+        self.assertEqual(knp.nonzero(x).shape, (None, None, None))
 
     def test_ones_like(self):
         x = KerasTensor((None, 3))
@@ -1479,6 +1529,13 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             knp.squeeze(x, axis=0)
 
+        # Multiple axes
+        x = KerasTensor((2, 1, 1, 1))
+        self.assertEqual(knp.squeeze(x, (1, 2)).shape, (2, 1))
+        self.assertEqual(knp.squeeze(x, (-1, -2)).shape, (2, 1))
+        self.assertEqual(knp.squeeze(x, (1, 2, 3)).shape, (2,))
+        self.assertEqual(knp.squeeze(x, (-1, 1)).shape, (2, 1))
+
     def test_transpose(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.transpose(x).shape, (3, 2))
@@ -1649,6 +1706,11 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.expand_dims(x, 0).shape, (1, 2, 3, 4))
         self.assertEqual(knp.expand_dims(x, 1).shape, (2, 1, 3, 4))
         self.assertEqual(knp.expand_dims(x, -2).shape, (2, 3, 1, 4))
+
+        # Multiple axes
+        self.assertEqual(knp.expand_dims(x, (1, 2)).shape, (2, 1, 1, 3, 4))
+        self.assertEqual(knp.expand_dims(x, (-1, -2)).shape, (2, 3, 4, 1, 1))
+        self.assertEqual(knp.expand_dims(x, (-1, 1)).shape, (2, 1, 3, 4, 1))
 
     def test_expm1(self):
         x = KerasTensor((2, 3))
@@ -1997,14 +2059,12 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
                 )
 
             dense_to_sparse = tf.sparse.from_dense
-            sparse_class = tf.SparseTensor
         elif backend.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             dense_to_sparse = functools.partial(
                 jax_sparse.BCOO.fromdense, n_batch=len(x_shape) - 2
             )
-            sparse_class = jax_sparse.JAXSparse
 
         rng = np.random.default_rng(0)
 
@@ -2020,8 +2080,7 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
 
         atol = 0.1 if dtype == "float16" else 1e-4
         self.assertAllClose(knp.matmul(x, y), np.matmul(x_np, y_np), atol=atol)
-        if x_sparse and y_sparse:
-            self.assertIsInstance(knp.matmul(x, y), sparse_class)
+        self.assertSparse(knp.matmul(x, y), x_sparse and y_sparse)
 
     def test_power(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -2135,6 +2194,151 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             np.einsum("i...,j...k->...ijk", x, y),
         )
         self.assertAllClose(knp.Einsum(",ijk")(5, y), np.einsum(",ijk", 5, y))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason=f"{backend.backend()} doesn't implement custom ops for einsum.",
+    )
+    def test_einsum_custom_ops_for_tensorflow(self):
+        subscripts = "a,b->ab"
+        x = np.arange(2).reshape([2]).astype("float32")
+        y = np.arange(3).reshape([3]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "ab,b->a"
+        x = np.arange(6).reshape([2, 3]).astype("float32")
+        y = np.arange(3).reshape([3]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "ab,bc->ac"
+        x = np.arange(6).reshape([2, 3]).astype("float32")
+        y = np.arange(12).reshape([3, 4]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "ab,cb->ac"
+        x = np.arange(6).reshape([2, 3]).astype("float32")
+        y = np.arange(12).reshape([4, 3]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abc,cd->abd"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(20).reshape([4, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abc,cde->abde"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(120).reshape([4, 5, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abc,dc->abd"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(20).reshape([5, 4]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abc,dce->abde"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(120).reshape([5, 4, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abc,dec->abde"
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(120).reshape([5, 6, 4]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,abde->abce"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(180).reshape([2, 3, 5, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,abed->abce"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(180).reshape([2, 3, 6, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,acbe->adbe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(144).reshape([2, 4, 3, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,adbe->acbe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(180).reshape([2, 5, 3, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,aecd->acbe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(240).reshape([2, 6, 4, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,aecd->aceb"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(240).reshape([2, 6, 4, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,cde->abe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(120).reshape([4, 5, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,ced->abe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(120).reshape([4, 6, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcd,ecd->abe"
+        x = np.arange(120).reshape([2, 3, 4, 5]).astype("float32")
+        y = np.arange(120).reshape([6, 4, 5]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcde,aebf->adbcf"
+        x = np.arange(720).reshape([2, 3, 4, 5, 6]).astype("float32")
+        y = np.arange(252).reshape([2, 6, 3, 7]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
+
+        subscripts = "abcde,afce->acdbf"
+        x = np.arange(720).reshape([2, 3, 4, 5, 6]).astype("float32")
+        y = np.arange(336).reshape([2, 7, 4, 6]).astype("float32")
+        self.assertAllClose(
+            knp.einsum(subscripts, x, y), np.einsum(subscripts, x, y)
+        )
 
     def test_full_like(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -2774,6 +2978,18 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Squeeze()(x), np.squeeze(x))
         self.assertAllClose(knp.Squeeze(axis=0)(x), np.squeeze(x, axis=0))
 
+        # Multiple axes
+        x = np.ones([2, 1, 1, 1])
+        self.assertAllClose(knp.squeeze(x, (1, 2)), np.squeeze(x, (1, 2)))
+        self.assertAllClose(knp.squeeze(x, (-1, -2)), np.squeeze(x, (-1, -2)))
+        self.assertAllClose(knp.squeeze(x, (1, 2, 3)), np.squeeze(x, (1, 2, 3)))
+        self.assertAllClose(knp.squeeze(x, (-1, 1)), np.squeeze(x, (-1, 1)))
+
+        self.assertAllClose(knp.Squeeze((1, 2))(x), np.squeeze(x, (1, 2)))
+        self.assertAllClose(knp.Squeeze((-1, -2))(x), np.squeeze(x, (-1, -2)))
+        self.assertAllClose(knp.Squeeze((1, 2, 3))(x), np.squeeze(x, (1, 2, 3)))
+        self.assertAllClose(knp.Squeeze((-1, 1))(x), np.squeeze(x, (-1, 1)))
+
     def test_transpose(self):
         x = np.ones([1, 2, 3, 4, 5])
         self.assertAllClose(knp.transpose(x), np.transpose(x))
@@ -2900,41 +3116,69 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np.average(x, axis=1, weights=weights_1d),
         )
 
-    def test_bincount(self):
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
+    @parameterized.named_parameters(
+        named_product(sparse_input=(False, True), sparse_arg=(False, True))
+    )
+    def test_bincount(self, sparse_input, sparse_arg):
+        if (sparse_input or sparse_arg) and not backend.SUPPORTS_SPARSE_TENSORS:
+            pytest.skip("Backend does not support sparse tensors")
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("bincount does not work in tensorflow gpu")
 
-            if tf.test.is_gpu_available():
-                self.skipTest("bincount does not work in tensorflow gpu")
+        x = x_np = np.array([1, 1, 2, 3, 2, 4, 4, 6])
+        weights = weights_np = np.array([0, 0, 3, 2, 1, 1, 4, 2])
+        if sparse_input:
+            indices = np.array([[1], [3], [5], [7], [9], [11], [13], [15]])
 
-        x = np.array([1, 1, 2, 3, 2, 4, 4, 5])
-        weights = np.array([0, 0, 3, 2, 1, 1, 4, 2])
+            if backend.backend() == "tensorflow":
+                import tensorflow as tf
+
+                x = tf.SparseTensor(indices, x, (16,))
+                weights = tf.SparseTensor(indices, weights, (16,))
+            elif backend.backend() == "jax":
+                from jax.experimental import sparse as jax_sparse
+
+                x = jax_sparse.BCOO((x, indices), shape=(16,))
+                weights = jax_sparse.BCOO((weights, indices), shape=(16,))
+
         minlength = 3
-        self.assertAllClose(
-            knp.bincount(x, weights=weights, minlength=minlength),
-            np.bincount(x, weights=weights, minlength=minlength),
+        output = knp.bincount(
+            x, weights=weights, minlength=minlength, sparse=sparse_arg
         )
         self.assertAllClose(
-            knp.Bincount(weights=weights, minlength=minlength)(x),
-            np.bincount(x, weights=weights, minlength=minlength),
+            output, np.bincount(x_np, weights=weights_np, minlength=minlength)
         )
-        x = np.array([[1, 1, 2, 3, 2, 4, 4, 5]])
-        weights = np.array([[0, 0, 3, 2, 1, 1, 4, 2]])
-        expected_output = np.array([[0, 0, 4, 2, 5, 2]])
+        self.assertSparse(output, sparse_input or sparse_arg)
+        output = knp.Bincount(
+            weights=weights, minlength=minlength, sparse=sparse_arg
+        )(x)
         self.assertAllClose(
-            knp.bincount(x, weights=weights, minlength=minlength),
-            expected_output,
+            output, np.bincount(x_np, weights=weights_np, minlength=minlength)
         )
-        self.assertAllClose(
-            knp.Bincount(weights=weights, minlength=minlength)(x),
-            expected_output,
+        self.assertSparse(output, sparse_input or sparse_arg)
+
+        x = knp.expand_dims(x, 0)
+        weights = knp.expand_dims(weights, 0)
+
+        expected_output = np.array([[0, 0, 4, 2, 5, 0, 2]])
+        output = knp.bincount(
+            x, weights=weights, minlength=minlength, sparse=sparse_arg
         )
+        self.assertAllClose(output, expected_output)
+        self.assertSparse(output, sparse_input or sparse_arg)
+        output = knp.Bincount(
+            weights=weights, minlength=minlength, sparse=sparse_arg
+        )(x)
+        self.assertAllClose(output, expected_output)
+        self.assertSparse(output, sparse_input or sparse_arg)
+
         # test with weights=None
-        expected_output = np.array([[0, 2, 2, 1, 2, 1]])
-        self.assertAllClose(
-            knp.Bincount(weights=None, minlength=minlength)(x),
-            expected_output,
-        )
+        expected_output = np.array([[0, 2, 2, 1, 2, 0, 1]])
+        output = knp.Bincount(
+            weights=None, minlength=minlength, sparse=sparse_arg
+        )(x)
+        self.assertAllClose(output, expected_output)
+        self.assertSparse(output, sparse_input or sparse_arg)
 
     def test_broadcast_to(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -3007,13 +3251,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
             x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
             y = tf.SparseTensor([[0, 0], [1, 1]], [4.0, 5.0], (2, 3))
-            sparse_class = tf.SparseTensor
         elif backend.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
             y = jax_sparse.BCOO(([4.0, 5.0], [[0, 0], [1, 1]]), shape=(2, 3))
-            sparse_class = jax_sparse.JAXSparse
 
         x_np = backend.convert_to_numpy(x)
         y_np = backend.convert_to_numpy(y)
@@ -3045,8 +3287,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np.concatenate([x_np, y_np], axis=axis),
         )
 
-        self.assertIsInstance(knp.concatenate([x, y], axis=axis), sparse_class)
-        self.assertIsInstance(knp.Concatenate(axis=axis)([x, y]), sparse_class)
+        self.assertSparse(knp.concatenate([x, y], axis=axis))
+        self.assertSparse(knp.Concatenate(axis=axis)([x, y]))
 
     def test_conjugate(self):
         x = np.array([[1 + 2j, 2 + 3j], [3 + 4j, 4 + 5j]])
@@ -3212,6 +3454,27 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.ExpandDims(0)(x), np.expand_dims(x, 0))
         self.assertAllClose(knp.ExpandDims(1)(x), np.expand_dims(x, 1))
         self.assertAllClose(knp.ExpandDims(-2)(x), np.expand_dims(x, -2))
+
+        # Multiple axes
+        self.assertAllClose(
+            knp.expand_dims(x, (1, 2)), np.expand_dims(x, (1, 2))
+        )
+        self.assertAllClose(
+            knp.expand_dims(x, (-1, -2)), np.expand_dims(x, (-1, -2))
+        )
+        self.assertAllClose(
+            knp.expand_dims(x, (-1, 1)), np.expand_dims(x, (-1, 1))
+        )
+
+        self.assertAllClose(
+            knp.ExpandDims((1, 2))(x), np.expand_dims(x, (1, 2))
+        )
+        self.assertAllClose(
+            knp.ExpandDims((-1, -2))(x), np.expand_dims(x, (-1, -2))
+        )
+        self.assertAllClose(
+            knp.ExpandDims((-1, 1))(x), np.expand_dims(x, (-1, 1))
+        )
 
     def test_expm1(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -3848,6 +4111,44 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.LogicalXor()(x, True), np.logical_xor(x, True))
         self.assertAllClose(knp.LogicalXor()(True, x), np.logical_xor(True, x))
 
+    def test_correlate(self):
+        x = np.array([1, 2, 3])
+        y = np.array([0, 1, 0.5])
+        self.assertAllClose(knp.correlate(x, y), np.correlate(x, y))
+        self.assertAllClose(
+            knp.correlate(x, y, mode="same"), np.correlate(x, y, mode="same")
+        )
+        self.assertAllClose(
+            knp.correlate(x, y, mode="full"), np.correlate(x, y, mode="full")
+        )
+
+        self.assertAllClose(knp.Correlate()(x, y), np.correlate(x, y))
+        self.assertAllClose(
+            knp.Correlate(mode="same")(x, y), np.correlate(x, y, mode="same")
+        )
+        self.assertAllClose(
+            knp.Correlate(mode="full")(x, y), np.correlate(x, y, mode="full")
+        )
+
+    def test_correlate_different_size(self):
+        x = np.array([1, 2, 3, 4, 5, 6])
+        y = np.array([0, 1, 0.5])
+        self.assertAllClose(knp.correlate(x, y), np.correlate(x, y))
+        self.assertAllClose(
+            knp.correlate(x, y, mode="same"), np.correlate(x, y, mode="same")
+        )
+        self.assertAllClose(
+            knp.correlate(x, y, mode="full"), np.correlate(x, y, mode="full")
+        )
+
+        self.assertAllClose(knp.Correlate()(x, y), np.correlate(x, y))
+        self.assertAllClose(
+            knp.Correlate(mode="same")(x, y), np.correlate(x, y, mode="same")
+        )
+        self.assertAllClose(
+            knp.Correlate(mode="full")(x, y), np.correlate(x, y, mode="full")
+        )
+
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
     def test_ones(self):
@@ -3877,7 +4178,7 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Arange()(3, 7, 2), np.arange(3, 7, 2))
 
         self.assertEqual(standardize_dtype(knp.arange(3).dtype), "int32")
-        with pytest.warns(None) as record:
+        with warnings.catch_warnings(record=True) as record:
             knp.arange(3, dtype="int")
         self.assertEqual(len(record), 0)
 
@@ -4090,43 +4391,62 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         }
         for op in ELEMENTWISE_UNARY_OPS
     ]
+    OTHER_UNARY_OPS_ARGS = [
+        ("digitize", "", {}, {"bins": np.array([0.1, 0.2, 1.0])}, (4, 2, 3)),
+        ("mean", "none", {"axis": None}, {}, (4, 2, 3)),
+        ("mean", "none_k", {"axis": None, "keepdims": True}, {}, (4, 2, 3)),
+        ("mean", "empty", {"axis": ()}, {}, (4, 2, 3)),
+        ("mean", "empty_k", {"axis": (), "keepdims": True}, {}, (4, 2, 3)),
+        ("mean", "0", {"axis": 0}, {}, (4, 2, 3)),
+        ("mean", "0_k", {"axis": 0, "keepdims": True}, {}, (4, 2, 3)),
+        ("mean", "1", {"axis": 1}, {}, (4, 2, 3)),
+        ("mean", "1_k", {"axis": 1, "keepdims": True}, {}, (4, 2, 3)),
+        ("mean", "01", {"axis": (0, 1)}, {}, (4, 2, 3)),
+        ("mean", "01_k", {"axis": (0, 1), "keepdims": True}, {}, (4, 2, 3)),
+        ("mean", "02", {"axis": (1, 2)}, {}, (4, 2, 3)),
+        ("mean", "02_k", {"axis": (1, 2), "keepdims": True}, {}, (4, 2, 3)),
+        ("mean", "all", {"axis": (0, 1, 2)}, {}, (4, 2, 3)),
+        ("mean", "all_k", {"axis": (0, 1, 2), "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "none", {"axis": None}, {}, (4, 2, 3)),
+        ("sum", "none_k", {"axis": None, "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "empty", {"axis": ()}, {}, (4, 2, 3)),
+        ("sum", "empty_k", {"axis": (), "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "0", {"axis": 0}, {}, (4, 2, 3)),
+        ("sum", "0_k", {"axis": 0, "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "1", {"axis": 1}, {}, (4, 2, 3)),
+        ("sum", "1_k", {"axis": 1, "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "01", {"axis": (0, 1)}, {}, (4, 2, 3)),
+        ("sum", "01_k", {"axis": (0, 1), "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "02", {"axis": (1, 2)}, {}, (4, 2, 3)),
+        ("sum", "02_k", {"axis": (1, 2), "keepdims": True}, {}, (4, 2, 3)),
+        ("sum", "all", {"axis": (0, 1, 2)}, {}, (4, 2, 3)),
+        ("sum", "all_k", {"axis": (0, 1, 2), "keepdims": True}, {}, (4, 2, 3)),
+        ("expand_dims", "zero", {"axis": 0}, {}, (2, 3)),
+        ("expand_dims", "one", {"axis": 1}, {}, (2, 3)),
+        ("expand_dims", "minus_two", {"axis": -2}, {}, (2, 3)),
+        ("reshape", "basic", {"newshape": (4, 3, 2)}, {}, (4, 2, 3)),
+        ("reshape", "minus_one", {"newshape": (4, 3, -1)}, {}, (4, 2, 3)),
+        ("reshape", "fewer_dims", {"newshape": (4, 6)}, {}, (4, 2, 3)),
+        ("squeeze", "no_axis_no_op", {}, {}, (2, 3)),
+        ("squeeze", "one", {"axis": 1}, {}, (2, 1, 3)),
+        ("squeeze", "minus_two", {"axis": -2}, {}, (2, 1, 3)),
+        ("squeeze", "no_axis", {}, {}, (2, 1, 3)),
+        ("transpose", "no_axes", {}, {}, (1, 2, 3, 4)),
+        ("transpose", "axes", {"axes": (0, 3, 2, 1)}, {}, (1, 2, 3, 4)),
+    ]
     OTHER_UNARY_OPS_TESTS = [
         {
             "testcase_name": "_".join([op, testcase_name]),
             "op_function": getattr(knp, op),
             "op_class": getattr(knp, snake_to_pascal_case(op)),
             "np_op": getattr(np, op),
+            "init_kwargs": init_kwargs,
             "op_kwargs": op_kwargs,
             "input_shape": input_shape,
         }
-        for op, testcase_name, op_kwargs, input_shape in [
-            ("mean", "none", {"axis": None}, (4, 2, 3)),
-            ("mean", "none_k", {"axis": None, "keepdims": True}, (4, 2, 3)),
-            ("mean", "empty", {"axis": ()}, (4, 2, 3)),
-            ("mean", "empty_k", {"axis": (), "keepdims": True}, (4, 2, 3)),
-            ("mean", "0", {"axis": 0}, (4, 2, 3)),
-            ("mean", "0_k", {"axis": 0, "keepdims": True}, (4, 2, 3)),
-            ("mean", "1", {"axis": 1}, (4, 2, 3)),
-            ("mean", "1_k", {"axis": 1, "keepdims": True}, (4, 2, 3)),
-            ("mean", "01", {"axis": (0, 1)}, (4, 2, 3)),
-            ("mean", "01_k", {"axis": (0, 1), "keepdims": True}, (4, 2, 3)),
-            ("mean", "02", {"axis": (1, 2)}, (4, 2, 3)),
-            ("mean", "02_k", {"axis": (1, 2), "keepdims": True}, (4, 2, 3)),
-            ("mean", "all", {"axis": (0, 1, 2)}, (4, 2, 3)),
-            ("mean", "all_k", {"axis": (0, 1, 2), "keepdims": True}, (4, 2, 3)),
-            ("expand_dims", "zero", {"axis": 0}, (2, 3)),
-            ("expand_dims", "one", {"axis": 1}, (2, 3)),
-            ("expand_dims", "minus_two", {"axis": -2}, (2, 3)),
-            ("reshape", "basic", {"newshape": (4, 3, 2)}, (4, 2, 3)),
-            ("reshape", "minus_one", {"newshape": (4, 3, -1)}, (4, 2, 3)),
-            ("reshape", "fewer_dims", {"newshape": (4, 6)}, (4, 2, 3)),
-            ("squeeze", "no_axis_no_op", {}, (2, 3)),
-            ("squeeze", "one", {"axis": 1}, (2, 1, 3)),
-            ("squeeze", "minus_two", {"axis": -2}, (2, 1, 3)),
-            ("squeeze", "no_axis", {}, (2, 1, 3)),
-            ("transpose", "no_axes", {}, (1, 2, 3, 4)),
-            ("transpose", "axes", {"axes": (0, 3, 2, 1)}, (1, 2, 3, 4)),
-        ]
+        for op, testcase_name, init_kwargs, op_kwargs, input_shape in (
+            OTHER_UNARY_OPS_ARGS
+        )
     ]
 
     BINARY_OPS = [
@@ -4177,30 +4497,38 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(OTHER_UNARY_OPS_TESTS)
     def test_other_unary_symbolic_static_shape(
-        self, op_function, op_class, np_op, op_kwargs, input_shape
+        self, op_function, op_class, np_op, init_kwargs, op_kwargs, input_shape
     ):
         expected_shape = op_function(
-            KerasTensor(input_shape), **op_kwargs
+            KerasTensor(input_shape), **init_kwargs, **op_kwargs
         ).shape
         x = KerasTensor(input_shape, sparse=True)
-        self.assertEqual(op_function(x, **op_kwargs).shape, expected_shape)
-        self.assertTrue(op_function(x, **op_kwargs).sparse)
-        self.assertEqual(op_class(**op_kwargs)(x).shape, expected_shape)
-        self.assertTrue(op_class(**op_kwargs)(x).sparse)
+        self.assertEqual(
+            op_function(x, **init_kwargs, **op_kwargs).shape, expected_shape
+        )
+        self.assertTrue(op_function(x, **init_kwargs, **op_kwargs).sparse)
+        self.assertEqual(
+            op_class(**init_kwargs)(x, **op_kwargs).shape, expected_shape
+        )
+        self.assertTrue(op_class(**init_kwargs)(x, **op_kwargs).sparse)
 
     @parameterized.named_parameters(OTHER_UNARY_OPS_TESTS)
     def test_other_unary_symbolic_dynamic_shape(
-        self, op_function, op_class, np_op, op_kwargs, input_shape
+        self, op_function, op_class, np_op, init_kwargs, op_kwargs, input_shape
     ):
         input_shape = (None,) + input_shape[1:]
         expected_shape = op_function(
-            KerasTensor(input_shape), **op_kwargs
+            KerasTensor(input_shape), **init_kwargs, **op_kwargs
         ).shape
         x = KerasTensor(input_shape, sparse=True)
-        self.assertEqual(op_function(x, **op_kwargs).shape, expected_shape)
-        self.assertTrue(op_function(x, **op_kwargs).sparse)
-        self.assertEqual(op_class(**op_kwargs)(x).shape, expected_shape)
-        self.assertTrue(op_class(**op_kwargs)(x).sparse)
+        self.assertEqual(
+            op_function(x, **init_kwargs, **op_kwargs).shape, expected_shape
+        )
+        self.assertTrue(op_function(x, **init_kwargs, **op_kwargs).sparse)
+        self.assertEqual(
+            op_class(**init_kwargs)(x, **op_kwargs).shape, expected_shape
+        )
+        self.assertTrue(op_class(**init_kwargs)(x, **op_kwargs).sparse)
 
     @parameterized.named_parameters(DENSIFYING_UNARY_OPS_TESTS)
     def test_densifying_unary_sparse_correctness(
@@ -4257,8 +4585,8 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         self.assertSameSparseness(op_class()(x), x)
 
     @parameterized.named_parameters(OTHER_UNARY_OPS_TESTS)
-    def test_other_unary_symbolic_sparse_correctness(
-        self, op_function, op_class, np_op, op_kwargs, input_shape
+    def test_other_unary_sparse_correctness(
+        self, op_function, op_class, np_op, init_kwargs, op_kwargs, input_shape
     ):
         x = np.random.random(input_shape)
         if op_function is knp.mean:
@@ -4268,14 +4596,22 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         x_np = backend.convert_to_numpy(x)
 
         self.assertAllClose(
-            op_function(x, **op_kwargs), np_op(x_np, **op_kwargs)
+            op_function(x, **init_kwargs, **op_kwargs),
+            np_op(x_np, **init_kwargs, **op_kwargs),
         )
-        self.assertAllClose(op_class(**op_kwargs)(x), np_op(x_np, **op_kwargs))
+        self.assertAllClose(
+            op_class(**init_kwargs)(x, **op_kwargs),
+            np_op(x_np, **init_kwargs, **op_kwargs),
+        )
         # Reduction operations have complex and backend dependent rules about
         # when the result is sparse and it is dense.
         if op_function is not knp.mean:
-            self.assertSameSparseness(op_function(x, **op_kwargs), x)
-            self.assertSameSparseness(op_class(**op_kwargs)(x), x)
+            self.assertSameSparseness(
+                op_function(x, **init_kwargs, **op_kwargs), x
+            )
+            self.assertSameSparseness(
+                op_class(**init_kwargs)(x, **op_kwargs), x
+            )
 
     @parameterized.named_parameters(
         named_product(
@@ -4381,10 +4717,10 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     # resulting in different behavior between JAX and Keras. Currently, we
     # are skipping the test for uint64
     ALL_DTYPES = [
-        x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
+        x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
     ] + [None]
-    INT_DTYPES = [x for x in ALLOWED_DTYPES if "int" in x and x != "uint64"]
-    FLOAT_DTYPES = [x for x in ALLOWED_DTYPES if "float" in x]
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
+    FLOAT_DTYPES = dtypes.FLOAT_TYPES
 
     if backend.backend() == "torch":
         # TODO: torch doesn't support uint16, uint32 and uint64
@@ -4394,6 +4730,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         INT_DTYPES = [
             x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
         ]
+    # Remove float8 dtypes for the following tests
+    ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
 
     def setUp(self):
         from jax.experimental import enable_x64
@@ -4607,10 +4945,12 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
-        x1 = knp.ones((1, 1), dtype=dtype1)
-        x2 = knp.ones((1, 1), dtype=dtype2)
-        x1_jax = jnp.ones((1, 1), dtype=dtype1)
-        x2_jax = jnp.ones((1, 1), dtype=dtype2)
+        # The shape of the matrix needs to meet the requirements of
+        # torch._int_mm to test hardware-accelerated matmul
+        x1 = knp.ones((17, 16), dtype=dtype1)
+        x2 = knp.ones((16, 8), dtype=dtype2)
+        x1_jax = jnp.ones((17, 16), dtype=dtype1)
+        x2_jax = jnp.ones((16, 8), dtype=dtype2)
         if dtype1 == "int8" and dtype2 == "int8":
             preferred_element_type = "int32"
         else:
@@ -5237,6 +5577,27 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_correlate(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((3,), dtype=dtype1)
+        x2 = knp.ones((3,), dtype=dtype2)
+        x1_jax = jnp.ones((3,), dtype=dtype1)
+        x2_jax = jnp.ones((3,), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.correlate(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.correlate(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Correlate().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_count_nonzero(self, dtype):
         x = knp.ones((1,), dtype=dtype)
@@ -5450,19 +5811,39 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knp.Dot().symbolic_call(x1, x2).dtype, expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(
+            dtypes=list(itertools.combinations(ALL_DTYPES, 2))
+            + [("int8", "int8")]
+        )
     )
     def test_einsum(self, dtypes):
         import jax.numpy as jnp
 
+        def get_input_shapes(subscripts):
+            x1_labels = subscripts.split(",")[0]
+            x2_labels = subscripts.split("->")[0][len(x1_labels) + 1 :]
+            x1_shape = [1] * len(x1_labels)
+            x2_shape = [1] * len(x2_labels)
+            return x1_shape, x2_shape
+
         dtype1, dtype2 = dtypes
-        x1 = knp.ones((1, 1, 1), dtype=dtype1)
-        x2 = knp.ones((1, 1, 1), dtype=dtype2)
-        x1_jax = jnp.ones((1, 1, 1), dtype=dtype1)
-        x2_jax = jnp.ones((1, 1, 1), dtype=dtype2)
         subscripts = "ijk,lkj->il"
+        x1_shape, x2_shape = get_input_shapes(subscripts)
+        x1 = knp.ones(x1_shape, dtype=dtype1)
+        x2 = knp.ones(x2_shape, dtype=dtype2)
+        x1_jax = jnp.ones(x1_shape, dtype=dtype1)
+        x2_jax = jnp.ones(x2_shape, dtype=dtype2)
+        if dtype1 == "int8" and dtype2 == "int8":
+            preferred_element_type = "int32"
+        else:
+            preferred_element_type = None
         expected_dtype = standardize_dtype(
-            jnp.einsum(subscripts, x1_jax, x2_jax).dtype
+            jnp.einsum(
+                subscripts,
+                x1_jax,
+                x2_jax,
+                preferred_element_type=preferred_element_type,
+            ).dtype
         )
 
         self.assertEqual(
@@ -5475,6 +5856,78 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             ),
             expected_dtype,
         )
+
+    @parameterized.named_parameters(
+        named_product(
+            dtypes=list(itertools.combinations(ALL_DTYPES, 2))
+            + [("int8", "int8")]
+        )
+    )
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason=f"{backend.backend()} doesn't implement custom ops for einsum.",
+    )
+    def test_einsum_custom_ops_for_tensorflow(self, dtypes):
+        import jax.numpy as jnp
+
+        def get_input_shapes(subscripts):
+            x1_labels = subscripts.split(",")[0]
+            x2_labels = subscripts.split("->")[0][len(x1_labels) + 1 :]
+            x1_shape = [1] * len(x1_labels)
+            x2_shape = [1] * len(x2_labels)
+            return x1_shape, x2_shape
+
+        dtype1, dtype2 = dtypes
+        for subscripts in [
+            "a,b->ab",
+            "ab,b->a",
+            "ab,bc->ac",
+            "ab,cb->ac",
+            "abc,cd->abd",
+            "abc,cde->abde",
+            "abc,dc->abd",
+            "abc,dce->abde",
+            "abc,dec->abde",
+            "abcd,abde->abce",
+            "abcd,abed->abce",
+            "abcd,acbe->adbe",
+            "abcd,adbe->acbe",
+            "abcd,aecd->acbe",
+            "abcd,aecd->aceb",
+            "abcd,cde->abe",
+            "abcd,ced->abe",
+            "abcd,ecd->abe",
+            "abcde,aebf->adbcf",
+            "abcde,afce->acdbf",
+        ]:
+            x1_shape, x2_shape = get_input_shapes(subscripts)
+            x1 = knp.ones(x1_shape, dtype=dtype1)
+            x2 = knp.ones(x2_shape, dtype=dtype2)
+            x1_jax = jnp.ones(x1_shape, dtype=dtype1)
+            x2_jax = jnp.ones(x2_shape, dtype=dtype2)
+            if dtype1 == "int8" and dtype2 == "int8":
+                preferred_element_type = "int32"
+            else:
+                preferred_element_type = None
+            expected_dtype = standardize_dtype(
+                jnp.einsum(
+                    subscripts,
+                    x1_jax,
+                    x2_jax,
+                    preferred_element_type=preferred_element_type,
+                ).dtype
+            )
+
+            self.assertEqual(
+                standardize_dtype(knp.einsum(subscripts, x1, x2).dtype),
+                expected_dtype,
+            )
+            self.assertEqual(
+                standardize_dtype(
+                    knp.Einsum(subscripts).symbolic_call(x1, x2).dtype
+                ),
+                expected_dtype,
+            )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_empty(self, dtype):
@@ -5922,7 +6375,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 [np.array([0, 1], "float32"), np.array([10, 20], "float32")],
             ],
             num=[0, 1, 5],
-            dtype=FLOAT_DTYPES + [None],
+            dtype=FLOAT_DTYPES + (None,),
         )
     )
     def test_linspace(self, start_and_stop, num, dtype):
@@ -6046,7 +6499,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 [np.array([0, 1], "float32"), np.array([10, 20], "float32")],
             ],
             num=[0, 1, 5],
-            dtype=FLOAT_DTYPES + [None],
+            dtype=FLOAT_DTYPES + (None,),
         )
     )
     def test_logspace(self, start_and_stop, num, dtype):

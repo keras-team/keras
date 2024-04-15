@@ -64,6 +64,44 @@ class SaveModelTests(test_case.TestCase):
         ):
             saving_api.save_model(model, "model.png")
 
+    def test_objects_to_skip(self):
+        model = Sequential(
+            [
+                layers.Input((3,)),
+                layers.Dense(5),
+                layers.Dense(5),
+            ]
+        )
+        skip = model.layers[0]
+        filepath = os.path.join(self.get_temp_dir(), "test_model.weights.h5")
+        saving_api.save_weights(model, filepath, objects_to_skip=[skip])
+        new_model = Sequential(
+            [
+                layers.Input((3,)),
+                layers.Dense(5),
+                layers.Dense(5),
+            ]
+        )
+        new_model.load_weights(filepath, objects_to_skip=[new_model.layers[0]])
+        self.assertNotAllClose(
+            new_model.layers[0].get_weights()[0],
+            model.layers[0].get_weights()[0],
+        )
+        self.assertAllClose(
+            new_model.layers[0].get_weights()[1],
+            model.layers[0].get_weights()[1],
+        )
+        saving_api.save_weights(model, filepath)
+        new_model.load_weights(filepath, objects_to_skip=[new_model.layers[0]])
+        self.assertNotAllClose(
+            new_model.layers[0].get_weights()[0],
+            model.layers[0].get_weights()[0],
+        )
+        self.assertAllClose(
+            new_model.layers[0].get_weights()[1],
+            model.layers[0].get_weights()[1],
+        )
+
 
 class LoadModelTests(test_case.TestCase, parameterized.TestCase):
     def get_model(self, dtype=None):

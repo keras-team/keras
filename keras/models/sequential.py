@@ -1,7 +1,6 @@
 import copy
 import inspect
-
-import tree
+import typing
 
 from keras.api_export import keras_export
 from keras.backend.common import global_state
@@ -12,6 +11,7 @@ from keras.legacy.saving import serialization as legacy_serialization
 from keras.models.functional import Functional
 from keras.models.model import Model
 from keras.saving import serialization_lib
+from keras.utils import tree
 
 
 @keras_export(["keras.Sequential", "keras.models.Sequential"])
@@ -60,6 +60,9 @@ class Sequential(Model):
     model.fit(x, y, batch_size=32, epochs=10)
     ```
     """
+
+    def __new__(cls, *args, **kwargs):
+        return typing.cast(Sequential, super().__new__(cls))
 
     def __init__(self, layers=None, trainable=True, name=None):
         super().__init__(trainable=trainable, name=name)

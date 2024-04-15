@@ -234,3 +234,29 @@ class SimpleRNNTest(testing.TestCase):
             np.array([[0.2501858, 0.2501858], [0.941473, 0.941473]]),
             c2,
         )
+
+    @pytest.mark.requires_trainable_backend
+    def test_output_shape(self):
+        x = np.array([[[101, 202], [303, 404]]])
+        for merge_mode in ["ave", "concat", "mul", "sum", None]:
+            sub_layer = layers.LSTM(2, return_state=True)
+            layer = layers.Bidirectional(sub_layer, merge_mode=merge_mode)
+            output = layer(x)
+            output_shape = layer.compute_output_shape(x.shape)
+            for out, shape in zip(output, output_shape):
+                self.assertEqual(out.shape, shape)
+
+        for merge_mode in ["concat", "ave", "mul", "sum"]:
+            sub_layer = layers.LSTM(2, return_state=False)
+            layer = layers.Bidirectional(sub_layer, merge_mode=merge_mode)
+            output = layer(x)
+            output_shape = layer.compute_output_shape(x.shape)
+            self.assertEqual(output.shape, output_shape)
+
+        # return_state=False & merge_mode=None
+        sub_layer = layers.LSTM(2, return_state=False)
+        layer = layers.Bidirectional(sub_layer, merge_mode=None)
+        output = layer(x)
+        output_shape = layer.compute_output_shape(x.shape)
+        for out, shape in zip(output, output_shape):
+            self.assertEqual(out.shape, shape)

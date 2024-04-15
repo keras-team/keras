@@ -1,3 +1,4 @@
+from keras import backend
 from keras import initializers
 from keras import losses
 from keras import ops
@@ -7,10 +8,12 @@ from keras.saving import serialization_lib
 
 
 def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
+    dtype = dtype or backend.floatx()
     mask = getattr(values, "_keras_mask", None)
     values = ops.cast(values, dtype=dtype)
     if sample_weight is not None:
-        sample_weight = ops.cast(sample_weight, dtype=dtype)
+        sample_weight = ops.convert_to_tensor(sample_weight, dtype=dtype)
+
         if mask is not None:
             sample_weight = losses.loss.apply_mask(
                 sample_weight, mask, dtype=dtype, reduction="sum"
@@ -156,7 +159,7 @@ class Mean(Metric):
 
 @keras_export("keras.metrics.MeanMetricWrapper")
 class MeanMetricWrapper(Mean):
-    """Wrap a stateless metric function with the Mean metric.
+    """Wrap a stateless metric function with the `Mean` metric.
 
     You could use this class to quickly build a mean metric from a function. The
     function needs to have the signature `fn(y_true, y_pred)` and return a

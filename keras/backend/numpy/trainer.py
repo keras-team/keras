@@ -1,5 +1,4 @@
 import numpy as np
-import tree
 
 from keras import backend
 from keras import callbacks as callbacks_module
@@ -10,6 +9,7 @@ from keras.trainers import trainer as base_trainer
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.epoch_iterator import EpochIterator
 from keras.utils import traceback_utils
+from keras.utils import tree
 
 
 class NumpyTrainer(base_trainer.Trainer):
@@ -31,7 +31,9 @@ class NumpyTrainer(base_trainer.Trainer):
         loss = self.compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
         )
-        self._loss_tracker.update_state(loss)
+        self._loss_tracker.update_state(
+            loss, sample_weight=tree.flatten(x)[0].shape[0]
+        )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def predict_step(self, data):

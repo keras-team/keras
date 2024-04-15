@@ -1,7 +1,12 @@
+import json
+
 import numpy as np
 
 from keras import testing
 from keras.backend.common import keras_tensor
+from keras.layers import Dense
+from keras.layers import Input
+from keras.models import Model
 from keras.ops import function
 from keras.ops import numpy as knp
 
@@ -108,5 +113,27 @@ class FunctionTest(testing.TestCase):
         pass
 
     def test_serialization(self):
-        # TODO
-        pass
+        inputs = Input(shape=(10,))
+        outputs = Dense(1)(inputs)
+        model = Model(inputs=inputs, outputs=outputs)
+
+        config = model.get_config()
+        new_model = Model.from_config(config)
+
+        self.assertEqual(
+            json.dumps(model.get_config()), json.dumps(new_model.get_config())
+        )
+
+    def test_function_with_empty_outputs(self):
+        x = keras_tensor.KerasTensor((None, 3))
+        with self.assertRaisesRegex(
+            ValueError, "`outputs` argument cannot be empty"
+        ):
+            _ = function.Function(inputs=x, outputs=[])
+
+    def test_function_with_empty_inputs(self):
+        x = keras_tensor.KerasTensor((None, 3))
+        with self.assertRaisesRegex(
+            ValueError, "`inputs` argument cannot be empty"
+        ):
+            _ = function.Function(inputs=[], outputs=x)

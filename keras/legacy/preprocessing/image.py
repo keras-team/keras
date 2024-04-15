@@ -1187,14 +1187,14 @@ class ImageDataGenerator:
         if "sort" in kwargs:
             warnings.warn(
                 "sort is deprecated, batches will be created in the"
-                "same order than the filenames provided if shuffle"
-                "is set to False.",
+                "same order than the filenames provided if `shuffle`"
+                "is set to `False`.",
                 DeprecationWarning,
             )
         if class_mode == "other":
             warnings.warn(
-                '`class_mode` "other" is deprecated, please use '
-                '`class_mode` "raw".',
+                '`class_mode="other"` is deprecated, please use '
+                '`class_mode="raw"`.',
                 DeprecationWarning,
             )
             class_mode = "raw"
@@ -1466,7 +1466,8 @@ class ImageDataGenerator:
         data-dependent transformations, based on an array of sample data.
 
         Only required if `featurewise_center` or
-        `featurewise_std_normalization` or `zca_whitening` are set to True.
+        `featurewise_std_normalization` or `zca_whitening`
+        are set to `True`.
 
         When `rescale` is set to a value, rescaling is applied to
         sample data before computing the internal data stats.

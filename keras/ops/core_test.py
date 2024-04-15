@@ -3,7 +3,6 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-import tree
 from absl.testing import parameterized
 
 from keras import backend
@@ -13,9 +12,10 @@ from keras import models
 from keras import ops
 from keras import optimizers
 from keras import testing
+from keras.backend.common import dtypes
 from keras.backend.common.keras_tensor import KerasTensor
-from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.ops import core
+from keras.utils import tree
 
 
 class CoreOpsStaticShapeTest(testing.TestCase):
@@ -392,23 +392,21 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             import tensorflow as tf
 
             x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
-            sparse_class = tf.SparseTensor
         elif backend.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
-            sparse_class = jax_sparse.JAXSparse
         else:
             self.fail(f"Sparse is unsupported with backend {backend.backend()}")
 
         x_default = ops.convert_to_tensor(x)
-        self.assertIsInstance(x_default, sparse_class)
+        self.assertSparse(x_default)
         self.assertAllClose(x, x_default)
         x_sparse = ops.convert_to_tensor(x, sparse=True)
-        self.assertIsInstance(x_sparse, sparse_class)
+        self.assertSparse(x_sparse)
         self.assertAllClose(x, x_sparse)
         x_dense = ops.convert_to_tensor(x, sparse=False)
-        self.assertNotIsInstance(x_dense, sparse_class)
+        self.assertSparse(x_dense, False)
         self.assertAllClose(x, x_dense)
 
         x_numpy = ops.convert_to_numpy(x)
@@ -423,14 +421,6 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         f = ops.cond(False, lambda: None, lambda: None)
         self.assertEqual(f, None)
 
-        for val in [True, False]:
-            out = ops.cond(
-                val,
-                lambda: KerasTensor((16, 3)),
-                lambda: KerasTensor((16, 3)),
-            )
-            self.assertEqual((16, 3), out.shape)
-
         out = ops.cond(
             KerasTensor((), dtype="bool"),
             lambda: ops.ones((1, 3)),
@@ -440,16 +430,16 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         out = ops.cond(
             KerasTensor((), dtype="bool"),
-            lambda: KerasTensor((3,)),
-            lambda: KerasTensor((3,)),
+            lambda: ops.ones((3,)),
+            lambda: ops.zeros((3,)),
         )
         self.assertEqual((3,), out.shape)
 
         with self.assertRaises(ValueError):
             ops.cond(
                 KerasTensor((), dtype="bool"),
-                lambda: KerasTensor((3,)),
-                lambda: KerasTensor((4,)),
+                lambda: ops.ones((3,)),
+                lambda: ops.zeros((4,)),
             )
 
     def test_unstack(self):
@@ -474,6 +464,27 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual("float16", y.dtype)
         self.assertEqual(x.shape, y.shape)
         self.assertTrue(hasattr(y, "_keras_history"))
+
+    @parameterized.named_parameters(
+        ("float8_e4m3fn", "float8_e4m3fn"), ("float8_e5m2", "float8_e5m2")
+    )
+    def test_cast_float8(self, float8_dtype):
+        # Cast to float8 and cast back
+        x = ops.ones((2,), dtype="float32")
+        y = ops.cast(x, float8_dtype)
+        self.assertIn(float8_dtype, str(y.dtype))
+        x = ops.cast(y, "float32")
+        self.assertIn("float32", str(x.dtype))
+
+        x = ops.KerasTensor((2,), dtype="float32")
+        y = ops.cast(x, float8_dtype)
+        self.assertEqual(float8_dtype, y.dtype)
+        self.assertEqual(x.shape, y.shape)
+        self.assertTrue(hasattr(y, "_keras_history"))
+        x = ops.cast(y, "float32")
+        self.assertEqual("float32", x.dtype)
+        self.assertEqual(x.shape, y.shape)
+        self.assertTrue(hasattr(x, "_keras_history"))
 
     def test_vectorized_map(self):
         def fn(x):
@@ -508,6 +519,55 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertTrue(ops.is_tensor(x))
         self.assertFalse(ops.is_tensor([1, 2, 3]))
 
+    @pytest.mark.skipif(
+        backend.backend() not in ("tensorflow", "jax", "torch"),
+        reason=f"{backend.backend()} doesn't support `custom_gradient`.",
+    )
+    def test_custom_gradient(self):
+
+        # function to test custom_gradient on
+        @ops.custom_gradient
+        def log1pexp(x):
+            e = ops.exp(x)
+
+            def grad(*args, upstream=None):
+                if upstream is None:
+                    (upstream,) = args
+                return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
+
+            return ops.log(1 + e), grad
+
+        def log1pexp_nan(x):
+            return ops.log(1 + ops.exp(x))
+
+        x = ops.convert_to_tensor(100.0)
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            with tf.GradientTape() as tape1:
+                tape1.watch(x)
+                y = log1pexp(x)
+            with tf.GradientTape() as tape2:
+                tape2.watch(x)
+                z = log1pexp_nan(x)
+            dy_dx = tape1.gradient(y, x)
+            dz_dx = tape2.gradient(z, x)
+            self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
+        elif backend.backend() == "jax":
+            import jax
+
+            dy_dx = jax.grad(log1pexp)(x)
+            dz_dx = jax.grad(log1pexp_nan)(x)
+            self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
+            self.assertTrue(ops.isnan(dz_dx))
+        elif backend.backend() == "torch":
+            import torch
+
+            x = torch.tensor(100.0, requires_grad=True)
+            z = log1pexp(x)
+            z.sum().backward()
+            self.assertEqual(ops.convert_to_numpy(x.grad), 1.0)
+
 
 class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
     import jax  # enable bfloat16 for numpy
@@ -516,7 +576,7 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
     # resulting in different behavior between JAX and Keras. Currently, we
     # are skipping the test for uint64
     ALL_DTYPES = [
-        x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
+        x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
     ] + [None]
 
     if backend.backend() == "torch":
@@ -524,6 +584,8 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         ALL_DTYPES = [
             x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
         ]
+    # Remove float8 dtypes for the following tests
+    ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
 
     @parameterized.parameters(
         ((), None, backend.floatx()),
@@ -759,9 +821,8 @@ class CoreOpsCallsTests(testing.TestCase):
 
     def test_cond_check_output_spec_other_types(self):
         cond_op = core.Cond()
-        # Create mock objects with dtype and shape attributes
-        mock_spec1 = Mock(dtype="float32", shape=(2, 2))
-        mock_spec2 = Mock(dtype="float32", shape=(2, 2))
+        mock_spec1 = KerasTensor(shape=(2, 2), dtype="float32")
+        mock_spec2 = KerasTensor(shape=(2, 2), dtype="float32")
         self.assertTrue(cond_op._check_output_spec(mock_spec1, mock_spec2))
 
     def test_cond_check_output_spec_none(self):

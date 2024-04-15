@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
-import tree
 from absl.testing import parameterized
 
 from keras import layers
 from keras import models
 from keras import testing
 from keras.models.cloning import clone_model
+from keras.utils import tree
 
 
 def get_mlp_functional_model(shared_layers=False):

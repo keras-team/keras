@@ -29,6 +29,7 @@ concatenate
 conj
 conjugate
 copy
+correlate
 cos
 cosh
 count_nonzero
@@ -151,6 +152,8 @@ from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend import any_symbolic_tensors
 from keras.backend.common import dtypes
+from keras.backend.common.backend_utils import canonicalize_axis
+from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.ops import operation_utils
 from keras.ops.operation import Operation
 from keras.ops.operation_utils import broadcast_shapes
@@ -1238,14 +1241,18 @@ def average(x, axis=None, weights=None):
 
 
 class Bincount(Operation):
-    def __init__(self, weights=None, minlength=0):
+    def __init__(self, weights=None, minlength=0, sparse=False):
         super().__init__()
         self.weights = weights
         self.minlength = minlength
+        self.sparse = sparse
 
     def call(self, x):
         return backend.numpy.bincount(
-            x, weights=self.weights, minlength=self.minlength
+            x,
+            weights=self.weights,
+            minlength=self.minlength,
+            sparse=self.sparse,
         )
 
     def compute_output_spec(self, x):
@@ -1256,11 +1263,16 @@ class Bincount(Operation):
             dtype = dtypes.result_type(*dtypes_to_resolve)
         else:
             dtype = "int32"
-        return KerasTensor(list(x.shape[:-1]) + [None], dtype=dtype)
+        x_sparse = getattr(x, "sparse", False)
+        return KerasTensor(
+            list(x.shape[:-1]) + [None],
+            dtype=dtype,
+            sparse=x_sparse or self.sparse,
+        )
 
 
 @keras_export(["keras.ops.bincount", "keras.ops.numpy.bincount"])
-def bincount(x, weights=None, minlength=0):
+def bincount(x, weights=None, minlength=0, sparse=False):
     """Count the number of occurrences of each value in a tensor of integers.
 
     Args:
@@ -1276,6 +1288,8 @@ def bincount(x, weights=None, minlength=0):
             this number of bins in the output tensor. If greater than
             `max(x) + 1`, each value of the output at an index higher than
             `max(x)` is set to 0.
+        sparse: Whether to return a sparse tensor; for backends that support
+            sparse tensors.
 
     Returns:
         1D tensor where each element gives the number of occurrence(s) of its
@@ -1296,8 +1310,12 @@ def bincount(x, weights=None, minlength=0):
     array([0, 1, 2, 1, 0, 0], dtype=int32)
     """
     if any_symbolic_tensors((x,)):
-        return Bincount(weights=weights, minlength=minlength).symbolic_call(x)
-    return backend.numpy.bincount(x, weights=weights, minlength=minlength)
+        return Bincount(
+            weights=weights, minlength=minlength, sparse=sparse
+        ).symbolic_call(x)
+    return backend.numpy.bincount(
+        x, weights=weights, minlength=minlength, sparse=sparse
+    )
 
 
 class BroadcastTo(Operation):
@@ -2057,7 +2075,8 @@ class Digitize(Operation):
                 f"`bins` must be a 1D array. Received: bins={bins} "
                 f"with shape bins.shape={bins_shape}"
             )
-        return KerasTensor(x.shape, dtype="int32")
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype="int32", sparse=sparse)
 
 
 @keras_export(["keras.ops.digitize", "keras.ops.numpy.digitize"])
@@ -2318,10 +2337,16 @@ class Einsum(Operation):
         output_shape = expanded_operands_shapes[0]
         for shape in expanded_operands_shapes[1:]:
             output_shape = broadcast_shapes(output_shape, shape)
-        dtypes_to_resolve = []
-        for x in operands:
-            dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
-        dtype = dtypes.result_type(*dtypes_to_resolve)
+        dtypes_to_resolve = list(
+            set(
+                backend.standardize_dtype(getattr(x, "dtype", type(x)))
+                for x in operands
+            )
+        )
+        if len(dtypes_to_resolve) == 1 and dtypes_to_resolve[0] == "int8":
+            dtype = "int32"
+        else:
+            dtype = dtypes.result_type(*dtypes_to_resolve)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -2493,10 +2518,10 @@ def exp(x):
 class ExpandDims(Operation):
     def __init__(self, axis):
         super().__init__()
-        if isinstance(axis, list):
+        if not isinstance(axis, (int, tuple, list)):
             raise ValueError(
                 "The `axis` argument to `expand_dims` should be an integer, "
-                f"but received a list: {axis}."
+                f"tuple or list. Received axis={axis}"
             )
         self.axis = axis
 
@@ -2687,6 +2712,8 @@ class GetItem(Operation):
             remaining_key = [key]
         elif isinstance(key, tuple):
             remaining_key = list(key)
+        elif isinstance(key, list):
+            remaining_key = key.copy()
         else:
             raise ValueError(
                 f"Unsupported key type for array slice. Recieved: `{key}`"
@@ -3969,6 +3996,9 @@ class Nonzero(Operation):
     def call(self, x):
         return backend.numpy.nonzero(x)
 
+    def compute_output_spec(self, x):
+        return KerasTensor([None] * len(x.shape))
+
 
 @keras_export(["keras.ops.nonzero", "keras.ops.numpy.nonzero"])
 def nonzero(x):
@@ -3980,6 +4010,8 @@ def nonzero(x):
     Returns:
         Indices of elements that are non-zero.
     """
+    if any_symbolic_tensors((x,)):
+        return Nonzero().symbolic_call(x)
     return backend.numpy.nonzero(x)
 
 
@@ -4602,7 +4634,7 @@ class Sin(Operation):
 
 @keras_export(["keras.ops.sin", "keras.ops.numpy.sin"])
 def sin(x):
-    """Trigonomeric sine, element-wise.
+    """Trigonometric sine, element-wise.
 
     Arguments:
         x: Input tensor.
@@ -5734,16 +5766,20 @@ class Squeeze(Operation):
     def compute_output_spec(self, x):
         input_shape = list(x.shape)
         sparse = getattr(x, "sparse", False)
-        if self.axis is None:
+        axis = to_tuple_or_list(self.axis)
+        if axis is None:
             output_shape = list(filter((1).__ne__, input_shape))
             return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
         else:
-            if input_shape[self.axis] != 1:
-                raise ValueError(
-                    f"Cannot squeeze axis {self.axis}, because the dimension "
-                    "is not 1."
-                )
-            del input_shape[self.axis]
+            for a in axis:
+                if input_shape[a] != 1:
+                    raise ValueError(
+                        f"Cannot squeeze axis {a}, because the dimension "
+                        "is not 1."
+                    )
+            axis = [canonicalize_axis(a, len(input_shape)) for a in axis]
+            for a in sorted(axis, reverse=True):
+                del input_shape[a]
             return KerasTensor(input_shape, dtype=x.dtype, sparse=sparse)
 
 
@@ -5901,9 +5937,11 @@ class Sum(Operation):
         # TODO: torch doesn't support uint32
         if backend.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
+        sparse = getattr(x, "sparse", False)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=dtype,
+            sparse=sparse,
         )
 
 
@@ -6057,3 +6095,70 @@ def logical_xor(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return LogicalXor().symbolic_call(x1, x2)
     return backend.numpy.logical_xor(x1, x2)
+
+
+class Correlate(Operation):
+    def __init__(self, mode="valid"):
+        super().__init__()
+        self.mode = mode
+
+    def call(self, x1, x2):
+        return backend.numpy.correlate(x1, x2, mode=self.mode)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        if len(x1_shape) != 1:
+            raise ValueError(
+                "`x1` must be a 1-dimensional tensor, but received"
+                + f"shape {x1_shape}"
+            )
+        if len(x2_shape) != 1:
+            raise ValueError(
+                "`x2` must be a 1-dimensional tensor, but received"
+                + f"shape {x2_shape}"
+            )
+        x1_len, x2_len = x1_shape[0], x2_shape[0]
+        output_shape = (
+            np.maximum(x1_len, x2_len) - np.minimum(x1_len, x2_len) + 1,
+        )
+        if self.mode == "same":
+            output_shape = (np.maximum(x1_len, x2_len),)
+        elif self.mode == "full":
+            output_shape = (x1_len + x2_len - 1,)
+        if self.mode not in ("valid", "same", "full"):
+            raise ValueError(
+                "`mode` must be either `valid`, `same`, or `full`, but"
+                f"received: {self.mode}"
+            )
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        if output_dtype == "int64":
+            output_dtype = "float64"
+        elif output_dtype not in ["bfloat16", "float16", "float64"]:
+            output_dtype = "float32"
+        return KerasTensor(output_shape, dtype=output_dtype)
+
+
+@keras_export(["keras.ops.correlate", "keras.ops.numpy.correlate"])
+def correlate(x1, x2, mode="valid"):
+    """Compute the cross-correlation of two 1-dimensional tensors.
+
+    Args:
+        x1: First 1-dimensional input tensor of length M.
+        x2: Second 1-dimensional input tensor of length N.
+        mode: Either `valid`, `same` or `full`.
+            By default the mode is set to `valid`, which returns
+            an output of length max(M, N) - min(M, N) + 1.
+            `same` returns an output of length max(M, N).
+            `full` mode returns the convolution at each point of
+            overlap, with an output length of N+M-1
+
+    Returns:
+        Output tensor, cross-correlation of `x1` and `x2`.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Correlate(mode=mode).symbolic_call(x1, x2)
+    return backend.numpy.correlate(x1, x2, mode=mode)

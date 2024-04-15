@@ -29,7 +29,7 @@ class RemoteMonitor(Callback):
         path: String; path relative to `root` to which the events will be sent.
         field: String; JSON field under which the data will be stored.
             The field is used only if the payload is sent within a form
-            (i.e. send_as_json is set to False).
+            (i.e. when `send_as_json=False`).
         headers: Dictionary; optional custom HTTP headers.
         send_as_json: Boolean; whether the request should be
             sent as `"application/json"`.

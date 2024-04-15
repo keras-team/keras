@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.api_export import keras_export
 from keras.backend import config
+from keras.backend.common import dtypes
 from keras.backend.common import global_state
 from keras.backend.common.name_scope import current_path
 from keras.backend.common.stateless_scope import get_stateless_scope
@@ -11,8 +12,80 @@ from keras.utils.naming import auto_name
 
 
 class KerasVariable:
+    """Represents a backend-agnostic variable in Keras.
+
+    A `Variable` acts as a container for state. It holds a tensor value and can
+    be updated. With the JAX backend, variables are used to implement
+    "functionalization", the pattern of lifting stateful operations out of
+    a piece of computation to turn it into a stateless function.
+
+    Args:
+        initializer: Initial value or callable for initialization.
+            If a callable is used, it should take the arguments
+            `shape` and `dtype`.
+        shape: Optional. Tuple for the variable's shape.
+            Required if `initializer` is a callable.
+        dtype: Optional. Data type of the variable. Defaults to the global float
+            dtype type (`"float32"` if never configured).
+        trainable: Optional. Boolean indicating if variable is trainable.
+            Defaults to `True`.
+        name: Optional. A unique name for the variable. Automatically generated
+            if not set.
+
+    Attributes:
+        name: The name of the variable (string).
+        path: The path of the variable within the Keras model or layer (string).
+        dtype: The data type of the variable (string).
+        shape: The shape of the variable (tuple of integers).
+        ndim: The number of dimensions of the variable (integer).
+        trainable: Whether the variable is trainable (boolean).
+        value: The current value of the variable (NumPy array or tensor).
+
+    Examples:
+
+    **Initializing a `Variable` with a NumPy array:**
+
+    ```python
+    import numpy as np
+    import keras
+    initial_array = np.ones((3, 3))
+    variable_from_array = keras.Variable(initializer=initial_array)
+    ```
+
+    **Using a Keras initializer to create a `Variable`:**
+
+    ```python
+    from keras.initializers import Ones
+    variable_from_initializer = keras.Variable(
+        initializer=Ones(), shape=(3, 3), dtype="float32"
+    )
+    ```
+
+    **Updating the value of a `Variable`:**
+
+    ```python
+    new_value = np.zeros((3, 3), dtype="float32")
+    variable_from_array.assign(new_value)
+    ```
+
+    **Marking a `Variable` as non-trainable:**
+
+    ```python
+    non_trainable_variable = keras.Variable(
+        initializer=np.ones((3, 3), dtype="float32"), trainable=False
+    )
+    ```
+    """
+
     def __init__(
-        self, initializer, shape=None, dtype=None, trainable=True, name=None
+        self,
+        initializer,
+        shape=None,
+        dtype=None,
+        trainable=True,
+        autocast=True,
+        aggregation="mean",
+        name=None,
     ):
         name = name or auto_name(self.__class__.__name__)
         if not isinstance(name, str) or "/" in name:
@@ -20,6 +93,12 @@ class KerasVariable:
                 "Argument `name` must be a string and "
                 "cannot contain character `/`. "
                 f"Received: name={name}"
+            )
+        if aggregation not in ("mean", "sum", "only_first_replica"):
+            raise ValueError(
+                "Invalid valid for argument `aggregation`. Expected "
+                "one of {'mean', 'sum', 'only_first_replica'}. "
+                f"Received: aggregation={aggregation}"
             )
         self.name = name
         parent_path = current_path()
@@ -31,7 +110,11 @@ class KerasVariable:
         self._dtype = dtype
         self._shape = None
         self._initializer = None
+        self._regularizer = None
+        self._constraint = None
         self._trainable = trainable
+        self._autocast = autocast
+        self._aggregation = aggregation
         if isinstance(initializer, str):
             from keras import initializers
 
@@ -105,12 +188,16 @@ class KerasVariable:
 
     def _maybe_autocast(self, value):
         autocast_scope = get_autocast_scope()
-        if autocast_scope is not None:
+        if self._autocast and autocast_scope is not None:
             return autocast_scope.maybe_cast(value)
         return value
 
     def numpy(self):
         return np.array(self)
+
+    @property
+    def aggregation(self):
+        return self._aggregation
 
     @property
     def value(self):
@@ -120,7 +207,7 @@ class KerasVariable:
             if value is not None:
                 return self._maybe_autocast(value)
         if self._value is None:
-            # Unitialized variable. Return a placeholder.
+            # Uninitialized variable. Return a placeholder.
             # This is fine because it's only ever used
             # in during shape inference / graph tracing
             # (anything else would be a bug, to be fixed.)
@@ -155,7 +242,11 @@ class KerasVariable:
     @property
     def dtype(self):
         autocast_scope = get_autocast_scope()
-        if autocast_scope is not None and is_float_dtype(self._dtype):
+        if (
+            self._autocast
+            and autocast_scope is not None
+            and is_float_dtype(self._dtype)
+        ):
             return autocast_scope.dtype
         return self._dtype
 
@@ -174,6 +265,38 @@ class KerasVariable:
     @trainable.setter
     def trainable(self, value):
         self._trainable = value
+
+    @property
+    def regularizer(self):
+        return self._regularizer
+
+    @regularizer.setter
+    def regularizer(self, value):
+        from keras.regularizers import Regularizer
+
+        if value is not None and not isinstance(value, Regularizer):
+            raise ValueError(
+                "Invalid value for attribute `regularizer`. Expected an "
+                "instance of `keras.regularizers.Regularizer`, or `None`. "
+                f"Received: regularizer={value}"
+            )
+        self._regularizer = value
+
+    @property
+    def constraint(self):
+        return self._constraint
+
+    @constraint.setter
+    def constraint(self, value):
+        from keras.constraints import Constraint
+
+        if value is not None and not isinstance(value, Constraint):
+            raise ValueError(
+                "Invalid value for attribute `constraint`. Expected an "
+                "instance of `keras.constraints.Constraint`, or `None`. "
+                f"Received: constraint={value}"
+            )
+        self._constraint = value
 
     def __repr__(self):
         return (
@@ -352,38 +475,13 @@ def initialize_all_variables():
     global_state.set_global_attribute("uninitialized_variables", [])
 
 
-ALLOWED_DTYPES = {
-    "float16",
-    "float32",
-    "float64",
-    "uint8",
-    "uint16",
-    "uint32",
-    "uint64",
-    "int8",
-    "int16",
-    "int32",
-    "int64",
-    "bfloat16",
-    "bool",
-    "string",
-}
-
-PYTHON_DTYPES_MAP = {
-    bool: "bool",
-    int: "int64" if config.backend() == "tensorflow" else "int32",
-    float: "float32",
-    str: "string",
-    # special case for string value
-    "int": "int64" if config.backend() == "tensorflow" else "int32",
-}
-
-
-@keras_export("keras.backend.standardize_dtype")
+@keras_export(
+    ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
+)
 def standardize_dtype(dtype):
     if dtype is None:
         return config.floatx()
-    dtype = PYTHON_DTYPES_MAP.get(dtype, dtype)
+    dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
         dtype = dtype.name
     elif hasattr(dtype, "__str__") and (
@@ -395,7 +493,7 @@ def standardize_dtype(dtype):
     elif hasattr(dtype, "__name__"):
         dtype = dtype.__name__
 
-    if dtype not in ALLOWED_DTYPES:
+    if dtype not in dtypes.ALLOWED_DTYPES:
         raise ValueError(f"Invalid dtype: {dtype}")
     return dtype
 
@@ -421,8 +519,8 @@ def standardize_shape(shape):
     for e in shape:
         if e is None:
             continue
-        if config.backend() == "jax" and str(e) == "b":
-            # JAX2TF tracing represents `None` dimensions as `b`
+        if config.backend() == "jax" and "_DimExpr" in str(type(e)):
+            # JAX2TF tracing uses JAX-native dimension expressions
             continue
         if not is_int_dtype(type(e)):
             raise ValueError(

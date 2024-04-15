@@ -7,12 +7,110 @@ from keras.ops.operation import Operation
 from keras.ops.operation_utils import compute_conv_output_shape
 
 
+class RGBToGrayscale(Operation):
+    def __init__(
+        self,
+        data_format="channels_last",
+    ):
+        super().__init__()
+        self.data_format = data_format
+
+    def call(self, image):
+        return backend.image.rgb_to_grayscale(
+            image,
+            data_format=self.data_format,
+        )
+
+    def compute_output_spec(self, image):
+        if len(image.shape) not in (3, 4):
+            raise ValueError(
+                "Invalid image rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"image.shape={image.shape}"
+            )
+
+        if len(image.shape) == 3:
+            if self.data_format == "channels_last":
+                return KerasTensor(image.shape[:-1] + (1,), dtype=image.dtype)
+            else:
+                return KerasTensor((1,) + image.shape[1:], dtype=image.dtype)
+        elif len(image.shape) == 4:
+            if self.data_format == "channels_last":
+                return KerasTensor(
+                    (image.shape[0],) + image.shape[1:-1] + (1,),
+                    dtype=image.dtype,
+                )
+            else:
+                return KerasTensor(
+                    (
+                        image.shape[0],
+                        1,
+                    )
+                    + image.shape[2:],
+                    dtype=image.dtype,
+                )
+
+
+@keras_export("keras.ops.image.rgb_to_grayscale")
+def rgb_to_grayscale(
+    image,
+    data_format="channels_last",
+):
+    """Convert RGB images to grayscale.
+
+    This function converts RGB images to grayscale images. It supports both
+    3D and 4D tensors, where the last dimension represents channels.
+
+    Args:
+        image: Input RGB image or batch of RGB images. Must be a 3D tensor
+            with shape `(height, width, channels)` or a 4D tensor with shape
+            `(batch, height, width, channels)`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            Defaults to `"channels_last"`.
+
+    Returns:
+        Grayscale image or batch of grayscale images.
+
+    Examples:
+
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.random.random((2, 4, 4, 3))
+    >>> y = ops.image.rgb_to_grayscale(x)
+    >>> y.shape
+    (2, 4, 4, 1)
+
+    >>> x = np.random.random((4, 4, 3)) # Single RGB image
+    >>> y = ops.image.rgb_to_grayscale(x)
+    >>> y.shape
+    (4, 4, 1)
+
+    >>> x = np.random.random((2, 3, 4, 4))
+    >>> y = ops.image.rgb_to_grayscale(x, data_format="channels_first")
+    >>> y.shape
+    (2, 1, 4, 4)
+    """
+    if any_symbolic_tensors((image,)):
+        return RGBToGrayscale(
+            data_format=data_format,
+        ).symbolic_call(image)
+    return backend.image.rgb_to_grayscale(
+        image,
+        data_format=data_format,
+    )
+
+
 class Resize(Operation):
     def __init__(
         self,
         size,
         interpolation="bilinear",
         antialias=False,
+        crop_to_aspect_ratio=False,
         data_format="channels_last",
     ):
         super().__init__()
@@ -20,6 +118,7 @@ class Resize(Operation):
         self.interpolation = interpolation
         self.antialias = antialias
         self.data_format = data_format
+        self.crop_to_aspect_ratio = crop_to_aspect_ratio
 
     def call(self, image):
         return backend.image.resize(
@@ -28,6 +127,7 @@ class Resize(Operation):
             interpolation=self.interpolation,
             antialias=self.antialias,
             data_format=self.data_format,
+            crop_to_aspect_ratio=self.crop_to_aspect_ratio,
         )
 
     def compute_output_spec(self, image):
@@ -59,6 +159,7 @@ def resize(
     size,
     interpolation="bilinear",
     antialias=False,
+    crop_to_aspect_ratio=False,
     data_format="channels_last",
 ):
     """Resize images to size using the specified interpolation method.
@@ -70,6 +171,13 @@ def resize(
             `"bilinear"`, and `"bicubic"`. Defaults to `"bilinear"`.
         antialias: Whether to use an antialiasing filter when downsampling an
             image. Defaults to `False`.
+        crop_to_aspect_ratio: If `True`, resize the images without aspect
+            ratio distortion. When the original aspect ratio differs
+            from the target aspect ratio, the output image will be
+            cropped so as to return the
+            largest possible window in the image (of size `(height, width)`)
+            that matches the target aspect ratio. By default
+            (`crop_to_aspect_ratio=False`), aspect ratio may not be preserved.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
             corresponds to inputs with shape `(batch, height, width, channels)`
@@ -100,19 +208,31 @@ def resize(
     >>> y.shape
     (2, 3, 2, 2)
     """
-
+    if len(size) != 2:
+        raise ValueError(
+            "Expected `size` to be a tuple of 2 integers. "
+            f"Received: size={size}"
+        )
+    if len(image.shape) < 3 or len(image.shape) > 4:
+        raise ValueError(
+            "Expected an image array with shape `(height, width, "
+            "channels)`, or `(batch_size, height, width, channels)`, but "
+            f"got input with incorrect rank, of shape {image.shape}."
+        )
     if any_symbolic_tensors((image,)):
         return Resize(
             size,
             interpolation=interpolation,
             antialias=antialias,
             data_format=data_format,
+            crop_to_aspect_ratio=crop_to_aspect_ratio,
         ).symbolic_call(image)
     return backend.image.resize(
         image,
         size,
         interpolation=interpolation,
         antialias=antialias,
+        crop_to_aspect_ratio=crop_to_aspect_ratio,
         data_format=data_format,
     )
 
@@ -418,7 +538,7 @@ def _extract_patches(
 
 
 class MapCoordinates(Operation):
-    def __init__(self, order, fill_mode="constant", fill_value=0):
+    def __init__(self, order=1, fill_mode="constant", fill_value=0):
         super().__init__()
         self.order = order
         self.fill_mode = fill_mode
@@ -507,12 +627,12 @@ def map_coordinates(
 class PadImages(Operation):
     def __init__(
         self,
-        top_padding,
-        bottom_padding,
-        left_padding,
-        right_padding,
-        target_height,
-        target_width,
+        top_padding=None,
+        bottom_padding=None,
+        left_padding=None,
+        right_padding=None,
+        target_height=None,
+        target_width=None,
     ):
         super().__init__()
         self.top_padding = top_padding

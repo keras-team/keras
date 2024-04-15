@@ -1,6 +1,8 @@
 import builtins
 import collections
+import functools
 import math
+import string
 import warnings
 
 import numpy as np
@@ -11,8 +13,12 @@ from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
 from keras.backend import config
 from keras.backend import standardize_dtype
 from keras.backend.common import dtypes
+from keras.backend.common.backend_utils import canonicalize_axis
+from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.backend.tensorflow import sparse
+from keras.backend.tensorflow.core import cast
 from keras.backend.tensorflow.core import convert_to_tensor
+from keras.utils import tree
 
 
 @sparse.elementwise_binary_union(tf.sparse.add)
@@ -30,7 +36,7 @@ def add(x1, x2):
     return tf.add(x1, x2)
 
 
-def bincount(x, weights=None, minlength=0):
+def bincount(x, weights=None, minlength=0, sparse=False):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype]
     if standardize_dtype(x.dtype) not in ["int32", "int64"]:
@@ -51,19 +57,24 @@ def bincount(x, weights=None, minlength=0):
                 weights = tf.cast(weights, tf.float32)
     else:
         dtype = "int32"
-    if isinstance(x, tf.SparseTensor):
+    if sparse or isinstance(x, tf.SparseTensor):
         output = tf.sparse.bincount(
             x,
             weights=weights,
             minlength=minlength,
             axis=-1,
         )
-        output = tf.cast(output, dtype)
+        actual_length = output.shape[-1]
+        if actual_length is None:
+            actual_length = tf.shape(output)[-1]
+        output = cast(output, dtype)
         if x.shape.rank == 1:
-            output_shape = (minlength,)
+            output_shape = (actual_length,)
         else:
-            batch_size = tf.shape(output)[0]
-            output_shape = (batch_size, minlength)
+            batch_size = output.shape[0]
+            if batch_size is None:
+                batch_size = tf.shape(output)[0]
+            output_shape = (batch_size, actual_length)
         return tf.SparseTensor(
             indices=output.indices,
             values=output.values,
@@ -75,22 +86,247 @@ def bincount(x, weights=None, minlength=0):
     )
 
 
+@functools.lru_cache(512)
+def _normalize_einsum_subscripts(subscripts):
+    # string.ascii_letters
+    mapping = {}
+    normalized_subscripts = ""
+    for c in subscripts:
+        if c in string.ascii_letters:
+            if c not in mapping:
+                mapping[c] = string.ascii_letters[len(mapping)]
+            normalized_subscripts += mapping[c]
+        else:
+            normalized_subscripts += c
+    return normalized_subscripts
+
+
 def einsum(subscripts, *operands, **kwargs):
-    operands = tf.nest.map_structure(convert_to_tensor, operands)
+    operands = tree.map_structure(convert_to_tensor, operands)
+    subscripts = _normalize_einsum_subscripts(subscripts)
 
-    dtypes_to_resolve = []
-    for x in operands:
-        dtypes_to_resolve.append(x.dtype)
-    result_dtype = dtypes.result_type(*dtypes_to_resolve)
-    compute_dtype = result_dtype
-    # TODO: tf.einsum doesn't support integer dtype with gpu
-    if "int" in compute_dtype:
-        compute_dtype = config.floatx()
+    def is_valid_for_custom_ops(subscripts, *operands):
+        # Check that `subscripts` is supported and the shape of operands is not
+        # `None`.
+        if subscripts in [
+            "a,b->ab",
+            "ab,b->a",
+            "ab,bc->ac",
+            "ab,cb->ac",
+            "abc,cd->abd",
+            "abc,dc->abd",
+            "abcd,abde->abce",
+            "abcd,abed->abce",
+            "abcd,acbe->adbe",
+            "abcd,adbe->acbe",
+            "abcd,aecd->acbe",
+            "abcd,aecd->aceb",
+        ]:
+            # These subscripts don't require the shape information
+            return True
+        elif subscripts == "abc,cde->abde":
+            _, b1, c1 = operands[0].shape
+            c2, d2, e2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
+        elif subscripts == "abc,dce->abde":
+            _, b1, c1 = operands[0].shape
+            d2, c2, e2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
+        elif subscripts == "abc,dec->abde":
+            _, b1, c1 = operands[0].shape
+            d2, e2, c2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
+        elif subscripts == "abcd,cde->abe":
+            _, b1, c1, d1 = operands[0].shape
+            c2, d2, e2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
+        elif subscripts == "abcd,ced->abe":
+            _, b1, c1, d1 = operands[0].shape
+            c2, e2, d2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
+        elif subscripts == "abcd,ecd->abe":
+            _, b1, c1, d1 = operands[0].shape
+            e2, c2, d2 = operands[1].shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            if None in (b, c, d, e):
+                return False
+            return True
+        elif subscripts == "abcde,aebf->adbcf":
+            _, b1, c1, d1, e1 = operands[0].shape
+            _, e2, b2, f2 = operands[1].shape
+            b, c, d, e, f = b1 or b2, c1, d1, e1 or e2, f2
+            if None in (b, c, d, e, f):
+                return False
+            return True
+        elif subscripts == "abcde,afce->acdbf":
+            _, b1, c1, d1, e1 = operands[0].shape
+            _, f2, c2, e2 = operands[1].shape
+            b, c, d, e, f = b1, c1 or c2, d1, e1 or e2, f2
+            if None in (b, c, d, e, f):
+                return False
+            return True
+        else:
+            # No match in subscripts
+            return False
 
-    operands = tf.nest.map_structure(
-        lambda x: tf.cast(x, compute_dtype), operands
-    )
-    return tf.cast(tf.einsum(subscripts, *operands, **kwargs), result_dtype)
+    def use_custom_ops(subscripts, *operands, output_type):
+        # Replace tf.einsum with custom ops to utilize hardware-accelerated
+        # matmul
+        x, y = operands[0], operands[1]
+        if subscripts == "a,b->ab":
+            x = tf.expand_dims(x, axis=-1)
+            y = tf.expand_dims(y, axis=0)
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "ab,b->a":
+            y = tf.expand_dims(y, axis=-1)
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.squeeze(result, axis=-1)
+        elif subscripts == "ab,bc->ac":
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "ab,cb->ac":
+            y = tf.transpose(y, [1, 0])
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abc,cd->abd":
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abc,cde->abde":
+            _, b1, c1 = x.shape
+            c2, d2, e2 = y.shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            y = tf.reshape(y, [c, -1])
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.reshape(result, [-1, b, d, e])
+        elif subscripts == "abc,dc->abd":
+            y = tf.transpose(y, [1, 0])
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abc,dce->abde":
+            _, b1, c1 = x.shape
+            d2, c2, e2 = y.shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            y = tf.transpose(y, [1, 0, 2])  # cde
+            y = tf.reshape(y, [c, -1])
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.reshape(result, [-1, b, d, e])
+        elif subscripts == "abc,dec->abde":
+            _, b1, c1 = x.shape
+            d2, e2, c2 = y.shape
+            b, c, d, e = b1, c1 or c2, d2, e2
+            y = tf.transpose(y, [2, 0, 1])  # cde
+            y = tf.reshape(y, [c, -1])
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.reshape(result, [-1, b, d, e])
+        elif subscripts == "abcd,abde->abce":
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,abed->abce":
+            y = tf.transpose(y, [0, 1, 3, 2])
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,acbe->adbe":
+            x = tf.transpose(x, [0, 1, 3, 2])
+            y = tf.transpose(y, [0, 2, 1, 3])
+            result = tf.matmul(x, y, output_type=output_type)
+            return tf.transpose(result, [0, 2, 1, 3])
+        elif subscripts == "abcd,adbe->acbe":
+            y = tf.transpose(y, [0, 2, 1, 3])  # abde
+            result = tf.matmul(x, y, output_type=output_type)  # abce
+            return tf.transpose(result, [0, 2, 1, 3])
+        elif subscripts == "abcd,aecd->acbe":
+            x = tf.transpose(x, [0, 2, 1, 3])  # acbd
+            y = tf.transpose(y, [0, 2, 3, 1])  # acde
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,aecd->aceb":
+            x = tf.transpose(x, [0, 2, 1, 3])
+            y = tf.transpose(y, [0, 2, 3, 1])
+            result = tf.matmul(x, y, output_type=output_type)  # acbe
+            return tf.transpose(result, [0, 1, 3, 2])
+        elif subscripts == "abcd,cde->abe":
+            _, b1, c1, d1 = x.shape
+            c2, d2, e2 = y.shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            x = tf.reshape(x, [-1, b, c * d])
+            y = tf.reshape(y, [-1, e])
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,ced->abe":
+            _, b1, c1, d1 = x.shape
+            c2, e2, d2 = y.shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            x = tf.reshape(x, [-1, b, c * d])
+            y = tf.transpose(y, [0, 2, 1])
+            y = tf.reshape(y, [-1, e])
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcd,ecd->abe":
+            _, b1, c1, d1 = x.shape
+            e2, c2, d2 = y.shape
+            b, c, d, e = b1, c1 or c2, d1 or d2, e2
+            x = tf.reshape(x, [-1, b, c * d])
+            y = tf.transpose(y, [1, 2, 0])
+            y = tf.reshape(y, [-1, e])
+            return tf.matmul(x, y, output_type=output_type)
+        elif subscripts == "abcde,aebf->adbcf":
+            _, b1, c1, d1, e1 = x.shape
+            _, e2, b2, f2 = y.shape
+            b, c, d, e, f = b1 or b2, c1, d1, e1 or e2, f2
+            x = tf.reshape(x, [-1, b, c * d, e])  # ab(cd)e
+            y = tf.transpose(y, [0, 2, 1, 3])  # abef
+            result = tf.matmul(x, y, output_type=output_type)  # ab(cd)f
+            result = tf.reshape(result, [-1, b, c, d, f])  # abcdf
+            return tf.transpose(result, [0, 3, 1, 2, 4])
+        elif subscripts == "abcde,afce->acdbf":
+            _, b1, c1, d1, e1 = x.shape
+            _, f2, c2, e2 = y.shape
+            b, c, d, e, f = b1, c1 or c2, d1, e1 or e2, f2
+            x = tf.transpose(x, [0, 2, 3, 1, 4])  # acdbe
+            x = tf.reshape(x, [-1, c, d * b, e])  # ac(db)e
+            y = tf.transpose(y, [0, 2, 3, 1])  # acef
+            result = tf.matmul(x, y, output_type=output_type)  # ac(db)f
+            return tf.reshape(result, [-1, c, d, b, f])
+        else:
+            raise NotImplementedError
+
+    dtypes_to_resolve = list(set(standardize_dtype(x.dtype) for x in operands))
+    # When operands are of int8, we cast the result to int32 to align with
+    # the behavior of jax.
+    if len(dtypes_to_resolve) == 1 and dtypes_to_resolve[0] == "int8":
+        compute_dtype = "int8"
+        result_dtype = "int32"
+        output_type = "int32"
+    else:
+        result_dtype = dtypes.result_type(*dtypes_to_resolve)
+        compute_dtype = result_dtype
+        output_type = None
+
+    # TODO: Remove the condition once `tf.einsum` supports int8xint8->int32
+    if is_valid_for_custom_ops(subscripts, *operands) and not kwargs:
+        # TODO: tf.matmul doesn't support integer dtype if not specifying
+        # output_type="int32"
+        if "int" in compute_dtype and output_type is None:
+            compute_dtype = config.floatx()
+        operands = tree.map_structure(
+            lambda x: tf.cast(x, compute_dtype), operands
+        )
+        result = use_custom_ops(subscripts, *operands, output_type=output_type)
+    else:
+        # TODO: tf.einsum doesn't support integer dtype with gpu
+        if "int" in compute_dtype:
+            compute_dtype = config.floatx()
+        operands = tree.map_structure(
+            lambda x: tf.cast(x, compute_dtype), operands
+        )
+        result = tf.einsum(subscripts, *operands, **kwargs)
+    return tf.cast(result, result_dtype)
 
 
 @sparse.elementwise_binary_union(sparse.sparse_subtract)
@@ -269,16 +505,15 @@ def mean(x, axis=None, keepdims=False):
             sum = tf.reduce_sum(x.values, keepdims=keepdims)
             return sum / tf.cast(tf.reduce_prod(x.dense_shape), dtype=sum.dtype)
 
-        if isinstance(axis, int):
-            axis = [axis]
-        elif not axis:
+        axis = to_tuple_or_list(axis)
+        if not axis:
             # Empty axis tuple, this is a no-op
             return x
 
         dense_shape = tf.convert_to_tensor(x.dense_shape)
         rank = tf.shape(dense_shape)[0]
         # Normalize axis: convert negative values and sort
-        axis = [rank + a if a < 0 else a for a in axis]
+        axis = [canonicalize_axis(a, rank) for a in axis]
         axis.sort()
 
         if axis == [0]:
@@ -306,7 +541,7 @@ def mean(x, axis=None, keepdims=False):
             )
             return tf.IndexedSlices(new_values, x.indices, new_dense_shape)
         elif rank == len(axis) + 1:
-            # `keepdims=False` and reducing against all axes exept 0, result is
+            # `keepdims=False` and reducing against all axes except 0, result is
             # a 1D tensor, which cannot be `IndexedSlices`. We have to scatter
             # the computed means to construct the correct dense tensor.
             return tf.scatter_nd(
@@ -543,8 +778,7 @@ def array(x, dtype=None):
 
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
-    if not isinstance(axis, (list, tuple)):
-        axis = (axis,)
+    axis = to_tuple_or_list(axis)
     dtypes_to_resolve = [x.dtype, float]
     if weights is not None:
         weights = convert_to_tensor(weights)
@@ -558,6 +792,9 @@ def average(x, axis=None, weights=None):
     x = tf.cast(x, compute_dtype)
     if weights is not None:
         weights = tf.cast(weights, compute_dtype)
+    if axis is None:
+        x = tfnp.average(x, weights=weights, axis=None)
+        return tf.cast(x, result_dtype)
     for a in axis:
         # `tfnp.average` does not handle multiple axes.
         x = tfnp.average(x, weights=weights, axis=a)
@@ -600,11 +837,11 @@ def concatenate(xs, axis=0):
                 )
                 for x in xs
             ]
-    xs = tf.nest.map_structure(convert_to_tensor, xs)
+    xs = tree.map_structure(convert_to_tensor, xs)
     dtype_set = set([x.dtype for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        xs = tf.nest.map_structure(lambda x: tf.cast(x, dtype), xs)
+        xs = tree.map_structure(lambda x: tf.cast(x, dtype), xs)
     return tf.concat(xs, axis=axis)
 
 
@@ -709,17 +946,17 @@ def digitize(x, bins):
     bins = list(bins)
 
     # bins must be float type
-    bins = tf.nest.map_structure(lambda x: float(x), bins)
+    bins = tree.map_structure(lambda x: float(x), bins)
 
     # TODO: tf.raw_ops.Bucketize doesn't support bool, bfloat16, float16, int8
     # int16, uint8, uint16, uint32
     ori_dtype = standardize_dtype(x.dtype)
     if ori_dtype in ("bool", "int8", "int16", "uint8", "uint16"):
-        x = tf.cast(x, "int32")
+        x = cast(x, "int32")
     elif ori_dtype == "uint32":
-        x = tf.cast(x, "int64")
+        x = cast(x, "int64")
     elif ori_dtype in ("bfloat16", "float16"):
-        x = tf.cast(x, "float32")
+        x = cast(x, "float32")
 
     if isinstance(x, tf.RaggedTensor):
         return tf.ragged.map_flat_values(
@@ -780,13 +1017,21 @@ def exp(x):
 
 
 def expand_dims(x, axis):
+    x = convert_to_tensor(x)
+    axis = to_tuple_or_list(axis)
+    out_ndim = len(x.shape) + len(axis)
+    axis = sorted([canonicalize_axis(a, out_ndim) for a in axis])
     if isinstance(x, tf.SparseTensor):
         from keras.ops.operation_utils import compute_expand_dims_output_shape
 
-        output = tf.sparse.expand_dims(x, axis)
-        output.set_shape(compute_expand_dims_output_shape(x.shape, axis))
-        return output
-    return tf.expand_dims(x, axis)
+        output_shape = compute_expand_dims_output_shape(x.shape, axis)
+        for a in axis:
+            x = tf.sparse.expand_dims(x, a)
+        x.set_shape(output_shape)
+        return x
+    for a in axis:
+        x = tf.expand_dims(x, a)
+    return x
 
 
 @sparse.elementwise_unary
@@ -852,7 +1097,7 @@ def hstack(xs):
     dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        xs = tf.nest.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
+        xs = tree.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
     rank = tf.rank(xs[0])
     return tf.cond(
         tf.equal(rank, 1),
@@ -1140,7 +1385,7 @@ def nan_to_num(x):
     # Replace NaN with 0
     x = tf.where(tf.math.is_nan(x), tf.constant(0, dtype), x)
 
-    # Replace positive infinitiy with dtype.max
+    # Replace positive infinity with dtype.max
     x = tf.where(tf.math.is_inf(x) & (x > 0), tf.constant(dtype.max, dtype), x)
 
     # Replace negative infinity with dtype.min
@@ -1157,9 +1402,7 @@ def ndim(x):
 def nonzero(x):
     x = convert_to_tensor(x)
     result = tf.unstack(tf.where(tf.cast(x, "bool")), x.shape.rank, axis=1)
-    return tf.nest.map_structure(
-        lambda indices: tf.cast(indices, "int32"), result
-    )
+    return tree.map_structure(lambda indices: tf.cast(indices, "int32"), result)
 
 
 def not_equal(x1, x2):
@@ -1228,9 +1471,8 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
         y = tf.reshape(x, [-1])
     else:
         x_ndims = len(x.shape)
-
         # _make_static_axis_non_negative_list
-        axis = list(map(lambda x: x if x >= 0 else x + x_ndims, axis))
+        axis = [canonicalize_axis(a, x_ndims) for a in axis]
 
         # _move_dims_to_flat_end
         other_dims = sorted(set(range(x_ndims)).difference(axis))
@@ -1326,11 +1568,9 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
-    if isinstance(axis, int):
-        axis = [axis]
-
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
+    axis = to_tuple_or_list(axis)
     compute_dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, compute_dtype)
     return _quantile(x, q, axis=axis, method=method, keepdims=keepdims)
@@ -1452,7 +1692,7 @@ def stack(x, axis=0):
     dtype_set = set([getattr(a, "dtype", type(a)) for a in x])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        x = tf.nest.map_structure(lambda a: convert_to_tensor(a, dtype), x)
+        x = tree.map_structure(lambda a: convert_to_tensor(a, dtype), x)
     return tf.stack(x, axis=axis)
 
 
@@ -1639,7 +1879,7 @@ def vstack(xs):
     dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        xs = tf.nest.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
+        xs = tree.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
     return tf.concat(xs, axis=0)
 
 
@@ -1745,21 +1985,23 @@ def sqrt(x):
 
 
 def squeeze(x, axis=None):
-    if isinstance(x, tf.SparseTensor):
-        static_shape = x.shape.as_list()
-        if axis is not None:
-            if static_shape[axis] != 1:
+    x = convert_to_tensor(x)
+    axis = to_tuple_or_list(axis)
+    static_shape = x.shape.as_list()
+    if axis is not None:
+        for a in axis:
+            if static_shape[a] != 1:
                 raise ValueError(
-                    f"Cannot squeeze axis {axis}, because the "
+                    f"Cannot squeeze axis={a}, because the "
                     "dimension is not 1."
                 )
-            if axis < 0:
-                axis += len(static_shape)
+        axis = sorted([canonicalize_axis(a, len(static_shape)) for a in axis])
+    if isinstance(x, tf.SparseTensor):
         dynamic_shape = tf.shape(x)
         new_shape = []
         gather_indices = []
         for i, dim in enumerate(static_shape):
-            if not (dim == 1 if axis is None else i == axis):
+            if not (dim == 1 if axis is None else i in axis):
                 new_shape.append(dim if dim is not None else dynamic_shape[i])
                 gather_indices.append(i)
         new_indices = tf.gather(x.indices, gather_indices, axis=1)
@@ -1796,7 +2038,11 @@ def sum(x, axis=None, keepdims=False):
         dtype = "int32"
     elif dtype in ("uint8", "uint16"):
         dtype = "uint32"
-    x = tf.cast(x, dtype)
+    x = cast(x, dtype)
+    if isinstance(x, tf.SparseTensor):
+        return tf.sparse.reduce_sum(
+            x, axis=axis, keepdims=keepdims, output_is_sparse=True
+        )
     return tf.reduce_sum(x, axis=axis, keepdims=keepdims)
 
 
@@ -1823,3 +2069,45 @@ def logical_xor(x1, x2):
     x1 = tf.cast(x1, "bool")
     x2 = tf.cast(x2, "bool")
     return tf.math.logical_xor(x1, x2)
+
+
+def correlate(x1, x2, mode="valid"):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    if dtype == tf.int64:
+        dtype = tf.float64
+    elif dtype not in [tf.bfloat16, tf.float16, tf.float64]:
+        dtype = tf.float32
+
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    x1_len, x2_len = int(x1.shape[0]), int(x2.shape[0])
+
+    if mode == "full":
+        full_len = x1_len + x2_len - 1
+
+        x1_pad = (full_len - x1_len) / 2
+        x2_pad = (full_len - x2_len) / 2
+
+        x1 = tf.pad(
+            x1, paddings=[[tf.math.floor(x1_pad), tf.math.ceil(x1_pad)]]
+        )
+        x2 = tf.pad(
+            x2, paddings=[[tf.math.floor(x2_pad), tf.math.ceil(x2_pad)]]
+        )
+
+        x1 = tf.reshape(x1, (1, full_len, 1))
+        x2 = tf.reshape(x2, (full_len, 1, 1))
+
+        return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding="SAME"))
+
+    x1 = tf.reshape(x1, (1, x1_len, 1))
+    x2 = tf.reshape(x2, (x2_len, 1, 1))
+
+    return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding=mode.upper()))

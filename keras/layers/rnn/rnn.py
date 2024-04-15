@@ -1,5 +1,3 @@
-import tree
-
 from keras import backend
 from keras import ops
 from keras.api_export import keras_export
@@ -8,6 +6,7 @@ from keras.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras.layers.rnn.stacked_rnn_cells import StackedRNNCells
 from keras.saving import serialization_lib
 from keras.utils import tracking
+from keras.utils import tree
 
 
 @keras_export("keras.layers.RNN")
@@ -237,18 +236,26 @@ class RNN(Layer):
             self.single_state = False
 
     def compute_output_shape(self, sequences_shape, initial_state_shape=None):
-        state_shape = [(sequences_shape[0], d) for d in self.state_size]
+        batch_size = sequences_shape[0]
+        length = sequences_shape[1]
+        states_shape = []
+        for state_size in self.state_size:
+            if isinstance(state_size, int):
+                states_shape.append((batch_size, state_size))
+            elif isinstance(state_size, (list, tuple)):
+                states_shape.append([(batch_size, s) for s in state_size])
+
         output_size = getattr(self.cell, "output_size", None)
         if output_size is None:
             output_size = self.state_size[0]
         if not isinstance(output_size, int):
             raise ValueError("output_size must be an integer.")
         if self.return_sequences:
-            output_shape = (sequences_shape[0], sequences_shape[1], output_size)
+            output_shape = (batch_size, length, output_size)
         else:
-            output_shape = (sequences_shape[0], output_size)
+            output_shape = (batch_size, output_size)
         if self.return_state:
-            return output_shape, *state_shape
+            return output_shape, *states_shape
         return output_shape
 
     def compute_mask(self, _, mask):
@@ -392,7 +399,9 @@ class RNN(Layer):
 
         # Prepopulate the dropout state so that the inner_loop is stateless
         # this is particularly important for JAX backend.
-        self._maybe_config_dropout_masks(self.cell, sequences, initial_state)
+        self._maybe_config_dropout_masks(
+            self.cell, sequences[:, 0, :], initial_state
+        )
 
         last_output, outputs, states = self.inner_loop(
             sequences=sequences,
@@ -426,18 +435,22 @@ class RNN(Layer):
         return output
 
     def _maybe_config_dropout_masks(self, cell, input_sequence, input_state):
-        step_input = input_sequence[:, 0, :]
         state = (
             input_state[0]
             if isinstance(input_state, (list, tuple))
             else input_state
         )
         if isinstance(cell, DropoutRNNCell):
-            cell.get_dropout_mask(step_input)
+            cell.get_dropout_mask(input_sequence)
             cell.get_recurrent_dropout_mask(state)
         if isinstance(cell, StackedRNNCells):
             for c, s in zip(cell.cells, input_state):
                 self._maybe_config_dropout_masks(c, input_sequence, s)
+                # Replicate the behavior of `StackedRNNCells.call` to compute
+                # the inputs for the next cell.
+                s = list(s) if tree.is_nested(s) else [s]
+                cell_call_fn = c.__call__ if callable(c) else c.call
+                input_sequence, _ = cell_call_fn(input_sequence, s)
 
     def _maybe_reset_dropout_masks(self, cell):
         if isinstance(cell, DropoutRNNCell):

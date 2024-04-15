@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras import backend
 from keras import layers
 from keras import testing
 from keras.layers.core.input_layer import Input
@@ -561,3 +562,82 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
             "it should have as many entries as the model has outputs",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
+
+    def test_quantize(self):
+        model = _get_model()
+        x1 = np.random.rand(2, 3)
+        x2 = np.random.rand(2, 3)
+        model.quantize("int8")
+        _ = model((x1, x2))
+
+        for layer in model._flatten_layers():
+            if isinstance(layer, (layers.Dense, layers.EinsumDense)):
+                self.assertEqual(layer.dtype_policy.name, "int8_from_float32")
+                self.assertEqual(layer.dtype_policy.quantization_mode, "int8")
+
+    def test_quantize_unbuilt(self):
+        class MyModel(Model):
+            def __init__(self):
+                super().__init__()
+                self.dense1 = layers.Dense(32, activation="relu")
+                self.dense2 = layers.Dense(5, activation="softmax")
+                self.dropout = layers.Dropout(0.5)
+
+            def call(self, inputs, training=False):
+                x = self.dense1(inputs)
+                x = self.dropout(x, training=training)
+                return self.dense2(x)
+
+        model = MyModel()
+        with self.assertRaisesRegex(
+            ValueError, "The model must be built first before calling"
+        ):
+            model.quantize("int8")
+
+        x = np.random.rand(2, 3)
+        _ = model(x)
+        model.quantize("int8")
+
+    def test_quantize_invalid_args(self):
+        model = _get_model()
+        with self.assertRaisesRegex(
+            ValueError, "Invalid quantization mode. Expected 'int8'."
+        ):
+            model.quantize("abc")
+
+    def test_quantize_nested_model(self):
+        class NestedLayer(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.dense = layers.Dense(units)
+
+            def call(self, x):
+                x = self.dense(x)
+                return x
+
+        class DoubleNestedLayer(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.nested_dense1 = NestedLayer(units)
+                self.nested_dense2 = NestedLayer(units)
+                self.dense = layers.Dense(units)
+
+            def call(self, x):
+                x = self.nested_dense1(x)
+                x = self.nested_dense2(x)
+                x = self.dense(x)
+                return x
+
+        inputs = layers.Input([3])
+        outputs = DoubleNestedLayer(8)(inputs)
+        model = Model(inputs, outputs)
+        model.quantize("int8")
+
+        kernel_count = 0
+        for weight in model.weights:
+            if weight.name == "kernel":
+                kernel_count += 1
+                self.assertEqual(
+                    backend.standardize_dtype(weight.dtype), "int8"
+                )
+        self.assertEqual(kernel_count, 3)

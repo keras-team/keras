@@ -14,11 +14,44 @@ UNSUPPORTED_INTERPOLATIONS = (
 )
 
 
+def rgb_to_grayscale(image, data_format="channel_last"):
+    try:
+        import torchvision
+    except:
+        raise ImportError(
+            "The torchvision package is necessary to use "
+            "`rgb_to_grayscale` with the torch backend. "
+            "Please install torchvision. "
+        )
+    image = convert_to_tensor(image)
+    if data_format == "channels_last":
+        if image.ndim == 4:
+            image = image.permute((0, 3, 1, 2))
+        elif image.ndim == 3:
+            image = image.permute((2, 0, 1))
+        else:
+            raise ValueError(
+                "Invalid input rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"image.shape={image.shape}"
+            )
+    grayscale_image = torchvision.transforms.functional.rgb_to_grayscale(
+        img=image,
+    )
+    if data_format == "channels_last":
+        if len(image.shape) == 4:
+            grayscale_image = grayscale_image.permute((0, 2, 3, 1))
+        elif len(image.shape) == 3:
+            grayscale_image = grayscale_image.permute((1, 2, 0))
+    return grayscale_image
+
+
 def resize(
     image,
     size,
     interpolation="bilinear",
     antialias=False,
+    crop_to_aspect_ratio=False,
     data_format="channels_last",
 ):
     try:
@@ -66,6 +99,30 @@ def resize(
                 "or rank 4 (batch of images). Received input with shape: "
                 f"image.shape={image.shape}"
             )
+
+    if crop_to_aspect_ratio:
+        shape = image.shape
+        height, width = shape[-2], shape[-1]
+        target_height, target_width = size
+        crop_height = int(float(width * target_height) / target_width)
+        crop_height = min(height, crop_height)
+        crop_width = int(float(height * target_width) / target_height)
+        crop_width = min(width, crop_width)
+        crop_box_hstart = int(float(height - crop_height) / 2)
+        crop_box_wstart = int(float(width - crop_width) / 2)
+        if len(image.shape) == 4:
+            image = image[
+                :,
+                :,
+                crop_box_hstart : crop_box_hstart + crop_height,
+                crop_box_wstart : crop_box_wstart + crop_width,
+            ]
+        else:
+            image = image[
+                :,
+                crop_box_hstart : crop_box_hstart + crop_height,
+                crop_box_wstart : crop_box_wstart + crop_width,
+            ]
 
     resized = torchvision.transforms.functional.resize(
         img=image,

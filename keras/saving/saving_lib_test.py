@@ -4,6 +4,7 @@ import json
 import os
 import warnings
 import zipfile
+from io import BytesIO
 from pathlib import Path
 from unittest import mock
 
@@ -586,6 +587,29 @@ class SavingTest(testing.TestCase):
             np.array(new_model.layers[2].kernel), new_layer_kernel_value
         )
 
+    def test_save_to_fileobj(self) -> None:
+        model = keras.Sequential(
+            [keras.layers.Dense(1, input_shape=(1,)), keras.layers.Dense(1)]
+        )
+        model.compile(optimizer="adam", loss="mse")
+
+        out = BytesIO()
+        saving_lib.save_model(model, out)
+        out.seek(0)
+        model = saving_lib.load_model(out)
+
+        model.fit(np.array([1, 2]), np.array([1, 2]))
+        pred1 = model.predict(np.array([1, 2]))
+
+        out = BytesIO()
+        saving_lib.save_model(model, out)
+        out.seek(0)
+        new_model = saving_lib.load_model(out)
+
+        pred2 = new_model.predict(np.array([1, 2]))
+
+        self.assertAllClose(pred1, pred2, atol=1e-5)
+
 
 @pytest.mark.requires_trainable_backend
 class SavingAPITest(testing.TestCase):
@@ -809,7 +833,9 @@ class SavingBattleTest(testing.TestCase):
             def call(self, x):
                 return self.dense(x)
 
-        temp_filepath = "normal_model.weights.h5"
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "normal_model.weights.h5"
+        )
         model_a = NormalModel()
         model_a(np.random.random((2, 2)))
         model_a.save_weights(temp_filepath)
@@ -819,3 +845,64 @@ class SavingBattleTest(testing.TestCase):
         self.assertAllClose(
             model_a.dense.kernel.numpy(), model_b.dense.kernel.numpy()
         )
+
+    def test_legacy_h5_format(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "custom_model.h5")
+
+        inputs = keras.Input((32,))
+        x = MyDense(2)(inputs)
+        outputs = CustomModelX()(x)
+        model = keras.Model(inputs, outputs)
+
+        x = np.random.random((1, 32))
+        ref_out = model(x)
+
+        model.save(temp_filepath)
+        new_model = keras.saving.load_model(temp_filepath)
+        out = new_model(x)
+        self.assertAllClose(ref_out, out, atol=1e-6)
+
+    def test_nested_functional_model_saving(self):
+        def func(in_size=4, out_size=2, name=None):
+            inputs = keras.layers.Input(shape=(in_size,))
+            outputs = keras.layers.Dense(out_size)((inputs))
+            return keras.Model(inputs, outputs=outputs, name=name)
+
+        input_a, input_b = keras.Input((4,)), keras.Input((4,))
+        out_a = func(out_size=2, name="func_a")(input_a)
+        out_b = func(out_size=3, name="func_b")(input_b)
+        model = keras.Model([input_a, input_b], outputs=[out_a, out_b])
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "nested_func.keras")
+        model.save(temp_filepath)
+        new_model = keras.saving.load_model(temp_filepath)
+        x = [np.random.random((2, 4))], np.random.random((2, 4))
+        ref_out = model(x)
+        out = new_model(x)
+        self.assertAllClose(ref_out[0], out[0])
+        self.assertAllClose(ref_out[1], out[1])
+
+    def test_nested_shared_functional_model_saving(self):
+        def func(in_size=4, out_size=2, name=None):
+            inputs = keras.layers.Input(shape=(in_size,))
+            outputs = keras.layers.Dense(out_size)((inputs))
+            return keras.Model(inputs, outputs=outputs, name=name)
+
+        inputs = [keras.Input((4,)), keras.Input((4,))]
+        func_shared = func(out_size=4, name="func_shared")
+        shared_a = func_shared(inputs[0])
+        shared_b = func_shared(inputs[1])
+        out_a = keras.layers.Dense(2)(shared_a)
+        out_b = keras.layers.Dense(2)(shared_b)
+        model = keras.Model(inputs, outputs=[out_a, out_b])
+
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "nested_shared_func.keras"
+        )
+        model.save(temp_filepath)
+        new_model = keras.saving.load_model(temp_filepath)
+        x = [np.random.random((2, 4))], np.random.random((2, 4))
+        ref_out = model(x)
+        out = new_model(x)
+        self.assertAllClose(ref_out[0], out[0])
+        self.assertAllClose(ref_out[1], out[1])

@@ -1,9 +1,8 @@
 import collections
 
-import tree
-
 from keras.backend import KerasTensor
 from keras.ops.symbolic_arguments import SymbolicArguments
+from keras.utils import tree
 
 
 class Node:
@@ -83,7 +82,7 @@ class Node:
         self.is_input = not self.arguments.keras_tensors
 
     def __repr__(self):
-        return f"<Node operation={self.operation}, id={id(self)}>"
+        return f"<Node operation={self.operation.name}, id={id(self)}>"
 
     @property
     def input_tensors(self):

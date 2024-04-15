@@ -6,6 +6,8 @@ import torch
 from keras.backend import KerasTensor
 from keras.backend import config
 from keras.backend.common import dtypes
+from keras.backend.common.backend_utils import canonicalize_axis
+from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.backend.common.variables import standardize_dtype
 from keras.backend.torch.core import cast
 from keras.backend.torch.core import convert_to_tensor
@@ -29,6 +31,17 @@ def add(x1, x2):
 
 def einsum(subscripts, *operands, **kwargs):
     operands = [convert_to_tensor(operand) for operand in operands]
+    # When all operands are of int8, we cast the result to int32 to align with
+    # the behavior of jax.
+    dtypes_to_resolve = list(set(standardize_dtype(x.dtype) for x in operands))
+    if len(dtypes_to_resolve) == 1 and dtypes_to_resolve[0] == "int8":
+        compute_dtype = "int32"
+        if get_device() == "cuda":
+            # TODO: torch.einsum doesn't support int32 when using cuda
+            compute_dtype = config.floatx()
+        # prevent overflow
+        operands = [cast(operand, compute_dtype) for operand in operands]
+        return cast(torch.einsum(subscripts, *operands), "int32")
     return torch.einsum(subscripts, *operands)
 
 
@@ -46,9 +59,36 @@ def subtract(x1, x2):
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    # When both x1 and x2 are of int8, we cast the outputs to int32 to align
-    # with jax
-    # TODO: Support hardware-accelerated matmul
+
+    def can_use_int_matmul(x1, x2):
+        # torch._int_mm only accepts the following conditions:
+        # 1. cuda
+        # 2. both inputs must have int8 dtype
+        # 3. both inputs must be 2d
+        # 4. x1.shape must be [>16, >= 16 and a multiplier of 8]
+        # 5. x2.shape must be [>= 16 and a multiplier of 8, multiplier of 8]
+        if get_device() != "cuda":
+            return False
+        x1_dtype = standardize_dtype(x1.dtype)
+        x2_dtype = standardize_dtype(x2.dtype)
+        if x1_dtype != "int8" or x2_dtype != "int8":
+            return False
+        x1_shape = x1.shape
+        x2_shape = x2.shape
+        if x1.ndim != 2 or x2.ndim != 2:
+            return False
+        if x1_shape[0] <= 16 or x1_shape[1] < 16 or x1_shape[1] % 8 != 0:
+            return False
+        if x2_shape[0] < 16 or x2_shape[0] % 8 != 0 or x2_shape[1] % 8 != 0:
+            return False
+        return True
+
+    # Shortcut for torch._int_mm
+    # TODO: Loosen the restriction of the usage of torch._int_mm
+    # TODO: We should replace torch._int_mm with the public api if possible
+    if can_use_int_matmul(x1, x2):
+        return torch._int_mm(x1, x2)
+
     x1_dtype = standardize_dtype(x1.dtype)
     x2_dtype = standardize_dtype(x2.dtype)
     if x1_dtype == "int8" and x2_dtype == "int8":
@@ -85,8 +125,7 @@ def mean(x, axis=None, keepdims=False):
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
-    elif isinstance(axis, int):
-        axis = (axis,)  # see [NB] below
+    axis = to_tuple_or_list(axis)  # see [NB] below
 
     ori_dtype = standardize_dtype(x.dtype)
     # torch.mean only supports floating point inputs
@@ -174,8 +213,7 @@ def all(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
         return cast(torch.all(x), "bool")
-    if not isinstance(axis, (list, tuple)):
-        axis = (axis,)
+    axis = to_tuple_or_list(axis)
     for a in axis:
         # `torch.all` does not handle multiple axes.
         x = torch.all(x, dim=a, keepdim=keepdims)
@@ -186,8 +224,7 @@ def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
         return cast(torch.any(x), "bool")
-    if not isinstance(axis, (list, tuple)):
-        axis = (axis,)
+    axis = to_tuple_or_list(axis)
     for a in axis:
         # `torch.any` does not handle multiple axes.
         x = torch.any(x, dim=a, keepdim=keepdims)
@@ -338,7 +375,9 @@ def average(x, axis=None, weights=None):
     return torch.mean(x, axis)
 
 
-def bincount(x, weights=None, minlength=0):
+def bincount(x, weights=None, minlength=0, sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with torch backend")
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype]
     if weights is not None:
@@ -568,7 +607,12 @@ def exp(x):
 
 def expand_dims(x, axis):
     x = convert_to_tensor(x)
-    return torch.unsqueeze(x, dim=axis)
+    axis = to_tuple_or_list(axis)
+    out_ndim = len(x.shape) + len(axis)
+    axis = sorted([canonicalize_axis(a, out_ndim) for a in axis])
+    for a in axis:
+        x = torch.unsqueeze(x, dim=a)
+    return x
 
 
 def expm1(x):
@@ -583,8 +627,7 @@ def flip(x, axis=None):
     x = convert_to_tensor(x)
     if axis is None:
         axis = tuple(range(x.ndim))
-    if isinstance(axis, int):
-        axis = (axis,)
+    axis = to_tuple_or_list(axis)
     return torch.flip(x, dims=axis)
 
 
@@ -858,7 +901,7 @@ def median(x, axis=None, keepdims=False):
         y = reshape(x, [-1])
     else:
         # transpose
-        axis = list(map(lambda a: a if a >= 0 else a + x.ndim, axis))
+        axis = [canonicalize_axis(a, x.ndim) for a in axis]
         other_dims = sorted(set(range(x.ndim)).difference(axis))
         perm = other_dims + list(axis)
         x_permed = torch.permute(x, dims=perm)
@@ -1038,8 +1081,7 @@ def prod(x, axis=None, keepdims=False, dtype=None):
         compute_dtype = "float32"
     if axis is None:
         return cast(torch.prod(x, dtype=to_torch_dtype(compute_dtype)), dtype)
-    if not isinstance(axis, (list, tuple)):
-        axis = (axis,)
+    axis = to_tuple_or_list(axis)
     for a in axis:
         # `torch.prod` does not handle multiple axes.
         x = cast(
@@ -1052,11 +1094,9 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
-    if isinstance(axis, int):
-        axis = [axis]
-
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
+    axis = to_tuple_or_list(axis)
 
     compute_dtype = dtypes.result_type(x.dtype, "float32")
     result_dtype = dtypes.result_type(x.dtype, float)
@@ -1071,7 +1111,7 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
         y = reshape(x, [-1])
     else:
         # transpose
-        axis = list(map(lambda a: a if a >= 0 else a + x.ndim, axis))
+        axis = [canonicalize_axis(a, x.ndim) for a in axis]
         other_dims = sorted(set(range(x.ndim)).difference(axis))
         perm = other_dims + list(axis)
         x_permed = torch.permute(x, dims=perm)
@@ -1232,8 +1272,7 @@ def take(x, indices, axis=None):
         x = torch.reshape(x, (-1,))
         axis = 0
     if axis is not None:
-        # make sure axis is non-negative
-        axis = len(x.shape) + axis if axis < 0 else axis
+        axis = canonicalize_axis(axis, x.ndim)
         shape = x.shape[:axis] + indices.shape + x.shape[axis + 1 :]
         # ravel the `indices` since `index_select` expects `indices`
         # to be a vector (1-D tensor).
@@ -1481,3 +1520,50 @@ def floor_divide(x1, x2):
 def logical_xor(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.logical_xor(x1, x2)
+
+
+def correlate(x1, x2, mode="valid"):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    if dtype == "int64":
+        dtype = "float64"
+    elif dtype not in ["bfloat16", "float16", "float64"]:
+        dtype = "float32"
+
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+
+    x1_len, x2_len = x1.size(0), x2.size(0)
+
+    if x1.shape[:-1] != x2.shape[:-1]:
+        new_shape = [max(i, j) for i, j in zip(x1.shape[:-1], x2.shape[:-1])]
+        x1 = torch.broadcast_to(x1, new_shape + [x1.shape[-1]])
+        x2 = torch.broadcast_to(x2, new_shape + [x2.shape[-1]])
+
+    num_signals = torch.tensor(x1.shape[:-1]).prod()
+    x1 = torch.reshape(x1, (int(num_signals), x1.size(-1)))
+    x2 = torch.reshape(x2, (int(num_signals), x2.size(-1)))
+
+    output = torch.nn.functional.conv1d(
+        x1, x2.unsqueeze(1), groups=x1.size(0), padding=x2.size(-1) - 1
+    )
+    output_shape = x1.shape[:-1] + (-1,)
+    result = output.reshape(output_shape)
+
+    if mode == "valid":
+        target_length = (
+            builtins.max(x1_len, x2_len) - builtins.min(x1_len, x2_len) + 1
+        )
+        start_idx = (result.size(-1) - target_length) // 2
+        result = result[..., start_idx : start_idx + target_length]
+
+    if mode == "same":
+        start_idx = (result.size(-1) - x1_len) // 2
+        result = result[..., start_idx : start_idx + x1_len]
+
+    return torch.squeeze(result)

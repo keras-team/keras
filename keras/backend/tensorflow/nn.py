@@ -1,3 +1,4 @@
+import math
 import warnings
 
 import tensorflow as tf
@@ -39,8 +40,8 @@ def softsign(x):
     return tf.nn.softsign(x)
 
 
-def silu(x, beta=1.0):
-    return tf.nn.silu(x, beta=beta)
+def silu(x):
+    return tf.nn.silu(x)
 
 
 def log_sigmoid(x):
@@ -143,7 +144,7 @@ def _transpose_spatial_inputs(inputs):
 
 
 def _transpose_spatial_outputs(outputs):
-    # Undo the tranpose in `_transpose_spatial_inputs`.
+    # Undo the transpose in `_transpose_spatial_inputs`.
     num_spatial_dims = len(outputs.shape) - 2
     if num_spatial_dims == 1:
         outputs = tf.transpose(outputs, (0, 2, 1))
@@ -444,19 +445,44 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32"):
+def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     x = convert_to_tensor(x)
+    if dtype is None:
+        dtype = "float32"
+    if sparse:
+        # We don't use `tf.sparse.bincount`, it doesn't handle negative indices
+        # and only support rank 1 and 2 tensors (`one_hot` adds a dimension).
+        if axis < 0:
+            axis = axis + len(x.shape) + 1
+        values_count = math.prod(x.shape)
+        values = tf.reshape(x, (values_count,))
+        # We deal with negative inputs by having zeros in the output although
+        # it's useless. It makes shapes static.
+        values = tf.cast(tf.greater_equal(values, 0), dtype=dtype)
+        indices = [tf.range(dim) for dim in x.shape]
+        indices = tf.meshgrid(*indices, indexing="ij")
+        indices.insert(axis, tf.maximum(x, 0))  # Deal with negative indices
+        indices = [tf.reshape(a, (values_count, 1)) for a in indices]
+        indices = [tf.cast(a, tf.int64) for a in indices]
+        indices = tf.concat(indices, axis=1)
+        shape = list(x.shape)
+        shape.insert(axis, num_classes)
+        return tf.SparseTensor(indices, values, shape)
     return tf.one_hot(x, num_classes, axis=axis, dtype=dtype)
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
-    outputs = tf.reduce_max(
-        one_hot(cast(x, "int32"), num_classes, axis=axis, dtype=dtype),
-        axis=reduction_axis,
+    one_hot_outputs = one_hot(
+        cast(x, "int32"), num_classes, axis=axis, dtype=dtype, sparse=sparse
     )
-    return outputs
+    if sparse:
+        # We don't use `tf.sparse.bincount`, it doesn't handle negative indices.
+        return tf.sparse.reduce_max(
+            one_hot_outputs, axis=reduction_axis, output_is_sparse=True
+        )
+    return tf.reduce_max(one_hot_outputs, axis=reduction_axis)
 
 
 def _get_logits(output, from_logits, op_type, fn_name):

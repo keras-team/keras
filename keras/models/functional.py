@@ -1,8 +1,7 @@
 import copy
 import inspect
+import typing
 import warnings
-
-import tree
 
 from keras import backend
 from keras import ops
@@ -17,10 +16,11 @@ from keras.models.model import Model
 from keras.ops.function import Function
 from keras.ops.function import _build_map
 from keras.ops.function import make_node_key
+from keras.ops.node import KerasHistory
 from keras.ops.node import Node
 from keras.saving import serialization_lib
 from keras.utils import tracking
-from keras.utils.nest import pack_sequence_as
+from keras.utils import tree
 
 
 class Functional(Function, Model):
@@ -94,6 +94,9 @@ class Functional(Function, Model):
         trainable: Boolean, optional. If the model's variables should be
             trainable.
     """
+
+    def __new__(cls, *args, **kwargs):
+        return typing.cast(Functional, super().__new__(cls))
 
     @tracking.no_automatic_dependency_tracking
     def __init__(self, inputs, outputs, name=None, **kwargs):
@@ -393,7 +396,7 @@ class Functional(Function, Model):
                 if node_key in self._nodes:
                     # The node is relevant to the model:
                     # add to filtered_inbound_nodes.
-                    node_data = serialize_node(node, node_reindexing_map)
+                    node_data = serialize_node(node, own_nodes=self._nodes)
                     if node_data is not None:
                         filtered_inbound_nodes.append(node_data)
 
@@ -477,7 +480,7 @@ def functional_from_config(cls, config, custom_objects=None):
         layer(*args, **kwargs)
 
     def process_layer(layer_data):
-        """Deserializes a layer, then call it on appropriate inputs.
+        """Deserializes a layer and index its inbound nodes.
 
         Args:
             layer_data: layer config dict.
@@ -550,6 +553,9 @@ def functional_from_config(cls, config, custom_objects=None):
     def get_tensor(layer_name, node_index, tensor_index):
         assert layer_name in created_layers
         layer = created_layers[layer_name]
+        if isinstance(layer, Functional):
+            # Functional models start out with a built-in node.
+            node_index -= 1
         layer_output_tensors = layer._inbound_nodes[node_index].output_tensors
         return layer_output_tensors[tensor_index]
 
@@ -557,7 +563,10 @@ def functional_from_config(cls, config, custom_objects=None):
         if isinstance(tensors, dict):
             return {k: get_tensor(*v) for k, v in tensors.items()}
         else:
-            return [get_tensor(*v) for v in tensors]
+            tensor_list = [get_tensor(*v) for v in tensors]
+            if len(tensor_list) == 1:
+                return tensor_list[0]
+            return tensor_list
 
     input_tensors = map_tensors(config["input_layers"])
     output_tensors = map_tensors(config["output_layers"])
@@ -596,13 +605,34 @@ def unpack_singleton(x):
     return x
 
 
-def serialize_node(node, node_reindexing_map):
+def serialize_node(node, own_nodes=()):
     if not node.input_tensors:
         # Does not need to be serialized.
         return
 
+    def serialize_keras_tensor(x):
+        # Serialize KerasTensor while converting
+        # node indices to only include nodes relevant to `own_nodes`.
+        if isinstance(x, backend.KerasTensor):
+            operation, node_index, tensor_index = x._keras_history
+            irrelevant_node_count = 0
+            for i, node in enumerate(operation._inbound_nodes[:node_index]):
+                node_key = make_node_key(operation, i)
+                if node_key not in own_nodes:
+                    irrelevant_node_count += 1
+            x._keras_history = KerasHistory(
+                operation, node_index - irrelevant_node_count, tensor_index
+            )
+            serialized = serialization_lib.serialize_keras_object(x)
+            x._keras_history = KerasHistory(operation, node_index, tensor_index)
+            return serialized
+        return x
+
     args = node.arguments.args
     kwargs = node.arguments.kwargs
+
+    args = tree.map_structure(serialize_keras_tensor, args)
+    kwargs = tree.map_structure(serialize_keras_tensor, kwargs)
     return {
         "args": serialization_lib.serialize_keras_object(args),
         "kwargs": serialization_lib.serialize_keras_object(kwargs),
@@ -758,7 +788,7 @@ def clone_graph_nodes(inputs, outputs):
             op_id_mapping[id(kt_input._keras_history[0])] = (
                 cloned_input._keras_history[0]
             )
-    cloned_inputs = pack_sequence_as(inputs, cloned_inputs)
+    cloned_inputs = tree.pack_sequence_as(inputs, cloned_inputs)
 
     for kt_output in tree.flatten(outputs):
         cpy = clone_single_keras_tensor(kt_output)
@@ -766,7 +796,7 @@ def clone_graph_nodes(inputs, outputs):
         cpy._keras_history = kt_output._keras_history
         cloned_outputs.append(cpy)
         kt_id_mapping[id(kt_output)] = cpy
-    cloned_outputs = pack_sequence_as(outputs, cloned_outputs)
+    cloned_outputs = tree.pack_sequence_as(outputs, cloned_outputs)
 
     for node in nodes_to_clone:
         if id(node.operation) in op_id_mapping:

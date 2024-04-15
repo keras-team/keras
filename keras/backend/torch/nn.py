@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as tnn
-import tree
 
 from keras.backend import standardize_data_format
 from keras.backend import standardize_dtype
@@ -14,6 +13,7 @@ from keras.backend.torch.core import get_device
 from keras.backend.torch.numpy import expand_dims
 from keras.backend.torch.numpy import maximum
 from keras.backend.torch.numpy import where
+from keras.utils import tree
 from keras.utils.argument_validation import standardize_tuple
 
 
@@ -47,9 +47,9 @@ def softsign(x):
     return tnn.softsign(x)
 
 
-def silu(x, beta=1.0):
+def silu(x):
     x = convert_to_tensor(x)
-    return x * sigmoid(beta * x)
+    return tnn.silu(x)
 
 
 def log_sigmoid(x):
@@ -201,7 +201,7 @@ def _transpose_spatial_inputs(inputs):
 
 
 def _transpose_spatial_outputs(outputs):
-    # Undo the tranpose in `_transpose_spatial_inputs`.
+    # Undo the transpose in `_transpose_spatial_inputs`.
     num_spatial_dims = len(outputs.shape) - 2
     if num_spatial_dims == 1:
         outputs = torch.permute(outputs, (0, 2, 1))
@@ -552,7 +552,9 @@ def conv_transpose(
     return outputs
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32"):
+def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with torch backend")
     # Axis is the output axis. By default, PyTorch, outputs to last axis.
     # If axis is not last, change output to axis and shift remaining elements.
     x = convert_to_tensor(x, dtype=torch.long)
@@ -567,7 +569,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
     dims = output.dim()
     if axis != -1 and axis != dims:
         new_axes_order = list(range(dims))
-        new_axes_order[axis] = -1  # Shifts output to axis positon
+        new_axes_order[axis] = -1  # Shifts output to axis position
         # Shift remaining axes with offset by 1 since output moved to `axis`.
         for ax in range(axis + 1, dims):
             new_axes_order[ax] -= 1
@@ -575,7 +577,9 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
     return output
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with torch backend")
     x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
     outputs = torch.amax(

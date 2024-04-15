@@ -4,7 +4,6 @@ import os
 import ml_dtypes
 import numpy as np
 import torch
-import tree
 
 from keras.backend.common import KerasVariable
 from keras.backend.common import global_state
@@ -13,7 +12,7 @@ from keras.backend.common.dtypes import result_type
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.config import floatx
-from keras.utils.nest import pack_sequence_as
+from keras.utils import tree
 
 SUPPORTS_SPARSE_TENSORS = False
 
@@ -43,6 +42,8 @@ TORCH_DTYPES = {
     "int64": torch.int64,
     "bfloat16": torch.bfloat16,
     "bool": torch.bool,
+    "float8_e4m3fn": torch.float8_e4m3fn,
+    "float8_e5m2": torch.float8_e5m2,
 }
 
 
@@ -322,7 +323,7 @@ def compute_output_spec(fn, *args, **kwargs):
                     if e != shape[i]:
                         shape[i] = None
                 flat_out.append(KerasTensor(shape, standardize_dtype(x1.dtype)))
-            outputs = pack_sequence_as(outputs_1, flat_out)
+            outputs = tree.pack_sequence_as(outputs_1, flat_out)
 
         output_spec = tree.map_structure(convert_torch_to_keras_tensor, outputs)
     return output_spec
@@ -435,3 +436,57 @@ def stop_gradient(variable):
 
 def unstack(x, num=None, axis=0):
     return x.unbind(axis)
+
+
+class custom_gradient:
+    """Decorator for custom gradients.
+
+    Args:
+        forward_fn: Forward pass function.
+    """
+
+    def __init__(self, forward_fn):
+        self.forward_fn = forward_fn
+
+    def __call__(self, *args, **kwargs):
+        return CustomGradientFunction.apply(self.forward_fn, *args, **kwargs)
+
+
+class CustomGradientFunction(torch.autograd.Function):
+    """Enables custom forward & backward passes for gradient computation."""
+
+    @staticmethod
+    def forward(ctx, forward_fn, *args, **kwargs):
+        """Forward pass computation specification.
+
+        Args:
+            ctx: Context object.
+            forward_fn: Function to compute forward pass.
+            *args: Arguments for the forward pass.
+            **kwargs: Keyword arguments for the forward pass.
+        """
+        ctx.forward_fn = forward_fn
+        ctx.save_for_backward(*args)
+        try:
+            output, ctx.grad_fn = forward_fn(*args, **kwargs)
+        except:
+            output = forward_fn(*args, **kwargs)
+            ctx.grad_fn = lambda *args, **kwargs: torch.full((), float("nan"))
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        """Backward pass computation specification.
+
+        Args:
+            ctx: Context object.
+            grad_output: Gradient with respect to the output.
+        """
+        args = ctx.saved_tensors
+        grad_fn = ctx.grad_fn
+        if grad_fn is None:
+            raise ValueError("grad_fn must be provided for custom gradient")
+        grads = grad_fn(*args, upstream=grad_output)
+        if not isinstance(grads, tuple):
+            grads = (grads,)
+        return (None,) + grads

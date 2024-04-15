@@ -782,7 +782,7 @@ class CosineDecayRestarts(LearningRateSchedule):
     restart is performed. Each new warm restart runs for `t_mul` times more
     steps and with `m_mul` times initial learning rate as the new learning rate.
 
-    Example usage:
+    Example:
     ```python
     first_decay_steps = 1000
     lr_decayed_fn = (

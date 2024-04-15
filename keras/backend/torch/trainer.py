@@ -2,16 +2,17 @@ import warnings
 
 import numpy as np
 import torch
-import tree
 from packaging.version import parse
 
 from keras import backend
 from keras import callbacks as callbacks_module
 from keras import optimizers as optimizers_module
 from keras.trainers import trainer as base_trainer
+from keras.trainers.data_adapters import array_slicing
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.epoch_iterator import EpochIterator
 from keras.utils import traceback_utils
+from keras.utils import tree
 
 
 class TorchTrainer(base_trainer.Trainer):
@@ -51,7 +52,9 @@ class TorchTrainer(base_trainer.Trainer):
         loss = self.compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
         )
-        self._loss_tracker.update_state(loss)
+        self._loss_tracker.update_state(
+            loss, sample_weight=tree.flatten(x)[0].shape[0]
+        )
         if self.optimizer is not None:
             loss = self.optimizer.scale_loss(loss)
 
@@ -85,7 +88,9 @@ class TorchTrainer(base_trainer.Trainer):
         loss = self.compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
         )
-        self._loss_tracker.update_state(loss)
+        self._loss_tracker.update_state(
+            loss, sample_weight=tree.flatten(x)[0].shape[0]
+        )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def predict_step(self, data):
@@ -193,7 +198,7 @@ class TorchTrainer(base_trainer.Trainer):
                 x,
                 y,
                 sample_weight,
-            ), validation_data = data_adapter_utils.train_validation_split(
+            ), validation_data = array_slicing.train_validation_split(
                 (x, y, sample_weight), validation_split=validation_split
             )
 
@@ -233,7 +238,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.stop_training = False
         self.make_train_function()
         callbacks.on_train_begin()
-
+        initial_epoch = self._initial_epoch or initial_epoch
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)

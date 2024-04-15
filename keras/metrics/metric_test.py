@@ -107,6 +107,17 @@ class MetricTest(testing.TestCase):
         res = metric.stateless_result([ops.ones(()) * 12, ops.ones(()) * 3])
         self.assertAllClose(res, 4.0)
 
+    def test_stateless_reset_state(self):
+        metric = ExampleMetric(name="mse")
+        num_samples = 20
+        y_true = np.random.random((num_samples, 3))
+        y_pred = np.random.random((num_samples, 3))
+        metric.update_state(y_true, y_pred)
+        vars = metric.stateless_reset_state()
+        self.assertLen(vars, 2)
+        self.assertEqual(vars[0], 0)
+        self.assertEqual(vars[1], 0)
+
     def test_variable_tracking(self):
         # In list
         metric = ExampleMetric(name="mse")

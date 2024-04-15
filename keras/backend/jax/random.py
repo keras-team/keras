@@ -83,7 +83,7 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
 
 def shuffle(x, axis=0, seed=None):
     seed = jax_draw_seed(seed)
-    return jax.random.shuffle(seed, x, axis)
+    return jax.random.permutation(seed, x, axis, independent=True)
 
 
 def gamma(shape, alpha, dtype=None, seed=None):

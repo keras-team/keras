@@ -30,7 +30,9 @@ def image_dataset_from_directory(
     interpolation="bilinear",
     follow_links=False,
     crop_to_aspect_ratio=False,
+    pad_to_aspect_ratio=False,
     data_format=None,
+    verbose=True,
 ):
     """Generates a `tf.data.Dataset` from image files in a directory.
 
@@ -113,8 +115,17 @@ def image_dataset_from_directory(
             (of size `image_size`) that matches the target aspect ratio. By
             default (`crop_to_aspect_ratio=False`), aspect ratio may not be
             preserved.
+        pad_to_aspect_ratio: If `True`, resize the images without aspect
+            ratio distortion. When the original aspect ratio differs from the
+            target aspect ratio, the output image will be padded so as to
+            return the largest possible window in the image
+            (of size `image_size`) that matches the target aspect ratio. By
+            default (`pad_to_aspect_ratio=False`), aspect ratio may not be
+            preserved.
         data_format: If None uses keras.config.image_data_format()
             otherwise either 'channel_last' or 'channel_first'.
+        verbose: Whether to display number information on classes and
+            number of files found. Defaults to `True`.
 
     Returns:
 
@@ -217,6 +228,7 @@ def image_dataset_from_directory(
         shuffle=shuffle,
         seed=seed,
         follow_links=follow_links,
+        verbose=verbose,
     )
 
     if label_mode == "binary" and len(class_names) != 2:
@@ -226,6 +238,10 @@ def image_dataset_from_directory(
         )
 
     data_format = standardize_data_format(data_format=data_format)
+    if batch_size is not None:
+        shuffle_buffer_size = batch_size * 8
+    else:
+        shuffle_buffer_size = 1024
 
     if subset == "both":
         (
@@ -259,7 +275,11 @@ def image_dataset_from_directory(
             num_classes=len(class_names) if class_names else 0,
             interpolation=interpolation,
             crop_to_aspect_ratio=crop_to_aspect_ratio,
+            pad_to_aspect_ratio=pad_to_aspect_ratio,
             data_format=data_format,
+            shuffle=shuffle,
+            shuffle_buffer_size=shuffle_buffer_size,
+            seed=seed,
         )
 
         val_dataset = paths_and_labels_to_dataset(
@@ -271,22 +291,14 @@ def image_dataset_from_directory(
             num_classes=len(class_names) if class_names else 0,
             interpolation=interpolation,
             crop_to_aspect_ratio=crop_to_aspect_ratio,
+            pad_to_aspect_ratio=pad_to_aspect_ratio,
             data_format=data_format,
+            shuffle=False,
         )
 
         if batch_size is not None:
-            if shuffle:
-                # Shuffle locally at each iteration
-                train_dataset = train_dataset.shuffle(
-                    buffer_size=batch_size * 8, seed=seed
-                )
             train_dataset = train_dataset.batch(batch_size)
             val_dataset = val_dataset.batch(batch_size)
-        else:
-            if shuffle:
-                train_dataset = train_dataset.shuffle(
-                    buffer_size=1024, seed=seed
-                )
 
         train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
         val_dataset = val_dataset.prefetch(tf.data.AUTOTUNE)
@@ -319,17 +331,15 @@ def image_dataset_from_directory(
             num_classes=len(class_names) if class_names else 0,
             interpolation=interpolation,
             crop_to_aspect_ratio=crop_to_aspect_ratio,
+            pad_to_aspect_ratio=pad_to_aspect_ratio,
             data_format=data_format,
+            shuffle=shuffle,
+            shuffle_buffer_size=shuffle_buffer_size,
+            seed=seed,
         )
 
         if batch_size is not None:
-            if shuffle:
-                # Shuffle locally at each iteration
-                dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
             dataset = dataset.batch(batch_size)
-        else:
-            if shuffle:
-                dataset = dataset.shuffle(buffer_size=1024, seed=seed)
 
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
         # Users may need to reference `class_names`.
@@ -351,16 +361,26 @@ def paths_and_labels_to_dataset(
     interpolation,
     data_format,
     crop_to_aspect_ratio=False,
+    pad_to_aspect_ratio=False,
+    shuffle=False,
+    shuffle_buffer_size=None,
+    seed=None,
 ):
     """Constructs a dataset of images and labels."""
     # TODO(fchollet): consider making num_parallel_calls settable
     path_ds = tf.data.Dataset.from_tensor_slices(image_paths)
+    if shuffle:
+        path_ds = path_ds.shuffle(
+            buffer_size=shuffle_buffer_size or 1024, seed=seed
+        )
+
     args = (
         image_size,
         num_channels,
         interpolation,
         data_format,
         crop_to_aspect_ratio,
+        pad_to_aspect_ratio,
     )
     img_ds = path_ds.map(
         lambda x: load_image(x, *args), num_parallel_calls=tf.data.AUTOTUNE
@@ -380,12 +400,20 @@ def load_image(
     interpolation,
     data_format,
     crop_to_aspect_ratio=False,
+    pad_to_aspect_ratio=False,
 ):
     """Load an image from a path and resize it."""
     img = tf.io.read_file(path)
     img = tf.image.decode_image(
         img, channels=num_channels, expand_animations=False
     )
+
+    if pad_to_aspect_ratio and crop_to_aspect_ratio:
+        raise ValueError(
+            "Only one of `pad_to_aspect_ratio`, `crop_to_aspect_ratio`"
+            " can be set to `True`."
+        )
+
     if crop_to_aspect_ratio:
         from keras.backend import tensorflow as tf_backend
 
@@ -398,10 +426,17 @@ def load_image(
             data_format=data_format,
             backend_module=tf_backend,
         )
+    elif pad_to_aspect_ratio:
+        img = tf.image.resize_with_pad(
+            img, image_size[0], image_size[1], method=interpolation
+        )
+        if data_format == "channels_first":
+            img = tf.transpose(img, (2, 0, 1))
     else:
         img = tf.image.resize(img, image_size, method=interpolation)
         if data_format == "channels_first":
             img = tf.transpose(img, (2, 0, 1))
+
     if data_format == "channels_last":
         img.set_shape((image_size[0], image_size[1], num_channels))
     else:

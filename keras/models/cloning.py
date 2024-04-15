@@ -1,5 +1,3 @@
-import tree
-
 from keras import backend
 from keras import utils
 from keras.api_export import keras_export
@@ -9,6 +7,7 @@ from keras.models.functional import Functional
 from keras.models.functional import functional_like_constructor
 from keras.models.sequential import Sequential
 from keras.saving import serialization_lib
+from keras.utils import tree
 
 
 @keras_export("keras.models.clone_model")
@@ -49,9 +48,7 @@ def clone_model(model, input_tensors=None, clone_function=None):
         differently from the original model if a custom `clone_function`
         modifies the layer.
 
-    Examples:
-
-    Basic usage:
+    Example:
 
     ```python
     # Create a test Sequential model.
@@ -262,7 +259,7 @@ def _clone_functional_model(model, input_tensors=None, clone_function=None):
             )
         try:
             tree.assert_same_structure(input_tensors, model.input)
-        except TypeError as e:
+        except (ValueError, TypeError) as e:
             raise ValueError(
                 "`input_tensors` must have the same structure as model.input"
                 f"\nReference structure: {model.input}"

@@ -176,6 +176,7 @@ class BatchNormalization(Layer):
                 regularizer=self.gamma_regularizer,
                 constraint=self.gamma_constraint,
                 trainable=True,
+                autocast=False,
             )
         if self.center:
             self.beta = self.add_weight(
@@ -185,18 +186,21 @@ class BatchNormalization(Layer):
                 regularizer=self.beta_regularizer,
                 constraint=self.beta_constraint,
                 trainable=True,
+                autocast=False,
             )
         self.moving_mean = self.add_weight(
             shape=shape,
             name="moving_mean",
             initializer=self.moving_mean_initializer,
             trainable=False,
+            autocast=False,
         )
         self.moving_variance = self.add_weight(
             shape=shape,
             name="moving_variance",
             initializer=self.moving_variance_initializer,
             trainable=False,
+            autocast=False,
         )
         self.input_spec = InputSpec(
             ndim=len(input_shape), axes={self.axis: input_shape[self.axis]}
@@ -217,24 +221,15 @@ class BatchNormalization(Layer):
             inputs = ops.cast(inputs, "float32")
 
         if training and self.trainable:
-            mean, variance = self._moments(
-                inputs,
-                mask,
-            )
+            mean, variance = self._moments(inputs, mask)
             moving_mean = ops.cast(self.moving_mean, inputs.dtype)
             moving_variance = ops.cast(self.moving_variance, inputs.dtype)
             self.moving_mean.assign(
-                ops.cast(
-                    moving_mean * self.momentum + mean * (1.0 - self.momentum),
-                    inputs.dtype,
-                )
+                moving_mean * self.momentum + mean * (1.0 - self.momentum)
             )
             self.moving_variance.assign(
-                ops.cast(
-                    moving_variance * self.momentum
-                    + variance * (1.0 - self.momentum),
-                    inputs.dtype,
-                )
+                moving_variance * self.momentum
+                + variance * (1.0 - self.momentum)
             )
         else:
             moving_mean = ops.cast(self.moving_mean, inputs.dtype)

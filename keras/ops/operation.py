@@ -1,20 +1,20 @@
 import inspect
 import textwrap
 
-import tree
-
 from keras import backend
+from keras import dtype_policies
 from keras.api_export import keras_export
 from keras.backend.common.keras_tensor import any_symbolic_tensors
 from keras.ops.node import Node
 from keras.utils import python_utils
 from keras.utils import traceback_utils
+from keras.utils import tree
 from keras.utils.naming import auto_name
 
 
 @keras_export("keras.Operation")
 class Operation:
-    def __init__(self, name=None):
+    def __init__(self, dtype=None, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
         if not isinstance(name, str) or "/" in name:
@@ -23,6 +23,7 @@ class Operation:
                 "cannot contain character `/`. "
                 f"Received: name={name} (of type {type(name)})"
             )
+        self.dtype_policy = dtype_policies.get(dtype)
         self.name = name
         self._inbound_nodes = []
         self._outbound_nodes = []
@@ -34,7 +35,12 @@ class Operation:
             if any_symbolic_tensors(args, kwargs):
                 call_fn = self.symbolic_call
             else:
-                call_fn = self.call
+                if isinstance(
+                    self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+                ):
+                    call_fn = self.quantized_call
+                else:
+                    call_fn = self.call
             call_fn = traceback_utils.inject_argument_info_in_traceback(
                 call_fn,
                 object_name=(f"{self.__class__.__name__}.call()"),
@@ -44,7 +50,10 @@ class Operation:
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
             return self.symbolic_call(*args, **kwargs)
-        return self.call(*args, **kwargs)
+        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            return self.quantized_call(*args, **kwargs)
+        else:
+            return self.call(*args, **kwargs)
 
     def symbolic_call(self, *args, **kwargs):
         # Perform shape/dtype inference.
@@ -61,6 +70,9 @@ class Operation:
         return outputs
 
     def call(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def quantized_call(self, *args, **kwargs):
         raise NotImplementedError
 
     def compute_output_spec(self, *args, **kwargs):
@@ -268,3 +280,11 @@ class Operation:
     def _setattr_hook(self, name, value):
         """Can be overridden for per backend post build actions."""
         return name, value
+
+    def _post_track_variable(self, variable):
+        """Can be overridden for per backend post track actions."""
+        pass
+
+    def _post_untrack_variable(self, variable):
+        """Can be overridden for per backend post untrack actions."""
+        pass

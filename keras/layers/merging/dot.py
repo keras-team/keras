@@ -29,7 +29,7 @@ def batch_dot(x, y, axes=None):
         `y` has been summed over.
         (`dot_axes[1]` = 2) `output_shape` = `(100, 30)`
 
-    Examples:
+    Example:
 
     >>> x_batch = np.ones(shape=(32, 20, 1))
     >>> y_batch = np.ones(shape=(32, 30, 20))
@@ -209,7 +209,7 @@ class Dot(Merge):
     inputs. e.g. with `axes=(1, 2)`, the dot product of `x`, and `y`
     will result in a tensor with shape `(2, 5, 10)`
 
-    Examples:
+    Example:
 
     >>> x = np.arange(10).reshape(1, 5, 2)
     >>> y = np.arange(10, 20).reshape(1, 2, 5)
@@ -262,7 +262,10 @@ class Dot(Merge):
 
     def build(self, input_shape):
         # Used purely for shape validation.
-        if not isinstance(input_shape[0], tuple) or len(input_shape) != 2:
+        if (
+            not isinstance(input_shape[0], (tuple, list))
+            or len(input_shape) != 2
+        ):
             raise ValueError(
                 f"A `Dot` layer should be called on a list of 2 inputs. "
                 f"Received: input_shape={input_shape}"
@@ -363,7 +366,7 @@ def dot(inputs, axes=-1, **kwargs):
             axis or axes along which to take the dot product.
         normalize: Whether to L2-normalize samples along the
             dot product axis before taking the dot product.
-            If set to True, then the output of the dot product
+            If set to `True`, then the output of the dot product
             is the cosine proximity between the two samples.
         **kwargs: Standard layer keyword arguments.
 

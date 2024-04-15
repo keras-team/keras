@@ -43,9 +43,9 @@ class AlphaDropout(Layer):
         self.rate = rate
         self.seed = seed
         self.noise_shape = noise_shape
-        self.seed_generator = backend.random.SeedGenerator(seed)
+        if rate > 0:
+            self.seed_generator = backend.random.SeedGenerator(seed)
         self.supports_masking = True
-        self.built = True
 
     def call(self, inputs, training=False):
         if training and self.rate > 0:
@@ -77,9 +77,9 @@ class AlphaDropout(Layer):
 
     def _get_concrete_noise_shape(self, inputs, noise_shape):
         if noise_shape is None:
-            return inputs.shape
+            return ops.shape(inputs)
 
-        concrete_inputs_shape = inputs.shape
+        concrete_inputs_shape = ops.shape(inputs)
         concrete_noise_shape = []
         for i, value in enumerate(noise_shape):
             concrete_noise_shape.append(

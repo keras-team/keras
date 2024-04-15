@@ -11,6 +11,7 @@ convert_to_tensor
 convert_to_numpy
 cond
 is_tensor
+custom_gradient
 """
 
 import numpy as np
@@ -21,6 +22,7 @@ from keras.backend import KerasTensor
 from keras.backend import any_symbolic_tensors
 from keras.ops.operation import Operation
 from keras.utils import traceback_utils
+from keras.utils import tree
 
 
 class Scatter(Operation):
@@ -514,13 +516,10 @@ class Cond(Operation):
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
         def call_fn(*args, **kwargs):
-            if not any_symbolic_tensors(args, kwargs):
-                try:
-                    return self.call(*args, **kwargs)
-                except (TypeError, ValueError):
-                    # fallback on symbolic case
-                    pass
-            return self.symbolic_call(*args, **kwargs)
+            if any_symbolic_tensors(args, kwargs):
+                return self.symbolic_call(*args, **kwargs)
+            else:
+                return self.call(*args, **kwargs)
 
         if traceback_utils.is_traceback_filtering_enabled():
             # Wrap self.call to provide helpful info in case of exception
@@ -537,11 +536,8 @@ class Cond(Operation):
         return backend.core.cond(pred, true_fn, false_fn)
 
     def compute_output_spec(self, pred, true_fn, false_fn):
-        def call_fn(fn):
-            return fn()
-
-        true_fn_spec = backend.compute_output_spec(call_fn, true_fn)
-        false_fn_spec = backend.compute_output_spec(call_fn, false_fn)
+        true_fn_spec = backend.compute_output_spec(true_fn)
+        false_fn_spec = backend.compute_output_spec(false_fn)
         if not self._check_output_spec(true_fn_spec, false_fn_spec):
             raise ValueError(
                 "`true_fn` and `false_fn` should return outputs "
@@ -551,45 +547,18 @@ class Cond(Operation):
         return true_fn_spec
 
     def _check_output_spec(self, true_fn_spec, false_fn_spec):
-        if true_fn_spec is None or false_fn_spec is None:
-            return true_fn_spec is None and false_fn_spec is None
-        elif isinstance(true_fn_spec, dict):
-            if not isinstance(false_fn_spec, dict):
-                return False
-            if true_fn_spec.keys() != false_fn_spec.keys():
-                return False
-            if any(
-                (not self._check_output_spec(true_fn_spec[k], false_fn_spec[k]))
-                for k in true_fn_spec.keys()
-            ):
-                return False
-        elif isinstance(true_fn_spec, list):
-            if not isinstance(false_fn_spec, list):
-                return False
-            if len(true_fn_spec) != len(false_fn_spec):
-                return False
-            if any(
-                (not self._check_output_spec(ti, fi))
-                for ti, fi in zip(true_fn_spec, false_fn_spec)
-            ):
-                return False
-        elif isinstance(true_fn_spec, tuple):
-            if not isinstance(false_fn_spec, tuple):
-                return False
-            if len(true_fn_spec) != len(false_fn_spec):
-                return False
-            if any(
-                (not self._check_output_spec(ti, fi))
-                for ti, fi in zip(true_fn_spec, false_fn_spec)
-            ):
-                return False
-        else:
-            if true_fn_spec.dtype != false_fn_spec.dtype:
-                return False
-            if true_fn_spec.shape != false_fn_spec.shape:
-                return False
+        try:
+            tree.assert_same_structure(true_fn_spec, false_fn_spec)
+        except:
+            return False
 
-        return True
+        def check_leaf(t_spec, f_spec):
+            if t_spec is None or f_spec is None:
+                return t_spec is None and f_spec is None
+            return t_spec.shape == f_spec.shape and t_spec.dtype == f_spec.dtype
+
+        same = tree.map_structure(check_leaf, true_fn_spec, false_fn_spec)
+        return all(tree.flatten(same))
 
 
 @keras_export("keras.ops.cond")
@@ -655,3 +624,87 @@ def is_tensor(x):
         `True` if `x` is a tensor, otherwise `False`.
     """
     return backend.core.is_tensor(x)
+
+
+@keras_export("keras.ops.custom_gradient")
+def custom_gradient(f):
+    """Decorator to define a function with a custom gradient.
+
+    This decorator allows fine grained control over the gradients of a sequence
+    for operations. This may be useful for multiple reasons, including providing
+    a more efficient or numerically stable gradient for a sequence of
+    operations.
+
+    Args:
+        f: Function `f(*args)` that returns a tuple
+            `(output, grad_fn)`, where:
+            - `args` is a sequence of (nested structures of) tensor inputs to
+                the function.
+            - `output` is a (nested structure of) tensor outputs of applying
+                operations in `forward_fn` to `args`.
+            - `grad_fn` is a function with the signature `grad_fn(*args,
+                upstream)` which returns a tuple of tensors the same size as
+                (flattened) `args`: the derivatives of tensors in `output` with
+                respect to the tensors in `args`. `upstream` is a tensor or
+                sequence of tensors holding the initial value gradients for each
+                tensor in `output`.
+
+    Returns:
+        A function `h(*args)` which returns the same value as
+        `f(*args)[0]` and whose gradient is determined by
+        `f(*args)[1]`.
+
+
+    Examples:
+
+    1. Backend-agnostic example.
+
+    ```python
+    @ops.custom_gradient
+    def log1pexp(x):
+        e = ops.exp(x)
+
+        def grad(*args, upstream=None):
+            if upstream is None:
+                (upstream,) = args
+            return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
+
+        return ops.log(1 + e), grad
+    ```
+
+    Note that the grad function that returns gradient computation
+    requires `args` as well as an `upstream` keyword argument, depending
+    on the backend being set. With the JAX and TensorFlow backends,
+    it requires only one argument, whereas it might use the `upstream`
+    argument in the case of the PyTorch backend.
+
+    When working with TensorFlow/JAX backend, `grad(upstream)`
+    is sufficient. With PyTorch, the `grad` function requires
+    `*args` as well as `upstream`, e.g. `def grad(*args, upstream)`.
+    Follow the previous example to use `@ops.custom_gradient` in
+    a way that is compatible with all backends.
+
+    2. Here's JAX & TensorFlow-specific example:
+
+    ```python
+    @ops.custom_gradient
+    def log1pexp(x):
+        e = ops.exp(x)
+        def grad(upstream):
+            return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
+        return ops.log(1 + e), grad
+    ```
+
+    3. Lastly, here's a PyTorch-specific example,
+    using `*args` & `upstream`:
+
+    ```python
+    @ops.custom_gradient
+    def log1pexp(x):
+        e = ops.exp(x)
+        def grad(*args, upstream):
+            return ops.multiply(upstream, 1.0 - 1.0 / ops.add(1, e))
+        return ops.log(1 + e), grad
+    ```
+    """
+    return backend.core.custom_gradient(f)

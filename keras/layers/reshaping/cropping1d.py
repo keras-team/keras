@@ -10,7 +10,7 @@ class Cropping1D(Layer):
 
     It crops along the time dimension (axis 1).
 
-    Examples:
+    Example:
 
     >>> input_shape = (2, 3, 2)
     >>> x = np.arange(np.prod(input_shape)).reshape(input_shape)

@@ -28,10 +28,25 @@ class ZeroPadding1DTest(testing.TestCase, parameterized.TestCase):
         padded = layers.ZeroPadding1D((1, 2))(input_layer)
         self.assertEqual(padded.shape, (1, None, 3))
 
-    def test_zero_padding_1d_errors_if_padding_argument_invalid(self):
+        input_layer = layers.Input(batch_shape=(1, 2, 3))
+        padded = layers.ZeroPadding1D((1, 2))(input_layer)
+        self.assertEqual(padded.shape, (1, 5, 3))
+
+    @parameterized.parameters(
+        {"padding": (1,)},
+        {"padding": (1, 2, 3)},
+        {"padding": "1"},
+    )
+    def test_zero_padding_1d_errors_if_padding_argument_invalid(self, padding):
         with self.assertRaises(ValueError):
-            layers.ZeroPadding1D(padding=(1,))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding1D(padding=(1, 2, 3))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding1D(padding="1")
+            layers.ZeroPadding1D(padding)
+
+    def test_zero_padding_1d_get_config(self):
+        layer = layers.ZeroPadding1D(padding=(1, 2))
+        expected_config = {
+            "dtype": layer.dtype_policy.name,
+            "name": layer.name,
+            "padding": (1, 2),
+            "trainable": layer.trainable,
+        }
+        self.assertEqual(layer.get_config(), expected_config)

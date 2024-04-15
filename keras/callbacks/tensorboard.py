@@ -4,8 +4,6 @@ import sys
 import time
 import warnings
 
-import tree
-
 from keras import backend
 from keras import ops
 from keras.api_export import keras_export
@@ -13,6 +11,7 @@ from keras.callbacks.callback import Callback
 from keras.layers import Embedding
 from keras.optimizers import Optimizer
 from keras.utils import file_utils
+from keras.utils import tree
 
 
 @keras_export("keras.callbacks.TensorBoard")
@@ -90,8 +89,6 @@ class TensorBoard(Callback):
             used for all embedding layers, a single filename can be passed.
 
     Examples:
-
-    Basic usage:
 
     ```python
     tensorboard_callback = keras.callbacks.TensorBoard(log_dir="./logs")

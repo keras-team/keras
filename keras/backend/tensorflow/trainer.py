@@ -3,17 +3,17 @@ import warnings
 
 import numpy as np
 import tensorflow as tf
-import tree
-from packaging.version import Version
 from tensorflow.python.eager import context as tf_context
 
 from keras import callbacks as callbacks_module
 from keras import metrics as metrics_module
 from keras import optimizers as optimizers_module
 from keras.trainers import trainer as base_trainer
+from keras.trainers.data_adapters import array_slicing
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.epoch_iterator import EpochIterator
 from keras.utils import traceback_utils
+from keras.utils import tree
 
 
 class TensorFlowTrainer(base_trainer.Trainer):
@@ -29,11 +29,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
             self._distribute_strategy = tf.distribute.get_strategy()
         else:
             self._distribute_strategy = None
-
-        self._distribute_reduction_method = None
-        self._supports_reduce_retracing = Version(tf.__version__) >= Version(
-            "2.9.0"
-        )
 
     @property
     def distribute_strategy(self):
@@ -59,7 +54,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             loss = self.compute_loss(
                 x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
             )
-            self._loss_tracker.update_state(loss)
+            self._loss_tracker.update_state(
+                loss, sample_weight=tf.shape(tree.flatten(x)[0])[0]
+            )
             if self.optimizer is not None:
                 loss = self.optimizer.scale_loss(loss)
 
@@ -84,7 +81,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
         loss = self.compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
         )
-        self._loss_tracker.update_state(loss)
+        self._loss_tracker.update_state(
+            loss, sample_weight=tf.shape(tree.flatten(x)[0])[0]
+        )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def predict_step(self, data):
@@ -105,10 +104,11 @@ class TensorFlowTrainer(base_trainer.Trainer):
             return self.train_step(data)
 
         if not self.run_eagerly:
-            kwargs = {"jit_compile": self.jit_compile}
-            if self._supports_reduce_retracing:
-                kwargs.update({"reduce_retracing": True})
-            one_step_on_data = tf.function(one_step_on_data, **kwargs)
+            one_step_on_data = tf.function(
+                one_step_on_data,
+                reduce_retracing=True,
+                jit_compile=self.jit_compile,
+            )
 
         @tf.autograph.experimental.do_not_convert
         def one_step_on_iterator(iterator):
@@ -120,7 +120,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             outputs = reduce_per_replica(
                 outputs,
                 self.distribute_strategy,
-                reduction=self.distribute_reduction_method,
+                reduction="auto",
             )
             return outputs
 
@@ -136,10 +136,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             train_function = one_step_on_iterator
 
         if not self.run_eagerly:
-            kwargs = {}
-            if self._supports_reduce_retracing:
-                kwargs.update({"reduce_retracing": True})
-            train_function = tf.function(train_function, **kwargs)
+            train_function = tf.function(train_function, reduce_retracing=True)
 
         self.train_function = train_function
 
@@ -153,10 +150,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             return self.test_step(data)
 
         if not self.run_eagerly and self.jit_compile:
-            kwargs = {"jit_compile": True}
-            if self._supports_reduce_retracing:
-                kwargs.update({"reduce_retracing": True})
-            one_step_on_data = tf.function(one_step_on_data, **kwargs)
+            one_step_on_data = tf.function(
+                one_step_on_data, reduce_retracing=True, jit_compile=True
+            )
 
         @tf.autograph.experimental.do_not_convert
         def one_step_on_iterator(iterator):
@@ -168,7 +164,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             outputs = reduce_per_replica(
                 outputs,
                 self.distribute_strategy,
-                reduction=self.distribute_reduction_method,
+                reduction="auto",
             )
             return outputs
 
@@ -184,10 +180,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             test_function = one_step_on_iterator
 
         if not self.run_eagerly:
-            kwargs = {}
-            if self._supports_reduce_retracing:
-                kwargs.update({"reduce_retracing": True})
-            test_function = tf.function(test_function, **kwargs)
+            test_function = tf.function(test_function, reduce_retracing=True)
 
         self.test_function = test_function
 
@@ -201,10 +194,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             return self.predict_step(data)
 
         if not self.run_eagerly and self.jit_compile:
-            kwargs = {"jit_compile": True}
-            if self._supports_reduce_retracing:
-                kwargs.update({"reduce_retracing": True})
-            one_step_on_data = tf.function(one_step_on_data, **kwargs)
+            one_step_on_data = tf.function(
+                one_step_on_data, reduce_retracing=True, jit_compile=True
+            )
 
         @tf.autograph.experimental.do_not_convert
         def one_step_on_data_distributed(data):
@@ -215,7 +207,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             outputs = reduce_per_replica(
                 outputs,
                 self.distribute_strategy,
-                reduction=self.distribute_reduction_method,
+                reduction="concat",
             )
             return outputs
 
@@ -224,7 +216,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             outputs = one_step_on_data_distributed(data[:1])
             for single_step_data in data[1:]:
                 step_outputs = one_step_on_data_distributed([single_step_data])
-                outputs = tf.nest.map_structure(
+                outputs = tree.map_structure(
                     lambda t1, t2: concat([t1, t2]), outputs, step_outputs
                 )
             return outputs
@@ -235,11 +227,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             predict_function = one_step_on_data_distributed
 
         if not self.run_eagerly:
-            kwargs = {}
-            if self._supports_reduce_retracing:
-                kwargs.update({"reduce_retracing": True})
-
-            predict_function = tf.function(predict_function, **kwargs)
+            predict_function = tf.function(
+                predict_function, reduce_retracing=True
+            )
 
         self.predict_function = predict_function
 
@@ -273,7 +263,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 x,
                 y,
                 sample_weight,
-            ), validation_data = data_adapter_utils.train_validation_split(
+            ), validation_data = array_slicing.train_validation_split(
                 (x, y, sample_weight), validation_split=validation_split
             )
 
@@ -314,6 +304,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         callbacks.on_train_begin()
         training_logs = None
         logs = None
+        initial_epoch = self._initial_epoch or initial_epoch
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)
@@ -471,7 +462,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
         def append_to_outputs(batch_outputs, outputs):
             if outputs is None:
-                outputs = tf.nest.map_structure(
+                outputs = tree.map_structure(
                     lambda batch_output: [batch_output],
                     batch_outputs,
                 )
@@ -519,7 +510,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         outputs = tree.map_structure_up_to(
             batch_outputs, potentially_ragged_concat, outputs
         )
-        return tf.nest.map_structure(convert_to_np_if_not_ragged, outputs)
+        return tree.map_structure(convert_to_np_if_not_ragged, outputs)
 
     def train_on_batch(
         self,
@@ -547,7 +538,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             yield (x, y, sample_weight)
 
         logs = self.train_function(data())
-        logs = tf.nest.map_structure(lambda x: np.array(x), logs)
+        logs = tree.map_structure(lambda x: np.array(x), logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -566,7 +557,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             yield (x, y, sample_weight)
 
         logs = self.test_function(data())
-        logs = tf.nest.map_structure(lambda x: np.array(x), logs)
+        logs = tree.map_structure(lambda x: np.array(x), logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -574,7 +565,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
     def predict_on_batch(self, x):
         self.make_predict_function()
         batch_outputs = self.predict_function([(x,)])
-        batch_outputs = tf.nest.map_structure(
+        batch_outputs = tree.map_structure(
             convert_to_np_if_not_ragged, batch_outputs
         )
         return batch_outputs
@@ -700,7 +691,7 @@ def reduce_per_replica(values, strategy, reduction):
     Currently, `reduce_per_replica` is only used for reducing the metric results
     from `tf.distribute.Strategy.run()`. Depending on the underlying
     `Strategy` implementation, `values` may be a `PerReplica` object,
-     which can be thought of as a collection of values across the replicas,
+    which can be thought of as a collection of values across the replicas,
     or a `tf.Tensor`, if the strategy has already conducted the reduction
     for the downstream library.
 
@@ -727,22 +718,22 @@ def reduce_per_replica(values, strategy, reduction):
        axis of dimension 0. This is used in the inference case (`predict()`).
 
     Args:
-      values: Structure of `PerReplica` objects or `tf.Tensor`s. `tf.Tensor`s
-        are returned as-is.
-      strategy: `tf.distribute.Strategy` object.
-      reduction: One of `"auto"`, `"first"`, `"concat"`, or `"sum"`.
-        `"auto"` will select `"first"` when used under a TPUStrategy, or
-        `"sum"` otherwise.
+        values: Structure of `PerReplica` objects or `tf.Tensor`s.
+            `tf.Tensor`s are returned as-is.
+        strategy: `tf.distribute.Strategy` object.
+        reduction: One of `"auto"`, `"first"`, `"concat"`, `"mean"`, or `"sum"`.
+            `"auto"` will select `"first"` when used under a TPUStrategy, or
+            `"mean"` otherwise.
 
     Returns:
-      Structure of `Tensor`s, representing the result of reduction.
-
-    Raises:
-      ValueError: if the reduction method is not supported.
+        Structure of `Tensor`s, representing the result of reduction.
     """
 
     if reduction == "auto":
-        reduction = "sum"  # Ignore TPU strategy which should default to "first"
+        if isinstance(strategy, tf.distribute.TPUStrategy):
+            reduction = "first"
+        else:
+            reduction = "mean"
 
     def _reduce(v):
         """Reduce a single `PerReplica` object."""
@@ -750,7 +741,9 @@ def reduce_per_replica(values, strategy, reduction):
             if reduction == "concat":
                 return _multi_worker_concat(v, strategy)
             elif reduction == "sum":
-                return strategy.reduce("SUM", v, axis=None)
+                return strategy.reduce("SUM", v)
+            elif reduction == "mean":
+                return strategy.reduce("MEAN", v, axis=0)
 
         if not _is_per_replica_instance(v):
             return v
@@ -763,13 +756,18 @@ def reduce_per_replica(values, strategy, reduction):
                 return concat(strategy.experimental_local_results(v))
         elif reduction == "sum":
             return tf.reduce_sum(strategy.experimental_local_results(v))
+        elif reduction == "mean":
+            return tf.reduce_mean(
+                strategy.experimental_local_results(v), axis=0
+            )
         else:
             raise ValueError(
-                '`reduction` must be "first", "concat", "sum", or "auto". '
+                "`reduction` must be one of "
+                '"first", "concat", "mean", "sum", or "auto". '
                 f"Received: reduction={reduction}."
             )
 
-    return tf.nest.map_structure(_reduce, values)
+    return tree.map_structure(_reduce, values)
 
 
 def _multi_worker_concat(v, strategy):

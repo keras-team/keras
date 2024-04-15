@@ -1,5 +1,3 @@
-import types
-
 import numpy as np
 import tensorflow as tf
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
@@ -11,6 +9,8 @@ from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.name_scope import name_scope as base_name_scope
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.common.stateless_scope import in_stateless_scope
+from keras.backend.tensorflow.sparse import sparse_to_dense
+from keras.utils import tree
 from keras.utils.naming import auto_name
 
 SUPPORTS_SPARSE_TENSORS = True
@@ -101,9 +101,7 @@ class Variable(
 
 def convert_to_tensor(x, dtype=None, sparse=None):
     if isinstance(x, tf.SparseTensor) and sparse is not None and not sparse:
-        x_shape = x.shape
-        x = tf.sparse.to_dense(x)
-        x.set_shape(x_shape)
+        x = sparse_to_dense(x)
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if not tf.is_tensor(x):
@@ -113,19 +111,23 @@ def convert_to_tensor(x, dtype=None, sparse=None):
             x = tf.convert_to_tensor(x)
             return tf.cast(x, dtype)
         return tf.convert_to_tensor(x, dtype=dtype)
-    elif dtype is not None:
+    elif dtype is not None and not x.dtype == dtype:
+        if isinstance(x, tf.SparseTensor):
+            x_shape = x.shape
+            x = tf.cast(x, dtype)
+            x.set_shape(x_shape)
+            return x
         return tf.cast(x, dtype=dtype)
-    else:
-        return x
+    return x
 
 
 def convert_to_numpy(x):
     if isinstance(x, tf.SparseTensor):
-        x_shape = x.shape
-        x = tf.sparse.to_dense(x)
-        x.set_shape(x_shape)
+        x = sparse_to_dense(x)
     elif isinstance(x, tf.IndexedSlices):
         x = tf.convert_to_tensor(x)
+    elif isinstance(x, tf.RaggedTensor):
+        x = x.to_tensor()
     return np.asarray(x)
 
 
@@ -142,6 +144,8 @@ def shape(x):
     tensor values when the shape is unknown (this is tf specific, as dynamic
     shapes do not apply in other backends).
     """
+    if isinstance(x, KerasTensor):
+        return x.shape
     if not tf.is_tensor(x):
         x = tf.convert_to_tensor(x)
     dynamic = tf.shape(x)
@@ -156,7 +160,13 @@ def shape(x):
 
 def cast(x, dtype):
     dtype = standardize_dtype(dtype)
-    return tf.cast(x, dtype=dtype)
+    if isinstance(x, tf.SparseTensor):
+        x_shape = x.shape
+        x = tf.cast(x, dtype)
+        x.set_shape(x_shape)
+        return x
+    else:
+        return tf.cast(x, dtype=dtype)
 
 
 def compute_output_spec(fn, *args, **kwargs):
@@ -174,17 +184,9 @@ def compute_output_spec(fn, *args, **kwargs):
                         return tf.compat.v1.placeholder(
                             shape=x.shape, dtype=x.dtype
                         )
-                if isinstance(x, types.FunctionType):
-
-                    def _fn(*x_args, **x_kwargs):
-                        out = x(*x_args, **x_kwargs)
-                        out = convert_keras_tensor_to_tf(out)
-                        return out
-
-                    return _fn
                 return x
 
-            args, kwargs = tf.nest.map_structure(
+            args, kwargs = tree.map_structure(
                 convert_keras_tensor_to_tf, (args, kwargs)
             )
             tf_out = fn(*args, **kwargs)
@@ -196,9 +198,7 @@ def compute_output_spec(fn, *args, **kwargs):
                     )
                 return x
 
-            output_spec = tf.nest.map_structure(
-                convert_tf_to_keras_tensor, tf_out
-            )
+            output_spec = tree.map_structure(convert_tf_to_keras_tensor, tf_out)
     return output_spec
 
 
@@ -262,6 +262,10 @@ def stop_gradient(variable):
 
 def unstack(x, num=None, axis=0):
     return tf.unstack(x, num=num, axis=axis)
+
+
+def custom_gradient(fun):
+    return tf.custom_gradient(f=fun)
 
 
 class name_scope(base_name_scope):

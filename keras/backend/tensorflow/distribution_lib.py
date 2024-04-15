@@ -23,13 +23,22 @@ def list_devices(device_type=None):
     Return:
         List of devices that are available for distribute computation.
     """
-    device_type = device_type.upper() if device_type else "CPU"
+    device_type = device_type.upper() if device_type else None
 
     # DTensor doesn't support getting global devices, even when knowing the
     # Mesh. Use TF API instead to get global devices. Coordinator service is
     # enabled by default with DTensor, so that list_logical_devices() returns
     # a list of global devices. More context can be found in b/254911601.
     tf_devices = tf.config.list_logical_devices(device_type=device_type)
+    cpu_devices = []
+    other_devices = []
+    for device in tf_devices:
+        if device.device_type.lower() == "cpu":
+            cpu_devices.append(device)
+        else:
+            other_devices.append(device)
+    if device_type is None:
+        tf_devices = other_devices if len(other_devices) > 0 else cpu_devices
     return [
         f"{device.device_type.lower()}:{device.name.split(':')[-1]}"
         for device in tf_devices

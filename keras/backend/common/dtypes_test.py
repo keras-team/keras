@@ -5,7 +5,6 @@ from absl.testing import parameterized
 from keras import backend
 from keras import ops
 from keras.backend.common import dtypes
-from keras.backend.common.variables import ALLOWED_DTYPES
 from keras.testing import test_case
 from keras.testing.test_utils import named_product
 
@@ -18,14 +17,18 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
 
         # TODO: torch doesn't support uint64.
         ALL_DTYPES = []
-        for x in ALLOWED_DTYPES:
+        for x in dtypes.ALLOWED_DTYPES:
             if x not in ["string", "uint64"]:
                 x = str(to_torch_dtype(x)).split(".")[-1]
                 if x not in ALL_DTYPES:  # skip duplicates created by remapping
                     ALL_DTYPES.append(x)
         ALL_DTYPES += [None]
     else:
-        ALL_DTYPES = [x for x in ALLOWED_DTYPES if x != "string"] + [None]
+        ALL_DTYPES = [x for x in dtypes.ALLOWED_DTYPES if x != "string"] + [
+            None
+        ]
+    # Remove float8 dtypes for the following tests
+    ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
 
     def setUp(self):
         from jax.experimental import enable_x64
@@ -217,3 +220,13 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
                 ValueError, "no available implicit dtype promotion path"
             ):
                 dtypes._least_upper_bound("test_dtype1", "test_dtype2")
+
+    def test_invalid_float8_dtype(self):
+        with self.assertRaisesRegex(
+            ValueError, "There is no implicit conversions from float8 dtypes"
+        ):
+            dtypes.result_type("float8_e4m3fn", "bfloat16")
+        with self.assertRaisesRegex(
+            ValueError, "There is no implicit conversions from float8 dtypes"
+        ):
+            dtypes.result_type("float8_e5m2", "bfloat16")

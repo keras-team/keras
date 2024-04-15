@@ -16,7 +16,7 @@ class Hinge(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Examples:
 
     >>> m = keras.metrics.Hinge()
     >>> m.update_state([[0, 1], [0, 0]], [[0.6, 0.4], [0.4, 0.6]])
@@ -49,7 +49,7 @@ class SquaredHinge(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.SquaredHinge()
     >>> m.update_state([[0, 1], [0, 0]], [[0.6, 0.4], [0.4, 0.6]])
@@ -79,7 +79,7 @@ class CategoricalHinge(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
     >>> m = keras.metrics.CategoricalHinge()
     >>> m.update_state([[0, 1], [0, 0]], [[0.6, 0.4], [0.4, 0.6]])
     >>> m.result().numpy()

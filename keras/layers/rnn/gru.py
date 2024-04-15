@@ -1,5 +1,3 @@
-import tree
-
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -11,6 +9,7 @@ from keras.layers.input_spec import InputSpec
 from keras.layers.layer import Layer
 from keras.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras.layers.rnn.rnn import RNN
+from keras.utils import tree
 
 
 @keras_export("keras.layers.GRUCell")
@@ -195,9 +194,9 @@ class GRUCell(Layer, DropoutRNNCell):
                 )
 
         if training and 0.0 < self.dropout < 1.0:
-            inputs *= dp_mask
+            inputs = inputs * dp_mask
         if training and 0.0 < self.recurrent_dropout < 1.0:
-            h_tm1 *= rec_dp_mask
+            h_tm1 = h_tm1 * rec_dp_mask
 
         if self.implementation == 1:
             inputs_z = inputs
@@ -432,6 +431,9 @@ class GRU(RNN):
         reset_after: GRU convention (whether to apply reset gate after or
             before matrix multiplication). `False` is `"before"`,
             `True` is `"after"` (default and cuDNN compatible).
+        use_cudnn: Whether to use a cuDNN-backed implementation. `"auto"` will
+            attempt to use cuDNN when feasible, and will fallback to the
+            default implementation if not.
 
     Call arguments:
         inputs: A 3D tensor, with shape `(batch, timesteps, feature)`.
@@ -474,6 +476,7 @@ class GRU(RNN):
         stateful=False,
         unroll=False,
         reset_after=True,
+        use_cudnn="auto",
         **kwargs,
     ):
         cell = GRUCell(
@@ -509,12 +512,23 @@ class GRU(RNN):
             **kwargs,
         )
         self.input_spec = InputSpec(ndim=3)
-        if backend.backend() == "tensorflow" and backend.cudnn_ok(
-            cell.activation,
-            cell.recurrent_activation,
-            self.unroll,
-            cell.use_bias,
-            reset_after=reset_after,
+        if use_cudnn not in ("auto", True, False):
+            raise ValueError(
+                "Invalid valid received for argument `use_cudnn`. "
+                "Expected one of {'auto', True, False}. "
+                f"Received: use_cudnn={use_cudnn}"
+            )
+        self.use_cudnn = use_cudnn
+        if (
+            backend.backend() == "tensorflow"
+            and backend.cudnn_ok(
+                cell.activation,
+                cell.recurrent_activation,
+                self.unroll,
+                cell.use_bias,
+                reset_after=reset_after,
+            )
+            and use_cudnn in (True, "auto")
         ):
             self.supports_jit = False
 
@@ -523,34 +537,41 @@ class GRU(RNN):
             initial_state = initial_state[0]
         if tree.is_nested(mask):
             mask = mask[0]
-
-        if not self.dropout and not self.recurrent_dropout:
-            try:
-                # Backends are allowed to specify (optionally) optimized
-                # implementation of the inner GRU loop. In the case of
-                # TF for instance, it will leverage cuDNN when feasible, and
-                # it will raise NotImplementedError otherwise.
-                out = backend.gru(
-                    sequences,
-                    initial_state,
-                    mask,
-                    kernel=self.cell.kernel,
-                    recurrent_kernel=self.cell.recurrent_kernel,
-                    bias=self.cell.bias,
-                    activation=self.cell.activation,
-                    recurrent_activation=self.cell.recurrent_activation,
-                    return_sequences=self.return_sequences,
-                    go_backwards=self.go_backwards,
-                    unroll=self.unroll,
-                    reset_after=self.cell.reset_after,
-                )
-                # We disable jit_compile for the model in this case,
-                # since cuDNN ops aren't XLA compatible.
-                if backend.backend() == "tensorflow":
-                    self.supports_jit = False
-                return out
-            except NotImplementedError:
-                pass
+        if self.use_cudnn in ("auto", True):
+            if not self.dropout and not self.recurrent_dropout:
+                try:
+                    # Backends are allowed to specify (optionally) optimized
+                    # implementation of the inner GRU loop. In the case of
+                    # TF for instance, it will leverage cuDNN when feasible, and
+                    # it will raise NotImplementedError otherwise.
+                    out = backend.gru(
+                        sequences,
+                        initial_state,
+                        mask,
+                        kernel=self.cell.kernel,
+                        recurrent_kernel=self.cell.recurrent_kernel,
+                        bias=self.cell.bias,
+                        activation=self.cell.activation,
+                        recurrent_activation=self.cell.recurrent_activation,
+                        return_sequences=self.return_sequences,
+                        go_backwards=self.go_backwards,
+                        unroll=self.unroll,
+                        reset_after=self.cell.reset_after,
+                    )
+                    # We disable jit_compile for the model in this case,
+                    # since cuDNN ops aren't XLA compatible.
+                    if backend.backend() == "tensorflow":
+                        self.supports_jit = False
+                    return out
+                except NotImplementedError:
+                    pass
+        if self.use_cudnn is True:
+            raise ValueError(
+                "use_cudnn=True was specified, "
+                "but cuDNN is not supported for this layer configuration "
+                "with this backend. Pass use_cudnn='auto' to fallback "
+                "to a non-cuDNN implementation."
+            )
         return super().inner_loop(
             sequences, initial_state, mask=mask, training=training
         )

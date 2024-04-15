@@ -80,7 +80,7 @@ class Conv1D(BaseConv):
     Raises:
         ValueError: when both `strides > 1` and `dilation_rate > 1`.
 
-    Examples:
+    Example:
 
     >>> # The inputs are 128-length vectors with 10 timesteps, and the
     >>> # batch size is 4.

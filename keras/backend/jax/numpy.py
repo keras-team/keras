@@ -6,7 +6,10 @@ import jax.numpy as jnp
 
 from keras.backend import config
 from keras.backend.common import dtypes
+from keras.backend.common.backend_utils import canonicalize_axis
+from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.backend.common.variables import standardize_dtype
+from keras.backend.jax import nn
 from keras.backend.jax import sparse
 from keras.backend.jax.core import cast
 from keras.backend.jax.core import convert_to_tensor
@@ -19,7 +22,34 @@ def add(x1, x2):
     return jnp.add(x1, x2)
 
 
-def bincount(x, weights=None, minlength=0):
+def bincount(x, weights=None, minlength=0, sparse=False):
+    # Note: bincount is never tracable / jittable because the output shape
+    # depends on the values in x.
+    if sparse or isinstance(x, jax_sparse.BCOO):
+        if isinstance(x, jax_sparse.BCOO):
+            if weights is not None:
+                if not isinstance(weights, jax_sparse.BCOO):
+                    raise ValueError("`x` and `weights` must both be BCOOs")
+                if x.indices is not weights.indices:
+                    # This test works in eager mode only
+                    if not jnp.all(jnp.equal(x.indices, weights.indices)):
+                        raise ValueError(
+                            "`x` and `weights` BCOOs must have the same indices"
+                        )
+                weights = weights.data
+            x = x.data
+        reduction_axis = 1 if len(x.shape) > 1 else 0
+        maxlength = jnp.maximum(jnp.max(x) + 1, minlength)
+        one_hot_encoding = nn.one_hot(x, maxlength, sparse=True)
+        if weights is not None:
+            expanded_weights = jnp.expand_dims(weights, reduction_axis + 1)
+            one_hot_encoding = one_hot_encoding * expanded_weights
+
+        outputs = jax_sparse.bcoo_reduce_sum(
+            one_hot_encoding,
+            axes=(reduction_axis,),
+        )
+        return outputs
     if len(x.shape) == 2:
         if weights is None:
 
@@ -42,6 +72,14 @@ def bincount(x, weights=None, minlength=0):
 
 def einsum(subscripts, *operands, **kwargs):
     operands = [convert_to_tensor(x) for x in operands]
+    # When all operands are of int8, specifying `preferred_element_type` as
+    # int32 to enable hardware-accelerated einsum
+    dtypes = list(set(standardize_dtype(x.dtype) for x in operands))
+    if len(dtypes) == 1 and dtypes[0] == "int8":
+        preferred_element_type = "int32"
+    else:
+        preferred_element_type = None
+    kwargs["preferred_element_type"] = preferred_element_type
     return jnp.einsum(subscripts, *operands, **kwargs)
 
 
@@ -359,14 +397,7 @@ def concatenate(xs, axis=0):
     bcoo_count = builtins.sum(isinstance(x, jax_sparse.BCOO) for x in xs)
     if bcoo_count:
         if bcoo_count == len(xs):
-            ndim = len(xs[0].shape)
-            if not -ndim <= axis < ndim:
-                raise ValueError(
-                    f"In `axis`, axis {axis} is out of bounds for array "
-                    f"of dimension {ndim}"
-                )
-            if axis < 0:
-                axis = axis + ndim
+            axis = canonicalize_axis(axis, len(xs[0].shape))
             return jax_sparse.bcoo_concatenate(xs, dimension=axis)
         else:
             xs = [
@@ -463,6 +494,7 @@ def diff(a, n=1, axis=-1):
     return jnp.diff(a, n=n, axis=axis)
 
 
+@sparse.elementwise_unary(linear=False)
 def digitize(x, bins):
     x = convert_to_tensor(x)
     bins = convert_to_tensor(bins)
@@ -705,9 +737,9 @@ def median(x, axis=None, keepdims=False):
 
     result = jnp.median(x, axis=axis, keepdims=keepdims)
 
-    # TODO: jnp.median failed to keepdims when axis is None
+    # TODO: with jax < 0.4.26 jnp.median failed to keepdims when axis is None
     if keepdims is True and axis is None:
-        for _ in range(x.ndim - 1):
+        while result.ndim < x.ndim:
             result = jnp.expand_dims(result, axis=-1)
     return result
 
@@ -796,9 +828,10 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
     result = jnp.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
-    # TODO: jnp.quantile failed to keepdims when axis is None
+    # TODO: with jax < 0.4.26 jnp.quantile failed to keepdims when axis is None
     if keepdims is True and axis is None:
-        for _ in range(x.ndim - 1):
+        result_ndim = x.ndim + (1 if len(q.shape) > 0 else 0)
+        while result.ndim < result_ndim:
             result = jnp.expand_dims(result, axis=-1)
     return result
 
@@ -1032,8 +1065,7 @@ def squeeze(x, axis=None):
     if isinstance(x, jax_sparse.BCOO):
         if axis is None:
             axis = tuple(i for i, d in enumerate(x.shape) if d == 1)
-        elif isinstance(axis, int):
-            axis = (axis,)
+        axis = to_tuple_or_list(axis)
         return jax_sparse.bcoo_squeeze(x, dimensions=axis)
     return jnp.squeeze(x, axis=axis)
 
@@ -1047,11 +1079,8 @@ def transpose(x, axes=None):
         else:
             permutation = []
             for a in axes:
-                if not -num_dims <= a < num_dims:
-                    raise ValueError(
-                        f"axis {a} out of bounds for tensor of rank {num_dims}"
-                    )
-                permutation.append(a if a >= 0 else a + num_dims)
+                a = canonicalize_axis(a, num_dims)
+                permutation.append(a)
         return jax_sparse.bcoo_transpose(x, permutation=permutation)
     return jnp.transpose(x, axes=axes)
 
@@ -1070,6 +1099,26 @@ def var(x, axis=None, keepdims=False):
 
 def sum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    if isinstance(x, jax_sparse.BCOO):
+        if axis is None:
+            axis = tuple(range(len(x.shape)))
+        (
+            canonical_axis,
+            keep_dims_shape,
+            broadcast_dimensions,
+        ) = sparse.axis_shape_dims_for_broadcast_in_dim(
+            axis, x.shape, insert_dims=False
+        )
+        output = jax_sparse.bcoo_reduce_sum(x, axes=canonical_axis)
+        if keepdims:
+            # `bcoo_reduce_sum` does not support keepdims, neither does
+            # sparsify(jnp.sum), so we recreate the empty dimensions.
+            output = jax_sparse.bcoo_broadcast_in_dim(
+                output,
+                shape=keep_dims_shape,
+                broadcast_dimensions=broadcast_dimensions,
+            )
+        return output
     return jnp.sum(x, axis=axis, keepdims=keepdims)
 
 
@@ -1088,3 +1137,9 @@ def logical_xor(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jnp.logical_xor(x1, x2)
+
+
+def correlate(x1, x2, mode="valid"):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.correlate(x1, x2, mode)

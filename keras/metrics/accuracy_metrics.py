@@ -31,7 +31,7 @@ class Accuracy(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Examples:
 
     >>> m = keras.metrics.Accuracy()
     >>> m.update_state([[1], [2], [3], [4]], [[0], [2], [3], [4]])
@@ -93,7 +93,7 @@ class BinaryAccuracy(reduction_metrics.MeanMetricWrapper):
         threshold: (Optional) Float representing the threshold for deciding
         whether prediction values are 1 or 0.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.BinaryAccuracy()
     >>> m.update_state([[1], [1], [0], [0]], [[0.98], [1], [0], [0.6]])
@@ -192,7 +192,7 @@ class CategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.CategoricalAccuracy()
     >>> m.update_state([[0, 0, 1], [0, 1, 0]], [[0.1, 0.9, 0.8],
@@ -281,7 +281,7 @@ class SparseCategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.SparseCategoricalAccuracy()
     >>> m.update_state([[2], [1]], [[0.1, 0.6, 0.3], [0.05, 0.95, 0]])
@@ -352,7 +352,7 @@ class TopKCategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.TopKCategoricalAccuracy(k=1)
     >>> m.update_state([[0, 0, 1], [0, 1, 0]],
@@ -430,7 +430,7 @@ class SparseTopKCategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     >>> m = keras.metrics.SparseTopKCategoricalAccuracy(k=1)
     >>> m.update_state([2, 1], [[0.1, 0.9, 0.8], [0.05, 0.95, 0]])

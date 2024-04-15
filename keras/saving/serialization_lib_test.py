@@ -94,6 +94,19 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(layer.trainable, restored.trainable)
         self.assertEqual(layer.compute_dtype, restored.compute_dtype)
 
+    def test_numpy_get_item_layer(self):
+        def tuples_to_lists_str(x):
+            return str(x).replace("(", "[").replace(")", "]")
+
+        input = keras.layers.Input(shape=(2,))
+        layer = input[:, 1]
+        model = keras.Model(input, layer)
+        serialized, _, reserialized = self.roundtrip(model)
+        # Anticipate JSON roundtrip mapping tuples to lists:
+        serialized_str = tuples_to_lists_str(serialized)
+        reserialized_str = tuples_to_lists_str(reserialized)
+        self.assertEqual(serialized_str, reserialized_str)
+
     def test_tensors_and_shapes(self):
         x = ops.random.normal((2, 2), dtype="float64")
         obj = {"x": x}
@@ -313,6 +326,18 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(obj_id, serialized[1]["config"]["activation"])
         self.assertIs(layers[0].activation, layers[1].activation)
         self.assertIs(new_layers[0].activation, new_layers[1].activation)
+
+    def test_layer_sharing(self):
+        seq = keras.Sequential(
+            [
+                keras.Input(shape=(3,)),
+                keras.layers.Dense(5),
+                keras.layers.Softmax(),
+            ],
+        )
+        func = keras.Model(inputs=seq.inputs, outputs=seq.outputs)
+        serialized, deserialized, reserialized = self.roundtrip(func)
+        self.assertLen(deserialized.layers, 3)
 
 
 @keras.saving.register_keras_serializable()

@@ -1,12 +1,8 @@
-import types
-
 import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 import ml_dtypes
 import numpy as np
-import tree
-from jax.tree_util import Partial
 
 from keras.backend.common import KerasVariable
 from keras.backend.common import global_state
@@ -14,6 +10,7 @@ from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.jax import distribution_lib
+from keras.utils import tree
 
 SUPPORTS_SPARSE_TENSORS = True
 
@@ -50,21 +47,23 @@ class Variable(KerasVariable):
 def convert_to_tensor(x, dtype=None, sparse=True):
     if dtype is not None:
         dtype = standardize_dtype(dtype)
-    if isinstance(x, (jnp.ndarray, jax.Array)) and dtype == x.dtype:
+    if isinstance(x, (jnp.ndarray, jax.Array)) and (
+        dtype is None or x.dtype == dtype
+    ):
         # Skip the conversion early if the instance is already a JAX array.
         # This is important in the multi-process context since jax.array(x) for
         # an existing distributed jax array will raise error.
         return x
 
     if isinstance(x, Variable):
-        if dtype and dtype != x.dtype:
+        if dtype is not None and x.dtype != dtype:
             return x.value.astype(dtype)
         return x.value
 
     if isinstance(x, jax_sparse.JAXSparse):
         if sparse is not None and not sparse:
             x = x.todense()
-        elif dtype and dtype != x.dtype:
+        elif dtype is not None and x.dtype != dtype:
             return x.astype(dtype)
         else:
             return x
@@ -139,16 +138,6 @@ def compute_output_spec(fn, *args, **kwargs):
                             shape[i] = fill_value
                 jax_tensor = jax.ShapeDtypeStruct(shape, dtype=x.dtype)
                 return jax_tensor
-            if isinstance(x, types.FunctionType):
-
-                def _fn(*args, **kwargs):
-                    out = x(*args, **kwargs)
-                    out = convert_keras_tensor_to_jax(
-                        out, fill_value=fill_value
-                    )
-                    return out
-
-                return Partial(_fn)
             if isinstance(x, dict):
                 return {
                     k: convert_keras_tensor_to_jax(v, fill_value=fill_value)
@@ -358,6 +347,10 @@ def unstack(x, num=None, axis=0):
         jax.lax.index_in_dim(x, i, axis, keepdims=False)
         for i in range(x.shape[axis])
     ]
+
+
+def custom_gradient(fun):
+    return jax.custom_gradient(fun=fun)
 
 
 def device_scope(device_name):

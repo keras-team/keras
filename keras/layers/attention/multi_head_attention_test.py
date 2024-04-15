@@ -44,7 +44,7 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
             expected_output_shape=(2, 8, 16),
             expected_num_trainable_weights=4,
             expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
+            expected_num_seed_generators=1,
             expected_num_losses=0,
             supports_masking=True,
             run_training_check=False,
@@ -363,3 +363,18 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
         new_model.save_weights(temp_filepath)
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
+
+    @parameterized.parameters([((1, 2, 3),), ((2, 3, 5),)])
+    def test_symbolic_return_attention_scores(self, shape):
+        mha = layers.MultiHeadAttention(num_heads=4, key_dim=2)
+        x = layers.Input(batch_shape=shape)
+        y = layers.Input(batch_shape=shape)
+        symbolic_out = mha(x, y, return_attention_scores=True)
+        self.assertLen(symbolic_out, 2)
+
+        x = np.random.random(shape)
+        y = np.random.random(shape)
+        out = mha(x, y, return_attention_scores=True)
+        self.assertLen(out, 2)
+        self.assertEqual(symbolic_out[0].shape, out[0].shape)
+        self.assertEqual(symbolic_out[1].shape, out[1].shape)

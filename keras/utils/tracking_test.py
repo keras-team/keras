@@ -1,3 +1,5 @@
+import collections
+
 from keras import backend
 from keras import testing
 from keras.utils import tracking
@@ -54,3 +56,44 @@ class TrackingTest(testing.TestCase):
         del lst2[0]
         self.assertLen(lst2, 1)
         self.assertLen(tracked_variables, 1)
+
+    def test_tuple_tracking(self):
+        tracked_variables = []
+        tracker = tracking.Tracker(
+            {
+                "variables": (
+                    lambda x: isinstance(x, backend.Variable),
+                    tracked_variables,
+                ),
+            }
+        )
+        v1 = backend.Variable(1)
+        v2 = backend.Variable(2)
+        tup = (v1, v2)
+        tup = tracker.track(tup)
+        self.assertIsInstance(tup, tuple)
+        self.assertLen(tracked_variables, 2)
+        self.assertEqual(tracked_variables[0], v1)
+        self.assertEqual(tracked_variables[1], v2)
+
+    def test_namedtuple_tracking(self):
+        tracked_variables = []
+        tracker = tracking.Tracker(
+            {
+                "variables": (
+                    lambda x: isinstance(x, backend.Variable),
+                    tracked_variables,
+                ),
+            }
+        )
+        v1 = backend.Variable(1)
+        v2 = backend.Variable(2)
+        nt = collections.namedtuple("NT", ["x", "y"])
+        tup = nt(x=v1, y=v2)
+        tup = tracker.track(tup)
+        self.assertIsInstance(tup, tuple)
+        self.assertEqual(tup.x, v1)
+        self.assertEqual(tup.y, v2)
+        self.assertLen(tracked_variables, 2)
+        self.assertEqual(tracked_variables[0], v1)
+        self.assertEqual(tracked_variables[1], v2)

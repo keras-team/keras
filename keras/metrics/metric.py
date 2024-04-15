@@ -14,7 +14,7 @@ class Metric:
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Standalone usage:
+    Example:
 
     ```python
     m = SomeMetric(...)
@@ -85,7 +85,7 @@ class Metric:
 
     def __init__(self, dtype=None, name=None):
         self.name = name or auto_name(self.__class__.__name__)
-        self._dtype = dtype
+        self._dtype = dtype or backend.floatx()
         self._metrics = []
         self._variables = []
         self._tracker = Tracker(
@@ -160,11 +160,28 @@ class Metric:
             res = self.result()
         return res
 
+    def stateless_reset_state(self):
+        # Call in stateless scope
+        with backend.StatelessScope() as scope:
+            self.reset_state()
+
+        # Gather updated variables
+        metric_variables = []
+        for v in self.variables:
+            new_v = scope.get_current_value(v)
+            if new_v is not None:
+                metric_variables.append(new_v)
+            else:
+                metric_variables.append(v)
+        return metric_variables
+
     @property
     def dtype(self):
         return self._dtype
 
-    def add_variable(self, shape, initializer, dtype=None, name=None):
+    def add_variable(
+        self, shape, initializer, dtype=None, aggregation="sum", name=None
+    ):
         self._check_super_called()
         with backend.name_scope(self.name.replace("/", ">"), caller=self):
             initializer = initializers.get(initializer)
@@ -173,6 +190,7 @@ class Metric:
                 shape=shape,
                 dtype=dtype,
                 trainable=False,
+                aggregation=aggregation,
                 name=name,
             )
         # Prevent double-tracking

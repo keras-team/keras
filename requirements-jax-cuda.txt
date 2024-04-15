@@ -1,5 +1,5 @@
 # Tensorflow cpu-only version (needed for testing).
-tf-nightly-cpu==2.16.0.dev20240101  # Pin a working nightly until rc0.
+tensorflow-cpu~=2.16.1  # Pin to TF 2.16
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu
@@ -10,5 +10,6 @@ torchvision>=0.16.0
 # TODO: 0.4.24 has an updated Cuda version breaks Jax CI.
 --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 jax[cuda12_pip]==0.4.23
+flax
 
 -r requirements-common.txt

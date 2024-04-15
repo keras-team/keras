@@ -109,12 +109,13 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+    dtype = to_torch_dtype(dtype)
     # Take a larger standard normal dist, discard values outside 2 * stddev
     # Offset by mean and stddev
     x = normal(tuple(shape) + (4,), mean=0, stddev=1, dtype=dtype, seed=seed)
     valid = (x > -2) & (x < 2)
     indexes = valid.max(-1, keepdim=True)[1]
-    trunc_x = torch.empty(shape, device=get_device())
+    trunc_x = torch.empty(shape, dtype=dtype, device=get_device())
     trunc_x.data.copy_(x.gather(-1, indexes).squeeze(-1))
     trunc_x.data.mul_(stddev).add_(mean)
     return trunc_x
@@ -197,8 +198,10 @@ def gamma(shape, alpha, dtype=None, seed=None):
     alpha = torch.broadcast_to(convert_to_tensor(alpha), shape)
     beta = torch.ones(shape, device=get_device())
     prev_rng_state = torch.random.get_rng_state()
-    first_seed, second_seed = draw_seed(seed)
-    torch.manual_seed(first_seed + second_seed)
+    # Do not draw seed during symbolic execution
+    if not get_device() == "meta":
+        first_seed, second_seed = draw_seed(seed)
+        torch.manual_seed(first_seed + second_seed)
     gamma_distribution = torch.distributions.gamma.Gamma(alpha, beta)
     sample = gamma_distribution.sample().type(dtype)
     torch.random.set_rng_state(prev_rng_state)
@@ -211,8 +214,10 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
     counts = torch.broadcast_to(convert_to_tensor(counts), shape)
     probabilities = torch.broadcast_to(convert_to_tensor(probabilities), shape)
     prev_rng_state = torch.random.get_rng_state()
-    first_seed, second_seed = draw_seed(seed)
-    torch.manual_seed(first_seed + second_seed)
+    # Do not draw seed during symbolic execution
+    if not get_device() == "meta":
+        first_seed, second_seed = draw_seed(seed)
+        torch.manual_seed(first_seed + second_seed)
     binomial_distribution = torch.distributions.binomial.Binomial(
         total_count=counts, probs=probabilities
     )
@@ -227,8 +232,10 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
     alpha = torch.broadcast_to(convert_to_tensor(alpha), shape)
     beta = torch.broadcast_to(convert_to_tensor(beta), shape)
     prev_rng_state = torch.random.get_rng_state()
-    first_seed, second_seed = draw_seed(seed)
-    torch.manual_seed(first_seed + second_seed)
+    # Do not draw seed during symbolic execution
+    if not get_device() == "meta":
+        first_seed, second_seed = draw_seed(seed)
+        torch.manual_seed(first_seed + second_seed)
     beta_distribution = torch.distributions.beta.Beta(
         concentration1=alpha, concentration0=beta
     )

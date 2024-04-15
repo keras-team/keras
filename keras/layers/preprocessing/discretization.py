@@ -102,12 +102,11 @@ class Discretization(TFDataLayer):
 
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
-                "`sparse` can only be set to True with the "
-                "TensorFlow backend."
+                "`sparse=True` can only be used with the " "TensorFlow backend."
             )
         if sparse and output_mode == "int":
             raise ValueError(
-                "`sparse` may only be true if `output_mode` is "
+                "`sparse=True` may only be used if `output_mode` is "
                 "`'one_hot'`, `'multi_hot'`, or `'count'`. "
                 f"Received: sparse={sparse} and "
                 f"output_mode={output_mode}"
@@ -148,7 +147,6 @@ class Discretization(TFDataLayer):
         self.sparse = sparse
 
         if self.bin_boundaries:
-            self.built = True
             self.summary = None
         else:
             self.summary = np.array([[], []], dtype="float32")
@@ -293,7 +291,7 @@ def merge_summaries(prev_summary, next_summary, epsilon):
     Args:
         prev_summary: 2D `np.ndarray` summary to be merged with `next_summary`.
         next_summary: 2D `np.ndarray` summary to be merged with `prev_summary`.
-        epsilon: A float that determines the approxmiate desired precision.
+        epsilon: A float that determines the approximate desired precision.
 
     Returns:
         A 2-D `np.ndarray` that is a merged summary. First column is the
@@ -319,7 +317,7 @@ def compress_summary(summary, epsilon):
 
     Args:
         summary: 2D `np.ndarray` summary to be compressed.
-        epsilon: A `'float32'` that determines the approxmiate desired
+        epsilon: A `'float32'` that determines the approximate desired
         precision.
 
     Returns:

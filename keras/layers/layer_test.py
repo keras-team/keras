@@ -464,6 +464,24 @@ class LayerTest(testing.TestCase):
                 assertEqual(backend.standardize_dtype(self.v.dtype), "float32")
                 return x + self.v
 
+        # A layer that is explicitly mixed precision but with autocast=False
+        # weight.
+        class InnerLayerThree(layers.Layer):
+            def __init__(self):
+                super().__init__(dtype="mixed_float16")
+                self.v = self.add_weight(
+                    shape=(),
+                    initializer="ones",
+                    trainable=True,
+                    autocast=False,
+                )
+                self.built = True
+
+            def call(self, x):
+                # Should not autocast `self.v`.
+                assertEqual(backend.standardize_dtype(self.v.dtype), "float32")
+                return ops.add(x, self.v)
+
         # A layer that is explicitly mixed precision with inner layers.
         class MixedPrecisionLayer(layers.Layer):
             def __init__(self):
@@ -475,16 +493,19 @@ class LayerTest(testing.TestCase):
                 )
                 self.inner_one = InnerLayerOne()
                 self.inner_two = InnerLayerTwo()
+                self.inner_three = InnerLayerThree()
                 self.built = True
 
             def call(self, x):
                 # Should autocast.
                 assertEqual(backend.standardize_dtype(self.v.dtype), "float16")
-                return self.inner_two(self.inner_one(x + self.v))
+                return self.inner_three(
+                    self.inner_two(self.inner_one(x + self.v))
+                )
 
         layer = MixedPrecisionLayer()
         y = layer(np.array(0.0))
-        self.assertEqual(y, 3.0)
+        self.assertEqual(y, 4.0)
 
     @pytest.mark.skipif(
         backend.backend() == "numpy",
@@ -855,3 +876,52 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.w5.shape, (2, 2))
         self.assertEqual(layer.w5.dtype, "float32")
         self.assertAllClose(backend.convert_to_numpy(layer.w5), np.ones((2, 2)))
+
+    def test_remove_weight(self):
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight()
+
+            def custom_remove_w(self):
+                self.w = self._untrack_variable(self.w)
+
+            def custom_change_dtype(self):
+                self.w = self._untrack_variable(self.w)
+                self.w = self.add_weight(
+                    initializer="zeros", dtype="int8", trainable=False
+                )
+
+        layer = MyLayer()
+        self.assertEqual(len(layer.weights), 1)
+        layer.custom_remove_w()
+        self.assertEqual(len(layer.weights), 0)
+        self.assertEqual(layer.w, None)
+
+        layer = MyLayer()
+        self.assertEqual(layer.w.dtype, "float32")
+        self.assertEqual(layer.w.trainable, True)
+        layer.custom_change_dtype()
+        self.assertEqual(layer.w.dtype, "int8")
+        self.assertEqual(layer.w.trainable, False)
+
+    def test_trainable_init_arg(self):
+        inputs = layers.Input(shape=(1,))
+        layer = layers.Dense(2, trainable=False)
+        outputs = layer(inputs)
+        model = models.Model(inputs, outputs)
+
+        self.assertFalse(layer.trainable)
+        self.assertLen(layer._trainable_variables, 2)
+        self.assertLen(layer._non_trainable_variables, 0)
+        self.assertLen(layer.trainable_weights, 0)
+        self.assertLen(model.trainable_weights, 0)
+        self.assertLen(model.non_trainable_weights, 2)
+
+        layer.trainable = True
+        self.assertTrue(layer.trainable)
+        self.assertLen(layer._trainable_variables, 2)
+        self.assertLen(layer._non_trainable_variables, 0)
+        self.assertLen(layer.trainable_weights, 2)
+        self.assertLen(model.trainable_weights, 2)
+        self.assertLen(model.non_trainable_weights, 0)

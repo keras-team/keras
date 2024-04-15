@@ -799,7 +799,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
             (kernel_size, 1, 1)
         )
 
-        # Exepected result
+        # Expected result
         expected_res = np_conv1d_transpose(
             x=input,
             kernel_weights=kernel_weights,

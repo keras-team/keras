@@ -227,6 +227,159 @@ class FBetaScoreTest(parameterized.TestCase, testing.TestCase):
             reference_result=result,
         )
 
+    def test_invalid_average_raises_value_error(self):
+        expected_message = (
+            "Invalid `average` argument value. Expected one of: "
+            r"\{None, 'micro', 'macro', 'weighted'\}. "
+            "Received: average=invalid_average"
+        )
+        with self.assertRaisesRegex(ValueError, expected_message):
+            f_score_metrics.FBetaScore(
+                average="invalid_average",
+                beta=1.0,
+                threshold=None,
+                dtype="float32",
+            )
+
+    def test_beta_integer_type_raises_value_error(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid `beta` argument value. It should be a Python float.",
+        ):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=1, threshold=None, dtype="float32"
+            )
+
+    def test_beta_string_type_raises_value_error(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid `beta` argument value. It should be a Python float.",
+        ):
+            f_score_metrics.FBetaScore(
+                average="macro", beta="1.0", threshold=None, dtype="float32"
+            )
+
+    def test_beta_none_type_raises_value_error(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid `beta` argument value. It should be a Python float.",
+        ):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=None, threshold=None, dtype="float32"
+            )
+
+    def test_beta_zero_raises_value_error(self):
+        expected_message = (
+            "Invalid `beta` argument value. It should be > 0. "
+            "Received: beta=0.0"
+        )
+        with self.assertRaisesRegex(ValueError, expected_message):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=0.0, threshold=None, dtype="float32"
+            )
+
+    def test_beta_negative_one_raises_value_error(self):
+        expected_message = (
+            "Invalid `beta` argument value. It should be > 0. "
+            "Received: beta=-1.0"
+        )
+        with self.assertRaisesRegex(ValueError, expected_message):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=-1.0, threshold=None, dtype="float32"
+            )
+
+    def test_beta_negative_half_raises_value_error(self):
+        expected_message = (
+            "Invalid `beta` argument value. It should be > 0. "
+            "Received: beta=-0.5"
+        )
+        with self.assertRaisesRegex(ValueError, expected_message):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=-0.5, threshold=None, dtype="float32"
+            )
+
+    def test_threshold_not_float_raises_value_error(self):
+        expected_message_pattern = (
+            "Invalid `threshold` argument value. "
+            "It should be a Python float. "
+            "Received: threshold=1 of type '<class 'int'>'"
+        )
+        with self.assertRaisesRegex(ValueError, expected_message_pattern):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=1.0, threshold=1, dtype="float32"
+            )
+
+    def test_threshold_string_raises_value_error(self):
+        expected_message_pattern = (
+            "Invalid `threshold` argument value. "
+            "It should be a Python float. "
+            "Received: threshold=0.5 of type '<class 'str'>'"
+        )
+        with self.assertRaisesRegex(ValueError, expected_message_pattern):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=1.0, threshold="0.5", dtype="float32"
+            )
+
+    def test_threshold_above_one_raises_value_error(self):
+        expected_message = (
+            "Invalid `threshold` argument value. "
+            "It should verify 0 < threshold <= 1. "
+            "Received: threshold=1.1"
+        )
+        with self.assertRaisesRegex(ValueError, expected_message):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=1.0, threshold=1.1, dtype="float32"
+            )
+
+    def test_threshold_zero_raises_value_error(self):
+        expected_message = (
+            "Invalid `threshold` argument value. "
+            "It should verify 0 < threshold <= 1. "
+            "Received: threshold=0.0"
+        )
+        with self.assertRaisesRegex(ValueError, expected_message):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=1.0, threshold=0.0, dtype="float32"
+            )
+
+    def test_threshold_negative_raises_value_error(self):
+        expected_message = (
+            "Invalid `threshold` argument value. "
+            "It should verify 0 < threshold <= 1. "
+            "Received: threshold=-0.5"
+        )
+        with self.assertRaisesRegex(ValueError, expected_message):
+            f_score_metrics.FBetaScore(
+                average="macro", beta=1.0, threshold=-0.5, dtype="float32"
+            )
+
+    def test_non_2d_input_shapes_raises_value_error(self):
+        fbeta = f_score_metrics.FBetaScore(beta=1.0, dtype="float32")
+        y_true_shape = (2, 3, 4)
+        y_pred_shape = (2, 3, 4)
+        expected_error_message = (
+            "FBetaScore expects 2D inputs with shape "
+            r"\(batch_size, output_dim\)\. Received input "
+            r"shapes: y_pred\.shape=\(2, 3, 4\) and "
+            r"y_true\.shape=\(2, 3, 4\)\."
+        )
+        with self.assertRaisesRegex(ValueError, expected_error_message):
+            fbeta._build(y_true_shape, y_pred_shape)
+
+    def test_undefined_output_dim_raises_value_error(self):
+        fbeta = f_score_metrics.FBetaScore(beta=1.0, dtype="float32")
+        y_true_shape = (2, None)
+        y_pred_shape = (2, None)
+        expected_error_message = (
+            "FBetaScore expects 2D inputs with shape "
+            r"\(batch_size, output_dim\), with output_dim fully "
+            r"defined \(not None\)\. Received input "
+            r"shapes: y_pred\.shape=\(2, None\) and "
+            r"y_true\.shape=\(2, None\)\."
+        )
+        with self.assertRaisesRegex(ValueError, expected_error_message):
+            fbeta._build(y_true_shape, y_pred_shape)
+
 
 class F1ScoreTest(testing.TestCase):
     def test_config(self):

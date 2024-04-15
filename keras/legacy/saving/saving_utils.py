@@ -1,7 +1,6 @@
 import json
 import threading
 
-import tree
 from absl import logging
 
 from keras import backend
@@ -12,6 +11,7 @@ from keras import models
 from keras import optimizers
 from keras.legacy.saving import serialization
 from keras.saving import object_registration
+from keras.utils import tree
 
 MODULE_OBJECTS = threading.local()
 
@@ -234,7 +234,7 @@ def _find_replace_nested_dict(config, find, replace):
 
 
 def _resolve_compile_arguments_compat(obj, obj_config, module):
-    """Resolves backwards compatiblity issues with training config arguments.
+    """Resolves backwards compatibility issues with training config arguments.
 
     This helper function accepts built-in Keras modules such as optimizers,
     losses, and metrics to ensure an object being deserialized is compatible

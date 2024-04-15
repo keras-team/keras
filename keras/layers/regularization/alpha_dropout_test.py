@@ -15,6 +15,7 @@ class AlphaDropoutTest(testing.TestCase):
                 "rate": 0.2,
             },
             input_shape=(2, 3),
+            call_kwargs={"training": True},
             expected_output_shape=(2, 3),
             expected_num_trainable_weights=0,
             expected_num_non_trainable_weights=0,

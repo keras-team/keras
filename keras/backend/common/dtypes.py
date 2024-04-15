@@ -1,17 +1,11 @@
 import functools
 
-from keras import backend
 from keras.api_export import keras_export
-from keras.backend.common.variables import ALLOWED_DTYPES
+from keras.backend import config
 from keras.backend.common.variables import standardize_dtype
 
-"""
-We adapted the type promotion lattice from JAX. Ref:
-https://github.com/google/jax/blob/main/jax/_src/dtypes.py
-"""
-
-BOOL_TYPES = ["bool"]
-INT_TYPES = [
+BOOL_TYPES = ("bool",)
+INT_TYPES = (
     "uint8",
     "uint16",
     "uint32",
@@ -20,9 +14,44 @@ INT_TYPES = [
     "int16",
     "int32",
     "int64",
-]
-FLOAT_TYPES = ["bfloat16", "float16", "float32", "float64"]
-WEAK_TYPES = ["int", "float"]
+)
+FLOAT_TYPES = ("bfloat16", "float16", "float32", "float64")
+WEAK_TYPES = ("int", "float")
+# We need to separate float8 from float because there are no implicit
+# conversions from float8 dtypes to other dtypes.
+# Ref: https://github.com/google/jax/issues/16705
+FLOAT8_TYPES = ("float8_e4m3fn", "float8_e5m2")
+
+# All supported dtypes in Keras
+ALLOWED_DTYPES = (
+    "float16",
+    "float32",
+    "float64",
+    "uint8",
+    "uint16",
+    "uint32",
+    "uint64",
+    "int8",
+    "int16",
+    "int32",
+    "int64",
+    "bfloat16",
+    "bool",
+    "string",
+    "float8_e4m3fn",
+    "float8_e5m2",
+)
+PYTHON_DTYPES_MAP = {
+    bool: "bool",
+    int: "int64" if config.backend() == "tensorflow" else "int32",
+    float: "float32",
+    str: "string",
+    # special case for string value
+    "int": "int64" if config.backend() == "tensorflow" else "int32",
+}
+
+# We adapted the type promotion lattice from JAX. Ref:
+# https://github.com/google/jax/blob/main/jax/_src/dtypes.py
 
 
 def _type_promotion_lattice():
@@ -168,7 +197,7 @@ def _respect_weak_type(dtype, weak_type):
 @functools.lru_cache(maxsize=None)
 def _resolve_weak_type(dtype, precision="32"):
     """Resolve weak type by the precision of `backend.floatx()`."""
-    extended_allowed_dtypes = ALLOWED_DTYPES.union(WEAK_TYPES)
+    extended_allowed_dtypes = set(ALLOWED_DTYPES).union(WEAK_TYPES)
     if dtype not in extended_allowed_dtypes:
         raise ValueError(
             "Invalid value for argument `dtype`. Expected one of "
@@ -234,7 +263,7 @@ def _lattice_result_type(*args):
         out_weak_type = any(out_dtype is t for t in WEAK_TYPES)
 
     out_weak_type = (out_dtype != "bool") and out_weak_type
-    precision = backend.floatx()[-2:]
+    precision = config.floatx()[-2:]
     if out_weak_type:
         out_dtype = _resolve_weak_type(out_dtype, precision=precision)
     return out_dtype
@@ -270,7 +299,13 @@ def result_type(*dtypes):
     if len(dtypes) == 0:
         # If no dtypes provided, default to floatx, this matches
         # `ops.convert_to_tensor([])`
-        return backend.floatx()
+        return config.floatx()
+    for dtype in dtypes:
+        if dtype in FLOAT8_TYPES:
+            raise ValueError(
+                "There is no implicit conversions from float8 dtypes to others."
+                f" You must cast it internally. Received: {dtypes}"
+            )
     return _lattice_result_type(
-        *(backend.floatx() if arg is None else arg for arg in dtypes),
+        *(config.floatx() if arg is None else arg for arg in dtypes),
     )

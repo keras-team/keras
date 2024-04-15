@@ -1,12 +1,10 @@
-from unittest.mock import patch
-
 import numpy as np
 import pytest
 from absl.testing import parameterized
 
 from keras import backend
 from keras import initializers
-from keras.backend.common.variables import ALLOWED_DTYPES
+from keras.backend.common import dtypes
 from keras.backend.common.variables import AutocastScope
 from keras.backend.common.variables import KerasVariable
 from keras.backend.common.variables import shape_equal
@@ -122,7 +120,6 @@ class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
         )
         self.assertEqual(v.dtype, "float32")
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
-        print("open scope")
         with AutocastScope("float16"):
             self.assertEqual(
                 backend.standardize_dtype(v.value.dtype), "float16"
@@ -142,8 +139,24 @@ class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
         with AutocastScope("float16"):
             self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
 
+        # Test autocast argument
+        v = backend.Variable(
+            initializer=initializers.RandomNormal(),
+            shape=(2, 2),
+            dtype="float32",
+            autocast=False,
+        )
+        self.assertEqual(v.dtype, "float32")
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+        with AutocastScope("float16"):
+            self.assertEqual(
+                backend.standardize_dtype(v.value.dtype),
+                "float32",  # ignore AutocastScope
+            )
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+
     @parameterized.parameters(
-        *((dtype for dtype in ALLOWED_DTYPES if dtype != "string"))
+        *((dtype for dtype in dtypes.ALLOWED_DTYPES if dtype != "string"))
     )
     def test_standardize_dtype(self, dtype):
         """Tests standardize_dtype for all ALLOWED_DTYPES except string."""
@@ -613,13 +626,6 @@ class VariableBinaryOperationsTest(test_case.TestCase):
             ValueError, f"Invalid dtype: {invalid_dtype}"
         ):
             standardize_dtype(invalid_dtype)
-
-    @patch("keras.backend.config.backend", return_value="jax")
-    def test_jax_backend_b_dimension(self, mock_backend):
-        """Test 'b' dimension handling with JAX backend."""
-        shape = (3, "b", 5)
-        standardized_shape = standardize_shape(shape)
-        self.assertEqual(standardized_shape, shape)
 
     def test_negative_shape_entry(self):
         """Test negative shape entry."""

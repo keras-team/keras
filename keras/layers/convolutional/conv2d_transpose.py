@@ -83,7 +83,7 @@ class Conv2DTranspose(BaseConvTranspose):
     - [Deconvolutional Networks](
         https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf)
 
-    Examples:
+    Example:
 
     >>> x = np.random.rand(4, 10, 8, 128)
     >>> y = keras.layers.Conv2DTranspose(32, 2, 2, activation='relu')(x)

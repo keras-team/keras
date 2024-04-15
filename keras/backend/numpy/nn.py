@@ -64,7 +64,7 @@ def leaky_relu(x, negative_slope=0.2):
 
 
 def hard_sigmoid(x):
-    # python numbers will be promoted to float64 by np, so it's neccessary to
+    # python numbers will be promoted to float64 by np, so it's necessary to
     # first convert the python numbers to np scalars
     x = x / np.array(6.0, x.dtype) + np.array(0.5, x.dtype)
     return np.where(
@@ -96,7 +96,7 @@ def selu(
 
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
-    # followd by JAX's implementation
+    # followed by JAX's implementation
     if approximate:
         sqrt_2_over_pi = np.sqrt(2 / np.pi).astype(x.dtype)
         cdf = np.array(0.5, x.dtype) * (
@@ -445,7 +445,9 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32"):
+def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with numpy backend")
     x = convert_to_tensor(x)
     input_shape = x.shape
 
@@ -473,7 +475,9 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
     return categorical
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with numpy backend")
     x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
     outputs = np.max(

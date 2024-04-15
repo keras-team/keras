@@ -589,6 +589,26 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertEqual(step_count.test_count, 3)
 
     @pytest.mark.requires_trainable_backend
+    def test_fit_with_different_batch_size_same_loss(self):
+        x = np.random.rand(100, 4)
+        y = np.ones((100, 1))
+        model = ExampleModel(units=1)
+        model.trainable = False
+        model.compile(loss="mse")
+        loss1 = model.fit(x, y, batch_size=80).history["loss"]
+        loss2 = model.fit(x, y, batch_size=100).history["loss"]
+        self.assertAllClose(loss1, loss2)
+
+    def test_evaluate_with_different_batch_size_same_loss(self):
+        x = np.random.rand(100, 4)
+        y = np.ones((100, 1))
+        model = ExampleModel(units=1)
+        model.compile(loss="mse")
+        loss1 = model.evaluate(x, y, batch_size=80)
+        loss2 = model.evaluate(x, y, batch_size=100)
+        self.assertAllClose(loss1, loss2)
+
+    @pytest.mark.requires_trainable_backend
     def test_adds_loss_scaling_optimizer(self):
         model = TrainingTestingLayer(dtype="mixed_float16")
         model.compile(optimizer="rmsprop", loss="mse")
@@ -1048,6 +1068,30 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             sorted(list(eval_out_2.keys())), ["loss", "mean_absolute_error"]
         )
 
+    def test_evaluate_return_list_respect_metrics_order(self):
+        def metrics_zero(y_true, y_pred):
+            return 0.0
+
+        def metrics_one(y_true, y_pred):
+            return 1.0
+
+        model = ExampleModel(units=3)
+        model.compile(
+            optimizer="sgd", loss="mse", metrics=[metrics_zero, metrics_one]
+        )
+        eval_out = model.evaluate(np.ones((3, 2)), np.ones((3, 3)))
+        self.assertLen(eval_out, 3)
+        self.assertEqual(eval_out[1], 0.0)
+        self.assertEqual(eval_out[2], 1.0)
+
+        model.compile(
+            optimizer="sgd", loss="mse", metrics=[metrics_one, metrics_zero]
+        )
+        eval_out = model.evaluate(np.ones((3, 2)), np.ones((3, 3)))
+        self.assertLen(eval_out, 3)
+        self.assertEqual(eval_out[1], 1.0)
+        self.assertEqual(eval_out[2], 0.0)
+
     @pytest.mark.requires_trainable_backend
     def test_nested_inputs(self):
         model = ListModel(units=2)
@@ -1251,3 +1295,106 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         )
         self.assertAlmostEqual(cbk.eager_call_counter_predict, 4)
         self.assertAlmostEqual(model.predict_counter.numpy(), 4)
+
+    @pytest.mark.requires_trainable_backend
+    def test_metric_update_in_compute_loss(self):
+
+        class MyModel(keras.Model):
+            def __init__(self):
+                super().__init__()
+                self.custom_metric = keras.metrics.Mean(name="custom")
+                self.dense = keras.layers.Dense(2)
+
+            def call(self, x):
+                return self.dense(x)
+
+            def compute_loss(
+                self, x=None, y=None, y_pred=None, sample_weight=None
+            ):
+                loss = super().compute_loss(x, y, y_pred, sample_weight)
+                self.custom_metric.update_state(loss * 4)
+                return loss
+
+        model = MyModel()
+        model.compile(optimizer="sgd", loss="mse")
+        x = np.ones((32, 4))
+        y = np.ones((32, 2)) * 2
+        history = model.fit(x, y)
+        self.assertAlmostEqual(
+            history.history["custom"][0], history.history["loss"][0] * 4
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_fwd_pass_loss_presence_in_compute_loss(self):
+
+        class MyModel(keras.Model):
+            def __init__(self):
+                super().__init__()
+                self.custom_metric = keras.metrics.Mean(name="custom")
+                self.dense = keras.layers.Dense(2, activity_regularizer="l2")
+
+            def call(self, x):
+                return self.dense(x)
+
+            def compute_loss(
+                self, x=None, y=None, y_pred=None, sample_weight=None
+            ):
+                loss = super().compute_loss(x, y, y_pred, sample_weight)
+                self.custom_metric.update_state(sum(self.losses))
+                return loss
+
+        model = MyModel()
+        model.compile(optimizer="sgd", loss="mse")
+        x = np.ones((32, 4))
+        y = np.ones((32, 2)) * 2
+        history = model.fit(x, y)
+        self.assertGreater(history.history["custom"][0], 0.0)
+
+
+class TrainerDistributeTest(testing.TestCase):
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires tf.distribute"
+    )
+    def test_end_to_end_tf_distribute(self):
+        import tensorflow as tf
+        from tensorflow.python.eager import context
+
+        context._reset_context()
+        cpus = tf.config.list_physical_devices("CPU")
+        tf.config.set_logical_device_configuration(
+            cpus[0],
+            [
+                tf.config.LogicalDeviceConfiguration(),
+                tf.config.LogicalDeviceConfiguration(),
+            ],
+        )
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
+        with strategy.scope():
+            model = keras.Sequential(
+                [
+                    keras.Input((2,)),
+                    keras.layers.Dense(
+                        2,
+                        activation="softmax",
+                        use_bias=False,
+                        kernel_initializer="ones",
+                    ),
+                ]
+            )
+            model.compile(
+                optimizer="sgd",
+                loss="sparse_categorical_crossentropy",
+                metrics=["sparse_categorical_accuracy"],
+            )
+            x = (np.arange(512) / 128).reshape((256, 2))
+            y = (np.arange(256) % 2).reshape((256, 1))
+            out_fit = model.fit(x, y)
+            self.assertLess(
+                out_fit.history["sparse_categorical_accuracy"][0], 0.6
+            )
+            out_eval = model.evaluate(x, y)
+            self.assertLess(out_eval[1], 0.6)
+            out_predict = model.predict(x)
+            self.assertEqual(out_predict.shape, (256, 2))
+
+        context._reset_context()

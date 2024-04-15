@@ -9,7 +9,7 @@ from keras.utils import argument_validation
 class ZeroPadding1D(Layer):
     """Zero-padding layer for 1D input (e.g. temporal sequence).
 
-    Examples:
+    Example:
 
     >>> input_shape = (2, 2, 3)
     >>> x = np.arange(np.prod(input_shape)).reshape(input_shape)

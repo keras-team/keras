@@ -1,8 +1,7 @@
-import tree
-
 from keras import testing
 from keras.backend import KerasTensor
 from keras.ops.symbolic_arguments import SymbolicArguments
+from keras.utils import tree
 
 
 class SymbolicArgumentsTest(testing.TestCase):

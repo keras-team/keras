@@ -242,7 +242,8 @@ class Attention(Layer):
         return ops.convert_to_tensor(mask[0])
 
     def compute_output_shape(self, input_shape):
-        return input_shape[0]
+        """Returns shape of value tensor dim, but for query tensor length"""
+        return (*input_shape[0][:-1], input_shape[1][-1])
 
     def _validate_inputs(self, inputs, mask=None):
         """Validates arguments of the call method."""
