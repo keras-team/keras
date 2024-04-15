@@ -393,6 +393,43 @@ class HashingTest(testing.TestCase, parameterized.TestCase):
             expected, backend.convert_to_numpy(out_data).tolist()
         )
 
+    def test_hashing_invalid_num_bins(self):
+        # Test with `num_bins` set to None
+        with self.assertRaisesRegex(
+            ValueError,
+            "The `num_bins` for `Hashing` cannot be `None` or non-positive",
+        ):
+            layers.Hashing(num_bins=None)
+
+        # Test with `num_bins` set to 0
+        with self.assertRaisesRegex(
+            ValueError,
+            "The `num_bins` for `Hashing` cannot be `None` or non-positive",
+        ):
+            layers.Hashing(num_bins=0)
+
+    def test_hashing_invalid_output_mode(self):
+        # Test with an unsupported `output_mode`
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid value for argument `output_mode`. Expected one of",
+        ):
+            layers.Hashing(num_bins=3, output_mode="unsupported_mode")
+
+    def test_hashing_invalid_dtype_for_int_mode(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            'When `output_mode="int"`, `dtype` should be an integer type,',
+        ):
+            layers.Hashing(num_bins=3, output_mode="int", dtype="float32")
+
+    def test_hashing_sparse_with_int_mode(self):
+        # Test setting `sparse=True` with `output_mode='int'`
+        with self.assertRaisesRegex(
+            ValueError, "`sparse` may only be true if `output_mode` is"
+        ):
+            layers.Hashing(num_bins=3, output_mode="int", sparse=True)
+
 
 # TODO: support tf.RaggedTensor.
 # def test_hash_ragged_string_input_farmhash(self):
