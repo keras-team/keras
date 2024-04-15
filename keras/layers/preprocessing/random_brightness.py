@@ -80,12 +80,12 @@ class RandomBrightness(TFDataLayer):
     def _set_value_range(self, value_range):
         if not isinstance(value_range, (tuple, list)):
             raise ValueError(
-                self.value_range_VALIDATION_ERROR
+                self._VALUE_RANGE_VALIDATION_ERROR
                 + f"Received: value_range={value_range}"
             )
         if len(value_range) != 2:
             raise ValueError(
-                self.value_range_VALIDATION_ERROR
+                self._VALUE_RANGE_VALIDATION_ERROR
                 + f"Received: value_range={value_range}"
             )
         self.value_range = sorted(value_range)
