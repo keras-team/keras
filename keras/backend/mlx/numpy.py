@@ -889,9 +889,7 @@ def vstack(xs):
 
 
 def where(condition, x1, x2):
-    # TODO: Trivial to implement with masking but it would be incorrect for
-    #       instance in the presence of nans or infs
-    raise NotImplementedError("The MLX backend doesn't support where yet")
+    return mx.where(condition, x1, x2)
 
 
 def divide(x1, x2):

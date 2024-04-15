@@ -1,6 +1,3 @@
-import mlx.core as mx
-
-
 def rnn(
     step_function,
     inputs,
@@ -27,7 +24,3 @@ def lstm(*args, **kwargs):
 
 def gru(*args, **kwargs):
     raise NotImplementedError("gru not yet implemented in mlx")
-
-
-def unstack(x, axis=0):
-    return mx.split(x, axis=axis)
