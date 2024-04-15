@@ -717,6 +717,13 @@ def ctc_beam_search_decode(
     if mask_index is None:
         mask_index = num_classes - 1
 
+    # This is a workaround for the fact that jnp.argsort does not support
+    # the order parameter which is used to break ties when scores are equal.
+    # For compatibility with the tensorflow implementation, we flip the inputs
+    # and the mask_index, and then flip the classes back to the correct indices
+    inputs = jnp.flip(inputs, axis=2)
+    mask_index = num_classes - mask_index - 1
+
     _pad = -1
 
     init_paths = jnp.full(
@@ -724,14 +731,14 @@ def ctc_beam_search_decode(
     )
 
     num_init_paths = jnp.min(jnp.array([num_classes, beam_width]))
-    init_classes = jnp.argsort(inputs[:, 0], axis=1)[:, -num_init_paths:]
-    init_classes = jnp.where(init_classes == mask_index, _pad, init_classes)
+    max_classes = jnp.argsort(inputs[:, 0], axis=1)[:, -num_init_paths:]
+    init_classes = jnp.where(max_classes == mask_index, _pad, max_classes)
     init_paths = init_paths.at[:, :num_init_paths, 0].set(init_classes)
 
     init_scores = (
         jnp.full((batch_size, 2 * beam_width), -jnp.inf)
         .at[:, :num_init_paths]
-        .set(jnp.take_along_axis(inputs[:, 0], init_classes, axis=1))
+        .set(jnp.take_along_axis(inputs[:, 0], max_classes, axis=1))
     )
     init_masked = init_paths[:, :, 0] == _pad
 
@@ -847,6 +854,9 @@ def ctc_beam_search_decode(
     paths, scores = jax.vmap(_decode_batch)(
         init_paths, init_scores, init_masked, inputs, seqlen_mask
     )
+
+    # convert classes back to the correct indices
+    paths = jnp.where(paths == _pad, _pad, num_classes - paths - 1)
 
     lengths = jnp.argmax(paths == _pad, axis=2)
     lengths = jnp.max(lengths, axis=0)

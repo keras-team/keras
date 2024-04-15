@@ -1938,18 +1938,18 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(scores, score_labels)
 
         labels = [
-            np.array([[2], [2], [0]]),
-            np.array([[1, 2], [2, 0], [1, 0]]),
+            np.array([[1, 2], [2, 0], [0, 0]]),
+            np.array([[2, 0], [2, 0], [1, 0]]),
         ]
         score_labels = np.array(
             [
-                [-2.2601, -2.335783],
-                [-2.140692, -2.257684],
-                [-1.063386, -1.363386],
+                [-2.33578291, -2.44335217],
+                [-2.22499622, -2.25768432],
+                [-1.0633859, -1.3633859],
             ]
         )
 
-        beam_width = 100
+        beam_width = 4
         top_paths = 2
 
         decoded, scores = knn.ctc_decode(
@@ -1962,7 +1962,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         for i in range(top_paths):
             self.assertAllClose(decoded[i], labels[i])
-            self.assertAllClose(scores, score_labels)
+        self.assertAllClose(scores, score_labels)
 
     def test_normalize(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
