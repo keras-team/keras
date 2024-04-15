@@ -102,8 +102,9 @@ class Dense(Layer):
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
+        # We use `self._dtype_policy` to check to avoid issues in torch dynamo
         is_quantized = isinstance(
-            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+            self._dtype_policy, dtype_policies.QuantizedDTypePolicy
         )
         if is_quantized:
             self.quantized_build(

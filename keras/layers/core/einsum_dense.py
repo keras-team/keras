@@ -156,8 +156,9 @@ class EinsumDense(Layer):
         self.full_output_shape = tuple(full_output_shape)
         # `self._int8_build` needs `self.input_spec`
         self.input_spec = InputSpec(ndim=len(input_shape))
+        # We use `self._dtype_policy` to check to avoid issues in torch dynamo
         is_quantized = isinstance(
-            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+            self._dtype_policy, dtype_policies.QuantizedDTypePolicy
         )
         if is_quantized:
             self.quantized_build(
