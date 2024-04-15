@@ -1,9 +1,9 @@
 import keras.backend
+from keras import tree
 from keras.layers.layer import Layer
 from keras.random.seed_generator import SeedGenerator
 from keras.utils import backend_utils
 from keras.utils import tracking
-from keras.utils import tree
 
 
 class TFDataLayer(Layer):

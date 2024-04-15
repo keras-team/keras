@@ -1,8 +1,6 @@
 from functools import wraps
 
-import optree
-import optree.utils
-
+from keras import tree
 from keras.backend.common.global_state import get_global_attribute
 from keras.backend.common.global_state import set_global_attribute
 from keras.utils import python_utils
@@ -135,7 +133,7 @@ class Tracker:
         self.stored_ids[store_name].add(id(new_value))
 
 
-@optree.register_pytree_node_class(namespace="keras")
+@tree.register_tree_node_class
 class TrackedList(list):
     def __init__(self, values=None, tracker=None):
         self.tracker = tracker
@@ -196,7 +194,7 @@ class TrackedList(list):
         return cls(children)
 
 
-@optree.register_pytree_node_class(namespace="keras")
+@tree.register_tree_node_class
 class TrackedDict(dict):
     def __init__(self, values=None, tracker=None):
         self.tracker = tracker
@@ -236,6 +234,8 @@ class TrackedDict(dict):
         super().clear()
 
     def tree_flatten(self):
+        from keras.utils.module_utils import optree
+
         # For optree
         keys, values = optree.utils.unzip2(
             optree.utils.total_order_sorted(self.items(), key=lambda kv: kv[0])
@@ -244,11 +244,13 @@ class TrackedDict(dict):
 
     @classmethod
     def tree_unflatten(cls, keys, values):
+        from keras.utils.module_utils import optree
+
         # For optree
         return cls(optree.utils.safe_zip(keys, values))
 
 
-@optree.register_pytree_node_class(namespace="keras")
+@tree.register_tree_node_class
 class TrackedSet(set):
     def __init__(self, values=None, tracker=None):
         self.tracker = tracker

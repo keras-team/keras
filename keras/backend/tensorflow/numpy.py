@@ -10,6 +10,7 @@ import tensorflow as tf
 from tensorflow.experimental import numpy as tfnp
 from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
 
+from keras import tree
 from keras.backend import config
 from keras.backend import standardize_dtype
 from keras.backend.common import dtypes
@@ -18,7 +19,6 @@ from keras.backend.common.backend_utils import to_tuple_or_list
 from keras.backend.tensorflow import sparse
 from keras.backend.tensorflow.core import cast
 from keras.backend.tensorflow.core import convert_to_tensor
-from keras.utils import tree
 
 
 @sparse.elementwise_binary_union(tf.sparse.add)

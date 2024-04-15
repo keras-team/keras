@@ -5,6 +5,7 @@ from keras import backend
 from keras import metrics as metrics_module
 from keras import ops
 from keras import optimizers
+from keras import tree
 from keras.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.saving import serialization_lib
 from keras.trainers.compile_utils import CompileLoss
@@ -12,7 +13,6 @@ from keras.trainers.compile_utils import CompileMetrics
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.utils import traceback_utils
 from keras.utils import tracking
-from keras.utils import tree
 
 
 class Trainer:

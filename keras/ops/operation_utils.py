@@ -2,10 +2,10 @@ import math
 
 import numpy as np
 
+from keras import tree
 from keras.api_export import keras_export
 from keras.backend.common.backend_utils import canonicalize_axis
 from keras.backend.common.backend_utils import to_tuple_or_list
-from keras.utils import tree
 
 
 def broadcast_shapes(shape1, shape2):

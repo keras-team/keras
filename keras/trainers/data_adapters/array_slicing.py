@@ -4,8 +4,8 @@ import math
 import numpy as np
 
 from keras import backend
+from keras import tree
 from keras.trainers.data_adapters import data_adapter_utils
-from keras.utils import tree
 
 try:
     import pandas

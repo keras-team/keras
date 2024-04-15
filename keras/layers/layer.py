@@ -26,6 +26,7 @@ from keras import constraints
 from keras import dtype_policies
 from keras import initializers
 from keras import regularizers
+from keras import tree
 from keras import utils
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
@@ -39,7 +40,6 @@ from keras.utils import python_utils
 from keras.utils import summary_utils
 from keras.utils import traceback_utils
 from keras.utils import tracking
-from keras.utils import tree
 
 if backend.backend() == "tensorflow":
     from keras.backend.tensorflow.layer import TFLayer as BackendLayer

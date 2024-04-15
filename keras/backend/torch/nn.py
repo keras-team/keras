@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as tnn
 
+from keras import tree
 from keras.backend import standardize_data_format
 from keras.backend import standardize_dtype
 from keras.backend.common.backend_utils import (
@@ -13,7 +14,6 @@ from keras.backend.torch.core import get_device
 from keras.backend.torch.numpy import expand_dims
 from keras.backend.torch.numpy import maximum
 from keras.backend.torch.numpy import where
-from keras.utils import tree
 from keras.utils.argument_validation import standardize_tuple
 
 

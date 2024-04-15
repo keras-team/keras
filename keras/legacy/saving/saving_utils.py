@@ -9,9 +9,9 @@ from keras import losses
 from keras import metrics as metrics_module
 from keras import models
 from keras import optimizers
+from keras import tree
 from keras.legacy.saving import serialization
 from keras.saving import object_registration
-from keras.utils import tree
 
 MODULE_OBJECTS = threading.local()
 

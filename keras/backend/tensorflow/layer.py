@@ -1,9 +1,9 @@
 import tensorflow as tf
 
+from keras import tree
 from keras.backend.tensorflow.trackable import KerasAutoTrackable
 from keras.utils import tf_utils
 from keras.utils import tracking
-from keras.utils import tree
 
 
 class TFLayer(KerasAutoTrackable):

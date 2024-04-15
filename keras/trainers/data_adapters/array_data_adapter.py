@@ -3,10 +3,10 @@ import math
 
 import numpy as np
 
+from keras import tree
 from keras.trainers.data_adapters import array_slicing
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.data_adapters.data_adapter import DataAdapter
-from keras.utils import tree
 
 
 class ArrayDataAdapter(DataAdapter):

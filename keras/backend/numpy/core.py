@@ -1,11 +1,11 @@
 import numpy as np
 
+from keras import tree
 from keras.backend.common import KerasVariable
 from keras.backend.common import standardize_dtype
 from keras.backend.common.dtypes import result_type
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
-from keras.utils import tree
 
 SUPPORTS_SPARSE_TENSORS = False
 

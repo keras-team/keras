@@ -8,6 +8,7 @@ import numpy as np
 from keras import backend
 from keras import distribution
 from keras import ops
+from keras import tree
 from keras import utils
 from keras.backend.common import is_float_dtype
 from keras.backend.common import standardize_dtype
@@ -15,7 +16,6 @@ from keras.backend.common.global_state import clear_session
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.models import Model
 from keras.utils import traceback_utils
-from keras.utils import tree
 
 
 class TestCase(unittest.TestCase):

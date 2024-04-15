@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from keras.utils import tree
+from keras import tree
 
 
 def rnn(

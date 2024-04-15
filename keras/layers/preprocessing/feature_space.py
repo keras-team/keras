@@ -1,11 +1,11 @@
 from keras import backend
 from keras import layers
+from keras import tree
 from keras.api_export import keras_export
 from keras.layers.layer import Layer
 from keras.saving import saving_lib
 from keras.saving import serialization_lib
 from keras.utils import backend_utils
-from keras.utils import tree
 from keras.utils.module_utils import tensorflow as tf
 from keras.utils.naming import auto_name
 

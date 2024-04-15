@@ -5,6 +5,7 @@ import ml_dtypes
 import numpy as np
 import torch
 
+from keras import tree
 from keras.backend.common import KerasVariable
 from keras.backend.common import global_state
 from keras.backend.common import standardize_dtype
@@ -12,7 +13,6 @@ from keras.backend.common.dtypes import result_type
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.config import floatx
-from keras.utils import tree
 
 SUPPORTS_SPARSE_TENSORS = False
 

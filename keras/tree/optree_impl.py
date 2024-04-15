@@ -3,9 +3,14 @@ import collections.abc
 import types
 
 import optree
+import optree.utils
 
-from keras.api_export import keras_export
 from keras.backend.config import backend
+
+
+def register_tree_node_class(cls):
+    return optree.register_pytree_node_class(cls, namespace="keras")
+
 
 # Register backend-specific node classes
 if backend() == "tensorflow":
@@ -19,77 +24,13 @@ if backend() == "tensorflow":
     )
 
 
-@keras_export("keras.tree.is_nested")
 def is_nested(structure):
-    """Checks if a given structure is nested.
-
-    Examples:
-
-    >>> keras.tree.is_nested(42)
-    False
-    >>> keras.tree.is_nested({"foo": 42})
-    True
-
-    Args:
-        structure: A structure to check.
-
-    Returns:
-        `True` if a given structure is nested, i.e. is a sequence, a mapping,
-        or a namedtuple, and `False` otherwise.
-    """
     return not optree.tree_is_leaf(
         structure, none_is_leaf=True, namespace="keras"
     )
 
 
-@keras_export("keras.tree.traverse")
 def traverse(func, structure, top_down=True):
-    """Traverses the given nested structure, applying the given function.
-
-    The traversal is depth-first. If `top_down` is True (default), parents
-    are returned before their children (giving the option to avoid traversing
-    into a sub-tree).
-
-    Examples:
-
-    >>> v = []
-    >>> keras.tree.traverse(v.append, [(1, 2), [3], {"a": 4}], top_down=True)
-    [(1, 2), [3], {'a': 4}]
-    >>> v
-    [[(1, 2), [3], {'a': 4}], (1, 2), 1, 2, [3], 3, {'a': 4}, 4]
-
-    >>> v = []
-    >>> keras.tree.traverse(v.append, [(1, 2), [3], {"a": 4}], top_down=False)
-    [(1, 2), [3], {'a': 4}]
-    >>> v
-    [1, 2, (1, 2), 3, [3], 4, {'a': 4}, [(1, 2), [3], {'a': 4}]]
-
-    Args:
-        func: The function to be applied to each sub-nest of the structure.
-
-        When traversing top-down:
-            If `func(subtree) is None` the traversal continues into the
-            sub-tree.
-            If `func(subtree) is not None` the traversal does not continue
-            into the sub-tree. The sub-tree will be replaced by `func(subtree)`
-            in the returned structure (to replace the sub-tree with `None`, use
-            the special value `_MAP_TO_NONE`).
-
-        When traversing bottom-up:
-            If `func(subtree) is None` the traversed sub-tree is returned
-            unaltered.
-            If `func(subtree) is not None` the sub-tree will be replaced by
-            `func(subtree)` in the returned structure (to replace the sub-tree
-            with None, use the special value `_MAP_TO_NONE`).
-
-        structure: The structure to traverse.
-        top_down: If True, parent structures will be visited before their
-            children.
-
-    Returns:
-        The structured output from the traversal.
-    """
-
     # From https://github.com/google/jax/pull/19695
     def traverse_children():
         children, treedef = optree.tree_flatten(
@@ -118,36 +59,7 @@ def traverse(func, structure, top_down=True):
     return None if ret is _MAP_TO_NONE else ret
 
 
-@keras_export("keras.tree.flatten")
 def flatten(structure):
-    """Flattens a possibly nested structure into a list.
-
-    In the case of dict instances, the sequence consists of the values,
-    sorted by key to ensure deterministic behavior. This is true also for
-    `collections.OrderedDict` instances: their sequence order is
-    considered. The same convention is followed in `unflatten_as`.
-    This correctly unflattens dicts and `OrderedDict` after they have been
-    flattened, or vice-versa.
-
-    Dictionaries with non-sortable keys cannot be flattened.
-
-    Examples:
-
-    >>> keras.tree.flatten([[1, 2, 3], [4, [5], [[6]]]])
-    [1, 2, 3, 4, 5, 6]
-    >>> keras.tree.flatten(None)
-    [None]
-    >>> keras.tree.flatten(1)
-    [1]
-    >>> keras.tree.flatten({100: 'world!', 6: 'Hello'})
-    ['Hello', 'world!']
-
-    Args:
-        structure: An arbitrarily nested structure.
-
-    Returns:
-        A list, the flattened version of the input `structure`.
-    """
     # optree.tree_flatten returns a pair (leaves, treespec) where the first
     # element is a list of leaf values and the second element is a treespec
     # representing the structure of the pytree.
@@ -157,79 +69,7 @@ def flatten(structure):
     return leaves
 
 
-@keras_export("keras.tree.unflatten_as")
-def unflatten_as(structure, flat_sequence):
-    """Unflattens a sequence into a given structure.
-
-    If `structure` is a scalar, `flat_sequence` must be a single-element list;
-    in this case the return value is ``flat_sequence[0]``.
-
-    If `structure` is or contains a dict instance, the keys will be sorted to
-    pack the flat sequence in deterministic order. This is true also for
-    `collections.OrderedDict` instances: their sequence order is considered.
-    The same convention is followed in `flatten`. This correctly unflattens
-    dicts and `OrderedDict` after they have been flattened, or vice-versa.
-
-    Dictionaries with non-sortable keys cannot be unflattened.
-
-    Examples:
-
-    >>> keras.tree.unflatten_as([[1, 2], [[3], [4]]], [5, 6, 7, 8])
-    [[5, 6], [[7], [8]]]
-    >>> keras.tree.unflatten_as(None, [1])
-    1
-    >>> keras.tree.unflatten_as({1: None, 2: None}, ['Hello', 'world!'])
-    {1: 'Hello', 2: 'world!'}
-
-    Args:
-        structure: Arbitrarily nested structure.
-        flat_sequence: Sequence to unflatten.
-
-    Returns:
-        `flat_sequence` unflattened into `structure`.
-    """
-    if not is_nested(flat_sequence):
-        raise TypeError(
-            f"flat_sequence must be a sequence not a {type(flat_sequence)}:\n"
-            f"{flat_sequence}"
-        )
-    if not is_nested(structure):
-        if len(flat_sequence) != 1:
-            raise ValueError(
-                "Structure is a scalar but "
-                f"len(flat_sequence) == {len(flat_sequence)} > 1"
-            )
-        return flat_sequence[0]
-    structure_spec = optree.tree_structure(
-        structure, none_is_leaf=True, namespace="keras"
-    )
-    return structure_spec.unflatten(flat_sequence)
-
-
-@keras_export("keras.tree.map_structure")
 def map_structure(func, *structures):
-    """Maps `func` through given structures.
-
-    Examples:
-
-    >>> structure = [[1], [2], [3]]
-    >>> keras.tree.map_structure(lambda v: v**2, structure)
-    [[1], [4], [9]]
-    >>> keras.tree.map_structure(lambda x, y: x * y, structure, structure)
-    [[1], [4], [9]]
-
-    >>> Foo = collections.namedtuple('Foo', ['a', 'b'])
-    >>> structure = Foo(a=1, b=2)
-    >>> keras.tree.map_structure(lambda v: v * 2, structure)
-    Foo(a=2, b=4)
-
-    Args:
-        func: A callable that accepts as many arguments as there are structures.
-        *structures: Arbitrarily nested structures of the same layout.
-
-    Returns:
-        A new structure with the same layout as the given ones.
-    """
     if not callable(func):
         raise TypeError(f"`func` must be callable. Received: func={func}")
     if not structures:
@@ -241,32 +81,7 @@ def map_structure(func, *structures):
     )
 
 
-@keras_export("keras.tree.map_structure_up_to")
 def map_structure_up_to(shallow_structure, func, *structures):
-    """Maps `func` through given structures up to `shallow_structure`.
-
-    This is a variant of `map_structure` which only maps the given structures
-    up to `shallow_structure`. All further nested components are retained as-is.
-
-    Examples:
-
-    >>> shallow_structure = [None, None]
-    >>> structure = [[1, 1], [2, 2]]
-    >>> keras.tree.map_structure_up_to(shallow_structure, len, structure)
-    [2, 2]
-
-    >>> shallow_structure = [None, [None, None]]
-    >>> keras.tree.map_structure_up_to(shallow_structure, str, structure)
-    ['[1, 1]', ['2', '2']]
-
-    Args:
-        shallow_structure: A structure with layout common to all `structures`.
-        func: A callable that accepts as many arguments as there are structures.
-        *structures: Arbitrarily nested structures of the same layout.
-
-    Returns:
-        A new structure with the same layout as `shallow_structure`.
-    """
     return _map_structure_with_path_up_to(
         shallow_structure,
         lambda _, *args: func(*args),  # Discards path.
@@ -274,31 +89,7 @@ def map_structure_up_to(shallow_structure, func, *structures):
     )
 
 
-@keras_export("keras.tree.assert_same_structure")
 def assert_same_structure(a, b, check_types=True):
-    """Asserts that two structures are nested in the same way.
-
-    Note that namedtuples with identical name and fields will not be considered
-    as same structures even `check_types=False`.
-
-    Examples:
-
-    >>> keras.tree.assert_same_structure([(0, 1)], [(2, 3)])
-
-    >>> Foo = collections.namedtuple('Foo', ['a', 'b'])
-    >>> AlsoFoo = collections.namedtuple('Foo', ['a', 'b'])
-    >>> keras.tree.assert_same_structure(Foo(0, 1), Foo(2, 3))
-    >>> keras.tree.assert_same_structure(Foo(0, 1), AlsoFoo(2, 3))
-    Traceback (most recent call last):
-        ...
-    ValueError: `a` and `b` don't have the same structure.
-    ...
-
-    Args:
-        a: an arbitrarily nested structure.
-        b: an arbitrarily nested structure.
-        check_types: if `True` (default) types of leaves are checked as well.
-    """
     a_structure = optree.tree_structure(a, none_is_leaf=True, namespace="keras")
     b_structure = optree.tree_structure(b, none_is_leaf=True, namespace="keras")
     if a_structure != b_structure:
@@ -323,60 +114,7 @@ def assert_same_structure(a, b, check_types=True):
             )
 
 
-@keras_export("keras.tree.pack_sequence_as")
 def pack_sequence_as(structure, flat_sequence, sequence_fn=None):
-    """Returns a given flattened sequence packed into a given structure.
-
-    If `structure` is an atom, `flat_sequence` must be a single-item list; in
-    this case the return value is `flat_sequence[0]`.
-
-    If `structure` is or contains a dict instance, the keys will be sorted to
-    pack the flat sequence in deterministic order. This is true also for
-    `OrderedDict` instances: their sequence order is considered. The same
-    convention is followed in `flatten`. This correctly repacks dicts and
-    `OrderedDicts` after they have been flattened, or vice-versa.
-
-    Dictionaries with non-sortable keys cannot be flattened.
-
-    Examples:
-
-    >>> structure = {"key3": "", "key1": "", "key2": ""}
-    >>> flat_sequence = ["value1", "value2", "value3"]
-    >>> keras.tree.pack_sequence_as(structure, flat_sequence)
-    {"key3": "value3", "key1": "value1", "key2": "value2"}
-
-    >>> structure = (("a", "b"), ("c", "d", "e"), "f")
-    >>> flat_sequence = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-    >>> keras.tree.pack_sequence_as(structure, flat_sequence)
-    ((1.0, 2.0), (3.0, 4.0, 5.0), 6.0)
-
-    >>> structure = {"key3": {"c": ("alpha", "beta"), "a": ("gamma")},
-    ... "key1": {"e": "val1", "d": "val2"}}
-    >>> flat_sequence = ["val2", "val1", 3.0, 1.0, 2.0]
-    >>> keras.tree.pack_sequence_as(structure, flat_sequence)
-    {'key3': {'c': (1.0, 2.0), 'a': 3.0}, 'key1': {'e': 'val1', 'd': 'val2'}}
-
-    >>> structure = ["a"]
-    >>> flat_sequence = [np.array([[1, 2], [3, 4]])]
-    >>> keras.tree.pack_sequence_as(structure, flat_sequence)
-    [array([[1, 2],
-       [3, 4]])]
-
-    >>> structure = ["a"]
-    >>> flat_sequence = [keras.ops.ones([2, 2])]
-    >>> keras.tree.pack_sequence_as(structure, flat_sequence)
-    [array([[1., 1.],
-       [1., 1.]]]
-
-    Args:
-        structure: Arbitrarily nested structure.
-        flat_sequence: Flat sequence to pack.
-        sequence_fn: Defaults to `_sequence_like`.
-
-    Returns:
-        `flat_sequence` converted to have the same recursive structure as
-        `structure`.
-    """
     sequence_fn = sequence_fn or _sequence_like
 
     def truncate(value, length):
@@ -425,9 +163,7 @@ def pack_sequence_as(structure, flat_sequence, sequence_fn=None):
     return sequence_fn(structure, packed)
 
 
-@keras_export("keras.tree.lists_to_tuples")
 def lists_to_tuples(structure):
-    """Converts `list`s to `tuple`s."""
 
     def sequence_fn(instance, args):
         if isinstance(instance, list):
@@ -440,7 +176,6 @@ def lists_to_tuples(structure):
 
 
 def map_shape_structure(func, structure):
-    """Variant of tree.map_structure that operates on shape tuples."""
 
     def is_shape_tuple(x):
         return isinstance(x, (list, tuple)) and all(

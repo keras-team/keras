@@ -11,9 +11,9 @@ import rich.markup
 import rich.table
 
 from keras import backend
+from keras import tree
 from keras.utils import dtype_utils
 from keras.utils import io_utils
-from keras.utils import tree
 
 
 def count_params(weights):

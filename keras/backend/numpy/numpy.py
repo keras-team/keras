@@ -1,11 +1,11 @@
 import numpy as np
 
+from keras import tree
 from keras.backend import config
 from keras.backend import standardize_dtype
 from keras.backend.common import dtypes
 from keras.backend.common.backend_utils import standardize_axis_for_numpy
 from keras.backend.numpy.core import convert_to_tensor
-from keras.utils import tree
 
 
 def add(x1, x2):

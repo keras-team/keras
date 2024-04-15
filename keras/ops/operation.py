@@ -3,12 +3,12 @@ import textwrap
 
 from keras import backend
 from keras import dtype_policies
+from keras import tree
 from keras.api_export import keras_export
 from keras.backend.common.keras_tensor import any_symbolic_tensors
 from keras.ops.node import Node
 from keras.utils import python_utils
 from keras.utils import traceback_utils
-from keras.utils import tree
 from keras.utils.naming import auto_name
 
 

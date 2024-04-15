@@ -1,4 +1,5 @@
 from keras import backend
+from keras import tree
 from keras import utils
 from keras.api_export import keras_export
 from keras.layers import Input
@@ -7,7 +8,6 @@ from keras.models.functional import Functional
 from keras.models.functional import functional_like_constructor
 from keras.models.sequential import Sequential
 from keras.saving import serialization_lib
-from keras.utils import tree
 
 
 @keras_export("keras.models.clone_model")

@@ -5,6 +5,7 @@ import warnings
 
 from keras import backend
 from keras import ops
+from keras import tree
 from keras.backend.common import global_state
 from keras.layers.core.input_layer import Input
 from keras.layers.core.input_layer import InputLayer
@@ -20,7 +21,6 @@ from keras.ops.node import KerasHistory
 from keras.ops.node import Node
 from keras.saving import serialization_lib
 from keras.utils import tracking
-from keras.utils import tree
 
 
 class Functional(Function, Model):

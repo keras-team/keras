@@ -4,7 +4,7 @@ import numpy as np
 
 from keras import ops
 from keras import testing
-from keras.utils import tree
+from keras import tree
 
 STRUCTURE1 = (((1, 2), 3), 4, (5, 6))
 STRUCTURE2 = ((("foo1", "foo2"), "foo3"), "foo4", ("foo5", "foo6"))
@@ -27,45 +27,18 @@ class TreeTest(testing.TestCase):
         self.assertFalse(tree.is_nested(np.tanh(ones)))
         self.assertFalse(tree.is_nested(np.ones((4, 5))))
 
-    def test_flatten_and_unflatten(self):
+    def test_flatten(self):
         structure = ((3, 4), 5, (6, 7, (9, 10), 8))
         flat = ["a", "b", "c", "d", "e", "f", "g", "h"]
 
         self.assertEqual(tree.flatten(structure), [3, 4, 5, 6, 7, 9, 10, 8])
-        self.assertEqual(
-            tree.unflatten_as(structure, flat),
-            (("a", "b"), "c", ("d", "e", ("f", "g"), "h")),
-        )
         point = collections.namedtuple("Point", ["x", "y"])
         structure = (point(x=4, y=2), ((point(x=1, y=0),),))
         flat = [4, 2, 1, 0]
         self.assertEqual(tree.flatten(structure), flat)
-        restructured_from_flat = tree.unflatten_as(structure, flat)
-        self.assertEqual(restructured_from_flat, structure)
-        self.assertEqual(restructured_from_flat[0].x, 4)
-        self.assertEqual(restructured_from_flat[0].y, 2)
-        self.assertEqual(restructured_from_flat[1][0][0].x, 1)
-        self.assertEqual(restructured_from_flat[1][0][0].y, 0)
 
         self.assertEqual([5], tree.flatten(5))
         self.assertEqual([np.array([5])], tree.flatten(np.array([5])))
-
-        self.assertEqual("a", tree.unflatten_as(5, ["a"]))
-        self.assertEqual(
-            np.array([5]), tree.unflatten_as("scalar", [np.array([5])])
-        )
-
-        with self.assertRaisesRegex(ValueError, "Structure is a scalar"):
-            tree.unflatten_as("scalar", [4, 5])
-        with self.assertRaisesRegex(TypeError, "flat_sequence"):
-            tree.unflatten_as([4, 5], "bad_sequence")
-        with self.assertRaises(ValueError):
-            tree.unflatten_as([5, 6, [7, 8]], ["a", "b", "c"])
-
-        self.assertEqual(
-            tree.unflatten_as({1: None, 2: None}, ["Hello", "world!"]),
-            {1: "Hello", 2: "world!"},
-        )
 
     def test_flatten_dict_order(self):
         ordered = collections.OrderedDict(
@@ -76,20 +49,6 @@ class TreeTest(testing.TestCase):
         plain_flat = tree.flatten(plain)
         self.assertEqual([3, 1, 0, 2], ordered_flat)
         self.assertEqual([0, 1, 2, 3], plain_flat)
-
-    def test_unflatten_dict_order(self):
-        ordered = collections.OrderedDict(
-            [("d", 0), ("b", 0), ("a", 0), ("c", 0)]
-        )
-        plain = {"d": 0, "b": 0, "a": 0, "c": 0}
-        seq = [0, 1, 2, 3]
-        ordered_reconstruction = tree.unflatten_as(ordered, seq)
-        plain_reconstruction = tree.unflatten_as(plain, seq)
-        self.assertEqual(
-            collections.OrderedDict([("d", 0), ("b", 1), ("a", 2), ("c", 3)]),
-            ordered_reconstruction,
-        )
-        self.assertEqual({"d": 3, "b": 1, "a": 0, "c": 2}, plain_reconstruction)
 
     def test_map_structure(self):
         structure2 = (((7, 8), 9), 10, (11, 12))

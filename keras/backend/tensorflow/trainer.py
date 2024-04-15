@@ -8,12 +8,12 @@ from tensorflow.python.eager import context as tf_context
 from keras import callbacks as callbacks_module
 from keras import metrics as metrics_module
 from keras import optimizers as optimizers_module
+from keras import tree
 from keras.trainers import trainer as base_trainer
 from keras.trainers.data_adapters import array_slicing
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.epoch_iterator import EpochIterator
 from keras.utils import traceback_utils
-from keras.utils import tree
 
 
 class TensorFlowTrainer(base_trainer.Trainer):

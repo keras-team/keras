@@ -12,10 +12,10 @@ from keras import models
 from keras import ops
 from keras import optimizers
 from keras import testing
+from keras import tree
 from keras.backend.common import dtypes
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.ops import core
-from keras.utils import tree
 
 
 class CoreOpsStaticShapeTest(testing.TestCase):

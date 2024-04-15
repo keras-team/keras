@@ -1,6 +1,6 @@
 import numpy as np
 
-from keras.utils import tree
+from keras import tree
 
 
 def rnn(

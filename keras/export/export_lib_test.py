@@ -13,11 +13,11 @@ from keras import models
 from keras import ops
 from keras import random
 from keras import testing
+from keras import tree
 from keras import utils
 from keras.export import export_lib
 from keras.saving import saving_lib
 from keras.testing.test_utils import named_product
-from keras.utils import tree
 
 
 class CustomModel(models.Model):

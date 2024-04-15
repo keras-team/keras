@@ -3,8 +3,8 @@ import contextlib
 from jax import lax
 from jax import numpy as jnp
 
+from keras import tree
 from keras.backend.common import stateless_scope
-from keras.utils import tree
 
 
 def rnn(

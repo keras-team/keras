@@ -5,8 +5,8 @@ from absl.testing import parameterized
 from keras import layers
 from keras import models
 from keras import testing
+from keras import tree
 from keras.models.cloning import clone_model
-from keras.utils import tree
 
 
 def get_mlp_functional_model(shared_layers=False):

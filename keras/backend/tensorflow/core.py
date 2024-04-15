@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 
+from keras import tree
 from keras.backend.common import KerasVariable
 from keras.backend.common import global_state
 from keras.backend.common import standardize_dtype
@@ -10,7 +11,6 @@ from keras.backend.common.name_scope import name_scope as base_name_scope
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.backend.common.stateless_scope import in_stateless_scope
 from keras.backend.tensorflow.sparse import sparse_to_dense
-from keras.utils import tree
 from keras.utils.naming import auto_name
 
 SUPPORTS_SPARSE_TENSORS = True

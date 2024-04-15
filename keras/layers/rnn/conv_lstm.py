@@ -4,13 +4,13 @@ from keras import constraints
 from keras import initializers
 from keras import ops
 from keras import regularizers
+from keras import tree
 from keras.layers.input_spec import InputSpec
 from keras.layers.layer import Layer
 from keras.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras.layers.rnn.rnn import RNN
 from keras.ops import operation_utils
 from keras.utils import argument_validation
-from keras.utils import tree
 
 
 class ConvLSTMCell(Layer, DropoutRNNCell):

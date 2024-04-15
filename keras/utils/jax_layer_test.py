@@ -13,10 +13,10 @@ from keras import metrics
 from keras import models
 from keras import saving
 from keras import testing
+from keras import tree
 from keras import utils
 from keras.export import export_lib
 from keras.saving import object_registration
-from keras.utils import tree
 from keras.utils.jax_layer import FlaxLayer
 from keras.utils.jax_layer import JaxLayer
 

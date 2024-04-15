@@ -3,9 +3,9 @@
 import os
 import sys
 
+from keras import tree
 from keras.api_export import keras_export
 from keras.utils import io_utils
-from keras.utils import tree
 
 try:
     # pydot-ng is a fork of pydot that is better maintained.

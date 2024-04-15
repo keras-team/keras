@@ -7,13 +7,13 @@ import string
 from absl import logging
 
 from keras import backend
+from keras import tree
 from keras.api_export import keras_export
 from keras.backend.common.stateless_scope import StatelessScope
 from keras.layers import Layer
 from keras.models import Functional
 from keras.models import Sequential
 from keras.utils import io_utils
-from keras.utils import tree
 from keras.utils.module_utils import tensorflow as tf
 
 

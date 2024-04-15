@@ -2,7 +2,7 @@ from keras import backend
 from keras import losses as losses_module
 from keras import metrics as metrics_module
 from keras import ops
-from keras.utils import tree
+from keras import tree
 from keras.utils.naming import get_object_name
 
 

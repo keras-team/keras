@@ -1,7 +1,7 @@
 from keras import backend
 from keras import ops
+from keras import tree
 from keras.api_export import keras_export
-from keras.utils import tree
 from keras.utils.naming import auto_name
 
 

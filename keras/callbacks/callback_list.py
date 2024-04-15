@@ -1,8 +1,8 @@
+from keras import tree
 from keras.api_export import keras_export
 from keras.callbacks.callback import Callback
 from keras.callbacks.history import History
 from keras.callbacks.progbar_logger import ProgbarLogger
-from keras.utils import tree
 
 
 @keras_export("keras.callbacks.CallbackList")

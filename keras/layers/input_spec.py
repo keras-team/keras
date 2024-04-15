@@ -1,6 +1,6 @@
 from keras import backend
+from keras import tree
 from keras.api_export import keras_export
-from keras.utils import tree
 
 
 @keras_export(["keras.InputSpec", "keras.layers.InputSpec"])
