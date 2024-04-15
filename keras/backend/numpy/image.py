@@ -41,6 +41,7 @@ def resize(
     size,
     interpolation="bilinear",
     antialias=False,
+    crop_to_aspect_ratio=False,
     data_format="channels_last",
 ):
     if interpolation not in RESIZE_INTERPOLATIONS:
@@ -54,6 +55,7 @@ def resize(
             f"(height, width). Received: size={size}"
         )
     size = tuple(size)
+    target_height, target_width = size
     if len(image.shape) == 4:
         if data_format == "channels_last":
             size = (image.shape[0],) + size + (image.shape[-1],)
@@ -70,6 +72,48 @@ def resize(
             "or rank 4 (batch of images). Received input with shape: "
             f"image.shape={image.shape}"
         )
+
+    if crop_to_aspect_ratio:
+        shape = image.shape
+        if data_format == "channels_last":
+            height, width = shape[-3], shape[-2]
+        else:
+            height, width = shape[-2], shape[-1]
+        crop_height = int(float(width * target_height) / target_width)
+        crop_height = min(height, crop_height)
+        crop_width = int(float(height * target_width) / target_height)
+        crop_width = min(width, crop_width)
+        crop_box_hstart = int(float(height - crop_height) / 2)
+        crop_box_wstart = int(float(width - crop_width) / 2)
+        if data_format == "channels_last":
+            if len(image.shape) == 4:
+                image = image[
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                    :,
+                ]
+            else:
+                image = image[
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                    :,
+                ]
+        else:
+            if len(image.shape) == 4:
+                image = image[
+                    :,
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                ]
+            else:
+                image = image[
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                ]
+
     return np.array(
         jax.image.resize(image, size, method=interpolation, antialias=antialias)
     )

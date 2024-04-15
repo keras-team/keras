@@ -51,6 +51,7 @@ def resize(
     size,
     interpolation="bilinear",
     antialias=False,
+    crop_to_aspect_ratio=False,
     data_format="channels_last",
 ):
     try:
@@ -98,6 +99,30 @@ def resize(
                 "or rank 4 (batch of images). Received input with shape: "
                 f"image.shape={image.shape}"
             )
+
+    if crop_to_aspect_ratio:
+        shape = image.shape
+        height, width = shape[-2], shape[-1]
+        target_height, target_width = size
+        crop_height = int(float(width * target_height) / target_width)
+        crop_height = min(height, crop_height)
+        crop_width = int(float(height * target_width) / target_height)
+        crop_width = min(width, crop_width)
+        crop_box_hstart = int(float(height - crop_height) / 2)
+        crop_box_wstart = int(float(width - crop_width) / 2)
+        if len(image.shape) == 4:
+            image = image[
+                :,
+                :,
+                crop_box_hstart : crop_box_hstart + crop_height,
+                crop_box_wstart : crop_box_wstart + crop_width,
+            ]
+        else:
+            image = image[
+                :,
+                crop_box_hstart : crop_box_hstart + crop_height,
+                crop_box_wstart : crop_box_wstart + crop_width,
+            ]
 
     resized = torchvision.transforms.functional.resize(
         img=image,

@@ -1,7 +1,6 @@
 from keras import backend
 from keras.api_export import keras_export
 from keras.layers.preprocessing.tf_data_layer import TFDataLayer
-from keras.utils import image_utils
 
 
 @keras_export("keras.layers.Resizing")
@@ -69,22 +68,13 @@ class Resizing(TFDataLayer):
 
     def call(self, inputs):
         size = (self.height, self.width)
-        if self.crop_to_aspect_ratio:
-            outputs = image_utils.smart_resize(
-                inputs,
-                size=size,
-                interpolation=self.interpolation,
-                data_format=self.data_format,
-                backend_module=self.backend,
-            )
-        else:
-            outputs = self.backend.image.resize(
-                inputs,
-                size=size,
-                interpolation=self.interpolation,
-                data_format=self.data_format,
-            )
-        return outputs
+        return self.backend.image.resize(
+            inputs,
+            size=size,
+            interpolation=self.interpolation,
+            data_format=self.data_format,
+            crop_to_aspect_ratio=self.crop_to_aspect_ratio,
+        )
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)

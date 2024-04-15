@@ -110,6 +110,7 @@ class Resize(Operation):
         size,
         interpolation="bilinear",
         antialias=False,
+        crop_to_aspect_ratio=False,
         data_format="channels_last",
     ):
         super().__init__()
@@ -117,6 +118,7 @@ class Resize(Operation):
         self.interpolation = interpolation
         self.antialias = antialias
         self.data_format = data_format
+        self.crop_to_aspect_ratio = crop_to_aspect_ratio
 
     def call(self, image):
         return backend.image.resize(
@@ -125,6 +127,7 @@ class Resize(Operation):
             interpolation=self.interpolation,
             antialias=self.antialias,
             data_format=self.data_format,
+            crop_to_aspect_ratio=self.crop_to_aspect_ratio,
         )
 
     def compute_output_spec(self, image):
@@ -156,6 +159,7 @@ def resize(
     size,
     interpolation="bilinear",
     antialias=False,
+    crop_to_aspect_ratio=False,
     data_format="channels_last",
 ):
     """Resize images to size using the specified interpolation method.
@@ -167,6 +171,13 @@ def resize(
             `"bilinear"`, and `"bicubic"`. Defaults to `"bilinear"`.
         antialias: Whether to use an antialiasing filter when downsampling an
             image. Defaults to `False`.
+        crop_to_aspect_ratio: If `True`, resize the images without aspect
+            ratio distortion. When the original aspect ratio differs
+            from the target aspect ratio, the output image will be
+            cropped so as to return the
+            largest possible window in the image (of size `(height, width)`)
+            that matches the target aspect ratio. By default
+            (`crop_to_aspect_ratio=False`), aspect ratio may not be preserved.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
             corresponds to inputs with shape `(batch, height, width, channels)`
@@ -197,19 +208,31 @@ def resize(
     >>> y.shape
     (2, 3, 2, 2)
     """
-
+    if len(size) != 2:
+        raise ValueError(
+            "Expected `size` to be a tuple of 2 integers. "
+            f"Received: size={size}"
+        )
+    if len(image.shape) < 3 or len(image.shape) > 4:
+        raise ValueError(
+            "Expected an image array with shape `(height, width, "
+            "channels)`, or `(batch_size, height, width, channels)`, but "
+            f"got input with incorrect rank, of shape {image.shape}."
+        )
     if any_symbolic_tensors((image,)):
         return Resize(
             size,
             interpolation=interpolation,
             antialias=antialias,
             data_format=data_format,
+            crop_to_aspect_ratio=crop_to_aspect_ratio,
         ).symbolic_call(image)
     return backend.image.resize(
         image,
         size,
         interpolation=interpolation,
         antialias=antialias,
+        crop_to_aspect_ratio=crop_to_aspect_ratio,
         data_format=data_format,
     )
 
