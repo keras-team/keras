@@ -1,10 +1,15 @@
+import os
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
 from numpy.lib.stride_tricks import as_strided
 
+from keras import backend
 from keras import constraints
 from keras import layers
+from keras import models
+from keras import saving
 from keras import testing
 
 
@@ -537,6 +542,220 @@ class ConvBasicTest(testing.TestCase, parameterized.TestCase):
             " number of groups. Received: groups=2, filters=5.",
         ):
             layers.Conv2D(filters=5, kernel_size=(2, 2), groups=2)
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "conv1d_kernel_size3_strides1",
+            "conv_cls": layers.Conv1D,
+            "filters": 6,
+            "kernel_size": 3,
+            "strides": 1,
+            "padding": "valid",
+            "data_format": "channels_last",
+            "dilation_rate": 1,
+            "groups": 1,
+            "input_shape": (None, 5, 4),
+            "output_shape": (None, 3, 6),
+        },
+        {
+            "testcase_name": "conv1d_kernel_size2_strides2",
+            "conv_cls": layers.Conv1D,
+            "filters": 6,
+            "kernel_size": 2,
+            "strides": 2,
+            "padding": "valid",
+            "data_format": "channels_last",
+            "dilation_rate": 1,
+            "groups": 2,
+            "input_shape": (None, 5, 4),
+            "output_shape": (None, 2, 6),
+        },
+        {
+            "testcase_name": "conv2d_kernel_size3_strides1",
+            "conv_cls": layers.Conv2D,
+            "filters": 6,
+            "kernel_size": 3,
+            "strides": 1,
+            "padding": "valid",
+            "data_format": "channels_last",
+            "dilation_rate": 1,
+            "groups": 1,
+            "input_shape": (None, 5, 5, 4),
+            "output_shape": (None, 3, 3, 6),
+        },
+        {
+            "testcase_name": "conv2d_kernel_size2_strides2",
+            "conv_cls": layers.Conv2D,
+            "filters": 6,
+            "kernel_size": 2,
+            "strides": 2,
+            "padding": "valid",
+            "data_format": "channels_last",
+            "dilation_rate": 1,
+            "groups": 2,
+            "input_shape": (None, 5, 5, 4),
+            "output_shape": (None, 2, 2, 6),
+        },
+        {
+            "testcase_name": "conv3d_kernel_size3_strides1",
+            "conv_cls": layers.Conv3D,
+            "filters": 6,
+            "kernel_size": 3,
+            "strides": 1,
+            "padding": "valid",
+            "data_format": "channels_last",
+            "dilation_rate": 1,
+            "groups": 1,
+            "input_shape": (None, 5, 5, 5, 4),
+            "output_shape": (None, 3, 3, 3, 6),
+        },
+        {
+            "testcase_name": "conv3d_kernel_size2_strides2",
+            "conv_cls": layers.Conv3D,
+            "filters": 6,
+            "kernel_size": 2,
+            "strides": 2,
+            "padding": "valid",
+            "data_format": "channels_last",
+            "dilation_rate": 1,
+            "groups": 2,
+            "input_shape": (None, 5, 5, 5, 4),
+            "output_shape": (None, 2, 2, 2, 6),
+        },
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_enable_lora(
+        self,
+        conv_cls,
+        filters,
+        kernel_size,
+        strides,
+        padding,
+        data_format,
+        dilation_rate,
+        groups,
+        input_shape,
+        output_shape,
+    ):
+        if conv_cls not in (layers.Conv1D, layers.Conv2D, layers.Conv3D):
+            raise TypeError
+        layer = conv_cls(
+            filters=filters,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+            groups=groups,
+        )
+        layer.build(input_shape)
+        layer.enable_lora(2)
+        self.assertLen(layer.trainable_weights, 3)
+        self.assertLen(layer.non_trainable_weights, 1)
+        if backend.backend() == "torch":
+            self.assertLen(layer.torch_params, 4)
+        # Try eager call
+        x = np.random.random((64,) + input_shape[1:])
+        y = np.random.random((64,) + output_shape[1:])
+        _ = layer(x[:2])
+
+        init_lora_a_kernel_value = layer.lora_kernel_a.numpy()
+        init_lora_b_kernel_value = layer.lora_kernel_b.numpy()
+
+        # Try calling fit()
+        model = models.Sequential([layer])
+        model.compile(optimizer="sgd", loss="mse")
+        model.fit(x, y)
+
+        final_lora_a_kernel_value = layer.lora_kernel_a.numpy()
+        final_lora_b_kernel_value = layer.lora_kernel_b.numpy()
+        diff_a = np.max(
+            np.abs(init_lora_a_kernel_value - final_lora_a_kernel_value)
+        )
+        diff_b = np.max(
+            np.abs(init_lora_b_kernel_value - final_lora_b_kernel_value)
+        )
+        self.assertGreater(diff_a, 0.0)
+        self.assertGreater(diff_b, 0.0)
+
+        # Try saving and reloading the model
+        temp_filepath = os.path.join(self.get_temp_dir(), "lora_model.keras")
+        model.save(temp_filepath)
+
+        new_model = saving.load_model(temp_filepath)
+        self.assertTrue(new_model.layers[0].lora_enabled)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Try saving and reloading the model's weights only
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "lora_model.weights.h5"
+        )
+        model.save_weights(temp_filepath)
+
+        # Load the file into a fresh, non-lora model
+        new_model = models.Sequential(
+            [
+                conv_cls(
+                    filters=filters,
+                    kernel_size=kernel_size,
+                    strides=strides,
+                    padding=padding,
+                    data_format=data_format,
+                    dilation_rate=dilation_rate,
+                    groups=groups,
+                )
+            ]
+        )
+        new_model.build(input_shape)
+        new_model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Try loading a normal checkpoint into a lora model
+        new_model.save_weights(temp_filepath)
+        model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+    @pytest.mark.requires_trainable_backend
+    def test_lora_weight_name(self):
+
+        class MyModel(models.Model):
+            def __init__(self):
+                super().__init__(name="mymodel")
+                self.conv2d = layers.Conv2D(4, 3, name="conv2d")
+
+            def build(self, input_shape):
+                self.conv2d.build(input_shape)
+
+            def call(self, x):
+                return self.conv2d(x)
+
+        model = MyModel()
+        model.build((None, 5, 5, 4))
+        model.conv2d.enable_lora(2)
+        self.assertEqual(
+            model.conv2d.lora_kernel_a.path, "mymodel/conv2d/lora_kernel_a"
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_lora_rank_argument(self):
+        self.run_layer_test(
+            layers.Conv2D,
+            init_kwargs={
+                "filters": 5,
+                "kernel_size": 3,
+                "activation": "sigmoid",
+                "data_format": "channels_last",
+                "kernel_regularizer": "l2",
+                "lora_rank": 2,
+            },
+            input_shape=(2, 5, 5, 4),
+            expected_output_shape=(2, 3, 3, 5),
+            expected_num_trainable_weights=3,
+            expected_num_non_trainable_weights=1,
+            expected_num_seed_generators=0,
+            expected_num_losses=2,  # we have 2 regularizers.
+            supports_masking=False,
+        )
 
 
 class ConvCorrectnessTest(testing.TestCase, parameterized.TestCase):
