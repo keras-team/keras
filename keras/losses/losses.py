@@ -342,6 +342,10 @@ class KLDivergence(LossFunctionWrapper):
     loss = y_true * log(y_true / y_pred)
     ```
 
+    `y_true` and `y_pred` are expected to be probability
+    distributions, with values between 0 and 1. They will get
+    clipped to the `[0, 1]` range.
+
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
@@ -1442,6 +1446,10 @@ def kl_divergence(y_true, y_pred):
     ```python
     loss = y_true * log(y_true / y_pred)
     ```
+
+    `y_true` and `y_pred` are expected to be probability
+    distributions, with values between 0 and 1. They will get
+    clipped to the `[0, 1]` range.
 
     Args:
         y_true: Tensor of true targets.

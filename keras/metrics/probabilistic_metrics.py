@@ -18,6 +18,10 @@ class KLDivergence(reduction_metrics.MeanMetricWrapper):
     metric = y_true * log(y_true / y_pred)
     ```
 
+    `y_true` and `y_pred` are expected to be probability
+    distributions, with values between 0 and 1. They will get
+    clipped to the `[0, 1]` range.
+
     Args:
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
