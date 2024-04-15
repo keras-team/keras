@@ -587,3 +587,23 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
                     "unique",
                 ],  # 'mask' should be at the start if included explicitly
             )
+
+    def test_ensure_known_vocab_size_without_vocabulary(self):
+        kwargs = {
+            "num_oov_indices": 1,
+            # Assume empty string or some default token is valid.
+            "mask_token": "",
+            # Assume [OOV] or some default token is valid.
+            "oov_token": "[OOV]",
+            "output_mode": "multi_hot",
+            "pad_to_max_tokens": False,
+            "vocabulary_dtype": "string",
+        }
+        layer = layers.IndexLookup(**kwargs)
+
+        # Try calling the layer without setting the vocabulary.
+        with self.assertRaisesRegex(
+            RuntimeError, "When using `output_mode=multi_hot` and"
+        ):
+            input_data = ["sample", "data"]
+            layer(input_data)
