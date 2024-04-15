@@ -41,6 +41,7 @@ def resize(
     size,
     interpolation="bilinear",
     antialias=False,
+    crop_to_aspect_ratio=False,
     data_format="channels_last",
 ):
     if interpolation not in RESIZE_INTERPOLATIONS:
@@ -65,6 +66,42 @@ def resize(
                 "or rank 4 (batch of images). Received input with shape: "
                 f"image.shape={image.shape}"
             )
+    if crop_to_aspect_ratio:
+        shape = tf.shape(image)
+        height, width = shape[-3], shape[-2]
+        target_height, target_width = size
+        crop_height = tf.cast(
+            tf.cast(width * target_height, "float32") / target_width,
+            "int32",
+        )
+        crop_height = tf.minimum(height, crop_height)
+        crop_height = tf.cast(crop_height, "int32")
+        crop_width = tf.cast(
+            tf.cast(height * target_width, "float32") / target_height,
+            "int32",
+        )
+        crop_width = tf.minimum(width, crop_width)
+        crop_width = tf.cast(crop_width, "int32")
+
+        crop_box_hstart = tf.cast(
+            tf.cast(height - crop_height, "float32") / 2, "int32"
+        )
+        crop_box_wstart = tf.cast(
+            tf.cast(width - crop_width, "float32") / 2, "int32"
+        )
+        if len(image.shape) == 4:
+            image = image[
+                :,
+                crop_box_hstart : crop_box_hstart + crop_height,
+                crop_box_wstart : crop_box_wstart + crop_width,
+                :,
+            ]
+        else:
+            image = image[
+                crop_box_hstart : crop_box_hstart + crop_height,
+                crop_box_wstart : crop_box_wstart + crop_width,
+                :,
+            ]
 
     resized = tf.image.resize(
         image, size, method=interpolation, antialias=antialias
