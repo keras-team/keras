@@ -361,6 +361,16 @@ class Embedding(Layer):
                 "method implemented."
             )
         self._check_quantize_args(mode, self.compute_dtype)
+
+        # Set new dtype policy
+        if not isinstance(
+            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+        ):
+            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
+            # We set the internal `self._dtype_policy` instead of using the
+            # setter to avoid double `quantize` call
+            self._dtype_policy = dtype_policies.get(quantized_dtype)
+
         self._tracker.unlock()
         if mode == "int8":
             if backend.standardize_dtype(self._embeddings.dtype) == "int8":
@@ -386,13 +396,6 @@ class Embedding(Layer):
                 self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
             )
         self._tracker.lock()
-
-        # Set new dtype policy
-        if not isinstance(
-            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-        ):
-            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
-            self.dtype_policy = dtype_policies.get(quantized_dtype)
 
         # Release memory manually because sometimes the backend doesn't
         gc.collect()

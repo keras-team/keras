@@ -669,6 +669,17 @@ class Layer(BackendLayer, Operation):
             variable.assign(value)
 
     @property
+    def dtype_policy(self):
+        return self._dtype_policy
+
+    @dtype_policy.setter
+    def dtype_policy(self, value):
+        self._dtype_policy = dtype_policies.get(value)
+        if isinstance(self._dtype_policy, dtype_policies.QuantizedDTypePolicy):
+            if self.built:
+                self.quantize(self._dtype_policy.quantization_mode)
+
+    @property
     def dtype(self):
         """Alias of `layer.variable_dtype`."""
         return self.variable_dtype

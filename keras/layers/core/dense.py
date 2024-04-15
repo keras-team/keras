@@ -545,7 +545,9 @@ class Dense(Layer):
             self.dtype_policy, dtype_policies.QuantizedDTypePolicy
         ):
             quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
-            self.dtype_policy = dtype_policies.get(quantized_dtype)
+            # We set the internal `self._dtype_policy` instead of using the
+            # setter to avoid double `quantize` call
+            self._dtype_policy = dtype_policies.get(quantized_dtype)
 
         self._tracker.unlock()
         if mode == "int8":

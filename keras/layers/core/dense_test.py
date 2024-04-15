@@ -332,6 +332,8 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
 
+    """Test quantization-related (int8 and float8) methods"""
+
     @pytest.mark.skipif(
         backend.backend() == "numpy",
         reason=f"{backend.backend()} does not support ops.custom_gradient.",
@@ -422,6 +424,18 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             ValueError, "`quantize` can only be done once per layer."
         ):
             layer.quantize(mode)
+
+    @parameterized.named_parameters(
+        ("int8", "int8_from_float32", 3),
+        ("float8", "float8_from_float32", 8),
+    )
+    def test_quantize_by_setting_dtype_policy(
+        self, policy, expected_num_variables
+    ):
+        layer = layers.Dense(units=2)
+        layer.build((None, 2))
+        layer.dtype_policy = policy
+        self.assertLen(layer.variables, expected_num_variables)
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_int8_dtype_argument(self):
