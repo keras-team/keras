@@ -563,19 +563,29 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
-    def test_quantize(self):
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("float8", "float8"),
+    )
+    def test_quantize(self, mode):
         model = _get_model()
         x1 = np.random.rand(2, 3)
         x2 = np.random.rand(2, 3)
-        model.quantize("int8")
+        model.quantize(mode)
         _ = model((x1, x2))
 
         for layer in model._flatten_layers():
             if isinstance(layer, (layers.Dense, layers.EinsumDense)):
-                self.assertEqual(layer.dtype_policy.name, "int8_from_float32")
-                self.assertEqual(layer.dtype_policy.quantization_mode, "int8")
+                self.assertEqual(
+                    layer.dtype_policy.name, f"{mode}_from_float32"
+                )
+                self.assertEqual(layer.dtype_policy.quantization_mode, mode)
 
-    def test_quantize_unbuilt(self):
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("float8", "float8"),
+    )
+    def test_quantize_unbuilt(self, mode):
         class MyModel(Model):
             def __init__(self):
                 super().__init__()
@@ -592,20 +602,24 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         with self.assertRaisesRegex(
             ValueError, "The model must be built first before calling"
         ):
-            model.quantize("int8")
+            model.quantize(mode)
 
         x = np.random.rand(2, 3)
         _ = model(x)
-        model.quantize("int8")
+        model.quantize(mode)
 
     def test_quantize_invalid_args(self):
         model = _get_model()
         with self.assertRaisesRegex(
-            ValueError, "Invalid quantization mode. Expected 'int8'."
+            ValueError, "Invalid quantization mode. Expected one of"
         ):
             model.quantize("abc")
 
-    def test_quantize_nested_model(self):
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("float8", "float8"),
+    )
+    def test_quantize_nested_model(self, mode):
         class NestedLayer(layers.Layer):
             def __init__(self, units):
                 super().__init__()
@@ -631,13 +645,17 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         inputs = layers.Input([3])
         outputs = DoubleNestedLayer(8)(inputs)
         model = Model(inputs, outputs)
-        model.quantize("int8")
+        model.quantize(mode)
 
-        kernel_count = 0
-        for weight in model.weights:
-            if weight.name == "kernel":
-                kernel_count += 1
-                self.assertEqual(
-                    backend.standardize_dtype(weight.dtype), "int8"
-                )
-        self.assertEqual(kernel_count, 3)
+        if mode == "int8":
+            kernel_count = 0
+            for weight in model.weights:
+                if weight.name == "kernel":
+                    kernel_count += 1
+                    self.assertEqual(
+                        backend.standardize_dtype(weight.dtype), "int8"
+                    )
+            self.assertEqual(kernel_count, 3)
+        if mode == "float8":
+            # kernel + bias + scale * 3 + amax_history * 3 == 8
+            self.assertEqual(len(model.weights), 3 * 8)

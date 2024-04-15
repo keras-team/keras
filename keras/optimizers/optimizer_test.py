@@ -247,11 +247,25 @@ class OptimizerTest(testing.TestCase):
     def test_callable_learning_rate(self):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
         grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
-        optimizer = optimizers.AdamW(learning_rate=lambda: 0.0001)
+        optimizer = optimizers.SGD(learning_rate=lambda: 0.1)
         self.assertAllClose(optimizer.iterations, 0)
         optimizer.apply_gradients([(grads, v)])
-        self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]], atol=1e-4)
+        self.assertAllClose(v, [[0.9, 1.9], [2.9, 3.9]])
         self.assertAllClose(optimizer.iterations, 1)
+
+    def test_overwrite_with_gradient(self):
+        v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        v.overwrite_with_gradient = True
+        v2 = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        grads2 = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+
+        optimizer = optimizers.SGD(learning_rate=1.0)
+        optimizer.apply_gradients([(grads, v), (grads2, v2)])
+
+        # `v` is overwritten by its gradient but `v2` is updated normally
+        self.assertAllClose(v, [[1.0, 1.0], [1.0, 1.0]])
+        self.assertAllClose(v2, [[0.0, 1.0], [2.0, 3.0]])
 
     def test_setting_lr_to_callable_untracks_lr_var(self):
         adam = optimizers.Adam(learning_rate=0.001)

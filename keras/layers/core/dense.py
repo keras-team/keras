@@ -1,3 +1,5 @@
+import ml_dtypes
+
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -100,11 +102,17 @@ class Dense(Layer):
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        # We use `self._dtype_policy` to check to avoid issues in torch dynamo
+        is_quantized = isinstance(
+            self._dtype_policy, dtype_policies.QuantizedDTypePolicy
+        )
+        if is_quantized:
             self.quantized_build(
                 input_shape, mode=self.dtype_policy.quantization_mode
             )
-        else:
+        if not is_quantized or self.dtype_policy.quantization_mode != "int8":
+            # If the layer is quantized to int8, `self._kernel` will be added
+            # in `self._int8_build`. Therefore, we skip it here.
             self._kernel = self.add_weight(
                 name="kernel",
                 shape=(input_dim, self.units),
@@ -199,7 +207,20 @@ class Dense(Layer):
         if self.use_bias:
             store["1"] = self.bias
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            store["2"] = kernel_scale
+            mode = self.dtype_policy.quantization_mode
+            if mode == "int8":
+                store["2"] = kernel_scale
+            elif mode == "float8":
+                store["2"] = self.inputs_scale
+                store["3"] = self.inputs_amax_history
+                store["4"] = self.kernel_scale
+                store["5"] = self.kernel_amax_history
+                store["6"] = self.outputs_grad_scale
+                store["7"] = self.outputs_grad_amax_history
+            else:
+                raise NotImplementedError(
+                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                )
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
@@ -213,7 +234,20 @@ class Dense(Layer):
         if self.use_bias:
             self.bias.assign(store["1"])
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            self.kernel_scale.assign(store["2"])
+            mode = self.dtype_policy.quantization_mode
+            if mode == "int8":
+                self.kernel_scale.assign(store["2"])
+            elif mode == "float8":
+                self.inputs_scale.assign(store["2"])
+                self.inputs_amax_history.assign(store["3"])
+                self.kernel_scale.assign(store["4"])
+                self.kernel_amax_history.assign(store["5"])
+                self.outputs_grad_scale.assign(store["6"])
+                self.outputs_grad_amax_history.assign(store["7"])
+            else:
+                raise NotImplementedError(
+                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                )
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
@@ -273,27 +307,108 @@ class Dense(Layer):
                 f"Expected: {[v.name for v in all_vars]}"
             )
 
-    """Quantization-related methods"""
+    """Quantization-related (int8 and float8) methods"""
+
+    QUANTIZATION_MODE_ERROR_TEMPLATE = (
+        f"Invalid quantization mode. Expected one of "
+        f"{dtype_policies.QUANTIZATION_MODES}. "
+        "Received: quantization_mode={mode}"
+    )
 
     def quantized_build(self, input_shape, mode):
-        input_dim = input_shape[-1]
         if mode == "int8":
-            self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
-            self._kernel = self.add_weight(
-                name="kernel",
-                shape=(input_dim, self.units),
-                initializer="zeros",
-                dtype="int8",
-                trainable=False,
-            )
-            self.kernel_scale = self.add_weight(
-                name="kernel_scale",
-                shape=(self.units,),
-                initializer="ones",
-                trainable=False,
+            input_dim = input_shape[-1]
+            kernel_shape = (input_dim, self.units)
+            self._int8_build(kernel_shape)
+        elif mode == "float8":
+            self._float8_build()
+        else:
+            raise NotImplementedError(
+                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
             )
 
+    def _int8_build(
+        self,
+        kernel_shape,
+        kernel_initializer="zeros",
+        kernel_scale_initializer="ones",
+    ):
+        self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
+        self._kernel = self.add_weight(
+            name="kernel",
+            shape=kernel_shape,
+            initializer=kernel_initializer,
+            dtype="int8",
+            trainable=False,
+        )
+        self.kernel_scale = self.add_weight(
+            name="kernel_scale",
+            shape=(self.units,),
+            initializer=kernel_scale_initializer,
+            trainable=False,
+        )
+
+    def _float8_build(self):
+        if not isinstance(
+            self.dtype_policy, dtype_policies.QuantizedFloat8DTypePolicy
+        ):
+            raise TypeError(
+                "`self.dtype_policy` must be the type of "
+                f"QuantizedFloat8DTypePolicy. Received {self.dtype_policy}"
+            )
+        amax_history_length = self.dtype_policy.amax_history_length
+        # We set `trainable=True` because we will use the gradients to overwrite
+        # these variables
+        scale_kwargs = {
+            "shape": (),
+            "initializer": "ones",
+            "dtype": "float32",  # Always be float32
+            "trainable": True,
+            "autocast": False,
+        }
+        amax_history_kwargs = {
+            "shape": (amax_history_length,),
+            "initializer": "zeros",
+            "dtype": "float32",  # Always be float32
+            "trainable": True,
+            "autocast": False,
+        }
+        self.inputs_scale = self.add_weight(name="inputs_scale", **scale_kwargs)
+        self.inputs_amax_history = self.add_weight(
+            name="inputs_amax_history", **amax_history_kwargs
+        )
+        self.kernel_scale = self.add_weight(name="kernel_scale", **scale_kwargs)
+        self.kernel_amax_history = self.add_weight(
+            name="kernel_amax_history", **amax_history_kwargs
+        )
+        self.outputs_grad_scale = self.add_weight(
+            name="outputs_grad_scale", **scale_kwargs
+        )
+        self.outputs_grad_amax_history = self.add_weight(
+            name="outputs_grad_amax_history", **amax_history_kwargs
+        )
+        # We need to set `overwrite_with_gradient=True` to instruct the
+        # optimizer to directly overwrite these variables with their computed
+        # gradients during training
+        self.inputs_scale.overwrite_with_gradient = True
+        self.inputs_amax_history.overwrite_with_gradient = True
+        self.kernel_scale.overwrite_with_gradient = True
+        self.kernel_amax_history.overwrite_with_gradient = True
+        self.outputs_grad_scale.overwrite_with_gradient = True
+        self.outputs_grad_amax_history.overwrite_with_gradient = True
+
     def quantized_call(self, inputs):
+        if self.dtype_policy.quantization_mode == "int8":
+            return self._int8_call(inputs)
+        elif self.dtype_policy.quantization_mode == "float8":
+            return self._float8_call(inputs)
+        else:
+            mode = self.dtype_policy.quantization_mode
+            raise NotImplementedError(
+                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+            )
+
+    def _int8_call(self, inputs):
         @ops.custom_gradient
         def matmul_with_inputs_gradient(inputs, kernel, kernel_scale):
             def grad_fn(*args, upstream=None):
@@ -328,6 +443,93 @@ class Dense(Layer):
             x = self.activation(x)
         return x
 
+    def _float8_call(self, inputs):
+        if self.lora_enabled:
+            raise NotImplementedError(
+                "Currently, `_float8_call` doesn't support LoRA"
+            )
+
+        @ops.custom_gradient
+        def quantized_dequantize_inputs(inputs, scale, amax_history):
+            new_scale = quantizers.compute_float8_scale(
+                ops.max(amax_history, axis=0),
+                scale,
+                ops.cast(
+                    float(ml_dtypes.finfo("float8_e4m3fn").max), "float32"
+                ),
+            )
+            qdq_inputs = quantizers.quantize_and_dequantize(
+                inputs, scale, "float8_e4m3fn", self.compute_dtype
+            )
+            new_amax_history = quantizers.compute_float8_amax_history(
+                inputs, amax_history
+            )
+
+            def grad(*args, upstream=None, variables=None):
+                if upstream is None:
+                    (upstream,) = args
+                return upstream, new_scale, new_amax_history
+
+            return qdq_inputs, grad
+
+        @ops.custom_gradient
+        def quantized_dequantize_outputs(outputs, scale, amax_history):
+            """Quantize-dequantize the output gradient but not the output."""
+
+            def grad(*args, upstream=None, variables=None):
+                if upstream is None:
+                    (upstream,) = args
+                new_scale = quantizers.compute_float8_scale(
+                    ops.max(amax_history, axis=0),
+                    scale,
+                    ops.cast(
+                        float(ml_dtypes.finfo("float8_e5m2").max), "float32"
+                    ),
+                )
+                qdq_upstream = quantizers.quantize_and_dequantize(
+                    upstream, scale, "float8_e5m2", self.compute_dtype
+                )
+                new_amax_history = quantizers.compute_float8_amax_history(
+                    upstream, amax_history
+                )
+                return qdq_upstream, new_scale, new_amax_history
+
+            return outputs, grad
+
+        x = ops.matmul(
+            quantized_dequantize_inputs(
+                inputs,
+                ops.convert_to_tensor(self.inputs_scale),
+                ops.convert_to_tensor(self.inputs_amax_history),
+            ),
+            quantized_dequantize_inputs(
+                ops.convert_to_tensor(self._kernel),
+                ops.convert_to_tensor(self.kernel_scale),
+                ops.convert_to_tensor(self.kernel_amax_history),
+            ),
+        )
+        # `quantized_dequantize_outputs` is placed immediately after
+        # `ops.matmul` for the sake of pattern matching in gemm_rewrite. That
+        # way, the qdq will be adjacent to the corresponding matmul_bprop in the
+        # bprop.
+        x = quantized_dequantize_outputs(
+            x,
+            ops.convert_to_tensor(self.outputs_grad_scale),
+            ops.convert_to_tensor(self.outputs_grad_amax_history),
+        )
+        if self.bias is not None:
+            # Under non-mixed precision cases, F32 bias has to be converted to
+            # BF16 first to get the biasAdd fusion support. ref. PR
+            # https://github.com/tensorflow/tensorflow/pull/60306
+            bias = self.bias
+            if self.dtype_policy.compute_dtype == "float32":
+                bias_bf16 = ops.cast(bias, "bfloat16")
+                bias = ops.cast(bias_bf16, bias.dtype)
+            x = ops.add(x, bias)
+        if self.activation is not None:
+            x = self.activation(x)
+        return x
+
     def quantize(self, mode):
         import gc
 
@@ -338,6 +540,17 @@ class Dense(Layer):
                 "method implemented."
             )
         self._check_quantize_args(mode, self.compute_dtype)
+
+        # Set new dtype policy
+        if not isinstance(
+            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+        ):
+            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
+            # We set the internal `self._dtype_policy` instead of using the
+            # setter to avoid double `quantize` call
+            self._dtype_policy = dtype_policies.get(quantized_dtype)
+
+        self._tracker.unlock()
         if mode == "int8":
             if backend.standardize_dtype(self._kernel.dtype) == "int8":
                 raise ValueError("`quantize` can only be done once per layer.")
@@ -348,38 +561,25 @@ class Dense(Layer):
                 self._kernel, axis=0
             )
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
-            self._tracker.unlock()
             self._untrack_variable(self._kernel)
             kernel_shape = self._kernel.shape
             del self._kernel
-            self._kernel = self.add_weight(
-                name="kernel",
-                shape=kernel_shape,
-                # Prevent adding a large constant to the computation graph
-                initializer=lambda shape, dtype: kernel_value,
-                dtype="int8",
-                trainable=False,
+            # Utilize a lambda expression as an initializer to prevent adding a
+            # large constant to the computation graph.
+            self._int8_build(
+                kernel_shape,
+                lambda shape, dtype: kernel_value,
+                lambda shape, dtype: kernel_scale,
             )
-            self.kernel_scale = self.add_weight(
-                name="kernel_scale",
-                shape=(self.units,),
-                # Prevent adding a large constant to the computation graph
-                initializer=lambda shape, dtype: kernel_scale,
-                trainable=False,
-            )
-            self._tracker.lock()
+        elif mode == "float8":
+            if hasattr(self, "inputs_amax_history"):
+                raise ValueError("`quantize` can only be done once per layer.")
+            self._float8_build()
         else:
-            NotImplementedError(
-                "Invalid quantization mode. Expected 'int8'. "
-                f"Received: mode={mode}"
+            raise NotImplementedError(
+                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
             )
-
-        # Set new dtype policy
-        if not isinstance(
-            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-        ):
-            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
-            self.dtype_policy = dtype_policies.get(quantized_dtype)
+        self._tracker.lock()
 
         # Release memory manually because sometimes the backend doesn't
         gc.collect()

@@ -324,6 +324,14 @@ class BaseOptimizer:
             self._check_variables_are_known(trainable_variables)
 
         with backend.name_scope(self.name, caller=self):
+            # Overwrite targeted variables directly with their gradients if
+            # their `overwrite_with_gradient` is set.
+            grads, trainable_variables = (
+                self._overwrite_variables_directly_with_gradients(
+                    grads, trainable_variables
+                )
+            )
+
             # Filter empty gradients.
             grads, trainable_variables = self._filter_empty_gradients(
                 grads, trainable_variables
@@ -582,6 +590,36 @@ class BaseOptimizer:
         elif callable(self._learning_rate):
             return self._learning_rate()
         return self._learning_rate
+
+    def _overwrite_variables_directly_with_gradients(self, grads, vars):
+        """Overwrite the variables directly by their gradients.
+
+        This method is designed for a special case where we want to overwrite
+        the variable directly with its computed gradient. For example, in float8
+        training, new `scale` and `amax_history` are computed as gradients, and
+        we want to overwrite them directly instead of following the typical
+        procedure such as gradient descent with a learning rate, gradient
+        clipping and weight decaying.
+
+        After the update, the processed pairs will be filtered out.
+        """
+        # Shortcut for `tf.Variable` because it doesn't have a
+        # `overwrite_with_gradient` attr
+        if not hasattr(vars[0], "overwrite_with_gradient"):
+            return grads, vars
+
+        # Shallow copies
+        filtered_grads = list(grads)
+        filtered_vars = list(vars)
+
+        # Iterate from right to left for safe popping
+        for i in range(len(filtered_grads) - 1, -1, -1):
+            g, v = filtered_grads[i], filtered_vars[i]
+            if v.overwrite_with_gradient:
+                v.assign(g)
+                filtered_grads.pop(i)
+                filtered_vars.pop(i)
+        return filtered_grads, filtered_vars
 
     def _filter_empty_gradients(self, grads, vars):
         filtered_grads = list(grads)

@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras import backend
 from keras import constraints
@@ -13,7 +14,7 @@ from keras.export import export_lib
 from keras.testing import test_case
 
 
-class EmbeddingTest(test_case.TestCase):
+class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_embedding_basics(self):
         self.run_layer_test(
@@ -316,6 +317,17 @@ class EmbeddingTest(test_case.TestCase):
             ValueError, "`quantize` can only be done once per layer."
         ):
             layer.quantize("int8")
+
+    @parameterized.named_parameters(
+        ("int8", "int8_from_float32", 2),
+    )
+    def test_quantize_by_setting_dtype_policy(
+        self, policy, expected_num_variables
+    ):
+        layer = layers.Embedding(10, 16)
+        layer.build()
+        layer.dtype_policy = policy
+        self.assertLen(layer.variables, expected_num_variables)
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_when_lora_enabled(self):

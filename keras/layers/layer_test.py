@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from keras import backend
+from keras import dtype_policies
 from keras import layers
 from keras import metrics
 from keras import models
@@ -925,3 +926,16 @@ class LayerTest(testing.TestCase):
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(model.trainable_weights, 2)
         self.assertLen(model.non_trainable_weights, 0)
+
+    def test_dtype_policy_setter(self):
+        layer = layers.Dense(2)
+        # Set by string
+        layer.dtype_policy = "mixed_bfloat16"
+        self.assertEqual(layer.dtype_policy.name, "mixed_bfloat16")
+        self.assertEqual(layer.dtype_policy.compute_dtype, "bfloat16")
+        self.assertEqual(layer.dtype_policy.variable_dtype, "float32")
+        # Set by FloatDTypePolicy
+        layer.dtype_policy = dtype_policies.FloatDTypePolicy("mixed_float16")
+        self.assertEqual(layer.dtype_policy.name, "mixed_float16")
+        self.assertEqual(layer.dtype_policy.compute_dtype, "float16")
+        self.assertEqual(layer.dtype_policy.variable_dtype, "float32")
