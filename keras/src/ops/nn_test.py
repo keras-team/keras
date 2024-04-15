@@ -1911,24 +1911,24 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         inputs = np.array(
             [
                 [
-                    [0.1, 0.4, 0.2, 0.0],
-                    [0.3, 0.3, 0.4, 0.0],
-                    [0.3, 0.2, 0.4, 0.0],
+                    [0.1, 0.4, 0.2, 0.4],
+                    [0.3, 0.3, 0.4, 0.2],
+                    [0.3, 0.2, 0.4, 0.3],
                 ],
                 [
-                    [0.1, 0.4, 0.7, 0.0],
-                    [0.3, 0.3, 0.4, 0.0],
-                    [0.2, 0.1, 0.1, 0.0],
+                    [0.1, 0.4, 0.7, 0.2],
+                    [0.3, 0.3, 0.4, 0.1],
+                    [0.2, 0.1, 0.1, 0.5],
                 ],
                 [
-                    [0.1, 0.4, 0.2, 0.0],
-                    [0.3, 0.3, 0.2, 0.0],
-                    [0.3, 0.2, 0.4, 0.0],
+                    [0.1, 0.4, 0.2, 0.7],
+                    [0.3, 0.3, 0.2, 0.7],
+                    [0.3, 0.2, 0.4, 0.1],
                 ],
             ]
         )
-        labels = np.array([[1, 2], [2, 0], [1, 0]])
-        score_labels = np.array([[-1.2], [-1.3], [-0.4]])
+        labels = np.array([[1, 2], [2, 0], [0, 0]])
+        score_labels = np.array([[-1.2], [-1.6], [-0.7]])
 
         (decoded,), scores = knn.ctc_decode(
             inputs, sequence_lengths=[3, 3, 1], strategy="greedy"
@@ -1937,33 +1937,32 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(decoded, labels)
         self.assertAllClose(scores, score_labels)
 
-        if backend.backend() == "tensorflow":
-            labels = [
-                np.array([[1, 0], [2, 0], [1, 0]]),
-                np.array([[2], [2], [2]]),
+        labels = [
+            np.array([[2], [2], [0]]),
+            np.array([[1, 2], [2, 0], [1, 0]]),
+        ]
+        score_labels = np.array(
+            [
+                [-2.2601, -2.335783],
+                [-2.140692, -2.257684],
+                [-1.063386, -1.363386],
             ]
-            score_labels = np.array(
-                [
-                    [-3.055509, -3.090198],
-                    [-2.361756, -2.739681],
-                    [-1.172442, -1.372442],
-                ]
-            )
+        )
 
-            beam_width = 3
-            top_paths = 2
+        beam_width = 100
+        top_paths = 2
 
-            decoded, scores = knn.ctc_decode(
-                inputs,
-                sequence_lengths=[3, 3, 1],
-                strategy="beam_search",
-                beam_width=beam_width,
-                top_paths=top_paths,
-            )
+        decoded, scores = knn.ctc_decode(
+            inputs,
+            sequence_lengths=[3, 3, 1],
+            strategy="beam_search",
+            beam_width=beam_width,
+            top_paths=top_paths,
+        )
 
-            for i in range(top_paths):
-                self.assertAllClose(decoded[i], labels[i])
-                self.assertAllClose(scores, score_labels)
+        for i in range(top_paths):
+            self.assertAllClose(decoded[i], labels[i])
+            self.assertAllClose(scores, score_labels)
 
     def test_normalize(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
