@@ -1409,3 +1409,40 @@ class DiceTest(testing.TestCase):
         )
         output = losses.Dice()(y_true, y_pred)
         self.assertAllClose(output, 0.77777773)
+
+
+class TverskyTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(losses.Tversky(name="mytversky"))
+
+    def test_correctness(self):
+        y_true = np.array(([[1, 2], [1, 2]]))
+        y_pred = np.array(([[4, 1], [6, 1]]))
+        output = losses.Tversky()(y_true, y_pred)
+        self.assertAllClose(output, -0.55555546)
+
+    def test_correctness_custom_coefficients(self):
+        y_true = np.array(([[1, 2], [1, 2]]))
+        y_pred = np.array(([[4, 1], [6, 1]]))
+        output = losses.Tversky(alpha=0.2, beta=0.8)(y_true, y_pred)
+        self.assertAllClose(output, -0.29629636)
+
+    def test_binary_segmentation(self):
+        y_true = np.array(
+            ([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])
+        )
+        y_pred = np.array(
+            ([[0, 1, 0, 1], [1, 0, 1, 1], [0, 1, 0, 1], [1, 0, 1, 1]])
+        )
+        output = losses.Tversky()(y_true, y_pred)
+        self.assertAllClose(output, 0.77777773)
+
+    def test_binary_segmentation_custom_coefficients(self):
+        y_true = np.array(
+            ([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])
+        )
+        y_pred = np.array(
+            ([[0, 1, 0, 1], [1, 0, 1, 1], [0, 1, 0, 1], [1, 0, 1, 1]])
+        )
+        output = losses.Tversky(alpha=0.2, beta=0.8)(y_true, y_pred)
+        self.assertAllClose(output, 0.7916667)

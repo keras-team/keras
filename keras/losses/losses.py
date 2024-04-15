@@ -2000,3 +2000,93 @@ def dice(y_true, y_pred):
     )
 
     return 1 - dice
+
+
+@keras_export("keras.losses.Tversky")
+class Tversky(LossFunctionWrapper):
+    """Computes the Tversky loss value between `y_true` and `y_pred`.
+
+    This loss function is weighted by the alpha and beta coefficients
+    that penalize false positives and false negatives.
+
+    With `alpha=0.5` and `beta=0.5`, the loss value becomes equivalent to
+    Dice Loss.
+
+    Args:
+        y_true: tensor of true targets.
+        y_pred: tensor of predicted targets.
+        alpha: coefficient controlling incidence of false positives.
+        beta: coefficient controlling incidence of false negatives.
+
+    Returns:
+        Tversky loss value.
+
+    Reference:
+
+    - [Salehi et al., 2017](https://arxiv.org/abs/1706.05721)
+    """
+
+    def __init__(
+        self,
+        alpha=0.5,
+        beta=0.5,
+        reduction="sum_over_batch_size",
+        name="tversky",
+    ):
+        super().__init__(
+            tversky,
+            alpha=alpha,
+            beta=beta,
+            name=name,
+            reduction=reduction,
+        )
+        self.alpha = alpha
+        self.beta = beta
+
+    def get_config(self):
+        return {
+            "name": self.name,
+            "alpha": self.alpha,
+            "beta": self.beta,
+            "reduction": self.reduction,
+        }
+
+
+@keras_export("keras.losses.tversky")
+def tversky(y_true, y_pred, alpha=0.5, beta=0.5):
+    """Computes the Tversky loss value between `y_true` and `y_pred`.
+
+    This loss function is weighted by the alpha and beta coefficients
+    that penalize false positives and false negatives.
+
+    With `alpha=0.5` and `beta=0.5`, the loss value becomes equivalent to
+    Dice Loss.
+
+    Args:
+        y_true: tensor of true targets.
+        y_pred: tensor of predicted targets.
+        alpha: coefficient controlling incidence of false positives.
+        beta: coefficient controlling incidence of false negatives.
+
+    Returns:
+        Tversky loss value.
+
+    Reference:
+
+    - [Salehi et al., 2017](https://arxiv.org/abs/1706.05721)
+    """
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.cast(y_true, y_pred.dtype)
+
+    inputs = ops.reshape(y_true, [-1])
+    targets = ops.reshape(y_pred, [-1])
+
+    intersection = ops.sum(inputs * targets)
+    fp = ops.sum((1 - targets) * inputs)
+    fn = ops.sum(targets * (1 - inputs))
+    tversky = ops.divide(
+        intersection,
+        intersection + fp * alpha + fn * beta + backend.epsilon(),
+    )
+
+    return 1 - tversky

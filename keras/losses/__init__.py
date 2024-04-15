@@ -21,6 +21,7 @@ from keras.losses.losses import MeanSquaredLogarithmicError
 from keras.losses.losses import Poisson
 from keras.losses.losses import SparseCategoricalCrossentropy
 from keras.losses.losses import SquaredHinge
+from keras.losses.losses import Tversky
 from keras.losses.losses import binary_crossentropy
 from keras.losses.losses import binary_focal_crossentropy
 from keras.losses.losses import categorical_crossentropy
@@ -40,6 +41,7 @@ from keras.losses.losses import mean_squared_logarithmic_error
 from keras.losses.losses import poisson
 from keras.losses.losses import sparse_categorical_crossentropy
 from keras.losses.losses import squared_hinge
+from keras.losses.losses import tversky
 from keras.saving import serialization_lib
 
 ALL_OBJECTS = {
@@ -68,6 +70,7 @@ ALL_OBJECTS = {
     CategoricalHinge,
     # Image segmentation
     Dice,
+    Tversky,
     # Probabilistic
     kl_divergence,
     poisson,
@@ -90,6 +93,7 @@ ALL_OBJECTS = {
     categorical_hinge,
     # Image segmentation
     dice,
+    tversky,
 }
 
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
