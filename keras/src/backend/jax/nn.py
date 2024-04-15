@@ -686,7 +686,7 @@ def ctc_greedy_decode(
         indices = jnp.where(repeat, mask_index, indices)
     else:
         repeat = jnp.zeros_like(indices, dtype=bool)
-    
+
     indices = jnp.where(seqlen_mask, mask_index, indices)
     indices = [batch[batch != mask_index] for batch in indices]
     max_len = max(len(batch) for batch in indices)
