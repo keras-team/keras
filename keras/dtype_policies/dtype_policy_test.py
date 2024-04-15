@@ -250,6 +250,12 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         policy = QuantizedFloat8DTypePolicy("float8_from_mixed_bfloat16", 512)
         self.assertEqual(policy.amax_history_length, 512)
 
+    def test_invalid_properties_for_float8(self):
+        with self.assertRaisesRegex(TypeError, "must be an integer."):
+            QuantizedFloat8DTypePolicy("float8_from_float32", "512")
+        with self.assertRaisesRegex(TypeError, "must be an integer."):
+            QuantizedFloat8DTypePolicy("float8_from_float32", 512.0)
+
     def test_serialization_for_float8(self):
         import copy
         import pickle
@@ -281,6 +287,31 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
             '<QuantizedFloat8DTypePolicy "float8_from_mixed_bfloat16">',
         )
         self.assertEqual(copied_policy.amax_history_length, 123)
+
+    @parameterized.named_parameters(
+        ("int8_from_mixed_bfloat16", "int8_from_mixed_bfloat16"),
+        ("float8_from_mixed_bfloat16", "float8_from_mixed_bfloat16"),
+    )
+    def test_get_quantized_dtype_policy_by_str(self, name):
+        from keras.dtype_policies.dtype_policy import (
+            _get_quantized_dtype_policy_by_str,
+        )
+
+        policy = _get_quantized_dtype_policy_by_str(name)
+        self.assertEqual(policy.name, name)
+
+    def test_invalid_get_quantized_dtype_policy_by_str(self):
+        from keras.dtype_policies.dtype_policy import (
+            _get_quantized_dtype_policy_by_str,
+        )
+
+        with self.assertRaisesRegex(TypeError, "must be a string."):
+            _get_quantized_dtype_policy_by_str(123)
+        with self.assertRaisesRegex(
+            ValueError,
+            "is incompatible with the current supported quantization.",
+        ):
+            _get_quantized_dtype_policy_by_str("float7")
 
 
 class DTypePolicyGlobalFunctionsTest(test_case.TestCase):

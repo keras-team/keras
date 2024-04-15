@@ -239,6 +239,18 @@ class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
         v = backend.Variable(initializer=np.ones((2, 2)), name="test_var")
         self.assertEqual(v.path, "test_var")
 
+    def test_overwrite_with_gradient_setter(self):
+        v = backend.Variable(
+            initializer=initializers.RandomNormal(),
+            shape=(2, 2),
+        )
+        self.assertFalse(v.overwrite_with_gradient)
+        v.overwrite_with_gradient = True
+        self.assertTrue(v.overwrite_with_gradient)
+
+        with self.assertRaisesRegex(TypeError, "must be a boolean."):
+            v.overwrite_with_gradient = "true"
+
 
 class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
     """tests for KerasVariable.numpy(), KerasVariable.value()

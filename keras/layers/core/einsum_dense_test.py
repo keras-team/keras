@@ -380,6 +380,8 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             supports_masking=False,
         )
 
+    """Test quantization-related (int8 and float8) methods"""
+
     @pytest.mark.skipif(
         backend.backend() == "numpy",
         reason=f"{backend.backend()} does not support ops.custom_gradient.",
@@ -659,7 +661,11 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
 
         from keras import quantizers
 
-        layer = layers.EinsumDense("ab,bc->ac", output_shape=[32])
+        layer = layers.EinsumDense(
+            "ab,bc->ac",
+            output_shape=[32],
+            bias_axes="c",
+        )
         layer.build((None, 16))
         layer.quantize("float8")
         optimizer = optimizers.AdamW(learning_rate=0.1)
@@ -771,12 +777,12 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         config = dict(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
-            bias_axes=None,
+            bias_axes="d",
         )
         layer = layers.EinsumDense(**config)
         layer.build((None, 3))
         layer.quantize("float8")
-        self.assertLen(layer.trainable_weights, 7)
+        self.assertLen(layer.trainable_weights, 8)
         self.assertLen(layer.non_trainable_weights, 0)
 
         # Try calling fit()
