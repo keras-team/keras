@@ -744,6 +744,7 @@ class ConvBasicTest(testing.TestCase, parameterized.TestCase):
                 "filters": 5,
                 "kernel_size": 3,
                 "activation": "sigmoid",
+                "data_format": "channels_last",
                 "kernel_regularizer": "l2",
                 "lora_rank": 2,
             },
