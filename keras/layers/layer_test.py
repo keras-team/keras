@@ -176,7 +176,7 @@ class LayerTest(testing.TestCase):
         self.assertAllClose(layer.variables[1], [10, 1])
 
     def test_layer_tracking(self):
-        class NestedLayer(layers.Layer):
+        class LayerWithDenseLayers(layers.Layer):
             def __init__(self, units):
                 super().__init__()
                 self.dense1 = layers.Dense(units)
@@ -185,6 +185,7 @@ class LayerTest(testing.TestCase):
                 }
                 self.layer_list = [layers.Dense(units)]
                 self.units = units
+                self.seed_generator = backend.random.SeedGenerator(seed=1)
 
             def build(self, input_shape):
                 self.layer_list.append(layers.Dense(self.units))
@@ -196,24 +197,31 @@ class LayerTest(testing.TestCase):
                 x = self.layer_list[1](x)
                 return x
 
-        class DoubleNestedLayer(layers.Layer):
-            def __init__(self, units):
+        class ParentLayer(layers.Layer):
+            def __init__(self, inner_layer):
                 super().__init__()
-                self.inner_layer = NestedLayer(units)
+                self.inner_layer = inner_layer
 
             def call(self, x):
                 return self.inner_layer(x)
 
-        layer = NestedLayer(3)
+        layer = LayerWithDenseLayers(3)
         layer.build((1, 3))
         self.assertLen(layer._layers, 4)
         layer(np.zeros((1, 3)))
+        self.assertLen(layer.variables, 9)
         self.assertLen(layer.weights, 8)
 
-        layer = DoubleNestedLayer(3)
+        layer = ParentLayer(LayerWithDenseLayers(3))
         self.assertLen(layer._layers, 1)
         layer(np.zeros((1, 3)))
-        self.assertLen(layer.inner_layer.weights, 8)
+        self.assertLen(layer.variables, 9)
+        self.assertLen(layer.weights, 8)
+
+        layer = ParentLayer(ParentLayer(LayerWithDenseLayers(3)))
+        self.assertLen(layer._layers, 1)
+        layer(np.zeros((1, 3)))
+        self.assertLen(layer.variables, 9)
         self.assertLen(layer.weights, 8)
 
     def test_metric_tracking(self):
@@ -229,29 +237,39 @@ class LayerTest(testing.TestCase):
             def call(self, x):
                 return self.dense(x)
 
-        class NestedLayerWithMetric(layers.Layer):
-            def __init__(self, units):
+        class ParentLayerWithMetric(layers.Layer):
+            def __init__(self, inner_layer):
                 super().__init__()
-                self.layer_with_metric = LayerWithMetric(units)
+                self.inner_layer = inner_layer
                 self.metric = metrics.MeanSquaredError(name="my_metric")
 
             def build(self, input_shape):
-                self.layer_with_metric.build(input_shape)
+                self.inner_layer.build(input_shape)
 
             def call(self, x):
-                return self.layer_with_metric(x)
+                return self.inner_layer(x)
 
         layer = LayerWithMetric(3)
         layer.build((1, 3))
 
+        self.assertLen(layer.metrics, 1)
         self.assertLen(layer.metrics_variables, 2)
         self.assertLen(layer.trainable_variables, 2)
         self.assertLen(layer.non_trainable_variables, 0)
 
-        layer = NestedLayerWithMetric(3)
+        layer = ParentLayerWithMetric(LayerWithMetric(3))
         layer.build((1, 3))
 
+        self.assertLen(layer.metrics, 2)
         self.assertLen(layer.metrics_variables, 4)
+        self.assertLen(layer.trainable_variables, 2)
+        self.assertLen(layer.non_trainable_variables, 0)
+
+        layer = ParentLayerWithMetric(ParentLayerWithMetric(LayerWithMetric(3)))
+        layer.build((1, 3))
+
+        self.assertLen(layer.metrics, 3)
+        self.assertLen(layer.metrics_variables, 6)
         self.assertLen(layer.trainable_variables, 2)
         self.assertLen(layer.non_trainable_variables, 0)
 
