@@ -75,6 +75,7 @@ class SpectralNormalizationTest(testing.TestCase):
                 3,
                 (2, 2),
                 padding="same",
+                data_format="channels_last"
             ),
             power_iterations=2,
         )
