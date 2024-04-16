@@ -4,6 +4,7 @@ import pytest
 from keras import backend
 from keras import initializers
 from keras import layers
+from keras import models
 from keras import testing
 
 
@@ -66,3 +67,18 @@ class SpectralNormalizationTest(testing.TestCase):
         self.assertAllClose(result, expected_output)
         # max eigen value of 2x2 matrix of ones is 2
         self.assertAllClose(result_train, expected_output / 2)
+
+    def test_end_to_end(self):
+        sn_wrapper = layers.SpectralNormalization(
+            layers.Conv2D(
+                3,
+                (2, 2),
+                padding="same",
+            ),
+            power_iterations=2,
+        )
+        model = models.Sequential([sn_wrapper])
+        model.compile("rmsprop", loss="mse")
+        x = np.random.random((4, 8, 8, 3))
+        y = np.random.random((4, 8, 8, 3))
+        model.fit(x, y)
