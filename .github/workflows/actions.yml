@@ -24,13 +24,13 @@ jobs:
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
     steps:
       - uses: actions/checkout@v4
-      - name: Check for changes in keras/applications
+      - name: Check for changes in keras/src/applications
         uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
             applications:
-              - 'keras/applications/**'
+              - 'keras/src/applications/**'
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -49,13 +49,13 @@ jobs:
         run: |
           pip install -r requirements.txt --progress-bar off --upgrade
           pip uninstall -y keras keras-nightly
-          pip install tf_keras==2.16.0rc0 --progress-bar off --upgrade
+          pip install tf_keras==2.16.0 --progress-bar off --upgrade
           pip install -e "." --progress-bar off --upgrade
       - name: Test applications with pytest
         if: ${{ steps.filter.outputs.applications == 'true' }}
         run: |
-          pytest keras/applications --cov=keras/applications
-          coverage xml --include='keras/applications/*' -o apps-coverage.xml
+          pytest keras/src/applications --cov=keras/src/applications
+          coverage xml --include='keras/src/applications/*' -o apps-coverage.xml
       - name: Codecov keras.applications
         if: ${{ steps.filter.outputs.applications == 'true' }}
         uses: codecov/codecov-action@v4
@@ -80,8 +80,8 @@ jobs:
           pytest integration_tests/torch_workflow_test.py
       - name: Test with pytest
         run: |
-          pytest keras --ignore keras/applications --cov=keras
-          coverage xml --omit='keras/applications/*' -o core-coverage.xml
+          pytest keras --ignore keras/src/applications --cov=keras
+          coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Codecov keras
         uses: codecov/codecov-action@v4
         with:
@@ -115,5 +115,14 @@ jobs:
           pip install -r requirements.txt --progress-bar off --upgrade
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
+      - name: Check for API changes
+        run: |
+          bash shell/api_gen.sh
+          git status
+          clean=$(git status | grep "nothing to commit")
+          if [ -z "$clean" ]; then
+            echo "Please run shell/api_gen.sh to generate API."
+            exit 1
+          fi
       - name: Lint
         run: bash shell/lint.sh

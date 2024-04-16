@@ -1,7 +1,7 @@
 import numpy as np
 
-from keras import testing
-from keras.datasets import fashion_mnist
+from keras.src import testing
+from keras.src.datasets import fashion_mnist
 
 
 class FashionMnistLoadDataTest(testing.TestCase):
