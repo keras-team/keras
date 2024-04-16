@@ -34,6 +34,8 @@ def create_legacy_directory():
         )
     with open(os.path.join(API_DIR, "__init__.py"), "w") as f:
         f.write(init_file)
+    # Remove the import of `_tf_keras` in `keras/_tf_keras/keras/__init__.py`
+    init_file = init_file.replace("from keras.api import _tf_keras\n", "\n")
     with open(os.path.join(tf_keras_dirpath, "__init__.py"), "w") as f:
         f.write(init_file)
     for dirname in os.listdir(API_DIR):
