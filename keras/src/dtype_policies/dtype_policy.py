@@ -194,9 +194,7 @@ class FloatDTypePolicy(DTypePolicy):
         return f'<FloatDTypePolicy "{self._name}">'
 
 
-@keras_export(
-    ["keras.QuantizedDTypePolicy", "keras.dtype_policies.QuantizedDTypePolicy"]
-)
+@keras_export("keras.dtype_policies.QuantizedDTypePolicy")
 class QuantizedDTypePolicy(DTypePolicy):
     def __init__(self, name):
         super().__init__(name)
@@ -258,12 +256,7 @@ class QuantizedDTypePolicy(DTypePolicy):
         return valid_policies
 
 
-@keras_export(
-    [
-        "keras.QuantizedFloat8DTypePolicy",
-        "keras.dtype_policies.QuantizedFloat8DTypePolicy",
-    ]
-)
+@keras_export("keras.dtype_policies.QuantizedFloat8DTypePolicy")
 class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
     def __init__(self, name, amax_history_length=1024):
         super().__init__(name)

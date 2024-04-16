@@ -57,7 +57,7 @@ class Quantizer:
         raise NotImplementedError(f"{self} does not implement get_config()")
 
 
-@keras_export(["keras.quantizers.abs_max_quantize"])
+@keras_export("keras.quantizers.abs_max_quantize")
 def abs_max_quantize(
     inputs,
     axis,
@@ -75,7 +75,7 @@ def abs_max_quantize(
     return outputs, scale
 
 
-@keras_export(["keras.AbsMaxQuantizer", "keras.quantizers.AbsMaxQuantizer"])
+@keras_export("keras.quantizers.AbsMaxQuantizer")
 class AbsMaxQuantizer(Quantizer):
     def __init__(
         self,
@@ -109,7 +109,7 @@ class AbsMaxQuantizer(Quantizer):
 """Float8-related methods"""
 
 
-@keras_export(["keras.quantizers.compute_float8_scale"])
+@keras_export("keras.quantizers.compute_float8_scale")
 def compute_float8_scale(amax, scale, dtype_max, margin=0):
     # The algorithm for computing the new scale is sourced from
     # https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/api/jax.html#transformer_engine.jax.update_fp8_metas
@@ -122,7 +122,7 @@ def compute_float8_scale(amax, scale, dtype_max, margin=0):
     return ops.reciprocal(sf)
 
 
-@keras_export(["keras.quantizers.compute_float8_amax_history"])
+@keras_export("keras.quantizers.compute_float8_amax_history")
 def compute_float8_amax_history(x, amax_history):
     amax_update = ops.cast(ops.max(ops.abs(x)), amax_history.dtype)
     new_amax_history = ops.scatter_update(
@@ -133,7 +133,7 @@ def compute_float8_amax_history(x, amax_history):
     return new_amax_history
 
 
-@keras_export(["keras.quantizers.quantize_and_dequantize"])
+@keras_export("keras.quantizers.quantize_and_dequantize")
 def quantize_and_dequantize(inputs, scale, quantized_dtype, compute_dtype):
     # Quantize
     quantized_dtype_max = ops.cast(
