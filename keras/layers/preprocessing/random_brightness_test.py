@@ -58,3 +58,59 @@ class RandomBrightnessTest(testing.TestCase):
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output.numpy()
+
+    def test_value_range_incorrect_type(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "The `value_range` argument should be a list of two numbers.*",
+        ):
+            layers.RandomBrightness(factor=0.1, value_range="incorrect_type")
+
+    def test_value_range_incorrect_length(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "The `value_range` argument should be a list of two numbers.*",
+        ):
+            layers.RandomBrightness(factor=0.1, value_range=[10])
+
+    def test_set_factor_incorrect_length(self):
+        layer = layers.RandomBrightness(factor=0.5)
+        with self.assertRaisesRegex(
+            ValueError, "The `factor` argument should be a number.*"
+        ):
+            layer._set_factor([0.1])  # Only one element in list
+
+    def test_set_factor_incorrect_type(self):
+        layer = layers.RandomBrightness(factor=0.5)
+        with self.assertRaisesRegex(
+            ValueError, "The `factor` argument should be a number.*"
+        ):
+            layer._set_factor(
+                "invalid_type"
+            )  # Passing a string instead of a number or a list/tuple of numbers
+
+    def test_factor_range_below_lower_bound(self):
+        with self.assertRaisesRegex(
+            ValueError, "The `factor` argument should be a number.*"
+        ):
+            # Passing a value less than -1.0
+            layers.RandomBrightness(factor=-1.1)
+
+    def test_factor_range_above_upper_bound(self):
+        with self.assertRaisesRegex(
+            ValueError, "The `factor` argument should be a number.*"
+        ):
+            # Passing a value more than 1.0
+            layers.RandomBrightness(factor=1.1)
+
+    def test_randomly_adjust_brightness_input_incorrect_rank(self):
+        layer = layers.RandomBrightness(factor=0.1)
+        wrong_rank_input = np.random.rand(10, 10)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Expected the input image to be rank 3 or 4.",
+        ):
+            layer(
+                wrong_rank_input, training=True
+            )  # Call the method that triggers the error

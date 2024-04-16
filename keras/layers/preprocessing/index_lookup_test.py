@@ -427,3 +427,193 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(list(output), [2, 3, 1])
         if backend.backend() != "torch":
             self.run_class_serialization_test(layer)
+
+    def test_max_tokens_less_than_two(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "If set, `max_tokens` must be greater than 1.",
+        ):
+            layers.IndexLookup(
+                max_tokens=1,
+                num_oov_indices=1,
+                mask_token=None,
+                oov_token=None,
+                vocabulary_dtype="int64",
+            )
+
+    def test_max_tokens_none_with_pad_to_max_tokens(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "If pad_to_max_tokens is True, must set `max_tokens`.",
+        ):
+            layers.IndexLookup(
+                num_oov_indices=1,
+                max_tokens=None,
+                mask_token=None,
+                oov_token=None,
+                vocabulary_dtype="int64",
+                pad_to_max_tokens=True,
+            )
+
+    def test_negative_num_oov_indices(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "`num_oov_indices` must be greater than or equal to 0.",
+        ):
+            layers.IndexLookup(
+                max_tokens=10,
+                num_oov_indices=-1,
+                mask_token=None,
+                oov_token=None,
+                vocabulary_dtype="int64",
+            )
+
+    def test_invert_with_non_int_output_mode(self):
+        with self.assertRaisesRegex(
+            ValueError, r"`output_mode` must be `'int'` when `invert` is true."
+        ):
+            layers.IndexLookup(
+                num_oov_indices=1,
+                max_tokens=None,
+                mask_token=None,
+                oov_token=None,
+                vocabulary_dtype="string",
+                invert=True,
+                output_mode="one_hot",  # Invalid combination
+            )
+
+    def test_sparse_true_with_int_output_mode(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`sparse` may only be true if `output_mode` is `'one_hot'`",
+        ):
+            layers.IndexLookup(
+                num_oov_indices=1,
+                max_tokens=None,
+                mask_token=None,
+                oov_token=None,
+                vocabulary_dtype="string",
+                sparse=True,
+                output_mode="int",  # Invalid combination
+            )
+
+    def test_idf_weights_set_with_non_tfidf_output_mode(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`idf_weights` should only be set if `output_mode` is `'tf_idf'`",
+        ):
+            layers.IndexLookup(
+                num_oov_indices=1,
+                max_tokens=None,
+                mask_token=None,
+                oov_token=None,
+                vocabulary_dtype="string",
+                idf_weights=[
+                    0.5,
+                    0.1,
+                    0.3,
+                ],  # Should not be set for non-TF-IDF modes
+                output_mode="int",
+            )
+
+    def test_unrecognized_kwargs(self):
+        with self.assertRaisesRegex(
+            ValueError, "Unrecognized keyword argument"
+        ):
+            layers.IndexLookup(
+                num_oov_indices=1,
+                max_tokens=None,
+                mask_token=None,
+                oov_token=None,
+                vocabulary_dtype="string",
+                output_mode="int",
+                # This is an unrecognized argument
+                extra_arg=True,
+            )
+
+    def test_non_tf_idf_with_idf_weights(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "`idf_weights` should only be set if `output_mode` is",
+        ):
+            layers.IndexLookup(
+                num_oov_indices=1,
+                max_tokens=None,
+                mask_token=None,
+                oov_token=None,
+                vocabulary_dtype="string",
+                output_mode="multi_hot",
+                idf_weights=[
+                    0.5,
+                    0.1,
+                    0.3,
+                ],  # idf_weights not valid for multi_hot mode
+            )
+
+    def test_vocabulary_file_does_not_exist(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Vocabulary file path/to/missing_vocab.txt does not exist",
+        ):
+            layers.IndexLookup(
+                num_oov_indices=1,
+                max_tokens=None,
+                mask_token=None,
+                oov_token=None,
+                vocabulary_dtype="string",
+                output_mode="int",
+                # Nonexistent file path
+                vocabulary="path/to/missing_vocab.txt",
+            )
+
+    def test_repeated_tokens_in_vocabulary(self):
+        with self.assertRaisesRegex(
+            ValueError, "The passed vocabulary has at least one repeated term."
+        ):
+            layers.IndexLookup(
+                num_oov_indices=1,
+                max_tokens=None,
+                mask_token=None,
+                oov_token=None,
+                vocabulary_dtype="string",
+                vocabulary=["token", "token", "unique"],
+            )
+
+    def test_mask_token_in_wrong_position(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Found reserved mask token at unexpected location in `vocabulary`.",
+        ):
+            layers.IndexLookup(
+                num_oov_indices=1,
+                max_tokens=None,
+                mask_token="mask",
+                oov_token=None,
+                vocabulary_dtype="string",
+                vocabulary=[
+                    "token",
+                    "mask",
+                    "unique",
+                ],  # 'mask' should be at the start if included explicitly
+            )
+
+    def test_ensure_known_vocab_size_without_vocabulary(self):
+        kwargs = {
+            "num_oov_indices": 1,
+            # Assume empty string or some default token is valid.
+            "mask_token": "",
+            # Assume [OOV] or some default token is valid.
+            "oov_token": "[OOV]",
+            "output_mode": "multi_hot",
+            "pad_to_max_tokens": False,
+            "vocabulary_dtype": "string",
+            "max_tokens": None,
+        }
+        layer = layers.IndexLookup(**kwargs)
+
+        # Try calling the layer without setting the vocabulary.
+        with self.assertRaisesRegex(
+            RuntimeError, "When using `output_mode=multi_hot` and"
+        ):
+            input_data = ["sample", "data"]
+            layer(input_data)

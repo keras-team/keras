@@ -91,10 +91,6 @@ class NormalizationTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(np.var(output, axis=(0, 3)), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=(0, 3)), 0.0, atol=1e-5)
 
-    def test_normalization_errors(self):
-        # TODO
-        pass
-
     @pytest.mark.skipif(
         backend.backend() != "torch",
         reason="Test symbolic call for torch meta device.",
@@ -107,3 +103,44 @@ class NormalizationTest(testing.TestCase, parameterized.TestCase):
         layer.adapt(data)
         with core.device_scope("meta"):
             layer(data)
+
+    def test_normalization_with_mean_only_raises_error(self):
+        # Test error when only `mean` is provided
+        with self.assertRaisesRegex(
+            ValueError, "both `mean` and `variance` must be set"
+        ):
+            layers.Normalization(mean=0.5)
+
+    def test_normalization_with_variance_only_raises_error(self):
+        # Test error when only `variance` is provided
+        with self.assertRaisesRegex(
+            ValueError, "both `mean` and `variance` must be set"
+        ):
+            layers.Normalization(variance=0.1)
+
+    def test_normalization_axis_too_high(self):
+        with self.assertRaisesRegex(
+            ValueError, "All `axis` values must be in the range"
+        ):
+            layer = layers.Normalization(axis=3)
+            layer.build((2, 2))
+
+    def test_normalization_axis_too_low(self):
+        with self.assertRaisesRegex(
+            ValueError, "All `axis` values must be in the range"
+        ):
+            layer = layers.Normalization(axis=-4)
+            layer.build((2, 3, 4))
+
+    def test_normalization_unknown_axis_shape(self):
+        with self.assertRaisesRegex(ValueError, "All `axis` values to be kept"):
+            layer = layers.Normalization(axis=1)
+            layer.build((None, None))
+
+    def test_normalization_adapt_with_incompatible_shape(self):
+        layer = layers.Normalization(axis=-1)
+        initial_shape = (10, 5)
+        layer.build(initial_shape)
+        new_shape_data = np.random.random((10, 3))
+        with self.assertRaisesRegex(ValueError, "an incompatible shape"):
+            layer.adapt(new_shape_data)

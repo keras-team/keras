@@ -260,3 +260,71 @@ class CategoryEncodingTest(testing.TestCase, parameterized.TestCase):
         for output in ds.take(1):
             output = output.numpy()
         self.assertAllClose(output, expected_output)
+
+    def test_category_encoding_without_num_tokens(self):
+        with self.assertRaisesRegex(
+            ValueError, r"num_tokens must be set to use this layer"
+        ):
+            layers.CategoryEncoding(output_mode="multi_hot")
+
+    def test_category_encoding_with_invalid_num_tokens(self):
+        with self.assertRaisesRegex(ValueError, r"`num_tokens` must be >= 1"):
+            layers.CategoryEncoding(num_tokens=0, output_mode="multi_hot")
+
+        with self.assertRaisesRegex(ValueError, r"`num_tokens` must be >= 1"):
+            layers.CategoryEncoding(num_tokens=-1, output_mode="multi_hot")
+
+    def test_category_encoding_with_unnecessary_count_weights(self):
+        layer = layers.CategoryEncoding(num_tokens=4, output_mode="multi_hot")
+        input_data = np.array([0, 1, 2, 3])
+        count_weights = np.array([0.1, 0.2, 0.3, 0.4])
+        with self.assertRaisesRegex(
+            ValueError, r"`count_weights` is not used when `output_mode`"
+        ):
+            layer(input_data, count_weights=count_weights)
+
+    def test_invalid_output_mode_raises_error(self):
+        with self.assertRaisesRegex(
+            ValueError, r"Unknown arg for output_mode: invalid_mode"
+        ):
+            layers.CategoryEncoding(num_tokens=4, output_mode="invalid_mode")
+
+    def test_encode_one_hot_single_sample(self):
+        layer = layers.CategoryEncoding(num_tokens=4, output_mode="one_hot")
+        input_array = np.array([1, 2, 3, 1])
+        expected_output = np.array(
+            [
+                [0, 1, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+                [0, 1, 0, 0],
+            ]
+        )
+        output = layer._encode(input_array)
+        self.assertAllClose(expected_output, output)
+
+    def test_encode_one_hot_batched_samples(self):
+        layer = layers.CategoryEncoding(num_tokens=4, output_mode="one_hot")
+        input_array = np.array([[3, 2, 0, 1], [3, 2, 0, 1]])
+        expected_output = np.array(
+            [
+                [[0, 0, 0, 1], [0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0]],
+                [[0, 0, 0, 1], [0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0]],
+            ]
+        )
+        output = layer._encode(input_array)
+        self.assertAllClose(expected_output, output)
+
+    def test_count_single_sample(self):
+        layer = layers.CategoryEncoding(num_tokens=4, output_mode="count")
+        input_array = np.array([1, 2, 3, 1])
+        expected_output = np.array([0, 2, 1, 1])
+        output = layer._count(input_array)
+        self.assertAllClose(expected_output, output)
+
+    def test_count_batched_samples(self):
+        layer = layers.CategoryEncoding(num_tokens=4, output_mode="count")
+        input_array = np.array([[1, 2, 3, 1], [0, 3, 1, 0]])
+        expected_output = np.array([[0, 2, 1, 1], [2, 1, 0, 1]])
+        output = layer._count(input_array)
+        self.assertAllClose(expected_output, output)
