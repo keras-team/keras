@@ -98,7 +98,7 @@ class IoUTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_compilation(self):
-        m_obj = metrics.MeanIoU(num_classes=2)
+        m_obj = metrics.MeanIoU(num_classes=2, ignore_class=0)
         model = models.Sequential(
             [
                 layers.Dense(2, activation="softmax"),
