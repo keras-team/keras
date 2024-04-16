@@ -2,7 +2,7 @@
 
 Usage:
 
-Run via `./shell/format.sh`.
+Run via `./shell/api_gen.sh`.
 It generates API and formats user and generated APIs.
 """
 
