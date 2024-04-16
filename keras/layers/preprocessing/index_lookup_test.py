@@ -448,6 +448,7 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
         ):
             layers.IndexLookup(
                 num_oov_indices=1,
+                max_tokens=None,
                 mask_token=None,
                 oov_token=None,
                 vocabulary_dtype="int64",
@@ -473,6 +474,7 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
         ):
             layers.IndexLookup(
                 num_oov_indices=1,
+                max_tokens=None,
                 mask_token=None,
                 oov_token=None,
                 vocabulary_dtype="string",
@@ -487,6 +489,7 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
         ):
             layers.IndexLookup(
                 num_oov_indices=1,
+                max_tokens=None,
                 mask_token=None,
                 oov_token=None,
                 vocabulary_dtype="string",
@@ -501,6 +504,7 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
         ):
             layers.IndexLookup(
                 num_oov_indices=1,
+                max_tokens=None,
                 mask_token=None,
                 oov_token=None,
                 vocabulary_dtype="string",
@@ -518,6 +522,7 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
         ):
             layers.IndexLookup(
                 num_oov_indices=1,
+                max_tokens=None,
                 mask_token=None,
                 oov_token=None,
                 vocabulary_dtype="string",
@@ -533,6 +538,7 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
         ):
             layers.IndexLookup(
                 num_oov_indices=1,
+                max_tokens=None,
                 mask_token=None,
                 oov_token=None,
                 vocabulary_dtype="string",
@@ -551,6 +557,7 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
         ):
             layers.IndexLookup(
                 num_oov_indices=1,
+                max_tokens=None,
                 mask_token=None,
                 oov_token=None,
                 vocabulary_dtype="string",
@@ -565,6 +572,7 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
         ):
             layers.IndexLookup(
                 num_oov_indices=1,
+                max_tokens=None,
                 mask_token=None,
                 oov_token=None,
                 vocabulary_dtype="string",
@@ -578,6 +586,7 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
         ):
             layers.IndexLookup(
                 num_oov_indices=1,
+                max_tokens=None,
                 mask_token="mask",
                 oov_token=None,
                 vocabulary_dtype="string",
@@ -598,6 +607,7 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
             "output_mode": "multi_hot",
             "pad_to_max_tokens": False,
             "vocabulary_dtype": "string",
+            "max_tokens": None,
         }
         layer = layers.IndexLookup(**kwargs)
 
