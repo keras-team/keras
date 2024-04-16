@@ -2,12 +2,16 @@ import os
 import re
 import subprocess
 
-from keras import backend
+from keras.src import backend
 
+# For torch, use index url to avoid installing nvidia drivers for the test.
 BACKEND_REQ = {
-    "tensorflow": "tensorflow",
-    "torch": "torch torchvision",
-    "jax": "jax jaxlib",
+    "tensorflow": ("tensorflow-cpu", ""),
+    "torch": (
+        "torch torchvision",
+        "--extra-index-url https://download.pytorch.org/whl/cpu ",
+    ),
+    "jax": ("jax[cpu]", ""),
 }
 
 
@@ -43,16 +47,17 @@ def create_virtualenv():
 
 def manage_venv_installs(whl_path):
     other_backends = list(set(BACKEND_REQ.keys()) - {backend.backend()})
+    backend_pkg, backend_extra_url = BACKEND_REQ[backend.backend()]
     install_setup = [
         # Installs the backend's package and common requirements
-        "pip install " + BACKEND_REQ[backend.backend()],
+        "pip install " + backend_extra_url + backend_pkg,
         "pip install -r requirements-common.txt",
         "pip install pytest",
         # Ensure other backends are uninstalled
         "pip uninstall -y "
-        + BACKEND_REQ[other_backends[0]]
+        + BACKEND_REQ[other_backends[0]][0]
         + " "
-        + BACKEND_REQ[other_backends[1]],
+        + BACKEND_REQ[other_backends[1]][0],
         # Install `.whl` package
         "pip install " + whl_path,
     ]
