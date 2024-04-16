@@ -44,6 +44,30 @@ class ExampleModel(Trainer, layers.Dense):
         Trainer.__init__(self)
 
 
+class CustomTrainTestStepModel(ExampleModel):
+    def train_step(self, data):
+        logs = super().train_step(data)
+        logs["my_custom_metric"] = 10.0
+        return logs
+
+    def test_step(self, data):
+        logs = super().test_step(data)
+        logs["my_custom_metric"] = 5.0
+        return logs
+
+
+class JaxCustomTrainTestStepModel(ExampleModel):
+    def train_step(self, state, data):
+        logs, state = super().train_step(state, data)
+        logs["my_custom_metric"] = 10.0
+        return logs, state
+
+    def test_step(self, state, data):
+        logs, state = super().test_step(state, data)
+        logs["my_custom_metric"] = 5.0
+        return logs, state
+
+
 class StructModel(Trainer, layers.Layer):
     def __init__(self, units):
         layers.Layer.__init__(self)
@@ -308,6 +332,27 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertIn("loss", history)
         self.assertIn("val_loss", history)
 
+    @pytest.mark.requires_trainable_backend
+    def test_fit_with_custom_train_step(self):
+        if backend.backend() == "jax":
+            model = JaxCustomTrainTestStepModel(units=3)
+        else:
+            model = CustomTrainTestStepModel(units=3)
+        x = np.ones((100, 4))
+        y = np.zeros((100, 3))
+        batch_size = 16
+
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+        )
+        history = model.fit(x, y, batch_size=batch_size)
+        history = history.history
+        self.assertIn("loss", history)
+        self.assertIn("mean_squared_error", history)
+        self.assertAllClose(history["my_custom_metric"], 10.0)
+
     @parameterized.named_parameters(
         named_product(
             generator_type=["tf", "jax", "scipy"], mode=["eager", "graph"]
@@ -374,6 +419,31 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertIn("loss", output)
         self.assertIn("mean_squared_error", output)
         self.assertAllClose(output["mean_squared_error"], 16.0)
+
+    @parameterized.named_parameters([("flat", False), ("dict", True)])
+    @pytest.mark.requires_trainable_backend
+    def test_evaluate_with_custom_test_step(self, return_dict):
+        if backend.backend() == "jax":
+            model = JaxCustomTrainTestStepModel(units=3)
+        else:
+            model = CustomTrainTestStepModel(units=3)
+        x = np.ones((100, 4))
+        y = np.zeros((100, 3))
+        batch_size = 16
+
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+        )
+        output = model.evaluate(
+            x, y, batch_size=batch_size, return_dict=return_dict
+        )
+        self.assertLen(output, 3)
+        if return_dict:
+            self.assertAllClose(output["my_custom_metric"], 5.0)
+        else:
+            self.assertAllClose(output[-1], 5.0)  # Custom metrics go last.
 
     @parameterized.named_parameters(
         named_product(
