@@ -68,6 +68,7 @@ class SpectralNormalizationTest(testing.TestCase):
         # max eigen value of 2x2 matrix of ones is 2
         self.assertAllClose(result_train, expected_output / 2)
 
+    @pytest.mark.requires_trainable_backend
     def test_end_to_end(self):
         sn_wrapper = layers.SpectralNormalization(
             layers.Conv2D(
