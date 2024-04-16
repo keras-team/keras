@@ -242,7 +242,7 @@ class Trainer:
     @property
     def metrics(self):
         metrics = [self._loss_tracker] if self.compiled else []
-        metrics.extend(self._metrics[:])
+        metrics.extend(super().metrics)
         if self.compiled and self._compile_metrics is not None:
             metrics += [self._compile_metrics]
         return metrics
@@ -250,13 +250,6 @@ class Trainer:
     @property
     def metrics_names(self):
         return [m.name for m in self.metrics]
-
-    @property
-    def metrics_variables(self):
-        vars = []
-        for metric in self.metrics:
-            vars.extend(metric.variables)
-        return vars
 
     def reset_metrics(self):
         for m in self.metrics:

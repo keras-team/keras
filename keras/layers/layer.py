@@ -636,14 +636,19 @@ class Layer(BackendLayer, Operation):
         return [v for v in self.weights if not v.trainable]
 
     @property
+    def metrics(self):
+        """List of all metrics."""
+        metrics = list(self._metrics)
+        for layer in self._layers:
+            metrics.extend(layer.metrics)
+        return metrics
+
+    @property
     def metrics_variables(self):
         """List of all metric variables."""
         vars = []
-        for metric in self._metrics:
+        for metric in self.metrics:
             vars.extend(metric.variables)
-        for layer in self._layers:
-            for metric in layer._metrics:
-                vars.extend(metric.variables)
         return vars
 
     def get_weights(self):
