@@ -1461,7 +1461,7 @@ def kl_divergence(y_true, y_pred):
     Example:
 
     >>> y_true = np.random.randint(0, 2, size=(2, 3)).astype(np.float32)
-    >>> y_pred = np.random.random(size=(2, 3))
+    >>> y_pred = np.random.random(size=(2, 3)).astype(np.float32)
     >>> loss = keras.losses.kl_divergence(y_true, y_pred)
     >>> assert loss.shape == (2,)
     >>> y_true = ops.clip(y_true, 1e-7, 1)
