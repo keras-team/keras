@@ -72,10 +72,7 @@ class SpectralNormalizationTest(testing.TestCase):
     def test_end_to_end(self):
         sn_wrapper = layers.SpectralNormalization(
             layers.Conv2D(
-                3,
-                (2, 2),
-                padding="same",
-                data_format="channels_last"
+                3, (2, 2), padding="same", data_format="channels_last"
             ),
             power_iterations=2,
         )
