@@ -43,12 +43,25 @@ def resize(
     interpolation="bilinear",
     antialias=False,
     crop_to_aspect_ratio=False,
+    pad_to_aspect_ratio=False,
+    fill_mode="constant",
+    fill_value=0.0,
     data_format="channels_last",
 ):
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
             f"{RESIZE_INTERPOLATIONS}. Received: interpolation={interpolation}"
+        )
+    if fill_mode != "constant":
+        raise ValueError(
+            "Invalid value for argument `fill_mode`. Only `'constant'` "
+            f"is supported. Received: fill_mode={fill_mode}"
+        )
+    if pad_to_aspect_ratio and crop_to_aspect_ratio:
+        raise ValueError(
+            "Only one of `pad_to_aspect_ratio` & `crop_to_aspect_ratio` "
+            "can be `True`."
         )
     if not len(size) == 2:
         raise ValueError(
@@ -62,6 +75,7 @@ def resize(
             size = (image.shape[0],) + size + (image.shape[-1],)
         else:
             size = (image.shape[0], image.shape[1]) + size
+        batch_size = image.shape[0]
     elif len(image.shape) == 3:
         if data_format == "channels_last":
             size = size + (image.shape[-1],)
@@ -114,6 +128,150 @@ def resize(
                     crop_box_hstart : crop_box_hstart + crop_height,
                     crop_box_wstart : crop_box_wstart + crop_width,
                 ]
+    elif pad_to_aspect_ratio:
+        shape = image.shape
+        if data_format == "channels_last":
+            height, width, channels = shape[-3], shape[-2], shape[-1]
+        else:
+            height, width, channels = shape[-2], shape[-1], shape[-3]
+
+        pad_height = int(float(width * target_height) / target_width)
+        pad_height = max(height, pad_height)
+        pad_width = int(float(height * target_width) / target_height)
+        pad_width = max(width, pad_width)
+        img_box_hstart = int(float(pad_height - height) / 2)
+        img_box_wstart = int(float(pad_width - width) / 2)
+        if data_format == "channels_last":
+            if img_box_hstart > 0:
+                if len(image.shape) == 4:
+                    padded_img = jnp.concatenate(
+                        [
+                            jnp.ones(
+                                (batch_size, img_box_hstart, width, channels),
+                                dtype=image.dtype,
+                            )
+                            * fill_value,
+                            image,
+                            jnp.ones(
+                                (batch_size, img_box_hstart, width, channels),
+                                dtype=image.dtype,
+                            )
+                            * fill_value,
+                        ],
+                        axis=1,
+                    )
+                else:
+                    padded_img = jnp.concatenate(
+                        [
+                            jnp.ones(
+                                (img_box_hstart, width, channels),
+                                dtype=image.dtype,
+                            )
+                            * fill_value,
+                            image,
+                            jnp.ones(
+                                (img_box_hstart, width, channels),
+                                dtype=image.dtype,
+                            )
+                            * fill_value,
+                        ],
+                        axis=0,
+                    )
+            elif img_box_wstart > 0:
+                if len(image.shape) == 4:
+                    padded_img = jnp.concatenate(
+                        [
+                            jnp.ones(
+                                (batch_size, height, img_box_wstart, channels),
+                                dtype=image.dtype,
+                            )
+                            * fill_value,
+                            image,
+                            jnp.ones(
+                                (batch_size, height, img_box_wstart, channels),
+                                dtype=image.dtype,
+                            )
+                            * fill_value,
+                        ],
+                        axis=2,
+                    )
+                else:
+                    padded_img = jnp.concatenate(
+                        [
+                            jnp.ones(
+                                (height, img_box_wstart, channels),
+                                dtype=image.dtype,
+                            )
+                            * fill_value,
+                            image,
+                            jnp.ones(
+                                (height, img_box_wstart, channels),
+                                dtype=image.dtype,
+                            )
+                            * fill_value,
+                        ],
+                        axis=1,
+                    )
+            else:
+                padded_img = image
+        else:
+            if img_box_hstart > 0:
+                if len(image.shape) == 4:
+                    padded_img = jnp.concatenate(
+                        [
+                            jnp.ones(
+                                (batch_size, channels, img_box_hstart, width)
+                            )
+                            * fill_value,
+                            image,
+                            jnp.ones(
+                                (batch_size, channels, img_box_hstart, width)
+                            )
+                            * fill_value,
+                        ],
+                        axis=2,
+                    )
+                else:
+                    padded_img = jnp.concatenate(
+                        [
+                            jnp.ones((channels, img_box_hstart, width))
+                            * fill_value,
+                            image,
+                            jnp.ones((channels, img_box_hstart, width))
+                            * fill_value,
+                        ],
+                        axis=1,
+                    )
+            elif img_box_wstart > 0:
+                if len(image.shape) == 4:
+                    padded_img = jnp.concatenate(
+                        [
+                            jnp.ones(
+                                (batch_size, channels, height, img_box_wstart)
+                            )
+                            * fill_value,
+                            image,
+                            jnp.ones(
+                                (batch_size, channels, height, img_box_wstart)
+                            )
+                            * fill_value,
+                        ],
+                        axis=3,
+                    )
+                else:
+                    padded_img = jnp.concatenate(
+                        [
+                            jnp.ones((channels, height, img_box_wstart))
+                            * fill_value,
+                            image,
+                            jnp.ones((channels, height, img_box_wstart))
+                            * fill_value,
+                        ],
+                        axis=2,
+                    )
+            else:
+                padded_img = image
+        image = padded_img
 
     return jax.image.resize(
         image, size, method=interpolation, antialias=antialias

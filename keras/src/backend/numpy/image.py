@@ -42,12 +42,25 @@ def resize(
     interpolation="bilinear",
     antialias=False,
     crop_to_aspect_ratio=False,
+    pad_to_aspect_ratio=False,
+    fill_mode="constant",
+    fill_value=0.0,
     data_format="channels_last",
 ):
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
             f"{RESIZE_INTERPOLATIONS}. Received: interpolation={interpolation}"
+        )
+    if fill_mode != "constant":
+        raise ValueError(
+            "Invalid value for argument `fill_mode`. Only `'constant'` "
+            f"is supported. Received: fill_mode={fill_mode}"
+        )
+    if pad_to_aspect_ratio and crop_to_aspect_ratio:
+        raise ValueError(
+            "Only one of `pad_to_aspect_ratio` & `crop_to_aspect_ratio` "
+            "can be `True`."
         )
     if not len(size) == 2:
         raise ValueError(
@@ -113,6 +126,86 @@ def resize(
                     crop_box_hstart : crop_box_hstart + crop_height,
                     crop_box_wstart : crop_box_wstart + crop_width,
                 ]
+    elif pad_to_aspect_ratio:
+        shape = image.shape
+        batch_size = image.shape[0]
+        if data_format == "channels_last":
+            height, width, channels = shape[-3], shape[-2], shape[-1]
+        else:
+            channels, height, width = shape[-3], shape[-2], shape[-1]
+        pad_height = int(float(width * target_height) / target_width)
+        pad_height = max(height, pad_height)
+        pad_width = int(float(height * target_width) / target_height)
+        pad_width = max(width, pad_width)
+        img_box_hstart = int(float(pad_height - height) / 2)
+        img_box_wstart = int(float(pad_width - width) / 2)
+        if data_format == "channels_last":
+            if len(image.shape) == 4:
+                padded_img = (
+                    np.ones(
+                        (
+                            batch_size,
+                            pad_height + height,
+                            pad_width + width,
+                            channels,
+                        ),
+                        dtype=image.dtype,
+                    )
+                    * fill_value
+                )
+                padded_img[
+                    :,
+                    img_box_hstart : img_box_hstart + height,
+                    img_box_wstart : img_box_wstart + width,
+                    :,
+                ] = image
+            else:
+                padded_img = (
+                    np.ones(
+                        (pad_height + height, pad_width + width, channels),
+                        dtype=image.dtype,
+                    )
+                    * fill_value
+                )
+                padded_img[
+                    img_box_hstart : img_box_hstart + height,
+                    img_box_wstart : img_box_wstart + width,
+                    :,
+                ] = image
+        else:
+            if len(image.shape) == 4:
+                padded_img = (
+                    np.ones(
+                        (
+                            batch_size,
+                            channels,
+                            pad_height + height,
+                            pad_width + width,
+                        ),
+                        dtype=image.dtype,
+                    )
+                    * fill_value
+                )
+                padded_img[
+                    :,
+                    :,
+                    img_box_hstart : img_box_hstart + height,
+                    img_box_wstart : img_box_wstart + width,
+                ] = image
+            else:
+                padded_img = (
+                    np.ones(
+                        (channels, pad_height + height, pad_width + width),
+                        dtype=image.dtype,
+                    )
+                    * fill_value
+                )
+                padded_img[
+                    :,
+                    img_box_hstart : img_box_hstart + height,
+                    img_box_wstart : img_box_wstart + width,
+                ] = image
+        image = padded_img
 
     return np.array(
         jax.image.resize(image, size, method=interpolation, antialias=antialias)

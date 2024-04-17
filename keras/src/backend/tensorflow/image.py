@@ -42,12 +42,25 @@ def resize(
     interpolation="bilinear",
     antialias=False,
     crop_to_aspect_ratio=False,
+    pad_to_aspect_ratio=False,
+    fill_mode="constant",
+    fill_value=0.0,
     data_format="channels_last",
 ):
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
             f"{RESIZE_INTERPOLATIONS}. Received: interpolation={interpolation}"
+        )
+    if fill_mode != "constant":
+        raise ValueError(
+            "Invalid value for argument `fill_mode`. Only `'constant'` "
+            f"is supported. Received: fill_mode={fill_mode}"
+        )
+    if pad_to_aspect_ratio and crop_to_aspect_ratio:
+        raise ValueError(
+            "Only one of `pad_to_aspect_ratio` & `crop_to_aspect_ratio` "
+            "can be `True`."
         )
     if not len(size) == 2:
         raise ValueError(
@@ -102,6 +115,115 @@ def resize(
                 crop_box_wstart : crop_box_wstart + crop_width,
                 :,
             ]
+    elif pad_to_aspect_ratio:
+        shape = tf.shape(image)
+        height, width = shape[-3], shape[-2]
+        target_height, target_width = size
+        pad_height = tf.cast(
+            tf.cast(width * target_height, "float32") / target_width,
+            "int32",
+        )
+        pad_height = tf.maximum(height, pad_height)
+        pad_height = tf.cast(pad_height, "int32")
+        pad_width = tf.cast(
+            tf.cast(height * target_width, "float32") / target_height,
+            "int32",
+        )
+        pad_width = tf.maximum(width, pad_width)
+        pad_width = tf.cast(pad_width, "int32")
+
+        img_box_hstart = tf.cast(
+            tf.cast(pad_height - height, "float32") / 2, "int32"
+        )
+        img_box_wstart = tf.cast(
+            tf.cast(pad_width - width, "float32") / 2, "int32"
+        )
+        if len(image.shape) == 4:
+            batch_size = tf.shape(image)[0]
+            channels = tf.shape(image)[3]
+            padded_img = tf.cond(
+                img_box_hstart > 0,
+                lambda: tf.concat(
+                    [
+                        tf.ones(
+                            (batch_size, img_box_hstart, width, channels),
+                            dtype=image.dtype,
+                        )
+                        * fill_value,
+                        image,
+                        tf.ones(
+                            (batch_size, img_box_hstart, width, channels),
+                            dtype=image.dtype,
+                        )
+                        * fill_value,
+                    ],
+                    axis=1,
+                ),
+                lambda: image,
+            )
+            padded_img = tf.cond(
+                img_box_wstart > 0,
+                lambda: tf.concat(
+                    [
+                        tf.ones(
+                            (batch_size, height, img_box_wstart, channels),
+                            dtype=image.dtype,
+                        )
+                        * fill_value,
+                        padded_img,
+                        tf.ones(
+                            (batch_size, height, img_box_wstart, channels),
+                            dtype=image.dtype,
+                        )
+                        * fill_value,
+                    ],
+                    axis=2,
+                ),
+                lambda: padded_img,
+            )
+        else:
+            channels = tf.shape(image)[2]
+            padded_img = tf.cond(
+                img_box_hstart > 0,
+                lambda: tf.concat(
+                    [
+                        tf.ones(
+                            (img_box_hstart, width, channels),
+                            dtype=image.dtype,
+                        )
+                        * fill_value,
+                        image,
+                        tf.ones(
+                            (img_box_hstart, width, channels),
+                            dtype=image.dtype,
+                        )
+                        * fill_value,
+                    ],
+                    axis=0,
+                ),
+                lambda: image,
+            )
+            padded_img = tf.cond(
+                img_box_wstart > 0,
+                lambda: tf.concat(
+                    [
+                        tf.ones(
+                            (height, img_box_wstart, channels),
+                            dtype=image.dtype,
+                        )
+                        * fill_value,
+                        padded_img,
+                        tf.ones(
+                            (height, img_box_wstart, channels),
+                            dtype=image.dtype,
+                        )
+                        * fill_value,
+                    ],
+                    axis=1,
+                ),
+                lambda: padded_img,
+            )
+        image = padded_img
 
     resized = tf.image.resize(
         image, size, method=interpolation, antialias=antialias

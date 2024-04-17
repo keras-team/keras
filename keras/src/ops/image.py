@@ -111,6 +111,9 @@ class Resize(Operation):
         interpolation="bilinear",
         antialias=False,
         crop_to_aspect_ratio=False,
+        pad_to_aspect_ratio=False,
+        fill_mode="constant",
+        fill_value=0.0,
         data_format="channels_last",
     ):
         super().__init__()
@@ -119,6 +122,9 @@ class Resize(Operation):
         self.antialias = antialias
         self.data_format = data_format
         self.crop_to_aspect_ratio = crop_to_aspect_ratio
+        self.pad_to_aspect_ratio = pad_to_aspect_ratio
+        self.fill_mode = fill_mode
+        self.fill_value = fill_value
 
     def call(self, image):
         return backend.image.resize(
@@ -128,6 +134,9 @@ class Resize(Operation):
             antialias=self.antialias,
             data_format=self.data_format,
             crop_to_aspect_ratio=self.crop_to_aspect_ratio,
+            pad_to_aspect_ratio=self.pad_to_aspect_ratio,
+            fill_mode=self.fill_mode,
+            fill_value=self.fill_value,
         )
 
     def compute_output_spec(self, image):
@@ -160,6 +169,9 @@ def resize(
     interpolation="bilinear",
     antialias=False,
     crop_to_aspect_ratio=False,
+    pad_to_aspect_ratio=False,
+    fill_mode="constant",
+    fill_value=0.0,
     data_format="channels_last",
 ):
     """Resize images to size using the specified interpolation method.
@@ -178,6 +190,15 @@ def resize(
             largest possible window in the image (of size `(height, width)`)
             that matches the target aspect ratio. By default
             (`crop_to_aspect_ratio=False`), aspect ratio may not be preserved.
+        pad_to_aspect_ratio: If `True`, pad the image without aspect
+            ratio distortion. When the original aspect ratio differs
+            from the target aspect ratio, the output image will be
+            evenly padded on the short side.
+        fill_mode: When using `pad_to_aspect_ratio=True`, padded areas
+            are filled according to the given mode. Only `"constant"` is
+            supported at this time
+            (fill with constant value, equal to `fill_value`).
+        fill_value: Float. Padding value to use when `pad_to_aspect_ratio=True`.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
             corresponds to inputs with shape `(batch, height, width, channels)`
@@ -219,6 +240,11 @@ def resize(
             "channels)`, or `(batch_size, height, width, channels)`, but "
             f"got input with incorrect rank, of shape {image.shape}."
         )
+    if pad_to_aspect_ratio and crop_to_aspect_ratio:
+        raise ValueError(
+            "Only one of `pad_to_aspect_ratio` & `crop_to_aspect_ratio` "
+            "can be `True`."
+        )
     if any_symbolic_tensors((image,)):
         return Resize(
             size,
@@ -226,6 +252,9 @@ def resize(
             antialias=antialias,
             data_format=data_format,
             crop_to_aspect_ratio=crop_to_aspect_ratio,
+            pad_to_aspect_ratio=pad_to_aspect_ratio,
+            fill_mode=fill_mode,
+            fill_value=fill_value,
         ).symbolic_call(image)
     return backend.image.resize(
         image,
@@ -234,6 +263,9 @@ def resize(
         antialias=antialias,
         crop_to_aspect_ratio=crop_to_aspect_ratio,
         data_format=data_format,
+        pad_to_aspect_ratio=pad_to_aspect_ratio,
+        fill_mode=fill_mode,
+        fill_value=fill_value,
     )
 
 

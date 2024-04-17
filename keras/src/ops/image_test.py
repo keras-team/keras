@@ -319,6 +319,84 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.parameters(
         [
+            ("channels_last",),
+            ("channels_first",),
+        ]
+    )
+    def test_resize_with_crop(self, data_format):
+        if data_format == "channels_first":
+            x = np.random.random((3, 60, 50)) * 255
+        else:
+            x = np.random.random((60, 50, 3)) * 255
+        out = kimage.resize(
+            x,
+            size=(25, 25),
+            crop_to_aspect_ratio=True,
+            data_format=data_format,
+        )
+        if data_format == "channels_first":
+            self.assertEqual(out.shape, (3, 25, 25))
+        else:
+            self.assertEqual(out.shape, (25, 25, 3))
+
+        # Batched case
+        if data_format == "channels_first":
+            x = np.random.random((2, 3, 50, 60)) * 255
+        else:
+            x = np.random.random((2, 50, 60, 3)) * 255
+        out = kimage.resize(
+            x,
+            size=(25, 25),
+            crop_to_aspect_ratio=True,
+            data_format=data_format,
+        )
+        if data_format == "channels_first":
+            self.assertEqual(out.shape, (2, 3, 25, 25))
+        else:
+            self.assertEqual(out.shape, (2, 25, 25, 3))
+
+    @parameterized.parameters(
+        [
+            ("channels_last", 2.0),
+            ("channels_first", 2.0),
+        ]
+    )
+    def test_resize_with_pad(self, data_format, fill_value):
+        if data_format == "channels_first":
+            x = np.random.random((3, 60, 50)) * 255
+        else:
+            x = np.random.random((60, 50, 3)) * 255
+        out = kimage.resize(
+            x,
+            size=(25, 25),
+            pad_to_aspect_ratio=True,
+            data_format=data_format,
+            fill_value=fill_value,
+        )
+        if data_format == "channels_first":
+            self.assertEqual(out.shape, (3, 25, 25))
+        else:
+            self.assertEqual(out.shape, (25, 25, 3))
+
+        # Batched case
+        if data_format == "channels_first":
+            x = np.random.random((2, 3, 50, 60)) * 255
+        else:
+            x = np.random.random((2, 50, 60, 3)) * 255
+        out = kimage.resize(
+            x,
+            size=(25, 25),
+            pad_to_aspect_ratio=True,
+            data_format=data_format,
+            fill_value=fill_value,
+        )
+        if data_format == "channels_first":
+            self.assertEqual(out.shape, (2, 3, 25, 25))
+        else:
+            self.assertEqual(out.shape, (2, 25, 25, 3))
+
+    @parameterized.parameters(
+        [
             ("bilinear", "constant", "channels_last"),
             ("nearest", "constant", "channels_last"),
             ("bilinear", "nearest", "channels_last"),

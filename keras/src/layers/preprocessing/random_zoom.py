@@ -68,7 +68,7 @@ class RandomZoom(TFDataLayer):
         interpolation: Interpolation mode. Supported values: `"nearest"`,
             `"bilinear"`.
         seed: Integer. Used to create a random seed.
-        fill_value: a float represents the value to be filled outside
+        fill_value: a float that represents the value to be filled outside
             the boundaries when `fill_mode="constant"`.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
