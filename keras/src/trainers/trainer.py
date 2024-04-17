@@ -899,6 +899,37 @@ class Trainer:
                 result[key] = value
         return result
 
+    def _get_metrics_result_or_logs(self, logs):
+        """Returns model metrics as a dict if the keys match with input logs.
+
+        When the training / evalution is performed with an asynchronous steps,
+        the last scheduled `train / test_step` may not give the latest metrics
+        because it is not guaranteed to be executed the last. This method gets
+        metrics from the model directly instead of relying on the return from
+        last step function.
+
+        When the user has custom train / test step functions, the metrics
+        returned may be different from `Model.metrics`. In those instances,
+        this function will be no-op and return the logs passed in.
+
+        Args:
+            logs: A `dict` of metrics returned by train / test step function.
+
+        Returns:
+            A `dict` containing values of the metrics listed in `self.metrics`
+            when logs and model metrics keys match. Otherwise it returns input
+            `logs`.
+        """
+        metric_logs = self.get_metrics_result()
+        # Verify that train / test step logs passed and metric logs have
+        # matching keys. It could be different when using custom step functions,
+        # in which case we return the logs from the last step.
+        if isinstance(logs, dict) and set(logs.keys()) == set(
+            metric_logs.keys()
+        ):
+            return metric_logs
+        return logs
+
     def _flatten_metrics_in_order(self, logs):
         """Turns `logs` dict into a list as per key order of `metrics_names`."""
         metric_names = []

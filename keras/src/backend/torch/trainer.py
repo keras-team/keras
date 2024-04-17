@@ -252,14 +252,15 @@ class TorchTrainer(base_trainer.Trainer):
                 callbacks.on_train_batch_begin(step)
 
                 logs = self.train_function(data)
+                logs = self._pythonify_logs(logs)
 
                 # Callbacks
-                callbacks.on_train_batch_end(step, self._pythonify_logs(logs))
+                callbacks.on_train_batch_end(step, logs)
                 if self.stop_training:
                     break
 
-            # Override with model metrics instead of last step logs
-            epoch_logs = self.get_metrics_result()
+            # Override with model metrics instead of last step logs if needed.
+            epoch_logs = dict(self._get_metrics_result_or_logs(logs))
 
             # Switch the torch Module back to testing mode.
             self.eval()
@@ -368,10 +369,11 @@ class TorchTrainer(base_trainer.Trainer):
         for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_test_batch_begin(step)
             logs = self.test_function(data)
-            callbacks.on_test_batch_end(step, self._pythonify_logs(logs))
+            logs = self._pythonify_logs(logs)
+            callbacks.on_test_batch_end(step, logs)
             if self.stop_evaluating:
                 break
-        logs = self.get_metrics_result()
+        logs = self._get_metrics_result_or_logs(logs)
         callbacks.on_test_end(logs)
 
         if return_dict:
