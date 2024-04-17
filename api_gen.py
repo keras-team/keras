@@ -7,7 +7,6 @@ It generates API and formats user and generated APIs.
 """
 
 import os
-import pathlib
 import shutil
 
 import namex
