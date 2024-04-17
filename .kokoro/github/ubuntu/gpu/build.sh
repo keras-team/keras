@@ -34,8 +34,8 @@ then
    python3 -c 'import tensorflow as tf;assert len(tf.config.list_physical_devices("GPU")) > 0'
 
    # TODO: keras/layers/merging/merging_test.py::MergingLayersTest::test_sparse_dot_2d Fatal Python error: Aborted
-   pytest keras --ignore keras/applications \
-               --ignore keras/layers/merging/merging_test.py \
+   pytest keras --ignore keras/src/applications \
+               --ignore keras/src/layers/merging/merging_test.py \
                --cov=keras
 fi
 
@@ -51,11 +51,11 @@ then
    # TODO: keras/layers/merging/merging_test.py::MergingLayersTest::test_sparse_dot_2d Fatal Python error: Aborted
    # TODO: keras/trainers/data_adapters/py_dataset_adapter_test.py::PyDatasetAdapterTest::test_basic_flow0 Fatal Python error: Aborted
    # keras/backend/jax/distribution_lib_test.py is configured for CPU test for now.
-   pytest keras --ignore keras/applications \
-               --ignore keras/layers/merging/merging_test.py \
-               --ignore keras/trainers/data_adapters/py_dataset_adapter_test.py \
-               --ignore keras/backend/jax/distribution_lib_test.py \
-               --ignore keras/distribution/distribution_lib_test.py \
+   pytest keras --ignore keras/src/applications \
+               --ignore keras/src/layers/merging/merging_test.py \
+               --ignore keras/src/trainers/data_adapters/py_dataset_adapter_test.py \
+               --ignore keras/src/backend/jax/distribution_lib_test.py \
+               --ignore keras/src/distribution/distribution_lib_test.py \
                --cov=keras
 fi
 
@@ -68,6 +68,6 @@ then
    # Raise error if GPU is not detected.
    python3 -c 'import torch;assert torch.cuda.is_available()'
 
-   pytest keras --ignore keras/applications \
+   pytest keras --ignore keras/src/applications \
                --cov=keras
 fi
