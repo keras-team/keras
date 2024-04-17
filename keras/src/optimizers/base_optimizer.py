@@ -1,8 +1,6 @@
 import re
 import warnings
 
-import numpy as np
-
 from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
@@ -375,27 +373,31 @@ class BaseOptimizer:
             is_update_step = (
                 self.iterations + 1
             ) % self.gradient_accumulation_steps == 0
+            # `trainable_variables` might have been filtered in previous
+            # processing steps, so we need to ensure the correct mapping between
+            # `self._accumulated_gradients` and `trainable_variables`
+            acc_grads = [
+                self._accumulated_gradients[self._get_variable_index(v)]
+                for v in trainable_variables
+            ]
 
-            def _update_step_fn(self, grads, trainable_variables):
+            def _update_step_fn(grads, trainable_variables):
                 # Run update step with accumulated grads + reset accumulators
                 steps = self.gradient_accumulation_steps
                 grads = [
-                    (grads[i] + self._accumulated_gradients[i]) / steps
-                    for i in range(len(grads))
+                    (g + acc_g) / steps for g, acc_g in zip(grads, acc_grads)
                 ]
                 self._backend_update_step(
                     grads, trainable_variables, self.learning_rate
                 )
                 self._backend_reset_gradient_accumulators()
 
-            def _grad_accumulation_fn(self, grads):
-                # Update gradient accumulators
-                self._backend_increment_gradient_accumulators(grads)
-
             ops.cond(
                 is_update_step,
-                lambda: _update_step_fn(self, grads, trainable_variables),
-                lambda: _grad_accumulation_fn(self, grads),
+                lambda: _update_step_fn(grads, trainable_variables),
+                lambda: self._backend_increment_gradient_accumulators(
+                    grads, acc_grads
+                ),
             )
         else:
             # Run udpate step.
@@ -434,14 +436,11 @@ class BaseOptimizer:
 
     def _backend_reset_gradient_accumulators(self):
         for g_acc in self._accumulated_gradients:
-            g_acc.assign(np.zeros(g_acc.shape, dtype=g_acc.dtype))
+            g_acc.assign(ops.zeros(g_acc.shape, dtype=g_acc.dtype))
 
-    def _backend_increment_gradient_accumulators(self, grads):
-        new_g_accs = [
-            (grads[i] + self._accumulated_gradients[i])
-            for i in range(len(grads))
-        ]
-        for n_g_acc, g_acc in zip(new_g_accs, self._accumulated_gradients):
+    def _backend_increment_gradient_accumulators(self, grads, acc_grads):
+        new_g_accs = [(g + acc_g) for g, acc_g in zip(grads, acc_grads)]
+        for n_g_acc, g_acc in zip(new_g_accs, acc_grads):
             g_acc.assign(n_g_acc)
 
     def stateless_apply(self, optimizer_variables, grads, trainable_variables):
@@ -616,7 +615,32 @@ class BaseOptimizer:
         for i in range(len(filtered_grads) - 1, -1, -1):
             g, v = filtered_grads[i], filtered_vars[i]
             if v.overwrite_with_gradient:
-                v.assign(g)
+                if self.gradient_accumulation_steps:
+                    # Utilize a stateless manner for JAX compatibility
+                    steps = self.gradient_accumulation_steps
+                    is_update_step = (self.iterations + 1) % steps == 0
+                    acc_g = self._accumulated_gradients[
+                        self._get_variable_index(v)
+                    ]
+                    # `ops.maximum` is utilized for gradient accumulation for
+                    # `overwrite_with_gradient=True` variables
+                    new_g_acc = ops.cond(
+                        is_update_step,
+                        lambda: ops.zeros(g.shape, dtype=g.dtype),
+                        lambda: ops.maximum(g, acc_g),
+                    )
+                    new_g = ops.cond(
+                        is_update_step,
+                        lambda: ops.maximum(g, acc_g),
+                        lambda: g,
+                    )
+                    new_v = ops.cond(
+                        is_update_step, lambda: new_g, lambda: v.value
+                    )
+                    v.assign(new_v)
+                    acc_g.assign(new_g_acc)
+                else:
+                    v.assign(g)
                 filtered_grads.pop(i)
                 filtered_vars.pop(i)
         return filtered_grads, filtered_vars

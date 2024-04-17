@@ -196,11 +196,11 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
                 var, lambda a, b: a.assign(b), args=(average_var,)
             )
 
-    def _backend_increment_gradient_accumulators(self, grads):
+    def _backend_increment_gradient_accumulators(self, grads, acc_grads):
         def update_accumulator(var, grad):
             var.assign(var + grad)
 
-        accumulators = [v.value for v in self._accumulated_gradients]
+        accumulators = [v.value for v in acc_grads]
 
         def _distributed_tf_increment_grad_acc(
             distribution, grads, accumulators
