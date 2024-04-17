@@ -72,9 +72,10 @@ def make_layer_label(layer, **kwargs):
         '<<table border="0" cellborder="1" bgcolor="black" cellpadding="10">'
     )
 
-    colspan = max(
-        1, sum(int(x) for x in (show_dtype, show_shapes, show_trainable))
-    )
+    colspan_max = sum(int(x) for x in (show_dtype, show_trainable))
+    if show_shapes:
+        colspan_max += 2
+    colspan = max(1, colspan_max)
 
     if show_layer_names:
         table += (
@@ -104,15 +105,25 @@ def make_layer_label(layer, **kwargs):
 
     cols = []
     if show_shapes:
-        shape = None
+        input_shape = None
+        output_shape = None
         try:
-            shape = tree.map_structure(lambda x: x.shape, layer.output)
+            input_shape = tree.map_structure(lambda x: x.shape, layer.input)
+            output_shape = tree.map_structure(lambda x: x.shape, layer.output)
         except (ValueError, AttributeError):
             pass
+        if class_name != "InputLayer":
+            cols.append(
+                (
+                    '<td bgcolor="white"><font point-size="14">'
+                    f'Input shape: <b>{input_shape or "?"}</b>'
+                    "</font></td>"
+                )
+            )
         cols.append(
             (
                 '<td bgcolor="white"><font point-size="14">'
-                f'Output shape: <b>{shape or "?"}</b>'
+                f'Output shape: <b>{output_shape or "?"}</b>'
                 "</font></td>"
             )
         )
@@ -248,7 +259,6 @@ def model_to_dot(
     }
 
     if isinstance(model, sequential.Sequential):
-        # TODO
         layers = model.layers
     elif not isinstance(model, functional.Functional):
         # We treat subclassed models as a single node.
