@@ -622,6 +622,8 @@ class BaseOptimizer:
                     acc_g = self._accumulated_gradients[
                         self._get_variable_index(v)
                     ]
+                    # `ops.maximum` is utilized for gradient accumulation for
+                    # `overwrite_with_gradient=True` variables
                     new_g_acc = ops.cond(
                         is_update_step,
                         lambda: ops.zeros(g.shape, dtype=g.dtype),
