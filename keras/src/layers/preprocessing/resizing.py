@@ -39,6 +39,15 @@ class Resizing(TFDataLayer):
             largest possible window in the image (of size `(height, width)`)
             that matches the target aspect ratio. By default
             (`crop_to_aspect_ratio=False`), aspect ratio may not be preserved.
+        pad_to_aspect_ratio: If `True`, pad the images without aspect
+            ratio distortion. When the original aspect ratio differs
+            from the target aspect ratio, the output image will be
+            evenly padded on the short side.
+        fill_mode: When using `pad_to_aspect_ratio=True`, padded areas
+            are filled according to the given mode. Only `"constant"` is
+            supported at this time
+            (fill with constant value, equal to `fill_value`).
+        fill_value: Float. Padding value to use when `pad_to_aspect_ratio=True`.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
             corresponds to inputs with shape `(batch, height, width, channels)`
@@ -56,6 +65,9 @@ class Resizing(TFDataLayer):
         width,
         interpolation="bilinear",
         crop_to_aspect_ratio=False,
+        pad_to_aspect_ratio=False,
+        fill_mode="constant",
+        fill_value=0.0,
         data_format=None,
         **kwargs,
     ):
@@ -65,6 +77,9 @@ class Resizing(TFDataLayer):
         self.interpolation = interpolation
         self.data_format = backend.standardize_data_format(data_format)
         self.crop_to_aspect_ratio = crop_to_aspect_ratio
+        self.pad_to_aspect_ratio = pad_to_aspect_ratio
+        self.fill_mode = fill_mode
+        self.fill_value = fill_value
 
     def call(self, inputs):
         size = (self.height, self.width)
@@ -74,6 +89,9 @@ class Resizing(TFDataLayer):
             interpolation=self.interpolation,
             data_format=self.data_format,
             crop_to_aspect_ratio=self.crop_to_aspect_ratio,
+            pad_to_aspect_ratio=self.pad_to_aspect_ratio,
+            fill_mode=self.fill_mode,
+            fill_value=self.fill_value,
         )
 
     def compute_output_shape(self, input_shape):
@@ -101,6 +119,9 @@ class Resizing(TFDataLayer):
             "width": self.width,
             "interpolation": self.interpolation,
             "crop_to_aspect_ratio": self.crop_to_aspect_ratio,
+            "pad_to_aspect_ratio": self.pad_to_aspect_ratio,
+            "fill_mode": self.fill_mode,
+            "fill_value": self.fill_value,
             "data_format": self.data_format,
         }
         return {**base_config, **config}

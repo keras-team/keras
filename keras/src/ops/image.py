@@ -190,7 +190,7 @@ def resize(
             largest possible window in the image (of size `(height, width)`)
             that matches the target aspect ratio. By default
             (`crop_to_aspect_ratio=False`), aspect ratio may not be preserved.
-        pad_to_aspect_ratio: If `True`, pad the image without aspect
+        pad_to_aspect_ratio: If `True`, pad the images without aspect
             ratio distortion. When the original aspect ratio differs
             from the target aspect ratio, the output image will be
             evenly padded on the short side.
