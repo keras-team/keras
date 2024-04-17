@@ -10,6 +10,7 @@ from keras.src.ops.nn import binary_crossentropy
 from keras.src.ops.nn import categorical_crossentropy
 from keras.src.ops.nn import conv
 from keras.src.ops.nn import conv_transpose
+from keras.src.ops.nn import ctc_decode
 from keras.src.ops.nn import ctc_loss
 from keras.src.ops.nn import depthwise_conv
 from keras.src.ops.nn import elu
