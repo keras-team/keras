@@ -25,23 +25,24 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
             ]
             current_optimizer_vars_value = [v.value for v in self.variables]
 
+            # `trainable_variables` might have been filtered in previous
+            # processing steps, so we need to ensure the correct mapping between
+            # `self._accumulated_gradients` and `trainable_variables`
+            acc_grads = [
+                self._accumulated_gradients[self._get_variable_index(v)]
+                for v in trainable_variables
+            ]
+
             new_g_accs = jax.lax.cond(
                 is_update_step,
-                lambda: [
-                    jnp.zeros(x.shape, dtype=x.dtype)
-                    for x in self._accumulated_gradients
-                ],
-                lambda: [
-                    grads[i] + self._accumulated_gradients[i]
-                    for i in range(len(grads))
-                ],
+                lambda: [jnp.zeros(g.shape, dtype=g.dtype) for g in acc_grads],
+                lambda: [g + acc_g for g, acc_g in zip(grads, acc_grads)],
             )
 
             grads = jax.lax.cond(
                 is_update_step,
                 lambda: [
-                    (grads[i] + self._accumulated_gradients[i]) / steps
-                    for i in range(len(grads))
+                    (g + acc_g) / steps for g, acc_g in zip(grads, acc_grads)
                 ],
                 lambda: list(grads),
             )
@@ -66,7 +67,7 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
             for value, v in zip(new_opt_vars, self.variables):
                 v.assign(value)
 
-            for n_g_acc, g_acc in zip(new_g_accs, self._accumulated_gradients):
+            for n_g_acc, g_acc in zip(new_g_accs, acc_grads):
                 g_acc.assign(n_g_acc)
 
         else:

@@ -267,6 +267,50 @@ class OptimizerTest(testing.TestCase):
         self.assertAllClose(v, [[1.0, 1.0], [1.0, 1.0]])
         self.assertAllClose(v2, [[0.0, 1.0], [2.0, 3.0]])
 
+    def test_overwrite_with_gradient_with_gradient_accumulation(self):
+        v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        v.overwrite_with_gradient = True
+        v2 = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        grad_ones = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        grad_twos = backend.convert_to_tensor([[2.0, 2.0], [2.0, 2.0]])
+        optimizer = optimizers.SGD(
+            learning_rate=1.0, gradient_accumulation_steps=2
+        )
+
+        # Iteration 1
+        optimizer.apply_gradients([(grad_ones, v), (grad_ones, v2)])
+        self.assertAllClose(optimizer.iterations, 1)
+        self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
+        self.assertAllClose(v2, [[1.0, 2.0], [3.0, 4.0]])
+        self.assertAllClose(
+            optimizer._accumulated_gradients[0], [[1.0, 1.0], [1.0, 1.0]]
+        )
+        self.assertAllClose(
+            optimizer._accumulated_gradients[1], [[1.0, 1.0], [1.0, 1.0]]
+        )
+        # Iteration 2
+        optimizer.apply_gradients([(grad_twos, v), (grad_twos, v2)])
+        self.assertAllClose(optimizer.iterations, 2)
+        self.assertAllClose(v, [[2.0, 2.0], [2.0, 2.0]])
+        self.assertAllClose(v2, [[-0.5, 0.5], [1.5, 2.5]])
+        self.assertAllClose(
+            optimizer._accumulated_gradients[0], [[0.0, 0.0], [0.0, 0.0]]
+        )
+        self.assertAllClose(
+            optimizer._accumulated_gradients[1], [[0.0, 0.0], [0.0, 0.0]]
+        )
+        # Iteration 3
+        optimizer.apply_gradients([(grad_ones, v), (grad_ones, v2)])
+        self.assertAllClose(optimizer.iterations, 3)
+        self.assertAllClose(v, [[2.0, 2.0], [2.0, 2.0]])
+        self.assertAllClose(v2, [[-0.5, 0.5], [1.5, 2.5]])
+        self.assertAllClose(
+            optimizer._accumulated_gradients[0], [[1.0, 1.0], [1.0, 1.0]]
+        )
+        self.assertAllClose(
+            optimizer._accumulated_gradients[1], [[1.0, 1.0], [1.0, 1.0]]
+        )
+
     def test_setting_lr_to_callable_untracks_lr_var(self):
         adam = optimizers.Adam(learning_rate=0.001)
         self.assertLen(adam.variables, 2)

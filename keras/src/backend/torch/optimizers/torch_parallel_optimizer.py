@@ -19,6 +19,6 @@ class TorchParallelOptimizer(BaseOptimizer):
         torch._foreach_mul_(acc_list, 0.0)
 
     @torch_utils.no_grad
-    def _backend_increment_gradient_accumulators(self, grads):
-        acc_list = [v.value for v in self._accumulated_gradients]
+    def _backend_increment_gradient_accumulators(self, grads, acc_grads):
+        acc_list = [v.value for v in acc_grads]
         torch._foreach_add_(acc_list, grads, alpha=1.0)
