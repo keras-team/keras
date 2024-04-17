@@ -38,8 +38,6 @@ from keras.src.backend.exports import device
 from keras.src.backend.exports import name_scope
 from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
-from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
-from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
 from keras.src.initializers.initializer import Initializer
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
@@ -51,7 +49,6 @@ from keras.src.models.sequential import Sequential
 from keras.src.ops.function import Function
 from keras.src.ops.operation import Operation
 from keras.src.optimizers.optimizer import Optimizer
-from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.quantizers.quantizers import Quantizer
 from keras.src.regularizers.regularizers import Regularizer
 from keras.src.version import __version__
