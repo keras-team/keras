@@ -53,6 +53,8 @@ class Lion(optimizer.Optimizer):
         use_ema=False,
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
+        loss_scale_factor=None,
+        gradient_accumulation_steps=None,
         name="lion",
         **kwargs,
     ):
@@ -66,6 +68,8 @@ class Lion(optimizer.Optimizer):
             use_ema=use_ema,
             ema_momentum=ema_momentum,
             ema_overwrite_frequency=ema_overwrite_frequency,
+            loss_scale_factor=loss_scale_factor,
+            gradient_accumulation_steps=gradient_accumulation_steps,
             **kwargs,
         )
         self.beta_1 = beta_1
