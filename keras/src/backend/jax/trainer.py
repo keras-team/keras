@@ -437,7 +437,8 @@ class JAXTrainer(base_trainer.Trainer):
                 }
 
                 # Callbacks
-                callbacks.on_train_batch_end(step, self._pythonify_logs(logs))
+                logs = self._pythonify_logs(logs)
+                callbacks.on_train_batch_end(step, logs)
                 if self.stop_training:
                     break
 
@@ -446,12 +447,12 @@ class JAXTrainer(base_trainer.Trainer):
             # bottleneck.
             self.jax_state_sync()
 
-            # Override with model metrics instead of last step logs
+            # Override with model metrics instead of last step logs if needed.
             # The jax spmd_mode is need for multi-process context, since the
             # metrics values are replicated, and we don't want to do a all
             # gather, and only need the local copy of the value.
             with jax.spmd_mode("allow_all"):
-                epoch_logs = self.get_metrics_result()
+                epoch_logs = dict(self._get_metrics_result_or_logs(logs))
 
             # Run validation.
             if validation_data is not None and self._should_eval(
@@ -585,7 +586,8 @@ class JAXTrainer(base_trainer.Trainer):
                 "non_trainable_variables": non_trainable_variables,
                 "metrics_variables": metrics_variables,
             }
-            callbacks.on_test_batch_end(step, self._pythonify_logs(logs))
+            logs = self._pythonify_logs(logs)
+            callbacks.on_test_batch_end(step, logs)
             if self.stop_evaluating:
                 break
 
@@ -596,7 +598,7 @@ class JAXTrainer(base_trainer.Trainer):
         # metrics values are replicated, and we don't want to do a all
         # gather, and only need the local copy of the value.
         with jax.spmd_mode("allow_all"):
-            logs = self.get_metrics_result()
+            logs = self._get_metrics_result_or_logs(logs)
         callbacks.on_test_end(logs)
         self._jax_state = None
         if return_dict:
