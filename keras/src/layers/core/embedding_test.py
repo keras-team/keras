@@ -318,6 +318,14 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
         ):
             layer.quantize("int8")
 
+    def test_quantize_when_already_quantized_using_dtype_argument(self):
+        layer = layers.Embedding(10, 16, dtype="int8_from_float32")
+        layer.build()
+        with self.assertRaisesRegex(
+            ValueError, "`quantize` can only be done once per layer."
+        ):
+            layer.quantize("int8")
+
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 2),
     )
