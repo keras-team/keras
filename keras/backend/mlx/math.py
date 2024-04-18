@@ -35,6 +35,7 @@ def logsumexp(x, axis=None, keepdims=False):
 
 
 def qr(x, mode="reduced"):
+    # TODO https://ml-explore.github.io/mlx/build/html/python/linalg.html
     raise NotImplementedError("QR decomposition not supported in mlx yet")
 
 
@@ -53,18 +54,22 @@ def extract_sequences(x, sequence_length, sequence_stride):
 
 
 def fft(x):
+    # TODO: https://ml-explore.github.io/mlx/build/html/python/fft.html#fft
     raise NotImplementedError("fft not yet implemented in mlx")
 
 
 def fft2(x):
+    # TODO: https://ml-explore.github.io/mlx/build/html/python/fft.html#fft
     raise NotImplementedError("fft not yet implemented in mlx")
 
 
 def rfft(x, fft_length=None):
+    # TODO: https://ml-explore.github.io/mlx/build/html/python/fft.html#fft
     raise NotImplementedError("fft not yet implemented in mlx")
 
 
 def irfft(x, fft_length=None):
+    # TODO: https://ml-explore.github.io/mlx/build/html/python/fft.html#fft
     raise NotImplementedError("fft not yet implemented in mlx")
 
 
