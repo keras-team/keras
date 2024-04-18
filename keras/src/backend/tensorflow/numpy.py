@@ -745,16 +745,35 @@ def arctanh(x):
     return tf.math.atanh(x)
 
 
-def argmax(x, axis=None):
+def _keepdims(x, y, axis):
     if axis is None:
-        x = tf.reshape(x, [-1])
-    return tf.cast(tf.argmax(x, axis=axis), dtype="int32")
+        shape = [1 for _ in range(len(x.shape))]
+    else:
+        shape = [tf.shape[i] for i in range(len(x.shape))]
+        for axis in tree.flatten(axis):
+            shape[axis] = 1
+    y = tf.reshape(y, shape)
+    return y
 
 
-def argmin(x, axis=None):
+def argmax(x, axis=None, keepdims=False):
+    _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
-    return tf.cast(tf.argmin(x, axis=axis), dtype="int32")
+    y = tf.cast(tf.argmax(x, axis=axis), dtype="int32")
+    if keepdims:
+        y = _keepdims(_x, y, axis)
+    return y
+
+
+def argmin(x, axis=None, keepdims=False):
+    _x = x
+    if axis is None:
+        x = tf.reshape(x, [-1])
+    y = tf.cast(tf.argmin(x, axis=axis), dtype="int32")
+    if keepdims:
+        y = _keepdims(_x, y, axis)
+    return y
 
 
 def argsort(x, axis=-1):

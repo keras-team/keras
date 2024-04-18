@@ -352,7 +352,7 @@ def all(x, axis=None, keepdims=False):
             for the last to the first axis.
         keepdims: If `True`, axes which are reduced are left in the result as
             dimensions with size one. With this option, the result will
-            broadcast correctly against the input array. Defaults to`False`.
+            broadcast correctly against the input array. Defaults to `False`.
 
     Returns:
         The tensor containing the logical AND reduction over the `axis`.
@@ -416,7 +416,7 @@ def any(x, axis=None, keepdims=False):
             for the last to the first axis.
         keepdims: If `True`, axes which are reduced are left in the result as
             dimensions with size one. With this option, the result will
-            broadcast correctly against the input array. Defaults to`False`.
+            broadcast correctly against the input array. Defaults to `False`.
 
     Returns:
         The tensor containing the logical OR reduction over the `axis`.
@@ -963,14 +963,17 @@ def arctanh(x):
 
 
 class Argmax(Operation):
-    def __init__(self, axis=None):
+    def __init__(self, axis=None, keepdims=False):
         super().__init__()
         self.axis = axis
+        self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.argmax(x, axis=self.axis)
+        return backend.numpy.argmax(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
+        if self.keepdims:
+            return KerasTensor(x.shape, dtype="int32")
         if self.axis is None:
             return KerasTensor([], dtype="int32")
         return KerasTensor(
@@ -979,13 +982,15 @@ class Argmax(Operation):
 
 
 @keras_export(["keras.ops.argmax", "keras.ops.numpy.argmax"])
-def argmax(x, axis=None):
+def argmax(x, axis=None, keepdims=False):
     """Returns the indices of the maximum values along an axis.
 
     Args:
         x: Input tensor.
         axis: By default, the index is into the flattened tensor, otherwise
             along the specified axis.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults to `False`.
 
     Returns:
         Tensor of indices. It has the same shape as `x`, with the dimension
@@ -1004,19 +1009,22 @@ def argmax(x, axis=None):
     array([2, 2], dtype=int32)
     """
     if any_symbolic_tensors((x,)):
-        return Argmax(axis=axis).symbolic_call(x)
-    return backend.numpy.argmax(x, axis=axis)
+        return Argmax(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.argmax(x, axis=axis, keepdims=keepdims)
 
 
 class Argmin(Operation):
-    def __init__(self, axis=None):
+    def __init__(self, axis=None, keepdims=False):
         super().__init__()
         self.axis = axis
+        self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.argmin(x, axis=self.axis)
+        return backend.numpy.argmin(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
+        if self.keepdims:
+            return KerasTensor(x.shape, dtype="int32")
         if self.axis is None:
             return KerasTensor([], dtype="int32")
         return KerasTensor(
@@ -1025,13 +1033,15 @@ class Argmin(Operation):
 
 
 @keras_export(["keras.ops.argmin", "keras.ops.numpy.argmin"])
-def argmin(x, axis=None):
+def argmin(x, axis=None, keepdims=False):
     """Returns the indices of the minium values along an axis.
 
     Args:
         x: Input tensor.
         axis: By default, the index is into the flattened tensor, otherwise
             along the specified axis.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults to `False`.
 
     Returns:
         Tensor of indices. It has the same shape as `x`, with the dimension
@@ -1050,8 +1060,8 @@ def argmin(x, axis=None):
     array([0, 0], dtype=int32)
     """
     if any_symbolic_tensors((x,)):
-        return Argmin(axis=axis).symbolic_call(x)
-    return backend.numpy.argmin(x, axis=axis)
+        return Argmin(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.argmin(x, axis=axis, keepdims=keepdims)
 
 
 class Argsort(Operation):
@@ -3165,7 +3175,7 @@ def linspace(
         num: Number of samples to generate. Defaults to `50`. Must be
             non-negative.
         endpoint: If `True`, `stop` is the last sample. Otherwise, it is
-            not included. Defaults to`True`.
+            not included. Defaults to `True`.
         retstep: If `True`, return `(samples, step)`, where `step` is the
             spacing between samples.
         dtype: The type of the output tensor.
@@ -3502,7 +3512,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             are returned.
         num: Number of samples to generate. Defaults to `50`.
         endpoint: If `True`, `stop` is the last sample. Otherwise, it is not
-            included. Defaults to`True`.
+            included. Defaults to `True`.
         base: The base of the log space. Defaults to `10`.
         dtype: The type of the output tensor.
         axis: The axis in the result to store the samples. Relevant only
@@ -3605,8 +3615,8 @@ def max(x, axis=None, keepdims=False, initial=None):
         axis: Axis or axes along which to operate. By default, flattened input
             is used.
         keepdims: If this is set to `True`, the axes which are reduced are left
-            in the result as dimensions with size one. Defaults to`False`.
-        initial: The minimum value of an output element. Defaults to`None`.
+            in the result as dimensions with size one. Defaults to `False`.
+        initial: The minimum value of an output element. Defaults to `None`.
 
     Returns:
         Maximum of `x`.
@@ -3798,8 +3808,8 @@ def min(x, axis=None, keepdims=False, initial=None):
         axis: Axis or axes along which to operate. By default, flattened input
             is used.
         keepdims: If this is set to `True`, the axes which are reduced are left
-            in the result as dimensions with size one. Defaults to`False`.
-        initial: The maximum value of an output element. Defaults to`None`.
+            in the result as dimensions with size one. Defaults to `False`.
+        initial: The maximum value of an output element. Defaults to `None`.
 
     Returns:
         Minimum of `x`.
