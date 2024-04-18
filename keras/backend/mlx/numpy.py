@@ -604,12 +604,9 @@ def median(x, axis=None, keepdims=False):
 
 
 def meshgrid(*x, indexing="xy"):
-    # TODO: https://ml-explore.github.io/mlx/build/html/python/
-    # _autosummary/mlx.core.meshgrid.html
-    # https://github.com/ml-explore/mlx/blob/
-    # #85c8a91a279923189d0eeddd926a1015370bf4f8/python/tests/test_ops.py#L1470
-
-    raise NotImplementedError("The MLX backend doesn't support meshgrid yet")
+    # TODO: test with and without
+    # x = [convert_to_tensor(xi) for xi in x]
+    return mx.meshgrid(*x, indexing=indexing)
 
 
 def min(x, axis=None, keepdims=False, initial=None):
@@ -832,19 +829,14 @@ def tanh(x):
 
 
 def tensordot(x1, x2, axes=2):
-    # TODO: https://ml-explore.github.io/mlx/build/html/python/_autosummary
-    # /mlx.core.tensordot.html#mlx-core-tensordot
-    # https://github.com/ml-explore/mlx/blob/
-    # 85c8a91a279923189d0eeddd926a1015370bf4f8/python/tests/test_ops.py#L1865
-    raise NotImplementedError("The MLX backend doesn't support tensordot yet")
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return mx.tensordot(x1, x2, axes=axes)
 
 
 def round(x, decimals=0):
-    # TODO: https://ml-explore.github.io/mlx/build/html
-    # /python/_autosummary/mlx.core.round.html#mlx.core.round
-    # https://github.com/ml-explore/mlx/blob/
-    # 85c8a91a279923189d0eeddd926a1015370bf4f8/python/tests/test_ops.py#L483
-    raise NotImplementedError("The MLX backend doesn't support round yet")
+    x = convert_to_tensor(x)
+    return mx.round(x, decimals=decimals)
 
 
 def tile(x, repeats):
