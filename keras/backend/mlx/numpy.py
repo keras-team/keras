@@ -900,6 +900,12 @@ def divide(x1, x2):
     return mx.divide(x1, x2)
 
 
+def divide_no_nan(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return mx.where(x2 == 0, 0, mx.divide(x1, x2))
+
+
 def true_divide(x1, x2):
     return divide(x1, x2)
 

@@ -304,9 +304,22 @@ def moments(x, axes, keepdims=False, synchronized=False):
 def batch_normalization(
     x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
 ):
-    raise NotImplementedError(
-        "MLX backend doesn't support batch normalization yet."
-    )
+    shape = [1] * len(x.shape)
+    shape[axis] = mean.shape[0]
+    mean = mx.reshape(mean, shape)
+    variance = mx.reshape(variance, shape)
+
+    inv = mx.rsqrt(variance + epsilon)
+    if scale is not None:
+        scale = mx.reshape(scale, shape)
+        inv = inv * scale
+
+    res = -mean * inv
+    if offset is not None:
+        offset = mx.reshape(offset, shape)
+        res = res + offset
+
+    return mx.add(x * inv, res)
 
 
 def ctc_loss(

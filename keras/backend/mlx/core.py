@@ -1,12 +1,12 @@
 import mlx.core as mx
 import numpy as np
-import tree
+from keras.utils import tree
 
 from keras.backend.common import KerasVariable
 from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.stateless_scope import StatelessScope
-from keras.utils.nest import pack_sequence_as
+from keras.utils.tree import pack_sequence_as
 
 SUPPORTS_SPARSE_TENSORS = False
 
