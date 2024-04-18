@@ -7,6 +7,9 @@ if backend.backend() == "tensorflow":
 elif backend.backend() == "jax":
     BackendVariable = backend.jax.core.Variable
     backend_name_scope = backend.common.name_scope.name_scope
+elif backend.backend() == "mlx":
+    BackendVariable = backend.mlx.core.Variable
+    backend_name_scope = backend.common.name_scope.name_scope
 elif backend.backend() == "torch":
     BackendVariable = backend.torch.core.Variable
     backend_name_scope = backend.common.name_scope.name_scope

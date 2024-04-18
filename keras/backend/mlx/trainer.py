@@ -1,6 +1,6 @@
 import mlx.core as mx
 import numpy as np
-import tree
+from keras.utils import tree
 
 from keras import backend
 from keras import callbacks as callbacks_module
@@ -141,7 +141,7 @@ class MLXTrainer(base_trainer.Trainer):
             # Note that this is needed for the regularization loss, which need
             # the latest value of train/non-trainable variables.
             loss = self.compute_loss(
-                x, y, y_pred, sample_weight, allow_empty=True
+                x, y, y_pred, sample_weight
             )
         if losses:
             loss += ops.sum(losses)
