@@ -69,6 +69,10 @@ def cond(pred, true_fn, false_fn):
     return false_fn()
 
 
+def correlate(a, v, mode):
+    return np.correlate(a, v, mode)
+
+
 def vectorized_map(function, elements):
     if not isinstance(elements, (list, tuple)):
         return np.stack([function(x) for x in elements])

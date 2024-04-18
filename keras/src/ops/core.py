@@ -576,6 +576,23 @@ def cond(pred, true_fn, false_fn):
     return Cond()(pred, true_fn, false_fn)
 
 
+@keras_export("keras.ops.correlate")
+def correlate(a, v, mode):
+    """
+    Cross-correlation of two 1-dimensional sequences.
+    Args:
+        a: Input sequence
+        v: Input sequence
+        mode: The mode of correlation in one of three modes ["valid"(default), "same", "full"]
+
+    Returns:
+       The result of the correlation in array form.
+    """
+    if any_symbolic_tensors((a, v, mode)):
+        return Correlate().symbolic_call(a, v, mode)
+    return backend.core.correlate(a, v, mode)
+
+
 # TODO: also create an Op subclass VectorizedMap.
 @keras_export("keras.ops.vectorized_map")
 def vectorized_map(function, elements):

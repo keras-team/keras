@@ -465,6 +465,31 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(x.shape, y.shape)
         self.assertTrue(hasattr(y, "_keras_history"))
 
+    def test_correlate(self):
+        input_a = np.array([1, 2, 3])
+        input_v = np.array([0, 1, 0.5])
+        results = [[3.5], [2.0, 3.5, 3.0], [0.5, 2.0, 3.5, 3.0, 0.0]]
+        input_modes = ["valid", "same", "full"]
+
+        for mode, result in zip(input_modes, results):
+            self.assertAllClose(core.correlate(input_a, input_v, mode), result)
+
+        input_a = np.array([1.2, 2.1, 3.3])
+        input_v = np.array([0.0, 0.1, 0.5])
+        results = [[1.86], [1.17, 1.86, 0.33], [0.6, 1.17, 1.86, 0.33, 0.0]]
+        input_modes = ["valid", "same", "full"]
+
+        for mode, result in zip(input_modes, results):
+            self.assertAllClose(core.correlate(input_a, input_v, mode), result)
+
+        input_a = np.array([1, 2, 3])
+        input_v = np.array([1.1, 1.3, -2.5])
+        results = [[-3.8], [-3.7, -3.8, 6.1], [-2.5, -3.7, -3.8, 6.1, 3.3]]
+        input_modes = ["valid", "same", "full"]
+
+        for mode, result in zip(input_modes, results):
+            self.assertAllClose(core.correlate(input_a, input_v, mode), result)
+
     @parameterized.named_parameters(
         ("float8_e4m3fn", "float8_e4m3fn"), ("float8_e5m2", "float8_e5m2")
     )
@@ -524,7 +549,6 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         reason=f"{backend.backend()} doesn't support `custom_gradient`.",
     )
     def test_custom_gradient(self):
-
         # function to test custom_gradient on
         @ops.custom_gradient
         def log1pexp(x):

@@ -75,6 +75,10 @@ def convert_to_tensor(x, dtype=None, sparse=True):
     return jnp.asarray(x, dtype=dtype)
 
 
+def correlate(a, v, mode="valid"):
+    return jax.numpy.correlate(a, v, mode=mode)
+
+
 def convert_to_numpy(x):
     if isinstance(x, jax_sparse.JAXSparse):
         x = x.todense()
@@ -151,7 +155,6 @@ def compute_output_spec(fn, *args, **kwargs):
             return x
 
         def wrapped_fn(*args, **kwargs):
-
             # Turn inputs that are sparse to BCOO tensors
             def to_bcoo_if_sparse(x, maybe_symbolic_x):
                 if (

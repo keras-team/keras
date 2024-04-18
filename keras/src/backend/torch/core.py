@@ -339,6 +339,20 @@ def cond(pred, true_fn, false_fn):
     return false_fn()
 
 
+def correlate(a, v, mode):
+    if isinstance(a, np.ndarray):
+        a = a.tolist()
+    if mode == "same":
+        a = [0] * int(len(v) / 2) + a + [0] * int(len(v) / 2)
+    elif mode == "full":
+        a = [0] * int(len(v) - 1) + a + [0] * int(len(v) - 1)
+    corr = (len(a) - len(v) + 1) * [0]
+    for l in range(len(corr)):
+        corr[l] = sum([a[i + l] * v[i] for i in range(len(v))])
+
+    return corr
+
+
 def vectorized_map(function, elements):
     return torch.vmap(function)(elements)
 
