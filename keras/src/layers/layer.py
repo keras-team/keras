@@ -1143,6 +1143,12 @@ class Layer(BackendLayer, Operation):
                 f"Layer '{self.name}' (of type '{self.__class__.__name__}') "
                 "is not built yet."
             )
+        if getattr(self, "_is_quantized", False):
+            raise ValueError(
+                f"Layer '{self.name}' is already quantized with "
+                f"dtype_policy='{self.dtype_policy.name}'. "
+                f"Received: mode={mode}"
+            )
         if mode not in dtype_policies.QUANTIZATION_MODES:
             raise ValueError(
                 "Invalid quantization mode. "

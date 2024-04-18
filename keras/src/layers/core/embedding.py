@@ -325,6 +325,7 @@ class Embedding(Layer):
             initializer=embeddings_scale_initializer,
             trainable=False,
         )
+        self._is_quantized = True
 
     def quantized_call(self, inputs):
         if self.dtype_policy.quantization_mode == "int8":
@@ -374,8 +375,6 @@ class Embedding(Layer):
 
         self._tracker.unlock()
         if mode == "int8":
-            if backend.standardize_dtype(self._embeddings.dtype) == "int8":
-                raise ValueError("`quantize` can only be done once per layer.")
             # Configure `self.inputs_quantizer`
             self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
             # Quantize `self._embeddings` to int8 and compute corresponding

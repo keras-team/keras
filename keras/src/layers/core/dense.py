@@ -1,7 +1,6 @@
 import ml_dtypes
 
 from keras.src import activations
-from keras.src import backend
 from keras.src import constraints
 from keras.src import dtype_policies
 from keras.src import initializers
@@ -347,6 +346,7 @@ class Dense(Layer):
             initializer=kernel_scale_initializer,
             trainable=False,
         )
+        self._is_quantized = True
 
     def _float8_build(self):
         if not isinstance(
@@ -396,6 +396,7 @@ class Dense(Layer):
         self.kernel_amax_history.overwrite_with_gradient = True
         self.outputs_grad_scale.overwrite_with_gradient = True
         self.outputs_grad_amax_history.overwrite_with_gradient = True
+        self._is_quantized = True
 
     def quantized_call(self, inputs):
         if self.dtype_policy.quantization_mode == "int8":
@@ -552,8 +553,6 @@ class Dense(Layer):
 
         self._tracker.unlock()
         if mode == "int8":
-            if backend.standardize_dtype(self._kernel.dtype) == "int8":
-                raise ValueError("`quantize` can only be done once per layer.")
             # Configure `self.inputs_quantizer`
             self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
             # Quantize `self._kernel` to int8 and compute corresponding scale
@@ -572,8 +571,6 @@ class Dense(Layer):
                 lambda shape, dtype: kernel_scale,
             )
         elif mode == "float8":
-            if hasattr(self, "inputs_amax_history"):
-                raise ValueError("`quantize` can only be done once per layer.")
             self._float8_build()
         else:
             raise NotImplementedError(

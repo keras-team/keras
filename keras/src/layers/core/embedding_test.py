@@ -314,7 +314,15 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
         layer.build()
         layer.quantize("int8")
         with self.assertRaisesRegex(
-            ValueError, "`quantize` can only be done once per layer."
+            ValueError, "is already quantized with dtype_policy="
+        ):
+            layer.quantize("int8")
+
+    def test_quantize_when_already_quantized_using_dtype_argument(self):
+        layer = layers.Embedding(10, 16, dtype="int8_from_float32")
+        layer.build()
+        with self.assertRaisesRegex(
+            ValueError, "is already quantized with dtype_policy="
         ):
             layer.quantize("int8")
 

@@ -508,15 +508,34 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
     def test_quantize_when_already_quantized(self, mode):
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
-            output_shape=(8, 32),
+            output_shape=(8, 16),
             bias_axes="d",
         )
         layer.build((None, 3))
         layer.quantize(mode)
-        with self.assertRaisesRegex(
-            ValueError, "`quantize` can only be done once per layer."
-        ):
-            layer.quantize(mode)
+        for m in ["int8", "float8"]:
+            with self.assertRaisesRegex(
+                ValueError, "is already quantized with dtype_policy="
+            ):
+                layer.quantize(m)
+
+    @parameterized.named_parameters(
+        ("int8", "int8_from_float32"),
+        ("float8", "float8_from_float32"),
+    )
+    def test_quantize_when_already_quantized_using_dtype_argument(self, mode):
+        layer = layers.EinsumDense(
+            equation="ab,bcd->acd",
+            output_shape=(8, 16),
+            bias_axes="d",
+            dtype=mode,
+        )
+        layer.build((None, 3))
+        for m in ["int8", "float8"]:
+            with self.assertRaisesRegex(
+                ValueError, "is already quantized with dtype_policy="
+            ):
+                layer.quantize(m)
 
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 3),
