@@ -763,3 +763,17 @@ def ctc_loss(
         blank=mask_index,
         reduction="none",
     )
+
+
+def ctc_decode(
+    inputs,
+    sequence_length,
+    strategy,
+    beam_width=100,
+    top_paths=1,
+    merge_repeated=True,
+    mask_index=None,
+):
+    raise NotImplementedError(
+        "Torch backend does not yet support CTC decoding."
+    )
