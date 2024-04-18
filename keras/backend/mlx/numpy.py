@@ -580,8 +580,27 @@ def maximum(x1, x2):
 
 
 def median(x, axis=None, keepdims=False):
-    # TODO: Maybe implement via sort?
-    raise NotImplementedError("The MLX backend doesn't support median yet")
+    x = mx.array(x)
+    x = mx.sort(x, axis=axis)
+    if axis is None:
+        axis = 0
+    n = x.shape[axis]
+    m = n - 1
+    if n % 2 == 0:
+        index1 = [slice(None)] * x.ndim
+        index1[axis] = m // 2
+        index2 = [slice(None)] * x.ndim
+        index2[axis] = (m + 1) // 2
+        median = (x[tuple(index1)] + x[tuple(index2)]) / 2.0
+    else:
+        index = [slice(None)] * x.ndim
+        index[axis] = n // 2
+        median = x[tuple(index)]
+    if keepdims:
+        median_shape = list(median.shape)
+        median_shape.insert(axis, 1)
+        median = median.reshape(median_shape)
+    return median
 
 
 def meshgrid(*x, indexing="xy"):
