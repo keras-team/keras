@@ -315,7 +315,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 at the target location, or instead ask the user
                 via an interactive prompt.
         """
-        return saving_api.save_weights(self, filepath, overwrite=True)
+        return saving_api.save_weights(self, filepath, overwrite=overwrite)
 
     @traceback_utils.filter_traceback
     def load_weights(self, filepath, skip_mismatch=False, **kwargs):
