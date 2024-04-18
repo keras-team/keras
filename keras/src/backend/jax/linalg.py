@@ -27,6 +27,10 @@ def eig(x):
     return jnp.linalg.eig(x)
 
 
+def eigh(x):
+    return jnp.linalg.eigh(x)
+
+
 def inv(a):
     return jnp.linalg.inv(a)
 

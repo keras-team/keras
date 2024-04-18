@@ -19,6 +19,10 @@ def eig(x):
     return torch.linalg.eig(x)
 
 
+def eigh(x):
+    return torch.linalg.eigh(x)
+
+
 def inv(x):
     return torch.linalg.inv(x)
 

@@ -42,13 +42,11 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(w.shape, (None, 20))
         self.assertEqual(v.shape, (None, 20, 20))
 
-        x = KerasTensor([None, None, 20])
-        with self.assertRaises(ValueError):
-            linalg.eig(x)
-
-        x = KerasTensor([None, 20, 15])
-        with self.assertRaises(ValueError):
-            linalg.eig(x)
+    def test_eigh(self):
+        x = KerasTensor([None, 20, 20])
+        w, v = linalg.eigh(x)
+        self.assertEqual(w.shape, (None, 20))
+        self.assertEqual(v.shape, (None, 20, 20))
 
     def test_inv(self):
         x = KerasTensor([None, 20, 20])
@@ -208,6 +206,16 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.eig(x)
 
+    def test_eigh(self):
+        x = KerasTensor([4, 3, 3])
+        w, v = linalg.eigh(x)
+        self.assertEqual(w.shape, (4, 3))
+        self.assertEqual(v.shape, (4, 3, 3))
+
+        x = KerasTensor([10, 20, 15])
+        with self.assertRaises(ValueError):
+            linalg.eigh(x)
+
     def test_inv(self):
         x = KerasTensor([4, 3, 3])
         out = linalg.inv(x)
@@ -343,6 +351,21 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                     linalg.eig(x)
                 return
         w, v = map(ops.convert_to_numpy, linalg.eig(x))
+        x_reconstructed = (v * w[..., None, :]) @ v.transpose((0, 2, 1))
+        self.assertAllClose(x_reconstructed, x, atol=1e-4)
+
+    def test_eigh(self):
+        x = np.random.rand(2, 3, 3)
+        x = x @ x.transpose((0, 2, 1))
+        if backend.backend() == "jax":
+            import jax
+
+            if jax.default_backend() == "gpu":
+                # eigh not implemented for jax on gpu backend
+                with self.assertRaises(NotImplementedError):
+                    linalg.eigh(x)
+                return
+        w, v = map(ops.convert_to_numpy, linalg.eigh(x))
         x_reconstructed = (v * w[..., None, :]) @ v.transpose((0, 2, 1))
         self.assertAllClose(x_reconstructed, x, atol=1e-4)
 
