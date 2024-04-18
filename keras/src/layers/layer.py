@@ -1145,8 +1145,8 @@ class Layer(BackendLayer, Operation):
             )
         if getattr(self, "_is_quantized", False):
             raise ValueError(
-                f"'{self.name}' is already quantized with "
-                f"dtype_policy={self.dtype_policy.name}. "
+                f"Layer '{self.name}' is already quantized with "
+                f"dtype_policy='{self.dtype_policy.name}'. "
                 f"Received: mode={mode}"
             )
         if mode not in dtype_policies.QUANTIZATION_MODES:
