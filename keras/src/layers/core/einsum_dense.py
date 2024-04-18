@@ -653,8 +653,6 @@ class EinsumDense(Layer):
                 f"Layer {self.__class__.__name__} does not have a `quantize()` "
                 "method implemented."
             )
-        if getattr(self, "_is_quantized", False):
-            raise ValueError("`quantize` can only be done once per layer.")
         self._check_quantize_args(mode, self.compute_dtype)
 
         # Set new dtype policy

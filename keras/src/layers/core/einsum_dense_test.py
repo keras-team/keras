@@ -515,7 +515,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         layer.quantize(mode)
         for m in ["int8", "float8"]:
             with self.assertRaisesRegex(
-                ValueError, "`quantize` can only be done once per layer."
+                ValueError, "is already quantized with dtype_policy="
             ):
                 layer.quantize(m)
 
@@ -533,7 +533,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         layer.build((None, 3))
         for m in ["int8", "float8"]:
             with self.assertRaisesRegex(
-                ValueError, "`quantize` can only be done once per layer."
+                ValueError, "is already quantized with dtype_policy="
             ):
                 layer.quantize(m)
 

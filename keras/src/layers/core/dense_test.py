@@ -422,7 +422,7 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         layer.quantize(mode)
         for m in ["int8", "float8"]:
             with self.assertRaisesRegex(
-                ValueError, "`quantize` can only be done once per layer."
+                ValueError, "is already quantized with dtype_policy="
             ):
                 layer.quantize(m)
 
@@ -435,7 +435,7 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         layer.build((None, 2))
         for m in ["int8", "float8"]:
             with self.assertRaisesRegex(
-                ValueError, "`quantize` can only be done once per layer."
+                ValueError, "is already quantized with dtype_policy="
             ):
                 layer.quantize(m)
 
