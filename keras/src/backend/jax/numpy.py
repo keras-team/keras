@@ -339,12 +339,12 @@ def arctanh(x):
     return jnp.arctanh(x)
 
 
-def argmax(x, axis=None):
-    return jnp.argmax(x, axis=axis)
+def argmax(x, axis=None, keepdims=False):
+    return jnp.argmax(x, axis=axis, keepdims=keepdims)
 
 
-def argmin(x, axis=None):
-    return jnp.argmin(x, axis=axis)
+def argmin(x, axis=None, keepdims=False):
+    return jnp.argmin(x, axis=axis, keepdims=keepdims)
 
 
 def argsort(x, axis=-1):

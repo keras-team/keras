@@ -7,6 +7,7 @@ since your modifications would be overwritten.
 from keras.src.ops.linalg import cholesky
 from keras.src.ops.linalg import det
 from keras.src.ops.linalg import eig
+from keras.src.ops.linalg import eigh
 from keras.src.ops.linalg import inv
 from keras.src.ops.linalg import lu_factor
 from keras.src.ops.linalg import norm

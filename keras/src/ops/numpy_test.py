@@ -1004,16 +1004,20 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_argmax(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.argmax(x).shape, ())
+        self.assertEqual(knp.argmax(x, keepdims=True).shape, (None, 3))
 
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.argmax(x, axis=1).shape, (None, 3))
+        self.assertEqual(knp.argmax(x, keepdims=True).shape, (None, 3, 3))
 
     def test_argmin(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.argmin(x).shape, ())
+        self.assertEqual(knp.argmin(x, keepdims=True).shape, (None, 3))
 
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.argmin(x, axis=1).shape, (None, 3))
+        self.assertEqual(knp.argmin(x, keepdims=True).shape, (None, 3, 3))
 
     def test_argsort(self):
         x = KerasTensor((None, 3))
@@ -1567,10 +1571,12 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_argmax(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.argmax(x).shape, ())
+        self.assertEqual(knp.argmax(x, keepdims=True).shape, (2, 3))
 
     def test_argmin(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.argmin(x).shape, ())
+        self.assertEqual(knp.argmin(x, keepdims=True).shape, (2, 3))
 
     def test_argsort(self):
         x = KerasTensor((2, 3))
@@ -3044,17 +3050,31 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.argmax(x), np.argmax(x))
         self.assertAllClose(knp.argmax(x, axis=1), np.argmax(x, axis=1))
+        self.assertAllClose(
+            knp.argmax(x, keepdims=True), np.argmax(x, keepdims=True)
+        )
 
         self.assertAllClose(knp.Argmax()(x), np.argmax(x))
         self.assertAllClose(knp.Argmax(axis=1)(x), np.argmax(x, axis=1))
+
+        self.assertAllClose(knp.Argmax()(x), np.argmax(x))
+        self.assertAllClose(
+            knp.Argmax(keepdims=True)(x), np.argmax(x, keepdims=True)
+        )
 
     def test_argmin(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.argmin(x), np.argmin(x))
         self.assertAllClose(knp.argmin(x, axis=1), np.argmin(x, axis=1))
+        self.assertAllClose(
+            knp.argmin(x, keepdims=True), np.argmin(x, keepdims=True)
+        )
 
         self.assertAllClose(knp.Argmin()(x), np.argmin(x))
         self.assertAllClose(knp.Argmin(axis=1)(x), np.argmin(x, axis=1))
+        self.assertAllClose(
+            knp.Argmin(keepdims=True)(x), np.argmin(x, keepdims=True)
+        )
 
     def test_argsort(self):
         x = np.array([[1, 2, 3], [4, 5, 6]])

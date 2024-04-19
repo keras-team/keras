@@ -227,14 +227,14 @@ def arctanh(x):
     return np.arctanh(x)
 
 
-def argmax(x, axis=None):
+def argmax(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
-    return np.argmax(x, axis=axis).astype("int32")
+    return np.argmax(x, axis=axis, keepdims=keepdims).astype("int32")
 
 
-def argmin(x, axis=None):
+def argmin(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
-    return np.argmin(x, axis=axis).astype("int32")
+    return np.argmin(x, axis=axis, keepdims=keepdims).astype("int32")
 
 
 def argsort(x, axis=-1):

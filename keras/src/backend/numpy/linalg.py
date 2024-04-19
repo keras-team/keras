@@ -18,6 +18,10 @@ def eig(a):
     return np.linalg.eig(a)
 
 
+def eigh(a):
+    return np.linalg.eigh(a)
+
+
 def inv(a):
     return np.linalg.inv(a)
 

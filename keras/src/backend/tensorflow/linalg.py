@@ -22,6 +22,10 @@ def eig(a):
     return tf.linalg.eig(a)
 
 
+def eigh(a):
+    return tf.linalg.eigh(a)
+
+
 def inv(a):
     return tf.linalg.inv(a)
 

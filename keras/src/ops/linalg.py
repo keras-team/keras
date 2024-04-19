@@ -92,8 +92,8 @@ class Eig(Operation):
         return _eig(x)
 
     def compute_output_spec(self, x):
-        _assert_2d(x)
         _assert_square(x)
+        _assert_2d(x)
         return (
             KerasTensor(x.shape[:-1], x.dtype),
             KerasTensor(x.shape, x.dtype),
@@ -110,7 +110,6 @@ def eig(x):
     Returns:
         A tuple of two tensors: a tensor of shape `(..., M)` containing
         eigenvalues and a tensor of shape `(..., M, M)` containing eigenvectors.
-
     """
     if any_symbolic_tensors((x,)):
         return Eig().symbolic_call(x)
@@ -119,9 +118,50 @@ def eig(x):
 
 def _eig(x):
     x = backend.convert_to_tensor(x)
-    _assert_2d(x)
     _assert_square(x)
+    _assert_2d(x)
     return backend.linalg.eig(x)
+
+
+class Eigh(Operation):
+
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return _eigh(x)
+
+    def compute_output_spec(self, x):
+        _assert_square(x)
+        _assert_2d(x)
+        return (
+            KerasTensor(x.shape[:-1], x.dtype),
+            KerasTensor(x.shape, x.dtype),
+        )
+
+
+@keras_export(["keras.ops.eigh", "keras.ops.linalg.eigh"])
+def eigh(x):
+    """Computes the eigenvalues and eigenvectors of a complex Hermitian.
+
+    Args:
+        x: Input tensor of shape `(..., M, M)`.
+
+    Returns:
+        A tuple of two tensors: a tensor of shape `(..., M)` containing
+        eigenvalues and a tensor of shape `(..., M, M)` containing eigenvectors.
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Eigh().symbolic_call(x)
+    return _eigh(x)
+
+
+def _eigh(x):
+    x = backend.convert_to_tensor(x)
+    _assert_square(x)
+    _assert_2d(x)
+    return backend.linalg.eigh(x)
 
 
 class Inv(Operation):

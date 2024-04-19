@@ -318,24 +318,24 @@ def arctanh(x):
     return torch.arctanh(x)
 
 
-def argmax(x, axis=None):
+def argmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
     # TODO: torch.argmax doesn't support bool
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, "uint8")
 
-    return cast(torch.argmax(x, dim=axis), dtype="int32")
+    return cast(torch.argmax(x, dim=axis, keepdim=keepdims), dtype="int32")
 
 
-def argmin(x, axis=None):
+def argmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
     # TODO: torch.argmin doesn't support bool
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, "uint8")
 
-    return cast(torch.argmin(x, dim=axis), dtype="int32")
+    return cast(torch.argmin(x, dim=axis, keepdim=keepdims), dtype="int32")
 
 
 def argsort(x, axis=-1):
