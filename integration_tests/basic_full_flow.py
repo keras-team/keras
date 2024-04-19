@@ -2,11 +2,11 @@ import numpy as np
 import pytest
 
 import keras
-from keras import layers
-from keras import losses
-from keras import metrics
-from keras import optimizers
-from keras import testing
+from keras.src import layers
+from keras.src import losses
+from keras.src import metrics
+from keras.src import optimizers
+from keras.src import testing
 
 
 class MyModel(keras.Model):

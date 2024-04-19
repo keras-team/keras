@@ -1,5 +1,5 @@
-from keras import testing
-from keras.datasets import california_housing
+from keras.src import testing
+from keras.src.datasets import california_housing
 
 
 class CaliforniaHousingTest(testing.TestCase):
