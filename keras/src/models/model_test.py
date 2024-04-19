@@ -142,7 +142,6 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         # self.assertAllClose fails for some dtypes, so we use np
         self.assertAllClose(np.array(pred_reloaded), np.array(pred))
 
-
     @parameterized.named_parameters(
         ("single_output_1", _get_model_single_output, None),
         ("single_output_2", _get_model_single_output, "list"),
