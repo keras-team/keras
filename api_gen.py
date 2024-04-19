@@ -47,8 +47,6 @@ def create_legacy_directory(package_dir):
         )
     with open(os.path.join(api_dir, "__init__.py"), "w") as f:
         f.write(init_file)
-    with open(os.path.join(package_dir, "__init__.py"), "w") as f:
-        f.write(init_file)
     # Remove the import of `_tf_keras` in `keras/_tf_keras/keras/__init__.py`
     init_file = init_file.replace("from keras.api import _tf_keras\n", "\n")
     with open(os.path.join(tf_keras_dirpath, "__init__.py"), "w") as f:
@@ -128,6 +126,40 @@ def export_version_string(api_init_fname):
         f.write(contents)
 
 
+def update_package_init(init_fname):
+    contents = """
+# Import everything from /api/ into keras.
+from keras.api import *  # noqa: F403
+from keras.api import __version__  # Import * ignores names start with "_".
+
+import os
+
+# Add everything in /api/ to the module search path.
+__path__.append(os.path.join(os.path.dirname(__file__), "api"))  # noqa: F405
+
+# Don't pollute namespace.
+del os
+
+# Never autocomplete `.src` or `.api` on an imported keras object.
+def __dir__():
+    keys = dict.fromkeys((globals().keys()))
+    keys.pop("src")
+    keys.pop("api")
+    return list(keys)
+
+
+# Don't import `.src` or `.api` during `from keras import *`.
+__all__ = [
+    name
+    for name in globals().keys()
+    if not (name.startswith("_") or name in ("src", "api"))
+]"""
+    with open(init_fname) as f:
+        init_contents = f.read()
+    with open(init_fname, "w") as f:
+        f.write(init_contents.replace("\nfrom keras import api", contents))
+
+
 def build():
     # Backup the `keras/__init__.py` and restore it on error in api gen.
     root_path = os.path.dirname(os.path.abspath(__file__))
@@ -149,6 +181,8 @@ def build():
         namex.generate_api_files(
             "keras", code_directory="src", target_directory="api"
         )
+        # Creates `keras/__init__.py` importing from `keras/api`
+        update_package_init(build_init_fname)
         # Add __version__ to keras package
         export_version_string(build_api_init_fname)
         # Creates `_tf_keras` with full keras API
