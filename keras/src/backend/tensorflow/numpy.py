@@ -615,6 +615,7 @@ def zeros(shape, dtype=None):
 
 @sparse.elementwise_unary
 def absolute(x):
+    x = convert_to_tensor(x)
     # uintx and bool are always non-negative
     dtype = standardize_dtype(x.dtype)
     if "uint" in dtype or dtype == "bool":
@@ -622,7 +623,6 @@ def absolute(x):
     return tf.abs(x)
 
 
-@sparse.elementwise_unary
 def abs(x):
     return absolute(x)
 
@@ -2405,4 +2405,4 @@ def correlate(x1, x2, mode="valid"):
 
 
 def select(condlist, choicelist, default=0):
-    return tfnp.select(condlist, choicelist, default=default)
+    return tf.experimental.numpy.select(condlist, choicelist, default=default)
