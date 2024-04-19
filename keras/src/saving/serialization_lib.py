@@ -162,8 +162,9 @@ def serialize_keras_object(obj):
                 "step": serialize_keras_object(obj.step),
             },
         }
-    # Ellipsis is an instance, and ellipsis is not in global scope.
-    if isinstance(obj, type(Ellipsis)):
+    # Ellipsis is an instance, and ellipsis class is not in global scope.
+    # but all Ellipsis objects are equal, so this works fine.
+    if obj == Ellipsis:
         return {"class_name": "__ellipsis__", "config": {}}
     if isinstance(obj, backend.KerasTensor):
         history = getattr(obj, "_keras_history", None)
