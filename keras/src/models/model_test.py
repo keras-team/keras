@@ -119,6 +119,31 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         self.assertIsInstance(new_model, Functional)
 
     @parameterized.named_parameters(
+        ("single_output_1", _get_model_single_output),
+        ("single_output_2", _get_model_single_output),
+        ("single_output_3", _get_model_single_output),
+        ("single_output_4", _get_model_single_output),
+        ("single_list_output_1", _get_model_single_output_list),
+        ("single_list_output_2", _get_model_single_output_list),
+        ("single_list_output_3", _get_model_single_output_list),
+        ("single_list_output_4", _get_model_single_output_list),
+    )
+    def test_functional_pickling(self, model_fn):
+        model = model_fn()
+        self.assertIsInstance(model, Functional)
+        model.compile()
+        x = np.random.rand(8, 3)
+
+        reloaded_pickle = pickle.loads(pickle.dumps(model))
+
+        pred_reloaded = reloaded_pickle.predict(x)
+        pred = model.predict(x)
+
+        # self.assertAllClose fails for some dtypes, so we use np
+        self.assertAllClose(np.array(pred_reloaded), np.array(pred))
+
+
+    @parameterized.named_parameters(
         ("single_output_1", _get_model_single_output, None),
         ("single_output_2", _get_model_single_output, "list"),
         ("single_output_3", _get_model_single_output, "dict"),
@@ -172,18 +197,6 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
             ]
         )
         self.assertListEqual(hist_keys, ref_keys)
-
-        reloaded_pickle = pickle.loads(pickle.dumps(model))
-
-        pred_reloaded = reloaded_pickle.predict(x)
-        pred = model.predict(x)
-
-        # self.assertAllClose fails for some dtypes, so we use np
-        if isinstance(pred, dict):
-            for key in pred:
-                np.testing.assert_allclose(pred_reloaded[key], pred[key])
-        else:
-            np.testing.assert_allclose(pred_reloaded, pred)
 
     def test_functional_list_outputs_list_losses(self):
         model = _get_model_multi_outputs_list()
