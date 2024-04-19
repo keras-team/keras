@@ -575,12 +575,16 @@ def mean(x, axis=None, keepdims=False):
 
 
 def max(x, axis=None, keepdims=False, initial=None):
+    x = convert_to_tensor(x)
+
     # The TensorFlow numpy API implementation doesn't support `initial` so we
     # handle it manually here.
     if initial is not None:
-        return tf.math.maximum(
-            tfnp.max(x, axis=axis, keepdims=keepdims), initial
-        )
+        if standardize_dtype(x.dtype) == "bool":
+            x = tf.reduce_any(x, axis=axis, keepdims=keepdims)
+        else:
+            x = tf.reduce_max(x, axis=axis, keepdims=keepdims)
+        return tf.math.maximum(x, initial)
 
     # TensorFlow returns -inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
@@ -592,7 +596,10 @@ def max(x, axis=None, keepdims=False, initial=None):
             message="Cannot compute the max of an empty tensor.",
         )
 
-    return tfnp.max(x, axis=axis, keepdims=keepdims)
+    if standardize_dtype(x.dtype) == "bool":
+        return tf.reduce_any(x, axis=axis, keepdims=keepdims)
+    else:
+        return tf.reduce_max(x, axis=axis, keepdims=keepdims)
 
 
 def ones(shape, dtype=None):
@@ -857,7 +864,8 @@ def conj(x):
 
 @sparse.elementwise_unary
 def copy(x):
-    return tfnp.copy(x)
+    x = convert_to_tensor(x)
+    return tf.identity(x)
 
 
 @sparse.densifying_unary(1)
@@ -938,7 +946,29 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 
 
 def diff(a, n=1, axis=-1):
-    return tfnp.diff(a, n=n, axis=axis)
+    a = convert_to_tensor(a)
+    if n == 0:
+        return a
+    elif n < 0:
+        raise ValueError(f"Order `n` must be non-negative. Received n={n}")
+    elif a.ndim == 0:
+        raise ValueError(
+            "`diff` requires input that is at least one dimensional. "
+            f"Received: a={a}"
+        )
+    axis = canonicalize_axis(axis, a.ndim)
+    slice1 = [slice(None)] * a.ndim
+    slice2 = [slice(None)] * a.ndim
+    slice1[axis] = slice(1, None)
+    slice2[axis] = slice(None, -1)
+    slice1_tuple = tuple(slice1)
+    slice2_tuple = tuple(slice2)
+    for _ in range(n):
+        if standardize_dtype(a.dtype) == "bool":
+            a = tf.not_equal(a[slice1_tuple], a[slice2_tuple])
+        else:
+            a = tf.subtract(a[slice1_tuple], a[slice2_tuple])
+    return a
 
 
 def digitize(x, bins):
@@ -1326,12 +1356,15 @@ def meshgrid(*x, indexing="xy"):
 
 def min(x, axis=None, keepdims=False, initial=None):
     x = convert_to_tensor(x)
+
     # The TensorFlow numpy API implementation doesn't support `initial` so we
     # handle it manually here.
     if initial is not None:
-        return tf.math.minimum(
-            tfnp.min(x, axis=axis, keepdims=keepdims), initial
-        )
+        if standardize_dtype(x.dtype) == "bool":
+            x = tf.reduce_all(x, axis=axis, keepdims=keepdims)
+        else:
+            x = tf.reduce_min(x, axis=axis, keepdims=keepdims)
+        return tf.math.minimum(x, initial)
 
     # TensorFlow returns inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
@@ -1343,7 +1376,10 @@ def min(x, axis=None, keepdims=False, initial=None):
             message="Cannot compute the min of an empty tensor.",
         )
 
-    return tfnp.min(x, axis=axis, keepdims=keepdims)
+    if standardize_dtype(x.dtype) == "bool":
+        return tf.reduce_all(x, axis=axis, keepdims=keepdims)
+    else:
+        return tf.reduce_min(x, axis=axis, keepdims=keepdims)
 
 
 @sparse.elementwise_binary_union(tf.sparse.minimum, densify_mixed=True)
@@ -1373,7 +1409,21 @@ def mod(x1, x2):
 
 
 def moveaxis(x, source, destination):
-    return tfnp.moveaxis(x, source=source, destination=destination)
+    x = convert_to_tensor(x)
+
+    _source = to_tuple_or_list(source)
+    _destination = to_tuple_or_list(destination)
+    _source = tuple(canonicalize_axis(i, x.ndim) for i in _source)
+    _destination = tuple(canonicalize_axis(i, x.ndim) for i in _destination)
+    if len(_source) != len(_destination):
+        raise ValueError(
+            "Inconsistent number of `source` and `destination`. "
+            f"Received: source={source}, destination={destination}"
+        )
+    perm = [i for i in range(x.ndim) if i not in _source]
+    for dest, src in sorted(zip(_destination, _source)):
+        perm.insert(dest, src)
+    return tf.transpose(x, perm)
 
 
 def nan_to_num(x):
@@ -1621,7 +1671,14 @@ def reshape(x, newshape):
 
 
 def roll(x, shift, axis=None):
-    return tfnp.roll(x, shift, axis=axis)
+    x = convert_to_tensor(x)
+    if axis is not None:
+        return tf.roll(x, shift=shift, axis=axis)
+
+    # If axis is None, the roll happens as a 1-d tensor.
+    original_shape = tf.shape(x)
+    x = tf.roll(tf.reshape(x, [-1]), shift, 0)
+    return tf.reshape(x, original_shape)
 
 
 @sparse.elementwise_unary
@@ -1683,7 +1740,7 @@ def split(x, indices_or_sections, axis=0):
         start_size = indices_or_sections[0:1]
         end_size = total_size - indices_or_sections[-1:]
         num_or_size_splits = tf.concat(
-            [start_size, tfnp.diff(indices_or_sections), end_size], axis=0
+            [start_size, diff(indices_or_sections), end_size], axis=0
         )
     else:
         num_or_size_splits = indices_or_sections
@@ -1707,7 +1764,10 @@ def std(x, axis=None, keepdims=False):
 
 
 def swapaxes(x, axis1, axis2):
-    return tfnp.swapaxes(x, axis1=axis1, axis2=axis2)
+    x = convert_to_tensor(x)
+    perm = np.arange(x.ndim)
+    perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
+    return tf.transpose(x, list(perm))
 
 
 def take(x, indices, axis=None):
@@ -1718,9 +1778,7 @@ def take(x, indices, axis=None):
                 f"`x.dtype={x.dtype}` when `indices` is a sparse tensor; "
                 "densifying `indices`."
             )
-            return tfnp.take(
-                x, convert_to_tensor(indices, sparse=False), axis=axis
-            )
+            return take(x, convert_to_tensor(indices, sparse=False), axis=axis)
         if axis is None:
             x = tf.reshape(x, (-1,))
         elif axis != 0:
@@ -1729,9 +1787,7 @@ def take(x, indices, axis=None):
                 f"`axis={axis}` when `indices` is a sparse tensor; "
                 "densifying `indices`."
             )
-            return tfnp.take(
-                x, convert_to_tensor(indices, sparse=False), axis=axis
-            )
+            return take(x, convert_to_tensor(indices, sparse=False), axis=axis)
         output = tf.nn.safe_embedding_lookup_sparse(
             embedding_weights=tf.convert_to_tensor(x),
             sparse_ids=tf.sparse.expand_dims(indices, axis=-1),
@@ -1739,7 +1795,14 @@ def take(x, indices, axis=None):
         )
         output.set_shape(indices.shape + output.shape[len(indices.shape) :])
         return output
-    return tfnp.take(x, indices, axis=axis)
+
+    x = convert_to_tensor(x)
+
+    indices = convert_to_tensor(indices)
+    if axis is None:
+        x = tf.reshape(x, [-1])
+        axis = 0
+    return tf.gather(x, indices, axis=axis)
 
 
 def take_along_axis(x, indices, axis=None):
@@ -2050,7 +2113,29 @@ def sum(x, axis=None, keepdims=False):
 
 def eye(N, M=None, k=0, dtype=None):
     dtype = dtype or config.floatx()
-    return tfnp.eye(N, M=M, k=k, dtype=dtype)
+    if not M:
+        M = N
+    # Making sure N, M and k are `int`
+    N, M, k = int(N), int(M), int(k)
+    if k >= M or -k >= N:
+        # tf.linalg.diag will raise an error in this case
+        return zeros([N, M], dtype=dtype)
+    if k == 0:
+        return tf.eye(N, M, dtype=dtype)
+    # We need the precise length, otherwise tf.linalg.diag will raise an error
+    diag_len = builtins.min(N, M)
+    if k > 0:
+        if N >= M:
+            diag_len -= k
+        elif N + k > M:
+            diag_len = M - k
+    elif k <= 0:
+        if M >= N:
+            diag_len += k
+        elif M - k > N:
+            diag_len = N + k
+    diagonal_ = tf.ones([diag_len], dtype=dtype)
+    return tf.linalg.diag(diagonal=diagonal_, num_rows=N, num_cols=M, k=k)
 
 
 def floor_divide(x1, x2):
