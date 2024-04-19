@@ -2659,25 +2659,31 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Take()(x, 0), np.take(x, 0))
         self.assertAllClose(knp.Take(axis=1)(x, 0), np.take(x, 0, axis=1))
 
-        # test with multi-dimensional indices
+        # Test with multi-dimensional indices
         rng = np.random.default_rng(0)
         x = rng.standard_normal((2, 3, 4, 5))
         indices = rng.integers(0, 4, (6, 7))
         self.assertAllClose(
-            knp.take(x, indices, axis=2),
-            np.take(x, indices, axis=2),
+            knp.take(x, indices, axis=2), np.take(x, indices, axis=2)
         )
 
-        # test with negative axis
+        # Test with negative axis
         self.assertAllClose(
-            knp.take(x, indices, axis=-2),
-            np.take(x, indices, axis=-2),
+            knp.take(x, indices, axis=-2), np.take(x, indices, axis=-2)
         )
-        # test with axis=None & x.ndim=2
+
+        # Test with axis=None & x.ndim=2
         x = np.array(([1, 2], [3, 4]))
         indices = np.array([2, 3])
         self.assertAllClose(
             knp.take(x, indices, axis=None), np.take(x, indices, axis=None)
+        )
+
+        # Test with negative indices
+        x = rng.standard_normal((2, 3, 4, 5))
+        indices = rng.integers(-3, 0, (6, 7))
+        self.assertAllClose(
+            knp.take(x, indices, axis=2), np.take(x, indices, axis=2)
         )
 
     @parameterized.named_parameters(
@@ -2735,6 +2741,18 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
 
         x = np.arange(12).reshape([1, 1, 3, 4])
         indices = np.ones([1, 4, 1, 1], dtype=np.int32)
+        self.assertAllClose(
+            knp.take_along_axis(x, indices, axis=2),
+            np.take_along_axis(x, indices, axis=2),
+        )
+        self.assertAllClose(
+            knp.TakeAlongAxis(axis=2)(x, indices),
+            np.take_along_axis(x, indices, axis=2),
+        )
+
+        # Test with negative indices
+        x = np.arange(12).reshape([1, 1, 3, 4])
+        indices = np.full([1, 4, 1, 1], -1, dtype=np.int32)
         self.assertAllClose(
             knp.take_along_axis(x, indices, axis=2),
             np.take_along_axis(x, indices, axis=2),
@@ -4027,6 +4045,14 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.tile(x, [2, 3]), np.tile(x, [2, 3]))
         self.assertAllClose(knp.Tile([2, 3])(x), np.tile(x, [2, 3]))
+
+        # If repeats.ndim > x.ndim
+        self.assertAllClose(knp.tile(x, [2, 3, 4]), np.tile(x, [2, 3, 4]))
+        self.assertAllClose(knp.Tile([2, 3, 4])(x), np.tile(x, [2, 3, 4]))
+
+        # If repeats.ndim < x.ndim
+        self.assertAllClose(knp.tile(x, [2]), np.tile(x, [2]))
+        self.assertAllClose(knp.Tile([2])(x), np.tile(x, [2]))
 
     def test_trace(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
