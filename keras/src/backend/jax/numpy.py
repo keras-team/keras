@@ -974,7 +974,18 @@ def tensordot(x1, x2, axes=2):
 @sparse.elementwise_unary(linear=False)
 def round(x, decimals=0):
     x = convert_to_tensor(x)
-    return jnp.round(x, decimals=decimals)
+
+    # jnp.round doesn't support decimals < 0 for integers
+    x_dtype = standardize_dtype(x.dtype)
+    if "int" in x_dtype and decimals < 0:
+        factor = cast(math.pow(10, decimals), config.floatx())
+        x = cast(x, config.floatx())
+        x = jnp.multiply(x, factor)
+        x = jnp.round(x)
+        x = jnp.divide(x, factor)
+        return cast(x, x_dtype)
+    else:
+        return jnp.round(x, decimals=decimals)
 
 
 def tile(x, repeats):

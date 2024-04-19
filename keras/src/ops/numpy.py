@@ -5266,14 +5266,18 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 class Tri(Operation):
-    def call(self, N, M=None, k=0, dtype=None):
-        return backend.numpy.tri(N, M=M, k=k, dtype=dtype)
+    def __init__(self, k=0, dtype=None):
+        super().__init__()
+        self.k = k
+        self.dtype = dtype or backend.floatx()
 
-    def compute_output_spec(self, N, M=None, k=0, dtype=None):
+    def call(self, N, M=None):
+        return backend.numpy.tri(N=N, M=M, k=self.k, dtype=self.dtype)
+
+    def compute_output_spec(self, N, M=None):
         if M is None:
             M = N
-        dtype = dtype or backend.floatx()
-        return KerasTensor((N, M), dtype=dtype)
+        return KerasTensor((N, M), dtype=self.dtype)
 
 
 @keras_export(["keras.ops.tri", "keras.ops.numpy.tri"])
@@ -6021,14 +6025,18 @@ def ones(shape, dtype=None):
 
 
 class Eye(Operation):
-    def call(self, N, M=None, k=0, dtype=None):
-        return backend.numpy.eye(N, M=M, k=k, dtype=dtype)
+    def __init__(self, k=0, dtype=None):
+        super().__init__()
+        self.k = k
+        self.dtype = dtype or backend.floatx()
 
-    def compute_output_spec(self, N, M=None, k=0, dtype=None):
+    def call(self, N, M=None):
+        return backend.numpy.eye(N, M=M, k=self.k, dtype=self.dtype)
+
+    def compute_output_spec(self, N, M=None):
         if M is None:
             M = N
-        dtype = dtype or backend.floatx()
-        return KerasTensor((N, M), dtype=dtype)
+        return KerasTensor((N, M), dtype=self.dtype)
 
 
 @keras_export(["keras.ops.eye", "keras.ops.numpy.eye"])

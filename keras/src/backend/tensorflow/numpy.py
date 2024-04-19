@@ -7,7 +7,6 @@ import warnings
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.experimental import numpy as tfnp
 from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
 
 from keras.src import tree
@@ -575,12 +574,18 @@ def mean(x, axis=None, keepdims=False):
 
 
 def max(x, axis=None, keepdims=False, initial=None):
+    x = convert_to_tensor(x)
+
     # The TensorFlow numpy API implementation doesn't support `initial` so we
     # handle it manually here.
     if initial is not None:
-        return tf.math.maximum(
-            tfnp.max(x, axis=axis, keepdims=keepdims), initial
-        )
+        if standardize_dtype(x.dtype) == "bool":
+            x = tf.reduce_any(x, axis=axis, keepdims=keepdims)
+            x = tf.math.maximum(tf.cast(x, "int32"), tf.cast(initial, "int32"))
+            return tf.cast(x, "bool")
+        else:
+            x = tf.reduce_max(x, axis=axis, keepdims=keepdims)
+            return tf.math.maximum(x, initial)
 
     # TensorFlow returns -inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
@@ -592,7 +597,10 @@ def max(x, axis=None, keepdims=False, initial=None):
             message="Cannot compute the max of an empty tensor.",
         )
 
-    return tfnp.max(x, axis=axis, keepdims=keepdims)
+    if standardize_dtype(x.dtype) == "bool":
+        return tf.reduce_any(x, axis=axis, keepdims=keepdims)
+    else:
+        return tf.reduce_max(x, axis=axis, keepdims=keepdims)
 
 
 def ones(shape, dtype=None):
@@ -650,8 +658,6 @@ def append(x1, x2, axis=None):
 
 
 def arange(start, stop=None, step=1, dtype=None):
-    # tfnp.arange has trouble with dynamic Tensors in compiled function.
-    # tf.range does not.
     if dtype is None:
         dtypes_to_resolve = [
             getattr(start, "dtype", type(start)),
@@ -797,27 +803,39 @@ def array(x, dtype=None):
 
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
-    axis = to_tuple_or_list(axis)
-    dtypes_to_resolve = [x.dtype, float]
-    if weights is not None:
+
+    if weights is None:  # Treat all weights as 1
+        dtype = dtypes.result_type(x.dtype, float)
+        x = tf.cast(x, dtype)
+        avg = tf.reduce_mean(x, axis=axis)
+    else:
         weights = convert_to_tensor(weights)
-        dtypes_to_resolve.append(weights.dtype)
-    result_dtype = dtypes.result_type(*dtypes_to_resolve)
-    compute_dtype = result_dtype
-    # TODO: since tfnp.average incorrectly promote bfloat16 to float64, we
-    # need to cast to float32 first and then cast back to bfloat16
-    if compute_dtype == "bfloat16":
-        compute_dtype = "float32"
-    x = tf.cast(x, compute_dtype)
-    if weights is not None:
-        weights = tf.cast(weights, compute_dtype)
-    if axis is None:
-        x = tfnp.average(x, weights=weights, axis=None)
-        return tf.cast(x, result_dtype)
-    for a in axis:
-        # `tfnp.average` does not handle multiple axes.
-        x = tfnp.average(x, weights=weights, axis=a)
-    return tf.cast(x, result_dtype)
+        dtype = dtypes.result_type(x.dtype, weights.dtype, float)
+        x = tf.cast(x, dtype)
+        weights = tf.cast(weights, dtype)
+
+        def _rank_equal_case():
+            weights_sum = tf.reduce_sum(weights, axis=axis)
+            return tf.reduce_sum(x * weights, axis=axis) / weights_sum
+
+        def _rank_not_equal_case():
+            weights_sum = tf.reduce_sum(weights)
+            axes = tf.convert_to_tensor([[axis], [0]])
+            return tf.tensordot(x, weights, axes) / weights_sum
+
+        if axis is None:
+            avg = _rank_equal_case()
+        else:
+            # We condition on rank rather than shape equality, because if we do
+            # the latter, when the shapes are partially unknown but the ranks
+            # are known and different, np_utils.cond will run shape checking on
+            # the true branch, which will raise a shape-checking error.
+            avg = tf.cond(
+                tf.equal(tf.rank(x), tf.rank(weights)),
+                _rank_equal_case,
+                _rank_not_equal_case,
+            )
+    return avg
 
 
 def broadcast_to(x, shape):
@@ -876,7 +894,8 @@ def conj(x):
 
 @sparse.elementwise_unary
 def copy(x):
-    return tfnp.copy(x)
+    x = convert_to_tensor(x)
+    return tf.identity(x)
 
 
 @sparse.densifying_unary(1)
@@ -908,17 +927,52 @@ def count_nonzero(x, axis=None):
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    if axis is not None:
+        axisa = axis
+        axisb = axis
+        axisc = axis
+    x1 = moveaxis(x1, axisa, -1)
+    x2 = moveaxis(x2, axisb, -1)
+
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    return tfnp.cross(
-        x1,
-        x2,
-        axisa=axisa,
-        axisb=axisb,
-        axisc=axisc,
-        axis=axis,
+
+    def maybe_pad_zeros(x, size_of_last_dim):
+        def pad_zeros(x):
+            return tf.pad(
+                x,
+                tf.concat(
+                    [
+                        tf.zeros([tf.rank(x) - 1, 2], "int32"),
+                        tf.constant([[0, 1]], "int32"),
+                    ],
+                    axis=0,
+                ),
+            )
+
+        return tf.cond(
+            tf.equal(size_of_last_dim, 2), lambda: pad_zeros(x), lambda: x
+        )
+
+    x1_dim = tf.shape(x1)[-1]
+    x2_dim = tf.shape(x2)[-1]
+    x1 = maybe_pad_zeros(x1, x1_dim)
+    x2 = maybe_pad_zeros(x2, x2_dim)
+
+    # Broadcast each other
+    shape = tf.shape(x1)
+    shape = tf.broadcast_dynamic_shape(shape, tf.shape(x2))
+    x1 = tf.broadcast_to(x1, shape)
+    x2 = tf.broadcast_to(x2, shape)
+
+    c = tf.linalg.cross(x1, x2)
+    c = tf.cond(
+        (x1_dim == 2) & (x2_dim == 2),
+        lambda: c[..., 2],
+        lambda: moveaxis(c, -1, axisc),
     )
+    return c
 
 
 def cumprod(x, axis=None, dtype=None):
@@ -944,20 +998,70 @@ def cumsum(x, axis=None, dtype=None):
 
 
 def diag(x, k=0):
-    return tfnp.diag(x, k=k)
+    x = convert_to_tensor(x)
+    if len(x.shape) == 1:
+        return tf.cond(
+            tf.equal(tf.size(x), 0),
+            lambda: tf.zeros([builtins.abs(k), builtins.abs(k)], dtype=x.dtype),
+            lambda: tf.linalg.diag(x, k=k),
+        )
+    elif len(x.shape) == 2:
+        return diagonal(x, offset=k)
+    else:
+        raise ValueError(f"`x` must be 1d or 2d. Received: x.shape={x.shape}")
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
-    return tfnp.diagonal(
-        x,
-        offset=offset,
-        axis1=axis1,
-        axis2=axis2,
+    x = convert_to_tensor(x)
+    x_rank = x.ndim
+    if (
+        offset == 0
+        and (axis1 == x_rank - 2 or axis1 == -2)
+        and (axis2 == x_rank - 1 or axis2 == -1)
+    ):
+        return tf.linalg.diag_part(x)
+
+    x = moveaxis(x, (axis1, axis2), (-2, -1))
+    x_shape = tf.shape(x)
+
+    def _zeros():
+        return tf.zeros(tf.concat([x_shape[:-1], [0]], 0), dtype=x.dtype)
+
+    x, offset = tf.cond(
+        tf.logical_or(
+            tf.less_equal(offset, -1 * x_shape[-2]),
+            tf.greater_equal(offset, x_shape[-1]),
+        ),
+        _zeros,
+        lambda: (x, offset),
     )
+    return tf.linalg.diag_part(x, k=offset)
 
 
 def diff(a, n=1, axis=-1):
-    return tfnp.diff(a, n=n, axis=axis)
+    a = convert_to_tensor(a)
+    if n == 0:
+        return a
+    elif n < 0:
+        raise ValueError(f"Order `n` must be non-negative. Received n={n}")
+    elif a.ndim == 0:
+        raise ValueError(
+            "`diff` requires input that is at least one dimensional. "
+            f"Received: a={a}"
+        )
+    axis = canonicalize_axis(axis, a.ndim)
+    slice1 = [slice(None)] * a.ndim
+    slice2 = [slice(None)] * a.ndim
+    slice1[axis] = slice(1, None)
+    slice2[axis] = slice(None, -1)
+    slice1_tuple = tuple(slice1)
+    slice2_tuple = tuple(slice2)
+    for _ in range(n):
+        if standardize_dtype(a.dtype) == "bool":
+            a = tf.not_equal(a[slice1_tuple], a[slice2_tuple])
+        else:
+            a = tf.subtract(a[slice1_tuple], a[slice2_tuple])
+    return a
 
 
 def digitize(x, bins):
@@ -1152,7 +1256,6 @@ def isclose(x1, x2):
 
 @sparse.densifying_unary(True)
 def isfinite(x):
-    # `tfnp.isfinite` requires `enable_numpy_behavior`, so we reimplement it.
     x = convert_to_tensor(x)
     dtype_as_dtype = tf.as_dtype(x.dtype)
     if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
@@ -1161,7 +1264,6 @@ def isfinite(x):
 
 
 def isinf(x):
-    # `tfnp.isinf` requires `enable_numpy_behavior`, so we reimplement it.
     x = convert_to_tensor(x)
     dtype_as_dtype = tf.as_dtype(x.dtype)
     if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
@@ -1170,7 +1272,6 @@ def isinf(x):
 
 
 def isnan(x):
-    # `tfnp.isnan` requires `enable_numpy_behavior`, so we reimplement it.
     x = convert_to_tensor(x)
     dtype_as_dtype = tf.as_dtype(x.dtype)
     if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
@@ -1206,15 +1307,37 @@ def linspace(
             float,
         ]
         dtype = dtypes.result_type(*dtypes_to_resolve)
-    return tfnp.linspace(
-        start,
-        stop,
-        num=num,
-        endpoint=endpoint,
-        retstep=retstep,
-        dtype=dtype,
-        axis=axis,
-    )
+    else:
+        dtype = standardize_dtype(dtype)
+    start = convert_to_tensor(start, dtype=dtype)
+    stop = convert_to_tensor(stop, dtype=dtype)
+    if num < 0:
+        raise ValueError(
+            f"`num` must be a non-negative integer. Received: num={num}"
+        )
+    step = tf.convert_to_tensor(np.nan)
+    if endpoint:
+        result = tf.linspace(start, stop, num, axis=axis)
+        if num > 1:
+            step = (stop - start) / (num - 1)
+    else:
+        # tf.linspace doesn't support endpoint=False, so we manually handle it
+        if num > 0:
+            step = (stop - start) / num
+        if num > 1:
+            new_stop = tf.cast(stop, step.dtype) - step
+            start = tf.cast(start, new_stop.dtype)
+            result = tf.linspace(start, new_stop, num, axis=axis)
+        else:
+            result = tf.linspace(start, stop, num, axis=axis)
+    if dtype is not None:
+        if "int" in dtype:
+            result = tf.floor(result)
+        result = tf.cast(result, dtype)
+    if retstep:
+        return (result, step)
+    else:
+        return result
 
 
 @sparse.densifying_unary(-np.inf)
@@ -1271,9 +1394,6 @@ def logaddexp(x1, x2):
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-
-    # Below is the same implementation as tfnp.logaddexp using all native
-    # ops to prevent incorrect promotion of bfloat16.
     delta = x1 - x2
     return tf.where(
         tf.math.is_nan(delta),
@@ -1300,24 +1420,15 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
-    if dtype is None:
-        dtypes_to_resolve = [
-            getattr(start, "dtype", type(start)),
-            getattr(stop, "dtype", type(stop)),
-            float,
-        ]
-        dtype = dtypes.result_type(*dtypes_to_resolve)
-    start = tf.cast(start, dtype)
-    stop = tf.cast(stop, dtype)
-    return tfnp.logspace(
-        start,
-        stop,
+    result = linspace(
+        start=start,
+        stop=stop,
         num=num,
         endpoint=endpoint,
-        base=base,
         dtype=dtype,
         axis=axis,
     )
+    return tf.pow(tf.cast(base, result.dtype), result)
 
 
 @sparse.elementwise_binary_union(tf.sparse.maximum, densify_mixed=True)
@@ -1345,12 +1456,17 @@ def meshgrid(*x, indexing="xy"):
 
 def min(x, axis=None, keepdims=False, initial=None):
     x = convert_to_tensor(x)
+
     # The TensorFlow numpy API implementation doesn't support `initial` so we
     # handle it manually here.
     if initial is not None:
-        return tf.math.minimum(
-            tfnp.min(x, axis=axis, keepdims=keepdims), initial
-        )
+        if standardize_dtype(x.dtype) == "bool":
+            x = tf.reduce_all(x, axis=axis, keepdims=keepdims)
+            x = tf.math.minimum(tf.cast(x, "int32"), tf.cast(initial, "int32"))
+            return tf.cast(x, "bool")
+        else:
+            x = tf.reduce_min(x, axis=axis, keepdims=keepdims)
+        return tf.math.minimum(x, initial)
 
     # TensorFlow returns inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
@@ -1362,7 +1478,10 @@ def min(x, axis=None, keepdims=False, initial=None):
             message="Cannot compute the min of an empty tensor.",
         )
 
-    return tfnp.min(x, axis=axis, keepdims=keepdims)
+    if standardize_dtype(x.dtype) == "bool":
+        return tf.reduce_all(x, axis=axis, keepdims=keepdims)
+    else:
+        return tf.reduce_min(x, axis=axis, keepdims=keepdims)
 
 
 @sparse.elementwise_binary_union(tf.sparse.minimum, densify_mixed=True)
@@ -1392,7 +1511,24 @@ def mod(x1, x2):
 
 
 def moveaxis(x, source, destination):
-    return tfnp.moveaxis(x, source=source, destination=destination)
+    x = convert_to_tensor(x)
+
+    _source = to_tuple_or_list(source)
+    _destination = to_tuple_or_list(destination)
+    _source = tuple(canonicalize_axis(i, x.ndim) for i in _source)
+    _destination = tuple(canonicalize_axis(i, x.ndim) for i in _destination)
+    if len(_source) != len(_destination):
+        raise ValueError(
+            "Inconsistent number of `source` and `destination`. "
+            f"Received: source={source}, destination={destination}"
+        )
+    # Directly return x if no movement is required
+    if _source == _destination:
+        return x
+    perm = [i for i in range(x.ndim) if i not in _source]
+    for dest, src in sorted(zip(_destination, _source)):
+        perm.insert(dest, src)
+    return tf.transpose(x, perm)
 
 
 def nan_to_num(x):
@@ -1615,8 +1751,6 @@ def reciprocal(x):
 
 
 def repeat(x, repeats, axis=None):
-    # tfnp.repeat has trouble with dynamic Tensors in compiled function.
-    # tf.repeat does not.
     x = convert_to_tensor(x)
     # TODO: tf.repeat doesn't support uint16
     if standardize_dtype(x.dtype) == "uint16":
@@ -1640,7 +1774,14 @@ def reshape(x, newshape):
 
 
 def roll(x, shift, axis=None):
-    return tfnp.roll(x, shift, axis=axis)
+    x = convert_to_tensor(x)
+    if axis is not None:
+        return tf.roll(x, shift=shift, axis=axis)
+
+    # If axis is None, the roll happens as a 1-d tensor.
+    original_shape = tf.shape(x)
+    x = tf.roll(tf.reshape(x, [-1]), shift, 0)
+    return tf.reshape(x, original_shape)
 
 
 @sparse.elementwise_unary
@@ -1695,14 +1836,12 @@ def split(x, indices_or_sections, axis=0):
     if not isinstance(indices_or_sections, int):
         # `tf.split` requires `num_or_size_splits`, so we need to convert
         # `indices_or_sections` to the appropriate format.
-        # The following implementation offers better compatibility for the
-        # tensor argument `indices_or_sections` than original `tfnp.split`.
         total_size = x.shape[axis]
         indices_or_sections = convert_to_tensor(indices_or_sections)
         start_size = indices_or_sections[0:1]
         end_size = total_size - indices_or_sections[-1:]
         num_or_size_splits = tf.concat(
-            [start_size, tfnp.diff(indices_or_sections), end_size], axis=0
+            [start_size, diff(indices_or_sections), end_size], axis=0
         )
     else:
         num_or_size_splits = indices_or_sections
@@ -1726,7 +1865,34 @@ def std(x, axis=None, keepdims=False):
 
 
 def swapaxes(x, axis1, axis2):
-    return tfnp.swapaxes(x, axis1=axis1, axis2=axis2)
+    x = convert_to_tensor(x)
+
+    if (
+        x.shape.rank is not None
+        and isinstance(axis1, int)
+        and isinstance(axis2, int)
+    ):
+        # This branch makes sure `perm` is statically known, to avoid a
+        # not-compile-time-constant XLA error.
+        axis1 = canonicalize_axis(axis1, x.ndim)
+        axis2 = canonicalize_axis(axis2, x.ndim)
+
+        # Directly return x if no movement is required
+        if axis1 == axis2:
+            return x
+
+        perm = list(range(x.ndim))
+        perm[axis1] = axis2
+        perm[axis2] = axis1
+    else:
+        x_rank = tf.rank(x)
+        axis1 = tf.where(axis1 < 0, tf.add(axis1, x_rank), axis1)
+        axis2 = tf.where(axis2 < 0, tf.add(axis2, x_rank), axis2)
+        perm = tf.range(x_rank)
+        perm = tf.tensor_scatter_nd_update(
+            perm, [[axis1], [axis2]], [axis2, axis1]
+        )
+    return tf.transpose(x, perm)
 
 
 def take(x, indices, axis=None):
@@ -1737,9 +1903,7 @@ def take(x, indices, axis=None):
                 f"`x.dtype={x.dtype}` when `indices` is a sparse tensor; "
                 "densifying `indices`."
             )
-            return tfnp.take(
-                x, convert_to_tensor(indices, sparse=False), axis=axis
-            )
+            return take(x, convert_to_tensor(indices, sparse=False), axis=axis)
         if axis is None:
             x = tf.reshape(x, (-1,))
         elif axis != 0:
@@ -1748,9 +1912,7 @@ def take(x, indices, axis=None):
                 f"`axis={axis}` when `indices` is a sparse tensor; "
                 "densifying `indices`."
             )
-            return tfnp.take(
-                x, convert_to_tensor(indices, sparse=False), axis=axis
-            )
+            return take(x, convert_to_tensor(indices, sparse=False), axis=axis)
         output = tf.nn.safe_embedding_lookup_sparse(
             embedding_weights=tf.convert_to_tensor(x),
             sparse_ids=tf.sparse.expand_dims(indices, axis=-1),
@@ -1758,11 +1920,72 @@ def take(x, indices, axis=None):
         )
         output.set_shape(indices.shape + output.shape[len(indices.shape) :])
         return output
-    return tfnp.take(x, indices, axis=axis)
+
+    x = convert_to_tensor(x)
+    indices = convert_to_tensor(indices)
+    if axis is None:
+        x = tf.reshape(x, [-1])
+        axis = 0
+    # Correct the indices using "fill" mode which is the same as in jax
+    indices = tf.where(
+        indices < 0,
+        indices + tf.cast(tf.shape(x)[axis], indices.dtype),
+        indices,
+    )
+    return tf.gather(x, indices, axis=axis)
 
 
 def take_along_axis(x, indices, axis=None):
-    return tfnp.take_along_axis(x, indices, axis=axis)
+    x = convert_to_tensor(x)
+    indices = convert_to_tensor(indices, "int64")
+    if axis is None:
+        if indices.ndim != 1:
+            raise ValueError(
+                "`indices` must be 1D if axis=None. "
+                f"Received: indices.shape={indices.shape}"
+            )
+        return take_along_axis(tf.reshape(x, [-1]), indices, 0)
+    rank = tf.rank(x)
+    static_axis = axis
+    axis = axis + rank if axis < 0 else axis
+
+    # Broadcast shapes to match, ensure that the axis of interest is not
+    # broadcast.
+    x_shape_original = tf.shape(x, out_type=indices.dtype)
+    indices_shape_original = tf.shape(indices, out_type=indices.dtype)
+    x_shape = tf.tensor_scatter_nd_update(x_shape_original, [[axis]], [1])
+    indices_shape = tf.tensor_scatter_nd_update(
+        indices_shape_original, [[axis]], [1]
+    )
+    broadcasted_shape = tf.broadcast_dynamic_shape(x_shape, indices_shape)
+    x_shape = tf.tensor_scatter_nd_update(
+        broadcasted_shape, [[axis]], [x_shape_original[axis]]
+    )
+    indices_shape = tf.tensor_scatter_nd_update(
+        broadcasted_shape, [[axis]], [indices_shape_original[axis]]
+    )
+    x = tf.broadcast_to(x, x_shape)
+    indices = tf.broadcast_to(indices, indices_shape)
+
+    # Save indices shape so we can restore it later.
+    possible_result_shape = indices.shape
+
+    # Correct the indices using "fill" mode which is the same as in jax
+    indices = tf.where(indices < 0, indices + x_shape[static_axis], indices)
+
+    x = swapaxes(x, static_axis, -1)
+    indices = swapaxes(indices, static_axis, -1)
+
+    x_shape = tf.shape(x)
+    x = tf.reshape(x, [-1, x_shape[-1]])
+    indices_shape = tf.shape(indices)
+    indices = tf.reshape(indices, [-1, indices_shape[-1]])
+
+    result = tf.gather(x, indices, batch_dims=1)
+    result = tf.reshape(result, indices_shape)
+    result = swapaxes(result, static_axis, -1)
+    result.set_shape(possible_result_shape)
+    return result
 
 
 @sparse.elementwise_unary
@@ -1800,7 +2023,6 @@ def tensordot(x1, x2, axes=2):
 
 @sparse.elementwise_unary
 def round(x, decimals=0):
-    # `tfnp.round` requires `enable_numpy_behavior`, so we reimplement it.
     if decimals == 0:
         return tf.round(x)
     x_dtype = x.dtype
@@ -1821,7 +2043,6 @@ def round(x, decimals=0):
 
 
 def tile(x, repeats):
-    # The TFNP implementation is buggy, we roll our own.
     x = convert_to_tensor(x)
     repeats = tf.reshape(convert_to_tensor(repeats, dtype="int32"), [-1])
     repeats_size = tf.size(repeats)
@@ -1844,12 +2065,39 @@ def trace(x, offset=0, axis1=0, axis2=1):
     dtype = standardize_dtype(x.dtype)
     if dtype not in ("int64", "uint32", "uint64"):
         dtype = dtypes.result_type(dtype, "int32")
-    return tfnp.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
+    x_shape = tf.shape(x)
+    x = moveaxis(x, (axis1, axis2), (-2, -1))
+    # Mask out the diagonal and reduce.
+    x = tf.where(
+        eye(x_shape[axis1], x_shape[axis2], k=offset, dtype="bool"),
+        x,
+        tf.zeros_like(x),
+    )
+    # The output dtype is set to "int32" if the input dtype is "bool"
+    if standardize_dtype(x.dtype) == "bool":
+        x = tf.cast(x, "int32")
+    return tf.cast(tf.reduce_sum(x, axis=(-2, -1)), dtype)
 
 
 def tri(N, M=None, k=0, dtype=None):
-    dtype = dtype or config.floatx()
-    return tfnp.tri(N, M=M, k=k, dtype=dtype)
+    M = M if M is not None else N
+    dtype = standardize_dtype(dtype or config.floatx())
+    if k < 0:
+        lower = -k - 1
+        if lower > N:
+            r = tf.zeros([N, M], dtype=dtype)
+        else:
+            o = tf.ones([N, M], dtype="bool")
+            r = tf.cast(
+                tf.logical_not(tf.linalg.band_part(o, lower, -1)), dtype=dtype
+            )
+    else:
+        o = tf.ones([N, M], dtype=dtype)
+        if k > M:
+            r = o
+        else:
+            r = tf.linalg.band_part(o, -1, k)
+    return r
 
 
 def tril(x, k=0):
@@ -2069,7 +2317,29 @@ def sum(x, axis=None, keepdims=False):
 
 def eye(N, M=None, k=0, dtype=None):
     dtype = dtype or config.floatx()
-    return tfnp.eye(N, M=M, k=k, dtype=dtype)
+    if not M:
+        M = N
+    # Making sure N, M and k are `int`
+    N, M, k = int(N), int(M), int(k)
+    if k >= M or -k >= N:
+        # tf.linalg.diag will raise an error in this case
+        return zeros([N, M], dtype=dtype)
+    if k == 0:
+        return tf.eye(N, M, dtype=dtype)
+    # We need the precise length, otherwise tf.linalg.diag will raise an error
+    diag_len = builtins.min(N, M)
+    if k > 0:
+        if N >= M:
+            diag_len -= k
+        elif N + k > M:
+            diag_len = M - k
+    elif k <= 0:
+        if M >= N:
+            diag_len += k
+        elif M - k > N:
+            diag_len = N + k
+    diagonal_ = tf.ones([diag_len], dtype=dtype)
+    return tf.linalg.diag(diagonal=diagonal_, num_rows=N, num_cols=M, k=k)
 
 
 def floor_divide(x1, x2):
