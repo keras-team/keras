@@ -1090,3 +1090,7 @@ def correlate(x1, x2, mode="valid"):
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
     return np.correlate(x1, x2, mode)
+
+
+def select(condlist, choicelist, default=0):
+    return np.select(condlist, choicelist, default=default)

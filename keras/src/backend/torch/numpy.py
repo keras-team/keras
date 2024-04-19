@@ -1567,3 +1567,12 @@ def correlate(x1, x2, mode="valid"):
         result = result[..., start_idx : start_idx + x1_len]
 
     return torch.squeeze(result)
+
+
+def select(condlist, choicelist, default=0):
+    condlist = [convert_to_tensor(c) for c in condlist]
+    choicelist = [convert_to_tensor(c) for c in choicelist]
+    out = convert_to_tensor(default)
+    for c, v in reversed(list(zip(condlist, choicelist))):
+        out = torch.where(c, v, out)
+    return out

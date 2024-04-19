@@ -1143,3 +1143,7 @@ def correlate(x1, x2, mode="valid"):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jnp.correlate(x1, x2, mode)
+
+
+def select(condlist, choicelist, default=0):
+    return jnp.select(condlist, choicelist, default=default)

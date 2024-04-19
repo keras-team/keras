@@ -6172,3 +6172,66 @@ def correlate(x1, x2, mode="valid"):
     if any_symbolic_tensors((x1, x2)):
         return Correlate(mode=mode).symbolic_call(x1, x2)
     return backend.numpy.correlate(x1, x2, mode=mode)
+
+
+class Select(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, condlist, choicelist, default=0):
+        return backend.numpy.correlate(condlist, choicelist, default)
+
+    def compute_output_spec(self, condlist, choicelist, default=0):
+        first_element = choicelist[0]
+        return KerasTensor(first_element.shape, dtype=first_element.dtype)
+
+
+@keras_export(["keras.ops.select", "keras.ops.numpy.select"])
+def select(condlist, choicelist, default=0):
+    """Return elements from `choicelist`, based on conditions in `condlist`.
+
+    Args:
+        condlist: List of boolean tensors.
+            The list of conditions which determine from which array
+            in choicelist the output elements are taken.
+            When multiple conditions are satisfied,
+            the first one encountered in condlist is used.
+        choicelist: List of tensors.
+            The list of tensors from which the output elements are taken.
+            This list has to be of the same length as `condlist`.
+        defaults: Optional scalar value.
+            The element inserted in the output
+            when all conditions evaluate to `False`.
+
+    Returns:
+        Tensor where the output at position `m` is the `m`-th element
+        of the tensor in `choicelist` where the `m`-th element of the
+        corresponding tensor in `condlist` is `True`.
+
+    Example:
+
+    ```python
+    from keras import ops
+
+    x = ops.arange(6)
+    condlist = [x<3, x>3]
+    choicelist = [x, x**2]
+    ops.select(condlist, choicelist, 42)
+    # Returns: tensor([0,  1,  2, 42, 16, 25])
+    ```
+    """
+    if not isinstance(condlist, list) or not isinstance(choicelist, list):
+        raise ValueError(
+            "condlist and choicelist must be lists. Received: "
+            f"type(condlist) = {type(condlist)}, "
+            f"type(choicelist) = {type(choicelist)}"
+        )
+    if not condlist or not choicelist:
+        raise ValueError(
+            "condlist and choicelist must not be empty. Received: "
+            f"condlist = {condlist}, "
+            f"choicelist = {choicelist}"
+        )
+    if any_symbolic_tensors(condlist + choicelist + [default]):
+        return Select().symbolic_call(condlist, choicelist, default)
+    return backend.numpy.select(condlist, choicelist, default)

@@ -2132,3 +2132,7 @@ def correlate(x1, x2, mode="valid"):
     x2 = tf.reshape(x2, (x2_len, 1, 1))
 
     return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding=mode.upper()))
+
+
+def select(condlist, choicelist, default=0):
+    return tfnp.select(condlist, choicelist, default=default)

@@ -4169,6 +4169,19 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             knp.Correlate(mode="full")(x, y), np.correlate(x, y, mode="full")
         )
 
+    def test_select(self):
+        x = np.arange(6)
+        condlist = [x < 3, x > 3]
+        choicelist = [x, x**2]
+        y = knp.select(condlist, choicelist, 42)
+        self.assertAllClose(y, [0, 1, 2, 42, 16, 25])
+
+        x = backend.KerasTensor((6,))
+        condlist = [x < 3, x > 3]
+        choicelist = [x, x**2]
+        y = knp.select(condlist, choicelist, 42)
+        self.assertEqual(y.shape, (6,))
+
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
     def test_ones(self):
