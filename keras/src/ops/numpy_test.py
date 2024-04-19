@@ -3911,7 +3911,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.round(x), np.round(x))
         self.assertAllClose(knp.Round()(x), np.round(x))
 
-        # Test with decimal
+        # Test with decimal=1
         self.assertAllClose(knp.round(x, decimals=1), np.round(x, decimals=1))
         self.assertAllClose(knp.Round(decimals=1)(x), np.round(x, decimals=1))
 
@@ -3919,6 +3919,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]], dtype="int32")
         self.assertAllClose(knp.round(x, decimals=1), np.round(x, decimals=1))
         self.assertAllClose(knp.Round(decimals=1)(x), np.round(x, decimals=1))
+
+        # Test with integers and decimal < 0
+        x = np.array([[1, 2, 3], [3, 2, 1]], dtype="int32")
+        self.assertAllClose(knp.round(x, decimals=-1), np.round(x, decimals=-1))
+        self.assertAllClose(knp.Round(decimals=-1)(x), np.round(x, decimals=-1))
 
     def test_sign(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
