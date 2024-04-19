@@ -172,8 +172,11 @@ def max(x, axis=None, keepdims=False, initial=None):
         result = result.values
 
     if initial is not None:
-        initial = convert_to_tensor(initial)
-        return torch.maximum(result, torch.full(result.shape, initial))
+        dtype = to_torch_dtype(result.dtype)
+        initial = convert_to_tensor(initial, dtype=dtype)
+        return torch.maximum(
+            result, torch.full(result.shape, initial, dtype=dtype)
+        )
     return result
 
 
@@ -744,8 +747,15 @@ def linspace(
         dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = to_torch_dtype(dtype)
 
-    if endpoint is False:
-        stop = stop - ((stop - start) / num)
+    step = convert_to_tensor(torch.nan)
+    if endpoint:
+        if num > 1:
+            step = (stop - start) / (num - 1)
+    else:
+        if num > 0:
+            step = (stop - start) / num
+        if num > 1:
+            stop = stop - ((stop - start) / num)
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
         start = convert_to_tensor(start, dtype=dtype)
         stop = convert_to_tensor(stop, dtype=dtype)
@@ -766,7 +776,7 @@ def linspace(
             device=get_device(),
         )
     if retstep is True:
-        return (linspace, num)
+        return (linspace, step)
     return linspace
 
 
@@ -949,7 +959,8 @@ def min(x, axis=None, keepdims=False, initial=None):
         result = result.values
 
     if initial is not None:
-        initial = convert_to_tensor(initial)
+        dtype = to_torch_dtype(result.dtype)
+        initial = convert_to_tensor(initial, dtype=dtype)
         return torch.minimum(result, initial)
     return result
 
@@ -1265,6 +1276,13 @@ def swapaxes(x, axis1, axis2):
 def take(x, indices, axis=None):
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices).long()
+    # Correct the indices using "fill" mode which is the same as in jax
+    x_dim = x.shape[axis] if axis is not None else x.shape[0]
+    indices = torch.where(
+        indices < 0,
+        indices + x_dim,
+        indices,
+    )
     if x.ndim == 2 and axis == 0:
         # This case is equivalent to embedding lookup.
         return torch.nn.functional.embedding(indices, x)
@@ -1285,6 +1303,13 @@ def take(x, indices, axis=None):
 def take_along_axis(x, indices, axis=None):
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices).long()
+    # Correct the indices using "fill" mode which is the same as in jax
+    x_dim = x.shape[axis] if axis is not None else x.shape[0]
+    indices = torch.where(
+        indices < 0,
+        indices + x_dim,
+        indices,
+    )
     return torch.take_along_dim(x, indices, dim=axis)
 
 
