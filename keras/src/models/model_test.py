@@ -139,7 +139,6 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         pred_reloaded = reloaded_pickle.predict(x)
         pred = model.predict(x)
 
-        # self.assertAllClose fails for some dtypes, so we use np
         self.assertAllClose(np.array(pred_reloaded), np.array(pred))
 
     @parameterized.named_parameters(
