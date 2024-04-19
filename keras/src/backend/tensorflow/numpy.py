@@ -999,31 +999,16 @@ def cumsum(x, axis=None, dtype=None):
 
 def diag(x, k=0):
     x = convert_to_tensor(x)
-    if x.ndim not in (1, 2):
-        raise ValueError("`x` must be 1d or 2d")
-
-    def _diag(x, k):
+    if len(x.shape) == 1:
         return tf.cond(
             tf.equal(tf.size(x), 0),
             lambda: tf.zeros([builtins.abs(k), builtins.abs(k)], dtype=x.dtype),
             lambda: tf.linalg.diag(x, k=k),
         )
-
-    def _diag_part(x, k):
-        x_shape = tf.shape(x)
-        x, k = tf.cond(
-            tf.logical_or(
-                tf.less_equal(k, -1 * x_shape[0]),
-                tf.greater_equal(k, x_shape[1]),
-            ),
-            lambda: (tf.zeros([0, 0], dtype=x.dtype), 0),
-            lambda: (x, k),
-        )
-        return tf.linalg.diag_part(x, k=k)
-
-    return tf.cond(
-        tf.equal(tf.rank(x), 1), lambda: _diag(x, k), lambda: _diag_part(x, k)
-    )
+    elif len(x.shape) == 2:
+        return diagonal(x, offset=k)
+    else:
+        raise ValueError(f"`x` must be 1d or 2d. Received: x.shape={x.shape}")
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
