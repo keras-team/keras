@@ -55,7 +55,7 @@ jobs:
           pytest integration_tests/torch_workflow_test.py
       - name: Test with pytest
         run: |
-          pytest keras --ignore keras/applications --cov=keras
+          pytest keras --ignore keras/src/applications --cov=keras
 
   format:
     name: Check the code format
@@ -81,6 +81,15 @@ jobs:
           pip install -r requirements.txt --progress-bar off --upgrade
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
+      - name: Check for API changes
+        run: |
+          bash shell/api_gen.sh
+          git status
+          clean=$(git status | grep "nothing to commit")
+          if [ -z "$clean" ]; then
+            echo "Please run shell/api_gen.sh to generate API."
+            exit 1
+          fi
       - name: Lint
         run: bash shell/lint.sh
 

@@ -4,6 +4,8 @@ on:
     - cron: "30 1 * * *"
 jobs:
   close-issues:
+    # Don't do this in forks
+    if: github.repository == 'keras-team/keras'
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -12,6 +14,7 @@ jobs:
       - name: Awaiting response issues
         uses: actions/stale@v9
         with:
+          operations-per-run: 500
           days-before-issue-stale: 14
           days-before-issue-close: 14
           stale-issue-label: "stale"
@@ -34,6 +37,7 @@ jobs:
       - name: Contribution issues
         uses: actions/stale@v9
         with:
+          operations-per-run: 500
           days-before-issue-stale: 180
           days-before-issue-close: 365
           stale-issue-label: "stale"
