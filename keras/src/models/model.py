@@ -1,9 +1,10 @@
 import inspect
+import io
 import json
 import typing
 import warnings
-import io
 
+import keras.src.saving.saving_lib as saving_lib
 from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
@@ -13,8 +14,6 @@ from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
-import keras.src.saving.saving_lib as saving_lib
-
 
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.trainer import (

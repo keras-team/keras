@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -9,7 +11,6 @@ from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
 from keras.src.models.model import model_from_json
-import pickle
 
 
 def _get_model():
@@ -173,10 +174,11 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         self.assertListEqual(hist_keys, ref_keys)
 
         reloaded_pickle = pickle.loads(pickle.dumps(model))
-        # self.assertAllClose fails for some dtypes
 
         pred_reloaded = reloaded_pickle.predict(x)
         pred = model.predict(x)
+
+        # self.assertAllClose fails for some dtypes, so we use np
         if isinstance(pred, dict):
             for key in pred:
                 np.testing.assert_allclose(pred_reloaded[key], pred[key])
