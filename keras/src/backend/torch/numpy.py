@@ -172,8 +172,11 @@ def max(x, axis=None, keepdims=False, initial=None):
         result = result.values
 
     if initial is not None:
-        initial = convert_to_tensor(initial)
-        return torch.maximum(result, torch.full(result.shape, initial))
+        dtype = to_torch_dtype(result.dtype)
+        initial = convert_to_tensor(initial, dtype=dtype)
+        return torch.maximum(
+            result, torch.full(result.shape, initial, dtype=dtype)
+        )
     return result
 
 
@@ -949,7 +952,8 @@ def min(x, axis=None, keepdims=False, initial=None):
         result = result.values
 
     if initial is not None:
-        initial = convert_to_tensor(initial)
+        dtype = to_torch_dtype(result.dtype)
+        initial = convert_to_tensor(initial, dtype=dtype)
         return torch.minimum(result, initial)
     return result
 

@@ -2170,6 +2170,14 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             self.assertAllClose(knp.Cross()(x1, y3), np.cross(x1, y3))
             self.assertAllClose(knp.Cross()(x2, y3), np.cross(x2, y3))
 
+        # Test axis is not None
+        self.assertAllClose(
+            knp.cross(x1, y1, axis=-1), np.cross(x1, y1, axis=-1)
+        )
+        self.assertAllClose(
+            knp.Cross(axis=-1)(x1, y1), np.cross(x1, y1, axis=-1)
+        )
+
     def test_einsum(self):
         x = np.arange(24).reshape([2, 3, 4]).astype("float32")
         y = np.arange(24).reshape([2, 4, 3]).astype("float32")
@@ -2748,6 +2756,18 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             knp.TakeAlongAxis(axis=2)(x, indices),
             np.take_along_axis(x, indices, axis=2),
+        )
+
+        # Test with axis=None
+        x = np.arange(12).reshape([1, 1, 3, 4])
+        indices = np.array([1, 2, 3], dtype=np.int32)
+        self.assertAllClose(
+            knp.take_along_axis(x, indices, axis=None),
+            np.take_along_axis(x, indices, axis=None),
+        )
+        self.assertAllClose(
+            knp.TakeAlongAxis(axis=None)(x, indices),
+            np.take_along_axis(x, indices, axis=None),
         )
 
         # Test with negative indices
@@ -3466,6 +3486,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.diff(x, n=2, axis=0), np.diff(x, n=2, axis=0))
         self.assertAllClose(knp.diff(x, n=2, axis=1), np.diff(x, n=2, axis=1))
 
+        # Test n=0
+        x = np.array([1, 2, 4, 7, 0])
+        self.assertAllClose(knp.diff(x, n=0), np.diff(x, n=0))
+
     def test_dot(self):
         x = np.arange(24).reshape([2, 3, 4]).astype("float32")
         y = np.arange(12).reshape([4, 3]).astype("float32")
@@ -3880,6 +3904,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     def test_round(self):
         x = np.array([[1.1, 2.5, 3.9], [3.2, 2.3, 1.8]])
+        self.assertAllClose(knp.round(x), np.round(x))
+        self.assertAllClose(knp.Round()(x), np.round(x))
+
+        # Test with decimal
+        self.assertAllClose(knp.round(x, decimals=1), np.round(x, decimals=1))
+        self.assertAllClose(knp.Round(decimals=1)(x), np.round(x, decimals=1))
+
+        # Test with integers
+        x = np.array([[1, 2, 3], [3, 2, 1]], dtype="int32")
         self.assertAllClose(knp.round(x), np.round(x))
         self.assertAllClose(knp.Round()(x), np.round(x))
 
@@ -5099,6 +5132,18 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
 
         self.assertEqual(standardize_dtype(knp.max(x).dtype), expected_dtype)
         self.assertEqual(knp.Max().symbolic_call(x).dtype, expected_dtype)
+
+        # Test with initial
+        initial = 1
+        expected_dtype = standardize_dtype(
+            jnp.max(x_jax, initial=initial).dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.max(x, initial=initial).dtype), expected_dtype
+        )
+        self.assertEqual(
+            knp.Max(initial=initial).symbolic_call(x).dtype, expected_dtype
+        )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_ones(self, dtype):
@@ -6768,6 +6813,18 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
 
         self.assertEqual(standardize_dtype(knp.min(x).dtype), expected_dtype)
         self.assertEqual(knp.Min().symbolic_call(x).dtype, expected_dtype)
+
+        # Test with initial
+        initial = 0
+        expected_dtype = standardize_dtype(
+            jnp.min(x_jax, initial=initial).dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.min(x, initial=initial).dtype), expected_dtype
+        )
+        self.assertEqual(
+            knp.Min(initial=initial).symbolic_call(x).dtype, expected_dtype
+        )
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))

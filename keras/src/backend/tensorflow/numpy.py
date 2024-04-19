@@ -581,9 +581,11 @@ def max(x, axis=None, keepdims=False, initial=None):
     if initial is not None:
         if standardize_dtype(x.dtype) == "bool":
             x = tf.reduce_any(x, axis=axis, keepdims=keepdims)
+            x = tf.math.maximum(tf.cast(x, "int32"), tf.cast(initial, "int32"))
+            return tf.cast(x, "bool")
         else:
             x = tf.reduce_max(x, axis=axis, keepdims=keepdims)
-        return tf.math.maximum(x, initial)
+            return tf.math.maximum(x, initial)
 
     # TensorFlow returns -inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
@@ -1475,6 +1477,8 @@ def min(x, axis=None, keepdims=False, initial=None):
     if initial is not None:
         if standardize_dtype(x.dtype) == "bool":
             x = tf.reduce_all(x, axis=axis, keepdims=keepdims)
+            x = tf.math.minimum(tf.cast(x, "int32"), tf.cast(initial, "int32"))
+            return tf.cast(x, "bool")
         else:
             x = tf.reduce_min(x, axis=axis, keepdims=keepdims)
         return tf.math.minimum(x, initial)
