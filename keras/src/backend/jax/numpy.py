@@ -223,10 +223,8 @@ def absolute(x):
     return jnp.absolute(x)
 
 
-@sparse.elementwise_unary(linear=False)
 def abs(x):
-    x = convert_to_tensor(x)
-    return jnp.absolute(x)
+    return absolute(x)
 
 
 def all(x, axis=None, keepdims=False):
