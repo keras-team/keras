@@ -355,7 +355,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
     # saving format -- it should only be supported for use with distributed
     # computing frameworks.
     @classmethod
-    def _depickle_model(cls, bytesio):
+    def _unpickle_model(cls, bytesio):
         # pickle is not safe regardless of what you do.
         return saving_lib._load_model_from_fileobj(
             bytesio, custom_objects=None, compile=True, safe_mode=False
@@ -370,7 +370,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         buf = io.BytesIO()
         saving_lib._save_model_to_fileobj(self, buf, "h5")
         return (
-            self._depickle_model,
+            self._unpickle_model,
             (buf,),
         )
 
