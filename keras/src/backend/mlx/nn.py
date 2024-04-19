@@ -1,11 +1,11 @@
 import mlx.core as mx
 import mlx.nn as nn
 
-from keras.backend import standardize_dtype
-from keras.backend.config import epsilon
-from keras.backend.mlx.core import convert_to_tensor
-from keras.backend.mlx.core import to_mlx_dtype
-from keras.backend.mlx.numpy import clip
+from keras.src.backend import standardize_dtype
+from keras.src.backend.config import epsilon
+from keras.src.backend.mlx.core import convert_to_tensor
+from keras.src.backend.mlx.core import to_mlx_dtype
+from keras.src.backend.mlx.numpy import clip
 
 
 def relu(x):

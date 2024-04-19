@@ -50,7 +50,7 @@ elif backend.backend() == "torch":
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.layer import NumpyLayer as BackendLayer
 elif backend.backend() == "mlx":
-    from keras.backend.mlx.layer import MLXLayer as BackendLayer
+    from keras.src.backend.mlx.layer import MLXLayer as BackendLayer
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement a layer mixin class."

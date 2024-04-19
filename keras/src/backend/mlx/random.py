@@ -1,10 +1,10 @@
 import mlx.core as mx
 
-from keras.backend.config import floatx
-from keras.backend.mlx.core import to_mlx_dtype
-from keras.random.seed_generator import SeedGenerator
-from keras.random.seed_generator import draw_seed
-from keras.random.seed_generator import make_default_seed
+from keras.src.backend.config import floatx
+from keras.src.backend.mlx.core import to_mlx_dtype
+from keras.src.random.seed_generator import SeedGenerator
+from keras.src.random.seed_generator import draw_seed
+from keras.src.random.seed_generator import make_default_seed
 
 
 def mlx_draw_seed(seed):

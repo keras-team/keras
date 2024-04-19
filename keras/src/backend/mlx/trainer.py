@@ -1,18 +1,18 @@
 import mlx.core as mx
 import numpy as np
-from keras.utils import tree
 
-from keras import backend
-from keras import callbacks as callbacks_module
-from keras import ops
-from keras import optimizers as optimizers_module
-from keras.backend.common import standardize_dtype
-from keras.backend.common.keras_tensor import KerasTensor
-from keras.backend.mlx.core import is_tensor
-from keras.trainers import trainer as base_trainer
-from keras.trainers.data_adapters import data_adapter_utils
-from keras.trainers.epoch_iterator import EpochIterator
-from keras.utils import traceback_utils
+from keras.src import backend
+from keras.src import callbacks as callbacks_module
+from keras.src import ops
+from keras.src import optimizers as optimizers_module
+from keras.src import tree
+from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.mlx.core import is_tensor
+from keras.src.trainers import trainer as base_trainer
+from keras.src.trainers.data_adapters import data_adapter_utils
+from keras.src.trainers.epoch_iterator import EpochIterator
+from keras.src.utils import traceback_utils
 
 
 class MLXTrainer(base_trainer.Trainer):
@@ -140,9 +140,7 @@ class MLXTrainer(base_trainer.Trainer):
         with backend.StatelessScope(state_mapping=trainable_mapping):
             # Note that this is needed for the regularization loss, which need
             # the latest value of train/non-trainable variables.
-            loss = self.compute_loss(
-                x, y, y_pred, sample_weight
-            )
+            loss = self.compute_loss(x, y, y_pred, sample_weight)
         if losses:
             loss += ops.sum(losses)
         unscaled_loss = loss

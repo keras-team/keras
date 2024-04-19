@@ -4,8 +4,8 @@ import operator
 
 import mlx.core as mx
 
-from keras.backend.mlx.core import convert_to_tensor
-from keras.backend.mlx.core import to_mlx_dtype
+from keras.src.backend.mlx.core import convert_to_tensor
+from keras.src.backend.mlx.core import to_mlx_dtype
 
 
 def _mirror_index_fixer(index, size):
