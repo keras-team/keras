@@ -14,7 +14,7 @@ except ImportError:
 
 import pytest  # noqa: E402
 
-from keras.backend import backend  # noqa: E402
+from keras.src.backend import backend  # noqa: E402
 
 
 def pytest_configure(config):

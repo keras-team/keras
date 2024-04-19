@@ -1,7 +1,7 @@
 import numpy as np
 
-from keras import testing
-from keras.datasets import imdb
+from keras.src import testing
+from keras.src.datasets import imdb
 
 
 class ImdbLoadDataTest(testing.TestCase):

@@ -1,5 +1,5 @@
 import keras
-from keras.utils import plot_model
+from keras.src.utils import plot_model
 
 
 def plot_sequential_model():

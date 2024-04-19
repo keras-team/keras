@@ -1,7 +1,7 @@
 import numpy as np
 
-from keras import testing
-from keras.datasets import mnist
+from keras.src import testing
+from keras.src.datasets import mnist
 
 
 class MnistLoadDataTest(testing.TestCase):
