@@ -174,11 +174,11 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
         reloaded_pickle = pickle.loads(pickle.dumps(model))
         # self.assertAllClose fails for some dtypes
-        
+
         pred_reloaded = reloaded_pickle.predict(x)
         pred = model.predict(x)
         if isinstance(pred, dict):
-            for key in pred: 
+            for key in pred:
                 np.testing.assert_allclose(pred_reloaded[key], pred[key])
         else:
             np.testing.assert_allclose(pred_reloaded, pred)
