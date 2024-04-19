@@ -2460,6 +2460,10 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             knp.Linspace(num=5, endpoint=False)(0, 10),
             np.linspace(0, 10, 5, endpoint=False),
         )
+        self.assertAllClose(
+            knp.Linspace(num=0, endpoint=False)(0, 10),
+            np.linspace(0, 10, 0, endpoint=False),
+        )
 
         start = np.zeros([2, 3, 4])
         stop = np.ones([2, 3, 4])

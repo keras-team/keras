@@ -747,8 +747,15 @@ def linspace(
         dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = to_torch_dtype(dtype)
 
-    if endpoint is False:
-        stop = stop - ((stop - start) / num)
+    step = convert_to_tensor(torch.nan)
+    if endpoint:
+        if num > 1:
+            step = (stop - start) / (num - 1)
+    else:
+        if num > 0:
+            step = (stop - start) / num
+        if num > 1:
+            stop = stop - ((stop - start) / num)
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
         start = convert_to_tensor(start, dtype=dtype)
         stop = convert_to_tensor(stop, dtype=dtype)
@@ -769,7 +776,7 @@ def linspace(
             device=get_device(),
         )
     if retstep is True:
-        return (linspace, num)
+        return (linspace, step)
     return linspace
 
 
