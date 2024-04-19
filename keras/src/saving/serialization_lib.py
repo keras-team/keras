@@ -162,6 +162,9 @@ def serialize_keras_object(obj):
                 "step": serialize_keras_object(obj.step),
             },
         }
+    # Ellipsis is an instance, and ellipsis is not in global scope.
+    if isinstance(obj, type(Ellipsis)):
+        return {"class_name": "__ellipsis__", "config": {}}
     if isinstance(obj, backend.KerasTensor):
         history = getattr(obj, "_keras_history", None)
         if history:
@@ -613,6 +616,8 @@ def deserialize_keras_object(
         return np.array(inner_config["value"], dtype=inner_config["dtype"])
     if config["class_name"] == "__bytes__":
         return inner_config["value"].encode("utf-8")
+    if config["class_name"] == "__ellipsis__":
+        return Ellipsis
     if config["class_name"] == "__slice__":
         return slice(
             deserialize_keras_object(

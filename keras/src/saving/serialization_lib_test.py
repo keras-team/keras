@@ -107,6 +107,10 @@ class SerializationLibTest(testing.TestCase):
         reserialized_str = tuples_to_lists_str(reserialized)
         self.assertEqual(serialized_str, reserialized_str)
 
+    def test_serialize_ellipsis(self):
+        _, deserialized, _ = self.roundtrip(Ellipsis)
+        self.assertEqual(..., deserialized)
+
     def test_tensors_and_shapes(self):
         x = ops.random.normal((2, 2), dtype="float64")
         obj = {"x": x}
