@@ -2,6 +2,7 @@ import inspect
 import json
 import typing
 import warnings
+import io
 
 from keras.src import backend
 from keras.src import utils
@@ -12,6 +13,8 @@ from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
+import keras.src.saving.saving_lib as saving_lib
+
 
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.trainer import (
@@ -346,6 +349,30 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         """
         saving_api.load_weights(
             self, filepath, skip_mismatch=skip_mismatch, **kwargs
+        )
+
+    # Note: renaming this function will cause old pickles to be broken.
+    # This is probably not a huge deal, as pickle should not be a recommended
+    # saving format -- it should only be supported for use with distributed
+    # computing frameworks.
+    @classmethod
+    def _depickle_model(cls, bytesio):
+        # pickle is not safe regardless of what you do.
+        return saving_lib._load_model_from_fileobj(
+            bytesio, custom_objects=None, compile=True, safe_mode=False
+        )
+
+    def __reduce__(self):
+        """__reduce__ is used to customize the behavior of `pickle.pickle()`.
+
+        The method returns a tuple of two elements: a function, and a list of
+        arguments to pass to that function.  In this case we just leverage the
+        keras saving library."""
+        buf = io.BytesIO()
+        saving_lib._save_model_to_fileobj(self, buf, "h5")
+        return (
+            self._depickle_model,
+            (buf,),
         )
 
     def quantize(self, mode):

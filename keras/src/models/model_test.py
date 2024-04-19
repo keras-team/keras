@@ -9,6 +9,7 @@ from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
 from keras.src.models.model import model_from_json
+import pickle
 
 
 def _get_model():
@@ -138,7 +139,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
             loss = [loss]
         elif loss_type == "dict":
             loss = {"output_a": loss}
-        elif loss_type == "dict_lsit":
+        elif loss_type == "dict_list":
             loss = {"output_a": [loss]}
         model.compile(
             optimizer="sgd",
@@ -170,6 +171,17 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
             ]
         )
         self.assertListEqual(hist_keys, ref_keys)
+
+        reloaded_pickle = pickle.loads(pickle.dumps(model))
+        # self.assertAllClose fails for some dtypes
+        
+        pred_reloaded = reloaded_pickle.predict(x)
+        pred = model.predict(x)
+        if isinstance(pred, dict):
+            for key in pred: 
+                np.testing.assert_allclose(pred_reloaded[key], pred[key])
+        else:
+            np.testing.assert_allclose(pred_reloaded, pred)
 
     def test_functional_list_outputs_list_losses(self):
         model = _get_model_multi_outputs_list()
