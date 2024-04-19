@@ -3917,8 +3917,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         # Test with integers
         x = np.array([[1, 2, 3], [3, 2, 1]], dtype="int32")
-        self.assertAllClose(knp.round(x), np.round(x))
-        self.assertAllClose(knp.Round()(x), np.round(x))
+        self.assertAllClose(knp.round(x, decimals=1), np.round(x, decimals=1))
+        self.assertAllClose(knp.Round(decimals=1)(x), np.round(x, decimals=1))
 
     def test_sign(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
@@ -4249,7 +4249,22 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.Eye()(3), np.eye(3))
         self.assertAllClose(knp.Eye()(3, 4), np.eye(3, 4))
-        self.assertAllClose(knp.Eye()(3, 4, 1), np.eye(3, 4, 1))
+        self.assertAllClose(knp.Eye(k=1)(3, 4), np.eye(3, 4, k=1))
+
+        # Test k >= N
+        self.assertAllClose(knp.Eye(k=3)(3), np.eye(3, k=3))
+
+        # Test k > 0 and N >= M
+        self.assertAllClose(knp.Eye(k=1)(3), np.eye(3, k=1))
+
+        # Test k > 0 and N < M and N + k > M
+        self.assertAllClose(knp.Eye(k=2)(3, 4), np.eye(3, 4, k=2))
+
+        # Test k < 0 and M >= N
+        self.assertAllClose(knp.Eye(k=-1)(3), np.eye(3, k=-1))
+
+        # Test k < 0 and M < N and M - k > N
+        self.assertAllClose(knp.Eye(k=-2)(4, 3), np.eye(4, 3, k=-2))
 
     def test_arange(self):
         self.assertAllClose(knp.arange(3), np.arange(3))
@@ -4291,7 +4306,16 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.Tri()(3), np.tri(3))
         self.assertAllClose(knp.Tri()(3, 4), np.tri(3, 4))
-        self.assertAllClose(knp.Tri()(3, 4, 1), np.tri(3, 4, 1))
+        self.assertAllClose(knp.Tri(k=1)(3, 4), np.tri(3, 4, 1))
+
+        # Test k < 0
+        self.assertAllClose(knp.Tri(k=-1)(3), np.tri(3, k=-1))
+
+        # Test -k-1 > N
+        self.assertAllClose(knp.Tri(k=-5)(3), np.tri(3, k=-5))
+
+        # Test k > M
+        self.assertAllClose(knp.Tri(k=4)(3), np.tri(3, k=4))
 
 
 def create_sparse_tensor(x, indices_from=None, start=0, delta=2):
@@ -6120,19 +6144,19 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
         self.assertEqual(
-            standardize_dtype(knp.Eye().symbolic_call(3, dtype=dtype).dtype),
+            standardize_dtype(knp.Eye(dtype=dtype).symbolic_call(3).dtype),
             expected_dtype,
         )
 
         expected_dtype = standardize_dtype(jnp.eye(3, 4, 1, dtype=dtype).dtype)
 
         self.assertEqual(
-            standardize_dtype(knp.eye(3, 4, 1, dtype=dtype).dtype),
+            standardize_dtype(knp.eye(3, 4, k=1, dtype=dtype).dtype),
             expected_dtype,
         )
         self.assertEqual(
             standardize_dtype(
-                knp.Eye().symbolic_call(3, 4, 1, dtype=dtype).dtype
+                knp.Eye(k=1, dtype=dtype).symbolic_call(3, 4).dtype
             ),
             expected_dtype,
         )
@@ -7605,7 +7629,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
         self.assertEqual(
-            standardize_dtype(knp.Tri().symbolic_call(3, dtype=dtype).dtype),
+            standardize_dtype(knp.Tri(dtype=dtype).symbolic_call(3).dtype),
             expected_dtype,
         )
 
