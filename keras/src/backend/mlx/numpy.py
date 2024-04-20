@@ -579,9 +579,16 @@ def maximum(x1, x2):
     return mx.maximum(x1, x2)
 
 
-def median(x, axis=None, keepdims=False):
-    # TODO: Maybe implement via sort?
-    raise NotImplementedError("The MLX backend doesn't support median yet")
+def median(x, axis=-1, keepdims=False):
+    x = convert_to_tensor(x)
+    x_sorted = mx.sort(x, axis=axis)
+    axis_size = x_sorted.shape[axis]
+    medians = mx.take(
+        x_sorted, indices=mx.array([(axis_size // 2) - 1]), axis=axis
+    )
+    if not keepdims:
+        medians = mx.squeeze(medians, axis=axis)
+    return medians
 
 
 def meshgrid(*x, indexing="xy"):
