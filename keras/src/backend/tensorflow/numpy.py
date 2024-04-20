@@ -2156,6 +2156,14 @@ def vstack(xs):
     return tf.concat(xs, axis=0)
 
 
+def vectorize(pyfunc):
+    @functools.wraps(pyfunc)
+    def wrapped(x):
+        return tf.vectorized_map(pyfunc, x)
+
+    return wrapped
+
+
 def where(condition, x1, x2):
     condition = tf.cast(condition, "bool")
     if x1 is not None and x2 is not None:

@@ -220,6 +220,7 @@ from keras.src.ops.numpy import triu
 from keras.src.ops.numpy import true_divide
 from keras.src.ops.numpy import var
 from keras.src.ops.numpy import vdot
+from keras.src.ops.numpy import vectorize
 from keras.src.ops.numpy import vstack
 from keras.src.ops.numpy import where
 from keras.src.ops.numpy import zeros

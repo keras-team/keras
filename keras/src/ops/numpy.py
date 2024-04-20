@@ -5415,6 +5415,35 @@ def vdot(x1, x2):
     return backend.numpy.vdot(x1, x2)
 
 
+@keras_export(["keras.ops.vectorize", "keras.ops.numpy.vectorize"])
+def vectorize(pyfunc):
+    """Turn a function into a vectorized function.
+
+    Example:
+
+    ```python
+    def myfunc(a, b):
+        return a + b
+
+    vfunc = np.vectorize(myfunc)
+    y = vfunc([1, 2, 3, 4], 2)  # Returns Tensor([3, 4, 5, 6])
+    ```
+
+    Args:
+        pyfunc: Callable of a single tensor argument.
+
+    Returns:
+        A new function that applies `pyfunc` to every element
+        of its input along axis 0 (the batch axis).
+    """
+    if not callable(pyfunc):
+        raise ValueError(
+            "Expected argument `pyfunc` to be a callable. "
+            f"Received: pyfunc={pyfunc}"
+        )
+    return backend.numpy.vectorize(pyfunc)
+
+
 class Vstack(Operation):
     def call(self, xs):
         return backend.numpy.vstack(xs)

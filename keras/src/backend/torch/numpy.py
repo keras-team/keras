@@ -1,4 +1,5 @@
 import builtins
+import functools
 import math
 
 import torch
@@ -1410,6 +1411,14 @@ def vdot(x1, x2):
 def vstack(xs):
     xs = [convert_to_tensor(x) for x in xs]
     return torch.vstack(xs)
+
+
+def vectorize(pyfunc):
+    @functools.wraps(pyfunc)
+    def wrapped(x):
+        return torch.vmap(pyfunc, x)
+
+    return wrapped
 
 
 def where(condition, x1, x2):

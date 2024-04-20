@@ -1023,6 +1023,10 @@ def vstack(xs):
     return jnp.vstack(xs)
 
 
+def vectorize(pyfunc):
+    return jnp.vectorize(pyfunc)
+
+
 def where(condition, x1, x2):
     return jnp.where(condition, x1, x2)
 

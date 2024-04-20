@@ -937,6 +937,10 @@ def vstack(xs):
     return np.vstack(xs)
 
 
+def vectorize(pyfunc):
+    return np.vectorize(pyfunc)
+
+
 def where(condition, x1, x2):
     if x1 is not None and x2 is not None:
         if not isinstance(x1, (int, float)):

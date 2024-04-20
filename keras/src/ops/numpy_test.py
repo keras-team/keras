@@ -4250,6 +4250,34 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         y = knp.select(condlist, choicelist, 42)
         self.assertEqual(y.shape, (6,))
 
+    def test_nan_to_num(self):
+        x = knp.array([1.0, np.nan, np.inf, -np.inf])
+        self.assertAllClose(
+            knp.nan_to_num(x), [1.0, 0.0, 3.402823e38, -3.402823e38]
+        )
+        self.assertAllClose(
+            knp.NanToNum()(x), [1.0, 0.0, 3.402823e38, -3.402823e38]
+        )
+        self.assertAllClose(
+            knp.nan_to_num(x, nan=2, posinf=3, neginf=4), [1.0, 2.0, 3.0, 4.0]
+        )
+        self.assertAllClose(
+            knp.NanToNum(nan=2, posinf=3, neginf=4)(x), [1.0, 2.0, 3.0, 4.0]
+        )
+
+        x = backend.KerasTensor((3, 4))
+        self.assertEqual(
+            knp.NanToNum(nan=2, posinf=3, neginf=4)(x).shape, (3, 4)
+        )
+
+    def test_vectorize(self):
+        def myfunc(a, b):
+            return a + b
+
+        vfunc = np.vectorize(myfunc)
+        y = vfunc([1, 2, 3, 4], 2)
+        self.assertAllClose(y, [3, 4, 5, 6])
+
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
     def test_ones(self):
@@ -4334,26 +4362,6 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
 
         # Test k > M
         self.assertAllClose(knp.Tri(k=4)(3), np.tri(3, k=4))
-
-    def test_nan_to_num(self):
-        x = knp.array([1.0, np.nan, np.inf, -np.inf])
-        self.assertAllClose(
-            knp.nan_to_num(x), [1.0, 0.0, 3.402823e38, -3.402823e38]
-        )
-        self.assertAllClose(
-            knp.NanToNum()(x), [1.0, 0.0, 3.402823e38, -3.402823e38]
-        )
-        self.assertAllClose(
-            knp.nan_to_num(x, nan=2, posinf=3, neginf=4), [1.0, 2.0, 3.0, 4.0]
-        )
-        self.assertAllClose(
-            knp.NanToNum(nan=2, posinf=3, neginf=4)(x), [1.0, 2.0, 3.0, 4.0]
-        )
-
-        x = backend.KerasTensor((3, 4))
-        self.assertEqual(
-            knp.NanToNum(nan=2, posinf=3, neginf=4)(x).shape, (3, 4)
-        )
 
 
 def create_sparse_tensor(x, indices_from=None, start=0, delta=2):
