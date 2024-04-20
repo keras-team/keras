@@ -158,13 +158,13 @@ def arctanh(x):
     return mx.arctanh(x)
 
 
-def argmax(x, axis=None):
+def argmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    return mx.argmax(x, axis=axis)
+    return mx.argmax(x, axis=axis, keepdims=keepdims)
 
 
-def argmin(x, axis=None):
-    return mx.argmin(x, axis=axis)
+def argmin(x, axis=None, keepdims=False):
+    return mx.argmin(x, axis=axis, keepdims=keepdims)
 
 
 def argsort(x, axis=-1):
@@ -206,7 +206,7 @@ def average(x, axis=None, weights=None):
     return mx.mean(x, axis=axis)
 
 
-def bincount(x, weights=None, minlength=0):
+def bincount(x, weights=None, minlength=0, sparse=False):
     raise NotImplementedError("The MLX backend doesn't support bincount yet")
 
 
@@ -815,7 +815,7 @@ def tensordot(x1, x2, axes=2):
 
 
 def round(x, decimals=0):
-    raise NotImplementedError("The MLX backend doesn't support round yet")
+    return mx.round(x, decimals=decimals)
 
 
 def tile(x, repeats):
