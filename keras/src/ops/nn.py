@@ -1873,6 +1873,66 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     )
 
 
+@keras_export(
+    [
+        "keras.ops.ctc_decode",
+        "keras.ops.nn.ctc_decode",
+    ]
+)
+def ctc_decode(
+    inputs,
+    sequence_lengths,
+    strategy,
+    beam_width=100,
+    top_paths=1,
+    merge_repeated=True,
+    mask_index=None,
+):
+    """Decodes the output of a CTC network.
+
+    Args:
+        inputs: A tensor of shape `(batch_size, max_length, num_classes)`
+            containing the logits (output of the model).
+        sequence_lengths: A tensor of shape `(batch_size,)` containing the
+            sequence lengths for the batch.
+        strategy: A string for the decoding strategy. Supported values are
+            `"greedy"` and `"beam_search"`.
+        beam_width: An integer scalar beam width used in beam search.
+            Defaults to `100`.
+        top_paths: An integer scalar, the number of top paths to return.
+            Defaults to `1`.
+        merge_repeated: A boolean scalar, whether to merge repeated
+            labels in the output. Defaults to `True`.
+        mask_index: An integer scalar, the index of the mask character in
+            the vocabulary. Defaults to `None`.
+
+    Returns:
+        A tuple containing:
+
+        - a list of decoded sequences.
+        - a list of the negative of the sum of the probability logits
+        (if strategy is `"greedy"`) or the log probability (if strategy is
+        `"beam_search"`) for each sequence.
+    """
+
+    if any_symbolic_tensors((inputs, sequence_lengths)):
+        raise NotImplementedError(
+            "CTC decoding is not supported with KerasTensors. Use it "
+            "inside the call() method of a Layer or the predict_step "
+            "method of a model."
+        )
+
+    return backend.nn.ctc_decode(
+        inputs=inputs,
+        sequence_length=sequence_lengths,
+        strategy=strategy,
+        beam_width=beam_width,
+        top_paths=top_paths,
+        merge_repeated=merge_repeated,
+        mask_index=mask_index,
+    )
+
+
 class Normalize(Operation):
     def __init__(self, axis=-1, order=2):
         super().__init__()
