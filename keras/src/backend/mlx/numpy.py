@@ -579,21 +579,33 @@ def maximum(x1, x2):
     return mx.maximum(x1, x2)
 
 
-def median(x, axis=-1, keepdims=False):
-    x = convert_to_tensor(x)
-    x_sorted = mx.sort(x, axis=axis)
-    axis_size = x_sorted.shape[axis]
-    medians = mx.take(
-        x_sorted, indices=mx.array([(axis_size // 2) - 1]), axis=axis
-    )
-    if not keepdims:
-        medians = mx.squeeze(medians, axis=axis)
-    return medians
+def median(x, axis=None, keepdims=False):
+    x = mx.array(x)
+    x = mx.sort(x, axis=axis)
+    if axis is None:
+        axis = 0
+    n = x.shape[axis]
+    m = n - 1
+    if n % 2 == 0:
+        index1 = [slice(None)] * x.ndim
+        index1[axis] = m // 2
+        index2 = [slice(None)] * x.ndim
+        index2[axis] = (m + 1) // 2
+        median = (x[tuple(index1)] + x[tuple(index2)]) / 2.0
+    else:
+        index = [slice(None)] * x.ndim
+        index[axis] = n // 2
+        median = x[tuple(index)]
+    if keepdims:
+        median_shape = list(median.shape)
+        median_shape.insert(axis, 1)
+        median = median.reshape(median_shape)
+    return median
 
 
 def meshgrid(*x, indexing="xy"):
-    # TODO: Implement inline like linspace
-    raise NotImplementedError("The MLX backend doesn't support meshgrid yet")
+    x = [convert_to_tensor(xi) for xi in x]
+    return mx.meshgrid(*x, indexing=indexing)
 
 
 def min(x, axis=None, keepdims=False, initial=None):
@@ -822,6 +834,7 @@ def tensordot(x1, x2, axes=2):
 
 
 def round(x, decimals=0):
+    x = convert_to_tensor(x)
     return mx.round(x, decimals=decimals)
 
 
