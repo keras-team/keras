@@ -48,7 +48,7 @@ def silu(x, beta=1.0):
 
 def log_sigmoid(x):
     x = convert_to_tensor(x)
-    return mx.log_sigmoid(x)
+    return nn.log_sigmoid(x)
 
 
 def leaky_relu(x, negative_slope=0.2):
@@ -263,7 +263,7 @@ def binary_crossentropy(target, output, from_logits=False):
         )
 
     if from_logits:
-        return nn.binary_cross_entropy(output, target, reduction="none")
+        return nn.losses.binary_cross_entropy(output, target, reduction="none")
     else:
         output = mx.minimum(mx.maximum(output, epsilon()), 1 - epsilon())
         return -target * mx.log(output) - (1 - target) * mx.log(1 - output)
