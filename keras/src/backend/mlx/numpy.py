@@ -809,7 +809,9 @@ def tanh(x):
 
 
 def tensordot(x1, x2, axes=2):
-    raise NotImplementedError("The MLX backend doesn't support tensordot yet")
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return mx.tensordot(x1, x2, axes=axes)
 
 
 def round(x, decimals=0):
