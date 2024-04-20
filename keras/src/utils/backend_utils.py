@@ -78,6 +78,10 @@ class DynamicBackend:
             from keras.src.backend import torch as torch_backend
 
             return getattr(torch_backend, name)
+        if self._backend == "mlx":
+            from keras.src.backend import mlx as mlx_backend
+
+            return getattr(mlx_backend, name)
         if self._backend == "numpy":
             # TODO (ariG23498):
             # The import `from keras.src.backend import numpy as numpy_backend`
