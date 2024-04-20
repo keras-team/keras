@@ -12,7 +12,7 @@ BACKEND_REQ = {
         "--extra-index-url https://download.pytorch.org/whl/cpu ",
     ),
     "jax": ("jax[cpu]", ""),
-    "mlx": "mlx",
+    "mlx": ("mlx", ""),
 }
 
 
