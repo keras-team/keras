@@ -167,7 +167,9 @@ def conv_transpose(
     raise NotImplementedError("MLX backend doesn't support conv transpose yet")
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32"):
+def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with mlx backend")
     x = convert_to_tensor(x, dtype=mx.int32)
     dtype = to_mlx_dtype(standardize_dtype(dtype))
 
@@ -181,7 +183,9 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
     return output
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with mlx backend")
     x = convert_to_tensor(x)
     reduction_axis = 1 if x.ndim > 1 else 0
     return one_hot(x, num_classes, axis=axis, dtype=dtype).max(
