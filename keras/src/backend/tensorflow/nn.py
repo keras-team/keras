@@ -446,7 +446,7 @@ def conv_transpose(
 
 
 def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
-    x = convert_to_tensor(x)
+    x = convert_to_tensor(x, dtype="int64")
     if dtype is None:
         dtype = "float32"
     if sparse:
