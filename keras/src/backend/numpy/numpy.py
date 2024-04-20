@@ -688,8 +688,8 @@ def moveaxis(x, source, destination):
     return np.moveaxis(x, source=source, destination=destination)
 
 
-def nan_to_num(x):
-    return np.nan_to_num(x)
+def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
+    return np.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
 
 
 def ndim(x):
