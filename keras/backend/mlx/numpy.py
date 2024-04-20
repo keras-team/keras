@@ -604,8 +604,7 @@ def median(x, axis=None, keepdims=False):
 
 
 def meshgrid(*x, indexing="xy"):
-    # TODO: test with and without
-    # x = [convert_to_tensor(xi) for xi in x]
+    x = [convert_to_tensor(xi) for xi in x]
     return mx.meshgrid(*x, indexing=indexing)
 
 
