@@ -580,7 +580,7 @@ def maximum(x1, x2):
 
 
 def median(x, axis=-1, keepdims=False):
-    # x = convert_to_tensor(x)
+    x = convert_to_tensor(x)
     x_sorted = mx.sort(x, axis=axis)
     axis_size = x_sorted.shape[axis]
     medians = mx.take(
