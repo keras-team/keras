@@ -1888,7 +1888,7 @@ def ctc_decode(
     merge_repeated=True,
     mask_index=None,
 ):
-    """Decodes the output of a CTC network.
+    """Decodes the output of a CTC model.
 
     Args:
         inputs: A tensor of shape `(batch_size, max_length, num_classes)`
@@ -1898,9 +1898,9 @@ def ctc_decode(
         strategy: A string for the decoding strategy. Supported values are
             `"greedy"` and `"beam_search"`.
         beam_width: An integer scalar beam width used in beam search.
-            Defaults to `100`.
+            Defaults to 100.
         top_paths: An integer scalar, the number of top paths to return.
-            Defaults to `1`.
+            Defaults to 1.
         merge_repeated: A boolean scalar, whether to merge repeated
             labels in the output. Defaults to `True`.
         mask_index: An integer scalar, the index of the mask character in
@@ -1909,8 +1909,8 @@ def ctc_decode(
     Returns:
         A tuple containing:
 
-        - a list of decoded sequences.
-        - a list of the negative of the sum of the probability logits
+        - A list of decoded sequences.
+        - A list of the negative of the sum of the probability logits
         (if strategy is `"greedy"`) or the log probability (if strategy is
         `"beam_search"`) for each sequence.
     """

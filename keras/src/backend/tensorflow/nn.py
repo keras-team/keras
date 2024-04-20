@@ -797,25 +797,6 @@ def ctc_loss(
     output_length,
     mask_index=0,
 ):
-    """Runs CTC (Connectionist Temporal Classification) loss on each
-    batch element.
-
-    Arguments:
-        target: Tensor `(batch_size, max_length)` containing the
-            target sequences in integer format.
-        output: Tensor `(batch_size, max_length, num_classes)`
-            containing the output of the softmax.
-        target_length: Tensor `(batch_size,)` containing the sequence length
-            for each target sequence in the batch.
-        output_length: Tensor `(batch_size,)` containing the sequence length
-            for each output sequence in the batch.
-        mask_index: The value in `target` and `output` that represents the
-            blank label.
-
-    Returns:
-        A tensor of shape `(batch_size,)` containing the CTC loss for each
-        sample in the batch.
-    """
     target = tf.convert_to_tensor(target)
     target = tf.cast(target, dtype="int32")
     output = tf.convert_to_tensor(output)
@@ -839,30 +820,6 @@ def ctc_decode(
     merge_repeated=True,
     mask_index=None,
 ):
-    """Decodes the output of a softmax using CTC (Connectionist Temporal
-    Classification).
-
-    Arguments:
-        inputs: Tensor `(batch_size, max_length, num_classes)` containing the
-            output of the softmax.
-        sequence_length: Tensor `(batch_size,)` containing the sequence length
-            for each output sequence in the batch.
-        strategy: String for decoding strategy to use. Supported values
-            are "greedy" and "beam_search".
-        beam_width: Integer specifying the beam width to use for beam
-            search strategies. Ignored if `strategy` is "greedy".
-        top_paths: Integer specifying the number of top paths to return.
-            Ignored if `strategy` is "greedy".
-        merge_repeated: Boolean specifying whether to merge repeated labels
-            during decoding.
-        mask_index: Integer specifying the index of the blank label.
-
-    Returns:
-        A tuple of a list of `SparseTensor` containing the decoded sequences
-        and a `Tensor` containing the negative of the sum of probability
-        logits (if strategy is `"greedy"`) or the log probability (if strategy
-        is `"beam_search"`) for each sequence.
-    """
     inputs = tf.convert_to_tensor(inputs)
     inputs = tf.transpose(inputs, (1, 0, 2))
 
