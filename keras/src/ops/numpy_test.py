@@ -4271,12 +4271,26 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_vectorize(self):
+        # Basic functionality
         def myfunc(a, b):
             return a + b
 
         vfunc = np.vectorize(myfunc)
         y = vfunc([1, 2, 3, 4], 2)
         self.assertAllClose(y, [3, 4, 5, 6])
+
+        # Test signature arg
+        vfunc = knp.vectorize(knp.trace, signature="(d,d)->()")
+        out = vfunc(np.eye(4))
+        self.assertAllClose(
+            out, np.vectorize(np.trace, signature="(d,d)->()")(np.eye(4))
+        )
+
+        vfunc = knp.vectorize(knp.diag, signature="(d,d)->(d)")
+        out = vfunc(np.eye(4))
+        self.assertAllClose(
+            out, np.vectorize(np.diag, signature="(d,d)->(d)")(np.eye(4))
+        )
 
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):

@@ -937,8 +937,8 @@ def vstack(xs):
     return np.vstack(xs)
 
 
-def vectorize(pyfunc):
-    return np.vectorize(pyfunc)
+def vectorize(pyfunc, *, excluded=None, signature=None):
+    return np.vectorize(pyfunc, excluded=excluded, signature=signature)
 
 
 def where(condition, x1, x2):

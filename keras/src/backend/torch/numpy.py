@@ -1,5 +1,4 @@
 import builtins
-import functools
 import math
 
 import torch
@@ -9,6 +8,7 @@ from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
+from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
@@ -1413,12 +1413,10 @@ def vstack(xs):
     return torch.vstack(xs)
 
 
-def vectorize(pyfunc):
-    @functools.wraps(pyfunc)
-    def wrapped(x):
-        return torch.vmap(pyfunc, x)
-
-    return wrapped
+def vectorize(pyfunc, *, excluded=None, signature=None):
+    return vectorize_impl(
+        pyfunc, torch.vmap, excluded=excluded, signature=signature
+    )
 
 
 def where(condition, x1, x2):

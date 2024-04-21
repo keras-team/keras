@@ -5416,7 +5416,7 @@ def vdot(x1, x2):
 
 
 @keras_export(["keras.ops.vectorize", "keras.ops.numpy.vectorize"])
-def vectorize(pyfunc):
+def vectorize(pyfunc, *, excluded=None, signature=None):
     """Turn a function into a vectorized function.
 
     Example:
@@ -5431,6 +5431,17 @@ def vectorize(pyfunc):
 
     Args:
         pyfunc: Callable of a single tensor argument.
+        excluded: Optional set of integers representing
+            positional arguments for which the function
+            will not be vectorized.
+            These will be passed directly to `pyfunc` unmodified.
+        signature: Optional generalized universal function signature,
+            e.g., `"(m,n),(n)->(m)"` for vectorized
+            matrix-vector multiplication. If provided,
+            `pyfunc` will be called with (and expected to return)
+            arrays with shapes given by the size of corresponding
+            core dimensions. By default, `pyfunc` is assumed
+            to take scalars tensors as input and output.
 
     Returns:
         A new function that applies `pyfunc` to every element
@@ -5441,7 +5452,9 @@ def vectorize(pyfunc):
             "Expected argument `pyfunc` to be a callable. "
             f"Received: pyfunc={pyfunc}"
         )
-    return backend.numpy.vectorize(pyfunc)
+    return backend.numpy.vectorize(
+        pyfunc, excluded=excluded, signature=signature
+    )
 
 
 class Vstack(Operation):

@@ -15,6 +15,7 @@ from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
+from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.tensorflow import sparse
 from keras.src.backend.tensorflow.core import cast
 from keras.src.backend.tensorflow.core import convert_to_tensor
@@ -2156,12 +2157,23 @@ def vstack(xs):
     return tf.concat(xs, axis=0)
 
 
-def vectorize(pyfunc):
-    @functools.wraps(pyfunc)
+def _vmap_fn(fn, in_axes=0):
+    if in_axes != 0:
+        raise ValueError(
+            "Not supported with `vectorize()` with the TensorFlow backend."
+        )
+
+    @functools.wraps(fn)
     def wrapped(x):
-        return tf.vectorized_map(pyfunc, x)
+        return tf.vectorized_map(fn, x)
 
     return wrapped
+
+
+def vectorize(pyfunc, *, excluded=None, signature=None):
+    return vectorize_impl(
+        pyfunc, _vmap_fn, excluded=excluded, signature=signature
+    )
 
 
 def where(condition, x1, x2):
