@@ -308,6 +308,8 @@ def moments(x, axes, keepdims=False, synchronized=False):
 def batch_normalization(
     x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
 ):
+    x = convert_to_tensor(x)
+    mean = convert_to_tensor(x)
     shape = [1] * len(x.shape)
     shape[axis] = mean.shape[0]
     mean = mx.reshape(mean, shape)
