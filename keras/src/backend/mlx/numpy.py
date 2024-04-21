@@ -581,26 +581,32 @@ def maximum(x1, x2):
 
 def median(x, axis=None, keepdims=False):
     x = mx.array(x)
-    x = mx.sort(x, axis=axis)
+
     if axis is None:
+        x = x.flatten()
         axis = 0
-    n = x.shape[axis]
-    m = n - 1
-    if n % 2 == 0:
-        index1 = [slice(None)] * x.ndim
-        index1[axis] = m // 2
-        index2 = [slice(None)] * x.ndim
-        index2[axis] = (m + 1) // 2
-        median = (x[tuple(index1)] + x[tuple(index2)]) / 2.0
+    elif axis < 0:
+        axis += x.ndim
+
+    x_sorted = mx.sort(x, axis=axis)
+    mid_index = x_sorted.shape[axis] // 2
+
+    if x_sorted.shape[axis] % 2 == 0:
+        lower = mx.take(x_sorted, mx.array([mid_index - 1]), axis=axis)
+        upper = mx.take(x_sorted, mx.array([mid_index]), axis=axis)
+        medians = (lower + upper) / 2
     else:
-        index = [slice(None)] * x.ndim
-        index[axis] = n // 2
-        median = x[tuple(index)]
+        medians = mx.take(x_sorted, mx.array([mid_index]), axis=axis)
+
     if keepdims:
-        median_shape = list(median.shape)
-        median_shape.insert(axis, 1)
-        median = median.reshape(median_shape)
-    return median
+        new_shape = list(x.shape)
+        new_shape[axis] = 1
+        medians = medians.reshape(new_shape)
+    else:
+        if axis is not None:
+            medians = mx.squeeze(medians, axis=axis)
+
+    return medians
 
 
 def meshgrid(*x, indexing="xy"):
