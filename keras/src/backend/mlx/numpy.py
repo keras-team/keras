@@ -82,6 +82,7 @@ def absolute(x):
 
 
 def abs(x):
+    x = convert_to_tensor(x)
     return absolute(x)
 
 
@@ -164,10 +165,12 @@ def argmax(x, axis=None, keepdims=False):
 
 
 def argmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
     return mx.argmin(x, axis=axis, keepdims=keepdims)
 
 
 def argsort(x, axis=-1):
+    x = convert_to_tensor(x)
     return mx.argsort(x, axis=axis)
 
 
@@ -235,6 +238,7 @@ def conjugate(x):
 
 
 def conj(x):
+    x = convert_to_tensor(x)
     return conjugate(x)
 
 
@@ -916,6 +920,8 @@ def divide_no_nan(x1, x2):
 
 
 def true_divide(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return divide(x1, x2)
 
 

@@ -31,6 +31,7 @@ def in_top_k(targets, predictions, k):
 
 
 def logsumexp(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
     return mx.logsumexp(x, axis, keepdims)
 
 
@@ -87,10 +88,12 @@ def istft(
 
 
 def rsqrt(x):
+    x = convert_to_tensor(x)
     return mx.rsqrt(x)
 
 
 def erf(x):
+    x = convert_to_tensor(x)
     return mx.erf(x)
 
 
