@@ -1,6 +1,7 @@
 from absl.testing import parameterized
 
 from keras.src.dtype_policies import deserialize
+from keras.src.dtype_policies import get
 from keras.src.dtype_policies import serialize
 from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
@@ -93,6 +94,16 @@ class DTypePolicyTest(test_case.TestCase):
             repr(copied_policy), '<FloatDTypePolicy "mixed_float16">'
         )
 
+    def test_serialization(self):
+        policy = DTypePolicy("mixed_float16")
+        config = serialize(policy)
+        reloaded_policy = deserialize(config)
+        self.assertEqual(policy.name, reloaded_policy.name)
+
+        # Test `dtype_policies.get`
+        reloaded_policy = get(config)
+        self.assertEqual(policy.name, reloaded_policy.name)
+
 
 class FloatDTypePolicyTest(test_case.TestCase):
     def test_initialization_valid_name(self):
@@ -157,9 +168,13 @@ class FloatDTypePolicyTest(test_case.TestCase):
         self.assertEqual(new_policy.name, "mixed_float16")
 
     def test_serialization(self):
-        policy = DTypePolicy("mixed_float16")
+        policy = FloatDTypePolicy("mixed_float16")
         config = serialize(policy)
         reloaded_policy = deserialize(config)
+        self.assertEqual(policy.name, reloaded_policy.name)
+
+        # Test `dtype_policies.get`
+        reloaded_policy = get(config)
         self.assertEqual(policy.name, reloaded_policy.name)
 
 
@@ -258,6 +273,10 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         reloaded_policy = deserialize(config)
         self.assertEqual(policy.name, reloaded_policy.name)
 
+        # Test `dtype_policies.get`
+        reloaded_policy = get(config)
+        self.assertEqual(policy.name, reloaded_policy.name)
+
     def test_properties_for_float8(self):
         policy = QuantizedFloat8DTypePolicy("float8_from_mixed_bfloat16")
         self.assertEqual(policy.amax_history_length, 1024)
@@ -306,6 +325,13 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         policy = QuantizedFloat8DTypePolicy("float8_from_mixed_float16")
         config = serialize(policy)
         reloaded_policy = deserialize(config)
+        self.assertEqual(policy.name, reloaded_policy.name)
+        self.assertEqual(
+            policy.amax_history_length, reloaded_policy.amax_history_length
+        )
+
+        # Test `dtype_policies.get`
+        reloaded_policy = get(config)
         self.assertEqual(policy.name, reloaded_policy.name)
         self.assertEqual(
             policy.amax_history_length, reloaded_policy.amax_history_length
