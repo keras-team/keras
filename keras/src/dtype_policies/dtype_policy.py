@@ -293,6 +293,11 @@ class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
         ]
         return valid_policies
 
+    def get_config(self):
+        config = super().get_config()
+        config.update({"amax_history_length": self.amax_history_length})
+        return config
+
 
 @keras_export(
     [
