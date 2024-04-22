@@ -135,8 +135,8 @@ def deserialize(name, custom_objects=None):
     Args:
         name: Loss configuration.
         custom_objects: Optional dictionary mapping names (strings) to custom
-          objects (classes and functions) to be considered during
-          deserialization.
+            objects (classes and functions) to be considered during
+            deserialization.
 
     Returns:
         A Keras `Loss` instance or a loss function.
