@@ -75,8 +75,8 @@ def get(identifier):
 
     Args:
         identifier: A dtype policy identifier. One of `None` or string name of a
-            `DTypePolicy` configuration dictionary or a `DTypePolicy`
-            instance.
+            `DTypePolicy` or `DTypePolicy` configuration dictionary or a
+            `DTypePolicy` instance.
 
     Returns:
         A Keras `DTypePolicy` instance.
