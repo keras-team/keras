@@ -84,8 +84,11 @@ def build(root_path, is_nightly=False, rc_index=None):
     try:
         copy_source_to_build_directory(root_path)
         create_legacy_directory()
-        from keras.src.version import __version__  # noqa: E402
+        print(os.getcwd())
 
+        # from keras.src.version import __version__  # noqa: E402
+
+        __version__ = "3.3.2"
         export_version_string(__version__, is_nightly, rc_index)
         return build_and_save_output(root_path, __version__)
     finally:
