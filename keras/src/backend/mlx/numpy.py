@@ -580,7 +580,7 @@ def maximum(x1, x2):
 
 
 def median(x, axis=-1, keepdims=False):
-    x = mx.array(x)
+    x = convert_to_tensor(x)
 
     if axis is None:
         x = x.flatten()
@@ -588,18 +588,14 @@ def median(x, axis=-1, keepdims=False):
     elif isinstance(axis, int):
         axis = (axis,)
 
-    # Normalize axes to positive values and sort them.
     axis = tuple(sorted(ax if ax >= 0 else ax + x.ndim for ax in axis))
 
-    # Axes for transposition to move the median axes to the end.
     transposed_axes = [i for i in range(x.ndim) if i not in axis] + list(axis)
     x = x.transpose(*transposed_axes)
 
-    # Combine the axes of interest into one axis at the end for sorting
     shape_without_axes = tuple(x.shape[i] for i in range(x.ndim - len(axis)))
     x = x.reshape(shape_without_axes + (-1,))
 
-    # Sort the last axis and compute the median.
     x_sorted = mx.sort(x, axis=-1)
     mid_index = x_sorted.shape[-1] // 2
     if x_sorted.shape[-1] % 2 == 0:
@@ -612,7 +608,6 @@ def median(x, axis=-1, keepdims=False):
     if keepdims:
         final_shape = list(shape_without_axes) + [1] * len(axis)
         medians = medians.reshape(final_shape)
-        # Manually create the list of tuples and sort
         index_value_pairs = [
             (i, transposed_axes[i]) for i in range(len(transposed_axes))
         ]
