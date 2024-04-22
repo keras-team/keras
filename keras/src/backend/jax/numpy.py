@@ -1024,6 +1024,8 @@ def vstack(xs):
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):
+    if excluded is None:
+        excluded = set()
     return jnp.vectorize(pyfunc, excluded=excluded, signature=signature)
 
 
