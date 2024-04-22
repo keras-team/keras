@@ -595,7 +595,7 @@ def median(x, axis=-1, keepdims=False):
     transposed_axes = [i for i in range(x.ndim) if i not in axis] + list(axis)
     x = x.transpose(*transposed_axes)
 
-    # Combine the axes of interest into one axis at the end
+    # Combine the axes of interest into one axis at the end for sorting
     shape_without_axes = tuple(x.shape[i] for i in range(x.ndim - len(axis)))
     x = x.reshape(shape_without_axes + (-1,))
 
@@ -612,11 +612,13 @@ def median(x, axis=-1, keepdims=False):
     if keepdims:
         final_shape = list(shape_without_axes) + [1] * len(axis)
         medians = medians.reshape(final_shape)
-        # To reorder to original axis order, we use inverse permutation.
-        inverse_permutation = sorted(
-            range(len(transposed_axes)), key=lambda i: transposed_axes[i]
-        )
-        medians = medians.transpose(*inverse_permutation)
+        # Manually create the list of tuples and sort
+        index_value_pairs = [
+            (i, transposed_axes[i]) for i in range(len(transposed_axes))
+        ]
+        index_value_pairs.sort(key=lambda pair: pair[1])
+        sorted_indices = [pair[0] for pair in index_value_pairs]
+        medians = medians.transpose(*sorted_indices)
     else:
         medians = medians.squeeze()
 
