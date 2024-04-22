@@ -38,8 +38,8 @@ def deserialize(config, custom_objects=None):
     Args:
         config: `DTypePolicy` configuration.
         custom_objects: Optional dictionary mapping names (strings) to custom
-          objects (classes and functions) to be considered during
-          deserialization.
+            objects (classes and functions) to be considered during
+            deserialization.
 
     Returns:
         A Keras `DTypePolicy` instance.
