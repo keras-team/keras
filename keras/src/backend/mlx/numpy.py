@@ -579,32 +579,46 @@ def maximum(x1, x2):
     return mx.maximum(x1, x2)
 
 
-def median(x, axis=None, keepdims=False):
+def median(x, axis=-1, keepdims=False):
     x = mx.array(x)
 
     if axis is None:
         x = x.flatten()
-        axis = 0
-    elif axis < 0:
-        axis += x.ndim
+        axis = (0,)
+    elif isinstance(axis, int):
+        axis = (axis,)
 
-    x_sorted = mx.sort(x, axis=axis)
-    mid_index = x_sorted.shape[axis] // 2
+    # Normalize axes to positive values and sort them.
+    axis = tuple(sorted(ax if ax >= 0 else ax + x.ndim for ax in axis))
 
-    if x_sorted.shape[axis] % 2 == 0:
-        lower = mx.take(x_sorted, mx.array([mid_index - 1]), axis=axis)
-        upper = mx.take(x_sorted, mx.array([mid_index]), axis=axis)
+    # Axes for transposition to move the median axes to the end.
+    transposed_axes = [i for i in range(x.ndim) if i not in axis] + list(axis)
+    x = x.transpose(*transposed_axes)
+
+    # Combine the axes of interest into one axis at the end
+    shape_without_axes = tuple(x.shape[i] for i in range(x.ndim - len(axis)))
+    x = x.reshape(shape_without_axes + (-1,))
+
+    # Sort the last axis and compute the median.
+    x_sorted = mx.sort(x, axis=-1)
+    mid_index = x_sorted.shape[-1] // 2
+    if x_sorted.shape[-1] % 2 == 0:
+        lower = mx.take(x_sorted, mx.array([mid_index - 1]), axis=-1)
+        upper = mx.take(x_sorted, mx.array([mid_index]), axis=-1)
         medians = (lower + upper) / 2
     else:
-        medians = mx.take(x_sorted, mx.array([mid_index]), axis=axis)
+        medians = mx.take(x_sorted, mx.array([mid_index]), axis=-1)
 
     if keepdims:
-        new_shape = list(x.shape)
-        new_shape[axis] = 1
-        medians = medians.reshape(new_shape)
+        final_shape = list(shape_without_axes) + [1] * len(axis)
+        medians = medians.reshape(final_shape)
+        # To reorder to original axis order, we use inverse permutation.
+        inverse_permutation = sorted(
+            range(len(transposed_axes)), key=lambda i: transposed_axes[i]
+        )
+        medians = medians.transpose(*inverse_permutation)
     else:
-        if axis is not None:
-            medians = mx.squeeze(medians, axis=axis)
+        medians = medians.squeeze()
 
     return medians
 
