@@ -199,15 +199,17 @@ class Embedding(Layer):
         embeddings_value, embeddings_scale = (
             self._get_embeddings_with_merged_lora()
         )
-        store["0"] = embeddings_value
+        target_variables = [embeddings_value]
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
             mode = self.dtype_policy.quantization_mode
             if mode == "int8":
-                store["1"] = embeddings_scale
+                target_variables.append(embeddings_scale)
             else:
                 raise NotImplementedError(
                     self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
                 )
+        for i, variable in enumerate(target_variables):
+            store[str(i)] = variable
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
@@ -217,15 +219,17 @@ class Embedding(Layer):
             return
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
-        self._embeddings.assign(store["0"])
+        target_variables = [self._embeddings]
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
             mode = self.dtype_policy.quantization_mode
             if mode == "int8":
-                self.embeddings_scale.assign(store["1"])
+                target_variables.append(self.embeddings_scale)
             else:
                 raise NotImplementedError(
                     self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
                 )
+        for i, variable in enumerate(target_variables):
+            variable.assign(store[str(i)])
         if self.lora_enabled:
             self.lora_embeddings_a.assign(
                 ops.zeros(self.lora_embeddings_a.shape)
