@@ -1094,3 +1094,7 @@ def correlate(x1, x2, mode="valid"):
 
 def select(condlist, choicelist, default=0):
     return np.select(condlist, choicelist, default=default)
+
+
+def argpartition(x, kth, axis=-1):
+    return np.argpartition(x, kth, axis)

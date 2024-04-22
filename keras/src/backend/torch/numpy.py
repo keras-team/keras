@@ -1601,3 +1601,23 @@ def select(condlist, choicelist, default=0):
     for c, v in reversed(list(zip(condlist, choicelist))):
         out = torch.where(c, v, out)
     return out
+
+
+def argpartition(x, kth, axis=-1):
+    x = convert_to_tensor(x)
+
+    x = torch.transpose(x, axis, -1)
+    bottom_ind = torch.topk(-x, kth + 1)[1]
+
+    def set_to_zero(a, i):
+        a[i] = 0
+        return a
+
+    for _ in range(x.dim() - 1):
+        set_to_zero = torch.vmap(set_to_zero)
+    proxy = set_to_zero(torch.ones(x.shape), bottom_ind)
+
+    top_ind = torch.topk(proxy, x.shape[-1] - kth - 1)[1]
+
+    out = torch.cat([bottom_ind, top_ind], dim=x.dim() - 1)
+    return torch.transpose(out, -1, axis)
