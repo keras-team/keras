@@ -615,3 +615,17 @@ def batch_normalization(
         res = res + offset
 
     return x * inv + res
+
+
+def ctc_decode(
+    inputs,
+    sequence_length,
+    strategy,
+    beam_width=100,
+    top_paths=1,
+    merge_repeated=True,
+    mask_index=None,
+):
+    raise NotImplementedError(
+        "NumPy backend does not yet support CTC decoding."
+    )

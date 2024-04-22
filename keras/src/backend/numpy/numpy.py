@@ -688,8 +688,8 @@ def moveaxis(x, source, destination):
     return np.moveaxis(x, source=source, destination=destination)
 
 
-def nan_to_num(x):
-    return np.nan_to_num(x)
+def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
+    return np.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
 
 
 def ndim(x):
@@ -935,6 +935,10 @@ def vstack(xs):
             lambda x: convert_to_tensor(x).astype(dtype), xs
         )
     return np.vstack(xs)
+
+
+def vectorize(pyfunc, *, excluded=None, signature=None):
+    return np.vectorize(pyfunc, excluded=excluded, signature=signature)
 
 
 def where(condition, x1, x2):

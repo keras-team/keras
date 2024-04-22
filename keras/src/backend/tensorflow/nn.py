@@ -797,25 +797,6 @@ def ctc_loss(
     output_length,
     mask_index=0,
 ):
-    """Runs CTC (Connectionist Temporal Classification) loss on each
-    batch element.
-
-    Arguments:
-        target: Tensor `(batch_size, max_length)` containing the
-            target sequences in integer format.
-        output: Tensor `(batch_size, max_length, num_classes)`
-            containing the output of the softmax.
-        target_length: Tensor `(batch_size,)` containing the sequence length
-            for each target sequence in the batch.
-        output_length: Tensor `(batch_size,)` containing the sequence length
-            for each output sequence in the batch.
-        mask_index: The value in `target` and `output` that represents the
-            blank label.
-
-    Returns:
-        A tensor of shape `(batch_size,)` containing the CTC loss for each
-        sample in the batch.
-    """
     target = tf.convert_to_tensor(target)
     target = tf.cast(target, dtype="int32")
     output = tf.convert_to_tensor(output)
@@ -828,3 +809,37 @@ def ctc_loss(
         blank_index=mask_index,
         logits_time_major=False,
     )
+
+
+def ctc_decode(
+    inputs,
+    sequence_length,
+    strategy,
+    beam_width=100,
+    top_paths=1,
+    merge_repeated=True,
+    mask_index=None,
+):
+    inputs = tf.convert_to_tensor(inputs)
+    inputs = tf.transpose(inputs, (1, 0, 2))
+
+    sequence_length = tf.convert_to_tensor(sequence_length, dtype="int32")
+    if strategy == "greedy":
+        return tf.nn.ctc_greedy_decoder(
+            inputs=inputs,
+            sequence_length=sequence_length,
+            merge_repeated=merge_repeated,
+            blank_index=mask_index,
+        )
+    elif strategy == "beam_search":
+        return tf.nn.ctc_beam_search_decoder(
+            inputs=inputs,
+            sequence_length=sequence_length,
+            beam_width=beam_width,
+            top_paths=top_paths,
+        )
+    else:
+        raise ValueError(
+            f"Invalid strategy {strategy}. Supported values are "
+            "'greedy' and 'beam_search'."
+        )

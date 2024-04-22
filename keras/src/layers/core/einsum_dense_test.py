@@ -470,6 +470,28 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(
+        ("btnh,nhd->btd", "btnh,nhd->btd", (None, 8), (1, 2, 2, 4)),
+        ("btd,ndh->btnh", "btd,ndh->btnh", (None, 2, 8), (1, 2, 4)),
+        ("btd,df->btf", "btd,df->btf", (None, 4), (1, 2, 4)),
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason=f"{backend.backend()} does not support ops.custom_gradient.",
+    )
+    def test_quantize_int8_with_specific_equations(
+        self, equation, output_shape, input_shape
+    ):
+        layer = layers.EinsumDense(equation=equation, output_shape=output_shape)
+        layer.build(input_shape)
+        x = ops.random.uniform(input_shape)
+        y_float = layer(x)
+
+        layer.quantize("int8")
+        y_quantized = layer(x)
+        mse = ops.mean(ops.square(y_float - y_quantized))
+        self.assertLess(mse, 1e-3)  # A weak correctness test
+
+    @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
     )

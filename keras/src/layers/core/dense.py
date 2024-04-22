@@ -202,24 +202,26 @@ class Dense(Layer):
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
         kernel_value, kernel_scale = self._get_kernel_with_merged_lora()
-        store["0"] = kernel_value
+        target_variables = [kernel_value]
         if self.use_bias:
-            store["1"] = self.bias
+            target_variables.append(self.bias)
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
             mode = self.dtype_policy.quantization_mode
             if mode == "int8":
-                store["2"] = kernel_scale
+                target_variables.append(kernel_scale)
             elif mode == "float8":
-                store["2"] = self.inputs_scale
-                store["3"] = self.inputs_amax_history
-                store["4"] = self.kernel_scale
-                store["5"] = self.kernel_amax_history
-                store["6"] = self.outputs_grad_scale
-                store["7"] = self.outputs_grad_amax_history
+                target_variables.append(self.inputs_scale)
+                target_variables.append(self.inputs_amax_history)
+                target_variables.append(self.kernel_scale)
+                target_variables.append(self.kernel_amax_history)
+                target_variables.append(self.outputs_grad_scale)
+                target_variables.append(self.outputs_grad_amax_history)
             else:
                 raise NotImplementedError(
                     self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
                 )
+        for i, variable in enumerate(target_variables):
+            store[str(i)] = variable
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
@@ -229,24 +231,26 @@ class Dense(Layer):
             return
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
-        self._kernel.assign(store["0"])
+        target_variables = [self._kernel]
         if self.use_bias:
-            self.bias.assign(store["1"])
+            target_variables.append(self.bias)
         if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
             mode = self.dtype_policy.quantization_mode
             if mode == "int8":
-                self.kernel_scale.assign(store["2"])
+                target_variables.append(self.kernel_scale)
             elif mode == "float8":
-                self.inputs_scale.assign(store["2"])
-                self.inputs_amax_history.assign(store["3"])
-                self.kernel_scale.assign(store["4"])
-                self.kernel_amax_history.assign(store["5"])
-                self.outputs_grad_scale.assign(store["6"])
-                self.outputs_grad_amax_history.assign(store["7"])
+                target_variables.append(self.inputs_scale)
+                target_variables.append(self.inputs_amax_history)
+                target_variables.append(self.kernel_scale)
+                target_variables.append(self.kernel_amax_history)
+                target_variables.append(self.outputs_grad_scale)
+                target_variables.append(self.outputs_grad_amax_history)
             else:
                 raise NotImplementedError(
                     self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
                 )
+        for i, variable in enumerate(target_variables):
+            variable.assign(store[str(i)])
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))

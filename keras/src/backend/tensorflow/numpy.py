@@ -15,6 +15,7 @@ from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
+from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.tensorflow import sparse
 from keras.src.backend.tensorflow.core import cast
 from keras.src.backend.tensorflow.core import convert_to_tensor
@@ -1531,7 +1532,7 @@ def moveaxis(x, source, destination):
     return tf.transpose(x, perm)
 
 
-def nan_to_num(x):
+def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = convert_to_tensor(x)
 
     dtype = x.dtype
@@ -1539,14 +1540,18 @@ def nan_to_num(x):
     if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
         return x
 
-    # Replace NaN with 0
-    x = tf.where(tf.math.is_nan(x), tf.constant(0, dtype), x)
+    # Replace NaN with `nan`
+    x = tf.where(tf.math.is_nan(x), tf.constant(nan, dtype), x)
 
-    # Replace positive infinity with dtype.max
-    x = tf.where(tf.math.is_inf(x) & (x > 0), tf.constant(dtype.max, dtype), x)
+    # Replace positive infinity with `posinf` or `dtype.max`
+    if posinf is None:
+        posinf = dtype.max
+    x = tf.where(tf.math.is_inf(x) & (x > 0), tf.constant(posinf, dtype), x)
 
-    # Replace negative infinity with dtype.min
-    x = tf.where(tf.math.is_inf(x) & (x < 0), tf.constant(dtype.min, dtype), x)
+    # Replace negative infinity with `neginf` or `dtype.min`
+    if neginf is None:
+        neginf = dtype.min
+    x = tf.where(tf.math.is_inf(x) & (x < 0), tf.constant(neginf, dtype), x)
 
     return x
 
@@ -2150,6 +2155,25 @@ def vstack(xs):
         dtype = dtypes.result_type(*dtype_set)
         xs = tree.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
     return tf.concat(xs, axis=0)
+
+
+def _vmap_fn(fn, in_axes=0):
+    if in_axes != 0:
+        raise ValueError(
+            "Not supported with `vectorize()` with the TensorFlow backend."
+        )
+
+    @functools.wraps(fn)
+    def wrapped(x):
+        return tf.vectorized_map(fn, x)
+
+    return wrapped
+
+
+def vectorize(pyfunc, *, excluded=None, signature=None):
+    return vectorize_impl(
+        pyfunc, _vmap_fn, excluded=excluded, signature=signature
+    )
 
 
 def where(condition, x1, x2):
