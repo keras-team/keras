@@ -336,7 +336,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_fit_with_custom_train_step(self):
-        if backend.backend() == "jax":
+        if backend.backend() in ["jax", "mlx"]:
             model = JaxCustomTrainTestStepModel(units=3)
         else:
             model = CustomTrainTestStepModel(units=3)
@@ -425,7 +425,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters([("flat", False), ("dict", True)])
     @pytest.mark.requires_trainable_backend
     def test_evaluate_with_custom_test_step(self, return_dict):
-        if backend.backend() == "jax":
+        if backend.backend() in ["jax", "mlx"]:
             model = JaxCustomTrainTestStepModel(units=3)
         else:
             model = CustomTrainTestStepModel(units=3)

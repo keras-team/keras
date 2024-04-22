@@ -122,6 +122,17 @@ class NumpySliceable(Sliceable):
     pass
 
 
+class MLXSliceable(Sliceable):
+    def __getitem__(self, indices):
+        if isinstance(indices, slice):
+            return self.array[indices]
+        elif isinstance(indices, int):
+            return self.array[indices]
+        import mlx.core as mx
+
+        return self.array[mx.array(indices)]
+
+
 class TensorflowSliceable(Sliceable):
     def __getitem__(self, indices):
         from keras.src.utils.module_utils import tensorflow as tf
@@ -343,6 +354,7 @@ def can_slice_array(x):
         or isinstance(x, ARRAY_TYPES)
         or data_adapter_utils.is_tensorflow_tensor(x)
         or data_adapter_utils.is_jax_array(x)
+        or data_adapter_utils.is_mlx_array(x)
         or data_adapter_utils.is_torch_tensor(x)
         or data_adapter_utils.is_scipy_sparse(x)
         or hasattr(x, "__array__")
@@ -375,6 +387,8 @@ def convert_to_sliceable(arrays, target_backend=None):
         # Step 1. Determine which Sliceable class to use.
         if isinstance(x, np.ndarray):
             sliceable_class = NumpySliceable
+        elif data_adapter_utils.is_mlx_array(x):
+            sliceable_class = MLXSliceable
         elif data_adapter_utils.is_tensorflow_tensor(x):
             if data_adapter_utils.is_tensorflow_ragged(x):
                 sliceable_class = TensorflowRaggedSliceable

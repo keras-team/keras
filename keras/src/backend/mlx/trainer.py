@@ -10,6 +10,7 @@ from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.mlx.core import is_tensor
 from keras.src.trainers import trainer as base_trainer
+from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
@@ -21,6 +22,7 @@ class MLXTrainer(base_trainer.Trainer):
         self.train_function = None
         self.test_function = None
         self.predict_function = None
+        self._mlx_state_synced = True
 
     def _data_to_mlx(self, data):
         def _transform(x):
@@ -55,13 +57,40 @@ class MLXTrainer(base_trainer.Trainer):
         if metrics_variables:
             for ref_v, v in zip(self.metrics_variables, metrics_variables):
                 ref_v.assign(v)
+        self._mlx_state_synced = True
+
+    def _get_mlx_state(
+        self,
+        trainable_variables=False,
+        non_trainable_variables=False,
+        optimizer_variables=False,
+        metrics_variables=False,
+        purge_model_variables=False,
+    ):
+        state = []
+        if trainable_variables:
+            state.append([v.value for v in self.trainable_variables])
+        if non_trainable_variables:
+            state.append([v.value for v in self.non_trainable_variables])
+        if optimizer_variables:
+            state.append([v.value for v in self.optimizer.variables])
+        if metrics_variables:
+            state.append([v.value for v in self.metrics_variables])
+        if purge_model_variables:
+            self._purge_model_variables(
+                trainable_variables=trainable_variables,
+                non_trainable_variables=non_trainable_variables,
+                optimizer_variables=optimizer_variables,
+                metric_variables=metrics_variables,
+            )
+        return tuple(state)
 
     def _purge_model_variables(
         self,
-        trainable_variables=True,
-        non_trainable_variables=True,
-        optimizer_variables=True,
-        metric_variables=True,
+        trainable_variables=False,
+        non_trainable_variables=False,
+        optimizer_variables=False,
+        metric_variables=False,
     ):
         """Remove all the model variables so they can be garbage collected and
         the memory reclaimed by MLX.
@@ -117,6 +146,7 @@ class MLXTrainer(base_trainer.Trainer):
         self,
         trainable_variables,
         non_trainable_variables,
+        metrics_variables,
         x,
         y,
         sample_weight,
@@ -135,14 +165,25 @@ class MLXTrainer(base_trainer.Trainer):
             return_losses=True,
             **kwargs,
         )
-
-        trainable_mapping = zip(self.trainable_variables, trainable_variables)
-        with backend.StatelessScope(state_mapping=trainable_mapping):
-            # Note that this is needed for the regularization loss, which need
-            # the latest value of train/non-trainable variables.
-            loss = self.compute_loss(x, y, y_pred, sample_weight)
         if losses:
-            loss += ops.sum(losses)
+            # Make forward pass losses available to compute_loss.
+            self._losses_override.clear()
+            self._losses_override = losses
+
+        loss, variables = self.stateless_compute_loss(
+            trainable_variables,
+            non_trainable_variables,
+            metrics_variables,
+            x=x,
+            y=y,
+            y_pred=y_pred,
+            sample_weight=sample_weight,
+        )
+        if losses:
+            self._losses_override.clear()
+        (trainable_variables, non_trainable_variables, metrics_variables) = (
+            variables
+        )
         unscaled_loss = loss
         if training and self.optimizer is not None:
             # Scale loss with a StatelessScope, to use an update scale variable.
@@ -150,7 +191,13 @@ class MLXTrainer(base_trainer.Trainer):
             with backend.StatelessScope(state_mapping=mapping):
                 loss = self.optimizer.scale_loss(loss)
 
-        return loss, unscaled_loss, y_pred, non_trainable_variables
+        return (
+            loss,
+            unscaled_loss,
+            y_pred,
+            non_trainable_variables,
+            metrics_variables,
+        )
 
     def train_step(self, state, data):
         data = self._data_to_mlx(data)
@@ -169,9 +216,11 @@ class MLXTrainer(base_trainer.Trainer):
                 unscaled_loss,
                 y_pred,
                 non_trainable_variables,
+                metrics_variables,
             ), grads = grad_fn(
                 trainable_variables,
                 non_trainable_variables,
+                metrics_variables,
                 x,
                 y,
                 sample_weight,
@@ -191,9 +240,11 @@ class MLXTrainer(base_trainer.Trainer):
                 unscaled_loss,
                 y_pred,
                 non_trainable_variables,
+                metrics_variables,
             ) = self.compute_loss_and_updates(
                 trainable_variables,
                 non_trainable_variables,
+                metrics_variables,
                 x,
                 y,
                 sample_weight,
@@ -239,9 +290,11 @@ class MLXTrainer(base_trainer.Trainer):
             unscaled_loss,
             y_pred,
             non_trainable_variables,
+            metrics_variables,
         ) = self.compute_loss_and_updates(
             trainable_variables,
             non_trainable_variables,
+            metrics_variables,
             x,
             y,
             sample_weight,
@@ -443,7 +496,7 @@ class MLXTrainer(base_trainer.Trainer):
                 x,
                 y,
                 sample_weight,
-            ), validation_data = data_adapter_utils.train_validation_split(
+            ), validation_data = array_slicing.train_validation_split(
                 (x, y, sample_weight), validation_split=validation_split
             )
 
@@ -496,30 +549,27 @@ class MLXTrainer(base_trainer.Trainer):
         self.stop_training = False
         self.make_train_function()
         callbacks.on_train_begin()
-
+        initial_epoch = self._initial_epoch or initial_epoch
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)
 
-            trainable_variables = [v.value for v in self.trainable_variables]
-            non_trainable_variables = [
-                v.value for v in self.non_trainable_variables
-            ]
-            optimizer_variables = [v.value for v in self.optimizer.variables]
-            metrics_variables = [v.value for v in self.metrics_variables]
-
-            self._purge_model_variables()
+            self._mlx_state_synced = True
             for step, data in epoch_iterator.enumerate_epoch():
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
-
                 # Train step
-                state = (
-                    trainable_variables,
-                    non_trainable_variables,
-                    optimizer_variables,
-                    metrics_variables,
-                )
+                if self._mlx_state_synced:
+                    # The state may have been synced by a callback.
+                    state = self._get_mlx_state(
+                        trainable_variables=True,
+                        non_trainable_variables=True,
+                        optimizer_variables=True,
+                        metrics_variables=True,
+                        purge_model_variables=True,
+                    )
+                    self._mlx_state_synced = False
+
                 logs, state = self.train_function(state, data)
                 mx.eval(logs, state)
                 (
@@ -547,7 +597,9 @@ class MLXTrainer(base_trainer.Trainer):
             self.mlx_state_sync()
 
             # Override with model metrics instead of last step logs
-            epoch_logs = self._pythonify_logs(self.get_metrics_result())
+            epoch_logs = self._pythonify_logs(
+                self._get_metrics_result_or_logs(logs)
+            )
 
             # Run validation.
             if validation_data and self._should_eval(epoch, validation_freq):
@@ -687,7 +739,7 @@ class MLXTrainer(base_trainer.Trainer):
                 break
 
         self.mlx_state_sync()
-        logs = self._pythonify_logs(self.get_metrics_result())
+        logs = self._pythonify_logs(self._get_metrics_result_or_logs(logs))
         callbacks.on_test_end(logs)
         self._mlx_state = None
 
@@ -711,8 +763,10 @@ class MLXTrainer(base_trainer.Trainer):
         if not all(layer.built for layer in self._flatten_layers()):
             # Build the model on one batch of data.
             for _, data in epoch_iterator.enumerate_epoch():
-                data_batch = data[0]
-                self._symbolic_build(data_batch)
+                # Build model
+                x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data[0])
+                with backend.StatelessScope():
+                    self(x)
                 break
 
         # Container that configures and calls callbacks.
@@ -746,22 +800,36 @@ class MLXTrainer(base_trainer.Trainer):
         self.stop_predicting = False
         callbacks.on_predict_begin()
 
-        trainable_variables = [v.value for v in self.trainable_variables]
-        non_trainable_variables = [
-            v.value for v in self.non_trainable_variables
-        ]
-        state = (trainable_variables, non_trainable_variables)
-
+        self._mlx_state_synced = True
         outputs = None
+        non_trainable_variables = None
         for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_predict_batch_begin(step)
+            if self._mlx_state_synced:
+                # The state may have been synced by a callback.
+                state = self._get_mlx_state(
+                    trainable_variables=True,
+                    non_trainable_variables=True,
+                )
+                self._purge_model_variables(non_trainable_variables=True)
+                self._mlx_state_synced = False
+            else:
+                state = (state[0], non_trainable_variables)
             batch_outputs, state = self.predict_function(state, data)
             mx.eval(batch_outputs, state)
+            (trainable_variables, non_trainable_variables) = state
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
             if self.stop_predicting:
                 break
+        self._mlx_state = {
+            # I wouldn't recommend modifying non-trainable model state
+            # during predict(), but it's allowed.
+            "non_trainable_variables": non_trainable_variables,
+        }
+        self.mlx_state_sync()
         callbacks.on_predict_end()
+        self._mlx_state = None
         outputs = tree.map_structure(
             backend.convert_to_numpy, outputs
         )  # TODO: This copies but we could avoid it
@@ -794,19 +862,14 @@ class MLXTrainer(base_trainer.Trainer):
         self._symbolic_build(data)
         self.make_train_function()
 
-        trainable_variables = [v.value for v in self.trainable_variables]
-        non_trainable_variables = [
-            v.value for v in self.non_trainable_variables
-        ]
-        optimizer_variables = [v.value for v in self.optimizer.variables]
-        metrics_variables = [v.value for v in self.metrics_variables]
-        # TODO: Why not purge model state?
-        state = (
-            trainable_variables,
-            non_trainable_variables,
-            optimizer_variables,
-            metrics_variables,
+        state = self._get_mlx_state(
+            trainable_variables=True,
+            non_trainable_variables=True,
+            optimizer_variables=True,
+            metrics_variables=True,
+            purge_model_variables=False,
         )
+        self._mlx_state_synced = False
         logs, state = self.train_function(state, [data])
         mx.eval(logs, state)
 
@@ -846,17 +909,13 @@ class MLXTrainer(base_trainer.Trainer):
         self.make_test_function()
 
         # Test step
-        trainable_variables = [v.value for v in self.trainable_variables]
-        non_trainable_variables = [
-            v.value for v in self.non_trainable_variables
-        ]
-        metrics_variables = [v.value for v in self.metrics_variables]
-        # TODO: Why not purge model state?
-        state = (
-            trainable_variables,
-            non_trainable_variables,
-            metrics_variables,
+        state = self._get_mlx_state(
+            trainable_variables=True,
+            non_trainable_variables=True,
+            metrics_variables=True,
+            purge_model_variables=False,
         )
+        self._mlx_state_synced = False
         logs, state = self.test_function(state, [data])
         mx.eval(logs, state)
 
@@ -875,17 +934,26 @@ class MLXTrainer(base_trainer.Trainer):
         return self._flatten_metrics_in_order(logs)
 
     def predict_on_batch(self, x):
+        if not all(layer.built for layer in self._flatten_layers()):
+            # Build model
+            with backend.StatelessScope():
+                self(x)
         self._symbolic_build(x)
         self.make_predict_function()
-
-        trainable_variables = [v.value for v in self.trainable_variables]
-        non_trainable_variables = [
-            v.value for v in self.non_trainable_variables
-        ]
-        state = (trainable_variables, non_trainable_variables)
+        state = self._get_mlx_state(
+            trainable_variables=True,
+            non_trainable_variables=True,
+            metrics_variables=False,
+            purge_model_variables=False,
+        )
+        self._mlx_state_synced = False
         batch_outputs, state = self.predict_function(state, [(x,)])
         mx.eval(batch_outputs, state)
-
+        trainable_variables, non_trainable_variables = state
+        self._mlx_state = {
+            "non_trainable_variables": non_trainable_variables,
+        }
+        self.mlx_state_sync()
         # TODO: This copies but we could avoid it
         batch_outputs = tree.map_structure(
             backend.convert_to_numpy, batch_outputs
