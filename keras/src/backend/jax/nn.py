@@ -782,7 +782,8 @@ def ctc_beam_search_decode(
             axis=0,
             fill_value=_pad,
         )
-        unique_inverse = jnp.squeeze(unique_inverse, axis=1)
+        if len(unique_inverse.shape) >= 2:
+            unique_inverse = jnp.squeeze(unique_inverse, axis=1)
 
         emit_scores = jnp.where(masked, -jnp.inf, scores)
         mask_scores = jnp.where(masked, scores, -jnp.inf)
@@ -842,7 +843,8 @@ def ctc_beam_search_decode(
             axis=0,
             fill_value=_pad,
         )
-        unique_inverse = jnp.squeeze(unique_inverse, axis=1)
+        if len(unique_inverse.shape) >= 2:
+            unique_inverse = jnp.squeeze(unique_inverse, axis=1)
         scores = _merge_scores(unique_inverse, scores)
 
         top_indices = jnp.argsort(scores)[-top_paths:][::-1]
