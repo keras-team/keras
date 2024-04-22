@@ -79,7 +79,7 @@ def create_legacy_directory(package_dir):
         if os.path.isdir(os.path.join(src_dir, "legacy", path))
     ]
 
-    for root, _, fnames in os.walk(os.path.join(package_dir, "_legacy")):
+    for root, _, fnames in os.walk(os.path.join(api_dir, "_legacy")):
         for fname in fnames:
             if fname.endswith(".py"):
                 legacy_fpath = os.path.join(root, fname)
