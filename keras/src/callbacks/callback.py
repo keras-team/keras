@@ -83,6 +83,10 @@ class Callback:
             # epoch. We have to force a sync before
             # accessing model state for e.g. checkpointing.
             self._model.jax_state_sync()
+        elif backend.backend() == "mlx" and hasattr(
+            self._model, "mlx_state_sync"
+        ):
+            self._model.mlx_state_sync()
         return self._model
 
     def on_batch_begin(self, batch, logs=None):

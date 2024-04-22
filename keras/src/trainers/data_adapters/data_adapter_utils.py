@@ -262,6 +262,15 @@ def is_jax_sparse(value):
     return False
 
 
+def is_mlx_array(value):
+    if hasattr(value, "__class__"):
+        return (
+            value.__class__.__module__ == "mlx.core"
+            and value.__class__.__name__ == "array"
+        )
+    return False
+
+
 def is_torch_tensor(value):
     if hasattr(value, "__class__"):
         for parent in value.__class__.__mro__:
