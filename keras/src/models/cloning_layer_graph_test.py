@@ -15,7 +15,25 @@ from keras.src.models.cloning_layer_graph import _walkback_one_tensor
 from keras.src.models.cloning_layer_graph import _handle_input_node
 from keras.src.models.cloning_layer_graph import clone_layer_graph
 
-print("Running on backend", keras.config.backend())
+# Running these tests with "channels_first" will not test anything useful.
+# Forcing "channels_last" for this test module only, otherwise some test
+# cases in this module fail to create a valid test model.
+_image_format = None
+
+
+def setUpModule():
+    global _image_format
+    _image_format = keras.config.image_data_format()
+    keras.config.set_image_data_format("channels_last")
+
+
+def moduleCleanUp():
+    # restore original image format
+    image_format = keras.config.set_image_data_format(_image_format)
+
+
+unittest.addModuleCleanup(moduleCleanUp)
+
 
 def _gather_nested_node(node, visited, enter_nested):
     nested = isinstance(node.operation, Functional) or isinstance(node.operation, Sequential)
