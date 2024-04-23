@@ -15,6 +15,7 @@ from keras.src.models.cloning_layer_graph import _walkback_one_tensor
 from keras.src.models.cloning_layer_graph import _handle_input_node
 from keras.src.models.cloning_layer_graph import clone_layer_graph
 
+print("Running on backend", keras.config.backend())
 
 def _gather_nested_node(node, visited, enter_nested):
     nested = isinstance(node.operation, Functional) or isinstance(node.operation, Sequential)
@@ -126,14 +127,15 @@ def are_results_identical(model1, model2):
     # run the values through both models: outputs should be identical
     result1 = model1(x)
     result2 = model2(x)
-    res = [not np.any(r1 - r2) for r1, r2 in zip(tree.flatten(result1), tree.flatten(result2))]
+    res = [not np.any(keras.ops.convert_to_numpy(r1) - keras.ops.convert_to_numpy(r2))
+           for r1, r2 in zip(tree.flatten(result1), tree.flatten(result2))]
     return all(res)
 
 
 def are_all_weights_identical(model1, model2):
-    same_trainable_weights = [not np.any(v - w)
+    same_trainable_weights = [not np.any(v.numpy() - w.numpy())
                               for v, w in zip(model1.trainable_weights, model2.trainable_weights)]
-    same_non_trainable_weights = [not np.any(v - w)
+    same_non_trainable_weights = [not np.any(v.numpy() - w.numpy())
                                   for v, w in zip(model1.non_trainable_weights, model2.non_trainable_weights)]
     return all(same_trainable_weights + same_non_trainable_weights)
 

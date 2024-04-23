@@ -31,7 +31,7 @@ def clone_layer_graph(input, output, clone_fn, enter_nested=True):
     Recommended usage:
     ```python
     def clone_fn(layer, *args, **kwargs)
-        # here, you can insert layer, wrap layers, extract activations, etc.
+        # here, you can insert layers, wrap layers, extract activations, etc.
         return layer(*args, **kwargs) # default to identity
     model = ... # a keras model
     output = clone_layer_graph(model.input, model.output, clone_fn)
