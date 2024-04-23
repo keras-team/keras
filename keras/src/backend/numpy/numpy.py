@@ -1101,4 +1101,4 @@ def select(condlist, choicelist, default=0):
 
 
 def argpartition(x, kth, axis=-1):
-    return np.argpartition(x, kth, axis)
+    return np.argpartition(x, kth, axis).astype("int32")

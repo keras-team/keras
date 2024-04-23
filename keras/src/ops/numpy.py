@@ -6322,14 +6322,16 @@ class Argpartition(Operation):
             )
 
         dtype = "int32"
-        if backend.backend() in ("torch", "numpy"):
+        if backend.backend() in ("torch"):
             dtype = "int64"
         return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.argpartition", "keras.ops.numpy.argpartition"])
 def argpartition(x, kth, axis=-1):
-    """Performs an indirect partition along the given axis. It returns an array
+    """Performs an indirect partition along the given axis.
+
+    It returns an array
     of indices of the same shape as `x` that index data along the given axis
     in partitioned order.
 
@@ -6342,7 +6344,7 @@ def argpartition(x, kth, axis=-1):
             If provided with a sequence of k-th it will partition all of them
             into their sorted position at once.
         axis: Axis along which to sort. The default is -1 (the last axis).
-            If None, the flattened array is used.
+            If `None`, the flattened array is used.
 
     Returns:
         Array of indices that partition `x` along the specified `axis`.

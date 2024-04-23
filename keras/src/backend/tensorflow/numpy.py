@@ -2435,24 +2435,25 @@ def select(condlist, choicelist, default=0):
 def argpartition(x, kth, axis=-1):
     x = convert_to_tensor(x)
 
-    if standardize_dtype(x.dtype) not in ["int32", "int64"]:
+    if not x.dtype.is_integer or x.dtype.is_unsigned:
         x = tf.cast(x, tf.int32)
 
-    x = tf.experimental.numpy.swapaxes(x, axis, -1)
+    x = swapaxes(x, axis, -1)
     bottom_ind = tf.math.top_k(-x, kth + 1)[1]
 
     def set_to_zero(args):
         a, i = args
-        updates = tf.reshape(tf.zeros_like(i, dtype=tf.float32), [-1])
-        return tf.tensor_scatter_nd_update(a, i, updates)
+        indexes = tf.reshape(i, [tf.shape(i)[-1], 1])
+        updates = tf.reshape(tf.zeros_like(indexes, dtype=tf.int32), [-1])
+        return tf.tensor_scatter_nd_update(a, indexes, updates)
 
     for _ in range(x.ndim - 1):
         set_to_zero = tf.vectorized_map(
-            set_to_zero, (tf.ones(tf.shape(x)), bottom_ind)
+            set_to_zero, (tf.ones(tf.shape(x), dtype=tf.int32), bottom_ind)
         )
-    proxy = set_to_zero((tf.ones(tf.shape(x)), bottom_ind))
+    proxy = set_to_zero((tf.ones(tf.shape(x), dtype=tf.int32), bottom_ind))
 
     top_ind = tf.math.top_k(proxy, tf.shape(x)[-1] - kth - 1)[1]
 
     out = tf.concat([bottom_ind, top_ind], axis=x.ndim - 1)
-    return tf.experimental.numpy.swapaxes(out, -1, axis)
+    return swapaxes(out, -1, axis)

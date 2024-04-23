@@ -1622,7 +1622,7 @@ def argpartition(x, kth, axis=-1):
 
     for _ in range(x.dim() - 1):
         set_to_zero = torch.vmap(set_to_zero)
-    proxy = set_to_zero(torch.ones(x.shape), bottom_ind)
+    proxy = set_to_zero(torch.ones(x.shape, dtype=torch.int32), bottom_ind)
 
     top_ind = torch.topk(proxy, x.shape[-1] - kth - 1)[1]
 
