@@ -118,7 +118,7 @@ class TestJaxMathErrors(testing.TestCase):
         fft_length = 4
         incorrect_window = jnp.ones(
             (sequence_length + 1,)
-        )  # Incorrect window length
+        )
         with self.assertRaisesRegex(
             ValueError, "The shape of `window` must be equal to"
         ):
