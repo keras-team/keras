@@ -201,7 +201,6 @@ def istft(
     window="hann",
     center=True,
 ):
-
     x = _get_complex_tensor_from_tuple(x)
     dtype = jnp.real(x).dtype
 

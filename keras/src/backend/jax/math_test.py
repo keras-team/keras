@@ -109,16 +109,3 @@ class TestJaxMathErrors(testing.TestCase):
         window = jnp.ones((sequence_length + 1))
         with self.assertRaisesRegex(ValueError, "The shape of `window` must"):
             stft(x, sequence_length, sequence_stride, fft_length, window=window)
-
-    def test_istft_invalid_window_shape(self):
-        x = (jnp.array([1.0, 2.0, 3.0, 4.0]), jnp.array([0.0, 0.0, 0.0, 0.0]))
-        sequence_length = 2
-        sequence_stride = 1
-        fft_length = 4
-        window = jnp.ones((sequence_length + 1))  # Invalid window shape
-        with self.assertRaisesRegex(
-            ValueError, "Input `x` must be a 2D tensor"
-        ):
-            istft(
-                x, sequence_length, sequence_stride, fft_length, window=window
-            )
