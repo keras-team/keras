@@ -325,10 +325,19 @@ class OptimizerTest(testing.TestCase, parameterized.TestCase):
         [
             ("adam",),
             ("sgd",),
+            ("adamw",),
+            ("adagrad",),
+            ("rmsprop",),
+            ("adadelta",),
+            ("adamax",),
+            ("lion",),
+            ("nadam",),
+            ("ftrl",),
+            ("adafactor",),
         ]
     )
     def test_pickleable_optimizers(self, optimizer):
         optimizer = optimizers.get(optimizer)
         reloaded = pickle.loads(pickle.dumps(optimizer))
 
-        s.elf.assertEqual(optimizer.get_config(), reloaded.get_config())
+        self.assertEqual(optimizer.get_config(), reloaded.get_config())
