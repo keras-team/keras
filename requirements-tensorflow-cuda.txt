@@ -3,7 +3,7 @@ tensorflow[and-cuda]~=2.16.1  # Pin to TF 2.16
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.1.0
+torch>=2.1.0, <2.3.0
 torchvision>=0.16.0
 
 # Jax cpu-only version (needed for testing).
