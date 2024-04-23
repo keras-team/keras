@@ -9,6 +9,7 @@ class KerasPickleable:
     @classmethod
     def _unpickle_model(cls, bytesio):
         import keras.src.saving.saving_lib as saving_lib
+
         # pickle is not safe regardless of what you do.
         return saving_lib._load_model_from_fileobj(
             bytesio, custom_objects=None, compile=True, safe_mode=False
@@ -21,6 +22,7 @@ class KerasPickleable:
         arguments to pass to that function.  In this case we just leverage the
         keras saving library."""
         import keras.src.saving.saving_lib as saving_lib
+
         buf = io.BytesIO()
         saving_lib._save_model_to_fileobj(self, buf, "h5")
         return (
