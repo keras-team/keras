@@ -8,9 +8,9 @@ from keras.src.losses import deserialize
 from keras.src.losses import get
 from keras.src.losses import serialize
 from keras.src.losses.loss import Loss
+from keras.src.losses.losses import CTC
 from keras.src.losses.losses import BinaryCrossentropy
 from keras.src.losses.losses import BinaryFocalCrossentropy
-from keras.src.losses.losses import CTC
 from keras.src.losses.losses import CategoricalCrossentropy
 from keras.src.losses.losses import CategoricalFocalCrossentropy
 from keras.src.losses.losses import CategoricalHinge
