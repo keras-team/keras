@@ -95,6 +95,12 @@ def _get_complex_tensor_from_tuple(x):
             "Both the real and imaginary parts should have the same shape. "
             f"Received: x[0].shape = {real.shape}, x[1].shape = {imag.shape}"
         )
+    # Check minimum dimension requirement (if there's such a requirement)
+    if len(real.shape) < 2:
+        raise ValueError(
+            "Input tensors (real and imaginary parts) must have at least two dimensions. "
+            f"Received real shape {real.shape}, imag shape {imag.shape}."
+        )
     # Ensure dtype is float.
     if not jnp.issubdtype(real.dtype, jnp.floating) or not jnp.issubdtype(
         imag.dtype, jnp.floating

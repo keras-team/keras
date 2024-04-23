@@ -9,6 +9,7 @@ from keras.src.backend.jax.math import qr
 from keras.src.backend.jax.math import segment_max
 from keras.src.backend.jax.math import segment_sum
 from keras.src.backend.jax.math import stft
+from keras.src.backend.jax.math import istft
 
 
 @pytest.mark.skipif(
@@ -43,8 +44,8 @@ class TestJaxMathErrors(testing.TestCase):
             qr(x, mode=invalid_mode)
 
     def test_get_complex_tensor_from_tuple_valid_input(self):
-        real = jnp.array([1.0, 2.0, 3.0])
-        imag = jnp.array([4.0, 5.0, 6.0])
+        real = jnp.array([[1.0, 2.0, 3.0]])
+        imag = jnp.array([[4.0, 5.0, 6.0]])
         complex_tensor = _get_complex_tensor_from_tuple((real, imag))
         self.assertTrue(jnp.iscomplexobj(complex_tensor))
         self.assertTrue(jnp.array_equal(jnp.real(complex_tensor), real))
@@ -109,3 +110,28 @@ class TestJaxMathErrors(testing.TestCase):
         window = jnp.ones((sequence_length + 1))
         with self.assertRaisesRegex(ValueError, "The shape of `window` must"):
             stft(x, sequence_length, sequence_stride, fft_length, window=window)
+
+    def test_istft_invalid_window_shape(self):
+        x = (jnp.array([1.0, 2.0]), jnp.array([3.0, 4.0]))
+        sequence_length = 2
+        sequence_stride = 1
+        fft_length = 4
+        incorrect_window = jnp.ones((sequence_length + 1,))
+        with self.assertRaisesRegex(ValueError, "The shape of `window` must be equal to \[sequence_length\]."):
+            istft(x, sequence_length, sequence_stride, fft_length, window=incorrect_window)
+
+    def test_invalid_dtype(self):
+        real = jnp.array([[1, 2, 3]])
+        imag = jnp.array([[4.0, 5.0, 6.0]])
+        expected_message = "is not of type float"
+        with self.assertRaisesRegex(ValueError, expected_message):
+            _get_complex_tensor_from_tuple((real, imag))
+
+    def test_istft_invalid_window_shape(self):
+        x = (jnp.array([[1.0, 2.0]]), jnp.array([[3.0, 4.0]]))  # Now two-dimensional
+        sequence_length = 2
+        sequence_stride = 1
+        fft_length = 4
+        incorrect_window = jnp.ones((sequence_length + 1,))
+        with self.assertRaisesRegex(ValueError, "The shape of `window` must be equal to \[sequence_length\]."):
+            istft(x, sequence_length, sequence_stride, fft_length, window=incorrect_window)
