@@ -17,8 +17,6 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
             "Argument `num_segments` must be set when using the JAX backend. "
             "Received: num_segments=None"
         )
-    if jnp.any(segment_ids < 0) or jnp.any(segment_ids >= num_segments):
-        raise ValueError("Segment ID out of range")
     return jax.ops.segment_sum(
         data, segment_ids, num_segments, indices_are_sorted=sorted
     )
@@ -30,8 +28,6 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
             "Argument `num_segments` must be set when using the JAX backend. "
             "Received: num_segments=None"
         )
-    if jnp.any(segment_ids < 0) or jnp.any(segment_ids >= num_segments):
-        raise ValueError("Segment ID out of range")
     return jax.ops.segment_max(
         data, segment_ids, num_segments, indices_are_sorted=sorted
     )
@@ -207,10 +203,6 @@ def istft(
 ):
 
     x = _get_complex_tensor_from_tuple(x)
-    if x.ndim != 2:
-        raise ValueError(
-            "Input `x` must be a 2D tensor. Received: x.ndim={x.ndim}"
-        )
     dtype = jnp.real(x).dtype
 
     expected_output_len = fft_length + sequence_stride * (x.shape[-2] - 1)

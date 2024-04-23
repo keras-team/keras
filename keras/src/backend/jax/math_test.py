@@ -25,13 +25,6 @@ class TestJaxMathErrors(testing.TestCase):
         ):
             segment_sum(data, segment_ids)
 
-    def test_segment_sum_invalid_segments(self):
-        data = jnp.array([1, 2, 3, 4])
-        segment_ids = jnp.array([0, 1, 2, 3])
-        num_segments = 2
-        with self.assertRaisesRegex(ValueError, "Segment ID out of range"):
-            segment_sum(data, segment_ids, num_segments)
-
     def test_segment_max_no_num_segments(self):
         data = jnp.array([1, 2, 3, 4])
         segment_ids = jnp.array([0, 0, 1, 1])
@@ -40,15 +33,6 @@ class TestJaxMathErrors(testing.TestCase):
             "Argument `num_segments` must be set when using the JAX backend.",
         ):
             segment_max(data, segment_ids)
-
-    def test_segment_max_invalid_segments(self):
-        data = jnp.array([1, 2, 3, 4])
-        segment_ids = jnp.array(
-            [0, 1, 2, 3]
-        )  # Last index is out of range for num_segments=2
-        num_segments = 2
-        with self.assertRaisesRegex(ValueError, "Segment ID out of range"):
-            segment_max(data, segment_ids, num_segments)
 
     def test_qr_invalid_mode(self):
         x = jnp.array([[1, 2], [3, 4]])
