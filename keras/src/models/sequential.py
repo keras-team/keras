@@ -282,6 +282,22 @@ class Sequential(Model):
         )
 
     @property
+    def input(self):
+        if self._functional:
+            return self._functional.input
+        raise ValueError(
+            f"Sequential model '{self.name}' has no defined input yet."
+        )
+
+    @property
+    def output(self):
+        if self._functional:
+            return self._functional.output
+        raise ValueError(
+            f"Sequential model '{self.name}' has no defined output yet."
+        )
+
+    @property
     def input_dtype(self):
         # Sequential.__call__ will try to convert its inputs
         # to the dtype expected by its input layer, if any.
