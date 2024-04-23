@@ -468,6 +468,10 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         ("float8_e4m3fn", "float8_e4m3fn"), ("float8_e5m2", "float8_e5m2")
     )
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} doesn't support `float8`.",
+    )
     def test_cast_float8(self, float8_dtype):
         # Cast to float8 and cast back
         x = ops.ones((2,), dtype="float32")
@@ -584,6 +588,8 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         ALL_DTYPES = [
             x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
         ]
+    elif backend.backend() == "mlx":
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ["float64"]]
     # Remove float8 dtypes for the following tests
     ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
 

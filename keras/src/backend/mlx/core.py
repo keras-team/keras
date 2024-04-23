@@ -230,10 +230,19 @@ def scatter_update(inputs, indices, updates):
 
 def slice(inputs, start_indices, shape):
     inputs = convert_to_tensor(inputs)
-
+    if not isinstance(shape, list):
+        shape = convert_to_tensor(shape, dtype="int32").tolist()
+    else:
+        shape = [i if isinstance(i, int) else i.item() for i in shape]
+    if not isinstance(start_indices, list):
+        start_indices = convert_to_tensor(start_indices, dtype="int32").tolist()
+    else:
+        start_indices = [
+            i if isinstance(i, int) else i.item() for i in start_indices
+        ]
     python_slice = __builtins__["slice"]
     slices = tuple(
-        python_slice(int(start_index), int(start_index + length))
+        python_slice(start_index, start_index + length)
         for start_index, length in zip(start_indices, shape)
     )
     return inputs[slices]
@@ -241,11 +250,17 @@ def slice(inputs, start_indices, shape):
 
 def slice_update(inputs, start_indices, updates):
     inputs = convert_to_tensor(inputs)
+    if not isinstance(start_indices, list):
+        start_indices = convert_to_tensor(start_indices, dtype="int32").tolist()
+    else:
+        start_indices = [
+            i if isinstance(i, int) else i.item() for i in start_indices
+        ]
     updates = convert_to_tensor(updates)
 
     python_slice = __builtins__["slice"]
     slices = tuple(
-        python_slice(int(start_index), int(start_index + update_length))
+        python_slice(start_index, start_index + update_length)
         for start_index, update_length in zip(start_indices, updates.shape)
     )
     inputs[slices] = updates
