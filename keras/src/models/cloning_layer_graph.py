@@ -1,10 +1,10 @@
 import keras
-from keras.api_export import keras_export
-from keras.utils import tree
-from keras.ops.symbolic_arguments import SymbolicArguments
-from keras.models import Functional
-from keras.models import Sequential
-from keras.models.functional import is_input_keras_tensor
+from keras.src.api_export import keras_export
+from keras import tree
+from keras.src.ops.symbolic_arguments import SymbolicArguments
+from keras.src.models import Functional
+from keras import Sequential
+from keras.src.models.functional import is_input_keras_tensor
 
 
 # Implementation note: Why not modify the existing functional.clone_graph_nodes ?

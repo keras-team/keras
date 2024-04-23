@@ -5,14 +5,15 @@ import numpy as np
 import keras
 from keras import Input
 from keras import layers
-from keras.models import Model, Sequential, Functional
-from keras.models.functional import is_input_keras_tensor
-from keras.ops.node import Node
-from keras.utils import tree
+from keras import Model, Sequential
+from keras.src.models import Functional
+from keras.src.models.functional import is_input_keras_tensor
+from keras.src.ops.node import Node
+from keras import tree
 
-from keras.models.cloning_layer_graph import _walkback_one_tensor
-from keras.models.cloning_layer_graph import _handle_input_node
-from keras.models.cloning_layer_graph import clone_layer_graph
+from keras.src.models.cloning_layer_graph import _walkback_one_tensor
+from keras.src.models.cloning_layer_graph import _handle_input_node
+from keras.src.models.cloning_layer_graph import clone_layer_graph
 
 
 def _gather_nested_node(node, visited, enter_nested):
