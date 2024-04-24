@@ -423,7 +423,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 self.build(**config["shapes_dict"])
             self.built = True
 
-    def obj_type(self):
+    def _obj_type(self):
         return "Layer"
 
     def add_variable(

@@ -7,7 +7,7 @@ class KerasSaveable:
     # saving format -- it should only be supported for use with distributed
     # computing frameworks.
 
-    def obj_type(self):
+    def _obj_type(self):
         raise NotImplementedError(
             "KerasSaveable subclases must provide an "
             "implementation for `obj_type()`"

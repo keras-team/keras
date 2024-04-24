@@ -70,7 +70,7 @@ class Loss(KerasSaveable):
     def from_config(cls, config):
         return cls(**config)
 
-    def obj_type(self):
+    def _obj_type(self):
         return "Loss"
 
 

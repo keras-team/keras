@@ -142,7 +142,7 @@ class Sequential(Model):
         # Unlike other layers, Sequential is mutable after build.
         pass
 
-    def obj_type(self):
+    def _obj_type(self):
         return "Sequential"
 
     def build(self, input_shape=None):

@@ -180,7 +180,7 @@ class Metric(KerasSaveable):
     def dtype(self):
         return self._dtype
 
-    def obj_type(self):
+    def _obj_type(self):
         return "Metric"
 
     def add_variable(

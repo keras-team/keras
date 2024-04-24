@@ -178,7 +178,7 @@ class Functional(Function, Model):
         # functional DAG.
         pass
 
-    def obj_type(self):
+    def _obj_type(self):
         return "Functional"
 
     @property
