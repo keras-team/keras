@@ -115,6 +115,8 @@ jobs:
           pip install -r requirements.txt --progress-bar off --upgrade
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
+      - name: Lint
+        run: bash shell/lint.sh
       - name: Check for API changes
         run: |
           bash shell/api_gen.sh
@@ -124,5 +126,3 @@ jobs:
             echo "Please run shell/api_gen.sh to generate API."
             exit 1
           fi
-      - name: Lint
-        run: bash shell/lint.sh
