@@ -196,6 +196,7 @@ from keras.src.ops.numpy import sign
 from keras.src.ops.numpy import sin
 from keras.src.ops.numpy import sinh
 from keras.src.ops.numpy import size
+from keras.src.ops.numpy import slogdet
 from keras.src.ops.numpy import sort
 from keras.src.ops.numpy import split
 from keras.src.ops.numpy import sqrt
