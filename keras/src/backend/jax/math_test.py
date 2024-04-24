@@ -43,13 +43,32 @@ class TestJaxMathErrors(testing.TestCase):
         ):
             qr(x, mode=invalid_mode)
 
-    def test_get_complex_tensor_from_tuple_valid_input(self):
+    def test_get_complex_tensor_from_tuple_creates_complex_object(self):
         real = jnp.array([[1.0, 2.0, 3.0]])
         imag = jnp.array([[4.0, 5.0, 6.0]])
         complex_tensor = _get_complex_tensor_from_tuple((real, imag))
-        self.assertTrue(jnp.iscomplexobj(complex_tensor))
-        self.assertTrue(jnp.array_equal(jnp.real(complex_tensor), real))
-        self.assertTrue(jnp.array_equal(jnp.imag(complex_tensor), imag))
+        self.assertTrue(
+            jnp.iscomplexobj(complex_tensor),
+            "The output should be a complex object.",
+        )
+
+    def test_get_complex_tensor_from_tuple_correct_real_part(self):
+        real = jnp.array([[1.0, 2.0, 3.0]])
+        imag = jnp.array([[4.0, 5.0, 6.0]])
+        complex_tensor = _get_complex_tensor_from_tuple((real, imag))
+        self.assertTrue(
+            jnp.array_equal(jnp.real(complex_tensor), real),
+            "The real parts should match.",
+        )
+
+    def test_get_complex_tensor_from_tuple_correct_imaginary_part(self):
+        real = jnp.array([[1.0, 2.0, 3.0]])
+        imag = jnp.array([[4.0, 5.0, 6.0]])
+        complex_tensor = _get_complex_tensor_from_tuple((real, imag))
+        self.assertTrue(
+            jnp.array_equal(jnp.imag(complex_tensor), imag),
+            "The imaginary parts should match.",
+        )
 
     def test_invalid_get_complex_tensor_from_tuple_input_type(self):
         with self.assertRaisesRegex(ValueError, "Input `x` should be a tuple"):
