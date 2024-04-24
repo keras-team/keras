@@ -1,5 +1,4 @@
 import builtins
-import collections
 import re
 
 import numpy as np
