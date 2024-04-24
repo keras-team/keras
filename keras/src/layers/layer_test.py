@@ -1,6 +1,7 @@
+import pickle
+
 import numpy as np
 import pytest
-import pickle
 
 from keras.src import backend
 from keras.src import dtype_policies

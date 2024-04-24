@@ -2,9 +2,9 @@ from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils.naming import auto_name
 from keras.src.utils.tracking import Tracker
-from keras.src.saving.keras_saveable import KerasSaveable
 
 
 @keras_export(["keras.Metric", "keras.metrics.Metric"])

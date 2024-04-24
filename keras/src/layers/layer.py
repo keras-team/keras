@@ -36,11 +36,11 @@ from keras.src.distribution import distribution_lib
 from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
 from keras.src.ops.operation import Operation
+from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
-from keras.src.saving.keras_saveable import KerasSaveable
 
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
@@ -424,7 +424,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             self.built = True
 
     def obj_type(self):
-        return 'Layer'
+        return "Layer"
 
     def add_variable(
         self,

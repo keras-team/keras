@@ -816,7 +816,7 @@ class BaseOptimizer(KerasSaveable):
             self._overwrite_model_variables_with_average_value(var_list)
 
     def obj_type(self):
-        return 'Optimizer'
+        return "Optimizer"
 
     def get_config(self):
         """Returns the config of the optimizer.

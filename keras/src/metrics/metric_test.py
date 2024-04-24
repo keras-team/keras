@@ -1,5 +1,6 @@
-import numpy as np
 import pickle
+
+import numpy as np
 
 from keras.src import backend
 from keras.src import initializers

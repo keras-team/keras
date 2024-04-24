@@ -2,8 +2,9 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
-from keras.src.utils.naming import auto_name
 from keras.src.saving.keras_saveable import KerasSaveable
+from keras.src.utils.naming import auto_name
+
 
 @keras_export(["keras.Loss", "keras.losses.Loss"])
 class Loss(KerasSaveable):
@@ -70,7 +71,7 @@ class Loss(KerasSaveable):
         return cls(**config)
 
     def obj_type(self):
-        return 'Loss'
+        return "Loss"
 
 
 def standardize_reduction(reduction):
