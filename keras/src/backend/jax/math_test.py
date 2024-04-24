@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 import pytest
 
@@ -64,11 +65,43 @@ class TestJaxMathErrors(testing.TestCase):
                 )
             )
 
-    def test_mismatched_shapes(self):
+    def test_get_complex_tensor_from_tuple_mismatched_shapes(self):
         real = jnp.array([1.0, 2.0, 3.0])
         imag = jnp.array([4.0, 5.0])
         with self.assertRaisesRegex(ValueError, "Both the real and imaginary"):
             _get_complex_tensor_from_tuple((real, imag))
+
+    def test_invalid_not_float_get_complex_tensor_from_tuple_dtype(self):
+        real = jnp.array([[1, 2, 3]])
+        imag = jnp.array([[4.0, 5.0, 6.0]])
+        expected_message = "is not of type float"
+        with self.assertRaisesRegex(ValueError, expected_message):
+            _get_complex_tensor_from_tuple((real, imag))
+
+    def test_get_complex_tensor_from_tuple_complex_tensor_creation(self):
+        real = jnp.array([1.0, 2.0])
+        imag = jnp.array([3.0, 4.0])
+        expected_complex = jax.lax.complex(real, imag)
+        result = _get_complex_tensor_from_tuple((real, imag))
+        self.assertTrue(
+            jnp.array_equal(result, expected_complex),
+            msg="Complex tensor not created correctly.",
+        )
+
+    def test_get_complex_tensor_from_tuple_output_completeness(self):
+        real = jnp.array([1.0, 2.0])
+        imag = jnp.array([3.0, 4.0])
+        complex_tensor = _get_complex_tensor_from_tuple((real, imag))
+        self.assertEqual(
+            jnp.real(complex_tensor)[0],
+            real[0],
+            msg="Real parts are not aligned.",
+        )
+        self.assertEqual(
+            jnp.imag(complex_tensor)[0],
+            imag[0],
+            msg="Imaginary parts are not aligned.",
+        )
 
     def test_stft_invalid_input_type(self):
         x = jnp.array([1, 2, 3, 4])
@@ -104,21 +137,12 @@ class TestJaxMathErrors(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "The shape of `window` must"):
             stft(x, sequence_length, sequence_stride, fft_length, window=window)
 
-    def test_invalid_not_float_get_complex_tensor_from_tuple_dtype(self):
-        real = jnp.array([[1, 2, 3]])
-        imag = jnp.array([[4.0, 5.0, 6.0]])
-        expected_message = "is not of type float"
-        with self.assertRaisesRegex(ValueError, expected_message):
-            _get_complex_tensor_from_tuple((real, imag))
-
-    def test_istft_invalid_window_shape2(self):
+    def test_istft_invalid_window_shape_2D_inputs(self):
         x = (jnp.array([[1.0, 2.0]]), jnp.array([[3.0, 4.0]]))
         sequence_length = 2
         sequence_stride = 1
         fft_length = 4
-        incorrect_window = jnp.ones(
-            (sequence_length + 1,)
-        )
+        incorrect_window = jnp.ones((sequence_length + 1,))
         with self.assertRaisesRegex(
             ValueError, "The shape of `window` must be equal to"
         ):
@@ -128,4 +152,17 @@ class TestJaxMathErrors(testing.TestCase):
                 sequence_stride,
                 fft_length,
                 window=incorrect_window,
+            )
+
+    def test_istft_1D_inputs(self):
+        real = jnp.array([1.0, 2.0, 3.0, 4.0])
+        imag = jnp.array([1.0, 2.0, 3.0, 4.0])
+        x = (real, imag)
+        sequence_length = 3
+        sequence_stride = 1
+        fft_length = 4
+        window = jnp.ones((sequence_length,))
+        with self.assertRaisesRegex(ValueError, "Input `x` must have at least"):
+            istft(
+                x, sequence_length, sequence_stride, fft_length, window=window
             )

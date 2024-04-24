@@ -204,6 +204,9 @@ def istft(
     x = _get_complex_tensor_from_tuple(x)
     dtype = jnp.real(x).dtype
 
+    if len(x.shape) < 2:
+        raise ValueError("Input `x` must have at least 2 dimensions.")
+
     expected_output_len = fft_length + sequence_stride * (x.shape[-2] - 1)
     l_pad = (fft_length - sequence_length) // 2
     r_pad = fft_length - sequence_length - l_pad
