@@ -2,24 +2,25 @@ from keras.src.layers.layer import Layer
 from keras.src.metrics.metric import Metric
 from keras.src.optimizers.optimizer import Optimizer
 from keras.src.saving import saving_lib
+from keras.src.saving.keras_saveable import KerasSaveable
 
 
-def map_trackable_variables(trackable, store, visited_trackables):
-    # If the trackable has already been saved, skip it.
-    if id(trackable) in visited_trackables:
+def map_saveable_variables(saveable, store, visited_saveables):
+    # If the saveable has already been seen, skip it.
+    if id(saveable) in visited_saveables:
         return
 
-    visited_trackables.add(id(trackable))
+    visited_saveables.add(id(saveable))
 
     variables = []
-    if isinstance(trackable, Layer):
+    if isinstance(saveable, Layer):
         variables = (
-            trackable._trainable_variables + trackable._non_trainable_variables
+            saveable._trainable_variables + saveable._non_trainable_variables
         )
-    elif isinstance(trackable, Optimizer):
-        variables = trackable._variables
-    elif isinstance(trackable, Metric):
-        variables = trackable._variables
+    elif isinstance(saveable, Optimizer):
+        variables = saveable._variables
+    elif isinstance(saveable, Metric):
+        variables = saveable._variables
     for v in variables:
         if v.path in store:
             raise ValueError(
@@ -31,30 +32,30 @@ def map_trackable_variables(trackable, store, visited_trackables):
             )
         store[v.path] = v
 
-    # Recursively save state of children trackables (layers, optimizers, etc.)
-    for child_attr, child_obj in saving_lib._walk_trackable(trackable):
-        if saving_lib._is_keras_trackable(child_obj):
-            map_trackable_variables(
+    # Recursively save state of children saveables (layers, optimizers, etc.)
+    for child_attr, child_obj in saving_lib._walk_saveable(saveable):
+        if isinstance(child_obj, KerasSaveable):
+            map_saveable_variables(
                 child_obj,
                 store,
-                visited_trackables=visited_trackables,
+                visited_saveables=visited_saveables,
             )
         elif isinstance(child_obj, (list, dict, tuple, set)):
             map_container_variables(
                 child_obj,
                 store,
-                visited_trackables=visited_trackables,
+                visited_saveables=visited_saveables,
             )
 
 
-def map_container_variables(container, store, visited_trackables):
+def map_container_variables(container, store, visited_saveables):
     if isinstance(container, dict):
         container = list(container.values())
 
-    for trackable in container:
-        if saving_lib._is_keras_trackable(trackable):
-            map_trackable_variables(
-                trackable,
+    for saveable in container:
+        if isinstance(saveable, KerasSaveable):
+            map_saveable_variables(
+                saveable,
                 store,
-                visited_trackables=visited_trackables,
+                visited_saveables=visited_saveables,
             )

@@ -41,16 +41,16 @@ def save_model(model, filepath, weights_format="h5"):
     The zip-based archive contains the following structure:
 
     - JSON-based configuration file (config.json): Records of model, layer, and
-        other trackables' configuration.
-    - H5-based trackable state files, found in respective directories, such as
+        other saveables' configuration.
+    - H5-based saveable state files, found in respective directories, such as
         model/states.npz, model/dense_layer/states.npz, etc.
     - Metadata file.
 
-    The states of Keras trackables (layers, optimizers, loss, and metrics) are
+    The states of Keras saveables (layers, optimizers, loss, and metrics) are
     automatically saved as long as they can be discovered through the attributes
     returned by `dir(Model)`. Typically, the state includes the variables
-    associated with the trackable, but some specially purposed layers may
-    contain more such as the vocabularies stored in the hashmaps. The trackables
+    associated with the saveable, but some specially purposed layers may
+    contain more such as the vocabularies stored in the hashmaps. The saveables
     define how their states are saved by exposing `save_state()` and
     `load_state()` APIs.
 
@@ -129,7 +129,7 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
             weights_store=weights_store,
             assets_store=asset_store,
             inner_path="",
-            visited_trackables=set(),
+            visited_saveables=set(),
         )
         weights_store.close()
         asset_store.close()
@@ -188,22 +188,22 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
         else:
             asset_store = None
 
-        failed_trackables = set()
+        failed_saveables = set()
         error_msgs = {}
         _load_state(
             model,
             weights_store=weights_store,
             assets_store=asset_store,
             inner_path="",
-            visited_trackables=set(),
-            failed_trackables=failed_trackables,
+            visited_saveables=set(),
+            failed_saveables=failed_saveables,
             error_msgs=error_msgs,
         )
         weights_store.close()
         if asset_store:
             asset_store.close()
 
-        if failed_trackables:
+        if failed_saveables:
             _raise_loading_failure(error_msgs)
     return model
 
@@ -223,15 +223,15 @@ def save_weights_only(model, filepath, objects_to_skip=None):
         )
     weights_store = H5IOStore(filepath, mode="w")
     if objects_to_skip is not None:
-        visited_trackables = set(id(o) for o in objects_to_skip)
+        visited_saveables = set(id(o) for o in objects_to_skip)
     else:
-        visited_trackables = set()
+        visited_saveables = set()
     _save_state(
         model,
         weights_store=weights_store,
         assets_store=None,
         inner_path="",
-        visited_trackables=visited_trackables,
+        visited_saveables=visited_saveables,
     )
     weights_store.close()
 
@@ -254,11 +254,11 @@ def load_weights_only(
             _VARS_FNAME + ".h5", archive=archive, mode="r"
         )
 
-    failed_trackables = set()
+    failed_saveables = set()
     if objects_to_skip is not None:
-        visited_trackables = set(id(o) for o in objects_to_skip)
+        visited_saveables = set(id(o) for o in objects_to_skip)
     else:
-        visited_trackables = set()
+        visited_saveables = set()
     error_msgs = {}
     _load_state(
         model,
@@ -266,25 +266,25 @@ def load_weights_only(
         assets_store=None,
         inner_path="",
         skip_mismatch=skip_mismatch,
-        visited_trackables=visited_trackables,
-        failed_trackables=failed_trackables,
+        visited_saveables=visited_saveables,
+        failed_saveables=failed_saveables,
         error_msgs=error_msgs,
     )
     weights_store.close()
     if archive:
         archive.close()
 
-    if failed_trackables:
+    if failed_saveables:
         _raise_loading_failure(error_msgs, warn_only=skip_mismatch)
 
 
 def _raise_loading_failure(error_msgs, warn_only=False):
     first_key = list(error_msgs.keys())[0]
-    ex_trackable, ex_error = error_msgs[first_key]
+    ex_saveable, ex_error = error_msgs[first_key]
     msg = (
         f"A total of {len(error_msgs)} objects could not "
         "be loaded. Example error message for "
-        f"object {ex_trackable}:\n\n"
+        f"object {ex_saveable}:\n\n"
         f"{ex_error}\n\n"
         "List of objects that could not be loaded:\n"
         f"{[x[0] for x in error_msgs.values()]}"
@@ -318,30 +318,30 @@ def _name_key(name):
     return name
 
 
-def _walk_trackable(trackable):
+def _walk_saveable(saveable):
     from keras.src.saving.keras_saveable import KerasSaveable
 
-    if not isinstance(trackable, KerasSaveable):
+    if not isinstance(saveable, KerasSaveable):
         raise ValueError(
-            "Expected `trackable` to be an "
+            "Expected object to be an "
             "instance of `KerasSaveable`, but "
-            f"got {trackable=}."
+            f"got {saveable} of type {type(saveable)}"
         )
 
-    obj_type = trackable._obj_type()
+    obj_type = saveable._obj_type()
     attr_skiplist = get_attr_skiplist(obj_type)
 
     # Save all layers directly tracked by Sequential and Functional first.
     # This helps avoid ordering concerns for subclassed Sequential or Functional
     # models with extra attributes--the internal Keras state take precedence.
     if obj_type in ("Sequential", "Functional"):
-        yield "layers", trackable.layers
+        yield "layers", saveable.layers
 
-    for child_attr in sorted(dir(trackable), key=lambda x: _name_key(x)):
+    for child_attr in sorted(dir(saveable), key=lambda x: _name_key(x)):
         if child_attr.startswith("__") or child_attr in attr_skiplist:
             continue
         try:
-            child_obj = getattr(trackable, child_attr)
+            child_obj = getattr(saveable, child_attr)
         except Exception:
             # Avoid raising the exception when visiting the attributes.
             continue
@@ -349,26 +349,28 @@ def _walk_trackable(trackable):
 
 
 def _save_state(
-    trackable,
+    saveable,
     weights_store,
     assets_store,
     inner_path,
-    visited_trackables,
+    visited_saveables,
 ):
-    # If the trackable has already been saved, skip it.
-    if id(trackable) in visited_trackables:
+    from keras.src.saving.keras_saveable import KerasSaveable
+
+    # If the saveable has already been saved, skip it.
+    if id(saveable) in visited_saveables:
         return
 
-    if hasattr(trackable, "save_own_variables") and weights_store:
-        trackable.save_own_variables(weights_store.make(inner_path))
-    if hasattr(trackable, "save_assets") and assets_store:
-        trackable.save_assets(assets_store.make(inner_path))
+    if hasattr(saveable, "save_own_variables") and weights_store:
+        saveable.save_own_variables(weights_store.make(inner_path))
+    if hasattr(saveable, "save_assets") and assets_store:
+        saveable.save_assets(assets_store.make(inner_path))
 
-    visited_trackables.add(id(trackable))
+    visited_saveables.add(id(saveable))
 
-    # Recursively save state of children trackables (layers, optimizers, etc.)
-    for child_attr, child_obj in _walk_trackable(trackable):
-        if _is_keras_trackable(child_obj):
+    # Recursively save state of children saveables (layers, optimizers, etc.)
+    for child_attr, child_obj in _walk_saveable(saveable):
+        if isinstance(child_obj, KerasSaveable):
             _save_state(
                 child_obj,
                 weights_store,
@@ -376,7 +378,7 @@ def _save_state(
                 inner_path=file_utils.join(inner_path, child_attr).replace(
                     "\\", "/"
                 ),
-                visited_trackables=visited_trackables,
+                visited_saveables=visited_saveables,
             )
         elif isinstance(child_obj, (list, dict, tuple, set)):
             _save_container_state(
@@ -386,55 +388,57 @@ def _save_state(
                 inner_path=file_utils.join(inner_path, child_attr).replace(
                     "\\", "/"
                 ),
-                visited_trackables=visited_trackables,
+                visited_saveables=visited_saveables,
             )
 
 
 def _load_state(
-    trackable,
+    saveable,
     weights_store,
     assets_store,
     inner_path,
     skip_mismatch=False,
-    visited_trackables=None,
-    failed_trackables=None,
+    visited_saveables=None,
+    failed_saveables=None,
     error_msgs=None,
 ):
-    if visited_trackables and id(trackable) in visited_trackables:
+    from keras.src.saving.keras_saveable import KerasSaveable
+
+    if visited_saveables and id(saveable) in visited_saveables:
         return
 
     failure = False
 
-    if hasattr(trackable, "load_own_variables") and weights_store:
-        if skip_mismatch or failed_trackables is not None:
+    if hasattr(saveable, "load_own_variables") and weights_store:
+        if skip_mismatch or failed_saveables is not None:
             try:
-                trackable.load_own_variables(weights_store.get(inner_path))
+                saveable.load_own_variables(weights_store.get(inner_path))
             except Exception as e:
-                failed_trackables.add(id(trackable))
-                error_msgs[id(trackable)] = trackable, e
+                failed_saveables.add(id(saveable))
+                error_msgs[id(saveable)] = saveable, e
                 failure = True
         else:
-            trackable.load_own_variables(weights_store.get(inner_path))
+            saveable.load_own_variables(weights_store.get(inner_path))
 
-    if hasattr(trackable, "load_assets") and assets_store:
-        if skip_mismatch or failed_trackables is not None:
+    if hasattr(saveable, "load_assets") and assets_store:
+        if skip_mismatch or failed_saveables is not None:
             try:
-                trackable.load_assets(assets_store.get(inner_path))
+                saveable.load_assets(assets_store.get(inner_path))
             except Exception as e:
-                failed_trackables.add(id(trackable))
-                error_msgs[id(trackable)] = trackable, e
+                failed_saveables.add(id(saveable))
+                error_msgs[id(saveable)] = saveable, e
                 failure = True
         else:
-            trackable.load_assets(assets_store.get(inner_path))
+            saveable.load_assets(assets_store.get(inner_path))
 
-    if failed_trackables is not None:
-        currently_failed = len(failed_trackables)
+    if failed_saveables is not None:
+        currently_failed = len(failed_saveables)
     else:
         currently_failed = 0
 
-    # Recursively load states for Keras trackables such as layers/optimizers.
-    for child_attr, child_obj in _walk_trackable(trackable):
-        if _is_keras_trackable(child_obj):
+    # Recursively load states for Keras saveables such as layers/optimizers.
+    for child_attr, child_obj in _walk_saveable(saveable):
+        if isinstance(child_obj, KerasSaveable):
             _load_state(
                 child_obj,
                 weights_store,
@@ -443,8 +447,8 @@ def _load_state(
                     "\\", "/"
                 ),
                 skip_mismatch=skip_mismatch,
-                visited_trackables=visited_trackables,
-                failed_trackables=failed_trackables,
+                visited_saveables=visited_saveables,
+                failed_saveables=failed_saveables,
                 error_msgs=error_msgs,
             )
         elif isinstance(child_obj, (list, dict, tuple, set)):
@@ -456,48 +460,50 @@ def _load_state(
                     "\\", "/"
                 ),
                 skip_mismatch=skip_mismatch,
-                visited_trackables=visited_trackables,
-                failed_trackables=failed_trackables,
+                visited_saveables=visited_saveables,
+                failed_saveables=failed_saveables,
                 error_msgs=error_msgs,
             )
 
-    if failed_trackables is not None:
-        newly_failed = len(failed_trackables) - currently_failed
+    if failed_saveables is not None:
+        newly_failed = len(failed_saveables) - currently_failed
     else:
         newly_failed = 0
 
     if not failure:
-        if visited_trackables is not None and newly_failed <= 0:
-            visited_trackables.add(id(trackable))
-        if id(trackable) in failed_trackables:
-            failed_trackables.remove(id(trackable))
-            error_msgs.pop(id(trackable))
+        if visited_saveables is not None and newly_failed <= 0:
+            visited_saveables.add(id(saveable))
+        if id(saveable) in failed_saveables:
+            failed_saveables.remove(id(saveable))
+            error_msgs.pop(id(saveable))
 
 
 def _save_container_state(
-    container, weights_store, assets_store, inner_path, visited_trackables
+    container, weights_store, assets_store, inner_path, visited_saveables
 ):
+    from keras.src.saving.keras_saveable import KerasSaveable
+
     used_names = {}
     if isinstance(container, dict):
         container = list(container.values())
 
-    for trackable in container:
-        if _is_keras_trackable(trackable):
-            # Do NOT address the trackable via `trackable.name`, since
+    for saveable in container:
+        if isinstance(saveable, KerasSaveable):
+            # Do NOT address the saveable via `saveable.name`, since
             # names are usually autogenerated and thus not reproducible
             # (i.e. they may vary across two instances of the same model).
-            name = naming.to_snake_case(trackable.__class__.__name__)
+            name = naming.to_snake_case(saveable.__class__.__name__)
             if name in used_names:
                 used_names[name] += 1
                 name = f"{name}_{used_names[name]}"
             else:
                 used_names[name] = 0
             _save_state(
-                trackable,
+                saveable,
                 weights_store,
                 assets_store,
                 inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
-                visited_trackables=visited_trackables,
+                visited_saveables=visited_saveables,
             )
 
 
@@ -507,30 +513,32 @@ def _load_container_state(
     assets_store,
     inner_path,
     skip_mismatch,
-    visited_trackables,
-    failed_trackables,
+    visited_saveables,
+    failed_saveables,
     error_msgs,
 ):
+    from keras.src.saving.keras_saveable import KerasSaveable
+
     used_names = {}
     if isinstance(container, dict):
         container = list(container.values())
 
-    for trackable in container:
-        if _is_keras_trackable(trackable):
-            name = naming.to_snake_case(trackable.__class__.__name__)
+    for saveable in container:
+        if isinstance(saveable, KerasSaveable):
+            name = naming.to_snake_case(saveable.__class__.__name__)
             if name in used_names:
                 used_names[name] += 1
                 name = f"{name}_{used_names[name]}"
             else:
                 used_names[name] = 0
             _load_state(
-                trackable,
+                saveable,
                 weights_store,
                 assets_store,
                 inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
                 skip_mismatch=skip_mismatch,
-                visited_trackables=visited_trackables,
-                failed_trackables=failed_trackables,
+                visited_saveables=visited_saveables,
+                failed_saveables=failed_saveables,
                 error_msgs=error_msgs,
             )
 
@@ -797,15 +805,3 @@ def get_attr_skiplist(obj_type):
         f"saving_attr_skiplist_{obj_type}", skiplist
     )
     return skiplist
-
-
-def _is_keras_trackable(obj):
-    return isinstance(
-        obj,
-        (
-            Layer,
-            Optimizer,
-            Metric,
-            Loss,
-        ),
-    )
