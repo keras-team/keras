@@ -1,10 +1,8 @@
 import inspect
-import io
 import json
 import typing
 import warnings
 
-import keras.src.saving.saving_lib as saving_lib
 from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
