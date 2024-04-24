@@ -328,7 +328,7 @@ def _walk_trackable(trackable):
             f"got {trackable=}."
         )
 
-    obj_type = trackable.obj_type()
+    obj_type = trackable._obj_type()
     attr_skiplist = get_attr_skiplist(obj_type)
 
     # Save all layers directly tracked by Sequential and Functional first.
