@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import pickle
 
 from keras.src import backend
 from keras.src import losses as losses_module
@@ -225,6 +226,11 @@ class LossTest(testing.TestCase):
             np.sum(sample_weight * (y_true - y_pred) ** 2) / 4,
             loss,
         )
+
+    def test_pickle(self):
+        loss = losses_module.get("mse")
+        loss = pickle.loads(pickle.dumps(loss))
+        self.assertEqual(loss, losses_module.mean_squared_error)
 
     def test_get_method(self):
         loss = losses_module.get("mse")

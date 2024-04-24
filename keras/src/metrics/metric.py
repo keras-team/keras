@@ -4,10 +4,11 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.utils.naming import auto_name
 from keras.src.utils.tracking import Tracker
+from keras.src.saving.keras_saveable import KerasSaveable
 
 
 @keras_export(["keras.Metric", "keras.metrics.Metric"])
-class Metric:
+class Metric(KerasSaveable):
     """Encapsulates metric logic and state.
 
     Args:
@@ -178,6 +179,9 @@ class Metric:
     @property
     def dtype(self):
         return self._dtype
+
+    def obj_type(self):
+        return "Metric"
 
     def add_variable(
         self, shape, initializer, dtype=None, aggregation="sum", name=None

@@ -246,6 +246,15 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(model.input_shape, (None, 2))
         self.assertEqual(model.output_shape, (None, 4))
 
+    def test_pickleable(self):
+        model = Sequential(name="seq")
+        inputs = Input(shape=(2,))
+        model.add(inputs)
+        model.add(layers.Dense(4))
+
+        reloaded = pickle.loads(pickle.dumps(model))
+        assert reloaded.get_config() == model.get_config()
+
     def test_bad_layer(self):
         model = Sequential(name="seq")
         with self.assertRaisesRegex(ValueError, "Only instances of"):

@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 
 from keras.src import backend
 from keras.src import initializers
@@ -164,6 +165,11 @@ class MetricTest(testing.TestCase):
             ExampleMetric(name="mse"),
             custom_objects={"ExampleMetric": ExampleMetric},
         )
+
+    def test_pickle(self):
+        metric = metrics_module.get("mse")
+        reloaded = pickle.loads(pickle.dumps(metric))
+        self.assertIsInstance(reloaded, metrics_module.MeanSquaredError)
 
     def test_get_method(self):
         metric = metrics_module.get("mse")

@@ -40,6 +40,7 @@ from keras.src.utils import python_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
+from keras.src.saving.keras_saveable import KerasSaveable
 
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
@@ -56,7 +57,7 @@ else:
 
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
-class Layer(BackendLayer, Operation):
+class Layer(BackendLayer, Operation, KerasSaveable):
     """This is the class from which all layers inherit.
 
     A layer is a callable object that takes as input one or more tensors and
@@ -421,6 +422,9 @@ class Layer(BackendLayer, Operation):
             elif "shapes_dict" in config:
                 self.build(**config["shapes_dict"])
             self.built = True
+
+    def obj_type(self):
+        return 'Layer'
 
     def add_variable(
         self,

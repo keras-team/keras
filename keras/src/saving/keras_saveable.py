@@ -1,11 +1,18 @@
 import io
 
 
-class KerasPickleable:
+class KerasSaveable:
     # Note: renaming this function will cause old pickles to be broken.
     # This is probably not a huge deal, as pickle should not be a recommended
     # saving format -- it should only be supported for use with distributed
     # computing frameworks.
+
+    def obj_type(self):
+        raise NotImplementedError(
+            "KerasSaveable subclases must provide an "
+            "implementation for `obj_type()`"
+        )
+
     @classmethod
     def _unpickle_model(cls, bytesio):
         import keras.src.saving.saving_lib as saving_lib

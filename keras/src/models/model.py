@@ -11,7 +11,6 @@ from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_trackable_variables
 from keras.src.saving import saving_api
-from keras.src.saving.keras_pickleable import KerasPickleable
 from keras.src.trainers import trainer as base_trainer
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
@@ -33,7 +32,7 @@ else:
 
 
 @keras_export(["keras.Model", "keras.models.Model"])
-class Model(Trainer, base_trainer.Trainer, Layer, KerasPickleable):
+class Model(Trainer, base_trainer.Trainer, Layer):
     """A model grouping layers into an object with training/inference features.
 
     There are three ways to instantiate a `Model`:

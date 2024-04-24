@@ -1,4 +1,3 @@
-from keras.src.saving.keras_pickleable import KerasPickleable
 from keras.src.saving.object_registration import CustomObjectScope
 from keras.src.saving.object_registration import custom_object_scope
 from keras.src.saving.object_registration import get_custom_objects
