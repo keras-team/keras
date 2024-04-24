@@ -1,9 +1,9 @@
 import keras
 from keras.src.api_export import keras_export
-from keras import tree
+from keras.src.tree import tree_api as tree
 from keras.src.ops.symbolic_arguments import SymbolicArguments
 from keras.src.models import Functional
-from keras import Sequential
+from keras.src.models import Sequential
 from keras.src.models.functional import is_input_keras_tensor
 
 

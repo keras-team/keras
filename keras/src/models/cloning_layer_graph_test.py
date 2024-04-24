@@ -5,11 +5,12 @@ import numpy as np
 import keras
 from keras import Input
 from keras import layers
-from keras import Model, Sequential
+from keras.src.models import Model
+from keras.src.models import Sequential
 from keras.src.models import Functional
 from keras.src.models.functional import is_input_keras_tensor
 from keras.src.ops.node import Node
-from keras import tree
+from keras.src.tree import tree_api as tree
 
 from keras.src.models.cloning_layer_graph import _walkback_one_tensor
 from keras.src.models.cloning_layer_graph import _handle_input_node
