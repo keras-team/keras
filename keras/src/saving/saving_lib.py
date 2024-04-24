@@ -319,8 +319,6 @@ def _name_key(name):
 
 
 def _walk_trackable(trackable):
-    from keras.src.models import Functional
-    from keras.src.models import Sequential
     from keras.src.saving.keras_saveable import KerasSaveable
 
     if not isinstance(trackable, KerasSaveable):
