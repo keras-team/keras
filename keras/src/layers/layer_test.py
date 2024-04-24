@@ -8,6 +8,7 @@ from keras.src import metrics
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.layers import input_spec
 
 
 class LayerTest(testing.TestCase):
@@ -945,6 +946,25 @@ class LayerTest(testing.TestCase):
         self.assertLen(model.trainable_weights, 2)
         self.assertLen(model.non_trainable_weights, 0)
 
+    def test_input_spec_setter(self):
+        layer = layers.Dense(2)
+        layer.input_spec = input_spec.InputSpec(ndim=2, shape=(None, 4))
+        self.assertEqual(layer.input_spec.ndim, 2)
+        self.assertEqual(layer.input_spec.shape, (None, 4))
+        with self.assertRaisesRegex(
+            TypeError, "must be an instance or a list of"
+        ):
+            layer.input_spec = 123
+
+        # Test the list of `InputSpec`
+        layer = layers.SimpleRNN(2)
+        layer.input_spec = [input_spec.InputSpec(ndim=3)]
+        self.assertEqual(layer.input_spec[0].ndim, 3)
+        with self.assertRaisesRegex(
+            TypeError, "must be an instance or a list of"
+        ):
+            layer.input_spec = [123]
+
     def test_dtype_policy_setter(self):
         layer = layers.Dense(2)
         # Set by string
@@ -957,3 +977,11 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.dtype_policy.name, "mixed_float16")
         self.assertEqual(layer.dtype_policy.compute_dtype, "float16")
         self.assertEqual(layer.dtype_policy.variable_dtype, "float32")
+
+    def test_supports_masking_setter(self):
+        layer = layers.Dense(2)
+        layer.supports_masking = True
+        self.assertTrue(layer.supports_masking)
+
+        with self.assertRaisesRegex(TypeError, "must be a boolean"):
+            layer.supports_masking = None

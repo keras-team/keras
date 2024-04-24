@@ -351,6 +351,13 @@ class Layer(BackendLayer, Operation):
 
     @input_spec.setter
     def input_spec(self, value):
+        _value = [value] if not isinstance(value, list) else value
+        for v in _value:
+            if v is not None and not isinstance(v, input_spec.InputSpec):
+                raise TypeError(
+                    "`input_spec` must be an instance or a list of "
+                    f"`InputSpec`. Received: {value}"
+                )
         self._input_spec = value
 
     @utils.default
@@ -711,6 +718,10 @@ class Layer(BackendLayer, Operation):
 
     @supports_masking.setter
     def supports_masking(self, value):
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"`supports_masking` must be a boolean. Received: {value}"
+            )
         self._supports_masking = value
 
     @utils.default
