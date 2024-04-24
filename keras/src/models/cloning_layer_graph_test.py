@@ -30,7 +30,7 @@ def setUpModule():
 
 def moduleCleanUp():
     # restore original image format
-    image_format = keras.config.set_image_data_format(_image_format)
+    keras.config.set_image_data_format(_image_format)
 
 
 unittest.addModuleCleanup(moduleCleanUp)
@@ -121,12 +121,12 @@ def is_same_layer_graph(node_list1, node_list2, equivalent_nodes):
         return False
 
     for item1, item2 in zip(node_list1.values(), node_list2.values()):
-        if type(item1) != type(item2):
+        if not isinstance(item1, type(item2)):
             if not is_equivalent_operation(item1, item2):
                 return False
 
         if isinstance(item1, Node):
-            if type(item1.operation) != type(item2.operation):
+            if not isinstance(item1.operation, type(item2.operation)):
                 if not is_equivalent_operation(
                     item1.operation, item2.operation
                 ):
@@ -813,7 +813,7 @@ class CloningNodegraphTest(unittest.TestCase):
                 return layer(*args, **kwargs)
 
         try:
-            output = clone_layer_graph(model.input, model.output, swap_layer)
+            clone_layer_graph(model.input, model.output, swap_layer)
             assert False, (
                 "A clone_fn function returning a structure that is different"
                 "from the expected structure at that point in the graph should"
