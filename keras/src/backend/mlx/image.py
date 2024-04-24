@@ -8,6 +8,30 @@ from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.backend.mlx.core import to_mlx_dtype
 
 
+def rgb_to_grayscale(image, data_format="channels_last"):
+    image = convert_to_tensor(image)
+    if data_format == "channels_first":
+        if len(image.shape) == 4:
+            image = mx.transpose(image, (0, 2, 3, 1))
+        elif len(image.shape) == 3:
+            image = mx.transpose(image, (1, 2, 0))
+        else:
+            raise ValueError(
+                "Invalid input rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"image.shape={image.shape}"
+            )
+    red, green, blue = image[..., 0], image[..., 1], image[..., 2]
+    grayscale_image = 0.2989 * red + 0.5870 * green + 0.1140 * blue
+    grayscale_image = mx.expand_dims(grayscale_image, axis=-1)
+    if data_format == "channels_first":
+        if len(image.shape) == 4:
+            grayscale_image = mx.transpose(grayscale_image, (0, 3, 1, 2))
+        elif len(image.shape) == 3:
+            grayscale_image = mx.transpose(grayscale_image, (2, 0, 1))
+    return mx.array(grayscale_image)
+
+
 def _mirror_index_fixer(index, size):
     s = size - 1  # Half-wavelength of triangular wave
     # Scaled, integer-valued version of the triangular wave |x - round(x)|
