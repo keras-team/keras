@@ -585,19 +585,48 @@ def maximum(x1, x2):
 
 def median(x, axis=-1, keepdims=False):
     x = convert_to_tensor(x)
-    x_sorted = mx.sort(x, axis=axis)
-    axis_size = x_sorted.shape[axis]
-    medians = mx.take(
-        x_sorted, indices=mx.array([(axis_size // 2) - 1]), axis=axis
-    )
-    if not keepdims:
-        medians = mx.squeeze(medians, axis=axis)
+
+    if axis is None:
+        x = x.flatten()
+        axis = (0,)
+    elif isinstance(axis, int):
+        axis = (axis,)
+
+    axis = tuple(sorted(ax if ax >= 0 else ax + x.ndim for ax in axis))
+
+    transposed_axes = [i for i in range(x.ndim) if i not in axis] + list(axis)
+    x = x.transpose(*transposed_axes)
+
+    shape_without_axes = tuple(x.shape[i] for i in range(x.ndim - len(axis)))
+    x = x.reshape(shape_without_axes + (-1,))
+
+    x_sorted = mx.sort(x, axis=-1)
+    mid_index = x_sorted.shape[-1] // 2
+    if x_sorted.shape[-1] % 2 == 0:
+        lower = mx.take(x_sorted, mx.array([mid_index - 1]), axis=-1)
+        upper = mx.take(x_sorted, mx.array([mid_index]), axis=-1)
+        medians = (lower + upper) / 2
+    else:
+        medians = mx.take(x_sorted, mx.array([mid_index]), axis=-1)
+
+    if keepdims:
+        final_shape = list(shape_without_axes) + [1] * len(axis)
+        medians = medians.reshape(final_shape)
+        index_value_pairs = [
+            (i, transposed_axes[i]) for i in range(len(transposed_axes))
+        ]
+        index_value_pairs.sort(key=lambda pair: pair[1])
+        sorted_indices = [pair[0] for pair in index_value_pairs]
+        medians = medians.transpose(*sorted_indices)
+    else:
+        medians = medians.squeeze()
+
     return medians
 
 
 def meshgrid(*x, indexing="xy"):
-    # TODO: Implement inline like linspace
-    raise NotImplementedError("The MLX backend doesn't support meshgrid yet")
+    x = [convert_to_tensor(xi) for xi in x]
+    return mx.meshgrid(*x, indexing=indexing)
 
 
 def min(x, axis=None, keepdims=False, initial=None):
@@ -826,6 +855,7 @@ def tensordot(x1, x2, axes=2):
 
 
 def round(x, decimals=0):
+    x = convert_to_tensor(x)
     return mx.round(x, decimals=decimals)
 
 
