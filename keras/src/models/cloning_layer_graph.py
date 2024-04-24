@@ -6,13 +6,13 @@ from keras.src.models import Sequential
 from keras.src.models.functional import is_input_keras_tensor
 from keras.src.ops.symbolic_arguments import SymbolicArguments
 
-# Implementation note: Why not modify the existing functional.clone_graph_nodes ?
+# Implementation note: Why not modify the existing functional.clone_graph_nodes?
 # Context: The purpose of the existing function is to create a new
 #          functional model from any intermediate Keras tensors.
 #
 #       1) The existing function does not re-execute the operations (layers)
-#          in the graph. This new function does, as it is necessary to run clone_fn.
-#          => best to keep them distinct functions
+#          in the graph. This new function does, as it is necessary to run
+#          clone_fn. Therefore, it is best to keep them distinct functions.
 #       2) The existing function copies input tensors to replace them
 #          with proper InputLayers. This is essential when creating a subgraph
 #          starting at intermediate tensors. This new function always assumes
@@ -23,10 +23,10 @@ from keras.src.ops.symbolic_arguments import SymbolicArguments
 
 @keras_export("keras.models.clone_layer_graph")
 def clone_layer_graph(input, output, clone_fn, enter_nested=True):
-    """Clone the layer graph between input and output. Actual layers are NOT cloned,
-    but shared. Only the graph of layers is re-created. The clone_fn function
-    is called when cloning each node (i.e. layer invocation in the graph) which
-    allows you to modify the topology of the graph.
+    """Clone the layer graph between input and output. Actual layers are NOT,
+    cloned but shared. Only the graph of layers is re-created. The clone_fn
+    function is called when cloning each node (i.e. layer invocation in the
+     graph) which allows you to modify the topology of the graph.
 
     Recommended usage:
     ```python
@@ -41,10 +41,10 @@ def clone_layer_graph(input, output, clone_fn, enter_nested=True):
     - When cloning a layer graph, shared layers remain shared.
     - Since no actual cloning of layers occurs, layers do not need to have
       serialization implemented (i.e. implement `get_config()`).
-    - Cloning a layer graph with nested subgraphs (i.e. layers that are themselves
-      Functional or Sequential models) is possible. If a clone_fn is provided,
-      the nested subgraph will be cloned as a new Functional (Note: this
-      will change Sequential subgraphs to Functional)
+    - Cloning a layer graph with nested subgraphs (i.e. layers that are
+      themselves Functional or Sequential models) is possible. If a clone_fn is
+      provided, the nested subgraph will be cloned as a new Functional (Note:
+      this will change Sequential subgraphs to Functional)
 
     Args:
         input: Instance of `KerasTensor` or pytree of `KerasTensor`s.
@@ -54,14 +54,16 @@ def clone_layer_graph(input, output, clone_fn, enter_nested=True):
                `model = keras.Model(intermediate_tensors, output)` which will
                create proper `Input` tensors instead of the intermediate ones.
         output: Instance of `KerasTensor` or pytree of `KerasTensor`s.
-        clone_fn: Callable that will be called when each layer in the layer graph is
-               invoked. The expected signature is `clone_fn(layer, *args, **kwargs)`.
+        clone_fn: Callable that will be called when each layer in the layer
+               graph is invoked. The expected signature is
+               `clone_fn(layer, *args, **kwargs)`.
                To leave a layer unchanged, `return layer(*args, **kwargs)`.
 
     Examples:
 
     ```python
-    # clone the layer graph identically (actual layers will be shared, not cloned)
+    # Clone the layer graph identically.
+    # Actual layers will be shared, not cloned.
     def clone_fn(layer, *args, **kwargs):
         output = layer(*args, **kwargs)  # identity call
         return output
@@ -98,7 +100,8 @@ def clone_layer_graph(input, output, clone_fn, enter_nested=True):
     ```
 
     ```python
-    # Collect inner activations from the model and create a new model that returns them
+    # Collect inner activations from the model and
+    # create a new model that returns them.
     activations = []
     def clone_fn(layer, *args, **kwargs):
         output = layer(*args, **kwargs)  # identity call
@@ -111,7 +114,8 @@ def clone_layer_graph(input, output, clone_fn, enter_nested=True):
     ```
     """
 
-    # input is only used for checking that all inputs are real keras.Input layers.
+    # input is only used for checking that
+    # all inputs are real keras.Input layers.
     for t in tree.flatten(input):
         if not (isinstance(t, keras.KerasTensor) and is_input_keras_tensor(t)):
             raise ValueError(
@@ -136,15 +140,17 @@ def clone_layer_graph(input, output, clone_fn, enter_nested=True):
     # keras.ops.node.Node: visited nodes are stored as {id(node):True} to make
     #                      sure they are visited once and once only during graph
     #                      traversal.
-    # keras.KerasTensor:   computed output tensors are stored in "visited", keyed
-    #                      by the id of the original symbolic tensor in the graph.
-    #                      Gathering input tensors for a node operation is simply:
-    # args, kwargs = SymbolicArguments(*node.arguments.args, **node.arguments.kwargs).fill_in(visited)
+    # keras.KerasTensor: computed output tensors are stored in "visited",
+    #                    keyed by the id of the original symbolic tensor in
+    #                    the graph. Gathering input tensors for a node
+    #                    operation is simply:
+    # args, kwargs = SymbolicArguments(*node.arguments.args,
+    #                                  **node.arguments.kwargs).fill_in(visited)
     # keras.Functional / keras.Sequential:
-    #                      Nested subgraphs, once cloned, are also stored in "visited"
-    #                      keyed by the id of the original nested subgraph. When visited
-    #                      a second time, the new, cloned, subgraph is retrieved from
-    #                      "visited" and used.
+    #                    Nested subgraphs, once cloned, are also stored in
+    #                    "visited" keyed by the id of the original nested
+    #                    subgraph. When visited a second time, the new, cloned,
+    #                    subgraph is retrieved from "visited" and used.
     visited = {}
     # This implements depth-first graph traversal with node execution
     # triggered as soon as all inputs to a node have been computed.
@@ -164,19 +170,21 @@ def _handle_nested_node(node, visited, clone_fn, enter_nested):
         node.operation, Sequential
     )
 
-    # if this nested model was already visited, return the new op that was created
+    # If this nested model was already visited,
+    # return the new op that was created.
     if nested and enter_nested and id(node.operation) in visited:
         return visited[id(node.operation)]
 
-    # enter nested layers only once, after that, just run the layer (i.e. do nothing here)
+    # Enter nested layers only once, after that,
+    # just run the layer (i.e. do nothing here).
     if nested and enter_nested and id(node.operation) not in visited:
         visited.update(
             {id(node.operation): node.operation}
         )  # enter nested layers only once
 
-        # Note: the subgraph of a nested layer is unique, even if the nested layer
-        # is used more than once in the model graph: it's the subgraph between
-        # node.operation.input and node.operation.output.
+        # Note: the subgraph of a nested layer is unique, even if the nested
+        # layer is used more than once in the model graph: it's the subgraph
+        #  between node.operation.input and node.operation.output.
 
         output = _walk_back_tensors(
             node.operation.output, visited, clone_fn, enter_nested
@@ -217,12 +225,14 @@ def _handle_input_node(node, visited):
 
 def _clone_node(node, operation, visited, clone_fn):
     # now that all inputs are computed, compute output value
-    arguments = SymbolicArguments(*node.arguments.args, **node.arguments.kwargs)
-    # if some values are missing, i.e. have not been computed yet,  this call will fail
+    arguments = SymbolicArguments(*node.arguments.args,
+                                  **node.arguments.kwargs)
+    # If some values are missing, i.e. have not been computed yet,
+    # this call will fail.
     args, kwargs = arguments.fill_in(visited)
 
-    # when there is no clone_fn, clone by running the original operation
-    # otherwise, clone by running clone_fn
+    # When there is no clone_fn, clone by running the original operation
+    # otherwise, clone by running clone_fn.
     if clone_fn:
         output = clone_fn(operation, *args, **kwargs)
     else:
@@ -242,7 +252,8 @@ def _clone_node(node, operation, visited, clone_fn):
             f"Error in clone_layer_graph: the output returned from clone_fn "
             f"must match the input of the following node. \n"
             f"clone_fn returned {output} \n"
-            f"while the expected number of output tensors was: {len(node.output_tensors)}"
+            f"while the expected number of output "
+            f"tensors was: {len(node.output_tensors)}"
         )
 
     # write the new outputs to "visited"
@@ -252,9 +263,9 @@ def _clone_node(node, operation, visited, clone_fn):
 
 def _walk_back_tensors(tensor_struct, visited, clone_fn, enter_nested):
     # tensor_struct will be an actual pytree on the first call:
-    # functree_walk_back_tensors(model.output)
-    # On subsequent calls, it will be a flat list because the function will be called as:
-    # functree_walk_back_tensors(node.input_tensors) and node.input_tensors is a flat list.
+    # _walk_back_tensors(model.output)
+    # After that, it will be a flat list because the function will be called as:
+    # _walk_back_tensors(node.input_tensors) and node.input_tensors is a flat list.
     tensors = tree.flatten(tensor_struct)
 
     for tensor in tensors:  # tensors: list of flattened outputs
@@ -273,7 +284,8 @@ def _walk_back_tensors(tensor_struct, visited, clone_fn, enter_nested):
         if _handle_input_node(node, visited):
             continue
 
-        # handle the nested node case, potentially cloning the nest as new nested layer new_op
+        # Handle the nested node case, potentially
+        # cloning the nest as new nested layer new_op.
         new_op = _handle_nested_node(node, visited, clone_fn, enter_nested)
 
         # recursively continue iterating to gather all inputs
