@@ -672,10 +672,8 @@ class CloningNodegraphTest(unittest.TestCase):
         # create layers to be inserted beforehand so that we can use the same
         # layers in the reference model constructed by hand for comparison
         cnv11layers = {
-            id(cnv33a):
-                layers.Conv2D(8, (1, 1), padding="same", name="cnv11a"),
-            id(cnv33b):
-                layers.Conv2D(8, (1, 1), padding="same", name="cnv11b"),
+            id(cnv33a): layers.Conv2D(8, (1, 1), padding="same", name="cnv11a"),
+            id(cnv33b): layers.Conv2D(8, (1, 1), padding="same", name="cnv11b"),
         }
 
         def insert_layer_after_conv(layer, *args, **kwargs):

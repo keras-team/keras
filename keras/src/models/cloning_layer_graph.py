@@ -225,8 +225,7 @@ def _handle_input_node(node, visited):
 
 def _clone_node(node, operation, visited, clone_fn):
     # now that all inputs are computed, compute output value
-    arguments = SymbolicArguments(*node.arguments.args,
-                                  **node.arguments.kwargs)
+    arguments = SymbolicArguments(*node.arguments.args, **node.arguments.kwargs)
     # If some values are missing, i.e. have not been computed yet,
     # this call will fail.
     args, kwargs = arguments.fill_in(visited)
