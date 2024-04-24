@@ -319,23 +319,16 @@ def _name_key(name):
 
 
 def _walk_trackable(trackable):
-    from keras.src.models import Functional
-    from keras.src.models import Sequential
+    from keras.src.saving.keras_saveable import KerasSaveable
 
-    if isinstance(trackable, Sequential):
-        obj_type = "Sequential"
-    elif isinstance(trackable, Functional):
-        obj_type = "Functional"
-    elif isinstance(trackable, Layer):
-        obj_type = "Layer"
-    elif isinstance(trackable, Optimizer):
-        obj_type = "Optimizer"
-    elif isinstance(trackable, Metric):
-        obj_type = "Metric"
-    elif isinstance(trackable, Loss):
-        obj_type = "Loss"
-    else:
-        raise ValueError(f"Invalid obj_type: {obj_type}")
+    if not isinstance(trackable, KerasSaveable):
+        raise ValueError(
+            "Expected `trackable` to be an "
+            "instance of `KerasSaveable`, but "
+            f"got {trackable=}."
+        )
+
+    obj_type = trackable._obj_type()
     attr_skiplist = get_attr_skiplist(obj_type)
 
     # Save all layers directly tracked by Sequential and Functional first.
@@ -793,7 +786,13 @@ def get_attr_skiplist(obj_type):
         ref_obj = Loss()
         skiplist += dir(ref_obj)
     else:
-        raise ValueError(f"Invalid obj_type: {obj_type}")
+        raise ValueError(
+            f"get_attr_skiplist got invalid {obj_type=}. "
+            "Accepted values for `obj_type` are "
+            "['Layer', 'Functional', 'Sequential', 'Metric', "
+            "'Optimizer', 'Loss']"
+        )
+
     global_state.set_global_attribute(
         f"saving_attr_skiplist_{obj_type}", skiplist
     )

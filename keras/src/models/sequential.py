@@ -142,6 +142,9 @@ class Sequential(Model):
         # Unlike other layers, Sequential is mutable after build.
         pass
 
+    def _obj_type(self):
+        return "Sequential"
+
     def build(self, input_shape=None):
         if not isinstance(input_shape, (tuple, list)):
             # Do not attempt to build if the model does not have a single
