@@ -240,11 +240,15 @@ def _clone_node(node, operation, visited, clone_fn):
 
     outputs = tree.flatten(output)
 
-    # TODO: error out of the output is not exactly the same structure as the original output
-    # TODO: this does not work even if compute_output_spec is implemented on a custom layer
-    #       node.outputs is always the flattened list
-    #       node.operation.output works but also contains the flattened list most of the time
-    # tree.assert_same_structure(node.operation.output, output, check_types=False)
+    # TODO: Error out if the output is not exactly the same
+    #       structure as the original output.
+    # TODO: This does not work even if compute_output_spec is implemented on a
+    #       custom layer.
+    #       - node.outputs is always the flattened list
+    #       - node.operation.output works but also contains
+    #         the flattened list most of the time.
+    # tree.assert_same_structure(node.operation.output,
+    #                            output, check_types=False)
 
     # At least, error out when the number of returned items is different
     if len(node.output_tensors) != len(outputs):
@@ -265,7 +269,8 @@ def _walk_back_tensors(tensor_struct, visited, clone_fn, enter_nested):
     # tensor_struct will be an actual pytree on the first call:
     # _walk_back_tensors(model.output)
     # After that, it will be a flat list because the function will be called as:
-    # _walk_back_tensors(node.input_tensors) and node.input_tensors is a flat list.
+    # _walk_back_tensors(node.input_tensors) and
+    # node.input_tensors is a flat list.
     tensors = tree.flatten(tensor_struct)
 
     for tensor in tensors:  # tensors: list of flattened outputs

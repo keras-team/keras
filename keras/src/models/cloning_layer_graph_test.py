@@ -40,7 +40,8 @@ def _gather_nested_node(node, visited, enter_nested):
     nested = isinstance(node.operation, Functional) or isinstance(
         node.operation, Sequential
     )
-    # enter nested layers only once, after that, just run the layer (i.e. do nothing here)
+    # enter nested layers only once, after that,
+    # just run the layer (i.e. do nothing here)
     if nested and enter_nested and id(node.operation) not in visited:
         _gather_tensors(
             node.operation.outputs, visited, enter_nested
@@ -95,7 +96,8 @@ def gather_node_graph(input, output, enter_nested=True):
                 f"All input values must be KerasTensors. "
                 f"Received {tensor} of type {type(tensor)}."
             )
-    # visited will store nodes, output tensors and nested operations (Finctional or Sequential)
+    # visited will store nodes, output tensors and
+    # nested operations (Finctional or Sequential)
     visited = collections.OrderedDict()
     visited = _gather_tensors(output, visited, enter_nested)
     return visited
@@ -104,7 +106,8 @@ def gather_node_graph(input, output, enter_nested=True):
 def is_same_layer_graph(node_list1, node_list2, equivalent_nodes):
     if not equivalent_nodes:
         equivalent_nodes = []
-    # handle special case of Sequential, which is a Functional model but is not of type Functional.
+    # handle special case of Sequential, which is a
+    # Functional model but is not of type Functional.
     equivalent_nodes.append((Functional, Sequential))
 
     def is_equivalent_operation(op1, op2):
@@ -332,7 +335,8 @@ class CloningNodegraphTest(unittest.TestCase):
         self.compare_models(model, new_model)
 
     def test_diamond_model(self):
-        #   x:input, C:Conv2D, y:output, a: instance of a submodel, CAT: concatenate
+        # x:input, C:Conv2D, y:output,
+        # a: instance of a submodel, CAT: concatenate
         #               ╭╌╌╌╌╌╮a
         #              ╱┊—C—C—┊╲
         #   model: x—C⟨ ╰╌╌╌╌╌╯ ⟩CAT—y
@@ -379,7 +383,8 @@ class CloningNodegraphTest(unittest.TestCase):
         self.compare_models(model, new_model)
 
     def test_diamond_with_subs_model(self):
-        #   x:input, C:Conv2D, y:output, a: instance of a submodel, CAT: concatenate
+        #   x:input, C:Conv2D, y:output,
+        #   a: instance of a submodel, CAT: concatenate
         #               ╭╌╌╌╌╌╮a
         #              ╱┊—C—C—┊╲
         #   model: x—C⟨ ╰╌╌╌╌╌╯ C
@@ -535,9 +540,10 @@ class CloningNodegraphTest(unittest.TestCase):
 
         # Note: in this test, cnv33a is called twice in the layer graph
         # but since the second call is through sub, which is re-run only once
-        # cnv33a will be invoked only once in clone_fn (here insert_layer_after_conv)
-        # As a result, a single layer, cnv11a,  will be inserted after cnv33a.
-        # In normal usage, users can instantiate the layer to insert directly in clone_fn.
+        # cnv33a will be invoked only once in clone_fn
+        # (here insert_layer_after_conv). As a result, a single layer, cnv11a,
+        # will be inserted after cnv33a. In normal usage, users can instantiate
+        # the layer to insert directly in clone_fn.
 
         # create layers to be inserted beforehand so that we can use the same
         # layers in the reference model constructed by hand for comparison
@@ -658,16 +664,18 @@ class CloningNodegraphTest(unittest.TestCase):
 
         # Note: in this test, cnv33 is called twice in the layer graph, as a
         # shared layer. Since this layer has two nodes in the graph, clone_fn
-        # will be called twice on it. If users want to handle this case and insert
-        # the same shared cnv11 layer after cnv33, they can do so with the clone_fn
-        # code provided here. If users simply instantiate the cnv11 to insert in
-        # clone_fn, there will be two (non-shared) instances.
+        # will be called twice on it. If users want to handle this case and
+        # insert the same shared cnv11 layer after cnv33, they can do so with
+        # the clone_fn code provided here. If users simply instantiate the
+        # cnv11 to insert in clone_fn, there will be two (non-shared) instances.
 
         # create layers to be inserted beforehand so that we can use the same
         # layers in the reference model constructed by hand for comparison
         cnv11layers = {
-            id(cnv33a): layers.Conv2D(8, (1, 1), padding="same", name="cnv11a"),
-            id(cnv33b): layers.Conv2D(8, (1, 1), padding="same", name="cnv11b"),
+            id(cnv33a):
+                layers.Conv2D(8, (1, 1), padding="same", name="cnv11a"),
+            id(cnv33b):
+                layers.Conv2D(8, (1, 1), padding="same", name="cnv11b"),
         }
 
         def insert_layer_after_conv(layer, *args, **kwargs):
@@ -809,8 +817,9 @@ class CloningNodegraphTest(unittest.TestCase):
         try:
             output = clone_layer_graph(model.input, model.output, swap_layer)
             assert False, (
-                "A clone_fn function returning a structure that is different from "
-                "the expected structure at that point in the graph should error out."
+                "A clone_fn function returning a structure that is different"
+                "from the expected structure at that point in the graph should"
+                "error out."
             )
         except TypeError:
             # OK, this is the expected error in this case
