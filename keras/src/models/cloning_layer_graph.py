@@ -1,11 +1,10 @@
 import keras
+from keras.src import tree
 from keras.src.api_export import keras_export
-from keras.src.tree import tree_api as tree
-from keras.src.ops.symbolic_arguments import SymbolicArguments
 from keras.src.models import Functional
 from keras.src.models import Sequential
 from keras.src.models.functional import is_input_keras_tensor
-
+from keras.src.ops.symbolic_arguments import SymbolicArguments
 
 # Implementation note: Why not modify the existing functional.clone_graph_nodes ?
 # Context: The purpose of the existing function is to create a new
@@ -20,6 +19,7 @@ from keras.src.models.functional import is_input_keras_tensor
 #          all inputs are InputLayers.
 #       3) The existing function does not have a clone_fn. Adding one would
 #          complexify the code.
+
 
 @keras_export("keras.models.clone_layer_graph")
 def clone_layer_graph(input, output, clone_fn, enter_nested=True):
@@ -154,16 +154,15 @@ def clone_layer_graph(input, output, clone_fn, enter_nested=True):
 
 
 def _walkback_one_tensor(tensor):
-    (operation,
-     node_index,
-     tensor_index
-     ) = tensor._keras_history
+    (operation, node_index, tensor_index) = tensor._keras_history
     node = operation._inbound_nodes[node_index]
     return node
 
 
 def _handle_nested_node(node, visited, clone_fn, enter_nested):
-    nested = isinstance(node.operation, Functional) or isinstance(node.operation, Sequential)
+    nested = isinstance(node.operation, Functional) or isinstance(
+        node.operation, Sequential
+    )
 
     # if this nested model was already visited, return the new op that was created
     if nested and enter_nested and id(node.operation) in visited:
@@ -171,14 +170,17 @@ def _handle_nested_node(node, visited, clone_fn, enter_nested):
 
     # enter nested layers only once, after that, just run the layer (i.e. do nothing here)
     if nested and enter_nested and id(node.operation) not in visited:
-        visited.update({id(node.operation): node.operation})  # enter nested layers only once
+        visited.update(
+            {id(node.operation): node.operation}
+        )  # enter nested layers only once
 
         # Note: the subgraph of a nested layer is unique, even if the nested layer
         # is used more than once in the model graph: it's the subgraph between
         # node.operation.input and node.operation.output.
 
-        output = _walk_back_tensors(node.operation.output, visited, clone_fn,
-                                    enter_nested)  # jump into the nested layer
+        output = _walk_back_tensors(
+            node.operation.output, visited, clone_fn, enter_nested
+        )  # jump into the nested layer
 
         # This is a very approximate test to know if the composite layer
         # was changed by applying clone_fn. In the future, it might be
@@ -189,10 +191,13 @@ def _handle_nested_node(node, visited, clone_fn, enter_nested):
         # recreate cloned nested node by calling Model(input, output)
         if has_changed:
             input = node.operation.input
-            assert all([is_input_keras_tensor(t) for t in tree.flatten(input)]), \
-                "Cannot clone a Functional graph that does not start with Inputs"
+            assert all(
+                [is_input_keras_tensor(t) for t in tree.flatten(input)]
+            ), "Cannot clone a Functional graph that does not start with Inputs"
 
-            new_composite_layer = keras.Model(input, output, name=node.operation.name + "_clone")
+            new_composite_layer = keras.Model(
+                input, output, name=node.operation.name + "_clone"
+            )
             # redirect the old operation to this new layer
             visited.update({id(node.operation): new_composite_layer})
             return new_composite_layer
@@ -201,8 +206,12 @@ def _handle_nested_node(node, visited, clone_fn, enter_nested):
 
 def _handle_input_node(node, visited):
     if node.is_input:
-        input_tensor = node.output_tensors[0]  # An input layer is always a single tensor
-        visited.update({id(input_tensor): input_tensor})  # keep the same value for inputs
+        input_tensor = node.output_tensors[
+            0
+        ]  # An input layer is always a single tensor
+        visited.update(
+            {id(input_tensor): input_tensor}
+        )  # keep the same value for inputs
         return True
 
 
@@ -229,10 +238,12 @@ def _clone_node(node, operation, visited, clone_fn):
 
     # At least, error out when the number of returned items is different
     if len(node.output_tensors) != len(outputs):
-        raise TypeError(f"Error in clone_layer_graph: the output returned from clone_fn "
-                        f"must match the input of the following node. \n"
-                        f"clone_fn returned {output} \n"
-                        f"while the expected number of output tensors was: {len(node.output_tensors)}")
+        raise TypeError(
+            f"Error in clone_layer_graph: the output returned from clone_fn "
+            f"must match the input of the following node. \n"
+            f"clone_fn returned {output} \n"
+            f"while the expected number of output tensors was: {len(node.output_tensors)}"
+        )
 
     # write the new outputs to "visited"
     for old_tensor, new_tensor in zip(node.output_tensors, outputs):
@@ -266,7 +277,9 @@ def _walk_back_tensors(tensor_struct, visited, clone_fn, enter_nested):
         new_op = _handle_nested_node(node, visited, clone_fn, enter_nested)
 
         # recursively continue iterating to gather all inputs
-        _walk_back_tensors(node.input_tensors, visited, clone_fn, enter_nested)  # flattened
+        _walk_back_tensors(
+            node.input_tensors, visited, clone_fn, enter_nested
+        )  # flattened
 
         # run the node again, which will clone it
         operation = new_op if new_op is not None else node.operation

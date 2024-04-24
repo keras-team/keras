@@ -1,20 +1,20 @@
-import unittest
 import collections
+import unittest
+
 import numpy as np
 
 import keras
 from keras import Input
 from keras import layers
+from keras.src import tree
+from keras.src.models import Functional
 from keras.src.models import Model
 from keras.src.models import Sequential
-from keras.src.models import Functional
+from keras.src.models.cloning_layer_graph import _handle_input_node
+from keras.src.models.cloning_layer_graph import _walkback_one_tensor
+from keras.src.models.cloning_layer_graph import clone_layer_graph
 from keras.src.models.functional import is_input_keras_tensor
 from keras.src.ops.node import Node
-from keras.src.tree import tree_api as tree
-
-from keras.src.models.cloning_layer_graph import _walkback_one_tensor
-from keras.src.models.cloning_layer_graph import _handle_input_node
-from keras.src.models.cloning_layer_graph import clone_layer_graph
 
 # Running these tests with "channels_first" will not test anything useful.
 # Forcing "channels_last" for this test module only, otherwise some test
@@ -37,11 +37,17 @@ unittest.addModuleCleanup(moduleCleanUp)
 
 
 def _gather_nested_node(node, visited, enter_nested):
-    nested = isinstance(node.operation, Functional) or isinstance(node.operation, Sequential)
+    nested = isinstance(node.operation, Functional) or isinstance(
+        node.operation, Sequential
+    )
     # enter nested layers only once, after that, just run the layer (i.e. do nothing here)
     if nested and enter_nested and id(node.operation) not in visited:
-        _gather_tensors(node.operation.outputs, visited, enter_nested)  # jump into the nested layer
-        visited.update({id(node.operation): node.operation})  # enter nested layers only once
+        _gather_tensors(
+            node.operation.outputs, visited, enter_nested
+        )  # jump into the nested layer
+        visited.update(
+            {id(node.operation): node.operation}
+        )  # enter nested layers only once
 
 
 def _gather_node(node, visited):
@@ -81,9 +87,14 @@ def _gather_tensors(tensor_struct, visited, enter_nested):
 
 def gather_node_graph(input, output, enter_nested=True):
     for tensor in tree.flatten(input):
-        if not (isinstance(tensor, keras.KerasTensor) and is_input_keras_tensor(tensor)):
-            raise ValueError(f"All input values must be KerasTensors. "
-                             f"Received {tensor} of type {type(tensor)}.")
+        if not (
+            isinstance(tensor, keras.KerasTensor)
+            and is_input_keras_tensor(tensor)
+        ):
+            raise ValueError(
+                f"All input values must be KerasTensors. "
+                f"Received {tensor} of type {type(tensor)}."
+            )
     # visited will store nodes, output tensors and nested operations (Finctional or Sequential)
     visited = collections.OrderedDict()
     visited = _gather_tensors(output, visited, enter_nested)
@@ -113,7 +124,9 @@ def is_same_layer_graph(node_list1, node_list2, equivalent_nodes):
 
         if isinstance(item1, Node):
             if type(item1.operation) != type(item2.operation):
-                if not is_equivalent_operation(item1.operation, item2.operation):
+                if not is_equivalent_operation(
+                    item1.operation, item2.operation
+                ):
                     return False
 
         if isinstance(item1, keras.KerasTensor):
@@ -126,8 +139,12 @@ def is_same_layer_graph(node_list1, node_list2, equivalent_nodes):
 def are_all_nodes_cloned(node_list1, node_list2):
     # all nodes apart from inputs which are never cloned
     for item1, item2 in zip(node_list1.values(), node_list2.values()):
-        skip_input_tensor = isinstance(item1, keras.KerasTensor) and is_input_keras_tensor(item1)
-        skip_input_layer = isinstance(item1, Node) and isinstance(item1.operation, keras.layers.InputLayer)
+        skip_input_tensor = isinstance(
+            item1, keras.KerasTensor
+        ) and is_input_keras_tensor(item1)
+        skip_input_layer = isinstance(item1, Node) and isinstance(
+            item1.operation, keras.layers.InputLayer
+        )
         if skip_input_tensor or skip_input_layer:
             continue
         if id(item1) == id(item2):
@@ -146,16 +163,26 @@ def are_results_identical(model1, model2):
     # run the values through both models: outputs should be identical
     result1 = model1(x)
     result2 = model2(x)
-    res = [not np.any(keras.ops.convert_to_numpy(r1) - keras.ops.convert_to_numpy(r2))
-           for r1, r2 in zip(tree.flatten(result1), tree.flatten(result2))]
+    res = [
+        not np.any(
+            keras.ops.convert_to_numpy(r1) - keras.ops.convert_to_numpy(r2)
+        )
+        for r1, r2 in zip(tree.flatten(result1), tree.flatten(result2))
+    ]
     return all(res)
 
 
 def are_all_weights_identical(model1, model2):
-    same_trainable_weights = [not np.any(v.numpy() - w.numpy())
-                              for v, w in zip(model1.trainable_weights, model2.trainable_weights)]
-    same_non_trainable_weights = [not np.any(v.numpy() - w.numpy())
-                                  for v, w in zip(model1.non_trainable_weights, model2.non_trainable_weights)]
+    same_trainable_weights = [
+        not np.any(v.numpy() - w.numpy())
+        for v, w in zip(model1.trainable_weights, model2.trainable_weights)
+    ]
+    same_non_trainable_weights = [
+        not np.any(v.numpy() - w.numpy())
+        for v, w in zip(
+            model1.non_trainable_weights, model2.non_trainable_weights
+        )
+    ]
     return all(same_trainable_weights + same_non_trainable_weights)
 
 
@@ -165,6 +192,7 @@ def identity_clone_fn(layer, *args, **kwargs):
 
 
 # Custom layers for tests
+
 
 # custom wrapper around a Dense layer
 class XLinearWrapper(layers.Layer):
@@ -186,10 +214,14 @@ class XLinearDictOutput(layers.Layer):
         self.units = units
 
     def build(self, input_shape):
-        self.w = self.add_weight(shape=(input_shape[-1], self.units),
-                                 initializer="random_normal", trainable=True)
-        self.b = self.add_weight(shape=(self.units,),
-                                 initializer="random_normal", trainable=True)
+        self.w = self.add_weight(
+            shape=(input_shape[-1], self.units),
+            initializer="random_normal",
+            trainable=True,
+        )
+        self.b = self.add_weight(
+            shape=(self.units,), initializer="random_normal", trainable=True
+        )
 
     def call(self, inputs):
         result = keras.ops.matmul(inputs, self.w) + self.b
@@ -203,8 +235,11 @@ class XLinearMultiInput(keras.layers.Layer):
         self.units = units
 
     def build(self, input_shape):
-        self.w = self.add_weight(shape=(input_shape[-1], self.units),
-                                 initializer="random_normal", trainable=True)
+        self.w = self.add_weight(
+            shape=(input_shape[-1], self.units),
+            initializer="random_normal",
+            trainable=True,
+        )
 
     def call(self, inputs, external_bias=0):
         result = keras.ops.matmul(inputs, self.w) + external_bias
@@ -219,8 +254,11 @@ class XLinearDictInput(keras.layers.Layer):
 
     def build(self, input_shape):
         shape = input_shape["x"]
-        self.w = self.add_weight(shape=(shape[-1], self.units),
-                                 initializer="random_normal", trainable=True)
+        self.w = self.add_weight(
+            shape=(shape[-1], self.units),
+            initializer="random_normal",
+            trainable=True,
+        )
 
     def call(self, inputs):
         inp = inputs["x"]
@@ -232,9 +270,15 @@ class XLinearDictInput(keras.layers.Layer):
 class CloningNodegraphTest(unittest.TestCase):
 
     def compare_models(self, model1, model2, equivalent_nodes=None):
-        visited1 = gather_node_graph(model1.input, model1.output, enter_nested=True)
-        visited2 = gather_node_graph(model2.input, model2.output, enter_nested=True)
-        self.assertTrue(is_same_layer_graph(visited1, visited2, equivalent_nodes))
+        visited1 = gather_node_graph(
+            model1.input, model1.output, enter_nested=True
+        )
+        visited2 = gather_node_graph(
+            model2.input, model2.output, enter_nested=True
+        )
+        self.assertTrue(
+            is_same_layer_graph(visited1, visited2, equivalent_nodes)
+        )
         self.assertTrue(are_all_nodes_cloned(visited1, visited2))
         self.assertTrue(are_results_identical(model1, model2))
         self.assertTrue(are_all_weights_identical(model1, model2))
@@ -392,22 +436,26 @@ class CloningNodegraphTest(unittest.TestCase):
         self.compare_models(model, new_model)
 
     def test_sequential_model(self):
-        model = keras.Sequential([
-            Input(shape=(28, 28, 3)),
-            layers.Conv2D(8, (3, 3), padding="same", name="cnv33"),
-            layers.Conv2D(8, (1, 1), padding="same", name="cnv11")
-        ])
+        model = keras.Sequential(
+            [
+                Input(shape=(28, 28, 3)),
+                layers.Conv2D(8, (3, 3), padding="same", name="cnv33"),
+                layers.Conv2D(8, (1, 1), padding="same", name="cnv11"),
+            ]
+        )
 
         output = clone_layer_graph(model.input, model.output, identity_clone_fn)
         new_model = Model(model.input, output)
         self.compare_models(model, new_model)
 
     def test_sequential_sub(self):
-        sub = keras.Sequential([
-            Input(shape=(28, 28, 8)),
-            layers.Conv2D(8, (3, 3), padding="same", name="cnv33"),
-            layers.Conv2D(8, (1, 1), padding="same", name="cnv11")
-        ])
+        sub = keras.Sequential(
+            [
+                Input(shape=(28, 28, 8)),
+                layers.Conv2D(8, (3, 3), padding="same", name="cnv33"),
+                layers.Conv2D(8, (1, 1), padding="same", name="cnv11"),
+            ]
+        )
 
         x = Input((28, 28, 8), name="input")
         y = sub(x)
@@ -436,8 +484,10 @@ class CloningNodegraphTest(unittest.TestCase):
         # create layers to be inserted beforehand so that we can use the same
         # layers in the reference model constructed by hand for comparison
         cnt = 0
-        cnv11layers = [layers.Conv2D(8, (1, 1), padding="same", name="cnv11a"),
-                       layers.Conv2D(8, (1, 1), padding="same", name="cnv11b")]
+        cnv11layers = [
+            layers.Conv2D(8, (1, 1), padding="same", name="cnv11a"),
+            layers.Conv2D(8, (1, 1), padding="same", name="cnv11b"),
+        ]
 
         def insert_layer_after_conv(layer, *args, **kwargs):
             nonlocal cnv11layers, cnt
@@ -449,7 +499,9 @@ class CloningNodegraphTest(unittest.TestCase):
             else:
                 return layer(*args, **kwargs)
 
-        output = clone_layer_graph(model.input, model.output, insert_layer_after_conv)
+        output = clone_layer_graph(
+            model.input, model.output, insert_layer_after_conv
+        )
         new_model = Model(model.input, output)
 
         # The resulting model should be equivalent to:
@@ -490,8 +542,10 @@ class CloningNodegraphTest(unittest.TestCase):
         # create layers to be inserted beforehand so that we can use the same
         # layers in the reference model constructed by hand for comparison
         cnt = 0
-        cnv11layers = [layers.Conv2D(8, (1, 1), padding="same", name="cnv11a"),
-                       layers.Conv2D(8, (1, 1), padding="same", name="cnv11b")]
+        cnv11layers = [
+            layers.Conv2D(8, (1, 1), padding="same", name="cnv11a"),
+            layers.Conv2D(8, (1, 1), padding="same", name="cnv11b"),
+        ]
 
         def insert_layer_after_conv(layer, *args, **kwargs):
             nonlocal cnv11layers, cnt
@@ -503,7 +557,9 @@ class CloningNodegraphTest(unittest.TestCase):
             else:
                 return layer(*args, **kwargs)
 
-        output = clone_layer_graph(model.input, model.output, insert_layer_after_conv)
+        output = clone_layer_graph(
+            model.input, model.output, insert_layer_after_conv
+        )
         new_model = Model(model.input, output)
 
         # The resulting model should be equivalent to:
@@ -529,11 +585,13 @@ class CloningNodegraphTest(unittest.TestCase):
         cnv33b = layers.Conv2D(8, (3, 3), padding="same", name="cnv33b")
         cnv11 = layers.Conv2D(8, (1, 1), padding="same", name="cnv11")
 
-        sub = keras.Sequential([
-            # Input(shape=(28, 28, 8)),
-            cnv33a,
-            cnv33b
-        ])
+        sub = keras.Sequential(
+            [
+                # Input(shape=(28, 28, 8)),
+                cnv33a,
+                cnv33b,
+            ]
+        )
 
         x = Input((28, 28, 8), name="input")
         y = sub(x)
@@ -544,8 +602,10 @@ class CloningNodegraphTest(unittest.TestCase):
 
         # create layers to be inserted beforehand so that we can use the same
         # layers in the reference model constructed by hand for comparison
-        cnv11_ins = [layers.Conv2D(8, (1, 1), padding="same", name="cnv11a"),
-                     layers.Conv2D(8, (1, 1), padding="same", name="cnv11b")]
+        cnv11_ins = [
+            layers.Conv2D(8, (1, 1), padding="same", name="cnv11a"),
+            layers.Conv2D(8, (1, 1), padding="same", name="cnv11b"),
+        ]
         cnt = 0
 
         def insert_layer_after_conv(layer, *args, **kwargs):
@@ -558,17 +618,21 @@ class CloningNodegraphTest(unittest.TestCase):
             else:
                 return layer(*args, **kwargs)
 
-        output = clone_layer_graph(model.input, model.output, insert_layer_after_conv)
+        output = clone_layer_graph(
+            model.input, model.output, insert_layer_after_conv
+        )
         new_model = Model(model.input, output)
 
         # The resulting model should be equivalent to:
-        sub = keras.Sequential([
-            # Input(shape=(28, 28, 8)),
-            cnv33a,
-            cnv11_ins[0],
-            cnv33b,
-            cnv11_ins[1]
-        ])
+        sub = keras.Sequential(
+            [
+                # Input(shape=(28, 28, 8)),
+                cnv33a,
+                cnv11_ins[0],
+                cnv33b,
+                cnv11_ins[1],
+            ]
+        )
 
         x = Input((28, 28, 8), name="input")
         y = sub(x)
@@ -601,8 +665,10 @@ class CloningNodegraphTest(unittest.TestCase):
 
         # create layers to be inserted beforehand so that we can use the same
         # layers in the reference model constructed by hand for comparison
-        cnv11layers = {id(cnv33a): layers.Conv2D(8, (1, 1), padding="same", name="cnv11a"),
-                       id(cnv33b): layers.Conv2D(8, (1, 1), padding="same", name="cnv11b")}
+        cnv11layers = {
+            id(cnv33a): layers.Conv2D(8, (1, 1), padding="same", name="cnv11a"),
+            id(cnv33b): layers.Conv2D(8, (1, 1), padding="same", name="cnv11b"),
+        }
 
         def insert_layer_after_conv(layer, *args, **kwargs):
             nonlocal cnv11layers
@@ -613,7 +679,9 @@ class CloningNodegraphTest(unittest.TestCase):
             else:
                 return layer(*args, **kwargs)
 
-        output = clone_layer_graph(model.input, model.output, insert_layer_after_conv)
+        output = clone_layer_graph(
+            model.input, model.output, insert_layer_after_conv
+        )
         new_model = Model(model.input, output)
 
         # The resulting model should be equivalent to:
@@ -646,8 +714,7 @@ class CloningNodegraphTest(unittest.TestCase):
         self.compare_models(model, new_model)
 
     def test_pytree_input(self):
-        x = {"in1": Input(shape=(12,)),
-             "in2": Input(shape=(12,))}
+        x = {"in1": Input(shape=(12,)), "in2": Input(shape=(12,))}
         y = layers.Dense(8)(x["in1"])
         z = layers.Dense(12)(x["in2"])
         t = layers.Concatenate()([y, z])
@@ -707,7 +774,13 @@ class CloningNodegraphTest(unittest.TestCase):
         dictz = sub(y)
         dictt = sub(dictz["result"])
         dictw = sub(dictt["result"])
-        output = [dictw["result"], dicty["bias"], dictz["extra_bias"], dictt["extra_bias"], dictw["extra_bias"]]
+        output = [
+            dictw["result"],
+            dicty["bias"],
+            dictz["extra_bias"],
+            dictt["extra_bias"],
+            dictw["extra_bias"],
+        ]
         model = Model(x, output)
 
         output = clone_layer_graph(model.input, model.output, identity_clone_fn)
@@ -719,7 +792,9 @@ class CloningNodegraphTest(unittest.TestCase):
         x = Input(shape=(8,))
         y = layers.Dense(8)(x)
         dicty = XLinearDictOutput(8)(y)
-        y = XLinearDictInput(8)({"x": dicty["result"], "external_bias": dicty["bias"]})
+        y = XLinearDictInput(8)(
+            {"x": dicty["result"], "external_bias": dicty["bias"]}
+        )
         model = Model(x, y)
 
         def swap_layer(layer, *args, **kwargs):
@@ -733,8 +808,10 @@ class CloningNodegraphTest(unittest.TestCase):
 
         try:
             output = clone_layer_graph(model.input, model.output, swap_layer)
-            assert False, ("A clone_fn function returning a structure that is different from "
-                           "the expected structure at that point in the graph should error out.")
+            assert False, (
+                "A clone_fn function returning a structure that is different from "
+                "the expected structure at that point in the graph should error out."
+            )
         except TypeError:
             # OK, this is the expected error in this case
             return
@@ -757,4 +834,6 @@ class CloningNodegraphTest(unittest.TestCase):
         output = clone_layer_graph(model.input, model.output, swap_layer)
         new_model = Model(model.input, output)
 
-        self.compare_models(model, new_model, equivalent_nodes=[(layers.Dense, XLinearWrapper)])
+        self.compare_models(
+            model, new_model, equivalent_nodes=[(layers.Dense, XLinearWrapper)]
+        )
