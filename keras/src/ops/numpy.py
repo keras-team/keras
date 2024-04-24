@@ -1,148 +1,5 @@
-"""
-MANIFEST:
-
-abs
-absolute
-add
-all
-amax
-amin
-append
-arange
-arccos
-arccosh
-arcsin
-arcsinh
-arctan
-arctan2
-arctanh
-argmax
-argmin
-argsort
-array
-average
-bincount
-broadcast_to
-ceil
-clip
-concatenate
-conj
-conjugate
-copy
-correlate
-cos
-cosh
-count_nonzero
-cross
-cumprod
-cumsum
-diag
-diagonal
-diff
-digitize
-divide
-dot
-dtype
-einsum
-empty
-equal
-exp
-expand_dims
-expm1
-eye
-flip
-floor
-full
-full_like
-greater
-greater_equal
-hstack
-identity
-imag
-interp
-isclose
-isfinite
-isinf
-isnan
-less
-less_equal
-linspace
-log
-log10
-log1p
-log2
-logaddexp
-logical_and
-logical_not
-logical_or
-logspace
-matmul
-max
-maximum
-mean
-median
-meshgrid
-mgrid
-min
-minimum
-mod
-moveaxis
-multiply
-nan_to_num
-ndim
-nonzero
-not_equal
-ones
-ones_like
-outer
-pad
-percentile
-power
-prod
-quantile
-ravel
-real
-reciprocal
-repeat
-reshape
-roll
-round
-sign
-sin
-sinh
-size
-sort
-split
-sqrt
-square
-squeeze
-stack
-std
-subtract
-sum
-swapaxes
-take
-take_along_axis
-tan
-tanh
-tensordot
-tile
-trace
-transpose
-tri
-tril
-triu
-true_divide
-vdot
-vstack
-where
-zeros
-zeros_like
-
-
-"""
-
 import builtins
+import collections
 import re
 
 import numpy as np
@@ -6247,7 +6104,7 @@ class Select(Operation):
         super().__init__()
 
     def call(self, condlist, choicelist, default=0):
-        return backend.numpy.correlate(condlist, choicelist, default)
+        return backend.numpy.select(condlist, choicelist, default)
 
     def compute_output_spec(self, condlist, choicelist, default=0):
         first_element = choicelist[0]
@@ -6303,3 +6160,35 @@ def select(condlist, choicelist, default=0):
     if any_symbolic_tensors(condlist + choicelist + [default]):
         return Select().symbolic_call(condlist, choicelist, default)
     return backend.numpy.select(condlist, choicelist, default)
+
+
+class Slogdet(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.numpy.slogdet(x)
+
+    def compute_output_spec(self, x):
+        sign = KerasTensor((), dtype=x.dtype)
+        logabsdet = KerasTensor((), dtype=x.dtype)
+        return (sign, logabsdet)
+
+
+@keras_export(["keras.ops.slogdet", "keras.ops.numpy.slogdet"])
+def slogdet(x):
+    """Compute the sign and natural logarithm of the determinant of a matrix.
+
+    Args:
+        x: Input matrix. It must 2D and square.
+
+    Returns:
+        A tuple `(sign, logabsdet)`. `sign` is a number representing
+        the sign of the determinant. For a real matrix, this is 1, 0, or -1.
+        For a complex matrix, this is a complex number with absolute value 1
+        (i.e., it is on the unit circle), or else 0.
+        `logabsdet` is the natural log of the absolute value of the determinant.
+    """
+    if any_symbolic_tensors((x,)):
+        return Slogdet().symbolic_call(x)
+    return backend.numpy.slogdet(x)

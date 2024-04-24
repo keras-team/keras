@@ -1608,3 +1608,8 @@ def select(condlist, choicelist, default=0):
     for c, v in reversed(list(zip(condlist, choicelist))):
         out = torch.where(c, v, out)
     return out
+
+
+def slogdet(x):
+    x = convert_to_tensor(x)
+    return tuple(torch.linalg.slogdet(x))
