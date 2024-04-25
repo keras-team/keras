@@ -1908,11 +1908,14 @@ def ctc_decode(
 
     Returns:
         A tuple containing:
-
-        - A list of decoded sequences.
-        - A list of the negative of the sum of the probability logits
-        (if strategy is `"greedy"`) or the log probability (if strategy is
-        `"beam_search"`) for each sequence.
+        - A list of decoded sequences. Each decoded sequence has shape
+            `(batch_size, max_length)`. Note that: `-1` indicates the blank
+            label.
+        - If `strategy="greedy"`, a tensor of shape `(batch_size, 1)`
+            representing the negative of the sum of the probability logits. If
+            `strategy="beam_seatch"`, a tensor of shape
+            `(batch_size, top_paths)` representing the log probability for each
+            sequence.
     """
 
     if any_symbolic_tensors((inputs, sequence_lengths)):
