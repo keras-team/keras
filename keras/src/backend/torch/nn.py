@@ -773,6 +773,45 @@ def ctc_loss(
     return loss
 
 
+def _ctc_greedy_decode(
+    inputs,
+    sequence_length,
+    merge_repeated=True,
+    mask_index=None,
+):
+    inputs = convert_to_tensor(inputs)
+    sequence_length = convert_to_tensor(sequence_length, dtype="int32")
+
+    if mask_index is None:
+        mask_index = inputs.shape[-1] - 1
+
+    indices = torch.argmax(inputs, axis=-1)
+    scores = torch.max(inputs, axis=-1)[0]
+
+    seqlen_mask = torch.arange(inputs.shape[1], device=get_device())[None, :]
+    seqlen_mask = seqlen_mask >= sequence_length[:, None]
+
+    if merge_repeated:
+        repeat = indices[:, 1:] == indices[:, :-1]
+        repeat = tnn.pad(repeat, (1, 0, 0, 0))
+
+        indices = torch.where(repeat, mask_index, indices)
+    else:
+        repeat = torch.zeros_like(indices, dtype=bool)
+
+    indices = torch.where(seqlen_mask, mask_index, indices)
+    indices = [batch[batch != mask_index] for batch in indices]
+    max_len = max(len(batch) for batch in indices)
+    indices = convert_to_tensor(
+        [tnn.pad(batch, (0, max_len - len(batch))) for batch in indices]
+    )
+
+    scores = torch.where(seqlen_mask, torch.zeros_like(scores), scores)
+    scores = -torch.sum(scores, axis=1)[:, None]
+
+    return [indices], scores
+
+
 def ctc_decode(
     inputs,
     sequence_length,
@@ -782,6 +821,20 @@ def ctc_decode(
     merge_repeated=True,
     mask_index=None,
 ):
-    raise NotImplementedError(
-        "Torch backend does not yet support CTC decoding."
-    )
+    if strategy == "greedy":
+        return _ctc_greedy_decode(
+            inputs,
+            sequence_length,
+            merge_repeated=merge_repeated,
+            mask_index=mask_index,
+        )
+    elif strategy == "beam_search":
+        raise NotImplementedError(
+            "Torch backend doesn't yet support the beam search strategy for CTC"
+            "decoding."
+        )
+    else:
+        raise ValueError(
+            f"Invalid strategy {strategy}. Supported values are "
+            "'greedy' and 'beam_search'."
+        )

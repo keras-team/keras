@@ -1895,10 +1895,6 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         result = knn.ctc_loss(labels, outputs, label_length, output_length)
         self.assertAllClose(result, np.array([3.4411672, 1.91680186]))
 
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="torch doesn't support CTC decode",
-    )
     def test_ctc_decode(self):
         inputs = np.array(
             [
@@ -1928,6 +1924,9 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         self.assertAllClose(decoded, labels)
         self.assertAllClose(scores, score_labels)
+
+        if backend.backend() == "torch":
+            self.skipTest("torch doesn't support 'beam_search' strategy")
 
         labels = [
             np.array([[1, 2], [2, 0], [0, 0]]),
@@ -2382,4 +2381,25 @@ class NNOpsBehaviorTest(testing.TestCase, parameterized.TestCase):
         ):
             ctc_loss_instance._check_shape_first_dim(
                 name1, shape1, name2, shape2
+            )
+
+    def test_invalid_strategy_ctc_decode(self):
+        inputs = np.array(
+            [
+                [
+                    [0.1, 0.4, 0.2, 0.4],
+                    [0.3, 0.3, 0.4, 0.2],
+                    [0.3, 0.2, 0.4, 0.3],
+                ]
+            ]
+        )
+        beam_width = 4
+        top_paths = 2
+        with self.assertRaisesRegex(ValueError, "Invalid strategy"):
+            knn.ctc_decode(
+                inputs,
+                sequence_lengths=[3, 3, 1],
+                strategy="invalid",
+                beam_width=beam_width,
+                top_paths=top_paths,
             )

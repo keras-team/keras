@@ -934,11 +934,16 @@ def ctc_decode(
             merge_repeated=merge_repeated,
             mask_index=mask_index,
         )
-    else:
+    elif strategy == "beam_search":
         return _ctc_beam_search_decode(
             inputs,
             sequence_length,
             beam_width=beam_width,
             top_paths=top_paths,
             mask_index=mask_index,
+        )
+    else:
+        raise ValueError(
+            f"Invalid strategy {strategy}. Supported values are "
+            "'greedy' and 'beam_search'."
         )
