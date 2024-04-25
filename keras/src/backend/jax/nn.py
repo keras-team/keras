@@ -587,85 +587,106 @@ def batch_normalization(
     return jnp.add(x * inv, res)
 
 
-def ctc_loss(
-    target,
-    output,
-    target_length,
-    output_length,
-    mask_index=0,
-):
-    target = convert_to_tensor(target)
+def ctc_loss(target, output, target_length, output_length, mask_index=0):
+    # Ref: https://github.com/google-deepmind/optax
+    # optax.ctc_loss_with_forward_probs
+    target = convert_to_tensor(target, dtype="int32")
     output = convert_to_tensor(output)
-    batch_size, _, _ = output.shape
-    batch_size, max_target_length = target.shape
-
-    output = output.transpose((1, 0, 2))
-    target = target.transpose((1, 0)).astype("int32")
+    target_length = convert_to_tensor(target_length, "int32")
+    output_length = convert_to_tensor(output_length, "int32")
+    batch_size, _, num_classes = output.shape
+    batch_size, max_label_length = target.shape
+    log_epsilon = -1e5
 
     # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
     dtype = backend.result_type(output.dtype, "float32")
     output = cast(output, dtype)
 
-    logits = jnn.log_softmax(output)
-    mgrid_t, mgrid_b = jnp.meshgrid(
-        jnp.arange(max_target_length), jnp.arange(batch_size)
-    )
-    logprobs_emit = logits[mgrid_t, mgrid_b, target[:, :, None]]
-    logprobs_mask = logits[:, :, mask_index]
-
-    logit_paddings = jnp.array(
-        jnp.arange(max_target_length) < output_length[:, None],
-        dtype=output.dtype,
-    )
-
-    repeat = jnp.array(target[1:] == target[:-1])
-    repeat = jnp.pad(repeat, ((0, 1), (0, 0))).transpose((1, 0))
-
-    _logepsilon = -100000.0
-
-    def _iterate(prev, x):
-        prev_mask, prev_emit = prev
-        logprob_mask, logprob_emit, pad = x
-
-        prev_mask_orig = prev_mask
-        prev_mask = prev_mask.at[:, 1:].set(
-            jnp.logaddexp(prev_mask[:, 1:], prev_emit + _logepsilon * repeat),
+    def _lengths_to_paddings(lengths, max_length):
+        indices = jnp.arange(max_length).reshape(
+            (1,) * lengths.ndim + (max_length,)
         )
-        emit = jnp.logaddexp(
-            prev_mask[:, :-1] + logprob_emit, prev_emit + logprob_emit
-        )
+        lengths = jnp.expand_dims(lengths, axis=-1)
+        elem_valid = indices < lengths
+        return jnp.logical_not(elem_valid)
 
-        mask = prev_mask + logprob_mask[:, None]
-        mask = mask.at[:, 1:].set(
-            jnp.logaddexp(
-                mask[:, 1:],
-                prev_emit + logprob_mask[:, None] + _logepsilon * (1 - repeat),
-            )
-        )
+    target_paddings = _lengths_to_paddings(target_length, max_label_length)
+    output_paddings = _lengths_to_paddings(output_length, max_label_length)
+    target_paddings = target_paddings.astype(output.dtype)
+    output_paddings = output_paddings.astype(output.dtype)
 
-        pad = pad[:, None]
-        emit = emit * pad + prev_emit * (1 - pad)
-        mask = mask * pad + prev_mask_orig * (1 - pad)
-
-        return (mask, emit), (mask, emit)
-
-    mask_init = jnp.full((batch_size, max_target_length + 1), _logepsilon)
-    mask_init = mask_init.at[:, 0].set(0.0)
-    emit_init = jnp.full((batch_size, max_target_length), _logepsilon)
-
-    _, (alphas_mask, alphas_emit) = lax.scan(
-        _iterate,
-        (mask_init, emit_init),
-        (logprobs_mask, logprobs_emit, logit_paddings.transpose()),
+    logprobs = jnn.log_softmax(output)
+    label_lengths = max_label_length - jnp.sum(target_paddings, axis=1).astype(
+        jnp.int32
     )
 
-    last_alpha_mask = (
-        alphas_mask[-1]
-        .at[:, 1:]
-        .set(jnp.logaddexp(alphas_mask[-1, :, 1:], alphas_emit[-1]))
+    # repeat[b, n] == 1.0 when label[b, n] == label[b, n+1].
+    repeat = (target[:, :-1] == target[:, 1:]).astype(jnp.float32)
+    repeat = jnp.pad(repeat, ((0, 0), (0, 1)))
+
+    logprobs_phi = logprobs[:, :, mask_index : mask_index + 1]  # [B, T, 1]
+    logprobs_phi = jnp.transpose(logprobs_phi, (1, 0, 2))  # [T, B, 1]
+
+    _one_hot = jax.nn.one_hot(target, num_classes=num_classes)  # [B, N, K]
+    logprobs_emit = jnp.einsum("btk,bnk->btn", logprobs, _one_hot)
+    logprobs_emit = jnp.transpose(logprobs_emit, (1, 0, 2))  # [T, B, N]
+
+    # [B, N]
+    logalpha_phi_init = (
+        jnp.ones((batch_size, max_label_length + 1), dtype=output.dtype)
+        * log_epsilon
+    )
+    logalpha_phi_init = logalpha_phi_init.at[:, 0].set(0.0)
+    logalpha_emit_init = (
+        jnp.ones((batch_size, max_label_length), dtype=output.dtype)
+        * log_epsilon
     )
 
-    return -last_alpha_mask[jnp.arange(batch_size), target_length]
+    def update_phi_score(phi, added_score):
+        # Update `phi[:, 1:]`` with adding `added_score` in log space.
+        return jnp.concatenate(
+            [phi[:, :1], jnp.logaddexp(phi[:, 1:], added_score)], axis=-1
+        )
+
+    def loop_body(prev, x):
+        prev_phi, prev_emit = prev
+        # emit-to-phi epsilon transition, except if the next label is repetition
+        prev_phi_orig = prev_phi
+        prev_phi = update_phi_score(prev_phi, prev_emit + log_epsilon * repeat)
+
+        logprob_emit, logprob_phi, pad = x
+
+        # phi-to-emit transition
+        next_emit = jnp.logaddexp(
+            prev_phi[:, :-1] + logprob_emit, prev_emit + logprob_emit
+        )
+        # self-loop transition
+        next_phi = prev_phi + logprob_phi
+        # emit-to-phi blank transition only when the next label is repetition
+        next_phi = update_phi_score(
+            next_phi, prev_emit + logprob_phi + log_epsilon * (1.0 - repeat)
+        )
+
+        pad = pad.reshape((batch_size, 1))
+        next_emit = pad * prev_emit + (1.0 - pad) * next_emit
+        next_phi = pad * prev_phi_orig + (1.0 - pad) * next_phi
+
+        return (next_phi, next_emit), (next_phi, next_emit)
+
+    xs = (logprobs_emit, logprobs_phi, output_paddings.transpose((1, 0)))
+    _, (logalpha_phi, logalpha_emit) = jax.lax.scan(
+        loop_body, (logalpha_phi_init, logalpha_emit_init), xs
+    )
+
+    # last row needs to be updated with the last epsilon transition
+    logalpha_phi_last = update_phi_score(logalpha_phi[-1], logalpha_emit[-1])
+    logalpha_phi = logalpha_phi.at[-1].set(logalpha_phi_last)
+
+    # extract per_seq_loss
+    # [B, N+1]
+    _one_hot = jax.nn.one_hot(label_lengths, num_classes=max_label_length + 1)
+    per_seq_loss = -jnp.einsum("bn,bn->b", logalpha_phi_last, _one_hot)
+    return per_seq_loss
 
 
 def _ctc_greedy_decode(

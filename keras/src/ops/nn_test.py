@@ -1917,12 +1917,25 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         labels = np.array([[1, 2], [2, 0], [0, 0]])
         score_labels = np.array([[-1.2], [-1.6], [-0.7]])
+        repeated_labels = np.array([[1, 2, 2], [2, 2, 0], [0, 0, 0]])
 
+        # Test strategy="greedy" and merge_repeated=True
         (decoded,), scores = knn.ctc_decode(
-            inputs, sequence_lengths=[3, 3, 1], strategy="greedy"
+            inputs,
+            sequence_lengths=[3, 3, 1],
+            strategy="greedy",
         )
-
         self.assertAllClose(decoded, labels)
+        self.assertAllClose(scores, score_labels)
+
+        # Test strategy="greedy" and merge_repeated=False
+        (decoded,), scores = knn.ctc_decode(
+            inputs,
+            sequence_lengths=[3, 3, 1],
+            strategy="greedy",
+            merge_repeated=False,
+        )
+        self.assertAllClose(decoded, repeated_labels)
         self.assertAllClose(scores, score_labels)
 
         if backend.backend() == "torch":
@@ -1939,10 +1952,10 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 [-1.0633859, -1.3633859],
             ]
         )
-
         beam_width = 4
         top_paths = 2
 
+        # Test strategy="beam_search"
         decoded, scores = knn.ctc_decode(
             inputs,
             sequence_lengths=[3, 3, 1],
@@ -1950,7 +1963,6 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             beam_width=beam_width,
             top_paths=top_paths,
         )
-
         for i in range(top_paths):
             self.assertAllClose(decoded[i], labels[i])
         self.assertAllClose(scores, score_labels)
