@@ -2042,3 +2042,77 @@ def _normalize(x, axis=-1, order=2):
     norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
     denom = backend.numpy.maximum(norm, epsilon)
     return backend.numpy.divide(x, denom)
+
+
+class PSNR(Operation):
+    def __init__(
+        self,
+        max_val,
+    ):
+        super().__init__()
+        self.max_val = max_val
+
+    def call(self, x1, x2):
+        return backend.nn.psnr(
+            x1=x1,
+            x2=x2,
+            max_val=self.max_val,
+        )
+
+    def compute_output_spec(self, x1, x2):
+        if len(x1.shape) != len(x2.shape):
+            raise ValueError("Inputs must have the same rank")
+
+        return KerasTensor(shape=())
+
+
+@keras_export(
+    [
+        "keras.ops.psnr",
+        "keras.ops.nn.psnr",
+    ]
+)
+def psnr(
+    x1,
+    x2,
+    max_val,
+):
+    """Peak Signal-to-Noise Ratio (PSNR) calculation.
+
+    This function calculates the Peak Signal-to-Noise Ratio between two signals,
+    `x1` and `x2`. PSNR is a measure of the quality of a reconstructed signal.
+    The higher the PSNR, the closer the reconstructed signal is to the original
+    signal.
+
+    Args:
+        x1: The first input signal.
+        x2: The second input signal. Must have the same shape as `x1`.
+        max_val: The maximum possible value in the signals.
+
+    Returns:
+        float: The PSNR value between `x1` and `x2`.
+
+    Examples:
+        >>> import numpy as np
+        >>> from keras import ops
+        >>> x = np.random.random((2, 4, 4, 3))
+        >>> y = np.random.random((2, 4, 4, 3))
+        >>> max_val = 1.0
+        >>> psnr_value = ops.nn.psnr(x, y, max_val)
+        >>> psnr_value
+        20.0
+    """
+    if any_symbolic_tensors(
+        (
+            x1,
+            x2,
+        )
+    ):
+        return PSNR(
+            max_val,
+        ).symbolic_call(x1, x2)
+    return backend.nn.psnr(
+        x1,
+        x2,
+        max_val,
+    )
