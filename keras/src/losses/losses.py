@@ -1893,7 +1893,7 @@ class CTC(LossFunctionWrapper):
     def __init__(
         self,
         reduction="sum_over_batch_size",
-        name="sparse_categorical_crossentropy",
+        name="ctc",
     ):
         super().__init__(
             ctc,

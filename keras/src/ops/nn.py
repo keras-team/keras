@@ -1810,8 +1810,8 @@ def batch_normalization(
     )
 
 
-class CtcLoss(Operation):
-    def __init__(self, mask_index):
+class CTCLoss(Operation):
+    def __init__(self, mask_index=0):
         super().__init__()
         self.mask_index = mask_index
 
@@ -1838,8 +1838,8 @@ class CtcLoss(Operation):
         self._check_shape_first_dim(
             "output_length", output_length.shape, "output", output.shape
         )
-
-        return KerasTensor((target.shape[0],), dtype=target.dtype)
+        dtype = backend.result_type(output.dtype, "float32")
+        return KerasTensor((target.shape[0],), dtype=dtype)
 
 
 @keras_export(
@@ -1865,12 +1865,54 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     """
 
     if any_symbolic_tensors((target, output, target_length, output_length)):
-        return CtcLoss(mask_index).symbolic_call(
+        return CTCLoss(mask_index).symbolic_call(
             target, output, target_length, output_length
         )
     return backend.nn.ctc_loss(
         target, output, target_length, output_length, mask_index
     )
+
+
+class CTCDecode(Operation):
+    def __init__(
+        self,
+        strategy="greedy",
+        beam_width=100,
+        top_paths=1,
+        merge_repeated=True,
+        mask_index=None,
+    ):
+        super().__init__()
+        self.strategy = strategy
+        self.beam_width = beam_width
+        self.top_paths = top_paths
+        self.merge_repeated = merge_repeated
+        self.mask_index = mask_index
+
+    def call(self, inputs, sequence_lengths):
+        return backend.nn.ctc_decode(
+            inputs,
+            sequence_lengths,
+            strategy=self.strategy,
+            beam_width=self.beam_width,
+            top_paths=self.top_paths,
+            merge_repeated=self.merge_repeated,
+            mask_index=self.mask_index,
+        )
+
+    def compute_output_spec(self, inputs, sequence_lengths):
+        inputs_shape = inputs.shape
+        if self.strategy == "greedy":
+            top_paths = 1
+        else:
+            top_paths = self.top_paths
+        dtype = backend.result_type(inputs.dtype, "float32")
+        return (
+            KerasTensor(
+                (top_paths, inputs_shape[0], inputs_shape[1]), dtype="int32"
+            ),
+            KerasTensor((inputs_shape[0], top_paths), dtype=dtype),
+        )
 
 
 @keras_export(
@@ -1882,7 +1924,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
 def ctc_decode(
     inputs,
     sequence_lengths,
-    strategy,
+    strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
@@ -1892,7 +1934,8 @@ def ctc_decode(
 
     Args:
         inputs: A tensor of shape `(batch_size, max_length, num_classes)`
-            containing the logits (output of the model).
+            containing the logits (the output of the model).
+            They should *not* be normalized via softmax.
         sequence_lengths: A tensor of shape `(batch_size,)` containing the
             sequence lengths for the batch.
         strategy: A string for the decoding strategy. Supported values are
@@ -1908,20 +1951,26 @@ def ctc_decode(
 
     Returns:
         A tuple containing:
-
-        - A list of decoded sequences.
-        - A list of the negative of the sum of the probability logits
-        (if strategy is `"greedy"`) or the log probability (if strategy is
-        `"beam_search"`) for each sequence.
+        - The tensor representing the list of decoded sequences. If
+            `strategy="greedy"`, the shape is `(1, batch_size, max_length)`. If
+            `strategy="beam_seatch"`, the shape is
+            `(top_paths, batch_size, max_length)`. Note that: `-1` indicates the
+            blank label.
+        - If `strategy="greedy"`, a tensor of shape `(batch_size, 1)`
+            representing the negative of the sum of the probability logits for
+            each sequence. If `strategy="beam_seatch"`, a tensor of shape
+            `(batch_size, top_paths)` representing the log probability for each
+            sequence.
     """
 
     if any_symbolic_tensors((inputs, sequence_lengths)):
-        raise NotImplementedError(
-            "CTC decoding is not supported with KerasTensors. Use it "
-            "inside the call() method of a Layer or the predict_step "
-            "method of a model."
-        )
-
+        return CTCDecode(
+            strategy=strategy,
+            beam_width=beam_width,
+            top_paths=top_paths,
+            merge_repeated=merge_repeated,
+            mask_index=mask_index,
+        ).symbolic_call(inputs, sequence_lengths)
     return backend.nn.ctc_decode(
         inputs=inputs,
         sequence_length=sequence_lengths,

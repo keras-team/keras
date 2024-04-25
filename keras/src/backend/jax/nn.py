@@ -1,16 +1,16 @@
+import builtins
+import math
+
 import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
-import numpy as np
 from jax import lax
 from jax import nn as jnn
 
-from keras.src.backend import standardize_data_format
-from keras.src.backend import standardize_dtype
+from keras.src import backend
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
-from keras.src.backend.config import epsilon
 from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import convert_to_tensor
 
@@ -157,7 +157,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -176,7 +176,7 @@ def average_pool(
     padding,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -189,7 +189,7 @@ def average_pool(
     pooled = _pool(inputs, 0.0, lax.add, pool_size, strides, padding)
     if padding == "valid":
         # Avoid the extra reduce_window.
-        return pooled / np.prod(pool_size)
+        return pooled / math.prod(pool_size)
     else:
         # Count the number of valid entries at each input point, then use that
         # for computing average. Assumes that any two arrays of same shape will
@@ -242,7 +242,7 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -292,7 +292,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -338,7 +338,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     depthwise_conv_output = depthwise_conv(
         inputs,
         depthwise_kernel,
@@ -366,7 +366,7 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     padding_values = compute_conv_transpose_padding_args_for_jax(
         input_shape=inputs.shape,
@@ -477,7 +477,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
         output = output / jnp.sum(output, axis, keepdims=True)
-        output = jnp.clip(output, epsilon(), 1.0 - epsilon())
+        output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = jnp.log(output)
     return -jnp.sum(target * log_prob, axis=axis)
 
@@ -504,7 +504,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
         output = output / jnp.sum(output, axis, keepdims=True)
-        output = jnp.clip(output, epsilon(), 1.0 - epsilon())
+        output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = jnp.log(output)
     target = jnn.one_hot(target, output.shape[axis], axis=axis)
     return -jnp.sum(target * log_prob, axis=axis)
@@ -526,7 +526,7 @@ def binary_crossentropy(target, output, from_logits=False):
         log_neg_logits = jax.nn.log_sigmoid(-output)
         return -1.0 * target * log_logits - (1.0 - target) * log_neg_logits
 
-    output = jnp.clip(output, epsilon(), 1.0 - epsilon())
+    output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
     bce = target * jnp.log(output)
     bce += (1.0 - target) * jnp.log(1.0 - output)
     return -bce
@@ -541,7 +541,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
     need_cast = False
-    ori_dtype = standardize_dtype(x.dtype)
+    ori_dtype = backend.standardize_dtype(x.dtype)
     if ori_dtype in ("float16", "bfloat16"):
         need_cast = True
         x = cast(x, "float32")
@@ -586,129 +586,159 @@ def batch_normalization(
     return jnp.add(x * inv, res)
 
 
-def ctc_loss(
-    target,
-    output,
-    target_length,
-    output_length,
-    mask_index=0,
-):
-    batch_size, _, _ = output.shape
-    batch_size, max_target_length = target.shape
+def ctc_loss(target, output, target_length, output_length, mask_index=0):
+    # Ref: https://github.com/google-deepmind/optax
+    # optax.ctc_loss_with_forward_probs
+    target = convert_to_tensor(target, dtype="int32")
+    output = convert_to_tensor(output)
+    target_length = convert_to_tensor(target_length, "int32")
+    output_length = convert_to_tensor(output_length, "int32")
+    batch_size, _, num_classes = output.shape
+    batch_size, max_label_length = target.shape
+    log_epsilon = -1e5
 
-    output = output.transpose((1, 0, 2))
-    target = target.transpose((1, 0)).astype("int32")
+    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    dtype = backend.result_type(output.dtype, "float32")
+    output = cast(output, dtype)
 
-    logits = jnn.log_softmax(output)
-    mgrid_t, mgrid_b = jnp.meshgrid(
-        jnp.arange(max_target_length), jnp.arange(batch_size)
-    )
-    logprobs_emit = logits[mgrid_t, mgrid_b, target[:, :, None]]
-    logprobs_mask = logits[:, :, mask_index]
-
-    logit_paddings = jnp.array(
-        jnp.arange(max_target_length) < output_length[:, None],
-        dtype=jnp.float32,
-    )
-
-    repeat = jnp.array(target[1:] == target[:-1])
-    repeat = jnp.pad(repeat, ((0, 1), (0, 0))).transpose((1, 0))
-
-    _logepsilon = -100000.0
-
-    def _iterate(prev, x):
-        prev_mask, prev_emit = prev
-        logprob_mask, logprob_emit, pad = x
-
-        prev_mask_orig = prev_mask
-        prev_mask = prev_mask.at[:, 1:].set(
-            jnp.logaddexp(prev_mask[:, 1:], prev_emit + _logepsilon * repeat),
+    def _lengths_to_paddings(lengths, max_length):
+        indices = jnp.arange(max_length).reshape(
+            (1,) * lengths.ndim + (max_length,)
         )
-        emit = jnp.logaddexp(
-            prev_mask[:, :-1] + logprob_emit, prev_emit + logprob_emit
-        )
+        lengths = jnp.expand_dims(lengths, axis=-1)
+        elem_valid = indices < lengths
+        return jnp.logical_not(elem_valid)
 
-        mask = prev_mask + logprob_mask[:, None]
-        mask = mask.at[:, 1:].set(
-            jnp.logaddexp(
-                mask[:, 1:],
-                prev_emit + logprob_mask[:, None] + _logepsilon * (1 - repeat),
-            )
-        )
+    target_paddings = _lengths_to_paddings(target_length, max_label_length)
+    output_paddings = _lengths_to_paddings(output_length, max_label_length)
+    target_paddings = target_paddings.astype(output.dtype)
+    output_paddings = output_paddings.astype(output.dtype)
 
-        pad = pad[:, None]
-        emit = emit * pad + prev_emit * (1 - pad)
-        mask = mask * pad + prev_mask_orig * (1 - pad)
-
-        return (mask, emit), (mask, emit)
-
-    mask_init = jnp.full((batch_size, max_target_length + 1), _logepsilon)
-    mask_init = mask_init.at[:, 0].set(0.0)
-    emit_init = jnp.full((batch_size, max_target_length), _logepsilon)
-
-    _, (alphas_mask, alphas_emit) = lax.scan(
-        _iterate,
-        (mask_init, emit_init),
-        (logprobs_mask, logprobs_emit, logit_paddings.transpose()),
+    logprobs = jnn.log_softmax(output)
+    label_lengths = max_label_length - jnp.sum(target_paddings, axis=1).astype(
+        jnp.int32
     )
 
-    last_alpha_mask = (
-        alphas_mask[-1]
-        .at[:, 1:]
-        .set(jnp.logaddexp(alphas_mask[-1, :, 1:], alphas_emit[-1]))
+    # repeat[b, n] == 1.0 when label[b, n] == label[b, n+1].
+    repeat = (target[:, :-1] == target[:, 1:]).astype(jnp.float32)
+    repeat = jnp.pad(repeat, ((0, 0), (0, 1)))
+
+    logprobs_phi = logprobs[:, :, mask_index : mask_index + 1]  # [B, T, 1]
+    logprobs_phi = jnp.transpose(logprobs_phi, (1, 0, 2))  # [T, B, 1]
+
+    _one_hot = jax.nn.one_hot(target, num_classes=num_classes)  # [B, N, K]
+    logprobs_emit = jnp.einsum("btk,bnk->btn", logprobs, _one_hot)
+    logprobs_emit = jnp.transpose(logprobs_emit, (1, 0, 2))  # [T, B, N]
+
+    # [B, N]
+    logalpha_phi_init = (
+        jnp.ones((batch_size, max_label_length + 1), dtype=output.dtype)
+        * log_epsilon
+    )
+    logalpha_phi_init = logalpha_phi_init.at[:, 0].set(0.0)
+    logalpha_emit_init = (
+        jnp.ones((batch_size, max_label_length), dtype=output.dtype)
+        * log_epsilon
     )
 
-    return -last_alpha_mask[jnp.arange(batch_size), target_length]
+    def update_phi_score(phi, added_score):
+        # Update `phi[:, 1:]`` with adding `added_score` in log space.
+        return jnp.concatenate(
+            [phi[:, :1], jnp.logaddexp(phi[:, 1:], added_score)], axis=-1
+        )
+
+    def loop_body(prev, x):
+        prev_phi, prev_emit = prev
+        # emit-to-phi epsilon transition, except if the next label is repetition
+        prev_phi_orig = prev_phi
+        prev_phi = update_phi_score(prev_phi, prev_emit + log_epsilon * repeat)
+
+        logprob_emit, logprob_phi, pad = x
+
+        # phi-to-emit transition
+        next_emit = jnp.logaddexp(
+            prev_phi[:, :-1] + logprob_emit, prev_emit + logprob_emit
+        )
+        # self-loop transition
+        next_phi = prev_phi + logprob_phi
+        # emit-to-phi blank transition only when the next label is repetition
+        next_phi = update_phi_score(
+            next_phi, prev_emit + logprob_phi + log_epsilon * (1.0 - repeat)
+        )
+
+        pad = pad.reshape((batch_size, 1))
+        next_emit = pad * prev_emit + (1.0 - pad) * next_emit
+        next_phi = pad * prev_phi_orig + (1.0 - pad) * next_phi
+
+        return (next_phi, next_emit), (next_phi, next_emit)
+
+    xs = (logprobs_emit, logprobs_phi, output_paddings.transpose((1, 0)))
+    _, (logalpha_phi, logalpha_emit) = jax.lax.scan(
+        loop_body, (logalpha_phi_init, logalpha_emit_init), xs
+    )
+
+    # last row needs to be updated with the last epsilon transition
+    logalpha_phi_last = update_phi_score(logalpha_phi[-1], logalpha_emit[-1])
+    logalpha_phi = logalpha_phi.at[-1].set(logalpha_phi_last)
+
+    # extract per_seq_loss
+    # [B, N+1]
+    _one_hot = jax.nn.one_hot(label_lengths, num_classes=max_label_length + 1)
+    per_seq_loss = -jnp.einsum("bn,bn->b", logalpha_phi_last, _one_hot)
+    return per_seq_loss
 
 
-def ctc_greedy_decode(
+def _ctc_greedy_decode(
     inputs,
     sequence_length,
     merge_repeated=True,
     mask_index=None,
 ):
-    inputs = jnp.array(inputs)
-    sequence_length = jnp.array(sequence_length, dtype=jnp.int32)
+    inputs = convert_to_tensor(inputs)
+    sequence_length = convert_to_tensor(sequence_length, dtype="int32")
+    batch_size, max_length, num_classes = inputs.shape
 
     if mask_index is None:
-        mask_index = inputs.shape[-1] - 1
+        mask_index = num_classes - 1
 
     indices = jnp.argmax(inputs, axis=-1)
     scores = jnp.max(inputs, axis=-1)
 
-    seqlen_mask = jnp.arange(inputs.shape[1])[None, :]
+    seqlen_mask = jnp.arange(max_length)[None, :]
     seqlen_mask = seqlen_mask >= sequence_length[:, None]
 
-    if merge_repeated:
-        repeat = indices[:, 1:] == indices[:, :-1]
-        repeat = jnp.pad(repeat, ((0, 0), (1, 0)))
-
-        indices = jnp.where(repeat, mask_index, indices)
-    else:
-        repeat = jnp.zeros_like(indices, dtype=bool)
-
     indices = jnp.where(seqlen_mask, mask_index, indices)
-    indices = [batch[batch != mask_index] for batch in indices]
-    max_len = max(len(batch) for batch in indices)
-    indices = jnp.array(
-        [jnp.pad(batch, (0, max_len - len(batch))) for batch in indices]
-    )
-
     scores = jnp.where(seqlen_mask, 0.0, scores)
+
+    if merge_repeated:
+        repeat_mask = indices[:, 1:] == indices[:, :-1]
+        repeat_mask = jnp.pad(repeat_mask, ((0, 0), (1, 0)))
+        indices = jnp.where(repeat_mask, mask_index, indices)
+
+    # We rearrange the indices by moving `mask_index` to the end of the array
+    invalid_mask = indices == mask_index
+    order = jnp.expand_dims(jnp.arange(max_length), axis=0)  # [1, N]
+    order = jnp.tile(order, (batch_size, 1))  # [B, N]
+    order = jnp.where(invalid_mask, max_length, order)
+    order = jnp.argsort(order, axis=-1)
+    indices = jnp.take_along_axis(indices, order, axis=-1)
+
+    # We set to -1 for blank labels
+    indices = jnp.where(invalid_mask, -1, indices)
     scores = -jnp.sum(scores, axis=1)[:, None]
+    indices = jnp.expand_dims(indices, axis=0)
+    return indices, scores
 
-    return [indices], scores
 
-
-def ctc_beam_search_decode(
+def _ctc_beam_search_decode(
     inputs,
     sequence_length,
     beam_width=100,
     top_paths=1,
     mask_index=None,
 ):
-    inputs = jnp.array(inputs)
-    sequence_length = jnp.array(sequence_length)
+    inputs = convert_to_tensor(inputs)
+    sequence_length = convert_to_tensor(sequence_length)
 
     batch_size, max_seq_len, num_classes = inputs.shape
     inputs = jnn.log_softmax(inputs)
@@ -730,13 +760,13 @@ def ctc_beam_search_decode(
         (batch_size, 2 * beam_width, max_seq_len), _pad, dtype=jnp.int32
     )
 
-    num_init_paths = jnp.min(jnp.array([num_classes, beam_width]))
+    num_init_paths = builtins.min(num_classes, beam_width)
     max_classes = jnp.argsort(inputs[:, 0], axis=1)[:, -num_init_paths:]
     init_classes = jnp.where(max_classes == mask_index, _pad, max_classes)
     init_paths = init_paths.at[:, :num_init_paths, 0].set(init_classes)
 
     init_scores = (
-        jnp.full((batch_size, 2 * beam_width), -jnp.inf)
+        jnp.full((batch_size, 2 * beam_width), -jnp.inf, dtype=inputs.dtype)
         .at[:, :num_init_paths]
         .set(jnp.take_along_axis(inputs[:, 0], max_classes, axis=1))
     )
@@ -859,38 +889,40 @@ def ctc_beam_search_decode(
 
     # convert classes back to the correct indices
     paths = jnp.where(paths == _pad, _pad, num_classes - paths - 1)
-
-    lengths = jnp.argmax(paths == _pad, axis=2)
-    lengths = jnp.max(lengths, axis=0)
-    paths = jnp.where(paths == _pad, 0, paths)
-
-    paths = paths.transpose((1, 0, 2))
-    paths = [path[:, :length] for path, length in zip(paths, lengths)]
-
+    paths = jnp.transpose(paths, [1, 0, 2])
     return paths, scores
 
 
 def ctc_decode(
     inputs,
     sequence_length,
-    strategy,
+    strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
     mask_index=None,
 ):
+    inputs = convert_to_tensor(inputs)
+    dtype = backend.result_type(inputs.dtype, "float32")
+    inputs = cast(inputs, dtype)
+
     if strategy == "greedy":
-        return ctc_greedy_decode(
+        return _ctc_greedy_decode(
             inputs,
             sequence_length,
             merge_repeated=merge_repeated,
             mask_index=mask_index,
         )
-    else:
-        return ctc_beam_search_decode(
+    elif strategy == "beam_search":
+        return _ctc_beam_search_decode(
             inputs,
             sequence_length,
             beam_width=beam_width,
             top_paths=top_paths,
             mask_index=mask_index,
+        )
+    else:
+        raise ValueError(
+            f"Invalid strategy {strategy}. Supported values are "
+            "'greedy' and 'beam_search'."
         )

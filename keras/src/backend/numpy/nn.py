@@ -1,14 +1,11 @@
 import jax
 import numpy as np
 from jax import lax
-from jax import numpy as jnp
 
-from keras.src.backend import standardize_data_format
-from keras.src.backend import standardize_dtype
+from keras.src import backend
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
-from keras.src.backend.config import epsilon
 from keras.src.backend.numpy.core import cast
 from keras.src.backend.numpy.core import convert_to_tensor
 from keras.src.backend.numpy.core import is_tensor
@@ -191,7 +188,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -200,7 +197,7 @@ def max_pool(
     strides = _convert_to_spatial_operand(
         strides, num_spatial_dims, data_format
     )
-    return _pool(inputs, -jnp.inf, lax.max, pool_size, strides, padding)
+    return _pool(inputs, -np.inf, lax.max, pool_size, strides, padding)
 
 
 def average_pool(
@@ -210,7 +207,7 @@ def average_pool(
     padding,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -233,7 +230,7 @@ def average_pool(
             (a if b != 1 else 1) for (a, b) in zip(inputs.shape, pool_size)
         ]
         window_counts = _pool(
-            jnp.ones(shape, inputs.dtype),
+            np.ones(shape, inputs.dtype),
             0.0,
             lax.add,
             pool_size,
@@ -276,7 +273,7 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -328,7 +325,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -350,7 +347,7 @@ def depthwise_conv(
     feature_group_count = (
         inputs.shape[-1] if data_format == "channels_last" else inputs.shape[1]
     )
-    kernel = jnp.reshape(
+    kernel = np.reshape(
         kernel if is_tensor(kernel) else kernel.numpy(),
         kernel.shape[:-2] + (1, feature_group_count * kernel.shape[-1]),
     )
@@ -376,7 +373,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     depthwise_conv_output = depthwise_conv(
         inputs,
         depthwise_kernel,
@@ -404,7 +401,7 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     padding_values = compute_conv_transpose_padding_args_for_jax(
         input_shape=inputs.shape,
@@ -508,7 +505,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = log_softmax(output, axis=axis)
     else:
         output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, epsilon(), 1.0 - epsilon())
+        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = np.log(output)
     return -np.sum(target * log_prob, axis=axis)
 
@@ -535,7 +532,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = log_softmax(output, axis=axis)
     else:
         output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, epsilon(), 1.0 - epsilon())
+        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = np.log(output)
     target = one_hot(target, output.shape[axis], axis=axis)
     return -np.sum(target * log_prob, axis=axis)
@@ -555,7 +552,7 @@ def binary_crossentropy(target, output, from_logits=False):
     if from_logits:
         output = sigmoid(output)
 
-    output = np.clip(output, epsilon(), 1.0 - epsilon())
+    output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
     bce = target * np.log(output)
     bce += (1.0 - target) * np.log(1.0 - output)
     return -bce
@@ -571,7 +568,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
     need_cast = False
-    ori_dtype = standardize_dtype(x.dtype)
+    ori_dtype = backend.standardize_dtype(x.dtype)
     if ori_dtype == "float16":
         need_cast = True
         x = cast(x, "float32")
@@ -617,15 +614,356 @@ def batch_normalization(
     return x * inv + res
 
 
+def ctc_loss(target, output, target_length, output_length, mask_index=0):
+    # Ref: https://github.com/google-deepmind/optax
+    # optax.ctc_loss_with_forward_probs
+    target = convert_to_tensor(target, dtype="int32")
+    output = convert_to_tensor(output)
+    target_length = convert_to_tensor(target_length, "int32")
+    output_length = convert_to_tensor(output_length, "int32")
+    batch_size, _, num_classes = output.shape
+    batch_size, max_label_length = target.shape
+    log_epsilon = -1e5
+
+    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    dtype = backend.result_type(output.dtype, "float32")
+    output = output.astype(dtype)
+
+    def _lengths_to_paddings(lengths, max_length):
+        indices = np.arange(max_length).reshape(
+            (1,) * lengths.ndim + (max_length,)
+        )
+        lengths = np.expand_dims(lengths, axis=-1)
+        elem_valid = indices < lengths
+        return np.logical_not(elem_valid)
+
+    target_paddings = _lengths_to_paddings(target_length, max_label_length)
+    output_paddings = _lengths_to_paddings(output_length, max_label_length)
+    target_paddings = target_paddings.astype(output.dtype)
+    output_paddings = output_paddings.astype(output.dtype)
+
+    logprobs = log_softmax(output, axis=-1)
+    label_lengths = max_label_length - np.sum(target_paddings, axis=1).astype(
+        np.int32
+    )
+
+    # repeat[b, n] == 1.0 when label[b, n] == label[b, n+1].
+    repeat = (target[:, :-1] == target[:, 1:]).astype(np.float32)
+    repeat = np.pad(repeat, ((0, 0), (0, 1)))
+
+    logprobs_phi = logprobs[:, :, mask_index : mask_index + 1]  # [B, T, 1]
+    logprobs_phi = np.transpose(logprobs_phi, (1, 0, 2))  # [T, B, 1]
+
+    _one_hot = one_hot(target, num_classes=num_classes)  # [B, N, K]
+    logprobs_emit = np.einsum("btk,bnk->btn", logprobs, _one_hot)
+    logprobs_emit = np.transpose(logprobs_emit, (1, 0, 2))  # [T, B, N]
+
+    # [B, N]
+    logalpha_phi_init = (
+        np.ones((batch_size, max_label_length + 1), dtype=output.dtype)
+        * log_epsilon
+    )
+    logalpha_phi_init[:, 0] = 0.0
+    logalpha_emit_init = (
+        np.ones((batch_size, max_label_length), dtype=output.dtype)
+        * log_epsilon
+    )
+
+    def update_phi_score(phi, added_score):
+        # Update `phi[:, 1:]`` with adding `added_score` in log space.
+        return np.concatenate(
+            [phi[:, :1], np.logaddexp(phi[:, 1:], added_score)], axis=-1
+        )
+
+    def loop_body(prev, x):
+        prev_phi, prev_emit = prev
+        # emit-to-phi epsilon transition, except if the next label is repetition
+        prev_phi_orig = prev_phi
+        prev_phi = update_phi_score(prev_phi, prev_emit + log_epsilon * repeat)
+
+        logprob_emit, logprob_phi, pad = x
+
+        # phi-to-emit transition
+        next_emit = np.logaddexp(
+            prev_phi[:, :-1] + logprob_emit, prev_emit + logprob_emit
+        )
+        # self-loop transition
+        next_phi = prev_phi + logprob_phi
+        # emit-to-phi blank transition only when the next label is repetition
+        next_phi = update_phi_score(
+            next_phi, prev_emit + logprob_phi + log_epsilon * (1.0 - repeat)
+        )
+
+        pad = pad.reshape((batch_size, 1))
+        next_emit = pad * prev_emit + (1.0 - pad) * next_emit
+        next_phi = pad * prev_phi_orig + (1.0 - pad) * next_phi
+
+        return (next_phi, next_emit), (next_phi, next_emit)
+
+    def np_scan(f, init, xs):
+        carry = init
+        ys = []
+        for x in zip(*xs):
+            carry, y = f(carry, x)
+            ys.append(y)
+        result = []
+        for i in range(len(ys[0])):
+            result.append(np.stack([y[i] for y in ys]))
+        return carry, result
+
+    xs = (logprobs_emit, logprobs_phi, output_paddings.transpose((1, 0)))
+    _, (logalpha_phi, logalpha_emit) = np_scan(
+        loop_body, (logalpha_phi_init, logalpha_emit_init), xs
+    )
+
+    # last row needs to be updated with the last epsilon transition
+    logalpha_phi_last = update_phi_score(logalpha_phi[-1], logalpha_emit[-1])
+    logalpha_phi[-1] = logalpha_phi_last
+
+    # extract per_seq_loss
+    # [B, N+1]
+    _one_hot = one_hot(label_lengths, num_classes=max_label_length + 1)
+    per_seq_loss = -np.einsum("bn,bn->b", logalpha_phi_last, _one_hot)
+    return per_seq_loss
+
+
+def _ctc_greedy_decode(
+    inputs,
+    sequence_length,
+    merge_repeated=True,
+    mask_index=None,
+):
+    inputs = convert_to_tensor(inputs)
+    sequence_length = convert_to_tensor(sequence_length, dtype="int32")
+    batch_size, max_length, num_classes = inputs.shape
+
+    if mask_index is None:
+        mask_index = num_classes - 1
+
+    indices = np.argmax(inputs, axis=-1).astype("int32")
+    scores = np.max(inputs, axis=-1)
+
+    seqlen_mask = np.arange(max_length)[None, :]
+    seqlen_mask = seqlen_mask >= sequence_length[:, None]
+
+    indices = np.where(seqlen_mask, mask_index, indices)
+    scores = np.where(seqlen_mask, 0.0, scores)
+
+    if merge_repeated:
+        repeat_mask = indices[:, 1:] == indices[:, :-1]
+        repeat_mask = np.pad(repeat_mask, ((0, 0), (1, 0)))
+        indices = np.where(repeat_mask, mask_index, indices)
+
+    # We rearrange the indices by moving `mask_index` to the end of the array
+    invalid_mask = indices == mask_index
+    order = np.expand_dims(np.arange(max_length), axis=0)  # [1, N]
+    order = np.tile(order, (batch_size, 1))  # [B, N]
+    order = np.where(invalid_mask, max_length, order)
+    order = np.argsort(order, axis=-1)
+    indices = np.take_along_axis(indices, order, axis=-1)
+
+    # We set to -1 for blank labels
+    indices = np.where(invalid_mask, -1, indices)
+    scores = -np.sum(scores, axis=1)[:, None]
+    indices = np.expand_dims(indices, axis=0)
+    return indices, scores
+
+
+def _ctc_beam_search_decode(
+    inputs,
+    sequence_length,
+    beam_width=100,
+    top_paths=1,
+    mask_index=None,
+):
+    inputs = convert_to_tensor(inputs)
+    sequence_length = convert_to_tensor(sequence_length)
+
+    batch_size, max_seq_len, num_classes = inputs.shape
+    inputs = log_softmax(inputs, axis=-1)
+    seqlen_mask = np.arange(max_seq_len)[None, :] >= sequence_length[:, None]
+
+    if mask_index is None:
+        mask_index = num_classes - 1
+
+    # This is a workaround for the fact that np.argsort does not support
+    # the order parameter which is used to break ties when scores are equal.
+    # For compatibility with the tensorflow implementation, we flip the inputs
+    # and the mask_index, and then flip the classes back to the correct indices
+    inputs = np.flip(inputs, axis=2)
+    mask_index = num_classes - mask_index - 1
+
+    _pad = -1
+
+    init_paths = np.full(
+        (batch_size, 2 * beam_width, max_seq_len), _pad, dtype=np.int32
+    )
+
+    num_init_paths = np.min(np.array([num_classes, beam_width]))
+    max_classes = np.argsort(inputs[:, 0], axis=1)[:, -num_init_paths:]
+    init_classes = np.where(max_classes == mask_index, _pad, max_classes)
+    init_paths[:, :num_init_paths, 0] = init_classes
+
+    init_scores = np.full(
+        (batch_size, 2 * beam_width), -np.inf, dtype=inputs.dtype
+    )
+    init_scores[:, :num_init_paths] = np.take_along_axis(
+        inputs[:, 0], max_classes, axis=1
+    )
+    init_masked = init_paths[:, :, 0] == _pad
+
+    def _extend_paths(paths, scores, masked, x):
+        paths = np.repeat(paths, num_classes, axis=0)
+        scores = np.repeat(scores, num_classes)
+        masked = np.repeat(masked, num_classes)
+
+        path_tail_index = np.argmax(paths == _pad, axis=1)
+        paths_arange = np.arange(2 * beam_width * num_classes)
+        path_tails = paths[paths_arange, path_tail_index - 1]
+        path_tails = np.where(path_tail_index == 0, _pad, path_tails)
+
+        classes = np.arange(num_classes)
+        classes[mask_index] = _pad
+        classes = np.tile(classes, 2 * beam_width)
+
+        prev_masked = masked
+        masked = classes == _pad
+
+        masked_repeat = ~prev_masked & (path_tails == classes)
+        classes = np.where(masked_repeat, _pad, classes)
+        paths[paths_arange, path_tail_index] = classes
+
+        x = np.tile(x, 2 * beam_width)
+        scores = scores + x
+
+        return paths, scores, masked
+
+    def _merge_scores(unique_inverse, scores):
+        scores_max = np.max(scores)
+        scores_exp = np.exp(scores - scores_max)
+        scores = np.zeros_like(scores)
+        for i, u in enumerate(unique_inverse):
+            scores[u] += scores_exp[i]
+        scores = np.log(scores) + scores_max
+        return scores
+
+    def _prune_paths(paths, scores, masked):
+        paths, unique_inverse = np.unique(paths, return_inverse=True, axis=0)
+        pad_size = (2 * num_classes * beam_width) - len(paths)
+        if pad_size > 0:
+            paths = np.pad(paths, [[0, pad_size], [0, 0]], constant_values=_pad)
+        paths = paths[: 2 * num_classes * beam_width]
+        if len(unique_inverse.shape) >= 2:
+            unique_inverse = np.squeeze(unique_inverse, axis=1)
+
+        emit_scores = np.where(masked, -np.inf, scores)
+        mask_scores = np.where(masked, scores, -np.inf)
+
+        emit_scores = _merge_scores(unique_inverse, emit_scores)
+        mask_scores = _merge_scores(unique_inverse, mask_scores)
+
+        total_scores = np.logaddexp(emit_scores, mask_scores)
+        top_indices = np.argsort(total_scores, kind="stable")[-beam_width:]
+
+        paths = paths[top_indices]
+        emit_scores = emit_scores[top_indices]
+        mask_scores = mask_scores[top_indices]
+
+        paths = np.tile(paths, (2, 1))
+        scores = np.concatenate([emit_scores, mask_scores])
+        masked = np.concatenate(
+            [np.zeros(beam_width, bool), np.ones(beam_width, bool)]
+        )
+
+        return paths, scores, masked
+
+    def _decode_step(paths, scores, masked, x):
+        paths, scores, masked = _extend_paths(paths, scores, masked, x)
+        paths, scores, masked = _prune_paths(paths, scores, masked)
+        return paths, scores, masked
+
+    def _step(prev, x):
+        paths, scores, masked = prev
+        x, seqlen_mask = x
+        if not seqlen_mask:
+            paths, scores, masked = _decode_step(paths, scores, masked, x)
+        return (paths, scores, masked), None
+
+    def _decode_batch(
+        init_paths, init_scores, init_masked, inputs, seqlen_mask
+    ):
+        def np_scan_only_carry(f, init, xs):
+            carry = init
+            for x in zip(*xs):
+                carry, y = f(carry, x)
+            return carry, None
+
+        (paths, scores, masked), _ = np_scan_only_carry(
+            _step,
+            (init_paths, init_scores, init_masked),
+            (inputs[1:], seqlen_mask[1:]),
+        )
+
+        paths, unique_inverse = np.unique(paths, return_inverse=True, axis=0)
+        pad_size = (2 * num_classes * beam_width) - len(paths)
+        if pad_size > 0:
+            paths = np.pad(paths, [[0, pad_size], [0, 0]], constant_values=_pad)
+        paths = paths[: 2 * num_classes * beam_width]
+        if len(unique_inverse.shape) >= 2:
+            unique_inverse = np.squeeze(unique_inverse, axis=1)
+        scores = _merge_scores(unique_inverse, scores)
+
+        top_indices = np.argsort(scores)[-top_paths:][::-1]
+        paths = paths[top_indices]
+        scores = scores[top_indices]
+
+        return paths, scores
+
+    results = [
+        _decode_batch(p, s, m, i, sm)
+        for p, s, m, i, sm in zip(
+            init_paths, init_scores, init_masked, inputs, seqlen_mask
+        )
+    ]
+    paths = np.stack([r[0] for r in results])
+    scores = np.stack([r[1] for r in results])
+
+    # convert classes back to the correct indices
+    paths = np.where(paths == _pad, _pad, num_classes - paths - 1)
+    paths = np.transpose(paths, [1, 0, 2])
+    return paths, scores
+
+
 def ctc_decode(
     inputs,
     sequence_length,
-    strategy,
+    strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
     mask_index=None,
 ):
-    raise NotImplementedError(
-        "NumPy backend does not yet support CTC decoding."
-    )
+    inputs = convert_to_tensor(inputs)
+    dtype = backend.result_type(inputs.dtype, "float32")
+    inputs = cast(inputs, dtype)
+
+    if strategy == "greedy":
+        return _ctc_greedy_decode(
+            inputs,
+            sequence_length,
+            merge_repeated=merge_repeated,
+            mask_index=mask_index,
+        )
+    elif strategy == "beam_search":
+        return _ctc_beam_search_decode(
+            inputs,
+            sequence_length,
+            beam_width=beam_width,
+            top_paths=top_paths,
+            mask_index=mask_index,
+        )
+    else:
+        raise ValueError(
+            f"Invalid strategy {strategy}. Supported values are "
+            "'greedy' and 'beam_search'."
+        )

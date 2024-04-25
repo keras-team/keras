@@ -3,12 +3,10 @@ import warnings
 
 import tensorflow as tf
 
-from keras.src.backend import standardize_data_format
-from keras.src.backend import standardize_dtype
+from keras.src import backend
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
-from keras.src.backend.config import epsilon
 from keras.src.backend.tensorflow.core import cast
 from keras.src.backend.tensorflow.core import convert_to_tensor
 
@@ -75,30 +73,7 @@ def selu(x):
 
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
-    # we need to explicitly implement gelu because bfloat16 will trigger
-    # DTypePromotionError when using enable_numpy_behavior()
-    if approximate:
-        coeff = tf.constant(0.044715, x.dtype)
-        return (
-            tf.constant(0.5, x.dtype)
-            * x
-            * (
-                tf.constant(1.0, x.dtype)
-                + tf.math.tanh(
-                    tf.constant(0.7978845608028654, x.dtype)
-                    * (x + coeff * tf.pow(x, 3))
-                )
-            )
-        )
-    else:
-        return (
-            tf.constant(0.5, x.dtype)
-            * x
-            * (
-                tf.constant(1.0, x.dtype)
-                + tf.math.erf(x / tf.constant(1.4142135623730951, x.dtype))
-            )
-        )
+    return tf.nn.gelu(x, approximate=approximate)
 
 
 def softmax(x, axis=-1):
@@ -162,7 +137,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     strides = pool_size if strides is None else strides
     padding = padding.upper()
     tf_data_format = _convert_data_format("channels_last", len(inputs.shape))
@@ -190,7 +165,7 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     strides = pool_size if strides is None else strides
     padding = padding.upper()
     tf_data_format = _convert_data_format("channels_last", len(inputs.shape))
@@ -268,7 +243,7 @@ def conv(
     def _conv_xla():
         return _conv()
 
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         channels = inputs.shape[-1]
     else:
@@ -288,7 +263,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = len(inputs.shape) - 2
     if num_spatial_dims > 2:
         raise ValueError(
@@ -351,7 +326,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = len(inputs.shape) - 2
     if num_spatial_dims > 2:
         raise ValueError(
@@ -414,7 +389,7 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     tf_data_format = _convert_data_format(data_format, len(inputs.shape))
     kernel_size = kernel.shape[:-2]
     filters = kernel.shape[-2]
@@ -597,7 +572,9 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     output = output / tf.reduce_sum(output, axis, keepdims=True)
 
     # Compute cross entropy from probabilities.
-    output = tf.clip_by_value(output, epsilon(), 1.0 - epsilon())
+    output = tf.clip_by_value(
+        output, backend.epsilon(), 1.0 - backend.epsilon()
+    )
     return -tf.reduce_sum(target * tf.math.log(output), axis)
 
 
@@ -653,7 +630,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             )
 
     if not from_logits:
-        output = tf.clip_by_value(output, epsilon(), 1 - epsilon())
+        output = tf.clip_by_value(
+            output, backend.epsilon(), 1 - backend.epsilon()
+        )
         output = tf.math.log(output)
 
     result = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -702,7 +681,9 @@ def binary_crossentropy(target, output, from_logits=False):
         )
 
     # Compute cross entropy from probabilities.
-    output = tf.clip_by_value(output, epsilon(), 1.0 - epsilon())
+    output = tf.clip_by_value(
+        output, backend.epsilon(), 1.0 - backend.epsilon()
+    )
     bce = target * tf.math.log(output)
     bce += (1 - target) * tf.math.log(1 - output)
     return -bce
@@ -713,7 +694,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
     need_cast = False
-    ori_dtype = standardize_dtype(x.dtype)
+    ori_dtype = backend.standardize_dtype(x.dtype)
     if ori_dtype in ("float16", "bfloat16"):
         need_cast = True
         x = cast(x, "float32")
@@ -797,11 +778,18 @@ def ctc_loss(
     output_length,
     mask_index=0,
 ):
-    target = tf.convert_to_tensor(target)
+    target = convert_to_tensor(target)
+    output = convert_to_tensor(output)
     target = tf.cast(target, dtype="int32")
-    output = tf.convert_to_tensor(output)
-    output = tf.cast(output, dtype="float32")
-    return tf.nn.ctc_loss(
+
+    # `tf.nn.ctc_loss` will internally cast to float32 when the input is float16
+    # or bfloat16. Additionally, it will raise an error when the input is
+    # float64. As a result, we perform the casting externally and add support
+    # for float64.
+    result_dtype = backend.result_type(output.dtype, "float32")
+    compute_dtype = "float32" if result_dtype == "float64" else result_dtype
+    output = tf.cast(output, compute_dtype)
+    loss = tf.nn.ctc_loss(
         labels=target,
         logits=output,
         label_length=target_length,
@@ -809,30 +797,36 @@ def ctc_loss(
         blank_index=mask_index,
         logits_time_major=False,
     )
+    return tf.cast(loss, result_dtype)
 
 
 def ctc_decode(
     inputs,
     sequence_length,
-    strategy,
+    strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
     mask_index=None,
 ):
-    inputs = tf.convert_to_tensor(inputs)
+    inputs = convert_to_tensor(inputs)
+    input_shape = tf.shape(inputs)
+    num_samples, num_steps = input_shape[0], input_shape[1]
     inputs = tf.transpose(inputs, (1, 0, 2))
 
-    sequence_length = tf.convert_to_tensor(sequence_length, dtype="int32")
+    dtype = backend.result_type(inputs.dtype, "float32")
+    inputs = tf.cast(inputs, dtype)
+
+    sequence_length = convert_to_tensor(sequence_length, dtype="int32")
     if strategy == "greedy":
-        return tf.nn.ctc_greedy_decoder(
+        (decoded, scores) = tf.nn.ctc_greedy_decoder(
             inputs=inputs,
             sequence_length=sequence_length,
             merge_repeated=merge_repeated,
             blank_index=mask_index,
         )
     elif strategy == "beam_search":
-        return tf.nn.ctc_beam_search_decoder(
+        (decoded, scores) = tf.nn.ctc_beam_search_decoder(
             inputs=inputs,
             sequence_length=sequence_length,
             beam_width=beam_width,
@@ -843,3 +837,12 @@ def ctc_decode(
             f"Invalid strategy {strategy}. Supported values are "
             "'greedy' and 'beam_search'."
         )
+
+    # Postprocess sparse tensor
+    decoded_dense = []
+    for st in decoded:
+        st = tf.SparseTensor(st.indices, st.values, (num_samples, num_steps))
+        decoded_dense.append(tf.sparse.to_dense(sp_input=st, default_value=-1))
+    decoded_dense = tf.stack(decoded_dense, axis=0)
+    decoded_dense = tf.cast(decoded_dense, "int32")
+    return decoded_dense, scores
