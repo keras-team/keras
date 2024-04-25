@@ -32,6 +32,14 @@ def get_nested_functional_model():
     return model
 
 
+def get_nested_sequential_model():
+    model = models.Sequential()
+    model.add(layers.Dense(2))
+    model.add(get_sequential_model(explicit_input=False))
+    model.add(layers.Dense(2))
+    return model
+
+
 def get_cnn_functional_model(shared_layers=False):
     inputs = layers.Input(shape=(7, 3))
     x = layers.Conv1D(2, 2, padding="same")(inputs)
@@ -187,3 +195,25 @@ class CloneModelTest(testing.TestCase, parameterized.TestCase):
         self.assertIsInstance(new_model.layers[3].layers[4], layers.Dropout)
         ref_input = np.random.random((2, 4))
         self.assert_models_equal(model, new_model, ref_input)
+
+        # Sequential.
+        def clone_function(layer):
+            layer = layer.__class__.from_config(layer.get_config())
+            layer.flag = True
+            return layer
+
+        model = get_nested_sequential_model()
+        new_model = clone_model(
+            model,
+            clone_function=clone_function,
+            recursive=True,
+        )
+        ref_input = np.random.random((2, 3))
+        model(ref_input)  # Maybe needed to build the model
+        new_model(ref_input)  # Maybe needed to build the model
+        new_model.set_weights(model.get_weights())
+        self.assert_models_equal(model, new_model, ref_input)
+        for l1, l2 in zip(model._flatten_layers(), new_model._flatten_layers()):
+            if isinstance(l2, layers.Dense):
+                self.assertFalse(hasattr(l1, "flag"))
+                self.assertTrue(hasattr(l2, "flag"))
