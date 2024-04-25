@@ -1,5 +1,4 @@
 import contextlib
-import os
 
 import ml_dtypes
 import numpy as np
@@ -19,9 +18,7 @@ SUPPORTS_SPARSE_TENSORS = False
 # Some operators such as 'aten::_foreach_mul_.Scalar'
 # are not currently implemented for the MPS device.
 # check https://github.com/pytorch/pytorch/issues/77764.
-if (
-    torch.backends.mps.is_available()
-):
+if torch.backends.mps.is_available():
     DEFAULT_DEVICE = "mps"
 elif torch.cuda.is_available():
     DEFAULT_DEVICE = "cuda"
