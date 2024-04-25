@@ -4,6 +4,7 @@ from absl.testing import parameterized
 
 from keras.src import layers
 from keras.src import models
+from keras.src import ops
 from keras.src import testing
 from keras.src import tree
 from keras.src.models.cloning import clone_model
@@ -16,6 +17,16 @@ def get_mlp_functional_model(shared_layers=False):
         layer = layers.Dense(2, name="shared")
         x = layer(x)
         x = layer(x)
+    outputs = layers.Dense(2)(x)
+    model = models.Model(inputs, outputs)
+    return model
+
+
+def get_nested_functional_model():
+    inputs = layers.Input(shape=(4,))
+    x = layers.Dense(3)(inputs)
+    mlp = get_mlp_functional_model()
+    x = mlp(x)
     outputs = layers.Dense(2)(x)
     model = models.Model(inputs, outputs)
     return model
@@ -57,6 +68,19 @@ def get_subclassed_model():
 
 @pytest.mark.requires_trainable_backend
 class CloneModelTest(testing.TestCase, parameterized.TestCase):
+
+    def assert_models_equal(self, model1, model2, ref_input):
+        result1 = model1(ref_input)
+        result2 = model2(ref_input)
+        for r1, r2 in zip(tree.flatten(result1), tree.flatten(result2)):
+            self.assertAllClose(
+                ops.convert_to_numpy(r1), ops.convert_to_numpy(r2)
+            )
+
+    def assert_weights_equal(self, model1, model2):
+        for a, b in zip(model1.weights, model2.weights):
+            self.assertAllClose(a.numpy(), b.numpy())
+
     @parameterized.named_parameters(
         ("mlp_functional", get_mlp_functional_model),
         ("cnn_functional", get_cnn_functional_model, True),
@@ -71,11 +95,10 @@ class CloneModelTest(testing.TestCase, parameterized.TestCase):
         ref_input = np.random.random((2, 7, 3) if is_conv else (2, 3))
         model = model_fn()
         new_model = clone_model(model)
-        ref_output = model(ref_input)
+        model(ref_input)  # Maybe needed to build the model
         new_model(ref_input)  # Maybe needed to build the model
         new_model.set_weights(model.get_weights())
-        output = new_model(ref_input)
-        self.assertAllClose(ref_output, output)
+        self.assert_models_equal(model, new_model, ref_input)
 
     @parameterized.named_parameters(
         ("mlp_functional", get_mlp_functional_model),
@@ -121,3 +144,46 @@ class CloneModelTest(testing.TestCase, parameterized.TestCase):
             "`input_tensors` must have the same structure as model.input",
         ):
             model = clone_model(model0, input_tensors=(x, y))
+
+    def test_call_fn(self):
+        model = get_mlp_functional_model(shared_layers=False)
+
+        def call_function(layer, *args, **kwargs):
+            out = layer(*args, **kwargs)
+            if isinstance(layer, layers.Dense):
+                out = layers.Dropout(0.5)(out)
+            return out
+
+        new_model = clone_model(
+            model,
+            clone_function=lambda x: x,  # Reuse the same layers.
+            call_function=call_function,
+        )
+        self.assertLen(model.layers, 3)
+        self.assertLen(new_model.layers, 5)
+        self.assertIsInstance(new_model.layers[2], layers.Dropout)
+        self.assertIsInstance(new_model.layers[4], layers.Dropout)
+        ref_input = np.random.random((2, 3))
+        self.assert_models_equal(model, new_model, ref_input)
+
+    def test_recursive(self):
+        model = get_nested_functional_model()
+
+        def call_function(layer, *args, **kwargs):
+            out = layer(*args, **kwargs)
+            if isinstance(layer, layers.Dense):
+                out = layers.Dropout(0.5)(out)
+            return out
+
+        new_model = clone_model(
+            model,
+            clone_function=lambda x: x,  # Reuse the same layers.
+            call_function=call_function,
+            recursive=True,
+        )
+        self.assertLen(model._flatten_layers(), 8)
+        self.assertLen(new_model._flatten_layers(), 12)
+        self.assertIsInstance(new_model.layers[3].layers[2], layers.Dropout)
+        self.assertIsInstance(new_model.layers[3].layers[4], layers.Dropout)
+        ref_input = np.random.random((2, 4))
+        self.assert_models_equal(model, new_model, ref_input)

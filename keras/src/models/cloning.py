@@ -12,7 +12,12 @@ from keras.src.saving import serialization_lib
 
 @keras_export("keras.models.clone_model")
 def clone_model(
-    model, input_tensors=None, clone_function=None, call_function=None
+    model,
+    input_tensors=None,
+    clone_function=None,
+    call_function=None,
+    recursive=False,
+    **kwargs,
 ):
     """Clone a Functional or Sequential `Model` instance.
 
@@ -53,6 +58,15 @@ def clone_model(
             By passing a custom callable, you can insert new layers before or
             after a given layer. Note: this argument can only be used with
             Functional models.
+        recursive: Boolean. Whether to recursively clone any Sequential
+            or Functional models encountered in the original
+            Sequential/Functional model. If `False`,
+            then inner models are cloned by calling `clone_function()`.
+            If `True`, then inner models are cloned by calling `clone_model()`
+            with the same `clone_function`, `call_function`, and `recursive`
+            arguments. Note that in this case, `call_function`
+            will not be propagated to any Sequential model
+            (since it is not applicable to Sequential models).
 
     Returns:
         An instance of `Model` reproducing the behavior
@@ -118,7 +132,20 @@ def clone_model(
     In the case of a subclassed model, you cannot using a custom
     `clone_function`.
     """
+    cache = kwargs.pop("cache", None)
+    if kwargs:
+        raise ValueError(
+            f"Unexpected keyword argument(s): {tuple(kwargs.keys())}"
+        )
+
     if isinstance(model, Sequential):
+        # Wrap clone_function to handle recursiveness and layer sharing.
+        clone_function = _wrap_clone_function(
+            clone_function,
+            call_function=call_function,
+            recursive=recursive,
+            cache=cache,
+        )
         if call_function is not None:
             raise ValueError(
                 "`call_function` argument is not supported with Sequential "
@@ -131,10 +158,18 @@ def clone_model(
             )
         return _clone_sequential_model(
             model,
-            input_tensors=input_tensors,
             clone_function=clone_function,
+            input_tensors=input_tensors,
         )
     if isinstance(model, Functional):
+        # Wrap clone_function to handle recursiveness and layer sharing.
+        clone_function = _wrap_clone_function(
+            clone_function,
+            call_function=call_function,
+            recursive=recursive,
+            cache=cache,
+        )
+
         # If the get_config() method is the same as a regular Functional
         # model, we're safe to use _clone_functional_model (which relies
         # on a Functional constructor). In the case where the get_config
@@ -146,9 +181,9 @@ def clone_model(
         ):
             return _clone_functional_model(
                 model,
-                input_tensors=input_tensors,
                 clone_function=clone_function,
                 call_function=call_function,
+                input_tensors=input_tensors,
             )
 
     # Case of a custom model class
@@ -174,7 +209,50 @@ def clone_model(
     )
 
 
-def _clone_sequential_model(model, input_tensors=None, clone_function=None):
+def _wrap_clone_function(
+    clone_function, call_function=None, recursive=False, cache=None
+):
+    """Wrapper to handle recursiveness and layer sharing."""
+    if clone_function is None:
+
+        def _clone_layer(layer):
+            return layer.__class__.from_config(layer.get_config())
+
+        clone_function = _clone_layer
+
+    if cache is None:
+        cache = {}
+
+    def wrapped_clone_function(layer):
+        if id(layer) in cache:
+            return cache[id(layer)]
+        if recursive:
+            if isinstance(layer, Sequential):
+                # Note: Sequential doens't support call_function.
+                clone = clone_model(
+                    layer,
+                    clone_function=clone_function,
+                    cache=cache,
+                )
+                cache[id(layer)] = clone
+                return clone
+            elif isinstance(layer, Functional):
+                clone = clone_model(
+                    layer,
+                    clone_function=clone_function,
+                    call_function=call_function,
+                    cache=cache,
+                )
+                cache[id(layer)] = clone
+                return clone
+        clone = clone_function(layer)
+        cache[id(layer)] = clone
+        return clone
+
+    return wrapped_clone_function
+
+
+def _clone_sequential_model(model, clone_function, input_tensors=None):
     """Clone a `Sequential` model instance.
 
     Model cloning is similar to calling a model on new inputs,
@@ -194,12 +272,6 @@ def _clone_sequential_model(model, input_tensors=None, clone_function=None):
         of the original model, on top of new inputs tensors,
         using newly instantiated weights.
     """
-    if clone_function is None:
-
-        def _clone_layer(layer):
-            return layer.__class__.from_config(layer.get_config())
-
-        clone_function = _clone_layer
 
     if not isinstance(model, Sequential):
         raise ValueError(
@@ -253,7 +325,7 @@ def _clone_sequential_model(model, input_tensors=None, clone_function=None):
 
 
 def _clone_functional_model(
-    model, input_tensors=None, clone_function=None, call_function=None
+    model, clone_function, input_tensors=None, call_function=None
 ):
     """Clone a `Functional` model instance.
 
@@ -276,17 +348,6 @@ def _clone_functional_model(
         of the original model, on top of new inputs tensors,
         using newly instantiated weights.
     """
-    if clone_function is None:
-        seen = {}
-
-        def _clone_layer(layer):
-            if layer in seen:
-                return seen[layer]
-            new_layer = layer.__class__.from_config(layer.get_config())
-            seen[layer] = new_layer
-            return new_layer
-
-        clone_function = _clone_layer
 
     if not callable(clone_function):
         raise ValueError(
