@@ -21,7 +21,6 @@ SUPPORTS_SPARSE_TENSORS = False
 # check https://github.com/pytorch/pytorch/issues/77764.
 if (
     torch.backends.mps.is_available()
-    and os.getenv("PYTORCH_ENABLE_MPS_FALLBACK") == "1"
 ):
     DEFAULT_DEVICE = "mps"
 elif torch.cuda.is_available():
