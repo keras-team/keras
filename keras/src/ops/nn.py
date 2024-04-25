@@ -1912,8 +1912,8 @@ def ctc_decode(
             `(batch_size, max_length)`. Note that: `-1` indicates the blank
             label.
         - If `strategy="greedy"`, a tensor of shape `(batch_size, 1)`
-            representing the negative of the sum of the probability logits. If
-            `strategy="beam_seatch"`, a tensor of shape
+            representing the negative of the sum of the probability logits for
+            each sequence. If `strategy="beam_seatch"`, a tensor of shape
             `(batch_size, top_paths)` representing the log probability for each
             sequence.
     """
