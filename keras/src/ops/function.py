@@ -121,7 +121,7 @@ class Function(Operation):
         self._assert_input_compatibility(inputs)
         return self._run_through_graph(inputs, operation_fn=lambda op: op)
 
-    def _run_through_graph(self, inputs, operation_fn):
+    def _run_through_graph(self, inputs, operation_fn, call_fn=None):
         """Execute the graph.
 
         At each node we compute outputs via
@@ -148,7 +148,11 @@ class Function(Operation):
                     continue  # Node is not computable, try skipping.
 
                 args, kwargs = node.arguments.fill_in(tensor_dict)
-                outputs = operation_fn(node.operation)(*args, **kwargs)
+                op = operation_fn(node.operation)
+                if call_fn is not None:
+                    outputs = call_fn(op, *args, **kwargs)
+                else:
+                    outputs = op(*args, **kwargs)
 
                 # Update tensor_dict.
                 for x, y in zip(node.outputs, tree.flatten(outputs)):
