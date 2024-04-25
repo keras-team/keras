@@ -26,6 +26,7 @@ from keras.src.ops.nn import moments
 from keras.src.ops.nn import multi_hot
 from keras.src.ops.nn import normalize
 from keras.src.ops.nn import one_hot
+from keras.src.ops.nn import psnr
 from keras.src.ops.nn import relu
 from keras.src.ops.nn import relu6
 from keras.src.ops.nn import selu

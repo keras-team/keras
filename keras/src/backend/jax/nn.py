@@ -926,3 +926,16 @@ def ctc_decode(
             f"Invalid strategy {strategy}. Supported values are "
             "'greedy' and 'beam_search'."
         )
+
+
+def psnr(x1, x2, max_val):
+    if x1.shape != x2.shape:
+        raise ValueError(
+            f"Input shapes {x1.shape} and {x2.shape} must "
+            "match for PSNR calculation. "
+        )
+
+    max_val = convert_to_tensor(max_val, dtype=x2.dtype)
+    mse = jnp.mean(jnp.square(x1 - x2))
+    psnr = 20 * jnp.log10(max_val) - 10 * jnp.log10(mse)
+    return psnr

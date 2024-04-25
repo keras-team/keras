@@ -846,3 +846,18 @@ def ctc_decode(
     decoded_dense = tf.stack(decoded_dense, axis=0)
     decoded_dense = tf.cast(decoded_dense, "int32")
     return decoded_dense, scores
+
+
+def psnr(x1, x2, max_val):
+    from keras.src.backend.tensorflow.numpy import log10
+
+    if x1.shape != x2.shape:
+        raise ValueError(
+            f"Input shapes {x1.shape} and {x2.shape} must "
+            "match for PSNR calculation. "
+        )
+
+    max_val = convert_to_tensor(max_val, dtype=x2.dtype)
+    mse = tf.reduce_mean(tf.square(x1 - x2))
+    psnr = 20 * log10(max_val) - 10 * log10(mse)
+    return psnr

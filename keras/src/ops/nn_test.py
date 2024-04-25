@@ -654,6 +654,12 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.normalize(x).shape, (None, 2, 3))
 
+    def test_psnr(self):
+        x1 = KerasTensor([None, 2, 3])
+        x2 = KerasTensor([None, 5, 6])
+        out = knn.psnr(x1, x2, max_val=224)
+        self.assertEqual(out.shape, ())
+
 
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
@@ -1113,6 +1119,12 @@ class NNOpsStaticShapeTest(testing.TestCase):
     def test_normalize(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.normalize(x).shape, (1, 2, 3))
+
+    def test_psnr(self):
+        x1 = KerasTensor([1, 2, 3])
+        x2 = KerasTensor([5, 6, 7])
+        out = knn.psnr(x1, x2, max_val=224)
+        self.assertEqual(out.shape, ())
 
 
 class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -2031,6 +2043,25 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 [0.30285344, 0.6057069, 0.9085603],
             ],
         )
+
+    def test_psnr(self):
+        x1 = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+        x2 = np.array([[0.2, 0.2, 0.3], [0.4, 0.6, 0.6]])
+        max_val = 1.0
+        expected_psnr_1 = 20 * np.log10(max_val) - 10 * np.log10(
+            np.mean(np.square(x1 - x2))
+        )
+        psnr_1 = knn.psnr(x1, x2, max_val)
+        self.assertAlmostEqual(psnr_1, expected_psnr_1)
+
+        x3 = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+        x4 = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+        max_val = 1.0
+        expected_psnr_2 = 20 * np.log10(max_val) - 10 * np.log10(
+            np.mean(np.square(x3 - x4))
+        )
+        psnr_2 = knn.psnr(x3, x4, max_val)
+        self.assertAlmostEqual(psnr_2, expected_psnr_2)
 
 
 class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
