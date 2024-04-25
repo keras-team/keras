@@ -1,17 +1,15 @@
+import math
+
 import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
-import numpy as np
 from jax import lax
 from jax import nn as jnn
 
 from keras.src import backend
-from keras.src.backend import standardize_data_format
-from keras.src.backend import standardize_dtype
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
-from keras.src.backend.config import epsilon
 from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import convert_to_tensor
 
@@ -158,7 +156,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -177,7 +175,7 @@ def average_pool(
     padding,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -190,7 +188,7 @@ def average_pool(
     pooled = _pool(inputs, 0.0, lax.add, pool_size, strides, padding)
     if padding == "valid":
         # Avoid the extra reduce_window.
-        return pooled / np.prod(pool_size)
+        return pooled / math.prod(pool_size)
     else:
         # Count the number of valid entries at each input point, then use that
         # for computing average. Assumes that any two arrays of same shape will
@@ -243,7 +241,7 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -293,7 +291,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -339,7 +337,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     depthwise_conv_output = depthwise_conv(
         inputs,
         depthwise_kernel,
@@ -367,7 +365,7 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     padding_values = compute_conv_transpose_padding_args_for_jax(
         input_shape=inputs.shape,
@@ -478,7 +476,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
         output = output / jnp.sum(output, axis, keepdims=True)
-        output = jnp.clip(output, epsilon(), 1.0 - epsilon())
+        output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = jnp.log(output)
     return -jnp.sum(target * log_prob, axis=axis)
 
@@ -505,7 +503,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
         output = output / jnp.sum(output, axis, keepdims=True)
-        output = jnp.clip(output, epsilon(), 1.0 - epsilon())
+        output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = jnp.log(output)
     target = jnn.one_hot(target, output.shape[axis], axis=axis)
     return -jnp.sum(target * log_prob, axis=axis)
@@ -527,7 +525,7 @@ def binary_crossentropy(target, output, from_logits=False):
         log_neg_logits = jax.nn.log_sigmoid(-output)
         return -1.0 * target * log_logits - (1.0 - target) * log_neg_logits
 
-    output = jnp.clip(output, epsilon(), 1.0 - epsilon())
+    output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
     bce = target * jnp.log(output)
     bce += (1.0 - target) * jnp.log(1.0 - output)
     return -bce
@@ -542,7 +540,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
     need_cast = False
-    ori_dtype = standardize_dtype(x.dtype)
+    ori_dtype = backend.standardize_dtype(x.dtype)
     if ori_dtype in ("float16", "bfloat16"):
         need_cast = True
         x = cast(x, "float32")
