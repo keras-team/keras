@@ -12,7 +12,8 @@ from keras.src.backend.mlx.core import to_mlx_dtype
 
 
 def add(x1, x2):
-    x1, x2 = convert_to_tensors(x1, x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.add(x1, x2)
 
 
@@ -21,7 +22,8 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    x1, x2 = convert_to_tensors(x1, x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.subtract(x1, x2)
 
 
@@ -31,7 +33,8 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    x1, x2 = convert_to_tensors(x1, x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.multiply(x1, x2)
 
 
@@ -121,7 +124,10 @@ def arange(start, stop=None, step=1, dtype=None):
         if stop is not None:
             dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
         dtype = result_type(*dtypes_to_resolve)
-    dtype = standardize_dtype(dtype)
+    dtype = to_mlx_dtype(dtype)
+    if stop is None:
+        stop = start
+        start = 0
     return mx.arange(start, stop, step=step, dtype=dtype)
 
 
@@ -383,8 +389,8 @@ def empty(shape, dtype=None):
 
 
 def equal(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.equal(x1, x2)
 
 
@@ -437,12 +443,14 @@ def full_like(x, fill_value, dtype=None):
 
 
 def greater(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.greater(x1, x2)
 
 
 def greater_equal(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.greater_equal(x1, x2)
 
 
@@ -496,12 +504,14 @@ def isnan(x):
 
 
 def less(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.less(x1, x2)
 
 
 def less_equal(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.less_equal(x1, x2)
 
 
@@ -547,8 +557,8 @@ def log2(x):
 
 
 def logaddexp(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.logaddexp(x1, x2)
 
 
@@ -578,8 +588,8 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 
 def maximum(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.maximum(x1, x2)
 
 
@@ -647,14 +657,14 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.minimum(x1, x2)
 
 
 def mod(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.remainder(x1, x2)
 
 
@@ -690,7 +700,8 @@ def nonzero(x):
 
 
 def not_equal(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return x1 != x2
 
 
@@ -950,13 +961,14 @@ def divide_no_nan(x1, x2):
 
 
 def true_divide(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return divide(x1, x2)
 
 
 def power(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = maybe_convert_to_tensor(x1)
+    x2 = maybe_convert_to_tensor(x2)
     return mx.power(x1, x2)
 
 
@@ -1014,3 +1026,9 @@ def floor_divide(x1, x2):
 def logical_xor(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return x1.astype(mx.bool_) - x2.astype(mx.bool_)
+
+
+def maybe_convert_to_tensor(x):
+    if isinstance(x, (int, float, bool)):
+        return x
+    return convert_to_tensor(x)
