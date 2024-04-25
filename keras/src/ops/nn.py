@@ -2077,12 +2077,13 @@ def psnr(
     x2,
     max_val,
 ):
-    """Peak Signal-to-Noise Ratio (PSNR) calculation.
+    """Peak Signal-to-Noise Ratio (PSNR) function.
 
-    This function calculates the Peak Signal-to-Noise Ratio between two signals,
+    This function computes the Peak Signal-to-Noise Ratio between two signals,
     `x1` and `x2`. PSNR is a measure of the quality of a reconstructed signal.
     The higher the PSNR, the closer the reconstructed signal is to the original
-    signal.
+    signal. Note that it can become negative when the signal power is
+    smaller that the noise power.
 
     Args:
         x1: The first input signal.
@@ -2093,14 +2094,12 @@ def psnr(
         float: The PSNR value between `x1` and `x2`.
 
     Examples:
-        >>> import numpy as np
-        >>> from keras import ops
-        >>> x = np.random.random((2, 4, 4, 3))
-        >>> y = np.random.random((2, 4, 4, 3))
-        >>> max_val = 1.0
-        >>> psnr_value = ops.nn.psnr(x, y, max_val)
-        >>> psnr_value
-        20.0
+
+    >>> x1 = keras.random.normal((2, 4, 4, 3))
+    >>> x2 = keras.random.normal((2, 4, 4, 3))
+    >>> max_val = 1.0
+    >>> keras.ops.nn.psnr(x1, x2, max_val)
+    -3.1697404
     """
     if any_symbolic_tensors(
         (
