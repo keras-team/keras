@@ -740,7 +740,7 @@ def _ctc_greedy_decode(
     if mask_index is None:
         mask_index = num_classes - 1
 
-    indices = np.argmax(inputs, axis=-1)
+    indices = np.argmax(inputs, axis=-1).astype("int32")
     scores = np.max(inputs, axis=-1)
 
     seqlen_mask = np.arange(max_length)[None, :]
@@ -765,7 +765,8 @@ def _ctc_greedy_decode(
     # We set to -1 for blank labels
     indices = np.where(invalid_mask, -1, indices)
     scores = -np.sum(scores, axis=1)[:, None]
-    return [indices], scores
+    indices = np.expand_dims(indices, axis=0)
+    return indices, scores
 
 
 def _ctc_beam_search_decode(
@@ -803,7 +804,9 @@ def _ctc_beam_search_decode(
     init_classes = np.where(max_classes == mask_index, _pad, max_classes)
     init_paths[:, :num_init_paths, 0] = init_classes
 
-    init_scores = np.full((batch_size, 2 * beam_width), -np.inf)
+    init_scores = np.full(
+        (batch_size, 2 * beam_width), -np.inf, dtype=inputs.dtype
+    )
     init_scores[:, :num_init_paths] = np.take_along_axis(
         inputs[:, 0], max_classes, axis=1
     )
@@ -934,12 +937,16 @@ def _ctc_beam_search_decode(
 def ctc_decode(
     inputs,
     sequence_length,
-    strategy,
+    strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
     mask_index=None,
 ):
+    inputs = convert_to_tensor(inputs)
+    dtype = backend.result_type(inputs.dtype, "float32")
+    inputs = cast(inputs, dtype)
+
     if strategy == "greedy":
         return _ctc_greedy_decode(
             inputs,

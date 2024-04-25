@@ -726,7 +726,8 @@ def _ctc_greedy_decode(
     # We set to -1 for blank labels
     indices = jnp.where(invalid_mask, -1, indices)
     scores = -jnp.sum(scores, axis=1)[:, None]
-    return [indices], scores
+    indices = jnp.expand_dims(indices, axis=0)
+    return indices, scores
 
 
 def _ctc_beam_search_decode(
@@ -736,8 +737,8 @@ def _ctc_beam_search_decode(
     top_paths=1,
     mask_index=None,
 ):
-    inputs = jnp.array(inputs)
-    sequence_length = jnp.array(sequence_length)
+    inputs = convert_to_tensor(inputs)
+    sequence_length = convert_to_tensor(sequence_length)
 
     batch_size, max_seq_len, num_classes = inputs.shape
     inputs = jnn.log_softmax(inputs)
@@ -765,7 +766,7 @@ def _ctc_beam_search_decode(
     init_paths = init_paths.at[:, :num_init_paths, 0].set(init_classes)
 
     init_scores = (
-        jnp.full((batch_size, 2 * beam_width), -jnp.inf)
+        jnp.full((batch_size, 2 * beam_width), -jnp.inf, dtype=inputs.dtype)
         .at[:, :num_init_paths]
         .set(jnp.take_along_axis(inputs[:, 0], max_classes, axis=1))
     )
@@ -895,12 +896,16 @@ def _ctc_beam_search_decode(
 def ctc_decode(
     inputs,
     sequence_length,
-    strategy,
+    strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
     mask_index=None,
 ):
+    inputs = convert_to_tensor(inputs)
+    dtype = backend.result_type(inputs.dtype, "float32")
+    inputs = cast(inputs, dtype)
+
     if strategy == "greedy":
         return _ctc_greedy_decode(
             inputs,

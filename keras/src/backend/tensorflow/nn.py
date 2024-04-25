@@ -803,18 +803,21 @@ def ctc_loss(
 def ctc_decode(
     inputs,
     sequence_length,
-    strategy,
+    strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
     mask_index=None,
 ):
-    inputs = tf.convert_to_tensor(inputs)
+    inputs = convert_to_tensor(inputs)
     input_shape = tf.shape(inputs)
     num_samples, num_steps = input_shape[0], input_shape[1]
     inputs = tf.transpose(inputs, (1, 0, 2))
 
-    sequence_length = tf.convert_to_tensor(sequence_length, dtype="int32")
+    dtype = backend.result_type(inputs.dtype, "float32")
+    inputs = tf.cast(inputs, dtype)
+
+    sequence_length = convert_to_tensor(sequence_length, dtype="int32")
     if strategy == "greedy":
         (decoded, scores) = tf.nn.ctc_greedy_decoder(
             inputs=inputs,
@@ -840,4 +843,6 @@ def ctc_decode(
     for st in decoded:
         st = tf.SparseTensor(st.indices, st.values, (num_samples, num_steps))
         decoded_dense.append(tf.sparse.to_dense(sp_input=st, default_value=-1))
+    decoded_dense = tf.stack(decoded_dense, axis=0)
+    decoded_dense = tf.cast(decoded_dense, "int32")
     return decoded_dense, scores

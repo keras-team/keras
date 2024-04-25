@@ -787,6 +787,7 @@ def _ctc_greedy_decode(
         mask_index = num_classes - 1
 
     indices = torch.argmax(inputs, axis=-1)
+    indices = cast(indices, "int32")
     scores = torch.max(inputs, axis=-1)[0]
 
     seqlen_mask = torch.arange(max_length, device=indices.device)[None, :]
@@ -813,18 +814,23 @@ def _ctc_greedy_decode(
     # We set to -1 for blank labels
     indices = torch.where(invalid_mask, -1, indices)
     scores = -torch.sum(scores, axis=1)[:, None]
-    return [indices], scores
+    indices = torch.unsqueeze(indices, dim=0)
+    return indices, scores
 
 
 def ctc_decode(
     inputs,
     sequence_length,
-    strategy,
+    strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
     mask_index=None,
 ):
+    inputs = convert_to_tensor(inputs)
+    dtype = backend.result_type(inputs.dtype, "float32")
+    inputs = cast(inputs, dtype)
+
     if strategy == "greedy":
         return _ctc_greedy_decode(
             inputs,

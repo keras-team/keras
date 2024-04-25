@@ -633,6 +633,23 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
             scale=KerasTensor([3]),
         )
 
+    def test_ctc_decode(self):
+        # Test strategy="greedy"
+        inputs = KerasTensor([None, 2, 3])
+        sequence_lengths = KerasTensor([None])
+        decoded, scores = knn.ctc_decode(inputs, sequence_lengths)
+        self.assertEqual(decoded.shape, (1, None, 2))
+        self.assertEqual(scores.shape, (None, 1))
+
+        # Test strategy="beam_search"
+        inputs = KerasTensor([None, 2, 3])
+        sequence_lengths = KerasTensor([None])
+        decoded, scores = knn.ctc_decode(
+            inputs, sequence_lengths, strategy="beam_search", top_paths=2
+        )
+        self.assertEqual(decoded.shape, (2, None, 2))
+        self.assertEqual(scores.shape, (None, 2))
+
     def test_normalize(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.normalize(x).shape, (None, 2, 3))
@@ -1075,6 +1092,23 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x_lengths = KerasTensor([10], dtype="int32")
         y_lengths = KerasTensor([10], dtype="int32")
         self.assertEqual(knn.ctc_loss(x, y, x_lengths, y_lengths).shape, (10,))
+
+    def test_ctc_decode(self):
+        # Test strategy="greedy"
+        inputs = KerasTensor([10, 2, 3])
+        sequence_lengths = KerasTensor([10])
+        decoded, scores = knn.ctc_decode(inputs, sequence_lengths)
+        self.assertEqual(decoded.shape, (1, 10, 2))
+        self.assertEqual(scores.shape, (10, 1))
+
+        # Test strategy="beam_search"
+        inputs = KerasTensor([10, 2, 3])
+        sequence_lengths = KerasTensor([10])
+        decoded, scores = knn.ctc_decode(
+            inputs, sequence_lengths, strategy="beam_search", top_paths=2
+        )
+        self.assertEqual(decoded.shape, (2, 10, 2))
+        self.assertEqual(scores.shape, (10, 2))
 
     def test_normalize(self):
         x = KerasTensor([1, 2, 3])
@@ -2324,6 +2358,41 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
             ),
             expected_dtype,
         )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_ctc_decode(self, dtype):
+        inputs = knp.array(
+            [[[0.4, 0.8, 0.4], [0.2, 0.8, 0.3], [0.9, 0.4, 0.5]]], dtype=dtype
+        )
+        sequence_length = knp.array([3])
+        expected_dtype = backend.result_type(dtype, "float32")
+
+        # Test strategy="greedy"
+        decoded, scores = knn.ctc_decode(
+            inputs, sequence_length, strategy="greedy"
+        )
+        self.assertEqual(standardize_dtype(decoded.dtype), "int32")
+        self.assertEqual(standardize_dtype(scores.dtype), expected_dtype)
+        decoded, scores = knn.CTCDecode(strategy="greedy").symbolic_call(
+            inputs, sequence_length
+        )
+        self.assertEqual(standardize_dtype(decoded.dtype), "int32")
+        self.assertEqual(standardize_dtype(scores.dtype), expected_dtype)
+
+        if backend.backend() == "torch":
+            self.skipTest("torch doesn't support 'beam_search' strategy")
+
+        # Test strategy="beam_search"
+        decoded, scores = knn.ctc_decode(
+            inputs, sequence_length, strategy="beam_search"
+        )
+        self.assertEqual(standardize_dtype(decoded.dtype), "int32")
+        self.assertEqual(standardize_dtype(scores.dtype), expected_dtype)
+        decoded, scores = knn.CTCDecode(strategy="beam_search").symbolic_call(
+            inputs, sequence_length
+        )
+        self.assertEqual(standardize_dtype(decoded.dtype), "int32")
+        self.assertEqual(standardize_dtype(scores.dtype), expected_dtype)
 
 
 class NNOpsBehaviorTest(testing.TestCase, parameterized.TestCase):
