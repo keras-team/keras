@@ -735,34 +735,36 @@ def _ctc_greedy_decode(
 ):
     inputs = convert_to_tensor(inputs)
     sequence_length = convert_to_tensor(sequence_length, dtype="int32")
+    batch_size, max_length, num_classes = inputs.shape
 
     if mask_index is None:
-        mask_index = inputs.shape[-1] - 1
+        mask_index = num_classes - 1
 
     indices = np.argmax(inputs, axis=-1)
     scores = np.max(inputs, axis=-1)
 
-    seqlen_mask = np.arange(inputs.shape[1])[None, :]
+    seqlen_mask = np.arange(max_length)[None, :]
     seqlen_mask = seqlen_mask >= sequence_length[:, None]
 
-    if merge_repeated:
-        repeat = indices[:, 1:] == indices[:, :-1]
-        repeat = np.pad(repeat, ((0, 0), (1, 0)))
-
-        indices = np.where(repeat, mask_index, indices)
-    else:
-        repeat = np.zeros_like(indices, dtype=bool)
-
     indices = np.where(seqlen_mask, mask_index, indices)
-    indices = [batch[batch != mask_index] for batch in indices]
-    max_len = max(len(batch) for batch in indices)
-    indices = np.array(
-        [np.pad(batch, (0, max_len - len(batch))) for batch in indices]
-    )
-
     scores = np.where(seqlen_mask, 0.0, scores)
-    scores = -np.sum(scores, axis=1)[:, None]
 
+    if merge_repeated:
+        repeat_mask = indices[:, 1:] == indices[:, :-1]
+        repeat_mask = np.pad(repeat_mask, ((0, 0), (1, 0)))
+        indices = np.where(repeat_mask, mask_index, indices)
+
+    # We rearrange the indices by moving `mask_index` to the end of the array
+    invalid_mask = indices == mask_index
+    order = np.expand_dims(np.arange(max_length), axis=0)  # [1, N]
+    order = np.tile(order, (batch_size, 1))  # [B, N]
+    order = np.where(invalid_mask, max_length, order)
+    order = np.argsort(order, axis=-1)
+    indices = np.take_along_axis(indices, order, axis=-1)
+
+    # We set to -1 for blank labels
+    indices = np.where(invalid_mask, -1, indices)
+    scores = -np.sum(scores, axis=1)[:, None]
     return [indices], scores
 
 
@@ -925,14 +927,7 @@ def _ctc_beam_search_decode(
 
     # convert classes back to the correct indices
     paths = np.where(paths == _pad, _pad, num_classes - paths - 1)
-
-    lengths = np.argmax(paths == _pad, axis=2)
-    lengths = np.max(lengths, axis=0)
-    paths = np.where(paths == _pad, 0, paths)
-
-    paths = paths.transpose((1, 0, 2))
-    paths = [path[:, :length] for path, length in zip(paths, lengths)]
-
+    paths = np.transpose(paths, [1, 0, 2])
     return paths, scores
 
 

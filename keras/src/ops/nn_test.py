@@ -1915,9 +1915,9 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 ],
             ]
         )
-        labels = np.array([[1, 2], [2, 0], [0, 0]])
+        labels = np.array([[1, 2, -1], [2, -1, -1], [-1, -1, -1]])
         score_labels = np.array([[-1.2], [-1.6], [-0.7]])
-        repeated_labels = np.array([[1, 2, 2], [2, 2, 0], [0, 0, 0]])
+        repeated_labels = np.array([[1, 2, 2], [2, 2, -1], [-1, -1, -1]])
 
         # Test strategy="greedy" and merge_repeated=True
         (decoded,), scores = knn.ctc_decode(
@@ -1942,8 +1942,8 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             self.skipTest("torch doesn't support 'beam_search' strategy")
 
         labels = [
-            np.array([[1, 2], [2, 0], [0, 0]]),
-            np.array([[2, 0], [2, 0], [1, 0]]),
+            np.array([[1, 2, -1], [2, -1, -1], [-1, -1, -1]]),
+            np.array([[2, -1, -1], [2, 0, -1], [1, -1, -1]]),
         ]
         score_labels = np.array(
             [

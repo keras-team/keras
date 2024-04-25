@@ -1,3 +1,4 @@
+import builtins
 import math
 
 import jax
@@ -693,36 +694,38 @@ def _ctc_greedy_decode(
     merge_repeated=True,
     mask_index=None,
 ):
-    inputs = jnp.array(inputs)
-    sequence_length = jnp.array(sequence_length, dtype=jnp.int32)
+    inputs = convert_to_tensor(inputs)
+    sequence_length = convert_to_tensor(sequence_length, dtype="int32")
+    batch_size, max_length, num_classes = inputs.shape
 
     if mask_index is None:
-        mask_index = inputs.shape[-1] - 1
+        mask_index = num_classes - 1
 
     indices = jnp.argmax(inputs, axis=-1)
     scores = jnp.max(inputs, axis=-1)
 
-    seqlen_mask = jnp.arange(inputs.shape[1])[None, :]
+    seqlen_mask = jnp.arange(max_length)[None, :]
     seqlen_mask = seqlen_mask >= sequence_length[:, None]
 
-    if merge_repeated:
-        repeat = indices[:, 1:] == indices[:, :-1]
-        repeat = jnp.pad(repeat, ((0, 0), (1, 0)))
-
-        indices = jnp.where(repeat, mask_index, indices)
-    else:
-        repeat = jnp.zeros_like(indices, dtype=bool)
-
     indices = jnp.where(seqlen_mask, mask_index, indices)
-    indices = [batch[batch != mask_index] for batch in indices]
-    max_len = max(len(batch) for batch in indices)
-    indices = jnp.array(
-        [jnp.pad(batch, (0, max_len - len(batch))) for batch in indices]
-    )
-
     scores = jnp.where(seqlen_mask, 0.0, scores)
-    scores = -jnp.sum(scores, axis=1)[:, None]
 
+    if merge_repeated:
+        repeat_mask = indices[:, 1:] == indices[:, :-1]
+        repeat_mask = jnp.pad(repeat_mask, ((0, 0), (1, 0)))
+        indices = jnp.where(repeat_mask, mask_index, indices)
+
+    # We rearrange the indices by moving `mask_index` to the end of the array
+    invalid_mask = indices == mask_index
+    order = jnp.expand_dims(jnp.arange(max_length), axis=0)  # [1, N]
+    order = jnp.tile(order, (batch_size, 1))  # [B, N]
+    order = jnp.where(invalid_mask, max_length, order)
+    order = jnp.argsort(order, axis=-1)
+    indices = jnp.take_along_axis(indices, order, axis=-1)
+
+    # We set to -1 for blank labels
+    indices = jnp.where(invalid_mask, -1, indices)
+    scores = -jnp.sum(scores, axis=1)[:, None]
     return [indices], scores
 
 
@@ -756,7 +759,7 @@ def _ctc_beam_search_decode(
         (batch_size, 2 * beam_width, max_seq_len), _pad, dtype=jnp.int32
     )
 
-    num_init_paths = jnp.min(jnp.array([num_classes, beam_width]))
+    num_init_paths = builtins.min(num_classes, beam_width)
     max_classes = jnp.argsort(inputs[:, 0], axis=1)[:, -num_init_paths:]
     init_classes = jnp.where(max_classes == mask_index, _pad, max_classes)
     init_paths = init_paths.at[:, :num_init_paths, 0].set(init_classes)
@@ -885,14 +888,7 @@ def _ctc_beam_search_decode(
 
     # convert classes back to the correct indices
     paths = jnp.where(paths == _pad, _pad, num_classes - paths - 1)
-
-    lengths = jnp.argmax(paths == _pad, axis=2)
-    lengths = jnp.max(lengths, axis=0)
-    paths = jnp.where(paths == _pad, 0, paths)
-
-    paths = paths.transpose((1, 0, 2))
-    paths = [path[:, :length] for path, length in zip(paths, lengths)]
-
+    paths = jnp.transpose(paths, [1, 0, 2])
     return paths, scores
 
 

@@ -781,34 +781,38 @@ def _ctc_greedy_decode(
 ):
     inputs = convert_to_tensor(inputs)
     sequence_length = convert_to_tensor(sequence_length, dtype="int32")
+    batch_size, max_length, num_classes = inputs.shape
 
     if mask_index is None:
-        mask_index = inputs.shape[-1] - 1
+        mask_index = num_classes - 1
 
     indices = torch.argmax(inputs, axis=-1)
     scores = torch.max(inputs, axis=-1)[0]
 
-    seqlen_mask = torch.arange(inputs.shape[1], device=get_device())[None, :]
+    seqlen_mask = torch.arange(max_length, device=indices.device)[None, :]
     seqlen_mask = seqlen_mask >= sequence_length[:, None]
+
+    indices = torch.where(seqlen_mask, mask_index, indices)
+    scores = torch.where(seqlen_mask, 0.0, scores)
 
     if merge_repeated:
         repeat = indices[:, 1:] == indices[:, :-1]
         repeat = tnn.pad(repeat, (1, 0, 0, 0))
-
         indices = torch.where(repeat, mask_index, indices)
-    else:
-        repeat = torch.zeros_like(indices, dtype=bool)
 
-    indices = torch.where(seqlen_mask, mask_index, indices)
-    indices = [batch[batch != mask_index] for batch in indices]
-    max_len = max(len(batch) for batch in indices)
-    indices = convert_to_tensor(
-        [tnn.pad(batch, (0, max_len - len(batch))) for batch in indices]
-    )
+    # We rearrange the indices by moving `mask_index` to the end of the array
+    invalid_mask = indices == mask_index
+    order = torch.unsqueeze(
+        torch.arange(max_length, device=indices.device), dim=0
+    )  # [1, N]
+    order = torch.tile(order, (batch_size, 1))  # [B, N]
+    order = torch.where(invalid_mask, max_length, order)
+    order = torch.argsort(order, dim=-1)
+    indices = torch.take_along_dim(indices, order, dim=-1)
 
-    scores = torch.where(seqlen_mask, torch.zeros_like(scores), scores)
+    # We set to -1 for blank labels
+    indices = torch.where(invalid_mask, -1, indices)
     scores = -torch.sum(scores, axis=1)[:, None]
-
     return [indices], scores
 
 

@@ -810,18 +810,20 @@ def ctc_decode(
     mask_index=None,
 ):
     inputs = tf.convert_to_tensor(inputs)
+    input_shape = tf.shape(inputs)
+    num_samples, num_steps = input_shape[0], input_shape[1]
     inputs = tf.transpose(inputs, (1, 0, 2))
 
     sequence_length = tf.convert_to_tensor(sequence_length, dtype="int32")
     if strategy == "greedy":
-        return tf.nn.ctc_greedy_decoder(
+        (decoded, scores) = tf.nn.ctc_greedy_decoder(
             inputs=inputs,
             sequence_length=sequence_length,
             merge_repeated=merge_repeated,
             blank_index=mask_index,
         )
     elif strategy == "beam_search":
-        return tf.nn.ctc_beam_search_decoder(
+        (decoded, scores) = tf.nn.ctc_beam_search_decoder(
             inputs=inputs,
             sequence_length=sequence_length,
             beam_width=beam_width,
@@ -832,3 +834,10 @@ def ctc_decode(
             f"Invalid strategy {strategy}. Supported values are "
             "'greedy' and 'beam_search'."
         )
+
+    # Postprocess sparse tensor
+    decoded_dense = []
+    for st in decoded:
+        st = tf.SparseTensor(st.indices, st.values, (num_samples, num_steps))
+        decoded_dense.append(tf.sparse.to_dense(sp_input=st, default_value=-1))
+    return decoded_dense, scores
