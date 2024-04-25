@@ -5,6 +5,7 @@ import numpy as np
 from jax import lax
 from jax import nn as jnn
 
+from keras.src import backend
 from keras.src.backend import standardize_data_format
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common.backend_utils import (
@@ -593,11 +594,17 @@ def ctc_loss(
     output_length,
     mask_index=0,
 ):
+    target = convert_to_tensor(target)
+    output = convert_to_tensor(output)
     batch_size, _, _ = output.shape
     batch_size, max_target_length = target.shape
 
     output = output.transpose((1, 0, 2))
     target = target.transpose((1, 0)).astype("int32")
+
+    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    dtype = backend.result_type(output.dtype, "float32")
+    output = cast(output, dtype)
 
     logits = jnn.log_softmax(output)
     mgrid_t, mgrid_b = jnp.meshgrid(
@@ -608,7 +615,7 @@ def ctc_loss(
 
     logit_paddings = jnp.array(
         jnp.arange(max_target_length) < output_length[:, None],
-        dtype=jnp.float32,
+        dtype=output.dtype,
     )
 
     repeat = jnp.array(target[1:] == target[:-1])
@@ -661,7 +668,7 @@ def ctc_loss(
     return -last_alpha_mask[jnp.arange(batch_size), target_length]
 
 
-def ctc_greedy_decode(
+def _ctc_greedy_decode(
     inputs,
     sequence_length,
     merge_repeated=True,
@@ -700,7 +707,7 @@ def ctc_greedy_decode(
     return [indices], scores
 
 
-def ctc_beam_search_decode(
+def _ctc_beam_search_decode(
     inputs,
     sequence_length,
     beam_width=100,
@@ -880,14 +887,14 @@ def ctc_decode(
     mask_index=None,
 ):
     if strategy == "greedy":
-        return ctc_greedy_decode(
+        return _ctc_greedy_decode(
             inputs,
             sequence_length,
             merge_repeated=merge_repeated,
             mask_index=mask_index,
         )
     else:
-        return ctc_beam_search_decode(
+        return _ctc_beam_search_decode(
             inputs,
             sequence_length,
             beam_width=beam_width,

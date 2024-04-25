@@ -1810,8 +1810,8 @@ def batch_normalization(
     )
 
 
-class CtcLoss(Operation):
-    def __init__(self, mask_index):
+class CTCLoss(Operation):
+    def __init__(self, mask_index=0):
         super().__init__()
         self.mask_index = mask_index
 
@@ -1838,8 +1838,8 @@ class CtcLoss(Operation):
         self._check_shape_first_dim(
             "output_length", output_length.shape, "output", output.shape
         )
-
-        return KerasTensor((target.shape[0],), dtype=target.dtype)
+        dtype = backend.result_type(output.dtype, "float32")
+        return KerasTensor((target.shape[0],), dtype=dtype)
 
 
 @keras_export(
@@ -1865,7 +1865,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     """
 
     if any_symbolic_tensors((target, output, target_length, output_length)):
-        return CtcLoss(mask_index).symbolic_call(
+        return CTCLoss(mask_index).symbolic_call(
             target, output, target_length, output_length
         )
     return backend.nn.ctc_loss(

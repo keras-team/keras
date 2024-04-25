@@ -1,13 +1,11 @@
 import torch
 import torch.nn.functional as tnn
 
+from keras.src import backend
 from keras.src import tree
-from keras.src.backend import standardize_data_format
-from keras.src.backend import standardize_dtype
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_torch,
 )
-from keras.src.backend.config import epsilon
 from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
@@ -92,9 +90,12 @@ def gelu(x, approximate=True):
 
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
+    dtype = backend.standardize_dtype(x.dtype)
     # TODO: tnn.softmax doesn't support float16 using cpu
-    if get_device() == "cpu" and standardize_dtype(x.dtype) == "float16":
+    if (
+        get_device() == "cpu"
+        and backend.standardize_dtype(x.dtype) == "float16"
+    ):
         x = cast(x, "float32")
     if axis is None:
         # Unlike numpy, PyTorch will handle axis=None as axis=-1.
@@ -109,9 +110,12 @@ def softmax(x, axis=-1):
 
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
+    dtype = backend.standardize_dtype(x.dtype)
     # TODO: tnn.log_softmax doesn't support float16 using cpu
-    if get_device() == "cpu" and standardize_dtype(x.dtype) == "float16":
+    if (
+        get_device() == "cpu"
+        and backend.standardize_dtype(x.dtype) == "float16"
+    ):
         x = cast(x, "float32")
     if axis is None:
         # Unlike numpy, PyTorch will handle axis=None as axis=-1.
@@ -240,7 +244,7 @@ def max_pool(
     else:
         strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
 
@@ -301,7 +305,7 @@ def average_pool(
     else:
         strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
     padding_value = 0
@@ -375,7 +379,7 @@ def conv(
     num_spatial_dims = inputs.ndim - 2
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
     # Transpose kernel from keras format to torch format.
@@ -494,7 +498,7 @@ def conv_transpose(
     num_spatial_dims = inputs.ndim - 2
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     (
         torch_padding,
         torch_output_padding,
@@ -610,7 +614,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = tnn.log_softmax(output, dim=axis)
     else:
         output = output / torch.sum(output, dim=axis, keepdim=True)
-        output = torch.clip(output, epsilon(), 1.0 - epsilon())
+        output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = torch.log(output)
     return -torch.sum(target * log_prob, dim=axis)
 
@@ -638,7 +642,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = tnn.log_softmax(output, dim=axis)
     else:
         output = output / torch.sum(output, dim=axis, keepdim=True)
-        output = torch.clip(output, epsilon(), 1.0 - epsilon())
+        output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = torch.log(output)
     target = one_hot(target, output.shape[axis], axis=axis)
     return -torch.sum(target * log_prob, dim=axis)
@@ -661,7 +665,7 @@ def binary_crossentropy(target, output, from_logits=False):
             output, target, reduction="none"
         )
     else:
-        output = torch.clip(output, epsilon(), 1.0 - epsilon())
+        output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         return tnn.binary_cross_entropy(output, target, reduction="none")
 
 
@@ -675,7 +679,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
     need_cast = False
-    ori_dtype = standardize_dtype(x.dtype)
+    ori_dtype = backend.standardize_dtype(x.dtype)
     if ori_dtype == "float16":
         need_cast = True
         x = cast(x, "float32")
@@ -752,10 +756,13 @@ def ctc_loss(
     target_length = convert_to_tensor(target_length)
     output_length = convert_to_tensor(output_length)
 
+    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    dtype = backend.result_type(output.dtype, "float32")
+    output = cast(output, dtype)
+
     output = torch.transpose(output, 1, 0)
     logits = tnn.log_softmax(output, dim=-1)
-
-    return tnn.ctc_loss(
+    loss = tnn.ctc_loss(
         logits,
         target,
         output_length,
@@ -763,6 +770,7 @@ def ctc_loss(
         blank=mask_index,
         reduction="none",
     )
+    return loss
 
 
 def ctc_decode(

@@ -1069,10 +1069,6 @@ class NNOpsStaticShapeTest(testing.TestCase):
             (10, 3, 4, 5),
         )
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy does not support CTC loss",
-    )
     def test_ctc_loss(self):
         x = KerasTensor([10, 3, 4])
         y = KerasTensor([10, 3], dtype="int32")
@@ -1884,10 +1880,6 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(tuple(output.shape), (2, 3, 3, 5))
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy does not support CTC loss",
-    )
     def test_ctc_loss(self):
         labels = np.array([[1, 2, 1], [1, 2, 2]])
         outputs = np.array(
@@ -1904,8 +1896,8 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(result, np.array([3.4411672, 1.91680186]))
 
     @pytest.mark.skipif(
-        backend.backend() not in ["tensorflow", "jax"],
-        reason="CTC decode only supported for TF and JAX backends",
+        backend.backend() == "torch",
+        reason="torch doesn't support CTC decode",
     )
     def test_ctc_decode(self):
         inputs = np.array(
@@ -1994,23 +1986,6 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 [0.30285344, 0.6057069, 0.9085603],
             ],
         )
-
-
-class TestLogitRecovery(testing.TestCase):
-    def test_logit_recovery_binary_crossentropy(self):
-        layer = layers.Dense(
-            4, activation="sigmoid", use_bias=False, kernel_initializer="ones"
-        )
-        loss = losses.BinaryCrossentropy()
-        x = np.array([[1.4, 1.6, 0.8]])
-        y = np.array([[0.2, 0.6, 0.1, 0.3]])
-        loss_value = loss(y, layer(x))
-        self.assertAllClose(loss_value, 2.682124)
-
-        model = models.Sequential([layer])
-        model.compile(loss="binary_crossentropy", optimizer="sgd")
-        out = model.evaluate(x, y)
-        self.assertAllClose(out, 2.682124)
 
 
 class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
@@ -2312,6 +2287,50 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_ctc_loss(self, dtype):
+        labels = knp.array([[1, 2, 1]], dtype="int32")
+        outputs = knp.array(
+            [[[0.4, 0.8, 0.4], [0.2, 0.8, 0.3], [0.9, 0.4, 0.5]]], dtype=dtype
+        )
+        label_length = knp.array([3])
+        output_length = knp.array([3])
+        expected_dtype = (
+            "float32" if dtype in ("float16", "bfloat16") else dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(
+                knn.ctc_loss(labels, outputs, label_length, output_length).dtype
+            ),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knn.CTCLoss()
+                .symbolic_call(labels, outputs, label_length, output_length)
+                .dtype
+            ),
+            expected_dtype,
+        )
+
+
+class NNOpsBehaviorTest(testing.TestCase, parameterized.TestCase):
+    def test_logit_recovery_binary_crossentropy(self):
+        layer = layers.Dense(
+            4, activation="sigmoid", use_bias=False, kernel_initializer="ones"
+        )
+        loss = losses.BinaryCrossentropy()
+        x = np.array([[1.4, 1.6, 0.8]])
+        y = np.array([[0.2, 0.6, 0.1, 0.3]])
+        loss_value = loss(y, layer(x))
+        self.assertAllClose(loss_value, 2.682124)
+
+        model = models.Sequential([layer])
+        model.compile(loss="binary_crossentropy", optimizer="sgd")
+        out = model.evaluate(x, y)
+        self.assertAllClose(out, 2.682124)
+
     def test_softmax_on_axis_with_size_one_warns(self):
         x = np.array([[1.0]])
         # Applying softmax on the second axis, which has size 1
@@ -2357,7 +2376,7 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_check_shape_first_dim_mismatch(self):
         name1, shape1 = "labels", (2, 3)
         name2, shape2 = "logits", (3, 4, 5)
-        ctc_loss_instance = knn.CtcLoss(mask_index=-1)
+        ctc_loss_instance = knn.CTCLoss(mask_index=-1)
         with self.assertRaisesRegex(
             ValueError, "must have the same first dimension"
         ):
