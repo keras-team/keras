@@ -146,7 +146,7 @@ def _transpose_conv_kernel(kernel, data_format):
     print(f"Original kernel shape: {kernel.shape}, Data format: {data_format}")
     if data_format == "channels_last":
         # (height, width, in_channels, out_channels)
-        pass  
+        pass
     elif data_format == "channels_first":
         # (out_channels, in_channels, height, width)
         kernel = mx.transpose(kernel, (2, 3, 1, 0))
@@ -253,13 +253,21 @@ def conv(
         padding = 0
         print("Using valid padding, no padding applied.")
 
-    input_channels = inputs.shape[1]
-    print(f"Input channels: {input_channels}")
-    # After transposition, kernel's in_channels are always second
-    kernel_channels = kernel.shape[1]
-    print(f"Kernel channels: {kernel_channels}")
+    if data_format == "channels_last":
+        # The kernel should be in the format (H, W, In_C, Out_C)
+        # This should match the expected format if using channels_last throughout the system
+        input_channels = inputs.shape[-1]
+        kernel_in_channels = kernel.shape[
+            -2
+        ]  # This should correspond to In_C if channels_last
+    else:
+        input_channels = inputs.shape[1]
+        kernel_in_channels = kernel.shape[1]
+    print(
+        f"Input Channels: {input_channels}, Kernel Input Channels: {kernel_in_channels}"
+    )
 
-    groups = input_channels // kernel_channels
+    groups = input_channels // kernel_in_channels
     print(f"Groups: {groups}")
     # if groups != 1:
     #     raise ValueError(
@@ -269,9 +277,9 @@ def conv(
     print(
         f"Input channels: {inputs.shape[1]}, Kernel channels: {kernel.shape[1]}"
     )
-    if input_channels != kernel_channels:
+    if input_channels != kernel_in_channels:
         print(
-            f"Mismatch in channels: input channels {input_channels}, kernel channels {kernel_channels}"
+            f"Mismatch in channels: input channels {input_channels}, kernel channels {kernel_in_channels}"
         )
         # raise ValueError(
         #     f"Input channels ({input_channels}) must match kernel channels"
