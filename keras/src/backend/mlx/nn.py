@@ -269,13 +269,13 @@ def conv(
     # After transposition, kernel's in_channels are always second
     kernel_channels = kernel.shape[1]
 
-    groups = input_channels // kernel_channels
-    print(f"Groups: {groups}")
-    if groups != 1:
-        raise ValueError(
-            f"MLX backend only supports single-group (group=1) convolutions. "
-            f"Received group size={groups}. Expected group size=1."
-        )
+    # groups = input_channels // kernel_channels
+    # print(f"Groups: {groups}")
+    # if groups != 1:
+    #     raise ValueError(
+    #         f"MLX backend only supports single-group (group=1) convolutions. "
+    #         f"Received group size={groups}. Expected group size=1."
+    #     )
     print(
         f"Input channels: {inputs.shape[1]}, Kernel channels: {kernel.shape[1]}"
     )
