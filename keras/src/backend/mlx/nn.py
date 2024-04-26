@@ -294,6 +294,7 @@ def conv(
             stride=strides,
             padding=padding,
             dilation=dilation_rate,
+            groups=1  # As only groups=1 is supported
         )
     elif num_spatial_dims == 2:
         outputs = mx.conv2d(
@@ -302,6 +303,7 @@ def conv(
             stride=strides,
             padding=padding,
             dilation=dilation_rate,
+            groups=1  # As only groups=1 is supported
         )
     else:
         raise ValueError(
