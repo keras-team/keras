@@ -2013,7 +2013,6 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             top_paths=top_paths,
             mask_index=0,
         )
-        print(decoded)
         self.assertAllClose(decoded, labels)
         self.assertAllClose(scores, score_labels)
 
