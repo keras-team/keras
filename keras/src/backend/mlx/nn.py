@@ -112,22 +112,22 @@ def log_softmax(x, axis=-1):
     return x - mx.logsumexp(x, axis=axis, keepdims=True)
 
 
-def _transpose_spatial_inputs(inputs):
-    num_spatial_dims = inputs.ndim - 2
-    print(f"Transposing inputs: original shape {inputs.shape}")
-    if num_spatial_dims == 1:
-        inputs = mx.transpose(inputs, (0, 2, 1))
-    elif num_spatial_dims == 2:
-        inputs = mx.transpose(inputs, (0, 3, 1, 2))
-    elif num_spatial_dims == 3:
-        inputs = mx.transpose(inputs, (0, 4, 1, 2, 3))
+def _transpose_spatial_inputs(inputs, data_format="channels_last"):
+    # Print original shape for debugging
+    print(f"Original input shape: {inputs.shape}")
+
+    if data_format == "channels_first":
+        # Check the number of dimensions and transpose accordingly
+        if inputs.ndim == 4:  # Assuming N, H, W, C format
+            inputs = mx.transpose(inputs, (0, 3, 1, 2))
+            print(f"Transposed inputs to channels_first: {inputs.shape}")
+        elif inputs.ndim == 3:  # Assuming H, W, C for a single example
+            inputs = mx.transpose(inputs, (2, 0, 1))
+            print(f"Transposed inputs to channels_first: {inputs.shape}")
     else:
-        raise ValueError(
-            "Inputs to conv transpose operation should have ndim=3, 4, or 5,"
-            "corresponding to 1D, 2D and 3D inputs. Received input "
-            f"shape: {inputs.shape}."
-        )
-    print(f"Transposed inputs to shape {inputs.shape}")
+        # If channels_last is needed, no transposition is required
+        print("No transposition needed for channels_last format.")
+
     return inputs
 
 
@@ -144,8 +144,7 @@ def _transpose_spatial_outputs(outputs):
 
 def _transpose_conv_kernel(kernel, data_format):
     print(f"Original kernel shape: {kernel.shape}, Data format: {data_format}")
-    if data_format == "channels_last":
-        # (height, width, in_channels, out_channels)
+    if data_format == "channels_last":  # (C_out, H, W, C_in).
         pass
     elif data_format == "channels_first":
         # (out_channels, in_channels, height, width)
@@ -294,7 +293,7 @@ def conv(
             stride=strides,
             padding=padding,
             dilation=dilation_rate,
-            groups=1  # As only groups=1 is supported
+            groups=1,  # As only groups=1 is supported
         )
     elif num_spatial_dims == 2:
         outputs = mx.conv2d(
@@ -303,7 +302,7 @@ def conv(
             stride=strides,
             padding=padding,
             dilation=dilation_rate,
-            groups=1  # As only groups=1 is supported
+            groups=1,  # As only groups=1 is supported
         )
     else:
         raise ValueError(
