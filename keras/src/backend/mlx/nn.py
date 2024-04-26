@@ -219,20 +219,19 @@ def conv(
 ):
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
+
     num_spatial_dims = inputs.ndim - 2
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
     dilation_rate = standardize_tuple(
         dilation_rate, num_spatial_dims, "dilation_rate"
     )
-
     data_format = standardize_data_format(data_format)
+
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
-        channel_axis = -1
-    else:
-        channel_axis = 1
 
     kernel = _transpose_conv_kernel(kernel)
+
     if padding == "same" and any(d != 1 for d in tree.flatten(strides)):
         inputs, padding = _apply_same_padding(
             inputs,
@@ -244,8 +243,7 @@ def conv(
     elif padding == "valid":
         padding = 0
 
-    input_channels = inputs.shape[channel_axis]
-    # kernel is always transposed to 'channels_first'
+    input_channels = inputs.shape[1]
     kernel_channels = kernel.shape[1]
 
     groups = input_channels // kernel_channels
