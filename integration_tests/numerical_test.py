@@ -6,10 +6,11 @@ import tf_keras
 keras.backend.set_image_data_format("channels_last")
 tf_keras.backend.set_image_data_format("channels_last")
 
+
 NUM_CLASSES = 10
 BATCH_SIZE = 32
 EPOCHS = 1
-
+"""""
 
 def build_mnist_data(num_classes):
     (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
