@@ -266,11 +266,13 @@ def conv(
         print("Using valid padding, no padding applied.")
 
     input_channels = inputs.shape[1]
+    print(f"Input channels: {input_channels}")
     # After transposition, kernel's in_channels are always second
     kernel_channels = kernel.shape[1]
+    print(f"Kernel channels: {kernel_channels}")
 
-    # groups = input_channels // kernel_channels
-    # print(f"Groups: {groups}")
+    groups = input_channels // kernel_channels
+    print(f"Groups: {groups}")
     # if groups != 1:
     #     raise ValueError(
     #         f"MLX backend only supports single-group (group=1) convolutions. "
@@ -283,11 +285,11 @@ def conv(
         print(
             f"Mismatch in channels: input channels {input_channels}, kernel channels {kernel_channels}"
         )
-        raise ValueError(
-            f"Input channels ({input_channels}) must match kernel channels"
-            f"({kernel_channels}) Received input shape {inputs.shape},"
-            f"kernel shape {kernel.shape}."
-        )
+        # raise ValueError(
+        #     f"Input channels ({input_channels}) must match kernel channels"
+        #     f"({kernel_channels}) Received input shape {inputs.shape},"
+        #     f"kernel shape {kernel.shape}."
+        # )
 
     if num_spatial_dims == 1:
         outputs = mx.conv1d(
