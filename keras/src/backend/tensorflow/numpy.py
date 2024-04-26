@@ -2433,27 +2433,21 @@ def select(condlist, choicelist, default=0):
 
 
 def argpartition(x, kth, axis=-1):
-    x = convert_to_tensor(x)
-
-    if not x.dtype.is_integer or x.dtype.is_unsigned:
-        x = tf.cast(x, tf.int32)
+    x = convert_to_tensor(x, tf.int32)
 
     x = swapaxes(x, axis, -1)
-    bottom_ind = tf.math.top_k(-x, kth + 1)[1]
+    bottom_ind = tf.math.top_k(-x, kth + 1).indices
 
-    def set_to_zero(args):
-        a, i = args
-        indexes = tf.reshape(i, [tf.shape(i)[-1], 1])
-        updates = tf.reshape(tf.zeros_like(indexes, dtype=tf.int32), [-1])
-        return tf.tensor_scatter_nd_update(a, indexes, updates)
+    n = tf.shape(x)[-1]
 
-    for _ in range(x.ndim - 1):
-        set_to_zero = tf.vectorized_map(
-            set_to_zero, (tf.ones(tf.shape(x), dtype=tf.int32), bottom_ind)
-        )
-    proxy = set_to_zero((tf.ones(tf.shape(x), dtype=tf.int32), bottom_ind))
+    mask = tf.reduce_sum(tf.one_hot(bottom_ind, n, dtype=tf.int32), axis=0)
 
-    top_ind = tf.math.top_k(proxy, tf.shape(x)[-1] - kth - 1)[1]
+    indices = tf.where(mask)
+    updates = tf.squeeze(tf.zeros(tf.shape(indices)[0], dtype=tf.int32))
+
+    final_mask = tf.tensor_scatter_nd_update(x, indices, updates)
+
+    top_ind = tf.math.top_k(final_mask, tf.shape(x)[-1] - kth - 1).indices
 
     out = tf.concat([bottom_ind, top_ind], axis=x.ndim - 1)
     return swapaxes(out, -1, axis)
