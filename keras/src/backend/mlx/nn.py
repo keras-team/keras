@@ -213,7 +213,7 @@ def conv(
     kernel,
     strides=1,
     padding="valid",
-    data_format=None,
+    data_format="channels_last",
     dilation_rate=1,
 ):
     print(
