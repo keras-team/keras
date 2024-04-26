@@ -30,7 +30,6 @@ def build_mnist_data(num_classes):
 
 def build_keras_model(keras_module, num_classes):
     input_shape = (28, 28, 1)
-
     model = keras_module.Sequential(
         [
             keras_module.Input(shape=input_shape),

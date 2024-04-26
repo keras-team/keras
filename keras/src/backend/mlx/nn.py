@@ -142,18 +142,16 @@ def _transpose_spatial_outputs(outputs):
     return outputs
 
 def _transpose_conv_kernel(kernel, data_format):
-    print(
-        f"Transposing kernel: original shape {kernel.shape},"
-        f" data format {data_format}"
-    )
+    print(f"Original kernel shape: {kernel.shape}, Data format: {data_format}")
     if data_format == "channels_last":
-        # Change from (H, W, C_in, C_out) to (C_out, H, W, C_in)
-        kernel = mx.transpose(kernel, (3, 0, 1, 2))
+        # This assumes the kernel is initially (height, width, in_channels, out_channels)
+        pass  
     elif data_format == "channels_first":
-        # If originally (C_out, C_in, H, W), no change needed for mlx.core.conv2d
-        pass
-    print(f"Transposed kernel to shape {kernel.shape}")
+        # This assumes the kernel needs to be transposed from
+        # (out_channels, in_channels, height, width) 
+    print(f"Transposed kernel shape: {kernel.shape}")
     return kernel
+
 
 def _compute_padding_length(
     input_length, kernel_length, stride, dilation_rate=1
