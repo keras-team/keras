@@ -245,19 +245,19 @@ def conv(
         padding = 0
 
     input_channels = inputs.shape[channel_axis]
-    # Always second dimension after transposition
+    # kernel is always transposed to 'channels_first'
     kernel_channels = kernel.shape[1]
 
-    if input_channels % kernel_channels != 0:
-        raise ValueError(
-            f"Input channels {input_channels} should be divisible by "
-            f"kernel channels {kernel_channels}."
-        )
     groups = input_channels // kernel_channels
-    if groups != 1:
+    if input_channels != kernel_channels:
         raise ValueError(
-            "MLX only supports groups=1 for convolution operations."
+            f"MLX backend only supports single-group (group=1) convolutions. "
+            f"Received group size={groups}. Expected group size=1."
+            f"Input channels ({input_channels}) must match kernel channels"
+            f"({kernel_channels}) Received input shape {inputs.shape},"
+            f"kernel shape {kernel.shape}."
         )
+
     if num_spatial_dims == 1:
         outputs = mx.conv1d(
             inputs,
