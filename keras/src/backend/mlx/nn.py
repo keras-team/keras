@@ -140,15 +140,32 @@ def _transpose_spatial_outputs(outputs):
     return outputs
 
 
-def _transpose_conv_kernel(kernel):
+def _transpose_conv_kernel(kernel, data_format):
+    """Transposes a convolution kernel to the appropriate format.
+
+    Args:
+        kernel: A 4D tensor representing the kernel.
+        data_format: A string, either "channels_last" or "channels_first",
+        specifying the expected data format.
+
+    Returns:
+        A 4D tensor representing the kernel in the appropriate format
+        (output_channels, input_channels, kernel_height, kernel_width for
+        channels_first, or kernel_height, kernel_width, input_channels,
+        output_channels for channels_last).
+    """
     num_spatial_dims = len(kernel.shape) - 2
     if num_spatial_dims == 1:
-        kernel = mx.transpose(kernel, (2, 1, 0))
+        if data_format == "channels_first":
+            kernel = mx.transpose(kernel, (2, 1, 0))
+        # For channels_last, no transposition needed for 1D
     elif num_spatial_dims == 2:
-        kernel = mx.transpose(kernel, (3, 2, 0, 1))
+        if data_format == "channels_first":
+            kernel = mx.transpose(kernel, (3, 2, 0, 1))
+        # For channels_last, no transposition needed for 2D
     else:
         raise ValueError(
-            "Kernel for conv transpose operation should have ndim=3 or 4,"
+            "Kernel for conv transpose operation should have ndim=3 or 4, "
             "corresponding to 1D, 2D kernels. Received kernel "
             f"shape: {kernel.shape}."
         )
@@ -230,12 +247,12 @@ def conv(
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
 
-    kernel = _transpose_conv_kernel(kernel)
+    kernel = _transpose_conv_kernel(kernel, data_format)
 
     if padding == "same" and any(d != 1 for d in tree.flatten(strides)):
         inputs, padding = _apply_same_padding(
             inputs,
-            kernel.shape[2:],
+            kernel.shape[2:],  # Use the transposed kernel shape here
             strides,
             operation_type="conv",
             dilation_rate=dilation_rate,
@@ -244,13 +261,17 @@ def conv(
         padding = 0
 
     input_channels = inputs.shape[1]
+    # After transposition, kernel's in_channels are always second
     kernel_channels = kernel.shape[1]
 
     groups = input_channels // kernel_channels
-    if input_channels != kernel_channels:
+    if groups != 1:
         raise ValueError(
             f"MLX backend only supports single-group (group=1) convolutions. "
             f"Received group size={groups}. Expected group size=1."
+        )
+    if input_channels != kernel_channels:
+        raise ValueError(
             f"Input channels ({input_channels}) must match kernel channels"
             f"({kernel_channels}) Received input shape {inputs.shape},"
             f"kernel shape {kernel.shape}."
