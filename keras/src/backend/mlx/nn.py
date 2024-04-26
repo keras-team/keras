@@ -141,14 +141,15 @@ def _transpose_spatial_outputs(outputs):
         outputs = mx.transpose(outputs, (0, 2, 3, 4, 1))
     return outputs
 
+
 def _transpose_conv_kernel(kernel, data_format):
     print(f"Original kernel shape: {kernel.shape}, Data format: {data_format}")
     if data_format == "channels_last":
-        # This assumes the kernel is initially (height, width, in_channels, out_channels)
+        # (height, width, in_channels, out_channels)
         pass  
     elif data_format == "channels_first":
-        # This assumes the kernel needs to be transposed from
-        # (out_channels, in_channels, height, width) 
+        # (out_channels, in_channels, height, width)
+        kernel = mx.transpose(kernel, (2, 3, 1, 0))
     print(f"Transposed kernel shape: {kernel.shape}")
     return kernel
 
