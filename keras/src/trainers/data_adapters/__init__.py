@@ -71,6 +71,13 @@ def get_data_adapter(
                 "sample_weights", "the sample weights", "PyDataset"
             )
         return PyDatasetAdapter(x, class_weight=class_weight, shuffle=shuffle)
+        # TODO: should we warn or not?
+        # if x.num_batches is None and shuffle:
+        #     warnings.warn(
+        #         "`shuffle=True` was passed, but will be ignored since the "
+        #         "data `x` was provided as a infinite PyDataset. The "
+        #         "PyDataset is expected to already be shuffled."
+        # )
     elif is_torch_dataloader(x):
         if y is not None:
             raise_unsupported_arg("y", "the targets", "torch DataLoader")
