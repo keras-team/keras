@@ -802,7 +802,7 @@ def ctc_loss(
 
 def ctc_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     strategy="greedy",
     beam_width=100,
     top_paths=1,
@@ -817,18 +817,18 @@ def ctc_decode(
     dtype = backend.result_type(inputs.dtype, "float32")
     inputs = tf.cast(inputs, dtype)
 
-    sequence_length = convert_to_tensor(sequence_length, dtype="int32")
+    sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
     if strategy == "greedy":
         (decoded, scores) = tf.nn.ctc_greedy_decoder(
             inputs=inputs,
-            sequence_length=sequence_length,
+            sequence_length=sequence_lengths,
             merge_repeated=merge_repeated,
             blank_index=mask_index,
         )
     elif strategy == "beam_search":
         (decoded, scores) = tf.nn.ctc_beam_search_decoder(
             inputs=inputs,
-            sequence_length=sequence_length,
+            sequence_length=sequence_lengths,
             beam_width=beam_width,
             top_paths=top_paths,
         )

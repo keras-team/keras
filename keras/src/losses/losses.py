@@ -1933,14 +1933,16 @@ def ctc(y_true, y_pred):
             f"Received: y_pred.shape={ops.shape(y_pred)}"
         )
 
-    batch_length = ops.cast(ops.shape(y_true)[0], dtype="int32")
-    input_length = ops.cast(ops.shape(y_pred)[1], dtype="int32")
-    label_length = ops.cast(ops.shape(y_true)[1], dtype="int32")
+    mask_index = 0
+    batch_length = ops.shape(y_pred)[0]
+    input_length = ops.shape(y_pred)[1]
     input_length = input_length * ops.ones((batch_length,), dtype="int32")
-    label_length = label_length * ops.ones((batch_length,), dtype="int32")
+    label_length = ops.cast(
+        ops.sum(y_true != mask_index, axis=-1), dtype="int32"
+    )
 
     return ops.ctc_loss(
-        y_true, y_pred, label_length, input_length, mask_index=0
+        y_true, y_pred, label_length, input_length, mask_index=mask_index
     )
 
 

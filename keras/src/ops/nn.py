@@ -1973,7 +1973,7 @@ def ctc_decode(
         ).symbolic_call(inputs, sequence_lengths)
     return backend.nn.ctc_decode(
         inputs=inputs,
-        sequence_length=sequence_lengths,
+        sequence_lengths=sequence_lengths,
         strategy=strategy,
         beam_width=beam_width,
         top_paths=top_paths,
