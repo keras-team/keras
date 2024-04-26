@@ -30,22 +30,17 @@ def build_mnist_data(num_classes):
 
 def build_keras_model(keras_module, num_classes):
     input_shape = (28, 28, 1)
+
     model = keras_module.Sequential(
         [
             keras_module.Input(shape=input_shape),
             keras_module.layers.Conv2D(
-                32,
-                kernel_size=(3, 3),
-                activation="relu",
+                32, kernel_size=(3, 3), activation="relu"
             ),
             keras_module.layers.BatchNormalization(),
             keras_module.layers.MaxPooling2D(pool_size=(2, 2)),
             keras_module.layers.Conv2D(
-                64,
-                kernel_size=(3, 3),
-                activation="relu",
-                groups=1,
-                data_format="channels_last",
+                64, kernel_size=(3, 3), activation="relu"
             ),
             keras_module.layers.BatchNormalization(scale=False, center=True),
             keras_module.layers.MaxPooling2D(pool_size=(2, 2)),
