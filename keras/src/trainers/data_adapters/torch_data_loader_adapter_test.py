@@ -6,6 +6,7 @@ import tensorflow as tf
 import torch
 from absl.testing import parameterized
 
+from keras.src import backend
 from keras.src import testing
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters.torch_data_loader_adapter import (
@@ -14,10 +15,7 @@ from keras.src.trainers.data_adapters.torch_data_loader_adapter import (
 
 
 class TestTorchDataLoaderAdapter(testing.TestCase, parameterized.TestCase):
-    @parameterized.named_parameters(
-        named_product(iterator_type=["np", "tf", "jax", "torch"])
-    )
-    def test_basic_dataloader(self, iterator_type):
+    def test_basic_dataloader(self):
         x = torch.normal(2, 3, size=(34, 4))
         y = torch.normal(1, 3, size=(34, 2))
         ds = torch.utils.data.TensorDataset(x, y)
@@ -29,16 +27,16 @@ class TestTorchDataLoaderAdapter(testing.TestCase, parameterized.TestCase):
         self.assertEqual(adapter.has_partial_batch, True)
         self.assertEqual(adapter.partial_batch_size, 2)
 
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = jax.Array
-        elif iterator_type == "torch":
+        elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
 
@@ -57,15 +55,9 @@ class TestTorchDataLoaderAdapter(testing.TestCase, parameterized.TestCase):
                 self.assertEqual(by.shape, (2, 2))
 
     @parameterized.named_parameters(
-        named_product(
-            batch_size=[None, 3],
-            implements_len=[True, False],
-            iterator_type=["np", "tf", "jax", "torch"],
-        )
+        named_product(batch_size=[None, 3], implements_len=[True, False])
     )
-    def test_dataloader_iterable_dataset(
-        self, batch_size, implements_len, iterator_type
-    ):
+    def test_dataloader_iterable_dataset(self, batch_size, implements_len):
 
         class TestIterableDataset(torch.utils.data.IterableDataset):
             def __init__(self):
@@ -104,16 +96,16 @@ class TestTorchDataLoaderAdapter(testing.TestCase, parameterized.TestCase):
             self.assertIsNone(adapter.has_partial_batch)
             self.assertIsNone(adapter.partial_batch_size)
 
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = jax.Array
-        elif iterator_type == "torch":
+        elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
 
@@ -142,10 +134,7 @@ class TestTorchDataLoaderAdapter(testing.TestCase, parameterized.TestCase):
         else:
             self.assertEqual(batch_count, 10)
 
-    @parameterized.named_parameters(
-        named_product(iterator_type=["np", "tf", "jax", "torch"])
-    )
-    def test_with_different_shapes(self, iterator_type):
+    def test_with_different_shapes(self):
         x = (
             [np.ones([4], "float32")] * 16
             + [np.ones([5], "float32")] * 16
@@ -161,13 +150,13 @@ class TestTorchDataLoaderAdapter(testing.TestCase, parameterized.TestCase):
         self.assertEqual(adapter.has_partial_batch, True)
         self.assertEqual(adapter.partial_batch_size, 2)
 
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
-        elif iterator_type == "torch":
+        elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
 
         for i, batch in enumerate(it):

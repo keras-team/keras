@@ -52,11 +52,10 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
                 "scipy_sparse",
             ],
             array_dtype=["float32", "float64"],
-            iterator_type=["np", "tf", "jax", "torch"],
             shuffle=[False, "batch", True],
         )
     )
-    def test_basic_flow(self, array_type, array_dtype, iterator_type, shuffle):
+    def test_basic_flow(self, array_type, array_dtype, shuffle):
         x = self.make_array(array_type, (34, 4), array_dtype)
         y = self.make_array(array_type, (34, 2), "int32")
         xdim1 = 1 if array_type == "pandas_series" else 4
@@ -75,10 +74,10 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
         self.assertEqual(adapter.has_partial_batch, True)
         self.assertEqual(adapter.partial_batch_size, 2)
 
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             if array_type == "tf_ragged":
                 expected_class = tf.RaggedTensor
@@ -88,13 +87,13 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
                 expected_class = tf.SparseTensor
             else:
                 expected_class = tf.Tensor
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
             if array_type in ("tf_sparse", "jax_sparse", "scipy_sparse"):
                 expected_class = jax_sparse.JAXSparse
             else:
                 expected_class = jax.Array
-        elif iterator_type == "torch":
+        elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
 
