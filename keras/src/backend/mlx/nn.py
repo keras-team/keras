@@ -1,11 +1,14 @@
 import mlx.core as mx
 import mlx.nn as nn
 
+from keras.src import tree
+from keras.src.backend import standardize_data_format
 from keras.src.backend import standardize_dtype
 from keras.src.backend.config import epsilon
 from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.backend.mlx.core import to_mlx_dtype
 from keras.src.backend.mlx.numpy import clip
+from keras.src.utils.argument_validation import standardize_tuple
 
 
 def relu(x):
@@ -109,6 +112,91 @@ def log_softmax(x, axis=-1):
     return x - mx.logsumexp(x, axis=axis, keepdims=True)
 
 
+def _transpose_spatial_inputs(inputs):
+    num_spatial_dims = inputs.ndim - 2
+    if num_spatial_dims == 1:
+        inputs = mx.transpose(inputs, (0, 2, 1))
+    elif num_spatial_dims == 2:
+        inputs = mx.transpose(inputs, (0, 3, 1, 2))
+    elif num_spatial_dims == 3:
+        inputs = mx.transpose(inputs, (0, 4, 1, 2, 3))
+    else:
+        raise ValueError(
+            "Inputs to conv transpose operation should have ndim=3, 4, or 5,"
+            "corresponding to 1D, 2D and 3D inputs. Received input "
+            f"shape: {inputs.shape}."
+        )
+    return inputs
+
+
+def _transpose_spatial_outputs(outputs):
+    num_spatial_dims = outputs.ndim - 2
+    if num_spatial_dims == 1:
+        outputs = mx.transpose(outputs, (0, 2, 1))
+    elif num_spatial_dims == 2:
+        outputs = mx.transpose(outputs, (0, 2, 3, 1))
+    elif num_spatial_dims == 3:
+        outputs = mx.transpose(outputs, (0, 2, 3, 4, 1))
+    return outputs
+
+
+def _transpose_conv_kernel(kernel):
+    num_spatial_dims = len(kernel.shape) - 2
+    if num_spatial_dims == 1:
+        kernel = mx.transpose(kernel, (2, 1, 0))
+    elif num_spatial_dims == 2:
+        kernel = mx.transpose(kernel, (3, 2, 0, 1))
+    else:
+        raise ValueError(
+            "Kernel for conv transpose operation should have ndim=3 or 4,"
+            "corresponding to 1D, 2D kernels. Received kernel "
+            f"shape: {kernel.shape}."
+        )
+    return kernel
+
+
+def _compute_padding_length(
+    input_length, kernel_length, stride, dilation_rate=1
+):
+    """Compute padding length along one dimension."""
+    total_padding_length = (
+        dilation_rate * (kernel_length - 1) - (input_length - 1) % stride
+    )
+    left_padding = total_padding_length // 2
+    right_padding = (total_padding_length + 1) // 2
+    return (left_padding, right_padding)
+
+
+def _apply_same_padding(
+    inputs, kernel_size, strides, operation_type, dilation_rate=1
+):
+    spatial_shape = inputs.shape[2:]
+    num_spatial_dims = len(spatial_shape)
+    padding = ()
+
+    for i in range(num_spatial_dims):
+        if operation_type == "pooling":
+            padding_size = _compute_padding_length(
+                spatial_shape[i], kernel_size[i], strides[i]
+            )
+        else:
+            dilation_rate = standardize_tuple(
+                dilation_rate, num_spatial_dims, "dilation_rate"
+            )
+            padding_size = _compute_padding_length(
+                spatial_shape[i], kernel_size[i], strides[i], dilation_rate[i]
+            )
+        padding = (padding_size,) + padding
+
+    if all([left == right for left, right in padding]):
+        return inputs, [left for left, _ in padding]
+
+    flattened_padding = tuple(
+        value for left_and_right in padding for value in left_and_right
+    )
+    return mx.pad(inputs, pad_width=flattened_padding, constant_values=0), 0
+
+
 def max_pool(
     inputs, pool_size, strides=None, padding="valid", data_format=None
 ):
@@ -129,7 +217,65 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    raise NotImplementedError("MLX backend doesn't support conv yet")
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    num_spatial_dims = inputs.ndim - 2
+    strides = standardize_tuple(strides, num_spatial_dims, "strides")
+
+    data_format = standardize_data_format(data_format)
+    if data_format == "channels_last":
+        inputs = _transpose_spatial_inputs(inputs)
+    kernel = _transpose_conv_kernel(kernel)
+    if padding == "same" and any(d != 1 for d in tree.flatten(strides)):
+        inputs, padding = _apply_same_padding(
+            inputs,
+            kernel.shape[2:],
+            strides,
+            operation_type="conv",
+            dilation_rate=dilation_rate,
+        )
+    elif padding == "valid":
+        padding = 0
+
+    channels = inputs.shape[1]
+    kernel_in_channels = kernel.shape[1]
+    if channels % kernel_in_channels > 0:
+        raise ValueError(
+            "The number of input channels must be evenly divisible by "
+            f"kernel.shape[1]. Received: inputs.shape={inputs.shape}, "
+            f"kernel.shape={kernel.shape}"
+        )
+    groups = channels // kernel_in_channels
+    if groups != 1:
+        raise ValueError(
+            "MLX only supports groups=1 for convolution operations."
+        )
+    if num_spatial_dims == 1:
+        outputs = mx.conv1d(
+            inputs,
+            kernel,
+            stride=strides,
+            padding=padding,
+            dilation=dilation_rate,
+        )
+    elif num_spatial_dims == 2:
+        outputs = mx.conv2d(
+            inputs,
+            kernel,
+            stride=strides,
+            padding=padding,
+            dilation=dilation_rate,
+        )
+    else:
+        raise ValueError(
+            "Inputs to conv operation should have ndim=3 or 4,"
+            "corresponding to 1D, 2D inputs. Received input "
+            f"shape: {inputs.shape}."
+        )
+
+    if data_format == "channels_last":
+        outputs = _transpose_spatial_outputs(outputs)
+    return outputs
 
 
 def depthwise_conv(
