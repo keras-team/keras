@@ -6,11 +6,12 @@ from keras.src import initializers
 from keras.src import ops
 from keras.src.optimizers.schedules import learning_rate_schedule
 from keras.src.saving import serialization_lib
+from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import tracking
 from keras.src.utils.naming import auto_name
 
 
-class BaseOptimizer:
+class BaseOptimizer(KerasSaveable):
     def __init__(
         self,
         learning_rate,
@@ -813,6 +814,9 @@ class BaseOptimizer:
             # model variable value with its moving average stored inside
             # optimizer.
             self._overwrite_model_variables_with_average_value(var_list)
+
+    def _obj_type(self):
+        return "Optimizer"
 
     def get_config(self):
         """Returns the config of the optimizer.

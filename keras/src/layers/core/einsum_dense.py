@@ -684,10 +684,6 @@ class EinsumDense(Layer):
                 self._custom_gradient_equation,
                 self._kernel_reverse_transpose_axes,
             ) = _analyze_quantization_info(self.equation, self.input_spec.ndim)
-            # Configure `self.inputs_quantizer`
-            self.inputs_quantizer = quantizers.AbsMaxQuantizer(
-                axis=self._input_reduced_axes
-            )
             # Quantize `self._kernel` to int8 and compute corresponding scale
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
                 self._kernel, axis=self._kernel_reduced_axes

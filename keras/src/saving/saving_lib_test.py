@@ -906,3 +906,15 @@ class SavingBattleTest(testing.TestCase):
         out = new_model(x)
         self.assertAllClose(ref_out[0], out[0])
         self.assertAllClose(ref_out[1], out[1])
+
+    def test_bidirectional_lstm_saving(self):
+        inputs = keras.Input((3, 2))
+        outputs = keras.layers.Bidirectional(keras.layers.LSTM(64))(inputs)
+        model = keras.Model(inputs, outputs)
+        temp_filepath = os.path.join(self.get_temp_dir(), "bidir_lstm.keras")
+        model.save(temp_filepath)
+        new_model = keras.saving.load_model(temp_filepath)
+        x = np.random.random((1, 3, 2))
+        ref_out = model(x)
+        out = new_model(x)
+        self.assertAllClose(ref_out, out)

@@ -272,8 +272,12 @@ class Bidirectional(Wrapper):
         return None
 
     def build(self, sequences_shape, initial_state_shape=None):
-        self.forward_layer.build(sequences_shape)
-        self.backward_layer.build(sequences_shape)
+        if not self.layer.built:
+            self.layer.build(sequences_shape)
+        if not self.forward_layer.built:
+            self.forward_layer.build(sequences_shape)
+        if not self.backward_layer.built:
+            self.backward_layer.build(sequences_shape)
         self.built = True
 
     def compute_mask(self, _, mask):

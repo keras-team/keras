@@ -1,7 +1,9 @@
 import os
+import pickle
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import constraints
@@ -11,7 +13,7 @@ from keras.src import optimizers
 from keras.src import testing
 
 
-class OptimizerTest(testing.TestCase):
+class OptimizerTest(testing.TestCase, parameterized.TestCase):
     def test_iterations_counter(self):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
         grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
@@ -318,3 +320,24 @@ class OptimizerTest(testing.TestCase):
             adam.learning_rate, 4
         )
         self.assertLen(adam.variables, 1)
+
+    @parameterized.parameters(
+        [
+            ("adam",),
+            ("sgd",),
+            ("adamw",),
+            ("adagrad",),
+            ("rmsprop",),
+            ("adadelta",),
+            ("adamax",),
+            ("lion",),
+            ("nadam",),
+            ("ftrl",),
+            ("adafactor",),
+        ]
+    )
+    def test_pickleable_optimizers(self, optimizer):
+        optimizer = optimizers.get(optimizer)
+        reloaded = pickle.loads(pickle.dumps(optimizer))
+
+        self.assertEqual(optimizer.get_config(), reloaded.get_config())

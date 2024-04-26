@@ -10,6 +10,7 @@ jobs:
     permissions:
       issues: write
       pull-requests: write
+      actions: write
     steps:
       - name: Awaiting response issues
         uses: actions/stale@v9

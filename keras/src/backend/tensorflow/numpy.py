@@ -2432,6 +2432,11 @@ def select(condlist, choicelist, default=0):
     return tf.experimental.numpy.select(condlist, choicelist, default=default)
 
 
+def slogdet(x):
+    x = convert_to_tensor(x)
+    return tuple(tf.linalg.slogdet(x))
+
+
 def argpartition(x, kth, axis=-1):
     x = convert_to_tensor(x, tf.int32)
 

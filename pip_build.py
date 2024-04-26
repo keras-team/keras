@@ -60,6 +60,64 @@ def export_version_string(version, is_nightly=False, rc_index=None):
         f.write(init_contents)
 
 
+def ignore_files(_, filenames):
+    return [f for f in filenames if f.endswith("_test.py")]
+
+
+def copy_source_to_build_directory(root_path):
+    # Copy sources (`keras/` directory and setup files) to build
+    # directory
+    os.chdir(root_path)
+    os.mkdir(build_directory)
+    shutil.copytree(
+        package, os.path.join(build_directory, package), ignore=ignore_files
+    )
+    for fname in to_copy:
+        shutil.copy(fname, os.path.join(f"{build_directory}", fname))
+    os.chdir(build_directory)
+
+
+def build(root_path, is_nightly=False, rc_index=None):
+    if os.path.exists(build_directory):
+        raise ValueError(f"Directory already exists: {build_directory}")
+
+    try:
+        copy_source_to_build_directory(root_path)
+        move_tf_keras_directory()
+        print(os.getcwd())
+
+        # from keras.src.version import __version__  # noqa: E402
+
+        __version__ = "3.3.2"
+        export_version_string(__version__, is_nightly, rc_index)
+        return build_and_save_output(root_path, __version__)
+    finally:
+        # Clean up: remove the build directory (no longer needed)
+        shutil.rmtree(build_directory)
+
+
+def move_tf_keras_directory():
+    """Move `keras/api/_tf_keras` to `keras/_tf_keras`, update references."""
+    shutil.move(os.path.join(package, "api", "_tf_keras"), "keras")
+    with open(os.path.join(package, "api", "__init__.py")) as f:
+        contents = f.read()
+        contents = contents.replace("from keras.api import _tf_keras", "")
+    with open(os.path.join(package, "api", "__init__.py"), "w") as f:
+        f.write(contents)
+    # Replace `keras.api._tf_keras` with `keras._tf_keras`.
+    for root, _, fnames in os.walk(os.path.join(package, "_tf_keras")):
+        for fname in fnames:
+            if fname.endswith(".py"):
+                tf_keras_fpath = os.path.join(root, fname)
+                with open(tf_keras_fpath) as f:
+                    contents = f.read()
+                    contents = contents.replace(
+                        "keras.api._tf_keras", "keras._tf_keras"
+                    )
+                with open(tf_keras_fpath, "w") as f:
+                    f.write(contents)
+
+
 def build_and_save_output(root_path, __version__):
     # Build the package
     os.system("python3 -m build")
@@ -83,13 +141,6 @@ def build_and_save_output(root_path, __version__):
     else:
         print("Build failed.")
     return whl_path
-
-
-def build(root_path, is_nightly=False, rc_index=None):
-    from keras.src.version import __version__  # noqa: E402
-
-    export_version_string(__version__, is_nightly, rc_index)
-    return build_and_save_output(root_path, __version__)
 
 
 def install_whl(whl_fpath):
