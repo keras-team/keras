@@ -1,3 +1,4 @@
+import itertools
 import multiprocessing.dummy
 import queue
 import random
@@ -153,22 +154,25 @@ class PyDataset:
         """
         raise NotImplementedError
 
-    def __len__(self):
-        """Number of batch in the PyDataset.
+    @property
+    def num_batches(self):
+        """Number of batches in the PyDataset.
 
         Returns:
-            The number of batches in the PyDataset.
+            The number of batches in the PyDataset or `None` to indicate that
+            the dataset is infinite.
         """
-        raise NotImplementedError
+        # For backwards compatibility, support `__len__`.
+        if hasattr(self, "__len__"):
+            return len(self)
+        raise NotImplementedError(
+            "You need to implement the `num_batches` property:\n\n"
+            "@property\ndef num_batches(self):\n  return ..."
+        )
 
     def on_epoch_end(self):
         """Method called at the end of every epoch."""
         pass
-
-    def __iter__(self):
-        """Create a generator that iterate over the PyDataset."""
-        for i in range(len(self)):
-            yield self[i]
 
 
 class PyDatasetAdapter(DataAdapter):
@@ -234,23 +238,33 @@ class PyDatasetAdapter(DataAdapter):
         else:
 
             def generator_fn():
-                order = range(len(self.py_dataset))
-                if self.shuffle:
+                num_batches = self.py_dataset.num_batches
+                indices = (
+                    range(num_batches)
+                    if num_batches is not None
+                    else itertools.count()
+                )
+                if self.shuffle and num_batches is not None:
                     # Match the shuffle convention in OrderedEnqueuer.
-                    order = list(order)
-                    random.shuffle(order)
+                    indices = list(indices)
+                    random.shuffle(indices)
 
-                for i in order:
+                for i in indices:
                     yield self.py_dataset[i]
 
         return generator_fn
 
     def _get_iterator(self):
+        num_batches = self.py_dataset.num_batches
         gen_fn = self._make_multiprocessed_generator_fn()
         for i, batch in enumerate(gen_fn()):
             batch = self._standardize_batch(batch)
             yield batch
-            if i >= len(self.py_dataset) - 1 and self.enqueuer:
+            if (
+                self.enqueuer
+                and num_batches is not None
+                and i >= num_batches - 1
+            ):
                 self.enqueuer.stop()
 
     def get_numpy_iterator(self):
@@ -262,11 +276,11 @@ class PyDatasetAdapter(DataAdapter):
     def get_tf_dataset(self):
         from keras.src.utils.module_utils import tensorflow as tf
 
+        num_batches = self.py_dataset.num_batches
         if self._output_signature is None:
-            num_samples = min(
-                data_adapter_utils.NUM_BATCHES_FOR_TENSOR_SPEC,
-                len(self.py_dataset),
-            )
+            num_samples = data_adapter_utils.NUM_BATCHES_FOR_TENSOR_SPEC
+            if num_batches is not None:
+                num_samples = min(num_samples, num_batches)
             batches = [
                 self._standardize_batch(self.py_dataset[i])
                 for i in range(num_samples)
@@ -277,7 +291,7 @@ class PyDatasetAdapter(DataAdapter):
             self._get_iterator,
             output_signature=self._output_signature,
         )
-        if self.shuffle:
+        if self.shuffle and num_batches is not None:
             ds = ds.shuffle(8)
         ds = ds.prefetch(tf.data.AUTOTUNE)
         return ds
@@ -292,7 +306,7 @@ class PyDatasetAdapter(DataAdapter):
 
     @property
     def num_batches(self):
-        return len(self.py_dataset)
+        return self.py_dataset.num_batches
 
     @property
     def batch_size(self):
@@ -520,31 +534,40 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
 
     def _run(self):
         """Submits request to the executor and queue the `Future` objects."""
-        indices = list(range(len(self.py_dataset)))
-        if self.shuffle:
-            random.shuffle(indices)
-        self._send_py_dataset()  # Share the initial py_dataset
-        while True:
-            with closing(self.executor_fn(_SHARED_SEQUENCES)) as executor:
-                for i in indices:
+        try:
+            num_batches = self.py_dataset.num_batches
+            indices = (
+                range(num_batches)
+                if num_batches is not None
+                else itertools.count()
+            )
+            if self.shuffle and num_batches is not None:
+                indices = list(indices)
+                random.shuffle(indices)
+            self._send_py_dataset()  # Share the initial py_dataset
+            while True:
+                with closing(self.executor_fn(_SHARED_SEQUENCES)) as executor:
+                    for i in indices:
+                        if self.stop_signal.is_set():
+                            return
+
+                        self.queue.put(
+                            executor.apply_async(get_index, (self.uid, i)),
+                            block=True,
+                        )
+
+                    # Done with the current epoch, waiting for the final batches
+                    self._wait_queue()
+
                     if self.stop_signal.is_set():
+                        # We're done
                         return
 
-                    self.queue.put(
-                        executor.apply_async(get_index, (self.uid, i)),
-                        block=True,
-                    )
-
-                # Done with the current epoch, waiting for the final batches
-                self._wait_queue()
-
-                if self.stop_signal.is_set():
-                    # We're done
-                    return
-
-            # Call the internal on epoch end.
-            self.py_dataset.on_epoch_end()
-            self._send_py_dataset()  # Update the pool
+                # Call the internal on epoch end.
+                self.py_dataset.on_epoch_end()
+                self._send_py_dataset()  # Update the pool
+        except Exception as e:
+            self.queue.put(e)  # Report exception
 
     def get(self):
         """Creates a generator to extract data from the queue.
@@ -558,7 +581,10 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
         """
         while self.is_running():
             try:
-                inputs = self.queue.get(block=True, timeout=5).get()
+                value = self.queue.get(block=True, timeout=5)
+                if isinstance(value, Exception):
+                    raise value  # Propagate exception from other thread
+                inputs = value.get()
                 if self.is_running():
                     self.queue.task_done()
                 if inputs is not None:
