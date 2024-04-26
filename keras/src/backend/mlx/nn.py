@@ -114,6 +114,7 @@ def log_softmax(x, axis=-1):
 
 def _transpose_spatial_inputs(inputs):
     num_spatial_dims = inputs.ndim - 2
+    print(f"Transposing inputs: original shape {inputs.shape}")
     if num_spatial_dims == 1:
         inputs = mx.transpose(inputs, (0, 2, 1))
     elif num_spatial_dims == 2:
@@ -126,6 +127,7 @@ def _transpose_spatial_inputs(inputs):
             "corresponding to 1D, 2D and 3D inputs. Received input "
             f"shape: {inputs.shape}."
         )
+    print(f"Transposed inputs to shape {inputs.shape}")
     return inputs
 
 
@@ -141,19 +143,10 @@ def _transpose_spatial_outputs(outputs):
 
 
 def _transpose_conv_kernel(kernel, data_format):
-    """Transposes a convolution kernel to the appropriate format.
-
-    Args:
-        kernel: A 4D tensor representing the kernel.
-        data_format: A string, either "channels_last" or "channels_first",
-        specifying the expected data format.
-
-    Returns:
-        A 4D tensor representing the kernel in the appropriate format
-        (output_channels, input_channels, kernel_height, kernel_width for
-        channels_first, or kernel_height, kernel_width, input_channels,
-        output_channels for channels_last).
-    """
+    print(
+        f"Transposing kernel: original shape {kernel.shape},"
+        f" data format {data_format}"
+    )
     num_spatial_dims = len(kernel.shape) - 2
     if num_spatial_dims == 1:
         if data_format == "channels_first":
@@ -169,6 +162,7 @@ def _transpose_conv_kernel(kernel, data_format):
             "corresponding to 1D, 2D kernels. Received kernel "
             f"shape: {kernel.shape}."
         )
+    print(f"Transposed kernel to shape {kernel.shape}")
     return kernel
 
 
@@ -234,6 +228,10 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
+    print(
+        f"Starting convolution with inputs shape {inputs.shape}"
+        f"and kernel shape {kernel.shape}"
+    )
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
 
@@ -245,11 +243,14 @@ def conv(
     data_format = standardize_data_format(data_format)
 
     if data_format == "channels_last":
+        print("Data format is channels_last. Transposing inputs...")
         inputs = _transpose_spatial_inputs(inputs)
 
     kernel = _transpose_conv_kernel(kernel, data_format)
+    print(f"Transposed kernel shape: {kernel.shape}")
 
     if padding == "same" and any(d != 1 for d in tree.flatten(strides)):
+        print("Padding is 'same', applying same padding...")
         inputs, padding = _apply_same_padding(
             inputs,
             kernel.shape[2:],  # Use the transposed kernel shape here
@@ -257,20 +258,31 @@ def conv(
             operation_type="conv",
             dilation_rate=dilation_rate,
         )
+        print(
+            f"After padding, inputs shape: {inputs.shape}, padding applied: {padding}"
+        )
     elif padding == "valid":
         padding = 0
+        print("Using valid padding, no padding applied.")
 
     input_channels = inputs.shape[1]
     # After transposition, kernel's in_channels are always second
     kernel_channels = kernel.shape[1]
 
     groups = input_channels // kernel_channels
+    print(f"Groups: {groups}")
     if groups != 1:
         raise ValueError(
             f"MLX backend only supports single-group (group=1) convolutions. "
             f"Received group size={groups}. Expected group size=1."
         )
+    print(
+        f"Input channels: {inputs.shape[1]}, Kernel channels: {kernel.shape[1]}"
+    )
     if input_channels != kernel_channels:
+        print(
+            f"Mismatch in channels: input channels {input_channels}, kernel channels {kernel_channels}"
+        )
         raise ValueError(
             f"Input channels ({input_channels}) must match kernel channels"
             f"({kernel_channels}) Received input shape {inputs.shape},"
@@ -302,6 +314,7 @@ def conv(
 
     if data_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
+    print(f"Finished convolution, output shape {outputs.shape}")
     return outputs
 
 
