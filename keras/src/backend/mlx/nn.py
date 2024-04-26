@@ -144,24 +144,31 @@ def _transpose_spatial_outputs(outputs):
 
 def _transpose_conv_kernel(kernel, data_format):
     print(
-        f"Transposing kernel: original shape {kernel.shape},"
-        f" data format {data_format}"
+        f"Transposing kernel: original shape {kernel.shape}, data format {data_format}"
     )
     num_spatial_dims = len(kernel.shape) - 2
-    if num_spatial_dims == 1:
-        if data_format == "channels_first":
-            kernel = mx.transpose(kernel, (2, 1, 0))
-        # For channels_last, no transposition needed for 1D
-    elif num_spatial_dims == 2:
-        if data_format == "channels_first":
+    if data_format == "channels_last":
+        # Kernel format is (height, width, in_channels, out_channels)
+        # We need to transpose to (out_channels, in_channels, height, width) for channels_first in convolution
+        if num_spatial_dims == 1:
+            # 1D Convolution Kernel
+            kernel = mx.transpose(
+                kernel, (3, 2, 0, 1)
+            )  # Adjusted for a hypothetical 1D convolution
+        elif num_spatial_dims == 2:
+            # 2D Convolution Kernel
             kernel = mx.transpose(kernel, (3, 2, 0, 1))
-        # For channels_last, no transposition needed for 2D
-    else:
-        raise ValueError(
-            "Kernel for conv transpose operation should have ndim=3 or 4, "
-            "corresponding to 1D, 2D kernels. Received kernel "
-            f"shape: {kernel.shape}."
-        )
+        else:
+            raise ValueError(
+                "Kernel for conv operation should have ndim=3 or 4, "
+                "corresponding to 1D, 2D kernels. Received kernel "
+                f"shape: {kernel.shape}."
+            )
+    elif data_format == "channels_first":
+        # If the data format is channels_first, no transposition is necessary if the kernel is already in
+        # (out_channels, in_channels, height, width) format
+        pass
+
     print(f"Transposed kernel to shape {kernel.shape}")
     return kernel
 
