@@ -35,12 +35,20 @@ def build_keras_model(keras_module, num_classes):
         [
             keras_module.Input(shape=input_shape),
             keras_module.layers.Conv2D(
-                32, kernel_size=(3, 3), activation="relu"
+                # in MLX Only the default groups=1 is currently supported.
+                32,
+                kernel_size=(3, 3),
+                activation="relu",
+                groups=1,
             ),
             keras_module.layers.BatchNormalization(),
             keras_module.layers.MaxPooling2D(pool_size=(2, 2)),
             keras_module.layers.Conv2D(
-                64, kernel_size=(3, 3), activation="relu"
+                # in MLX Only the default groups=1 is currently supported.
+                64,
+                kernel_size=(3, 3),
+                activation="relu",
+                groups=1,
             ),
             keras_module.layers.BatchNormalization(scale=False, center=True),
             keras_module.layers.MaxPooling2D(pool_size=(2, 2)),
