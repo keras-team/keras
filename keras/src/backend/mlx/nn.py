@@ -141,37 +141,19 @@ def _transpose_spatial_outputs(outputs):
         outputs = mx.transpose(outputs, (0, 2, 3, 4, 1))
     return outputs
 
-
 def _transpose_conv_kernel(kernel, data_format):
     print(
-        f"Transposing kernel: original shape {kernel.shape}, data format {data_format}"
+        f"Transposing kernel: original shape {kernel.shape},"
+        f" data format {data_format}"
     )
-    num_spatial_dims = len(kernel.shape) - 2
     if data_format == "channels_last":
-        # Kernel format is (height, width, in_channels, out_channels)
-        # We need to transpose to (out_channels, in_channels, height, width) for channels_first in convolution
-        if num_spatial_dims == 1:
-            # 1D Convolution Kernel
-            kernel = mx.transpose(
-                kernel, (3, 2, 0, 1)
-            )  # Adjusted for a hypothetical 1D convolution
-        elif num_spatial_dims == 2:
-            # 2D Convolution Kernel
-            kernel = mx.transpose(kernel, (3, 2, 0, 1))
-        else:
-            raise ValueError(
-                "Kernel for conv operation should have ndim=3 or 4, "
-                "corresponding to 1D, 2D kernels. Received kernel "
-                f"shape: {kernel.shape}."
-            )
+        # Change from (H, W, C_in, C_out) to (C_out, H, W, C_in)
+        kernel = mx.transpose(kernel, (3, 0, 1, 2))
     elif data_format == "channels_first":
-        # If the data format is channels_first, no transposition is necessary if the kernel is already in
-        # (out_channels, in_channels, height, width) format
+        # If originally (C_out, C_in, H, W), no change needed for mlx.core.conv2d
         pass
-
     print(f"Transposed kernel to shape {kernel.shape}")
     return kernel
-
 
 def _compute_padding_length(
     input_length, kernel_length, stride, dilation_rate=1
