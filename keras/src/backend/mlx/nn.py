@@ -228,6 +228,9 @@ def conv(
     data_format = standardize_data_format(data_format)
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
+        channel_axis = -1
+    else:
+        channel_axis = 1
 
     kernel = _transpose_conv_kernel(kernel)
     if padding == "same" and any(d != 1 for d in tree.flatten(strides)):
@@ -241,15 +244,16 @@ def conv(
     elif padding == "valid":
         padding = 0
 
-    channels = inputs.shape[1]
-    kernel_in_channels = kernel.shape[1]
-    if channels % kernel_in_channels > 0:
+    input_channels = inputs.shape[channel_axis]
+    # Always second dimension after transposition
+    kernel_channels = kernel.shape[1]
+
+    if input_channels % kernel_channels != 0:
         raise ValueError(
-            "The number of input channels must be evenly divisible by "
-            f"kernel.shape[1]. Received: inputs.shape={inputs.shape}, "
-            f"kernel.shape={kernel.shape}"
+            f"Input channels {input_channels} should be divisible by "
+            f"kernel channels {kernel_channels}."
         )
-    groups = channels // kernel_in_channels
+    groups = input_channels // kernel_channels
     if groups != 1:
         raise ValueError(
             "MLX only supports groups=1 for convolution operations."
