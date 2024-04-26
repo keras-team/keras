@@ -3,13 +3,12 @@ import copy
 from keras.src import ops
 from keras.src import utils
 from keras.src.api_export import keras_export
-from keras.src.layers.core.wrapper import Wrapper
 from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib
 
 
 @keras_export("keras.layers.Bidirectional")
-class Bidirectional(Wrapper):
+class Bidirectional(Layer):
     """Bidirectional wrapper for RNNs.
 
     Args:
@@ -105,7 +104,7 @@ class Bidirectional(Wrapper):
                 "Merge mode should be one of "
                 '{"sum", "mul", "ave", "concat", None}'
             )
-        super().__init__(layer, **kwargs)
+        super().__init__(**kwargs)
 
         # Recreate the forward layer from the original layer config, so that it
         # will not carry over any state from the layer.
@@ -272,8 +271,6 @@ class Bidirectional(Wrapper):
         return None
 
     def build(self, sequences_shape, initial_state_shape=None):
-        if not self.layer.built:
-            self.layer.build(sequences_shape)
         if not self.forward_layer.built:
             self.forward_layer.build(sequences_shape)
         if not self.backward_layer.built:
