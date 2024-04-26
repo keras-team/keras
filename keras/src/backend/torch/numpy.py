@@ -1616,8 +1616,7 @@ def slogdet(x):
 
 
 def argpartition(x, kth, axis=-1):
-    x = convert_to_tensor(x)
-    x = cast(x, "int32")
+    x = convert_to_tensor(x, "int32")
 
     x = torch.transpose(x, axis, -1)
     bottom_ind = torch.topk(-x, kth + 1)[1]

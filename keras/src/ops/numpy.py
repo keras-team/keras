@@ -6196,6 +6196,8 @@ def slogdet(x):
 class Argpartition(Operation):
     def __init__(self, kth, axis=-1):
         super().__init__()
+        if not isinstance(kth, int):
+            raise ValueError("kth must be an integer. Received:" f"kth = {kth}")
         self.kth = kth
         self.axis = axis
 
@@ -6203,15 +6205,7 @@ class Argpartition(Operation):
         return backend.numpy.argpartition(x, kth=self.kth, axis=self.axis)
 
     def compute_output_spec(self, x):
-        if not isinstance(self.kth, int):
-            raise ValueError(
-                "kth must be an integer. Received:" f"kth = {self.kth}"
-            )
-
-        dtype = "int32"
-        if backend.backend() in ("torch"):
-            dtype = "int64"
-        return KerasTensor(x.shape, dtype=dtype)
+        return KerasTensor(x.shape, dtype="int32")
 
 
 @keras_export(["keras.ops.argpartition", "keras.ops.numpy.argpartition"])

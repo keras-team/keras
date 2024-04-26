@@ -5442,9 +5442,6 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x_jax = jnp.array([1, 2, 3], dtype=dtype)
         expected_dtype = standardize_dtype(jnp.argpartition(x_jax, 1).dtype)
 
-        if backend.backend() in ("torch"):
-            expected_dtype = "int64"
-
         self.assertEqual(
             standardize_dtype(knp.argpartition(x, 1).dtype), expected_dtype
         )
