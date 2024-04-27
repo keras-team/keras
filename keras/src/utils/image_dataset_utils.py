@@ -367,12 +367,17 @@ def paths_and_labels_to_dataset(
     seed=None,
 ):
     """Constructs a dataset of images and labels."""
-    # TODO(fchollet): consider making num_parallel_calls settable
     path_ds = tf.data.Dataset.from_tensor_slices(image_paths)
-    if shuffle:
-        path_ds = path_ds.shuffle(
-            buffer_size=shuffle_buffer_size or 1024, seed=seed
+    if label_mode:
+        label_ds = dataset_utils.labels_to_dataset(
+            labels, label_mode, num_classes
         )
+        ds = tf.data.Dataset.zip((path_ds, label_ds))
+    else:
+        ds = path_ds
+
+    if shuffle:
+        ds = ds.shuffle(buffer_size=shuffle_buffer_size or 1024, seed=seed)
 
     args = (
         image_size,
@@ -382,15 +387,16 @@ def paths_and_labels_to_dataset(
         crop_to_aspect_ratio,
         pad_to_aspect_ratio,
     )
-    img_ds = path_ds.map(
-        lambda x: load_image(x, *args), num_parallel_calls=tf.data.AUTOTUNE
-    )
     if label_mode:
-        label_ds = dataset_utils.labels_to_dataset(
-            labels, label_mode, num_classes
+        ds = ds.map(
+            lambda x, y: (load_image(x, *args), y),
+            num_parallel_calls=tf.data.AUTOTUNE,
         )
-        img_ds = tf.data.Dataset.zip((img_ds, label_ds))
-    return img_ds
+    else:
+        ds = ds.map(
+            lambda x: load_image(x, *args), num_parallel_calls=tf.data.AUTOTUNE
+        )
+    return ds
 
 
 def load_image(

@@ -14,7 +14,7 @@ class SimpleRNNTest(testing.TestCase):
             init_kwargs={"layer": layers.SimpleRNN(4)},
             input_shape=(3, 2, 4),
             expected_output_shape=(3, 8),
-            expected_num_trainable_weights=9,
+            expected_num_trainable_weights=6,
             expected_num_non_trainable_weights=0,
             supports_masking=True,
         )
@@ -27,7 +27,7 @@ class SimpleRNNTest(testing.TestCase):
             },
             input_shape=(3, 2, 4),
             expected_output_shape=(3, 4),
-            expected_num_trainable_weights=9,
+            expected_num_trainable_weights=6,
             expected_num_non_trainable_weights=0,
             supports_masking=True,
         )

@@ -164,7 +164,7 @@ class CompileMetrics(metrics_module.Metric):
         if not self.built:
             return []
         vars = []
-        for m in self._flat_metrics + self._flat_weighted_metrics:
+        for m in self.metrics:
             if m is not None:
                 vars.extend(m.variables)
         return vars
