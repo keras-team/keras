@@ -238,87 +238,64 @@ def conv(
     Returns:
         Output tensor after convolution.
     """
-    print(
-        f"Starting convolution with inputs shape {inputs.shape} and kernel shape {kernel.shape}"
-    )
-
-    # Unpack strides and dilation_rate if they are tuples
-    print(
-        f"Strides: {strides}, Dilation Rate: {dilation_rate} before unpacking"
-    )
-    if isinstance(strides, tuple):
-        strides = strides[0]
-    if isinstance(dilation_rate, tuple):
-        dilation_rate = dilation_rate[0]
-    print(f"Strides: {strides}, Dilation Rate: {dilation_rate} after unpacking")
+    print("Initial input shape:", inputs.shape)
+    print("Initial kernel shape:", kernel.shape)
 
     # Convert inputs and kernel to tensors
-    print("Converting inputs and kernel to tensors...")
-    print(f"Inputs shape before conversion: {inputs.shape}")
     inputs = convert_to_tensor(inputs)
-    print(f"Inputs shape after conversion: {inputs.shape}")
-    print(f"Kernel shape before conversion: {kernel.shape}")
     kernel = convert_to_tensor(kernel)
-    print(f"Kernel shape after conversion: {kernel.shape}")
+    print("After conversion - Input shape:", inputs.shape)
+    print("After conversion - Kernel shape:", kernel.shape)
 
-    # Standardize strides and dilation rate
-    print("Standardizing strides and dilation rate...")
-    print(f"Inputs shape: {inputs.shape}, Kernel shape: {kernel.shape}")
-    print(f"inputs ndim: {inputs.ndim}, kernel ndim: {kernel.ndim}")
-    num_spatial_dims = inputs.ndim - 2
-    print(f"Num spatial dims: {num_spatial_dims}")
-    print(f"strides before standardization: {strides}")
-    strides = standardize_tuple(strides, num_spatial_dims, "strides")
-    print(f"strides after standardization: {strides}")
-    print(f"dilation_rate before standardization: {dilation_rate}")
-    dilation_rate = standardize_tuple(
-        dilation_rate, num_spatial_dims, "dilation_rate"
-    )
-    print(f"dilation_rate after standardization: {dilation_rate}")
-
-    # Standardize data format
-    print("Standardizing data format...")
-    print(f"Data format before standardization: {data_format}")
+    # Print before standardizing data format
+    print("Before standardizing data format - Data format:", data_format)
     data_format = standardize_data_format(data_format)
-    print(f"Data format after standardization: {data_format}")
+    # Print after standardizing data format
+    print("After standardizing data format - Data format:", data_format)
 
-    # Transpose input if necessary
-    print("Transposing inputs based on data format...")
-    print(f" Inputs before transposing: {data_format}")
-    inputs = _transpose_spatial_inputs(inputs, data_format)
-    print(f" Inputs after transposing: {data_format}")
+    # Unpack and standardize strides and dilation_rate
+    print(
+        "Before standardization - Strides:",
+        strides,
+        "Dilation Rate:",
+        dilation_rate,
+    )
+    strides = standardize_tuple(strides, inputs.ndim - 2, "strides")
+    dilation_rate = standardize_tuple(
+        dilation_rate, inputs.ndim - 2, "dilation_rate"
+    )
+    print(
+        "After standardization - Strides:",
+        strides,
+        "Dilation Rate:",
+        dilation_rate,
+    )
 
-    # Transpose kernel based on data format
-    print("Transposing kernel based on data format...")
-    print(f"Kernel shape before transposing: {kernel.shape}")
-    kernel = _transpose_conv_kernel(kernel, data_format)
-    print(f"Kernel shape after transposing: {kernel.shape}")
+    # Transpose input and kernel if necessary based on data format
+    print(
+        "Before transposition - Inputs and kernel transposition based on data format"
+    )
+    if data_format == "channels_first":
+        inputs = _transpose_spatial_inputs(inputs, data_format)
+        kernel = _transpose_conv_kernel(kernel, data_format)
+        print("After transposition - Input shape:", inputs.shape)
+        print("After transposition - Kernel shape:", kernel.shape)
 
-    # Apply padding if necessary
-    print("Applying padding if necessary...")
-    print(f"Padding: {padding}")
-    if padding == "same" and any(d != 1 for d in tree.flatten(strides)):
-        print("Padding is 'same', applying same padding...")
+    # Calculate padding if 'same' is required
+    print("Before applying padding - Padding type:", padding)
+    if padding == "same":
         inputs, padding = _apply_same_padding(
-            inputs,
-            kernel.shape[2:],
-            strides,
-            operation_type="conv",
-            dilation_rate=dilation_rate,
+            inputs, kernel.shape[2:], strides, dilation_rate
         )
-        print(
-            f"After padding, inputs shape: {inputs.shape}, padding applied: {padding}"
-        )
+        print("After applying 'same' padding - Input shape:", inputs.shape)
+        print("Padding applied:", padding)
     elif padding == "valid":
-        print("Using valid padding, no padding applied.")
         padding = 0
-        print(f"Padding changed to {padding}")
+        print("Using 'valid' padding - No padding applied")
 
-    # Perform convolution with groups=1
-    if num_spatial_dims == 1:
-        print(
-            f"Performing 1D convolution because num_spatial_dims={num_spatial_dims}"
-        )
+    # Perform convolution based on dimensionality
+    print("Before convolution - Input dimensions:", inputs.ndim)
+    if inputs.ndim == 3:  # 1D Convolution
         print(f"Performing 1D convolution with inputs shape {inputs.shape}")
         print(f"Performing 1D convolution with kernel shape {kernel.shape}")
         print(f"Performing 1D convolution with strides {strides}")
@@ -333,12 +310,8 @@ def conv(
             dilation=dilation_rate,
             groups=1,
         )
-        print(f"Finished 1D convolution, output shape {outputs.shape}")
-        print(f"Finished 1D convolution, output is {outputs}")
-    elif num_spatial_dims == 2:
-        print(
-            f"Performing 2D convolution because num_spatial_dims={num_spatial_dims}"
-        )
+        print("After 1D convolution - Output shape:", outputs.shape)
+    elif inputs.ndim == 4:  # 2D Convolution
         print(f"Performing 2D convolution with inputs shape {inputs.shape}")
         print(f"Performing 2D convolution with kernel shape {kernel.shape}")
         print(f"Performing 2D convolution with strides {strides}")
@@ -353,135 +326,18 @@ def conv(
             dilation=dilation_rate,
             groups=1,
         )
-        print(f"Finished 2D convolution, output shape {outputs.shape}")
-        print(f"Finished 2D convolution, output is {outputs}")
+        print("After 2D convolution - Output shape:", outputs.shape)
     else:
-        raise ValueError(
-            "Inputs to conv operation should have ndim=3 or 4, corresponding to 1D, 2D inputs."
-        )
+        raise ValueError("Unsupported number of dimensions for conv operation.")
 
-    # Transpose output back to original format if necessary
-    print("Transposing output back to original format if necessary...")
-    print(f"Data format: {data_format}")
-    if data_format == "channels_last":
-        print(f"The outputs shape before transposing: {outputs.shape}")
-        outputs = _transpose_spatial_outputs(outputs)
-        print(f"The outputs shape after transposing: {outputs.shape}")
+    # Transpose output back if necessary
+    print("Before final transposition - Data format:", data_format)
+    if data_format == "channels_first":
+        outputs = _transpose_spatial_outputs(outputs, data_format)
+        print("After final transposition - Output shape:", outputs.shape)
 
-    print("Finished convolution")
-    print(f"Final Output shape: {outputs.shape}")
-    print(f"Final Output: {outputs}")
+    print("Final output shape:", outputs.shape)
     return outputs
-
-
-# def conv(
-#     inputs,
-#     kernel,
-#     strides=1,
-#     padding="valid",
-#     data_format="channels_last",
-#     dilation_rate=1,
-# ):
-#     print(
-#         f"Starting convolution with inputs shape {inputs.shape}"
-#         f"and kernel shape {kernel.shape}"
-#     )
-#     inputs = convert_to_tensor(inputs)
-#     kernel = convert_to_tensor(kernel)
-
-#     num_spatial_dims = inputs.ndim - 2
-#     strides = standardize_tuple(strides, num_spatial_dims, "strides")
-#     dilation_rate = standardize_tuple(
-#         dilation_rate, num_spatial_dims, "dilation_rate"
-#     )
-#     data_format = standardize_data_format(data_format)
-
-#     if data_format == "channels_last":
-#         print("Data format is channels_last. Transposing inputs...")
-#         inputs = _transpose_spatial_inputs(inputs)
-
-#     kernel = _transpose_conv_kernel(kernel, data_format)
-#     print(f"Transposed kernel shape: {kernel.shape}")
-
-#     if padding == "same" and any(d != 1 for d in tree.flatten(strides)):
-#         print("Padding is 'same', applying same padding...")
-#         inputs, padding = _apply_same_padding(
-#             inputs,
-#             kernel.shape[2:],  # Use the transposed kernel shape here
-#             strides,
-#             operation_type="conv",
-#             dilation_rate=dilation_rate,
-#         )
-#         print(
-#             f"After padding, inputs shape: {inputs.shape}, padding applied: {padding}"
-#         )
-#     elif padding == "valid":
-#         padding = 0
-#         print("Using valid padding, no padding applied.")
-
-#     if data_format == "channels_last":
-#         # The kernel should be in the format (H, W, In_C, Out_C)
-#         # This should match the expected format if using channels_last throughout the system
-#         input_channels = inputs.shape[-1]
-#         kernel_in_channels = kernel.shape[
-#             -2
-#         ]  # This should correspond to In_C if channels_last
-#     else:
-#         input_channels = inputs.shape[1]
-#         kernel_in_channels = kernel.shape[1]
-#     print(
-#         f"Input Channels: {input_channels}, Kernel Input Channels: {kernel_in_channels}"
-#     )
-
-#     groups = input_channels // kernel_in_channels
-#     print(f"Groups: {groups}")
-#     # if groups != 1:
-#     #     raise ValueError(
-#     #         f"MLX backend only supports single-group (group=1) convolutions. "
-#     #         f"Received group size={groups}. Expected group size=1."
-#     #     )
-#     print(
-#         f"Input channels: {inputs.shape[1]}, Kernel channels: {kernel.shape[1]}"
-#     )
-#     if input_channels != kernel_in_channels:
-#         print(
-#             f"Mismatch in channels: input channels {input_channels}, kernel channels {kernel_in_channels}"
-#         )
-#         # raise ValueError(
-#         #     f"Input channels ({input_channels}) must match kernel channels"
-#         #     f"({kernel_channels}) Received input shape {inputs.shape},"
-#         #     f"kernel shape {kernel.shape}."
-#         # )
-
-#     if num_spatial_dims == 1:
-#         outputs = mx.conv1d(
-#             inputs,
-#             kernel,
-#             stride=strides,
-#             padding=padding,
-#             dilation=dilation_rate,
-#             groups=1,  # As only groups=1 is supported
-#         )
-#     elif num_spatial_dims == 2:
-#         outputs = mx.conv2d(
-#             inputs,
-#             kernel,
-#             stride=strides,
-#             padding=padding,
-#             dilation=dilation_rate,
-#             groups=1,  # As only groups=1 is supported
-#         )
-#     else:
-#         raise ValueError(
-#             "Inputs to conv operation should have ndim=3 or 4,"
-#             "corresponding to 1D, 2D inputs. Received input "
-#             f"shape: {inputs.shape}."
-#         )
-
-#     if data_format == "channels_last":
-#         outputs = _transpose_spatial_outputs(outputs)
-#     print(f"Finished convolution, output shape {outputs.shape}")
-#     return outputs
 
 
 def depthwise_conv(

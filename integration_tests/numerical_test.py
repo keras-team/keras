@@ -3,8 +3,8 @@ import keras  # isort: skip, keep it on top for torch test
 import numpy as np
 import tf_keras
 
-# keras.backend.set_image_data_format("channels_last")
-# tf_keras.backend.set_image_data_format("channels_last")
+keras.backend.set_image_data_format("channels_last")
+tf_keras.backend.set_image_data_format("channels_last")
 
 NUM_CLASSES = 10
 BATCH_SIZE = 32
