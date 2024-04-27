@@ -138,11 +138,17 @@ def conv(
     print("After conversion - Input shape:", inputs.shape)
     print("After conversion - Kernel shape:", kernel.shape)
 
+    print("Strides before conversion:", strides)
     if isinstance(strides, int):
         strides = (strides,) * (inputs.ndim - 2)
+    print("Strides after conversion:", strides)
+
+    print("Dilation rate before conversion:", dilation_rate)
     if isinstance(dilation_rate, int):
         dilation_rate = (dilation_rate,) * (inputs.ndim - 2)
+    print("Dilation rate after conversion:", dilation_rate)
 
+    print("Padding before conversion:", padding)
     if padding == "valid":
         padding = 0
     elif padding == "same":
@@ -158,6 +164,21 @@ def conv(
         raise NotImplementedError(
             "MLX backend only supports data_format='channels_last'"
         )
+    # exclude in_channels and out_channels
+    print(f"Kernel shape before transpose: {kernel.shape}")
+    num_spatial_dims = len(kernel.shape) - 2
+    print(f"Num spatial dims: {num_spatial_dims}")
+
+    if num_spatial_dims == 1:
+        print(f"Transposing kernel shape: {kernel.shape}")
+        # For 1D convolution kernels: (H, C_in, C_out) to (C_out, H, C_in)
+        kernel = kernel.transpose((2, 0, 1))
+        print(f"Transposed kernel shape: {kernel.shape}")
+    elif num_spatial_dims == 2:
+        print(f"Transposing kernel shape: {kernel.shape}")
+        # For 2D convolution kernels: (H, W, C_in, C_out) to (C_out, H, W, C_in)
+        kernel = kernel.transpose((3, 0, 1, 2))
+        print(f"Transposed kernel shape: {kernel.shape}")
 
     if inputs.ndim == 3:
         outputs = mx.conv1d(
