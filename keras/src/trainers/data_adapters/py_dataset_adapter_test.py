@@ -3,10 +3,12 @@ import time
 
 import jax
 import numpy as np
+import pytest
 import tensorflow as tf
 import torch
 from absl.testing import parameterized
 
+from keras.src import backend
 from keras.src import testing
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import py_dataset_adapter
@@ -77,6 +79,21 @@ class DictPyDataset(py_dataset_adapter.PyDataset):
         return batch
 
 
+class ExceptionPyDataset(py_dataset_adapter.PyDataset):
+
+    @property
+    def num_batches(self):
+        return 4
+
+    def __getitem__(self, index):
+        if index < 2:
+            return (
+                np.random.random((64, 4)).astype("float32"),
+                np.random.random((64, 2)).astype("float32"),
+            )
+        raise ValueError("Expected exception")
+
+
 class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         named_product(
@@ -113,7 +130,6 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
                 },
             ],
             infinite=[True, False],
-            iterator_type=["np", "tf", "jax", "torch"],
             shuffle=[True, False],
         )
     )
@@ -122,11 +138,13 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
         shuffle,
         dataset_type,
         infinite,
-        iterator_type,
         workers=0,
         use_multiprocessing=False,
         max_queue_size=0,
     ):
+        if use_multiprocessing and (infinite or shuffle):
+            pytest.skip("Starting processes is slow, only test one variant")
+
         set_random_seed(1337)
         x = np.random.random((64, 4)).astype("float32")
         y = np.array([[i, i] for i in range(64)], dtype="float32")
@@ -149,16 +167,16 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
             py_dataset, shuffle=shuffle
         )
 
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = jax.Array
-        elif iterator_type == "torch":
+        elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
 
@@ -257,10 +275,7 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(tuple(bx.shape), (4, 4))
             self.assertEqual(tuple(by.shape), (4, 2))
 
-    @parameterized.named_parameters(
-        named_product(iterator_type=["np", "tf", "jax", "torch"])
-    )
-    def test_with_different_shapes(self, iterator_type):
+    def test_with_different_shapes(self):
 
         class TestPyDataset(py_dataset_adapter.PyDataset):
             @property
@@ -285,13 +300,13 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
             TestPyDataset(), shuffle=False
         )
 
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
-        elif iterator_type == "torch":
+        elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
 
         for i, batch in enumerate(it):
@@ -310,67 +325,52 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
                 self.assertEqual(by.shape, (2, 2))
 
     @parameterized.named_parameters(
-        named_product(
-            [
-                {
-                    "testcase_name": "multiprocessing",
-                    "workers": 2,
-                    "use_multiprocessing": True,
-                    "max_queue_size": 10,
-                },
-                {
-                    "testcase_name": "multithreading",
-                    "workers": 2,
-                    "max_queue_size": 10,
-                },
-                {
-                    "testcase_name": "single",
-                },
-            ],
-            iterator_type=["np", "tf", "jax", "torch"],
-        )
+        [
+            {
+                "testcase_name": "multiprocessing",
+                "workers": 2,
+                "use_multiprocessing": True,
+                "max_queue_size": 10,
+            },
+            {
+                "testcase_name": "multithreading",
+                "workers": 2,
+                "max_queue_size": 10,
+            },
+            {
+                "testcase_name": "single",
+            },
+        ]
     )
     def test_exception_reported(
         self,
-        iterator_type,
         workers=0,
         use_multiprocessing=False,
         max_queue_size=0,
     ):
-        class ExceptionPyDataset(py_dataset_adapter.PyDataset):
-
-            @property
-            def num_batches(self):
-                return 4
-
-            def __getitem__(self, index):
-                if index < 2:
-                    return (
-                        np.random.random((64, 4)).astype("float32"),
-                        np.random.random((64, 2)).astype("float32"),
-                    )
-                raise ValueError("Excepted exception")
-
-        adapter = py_dataset_adapter.PyDatasetAdapter(
-            ExceptionPyDataset(), shuffle=False
+        dataset = ExceptionPyDataset(
+            workers=workers,
+            use_multiprocessing=use_multiprocessing,
+            max_queue_size=max_queue_size,
         )
+        adapter = py_dataset_adapter.PyDatasetAdapter(dataset, shuffle=False)
 
         expected_exception_class = ValueError
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             # tf.data wraps the exception
             expected_exception_class = tf.errors.InvalidArgumentError
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
-        elif iterator_type == "torch":
+        elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
 
         it = iter(it)
         next(it)
         next(it)
         with self.assertRaisesRegex(
-            expected_exception_class, "Excepted exception"
+            expected_exception_class, "Expected exception"
         ):
             next(it)

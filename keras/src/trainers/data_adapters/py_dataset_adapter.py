@@ -342,11 +342,6 @@ def get_worker_id_queue():
     return _WORKER_ID_QUEUE
 
 
-def init_pool(seqs):
-    global _SHARED_SEQUENCES
-    _SHARED_SEQUENCES = seqs
-
-
 def get_index(uid, i):
     """Get the value from the PyDataset `uid` at index `i`.
 
