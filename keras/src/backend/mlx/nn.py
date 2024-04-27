@@ -176,8 +176,8 @@ def conv(
         print(f"Transposed kernel shape: {kernel.shape}")
     elif num_spatial_dims == 2:
         print(f"Transposing kernel shape: {kernel.shape}")
-        # For 2D convolution kernels:
-        kernel = kernel.transpose((3, 2, 0, 1))  # to (C_out, C_in, H, W)
+        # transpose for 2D convolution: (H, W, C_in, C_out) to (C_out, H, W, C_in)
+        kernel = kernel.transpose((3, 0, 1, 2))
         print(f"Transposed kernel shape: {kernel.shape}")
 
     if inputs.ndim == 3:
