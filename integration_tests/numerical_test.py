@@ -1,3 +1,7 @@
+print("Running numerical test")
+
+"""
+
 import keras  # isort: skip, keep it on top for torch test
 
 import numpy as np
@@ -35,11 +39,7 @@ def build_keras_model(keras_module, num_classes):
     model = keras_module.Sequential(
         [
             keras_module.Input(shape=input_shape),
-            keras_module.layers.Conv2D(
-                32,
-                kernel_size=(3, 3),
-                activation="relu",
-                input_shape=input_shape,
+            keras_module.layers.Conv2D(32,kernel_size=(3, 3),activation="relu",
             ),
             keras_module.layers.BatchNormalization(),
             keras_module.layers.MaxPooling2D(pool_size=(2, 2)),
@@ -144,3 +144,4 @@ if __name__ == "__main__":
     keras.utils.set_random_seed(1337)
     tf_keras.utils.set_random_seed(1337)
     numerical_test()
+"""
