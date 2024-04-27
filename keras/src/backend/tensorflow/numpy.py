@@ -2435,3 +2435,24 @@ def select(condlist, choicelist, default=0):
 def slogdet(x):
     x = convert_to_tensor(x)
     return tuple(tf.linalg.slogdet(x))
+
+
+def argpartition(x, kth, axis=-1):
+    x = convert_to_tensor(x, tf.int32)
+
+    x = swapaxes(x, axis, -1)
+    bottom_ind = tf.math.top_k(-x, kth + 1).indices
+
+    n = tf.shape(x)[-1]
+
+    mask = tf.reduce_sum(tf.one_hot(bottom_ind, n, dtype=tf.int32), axis=0)
+
+    indices = tf.where(mask)
+    updates = tf.squeeze(tf.zeros(tf.shape(indices)[0], dtype=tf.int32))
+
+    final_mask = tf.tensor_scatter_nd_update(x, indices, updates)
+
+    top_ind = tf.math.top_k(final_mask, tf.shape(x)[-1] - kth - 1).indices
+
+    out = tf.concat([bottom_ind, top_ind], axis=x.ndim - 1)
+    return swapaxes(out, -1, axis)

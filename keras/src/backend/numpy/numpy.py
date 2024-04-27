@@ -1102,3 +1102,7 @@ def select(condlist, choicelist, default=0):
 
 def slogdet(x):
     return tuple(np.linalg.slogdet(x))
+
+
+def argpartition(x, kth, axis=-1):
+    return np.argpartition(x, kth, axis).astype("int32")

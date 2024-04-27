@@ -6191,3 +6191,45 @@ def slogdet(x):
     if any_symbolic_tensors((x,)):
         return Slogdet().symbolic_call(x)
     return backend.numpy.slogdet(x)
+
+
+class Argpartition(Operation):
+    def __init__(self, kth, axis=-1):
+        super().__init__()
+        if not isinstance(kth, int):
+            raise ValueError("kth must be an integer. Received:" f"kth = {kth}")
+        self.kth = kth
+        self.axis = axis
+
+    def call(self, x):
+        return backend.numpy.argpartition(x, kth=self.kth, axis=self.axis)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="int32")
+
+
+@keras_export(["keras.ops.argpartition", "keras.ops.numpy.argpartition"])
+def argpartition(x, kth, axis=-1):
+    """Performs an indirect partition along the given axis.
+
+    It returns an array
+    of indices of the same shape as `x` that index data along the given axis
+    in partitioned order.
+
+    Args:
+        a: Array to sort.
+        kth: Element index to partition by.
+            The k-th element will be in its final sorted position and all
+            smaller elements will be moved before it and all larger elements
+            behind it. The order of all elements in the partitions is undefined.
+            If provided with a sequence of k-th it will partition all of them
+            into their sorted position at once.
+        axis: Axis along which to sort. The default is -1 (the last axis).
+            If `None`, the flattened array is used.
+
+    Returns:
+        Array of indices that partition `x` along the specified `axis`.
+    """
+    if any_symbolic_tensors((x,)):
+        return Argpartition(kth, axis).symbolic_call(x)
+    return backend.numpy.argpartition(x, kth, axis)

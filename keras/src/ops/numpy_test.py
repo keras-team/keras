@@ -1475,6 +1475,14 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((None, None))
         self.assertEqual(knp.vstack([x, y]).shape, (None, 3))
 
+    def test_argpartition(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.argpartition(x, 3).shape, (None, 3))
+        self.assertEqual(knp.argpartition(x, 1, axis=1).shape, (None, 3))
+
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, (1, 3))
+
 
 class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_mean(self):
@@ -1980,6 +1988,14 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.vstack([x, y]).shape, (4, 3))
+
+    def test_argpartition(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.argpartition(x, 3).shape, (2, 3))
+        self.assertEqual(knp.argpartition(x, 1, axis=1).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, (1, 3))
 
 
 class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
@@ -4303,6 +4319,19 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             out, np.vectorize(np.diag, signature="(d,d)->(d)")(np.eye(4))
         )
 
+    def test_argpartition(self):
+        x = np.array([3, 4, 2, 1])
+        self.assertAllClose(knp.argpartition(x, 2), np.argpartition(x, 2))
+        self.assertAllClose(knp.Argpartition(2)(x), np.argpartition(x, 2))
+
+        x = np.array([[3, 4, 2], [1, 3, 1]])
+        self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
+        self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
+
+        x = np.array([[[3, 4], [2, 3]], [[1, 2], [0, 1]]])
+        self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
+        self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
+
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
     def test_ones(self):
@@ -5399,6 +5428,25 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(standardize_dtype(knp.argmin(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Argmin().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_argpartition(self, dtype):
+        import jax.numpy as jnp
+
+        if dtype == "bool":
+            self.skipTest("argpartition doesn't support bool dtype")
+
+        x = knp.array([1, 2, 3], dtype=dtype)
+        x_jax = jnp.array([1, 2, 3], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.argpartition(x_jax, 1).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.argpartition(x, 1).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Argpartition(1).symbolic_call(x).dtype),
             expected_dtype,
         )
 
