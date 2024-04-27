@@ -102,6 +102,11 @@ def erf(x):
     return mx.erf(x)
 
 
+def erfinv(x):
+    x = convert_to_tensor(x)
+    return mx.erfinv(x)
+
+
 def solve(a, b):
     raise NotImplementedError(
         "Linear system solving not yet implemented in mlx"
