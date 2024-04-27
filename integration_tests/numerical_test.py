@@ -6,6 +6,7 @@ import tf_keras
 keras.backend.set_image_data_format("channels_last")
 tf_keras.backend.set_image_data_format("channels_last")
 
+
 NUM_CLASSES = 10
 BATCH_SIZE = 32
 EPOCHS = 1
@@ -35,7 +36,10 @@ def build_keras_model(keras_module, num_classes):
         [
             keras_module.Input(shape=input_shape),
             keras_module.layers.Conv2D(
-                32, kernel_size=(3, 3), activation="relu"
+                32,
+                kernel_size=(3, 3),
+                activation="relu",
+                input_shape=input_shape,
             ),
             keras_module.layers.BatchNormalization(),
             keras_module.layers.MaxPooling2D(pool_size=(2, 2)),
