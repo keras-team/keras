@@ -266,12 +266,10 @@ def conv(
     print(f"Inputs shape: {inputs.shape}, Kernel shape: {kernel.shape}")
     print(f"inputs ndim: {inputs.ndim}, kernel ndim: {kernel.ndim}")
     num_spatial_dims = inputs.ndim - 2
-
     print(f"Num spatial dims: {num_spatial_dims}")
     print(f"strides before standardization: {strides}")
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
     print(f"strides after standardization: {strides}")
-
     print(f"dilation_rate before standardization: {dilation_rate}")
     dilation_rate = standardize_tuple(
         dilation_rate, num_spatial_dims, "dilation_rate"
@@ -292,7 +290,6 @@ def conv(
 
     # Transpose kernel based on data format
     print("Transposing kernel based on data format...")
-    print(f"kernel before transposing: {kernel.shape}")
     print(f"Kernel shape before transposing: {kernel.shape}")
     kernel = _transpose_conv_kernel(kernel, data_format)
     print(f"Kernel shape after transposing: {kernel.shape}")
@@ -320,7 +317,7 @@ def conv(
     # Perform convolution with groups=1
     if num_spatial_dims == 1:
         print(
-            f"Performing 1D convolution beacuse num_spatial_dims={num_spatial_dims}"
+            f"Performing 1D convolution because num_spatial_dims={num_spatial_dims}"
         )
         print(f"Performing 1D convolution with inputs shape {inputs.shape}")
         print(f"Performing 1D convolution with kernel shape {kernel.shape}")
@@ -338,7 +335,6 @@ def conv(
         )
         print(f"Finished 1D convolution, output shape {outputs.shape}")
         print(f"Finished 1D convolution, output is {outputs}")
-
     elif num_spatial_dims == 2:
         print(
             f"Performing 2D convolution because num_spatial_dims={num_spatial_dims}"
