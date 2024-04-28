@@ -28,11 +28,17 @@ MLX_DTYPES = {
 
 def to_mlx_dtype(dtype):
     print(f"Input dtype: {dtype}")
+    # Check if the dtype is already an instance of mlx.core.Dtype
     if isinstance(dtype, mx.Dtype):
         print("dtype is an instance of mx.Dtype")
         return dtype
+
     print("Standardizing dtype...")
-    standardized_dtype = MLX_DTYPES.get(standardize_dtype(dtype), None)
+    # Convert numpy dtype string or Python type to a standard dtype string
+    dtype_str = np.dtype(dtype).name if not isinstance(dtype, str) else dtype
+    # Fetch the corresponding mlx.core.Dtype
+    standardized_dtype = MLX_DTYPES.get(dtype_str, None)
+
     print(f"Standardized dtype: {standardized_dtype}")
     if standardized_dtype is None:
         print(f"Unsupported dtype for MLX: {dtype}")

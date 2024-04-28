@@ -137,8 +137,6 @@ def conv(
     data_format="channels_last",
     dilation_rate=1,
 ):
-    print(f" Inputs: {inputs}")
-    print(f" Kernel: {kernel}")
     print("Initial input shape:", inputs.shape)
     print("Initial kernel shape:", kernel.shape)
     inputs = convert_to_tensor(inputs)
@@ -211,7 +209,6 @@ def conv(
             groups=1,
         )
     print(f"Output shape after conv: {outputs.shape}")
-    print(f"The final Output: {outputs}")
     return outputs
 
 
