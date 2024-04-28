@@ -826,6 +826,15 @@ def ctc_decode(
             blank_index=mask_index,
         )
     elif strategy == "beam_search":
+        # Move `mask_index` column to the last position since this is the
+        # default for `tf.nn.ctc_beam_search_decoder`
+        if mask_index is not None:
+            inputs_before = inputs[..., :mask_index]
+            inputs_mask = inputs[..., mask_index : mask_index + 1]
+            inputs_after = inputs[..., mask_index + 1 :]
+            inputs = tf.concat(
+                [inputs_before, inputs_after, inputs_mask], axis=-1
+            )
         (decoded, scores) = tf.nn.ctc_beam_search_decoder(
             inputs=inputs,
             sequence_length=sequence_lengths,
@@ -845,6 +854,12 @@ def ctc_decode(
         decoded_dense.append(tf.sparse.to_dense(sp_input=st, default_value=-1))
     decoded_dense = tf.stack(decoded_dense, axis=0)
     decoded_dense = tf.cast(decoded_dense, "int32")
+
+    # We need to recover the labels because we swapped the indices earlier
+    if strategy == "beam_search" and mask_index is not None:
+        decoded_dense = tf.where(
+            decoded_dense >= mask_index, decoded_dense + 1, decoded_dense
+        )
     return decoded_dense, scores
 
 

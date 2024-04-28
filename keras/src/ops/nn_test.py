@@ -1963,7 +1963,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         labels = np.array([[1, 2, -1], [2, -1, -1], [3, -1, -1]])
         score_labels = np.array([[-1.2], [-1.7], [-0.7]])
-        repeated_labels = np.array([[1, 2, 2], [0, 2, 0], [-1, -1, -1]])
+        repeated_labels = np.array([[1, 2, 2], [2, -1, -1], [3, -1, -1]])
 
         # Test strategy="greedy" and merge_repeated=True
         (decoded,), scores = knn.ctc_decode(
@@ -1981,6 +1981,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             sequence_lengths=[3, 3, 1],
             strategy="greedy",
             merge_repeated=False,
+            mask_index=0,
         )
         self.assertAllClose(decoded, repeated_labels)
         self.assertAllClose(scores, score_labels)
@@ -1990,15 +1991,15 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         labels = np.array(
             [
-                [[2, -1, -1], [0, -1, -1], [-1, -1, -1]],
-                [[1, 2, -1], [0, 2, -1], [1, -1, -1]],
+                [[1, 2, -1], [2, -1, -1], [3, -1, -1]],
+                [[2, -1, -1], [3, -1, -1], [1, -1, -1]],
             ]
         )
         score_labels = np.array(
             [
-                [-2.32398787, -2.41500957],
-                [-2.237567, -2.428189],
-                [-1.0633859, -1.3633859],
+                [-2.426537, -2.435596],
+                [-2.127681, -2.182338],
+                [-1.063386, -1.363386],
             ]
         )
         beam_width = 4
