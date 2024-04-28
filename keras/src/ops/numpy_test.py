@@ -3105,9 +3105,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Arctanh()(x), np.arctanh(x))
 
     def test_argmax(self):
-        x = np.array([[1, 2, 3], [3, 2, 1]])
+        x = np.array([[1, 2, 3], [3, 2, 1], [4, 5, 6]])
         self.assertAllClose(knp.argmax(x), np.argmax(x))
         self.assertAllClose(knp.argmax(x, axis=1), np.argmax(x, axis=1))
+        self.assertAllClose(
+            knp.argmax(x, axis=1, keepdims=True),
+            np.argmax(x, axis=1, keepdims=True),
+        )
         self.assertAllClose(
             knp.argmax(x, keepdims=True), np.argmax(x, keepdims=True)
         )

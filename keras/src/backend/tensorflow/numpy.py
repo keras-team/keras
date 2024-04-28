@@ -19,6 +19,7 @@ from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.tensorflow import sparse
 from keras.src.backend.tensorflow.core import cast
 from keras.src.backend.tensorflow.core import convert_to_tensor
+from keras.src.backend.tensorflow.core import shape as shape_op
 
 
 @sparse.elementwise_binary_union(tf.sparse.add)
@@ -756,7 +757,7 @@ def _keepdims(x, y, axis):
     if axis is None:
         shape = [1 for _ in range(len(x.shape))]
     else:
-        shape = [tf.shape[i] for i in range(len(x.shape))]
+        shape = list(shape_op(x))
         for axis in tree.flatten(axis):
             shape[axis] = 1
     y = tf.reshape(y, shape)
