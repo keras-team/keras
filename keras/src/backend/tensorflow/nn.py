@@ -807,7 +807,7 @@ def ctc_decode(
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
-    mask_index=None,
+    mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
     input_shape = tf.shape(inputs)
