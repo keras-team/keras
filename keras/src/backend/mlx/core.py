@@ -27,10 +27,13 @@ MLX_DTYPES = {
 
 
 def to_mlx_dtype(dtype):
+    # Check if the dtype is already a mlx.Dtype to avoid redundant conversion
     if isinstance(dtype, mx.Dtype):
         return dtype
+    # Convert a standard dtype string to mlx.Dtype using a predefined mapping
     standardized_dtype = MLX_DTYPES.get(standardize_dtype(dtype), None)
     if standardized_dtype is None:
+        # Provide error handling for unsupported dtypes
         raise ValueError(f"Unsupported dtype for MLX: {dtype}")
     return standardized_dtype
 
