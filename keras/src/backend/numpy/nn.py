@@ -621,7 +621,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output = convert_to_tensor(output)
     target_length = convert_to_tensor(target_length, "int32")
     output_length = convert_to_tensor(output_length, "int32")
-    batch_size, _, num_classes = output.shape
+    batch_size, max_input_length, num_classes = output.shape
     batch_size, max_label_length = target.shape
     log_epsilon = -1e5
 
@@ -638,7 +638,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
         return np.logical_not(elem_valid)
 
     target_paddings = _lengths_to_paddings(target_length, max_label_length)
-    output_paddings = _lengths_to_paddings(output_length, max_label_length)
+    output_paddings = _lengths_to_paddings(output_length, max_input_length)
     target_paddings = target_paddings.astype(output.dtype)
     output_paddings = output_paddings.astype(output.dtype)
 
@@ -729,12 +729,12 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
 
 def _ctc_greedy_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     merge_repeated=True,
     mask_index=None,
 ):
     inputs = convert_to_tensor(inputs)
-    sequence_length = convert_to_tensor(sequence_length, dtype="int32")
+    sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
     batch_size, max_length, num_classes = inputs.shape
 
     if mask_index is None:
@@ -744,7 +744,7 @@ def _ctc_greedy_decode(
     scores = np.max(inputs, axis=-1)
 
     seqlen_mask = np.arange(max_length)[None, :]
-    seqlen_mask = seqlen_mask >= sequence_length[:, None]
+    seqlen_mask = seqlen_mask >= sequence_lengths[:, None]
 
     indices = np.where(seqlen_mask, mask_index, indices)
     scores = np.where(seqlen_mask, 0.0, scores)
@@ -754,16 +754,17 @@ def _ctc_greedy_decode(
         repeat_mask = np.pad(repeat_mask, ((0, 0), (1, 0)))
         indices = np.where(repeat_mask, mask_index, indices)
 
-    # We rearrange the indices by moving `mask_index` to the end of the array
+    # We set to -1 for blank labels
     invalid_mask = indices == mask_index
+    indices = np.where(invalid_mask, -1, indices)
+
+    # We rearrange the indices by moving `mask_index` to the end of the array
     order = np.expand_dims(np.arange(max_length), axis=0)  # [1, N]
     order = np.tile(order, (batch_size, 1))  # [B, N]
     order = np.where(invalid_mask, max_length, order)
     order = np.argsort(order, axis=-1)
     indices = np.take_along_axis(indices, order, axis=-1)
 
-    # We set to -1 for blank labels
-    indices = np.where(invalid_mask, -1, indices)
     scores = -np.sum(scores, axis=1)[:, None]
     indices = np.expand_dims(indices, axis=0)
     return indices, scores
@@ -771,17 +772,17 @@ def _ctc_greedy_decode(
 
 def _ctc_beam_search_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     beam_width=100,
     top_paths=1,
     mask_index=None,
 ):
     inputs = convert_to_tensor(inputs)
-    sequence_length = convert_to_tensor(sequence_length)
+    sequence_lengths = convert_to_tensor(sequence_lengths)
 
     batch_size, max_seq_len, num_classes = inputs.shape
     inputs = log_softmax(inputs, axis=-1)
-    seqlen_mask = np.arange(max_seq_len)[None, :] >= sequence_length[:, None]
+    seqlen_mask = np.arange(max_seq_len)[None, :] >= sequence_lengths[:, None]
 
     if mask_index is None:
         mask_index = num_classes - 1
@@ -936,12 +937,12 @@ def _ctc_beam_search_decode(
 
 def ctc_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
-    mask_index=None,
+    mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
     dtype = backend.result_type(inputs.dtype, "float32")
@@ -950,14 +951,14 @@ def ctc_decode(
     if strategy == "greedy":
         return _ctc_greedy_decode(
             inputs,
-            sequence_length,
+            sequence_lengths,
             merge_repeated=merge_repeated,
             mask_index=mask_index,
         )
     elif strategy == "beam_search":
         return _ctc_beam_search_decode(
             inputs,
-            sequence_length,
+            sequence_lengths,
             beam_width=beam_width,
             top_paths=top_paths,
             mask_index=mask_index,

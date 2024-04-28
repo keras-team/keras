@@ -775,12 +775,12 @@ def ctc_loss(
 
 def _ctc_greedy_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     merge_repeated=True,
     mask_index=None,
 ):
     inputs = convert_to_tensor(inputs)
-    sequence_length = convert_to_tensor(sequence_length, dtype="int32")
+    sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
     batch_size, max_length, num_classes = inputs.shape
 
     if mask_index is None:
@@ -791,7 +791,7 @@ def _ctc_greedy_decode(
     scores = torch.max(inputs, axis=-1)[0]
 
     seqlen_mask = torch.arange(max_length, device=indices.device)[None, :]
-    seqlen_mask = seqlen_mask >= sequence_length[:, None]
+    seqlen_mask = seqlen_mask >= sequence_lengths[:, None]
 
     indices = torch.where(seqlen_mask, mask_index, indices)
     scores = torch.where(seqlen_mask, 0.0, scores)
@@ -801,8 +801,11 @@ def _ctc_greedy_decode(
         repeat = tnn.pad(repeat, (1, 0, 0, 0))
         indices = torch.where(repeat, mask_index, indices)
 
-    # We rearrange the indices by moving `mask_index` to the end of the array
+    # We set to -1 for blank labels
     invalid_mask = indices == mask_index
+    indices = torch.where(invalid_mask, -1, indices)
+
+    # We rearrange the indices by moving `mask_index` to the end of the array
     order = torch.unsqueeze(
         torch.arange(max_length, device=indices.device), dim=0
     )  # [1, N]
@@ -811,8 +814,6 @@ def _ctc_greedy_decode(
     order = torch.argsort(order, dim=-1)
     indices = torch.take_along_dim(indices, order, dim=-1)
 
-    # We set to -1 for blank labels
-    indices = torch.where(invalid_mask, -1, indices)
     scores = -torch.sum(scores, axis=1)[:, None]
     indices = torch.unsqueeze(indices, dim=0)
     return indices, scores
@@ -820,12 +821,12 @@ def _ctc_greedy_decode(
 
 def ctc_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
-    mask_index=None,
+    mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
     dtype = backend.result_type(inputs.dtype, "float32")
@@ -834,7 +835,7 @@ def ctc_decode(
     if strategy == "greedy":
         return _ctc_greedy_decode(
             inputs,
-            sequence_length,
+            sequence_lengths,
             merge_repeated=merge_repeated,
             mask_index=mask_index,
         )

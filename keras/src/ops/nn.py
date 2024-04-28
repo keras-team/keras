@@ -1880,7 +1880,7 @@ class CTCDecode(Operation):
         beam_width=100,
         top_paths=1,
         merge_repeated=True,
-        mask_index=None,
+        mask_index=0,
     ):
         super().__init__()
         self.strategy = strategy
@@ -1928,7 +1928,7 @@ def ctc_decode(
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
-    mask_index=None,
+    mask_index=0,
 ):
     """Decodes the output of a CTC model.
 
@@ -1947,7 +1947,7 @@ def ctc_decode(
         merge_repeated: A boolean scalar, whether to merge repeated
             labels in the output. Defaults to `True`.
         mask_index: An integer scalar, the index of the mask character in
-            the vocabulary. Defaults to `None`.
+            the vocabulary. Defaults to `0`.
 
     Returns:
         A tuple containing:
@@ -1973,7 +1973,7 @@ def ctc_decode(
         ).symbolic_call(inputs, sequence_lengths)
     return backend.nn.ctc_decode(
         inputs=inputs,
-        sequence_length=sequence_lengths,
+        sequence_lengths=sequence_lengths,
         strategy=strategy,
         beam_width=beam_width,
         top_paths=top_paths,

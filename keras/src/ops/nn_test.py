@@ -1946,30 +1946,31 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             [
                 [
                     [0.1, 0.4, 0.2, 0.4],
-                    [0.3, 0.3, 0.4, 0.2],
+                    [0.3, -0.3, 0.4, 0.2],
                     [0.3, 0.2, 0.4, 0.3],
                 ],
                 [
-                    [0.1, 0.4, 0.7, 0.2],
+                    [0.7, 0.4, 0.3, 0.2],
                     [0.3, 0.3, 0.4, 0.1],
-                    [0.2, 0.1, 0.1, 0.5],
+                    [0.6, -0.1, 0.1, 0.5],
                 ],
                 [
                     [0.1, 0.4, 0.2, 0.7],
-                    [0.3, 0.3, 0.2, 0.7],
+                    [0.3, 0.3, -0.2, 0.7],
                     [0.3, 0.2, 0.4, 0.1],
                 ],
             ]
         )
-        labels = np.array([[1, 2, -1], [2, -1, -1], [-1, -1, -1]])
-        score_labels = np.array([[-1.2], [-1.6], [-0.7]])
-        repeated_labels = np.array([[1, 2, 2], [2, 2, -1], [-1, -1, -1]])
+        labels = np.array([[1, 2, -1], [2, -1, -1], [3, -1, -1]])
+        score_labels = np.array([[-1.2], [-1.7], [-0.7]])
+        repeated_labels = np.array([[1, 2, 2], [2, -1, -1], [3, -1, -1]])
 
         # Test strategy="greedy" and merge_repeated=True
         (decoded,), scores = knn.ctc_decode(
             inputs,
             sequence_lengths=[3, 3, 1],
             strategy="greedy",
+            mask_index=0,
         )
         self.assertAllClose(decoded, labels)
         self.assertAllClose(scores, score_labels)
@@ -1980,6 +1981,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             sequence_lengths=[3, 3, 1],
             strategy="greedy",
             merge_repeated=False,
+            mask_index=0,
         )
         self.assertAllClose(decoded, repeated_labels)
         self.assertAllClose(scores, score_labels)
@@ -1987,15 +1989,17 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         if backend.backend() == "torch":
             self.skipTest("torch doesn't support 'beam_search' strategy")
 
-        labels = [
-            np.array([[1, 2, -1], [2, -1, -1], [-1, -1, -1]]),
-            np.array([[2, -1, -1], [2, 0, -1], [1, -1, -1]]),
-        ]
+        labels = np.array(
+            [
+                [[1, 2, -1], [2, -1, -1], [3, -1, -1]],
+                [[2, -1, -1], [3, -1, -1], [1, -1, -1]],
+            ]
+        )
         score_labels = np.array(
             [
-                [-2.33578291, -2.44335217],
-                [-2.22499622, -2.25768432],
-                [-1.0633859, -1.3633859],
+                [-2.426537, -2.435596],
+                [-2.127681, -2.182338],
+                [-1.063386, -1.363386],
             ]
         )
         beam_width = 4
@@ -2008,9 +2012,9 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             strategy="beam_search",
             beam_width=beam_width,
             top_paths=top_paths,
+            mask_index=0,
         )
-        for i in range(top_paths):
-            self.assertAllClose(decoded[i], labels[i])
+        self.assertAllClose(decoded, labels)
         self.assertAllClose(scores, score_labels)
 
     def test_normalize(self):
