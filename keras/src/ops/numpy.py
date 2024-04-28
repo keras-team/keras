@@ -3881,7 +3881,7 @@ class Nonzero(Operation):
         return backend.numpy.nonzero(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor([None] * len(x.shape))
+        return KerasTensor([None] * len(x.shape), dtype="int32")
 
 
 @keras_export(["keras.ops.nonzero", "keras.ops.numpy.nonzero"])
