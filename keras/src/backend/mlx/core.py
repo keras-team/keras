@@ -68,51 +68,59 @@ class Variable(KerasVariable):
 
 
 def convert_to_tensor(x, dtype=None, sparse=None):
-    print(f"Input: {x}, dtype: {dtype}, sparse: {sparse}")
-    if sparse:
-        print("`sparse=True` is not supported with mlx backend")
-        raise ValueError("`sparse=True` is not supported with mlx backend")
-    mlx_dtype = to_mlx_dtype(dtype) if dtype is not None else None
-    print(f"mlx_dtype: {mlx_dtype}")
+    try:
+        print(
+            f"Starting conversion: Input type {type(x)}, dtype requested: {dtype}"
+        )
+        print(f"Input: {x}, dtype: {dtype}, sparse: {sparse}")
+        if sparse:
+            print("`sparse=True` is not supported with mlx backend")
+            raise ValueError("`sparse=True` is not supported with mlx backend")
+        mlx_dtype = to_mlx_dtype(dtype) if dtype is not None else None
+        print(f"mlx_dtype: {mlx_dtype}")
 
-    if is_tensor(x):
-        print("x is a tensor")
-        if dtype is None:
-            return x
-        return x.astype(mlx_dtype)
+        if is_tensor(x):
+            print("x is a tensor")
+            if dtype is None:
+                return x
+            return x.astype(mlx_dtype)
 
-    if isinstance(x, Variable):
-        print("x is an instance of Variable")
-        if dtype and standardize_dtype(dtype) != x.dtype:
-            return x.value.astype(mlx_dtype)
-        return x.value
+        if isinstance(x, Variable):
+            print("x is an instance of Variable")
+            if dtype and standardize_dtype(dtype) != x.dtype:
+                return x.value.astype(mlx_dtype)
+            return x.value
 
-    if isinstance(x, np.ndarray):
-        print("x is an instance of np.ndarray")
-        if x.dtype == np.int64:
-            x = x.astype(np.int32)
-        x = x.astype(standardize_dtype(x.dtype))
+        if isinstance(x, np.ndarray):
+            print("x is an instance of np.ndarray")
+            if x.dtype == np.int64:
+                x = x.astype(np.int32)
+            x = x.astype(standardize_dtype(x.dtype))
+            return mx.array(x, dtype=mlx_dtype)
+
+        if isinstance(x, list):
+            print("x is a list")
+
+            def to_scalar_list(x):
+                print(f"Converting to scalar list: {x}")
+                if isinstance(x, list):
+                    return [to_scalar_list(xi) for xi in x]
+                elif isinstance(x, mx.array):
+                    if x.ndim == 0:
+                        return x.item()
+                    else:
+                        return x.tolist()
+                else:
+                    return x
+
+            return mx.array(to_scalar_list(x), dtype=mlx_dtype)
+
+        print("Returning mx.array")
         return mx.array(x, dtype=mlx_dtype)
 
-    if isinstance(x, list):
-        print("x is a list")
-
-        def to_scalar_list(x):
-            print(f"Converting to scalar list: {x}")
-            if isinstance(x, list):
-                return [to_scalar_list(xi) for xi in x]
-            elif isinstance(x, mx.array):
-                if x.ndim == 0:
-                    return x.item()
-                else:
-                    return x.tolist()
-            else:
-                return x
-
-        return mx.array(to_scalar_list(x), dtype=mlx_dtype)
-
-    print("Returning mx.array")
-    return mx.array(x, dtype=mlx_dtype)
+    except Exception as e:
+        print(f"Failed to convert tensor: {e}")
+        raise
 
 
 def convert_to_tensors(*xs):
