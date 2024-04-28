@@ -300,6 +300,10 @@ def result_type(*dtypes):
         # If no dtypes provided, default to floatx, this matches
         # `ops.convert_to_tensor([])`
         return config.floatx()
+    
+    # Convert dtypes to strings before comparison
+    dtypes = [str(dtype) for dtype in dtypes] 
+
     for dtype in dtypes:
         if dtype in FLOAT8_TYPES:
             raise ValueError(

@@ -47,81 +47,49 @@ class Variable(KerasVariable):
 
 
 def to_mlx_dtype(dtype):
-    """Converts a Keras dtype to the corresponding MLX dtype."""
-    print(f"Input dtype: {dtype}")
-
-    # Check if dtype is already an instance of mx.core.Dtype
     if isinstance(dtype, mx.Dtype):
-        print("dtype is an instance of mx.Dtype")
         return dtype
-
-    print("Standardizing dtype...")
-
-    # Convert numpy dtype string or Python type to a standard dtype string
-    dtype_str = np.dtype(dtype).name if not isinstance(dtype, str) else dtype
-
-    # Fetch the corresponding mlx.core.Dtype
-    standardized_dtype = MLX_DTYPES.get(dtype_str, None)
-    print(f"Standardized dtype: {standardized_dtype}")
-
+    standardized_dtype = MLX_DTYPES.get(standardize_dtype(dtype), None)
     if standardized_dtype is None:
-        print(f"Unsupported dtype for MLX: {dtype}")
         raise ValueError(f"Unsupported dtype for MLX: {dtype}")
-
-    print("Returning standardized dtype")
     return standardized_dtype
-
-
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
-
-
-def debug_print(message):
-    logging.debug(message)
-
-
 def convert_to_tensor(x, dtype=None, sparse=None):
-    """Converts the input x to an MLX tensor, handling various input types."""
-    debug_print(
-        f"Starting conversion: Input type {type(x)}, dtype requested: {dtype}, input: {x}, sparse: {sparse}"
-    )
-
     if sparse:
-        debug_print("`sparse=True` is not supported with mlx backend")
         raise ValueError("`sparse=True` is not supported with mlx backend")
-
     mlx_dtype = to_mlx_dtype(dtype) if dtype is not None else None
-    debug_print(f"mlx_dtype resolved to: {mlx_dtype}")
 
     if is_tensor(x):
-        debug_print("Input is already a tensor")
-        return x.astype(mlx_dtype) if dtype else x
+        if dtype is None:
+            return x
+        return x.astype(mlx_dtype)
 
     if isinstance(x, Variable):
-        debug_print("Input is an instance of Variable")
-        return (
-            x.value.astype(mlx_dtype)
-            if dtype and standardize_dtype(dtype) != x.dtype
-            else x.value
-        )
+        if dtype and standardize_dtype(dtype) != x.dtype:
+            return x.value.astype(mlx_dtype)
+        return x.value
 
     if isinstance(x, np.ndarray):
-        debug_print("Input is an instance of np.ndarray")
         if x.dtype == np.int64:
             x = x.astype(np.int32)
-            debug_print("Converted int64 to int32 due to MLX compatibility")
+        elif x.dtype == np.float64:
+            x = x.astype(np.float32)  # Replace with supported dtype
         x = x.astype(standardize_dtype(x.dtype))
         return mx.array(x, dtype=mlx_dtype)
 
     if isinstance(x, list):
-        debug_print("Input is a list")
-        converted_list = [
-            convert_to_tensor(item, dtype=mlx_dtype) for item in x
-        ]
-        return mx.array(converted_list, dtype=mlx_dtype)
+        def to_scalar_list(x):
+            if isinstance(x, list):
+                return [to_scalar_list(xi) for xi in x]
+            elif isinstance(x, mx.array):
+                if x.ndim == 0:
+                    return x.item()
+                else:
+                    return x.tolist()
+            else:
+                return x
 
-    debug_print("Returning mx.array for the input")
+        return mx.array(to_scalar_list(x), dtype=mlx_dtype)
+
     return mx.array(x, dtype=mlx_dtype)
 
 
