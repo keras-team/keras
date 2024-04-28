@@ -828,15 +828,10 @@ def average(x, axis=None, weights=None):
         if axis is None:
             avg = _rank_equal_case()
         else:
-            # We condition on rank rather than shape equality, because if we do
-            # the latter, when the shapes are partially unknown but the ranks
-            # are known and different, np_utils.cond will run shape checking on
-            # the true branch, which will raise a shape-checking error.
-            avg = tf.cond(
-                tf.equal(tf.rank(x), tf.rank(weights)),
-                _rank_equal_case,
-                _rank_not_equal_case,
-            )
+            if len(x.shape) == len(weights.shape):
+                avg = _rank_equal_case()
+            else:
+                avg = _rank_not_equal_case()
     return avg
 
 
@@ -929,16 +924,16 @@ def count_nonzero(x, axis=None):
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
     if axis is not None:
         axisa = axis
         axisb = axis
         axisc = axis
     x1 = moveaxis(x1, axisa, -1)
     x2 = moveaxis(x2, axisb, -1)
-
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    x1 = tf.cast(x1, dtype)
-    x2 = tf.cast(x2, dtype)
 
     def maybe_pad_zeros(x, size_of_last_dim):
         def pad_zeros(x):
@@ -953,28 +948,40 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
                 ),
             )
 
+        if isinstance(size_of_last_dim, int):
+            if size_of_last_dim == 2:
+                return pad_zeros(x)
+            return x
+
         return tf.cond(
             tf.equal(size_of_last_dim, 2), lambda: pad_zeros(x), lambda: x
         )
 
-    x1_dim = tf.shape(x1)[-1]
-    x2_dim = tf.shape(x2)[-1]
+    x1_dim = shape_op(x1)[-1]
+    x2_dim = shape_op(x2)[-1]
+
     x1 = maybe_pad_zeros(x1, x1_dim)
     x2 = maybe_pad_zeros(x2, x2_dim)
 
     # Broadcast each other
-    shape = tf.shape(x1)
-    shape = tf.broadcast_dynamic_shape(shape, tf.shape(x2))
+    shape = shape_op(x1)
+
+    shape = tf.broadcast_dynamic_shape(shape, shape_op(x2))
     x1 = tf.broadcast_to(x1, shape)
     x2 = tf.broadcast_to(x2, shape)
 
     c = tf.linalg.cross(x1, x2)
-    c = tf.cond(
+
+    if isinstance(x1_dim, int) and isinstance(x2_dim, int):
+        if (x1_dim == 2) & (x2_dim == 2):
+            return c[..., 2]
+        return moveaxis(c, -1, axisc)
+
+    return tf.cond(
         (x1_dim == 2) & (x2_dim == 2),
         lambda: c[..., 2],
         lambda: moveaxis(c, -1, axisc),
     )
-    return c
 
 
 def cumprod(x, axis=None, dtype=None):
@@ -1024,19 +1031,23 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         return tf.linalg.diag_part(x)
 
     x = moveaxis(x, (axis1, axis2), (-2, -1))
-    x_shape = tf.shape(x)
+    x_shape = shape_op(x)
 
     def _zeros():
         return tf.zeros(tf.concat([x_shape[:-1], [0]], 0), dtype=x.dtype)
 
-    x, offset = tf.cond(
-        tf.logical_or(
-            tf.less_equal(offset, -1 * x_shape[-2]),
-            tf.greater_equal(offset, x_shape[-1]),
-        ),
-        _zeros,
-        lambda: (x, offset),
-    )
+    if isinstance(x_shape[-1], int) and isinstance(x_shape[-2], int):
+        if offset <= -1 * x_shape[-2] or offset >= x_shape[-1]:
+            x = _zeros()
+    else:
+        x = tf.cond(
+            tf.logical_or(
+                tf.less_equal(offset, -1 * x_shape[-2]),
+                tf.greater_equal(offset, x_shape[-1]),
+            ),
+            lambda: _zeros(),
+            lambda: x,
+        )
     return tf.linalg.diag_part(x, k=offset)
 
 
@@ -1225,12 +1236,9 @@ def hstack(xs):
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
         xs = tree.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
-    rank = tf.rank(xs[0])
-    return tf.cond(
-        tf.equal(rank, 1),
-        lambda: tf.concat(xs, axis=0),
-        lambda: tf.concat(xs, axis=1),
-    )
+    if len(xs[0].shape) == 1:
+        return tf.concat(xs, axis=0)
+    return tf.concat(xs, axis=1)
 
 
 def identity(n, dtype=None):
