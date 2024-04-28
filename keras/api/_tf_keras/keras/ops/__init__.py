@@ -102,6 +102,7 @@ from keras.src.ops.numpy import arctan2
 from keras.src.ops.numpy import arctanh
 from keras.src.ops.numpy import argmax
 from keras.src.ops.numpy import argmin
+from keras.src.ops.numpy import argpartition
 from keras.src.ops.numpy import argsort
 from keras.src.ops.numpy import array
 from keras.src.ops.numpy import average
