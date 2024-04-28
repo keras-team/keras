@@ -123,14 +123,22 @@ def average_pool(
 
 def conv(
     inputs,
-    # 1D (N = Batch size, H = Height/Sequence length, C_in = Input channels
-    # 2D (N = Batch size, H = Height, W = Width, C_in = Input channels)
-    kernel,  # weight (array) – weight array of shape (C_out, H, W, C_in)
-    strides=1,  # (int or tuple(int), optional)  Default: 1
-    padding="valid",  # (int, optional) – input padding. Default: 0.
+    # conv1d: input (array) – input array of shape (N, H, C_in)
+    # conv2d: input (array) – input array of shape (N, H, W, C_in)
+    kernel,
+    # conv1d: weight (array) – weight array of shape (C_out, H, C_in)
+    # conv2d: weight (array) – weight array of shape (C_out, H, W, C_in)
+    strides=1,
+    # conv1d: stride (int, optional) – kernel stride. Default: 1.
+    # conv2d: stride (int or tuple(int), optional) – tuple of size 2 with kernel strides. All spatial dimensions get the same stride if only one number is specified. Default: 1.
+    padding="valid",
+    # conv1d: padding (int, optional) – input padding. Default: 0.
+    # conv2d: padding (int or tuple(int), optional) – tuple of size 2 with symmetric input padding. All spatial dimensions get the same padding if only one number is specified. Default: 0.
     data_format="channels_last",
     dilation_rate=1,
 ):
+    print(f" Inputs: {inputs}")
+    print(f" Kernel: {kernel}")
     print("Initial input shape:", inputs.shape)
     print("Initial kernel shape:", kernel.shape)
     inputs = convert_to_tensor(inputs)
@@ -170,15 +178,19 @@ def conv(
     print(f"Num spatial dims: {num_spatial_dims}")
 
     if num_spatial_dims == 1:
-        print(f"Transposing kernel shape: {kernel.shape}")
-        # For 1D convolution kernels: (H, C_in, C_out) to (C_out, H, C_in)
+        print(f"1D kernel shape before transpose: {kernel.shape}")
+        print("Transposing 1D kernel from (C_out, C_in, H) to (H, C_in, C_out)")
+        # For 1D convolution kernels from (C_out, C_in, H) to (H, C_in, C_out)
         kernel = kernel.transpose((2, 0, 1))
-        print(f"Transposed kernel shape: {kernel.shape}")
+        print(f"1D kernel shape after transpose: {kernel.shape}")
     elif num_spatial_dims == 2:
-        print(f"Transposing kernel shape: {kernel.shape}")
-        # transpose for 2D convolution: (H, W, C_in, C_out) to (C_out, H, W, C_in)
+        print(f"2D kernel shape before transpose: {kernel.shape}")
+        print(
+            "Transposing 2D kernel from (C_out, H, W, C_in) to (C_out, C_in, H, W)"
+        )
+        # transpose for 2D convolution: from (H, W, C_in, C_out) to (C_out, H, W, C_in)
         kernel = kernel.transpose((3, 0, 1, 2))
-        print(f"Transposed kernel shape: {kernel.shape}")
+        print(f"2D kernel shape after transpose: {kernel.shape}")
 
     if inputs.ndim == 3:
         outputs = mx.conv1d(
@@ -198,7 +210,8 @@ def conv(
             dilation=dilation_rate,
             groups=1,
         )
-
+    print(f"Output shape after conv: {outputs.shape}")
+    print(f"The final Output: {outputs}")
     return outputs
 
 
