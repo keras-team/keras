@@ -27,13 +27,11 @@ MLX_DTYPES = {
 
 
 def to_mlx_dtype(dtype):
-    # Check if the dtype is already a mlx.Dtype to avoid redundant conversion
+    """Convert input dtype to mlx.core.Dtype, handling strings and mlx.core.Dtype inputs."""
     if isinstance(dtype, mx.Dtype):
         return dtype
-    # Convert a standard dtype string to mlx.Dtype using a predefined mapping
     standardized_dtype = MLX_DTYPES.get(standardize_dtype(dtype), None)
     if standardized_dtype is None:
-        # Provide error handling for unsupported dtypes
         raise ValueError(f"Unsupported dtype for MLX: {dtype}")
     return standardized_dtype
 
@@ -61,15 +59,11 @@ class Variable(KerasVariable):
 def convert_to_tensor(x, dtype=None, sparse=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with mlx backend")
-    # Convert the dtype of x to mlx_dtype
-    # only if it is specified and different from the current dtype.
-    mlx_dtype = to_mlx_dtype(dtype) if dtype is not None else None
+    mlx_dtype = to_mlx_dtype(dtype) if dtype else None
 
     if is_tensor(x):
-        # Check if a new dtype is provided and differs from
-        # the current tensor dtype to prevent unnecessary casting.
-        if dtype and x.dtype != mlx_dtype:
-            return x.astype(mlx_dtype)
+        if mlx_dtype and x.dtype != mlx_dtype:
+            x = x.astype(mlx_dtype)
         return x
 
     if isinstance(x, Variable):
