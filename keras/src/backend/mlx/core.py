@@ -83,51 +83,46 @@ def debug_print(message):
 
 def convert_to_tensor(x, dtype=None, sparse=None):
     """Converts the input x to an MLX tensor, handling various input types."""
-    try:
-        debug_print(
-            f"Starting conversion: Input type {type(x)}, dtype requested: {dtype}, input: {x}, sparse: {sparse}"
+    debug_print(
+        f"Starting conversion: Input type {type(x)}, dtype requested: {dtype}, input: {x}, sparse: {sparse}"
+    )
+
+    if sparse:
+        debug_print("`sparse=True` is not supported with mlx backend")
+        raise ValueError("`sparse=True` is not supported with mlx backend")
+
+    mlx_dtype = to_mlx_dtype(dtype) if dtype is not None else None
+    debug_print(f"mlx_dtype resolved to: {mlx_dtype}")
+
+    if is_tensor(x):
+        debug_print("Input is already a tensor")
+        return x.astype(mlx_dtype) if dtype else x
+
+    if isinstance(x, Variable):
+        debug_print("Input is an instance of Variable")
+        return (
+            x.value.astype(mlx_dtype)
+            if dtype and standardize_dtype(dtype) != x.dtype
+            else x.value
         )
 
-        if sparse:
-            debug_print("`sparse=True` is not supported with mlx backend")
-            raise ValueError("`sparse=True` is not supported with mlx backend")
-
-        mlx_dtype = to_mlx_dtype(dtype) if dtype is not None else None
-        debug_print(f"mlx_dtype resolved to: {mlx_dtype}")
-
-        if is_tensor(x):
-            debug_print("Input is already a tensor")
-            return x.astype(mlx_dtype) if dtype else x
-
-        if isinstance(x, Variable):
-            debug_print("Input is an instance of Variable")
-            return (
-                x.value.astype(mlx_dtype)
-                if dtype and standardize_dtype(dtype) != x.dtype
-                else x.value
-            )
-
-        if isinstance(x, np.ndarray):
-            debug_print("Input is an instance of np.ndarray")
-            if x.dtype == np.int64:
-                x = x.astype(np.int32)
-                debug_print("Converted int64 to int32 due to MLX compatibility")
-            x = x.astype(standardize_dtype(x.dtype))
-            return mx.array(x, dtype=mlx_dtype)
-
-        if isinstance(x, list):
-            debug_print("Input is a list")
-            converted_list = [
-                convert_to_tensor(item, dtype=mlx_dtype) for item in x
-            ]
-            return mx.array(converted_list, dtype=mlx_dtype)
-
-        debug_print("Returning mx.array for the input")
+    if isinstance(x, np.ndarray):
+        debug_print("Input is an instance of np.ndarray")
+        if x.dtype == np.int64:
+            x = x.astype(np.int32)
+            debug_print("Converted int64 to int32 due to MLX compatibility")
+        x = x.astype(standardize_dtype(x.dtype))
         return mx.array(x, dtype=mlx_dtype)
 
-    except Exception as e:
-        debug_print(f"Failed to convert tensor: {e}")
-        raise
+    if isinstance(x, list):
+        debug_print("Input is a list")
+        converted_list = [
+            convert_to_tensor(item, dtype=mlx_dtype) for item in x
+        ]
+        return mx.array(converted_list, dtype=mlx_dtype)
+
+    debug_print("Returning mx.array for the input")
+    return mx.array(x, dtype=mlx_dtype)
 
 
 def convert_to_tensors(*xs):
