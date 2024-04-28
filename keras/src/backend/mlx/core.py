@@ -58,12 +58,16 @@ class Variable(KerasVariable):
 def convert_to_tensor(x, dtype=None, sparse=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with mlx backend")
+    # Convert the dtype of x to mlx_dtype
+    # only if it is specified and different from the current dtype.
     mlx_dtype = to_mlx_dtype(dtype) if dtype is not None else None
 
     if is_tensor(x):
-        if dtype is None:
-            return x
-        return x.astype(mlx_dtype)
+        # Check if a new dtype is provided and differs from
+        # the current tensor dtype to prevent unnecessary casting.
+        if dtype and x.dtype != mlx_dtype:
+            return x.astype(mlx_dtype)
+        return x
 
     if isinstance(x, Variable):
         if dtype and standardize_dtype(dtype) != x.dtype:
