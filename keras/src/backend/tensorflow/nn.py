@@ -857,6 +857,8 @@ def ctc_decode(
 
     # We need to recover the labels because we swapped the indices earlier
     if strategy == "beam_search" and mask_index is not None:
+        if mask_index < 0:
+            mask_index = mask_index + input_shape[-1]
         decoded_dense = tf.where(
             decoded_dense >= mask_index, decoded_dense + 1, decoded_dense
         )
