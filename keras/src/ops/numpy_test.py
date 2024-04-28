@@ -7102,7 +7102,10 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(
             standardize_dtype(knp.nonzero(x)[0].dtype), expected_dtype
         )
-        # TODO: verify Nonzero
+        self.assertEqual(
+            standardize_dtype(knp.Nonzero().symbolic_call(x)[0].dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
