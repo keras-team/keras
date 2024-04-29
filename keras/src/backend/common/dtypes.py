@@ -1,5 +1,7 @@
 import functools
 
+import mlx
+
 from keras.src.api_export import keras_export
 from keras.src.backend import config
 from keras.src.backend.common.variables import standardize_dtype
@@ -297,19 +299,32 @@ def result_type(*dtypes):
     "float32"
     """
     if len(dtypes) == 0:
-        # If no dtypes provided, default to floatx, this matches
-        # `ops.convert_to_tensor([])`
         return config.floatx()
-    
-    # Convert dtypes to strings before comparison
-    dtypes = [str(dtype) for dtype in dtypes] 
 
+    # Standardize dtypes and handle MLX specifics if needed:
+    standardized_dtypes = []
     for dtype in dtypes:
+        if dtype is None:
+            standardized_dtypes.append(config.floatx())
+        else:
+            std_dtype = standardize_dtype(dtype)
+            if config.backend() == "mlx" and isinstance(
+                std_dtype, mlx.core.Dtype
+            ):
+                # MLX-specific handling only if the backend is MLX
+                if mlx.issubdtype(std_dtype):
+                    std_dtype = "float32"
+                elif mlx.issubdtype(std_dtype):
+                    std_dtype = "int32"
+            standardized_dtypes.append(std_dtype)
+
+    # Check for float8 types and raise an error:
+    for dtype in standardized_dtypes:
         if dtype in FLOAT8_TYPES:
             raise ValueError(
                 "There is no implicit conversions from float8 dtypes to others."
                 f" You must cast it internally. Received: {dtypes}"
             )
     return _lattice_result_type(
-        *(config.floatx() if arg is None else arg for arg in dtypes),
+        *(config.floatx() if arg is None else arg for arg in dtypes)
     )

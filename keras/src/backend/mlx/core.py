@@ -53,6 +53,8 @@ def to_mlx_dtype(dtype):
     if standardized_dtype is None:
         raise ValueError(f"Unsupported dtype for MLX: {dtype}")
     return standardized_dtype
+
+
 def convert_to_tensor(x, dtype=None, sparse=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with mlx backend")
@@ -77,6 +79,7 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         return mx.array(x, dtype=mlx_dtype)
 
     if isinstance(x, list):
+
         def to_scalar_list(x):
             if isinstance(x, list):
                 return [to_scalar_list(xi) for xi in x]
