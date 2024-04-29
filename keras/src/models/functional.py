@@ -178,6 +178,9 @@ class Functional(Function, Model):
         # functional DAG.
         pass
 
+    def _obj_type(self):
+        return "Functional"
+
     @property
     def layers(self):
         layers = []

@@ -1,4 +1,4 @@
-namex
+namex>=0.0.8
 black>=22
 flake8
 isort

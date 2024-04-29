@@ -1,147 +1,3 @@
-"""
-MANIFEST:
-
-abs
-absolute
-add
-all
-amax
-amin
-append
-arange
-arccos
-arccosh
-arcsin
-arcsinh
-arctan
-arctan2
-arctanh
-argmax
-argmin
-argsort
-array
-average
-bincount
-broadcast_to
-ceil
-clip
-concatenate
-conj
-conjugate
-copy
-correlate
-cos
-cosh
-count_nonzero
-cross
-cumprod
-cumsum
-diag
-diagonal
-diff
-digitize
-divide
-dot
-dtype
-einsum
-empty
-equal
-exp
-expand_dims
-expm1
-eye
-flip
-floor
-full
-full_like
-greater
-greater_equal
-hstack
-identity
-imag
-interp
-isclose
-isfinite
-isinf
-isnan
-less
-less_equal
-linspace
-log
-log10
-log1p
-log2
-logaddexp
-logical_and
-logical_not
-logical_or
-logspace
-matmul
-max
-maximum
-mean
-median
-meshgrid
-mgrid
-min
-minimum
-mod
-moveaxis
-multiply
-nan_to_num
-ndim
-nonzero
-not_equal
-ones
-ones_like
-outer
-pad
-percentile
-power
-prod
-quantile
-ravel
-real
-reciprocal
-repeat
-reshape
-roll
-round
-sign
-sin
-sinh
-size
-sort
-split
-sqrt
-square
-squeeze
-stack
-std
-subtract
-sum
-swapaxes
-take
-take_along_axis
-tan
-tanh
-tensordot
-tile
-trace
-transpose
-tri
-tril
-triu
-true_divide
-vdot
-vstack
-where
-zeros
-zeros_like
-
-
-"""
-
 import builtins
 import re
 
@@ -4025,7 +3881,7 @@ class Nonzero(Operation):
         return backend.numpy.nonzero(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor([None] * len(x.shape))
+        return KerasTensor([None] * len(x.shape), dtype="int32")
 
 
 @keras_export(["keras.ops.nonzero", "keras.ops.numpy.nonzero"])
@@ -6247,7 +6103,7 @@ class Select(Operation):
         super().__init__()
 
     def call(self, condlist, choicelist, default=0):
-        return backend.numpy.correlate(condlist, choicelist, default)
+        return backend.numpy.select(condlist, choicelist, default)
 
     def compute_output_spec(self, condlist, choicelist, default=0):
         first_element = choicelist[0]
@@ -6303,3 +6159,77 @@ def select(condlist, choicelist, default=0):
     if any_symbolic_tensors(condlist + choicelist + [default]):
         return Select().symbolic_call(condlist, choicelist, default)
     return backend.numpy.select(condlist, choicelist, default)
+
+
+class Slogdet(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.numpy.slogdet(x)
+
+    def compute_output_spec(self, x):
+        sign = KerasTensor((), dtype=x.dtype)
+        logabsdet = KerasTensor((), dtype=x.dtype)
+        return (sign, logabsdet)
+
+
+@keras_export(["keras.ops.slogdet", "keras.ops.numpy.slogdet"])
+def slogdet(x):
+    """Compute the sign and natural logarithm of the determinant of a matrix.
+
+    Args:
+        x: Input matrix. It must 2D and square.
+
+    Returns:
+        A tuple `(sign, logabsdet)`. `sign` is a number representing
+        the sign of the determinant. For a real matrix, this is 1, 0, or -1.
+        For a complex matrix, this is a complex number with absolute value 1
+        (i.e., it is on the unit circle), or else 0.
+        `logabsdet` is the natural log of the absolute value of the determinant.
+    """
+    if any_symbolic_tensors((x,)):
+        return Slogdet().symbolic_call(x)
+    return backend.numpy.slogdet(x)
+
+
+class Argpartition(Operation):
+    def __init__(self, kth, axis=-1):
+        super().__init__()
+        if not isinstance(kth, int):
+            raise ValueError("kth must be an integer. Received:" f"kth = {kth}")
+        self.kth = kth
+        self.axis = axis
+
+    def call(self, x):
+        return backend.numpy.argpartition(x, kth=self.kth, axis=self.axis)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="int32")
+
+
+@keras_export(["keras.ops.argpartition", "keras.ops.numpy.argpartition"])
+def argpartition(x, kth, axis=-1):
+    """Performs an indirect partition along the given axis.
+
+    It returns an array
+    of indices of the same shape as `x` that index data along the given axis
+    in partitioned order.
+
+    Args:
+        a: Array to sort.
+        kth: Element index to partition by.
+            The k-th element will be in its final sorted position and all
+            smaller elements will be moved before it and all larger elements
+            behind it. The order of all elements in the partitions is undefined.
+            If provided with a sequence of k-th it will partition all of them
+            into their sorted position at once.
+        axis: Axis along which to sort. The default is -1 (the last axis).
+            If `None`, the flattened array is used.
+
+    Returns:
+        Array of indices that partition `x` along the specified `axis`.
+    """
+    if any_symbolic_tensors((x,)):
+        return Argpartition(kth, axis).symbolic_call(x)
+    return backend.numpy.argpartition(x, kth, axis)

@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 import pytest
 
@@ -11,6 +13,7 @@ from keras.src import testing
 
 
 class LayerTest(testing.TestCase):
+
     def test_compute_output_spec(self):
         # Test that implementing compute_output_shape
         # is enough to make compute_output_spec work.
@@ -957,3 +960,8 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.dtype_policy.name, "mixed_float16")
         self.assertEqual(layer.dtype_policy.compute_dtype, "float16")
         self.assertEqual(layer.dtype_policy.variable_dtype, "float32")
+
+    def test_pickle_layer(self):
+        layer = layers.Dense(2)
+        reloaded = pickle.loads(pickle.dumps(layer))
+        self.assertEqual(layer.get_config(), reloaded.get_config())

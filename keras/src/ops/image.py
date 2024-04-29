@@ -548,7 +548,7 @@ def _extract_patches(
     if not strides:
         strides = size
     out_dim = patch_h * patch_w * channels_in
-    kernel = backend.numpy.eye(out_dim)
+    kernel = backend.numpy.eye(out_dim, dtype=image.dtype)
     kernel = backend.numpy.reshape(
         kernel, (patch_h, patch_w, channels_in, out_dim)
     )

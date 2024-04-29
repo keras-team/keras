@@ -1608,3 +1608,25 @@ def select(condlist, choicelist, default=0):
     for c, v in reversed(list(zip(condlist, choicelist))):
         out = torch.where(c, v, out)
     return out
+
+
+def slogdet(x):
+    x = convert_to_tensor(x)
+    return tuple(torch.linalg.slogdet(x))
+
+
+def argpartition(x, kth, axis=-1):
+    x = convert_to_tensor(x, "int32")
+    x = torch.transpose(x, axis, -1)
+    bottom_ind = torch.topk(-x, kth + 1)[1]
+
+    def set_to_zero(a, i):
+        a[i] = torch.zeros(1, dtype=a.dtype, device=a.device)
+        return a
+
+    for _ in range(x.dim() - 1):
+        set_to_zero = torch.vmap(set_to_zero)
+    proxy = set_to_zero(torch.ones_like(x, dtype=torch.int32), bottom_ind)
+    top_ind = torch.topk(proxy, x.shape[-1] - kth - 1)[1]
+    out = torch.cat([bottom_ind, top_ind], dim=x.dim() - 1)
+    return cast(torch.transpose(out, -1, axis), "int32")

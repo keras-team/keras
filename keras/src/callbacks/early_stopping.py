@@ -50,7 +50,6 @@ class EarlyStopping(Callback):
             improvement is expected and thus training will not be stopped.
             Defaults to `0`.
 
-
     Example:
 
     >>> callback = keras.callbacks.EarlyStopping(monitor='loss',
