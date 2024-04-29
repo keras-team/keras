@@ -234,7 +234,8 @@ def is_tensor(x):
 
 
 def shape(x):
-    return x.shape
+    # Convert from `torch.Size` to plain tuple.
+    return tuple(x.shape)
 
 
 def cast(x, dtype):
