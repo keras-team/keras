@@ -165,7 +165,6 @@ class DTypePolicy:
         return cls(**config)
 
     def _should_cast(self, x, autocast, dtype):
-        # Note: we don't convert integers to floats even when `autocast=True`
         x_dtype = backend.standardize_dtype(x.dtype)
         if autocast and backend.is_float_dtype(x_dtype) and x_dtype != dtype:
             return True
