@@ -136,9 +136,9 @@ class DTypePolicy:
     def convert_input(self, x, autocast, dtype):
         """Converts the input dtype based on `autocast` and `dtype`.
 
-        Note that `x` can be a tensor, symbolic tensor or numpy array. This
+        Note that `x` can be a tensor, symbolic tensor or numpy array, and this
         method will keep integer inputs untouched and only apply casting to
-        on floats.
+        floats.
         """
 
         dtype = backend.standardize_dtype(dtype)
