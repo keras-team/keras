@@ -13,7 +13,6 @@ from keras.src.backend.mlx import core
 )
 class TestVariableMethods(testing.TestCase):
     def test_initialize(self):
-        # Assuming the constructor works without keyword args
         v = core.Variable(5, "int32")
         self.assertEqual(v._value, mx.array(5, dtype=mx.int32))
 
@@ -29,15 +28,18 @@ class TestVariableMethods(testing.TestCase):
         self.assertEqual(tensor, mx.array(10, dtype=mx.int32))
 
     def test_array_conversion(self):
-        # Assuming the constructor accepts a numpy array directly
-        v = core.Variable(np.array([1, 2, 3]), "int32")  # Corrected line
+        v = core.Variable(mx.array([1, 2, 3]), "int32")
         arr = v.__array__()
-        self.assertTrue(np.array_equal(arr, np.array([1, 2, 3])))
+        arr_mx = mx.array(arr)  # Convert arr to a mlx array
+        self.assertTrue(mx.array_equal(arr_mx, mx.array([1, 2, 3])))
 
     def test_array_conversion_multidimensional(self):
-        v = core.Variable(np.array([[1, 2, 3], [4, 5, 6]]), "int32")
+        v = core.Variable(mx.array([[1, 2, 3], [4, 5, 6]]), "int32")
         arr = v.__array__()
-        self.assertTrue(np.array_equal(arr, np.array([[1, 2, 3], [4, 5, 6]])))
+        arr_mx = mx.array(arr)
+        self.assertTrue(
+            mx.array_equal(arr_mx, mx.array([[1, 2, 3], [4, 5, 6]]))
+        )
 
     def test_null_initialization(self):
         with self.assertRaises(TypeError):
@@ -53,7 +55,7 @@ class TestVariableMethods(testing.TestCase):
             core.convert_to_tensor(10, sparse=True)
 
     def test_convert_to_numpy(self):
-        arr = np.array([1, 2, 3])
+        arr = mx.array([1, 2, 3])
         np.testing.assert_array_equal(core.convert_to_numpy(arr), arr)
 
     def test_is_tensor(self):
@@ -69,7 +71,7 @@ class TestVariableMethods(testing.TestCase):
         self.assertEqual(tensor.dtype, mx.float32)
 
     def test_tensor_to_numpy_and_back(self):
-        tensor = core.cast(np.array([1.5, 2.5, 3.5]), "float32")
+        tensor = core.cast(mx.array([1.5, 2.5, 3.5]), "float32")
         numpy_arr = core.convert_to_numpy(tensor)
         tensor_back = core.convert_to_tensor(numpy_arr, "float32")
         np.testing.assert_array_equal(tensor, tensor_back)
@@ -111,4 +113,4 @@ class TestVariableMethods(testing.TestCase):
 
     def test_fori_loop(self):
         result = core.fori_loop(0, 5, lambda i, x: x + i, 0)
-        self.assertEqual(result, 10)  # 0+1+2+3+4
+        self.assertEqual(result, 10)

@@ -70,11 +70,11 @@ def convert_to_tensor(x, dtype=None, sparse=None):
             return x.value.astype(mlx_dtype)
         return x.value
 
-    if isinstance(x, np.ndarray):
-        if x.dtype == np.int64:
-            x = x.astype(np.int32)
-        elif x.dtype == np.float64:
-            x = x.astype(np.float32)  # Replace with supported dtype
+    if isinstance(x, mx.array):
+        if x.dtype == mx.int64:
+            x = x.astype(mx.int32)
+        elif x.dtype == mx.float64:
+            x = x.astype(mx.float32)
         x = x.astype(standardize_dtype(x.dtype))
         return mx.array(x, dtype=mlx_dtype)
 
