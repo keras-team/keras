@@ -175,6 +175,12 @@ class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
                     f"jax backend does not support {dtype} without x64 enabled"
                 )
 
+        if backend.backend() == "mlx" and dtype in (
+            "float8_e4m3fn",
+            "float8_e5m2",
+            "float64",
+        ):
+            self.skipTest(f"MLX backend does not support dtype {dtype}")
         x = backend.convert_to_tensor(np.zeros(()), dtype)
         actual = standardize_dtype(x.dtype)
         self.assertEqual(actual, dtype)

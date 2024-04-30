@@ -56,10 +56,13 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
     )
     def test_result_type_with_tensor(self, dtype1, dtype2):
         import jax.numpy as jnp
+
         from keras import backend
 
         # Skip float64 tests for MLX backend because it is not supported.
-        if (dtype1 == 'float64' or dtype2 == 'float64') and backend.backend() == "mlx":
+        if (
+            dtype1 == "float64" or dtype2 == "float64"
+        ) and backend.backend() == "mlx":
             self.skipTest("Unsupported dtype for MLX: float64")
 
         x1 = ops.ones((1,), dtype=dtype1)
