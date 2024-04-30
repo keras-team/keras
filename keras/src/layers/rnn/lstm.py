@@ -522,6 +522,7 @@ class LSTM(RNN):
                 try:
                     if self.dropout:
                         dp_mask = self.cell.get_dropout_mask(sequences[:, 0, :])
+                        dp_mask = ops.expand_dims(dp_mask, axis=1)
                         dp_mask = ops.broadcast_to(
                             dp_mask, ops.shape(sequences)
                         )
