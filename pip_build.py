@@ -84,7 +84,6 @@ def build(root_path, is_nightly=False, rc_index=None):
     try:
         copy_source_to_build_directory(root_path)
         move_tf_keras_directory()
-        print(os.getcwd())
 
         from keras.src.version import __version__  # noqa: E402
 
