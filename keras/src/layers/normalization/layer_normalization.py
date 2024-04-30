@@ -212,7 +212,9 @@ class LayerNormalization(Layer):
             variance = ops.var(inputs, axis=self.axis, keepdims=True)
             inv = ops.rsqrt(variance + self.epsilon)
 
-            outputs = inputs * inv * ops.cast(self.gamma, inputs.dtype)
+            outputs = (
+                inputs * inv * ops.cast(_broadcast(self.gamma), inputs.dtype)
+            )
         else:
             # Calculate the mean & variance along self.axis (layer activations).
             mean, variance = ops.moments(inputs, axes=self.axis, keepdims=True)
