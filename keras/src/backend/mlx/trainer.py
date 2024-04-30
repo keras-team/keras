@@ -3,7 +3,6 @@ import numpy as np
 
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
-from keras.src import ops
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend.common import standardize_dtype

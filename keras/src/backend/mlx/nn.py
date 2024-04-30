@@ -123,93 +123,13 @@ def average_pool(
 
 def conv(
     inputs,
-    # conv1d: input (array) – input array of shape (N, H, C_in)
-    # conv2d: input (array) – input array of shape (N, H, W, C_in)
     kernel,
-    # conv1d: weight (array) – weight array of shape (C_out, H, C_in)
-    # conv2d: weight (array) – weight array of shape (C_out, H, W, C_in)
     strides=1,
-    # conv1d: stride (int, optional) – kernel stride. Default: 1.
-    # conv2d: stride (int or tuple(int), optional) – tuple of size 2 with kernel strides. All spatial dimensions get the same stride if only one number is specified. Default: 1.
     padding="valid",
-    # conv1d: padding (int, optional) – input padding. Default: 0.
-    # conv2d: padding (int or tuple(int), optional) – tuple of size 2 with symmetric input padding. All spatial dimensions get the same padding if only one number is specified. Default: 0.
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
-    print("Initial input shape:", inputs.shape)
-    print("Initial kernel shape:", kernel.shape)
-    inputs = convert_to_tensor(inputs)
-    kernel = convert_to_tensor(kernel)
-    print("After conversion - Input shape:", inputs.shape)
-    print("After conversion - Kernel shape:", kernel.shape)
-
-    print("Strides before conversion:", strides)
-    if isinstance(strides, int):
-        strides = (strides,) * (inputs.ndim - 2)
-    print("Strides after conversion:", strides)
-
-    print("Dilation rate before conversion:", dilation_rate)
-    if isinstance(dilation_rate, int):
-        dilation_rate = (dilation_rate,) * (inputs.ndim - 2)
-    print("Dilation rate after conversion:", dilation_rate)
-
-    print("Padding before conversion:", padding)
-    if padding == "valid":
-        padding = 0
-    elif padding == "same":
-        # Calculate padding to maintain the same shape
-        padding = ((strides - 1) + dilation_rate * (kernel - 1)) // 2
-    else:
-        raise ValueError(f"Unknown padding mode: {padding}")
-
-    print(f"Input shape before conv: {inputs.shape}")
-    print(f"Kernel shape before conv: {kernel.shape}")
-
-    if data_format != "channels_last":
-        raise NotImplementedError(
-            "MLX backend only supports data_format='channels_last'"
-        )
-    # exclude in_channels and out_channels
-    print(f"Kernel shape before transpose: {kernel.shape}")
-    num_spatial_dims = len(kernel.shape) - 2
-    print(f"Num spatial dims: {num_spatial_dims}")
-
-    if num_spatial_dims == 1:
-        print(f"1D kernel shape before transpose: {kernel.shape}")
-        print("Transposing 1D kernel from (C_out, C_in, H) to (H, C_in, C_out)")
-        # For 1D convolution kernels from (C_out, C_in, H) to (H, C_in, C_out)
-        kernel = kernel.transpose((2, 0, 1))
-        print(f"1D kernel shape after transpose: {kernel.shape}")
-    elif num_spatial_dims == 2:
-        print(f"2D kernel shape before transpose: {kernel.shape}")
-        print(
-            "Transposing 2D kernel from (C_out, H, W, C_in) to (C_out, C_in, H, W)"
-        )
-        # transpose for 2D convolution: from (H, W, C_in, C_out) to (C_out, H, W, C_in)
-        kernel = kernel.transpose((3, 0, 1, 2))
-        print(f"2D kernel shape after transpose: {kernel.shape}")
-
-    if inputs.ndim == 3:
-        outputs = mx.conv1d(
-            inputs,
-            kernel,
-            stride=strides[0],
-            padding=padding,
-            dilation=dilation_rate[0],
-            groups=1,
-        )
-    elif inputs.ndim == 4:
-        outputs = mx.conv2d(
-            inputs,
-            kernel,
-            stride=strides,
-            padding=padding,
-            dilation=dilation_rate,
-            groups=1,
-        )
-    print(f"Output shape after conv: {outputs.shape}")
-    return outputs
+    raise NotImplementedError("MLX backend doesn't support conv yet")
 
 
 def depthwise_conv(
