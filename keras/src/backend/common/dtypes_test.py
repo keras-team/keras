@@ -229,11 +229,13 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
             ):
                 dtypes._least_upper_bound("test_dtype1", "test_dtype2")
 
-    def test_invalid_float8_dtype(self):
+    def test_invalid_float8_dtype_e4m3fn(self):
         with self.assertRaisesRegex(
             ValueError, "There is no implicit conversions from float8 dtypes"
         ):
             dtypes.result_type("float8_e4m3fn", "bfloat16")
+
+    def test_invalid_float8_dtype_e5m2(self):
         with self.assertRaisesRegex(
             ValueError, "There is no implicit conversions from float8 dtypes"
         ):

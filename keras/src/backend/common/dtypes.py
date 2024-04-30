@@ -143,9 +143,16 @@ def _least_upper_bound(*nodes):
         bounds = [UB[n] for n in N]
     except KeyError:
         dtype = next(n for n in N if n not in UB)
-        raise ValueError(
-            f"{dtype=} is not a valid dtype for Keras type promotion."
-        )
+        # Special handling for float8 types
+        if dtype.startswith("float8"):
+            raise ValueError(
+                "There is no implicit conversions from float8 dtypes to others."
+                f" You must cast it internally. Received dtype='{dtype}'"
+            )
+        else:
+            raise ValueError(
+                f"{dtype=} is not a valid dtype for Keras type promotion."
+            )
     CUB = set.intersection(*bounds)
     LUB = (CUB & N) or {c for c in CUB if CUB.issubset(UB[c])}
     if len(LUB) == 1:
@@ -301,30 +308,10 @@ def result_type(*dtypes):
     if len(dtypes) == 0:
         return config.floatx()
 
-    # Standardize dtypes and handle MLX specifics if needed:
     standardized_dtypes = []
     for dtype in dtypes:
         if dtype is None:
             standardized_dtypes.append(config.floatx())
-        else:
-            std_dtype = standardize_dtype(dtype)
-            if config.backend() == "mlx" and isinstance(
-                std_dtype, mlx.core.Dtype
-            ):
-                # MLX-specific handling only if the backend is MLX
-                if mlx.issubdtype(std_dtype):
-                    std_dtype = "float32"
-                elif mlx.issubdtype(std_dtype):
-                    std_dtype = "int32"
-            standardized_dtypes.append(std_dtype)
-
-    # Check for float8 types and raise an error:
-    for dtype in standardized_dtypes:
-        if dtype in FLOAT8_TYPES:
-            raise ValueError(
-                "There is no implicit conversions from float8 dtypes to others."
-                f" You must cast it internally. Received: {dtypes}"
-            )
     return _lattice_result_type(
         *(config.floatx() if arg is None else arg for arg in dtypes)
     )
