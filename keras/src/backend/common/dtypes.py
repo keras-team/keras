@@ -306,6 +306,8 @@ def result_type(*dtypes):
     "float32"
     """
     if len(dtypes) == 0:
+        # If no dtypes provided, default to floatx, this matches
+        # `ops.convert_to_tensor([])`
         return config.floatx()
 
     standardized_dtypes = []
