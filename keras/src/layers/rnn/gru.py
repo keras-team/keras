@@ -538,14 +538,23 @@ class GRU(RNN):
         if tree.is_nested(mask):
             mask = mask[0]
         if self.use_cudnn in ("auto", True):
-            if not self.dropout and not self.recurrent_dropout:
+            if not self.recurrent_dropout:
                 try:
+                    if self.dropout:
+                        dp_mask = self.cell.get_dropout_mask(sequences[:, 0, :])
+                        dp_mask = ops.expand_dims(dp_mask, axis=1)
+                        dp_mask = ops.broadcast_to(
+                            dp_mask, ops.shape(sequences)
+                        )
+                        dp_sequences = sequences * dp_mask
+                    else:
+                        dp_sequences = sequences
                     # Backends are allowed to specify (optionally) optimized
                     # implementation of the inner GRU loop. In the case of
                     # TF for instance, it will leverage cuDNN when feasible, and
                     # it will raise NotImplementedError otherwise.
                     out = backend.gru(
-                        sequences,
+                        dp_sequences,
                         initial_state,
                         mask,
                         kernel=self.cell.kernel,

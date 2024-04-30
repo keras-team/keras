@@ -99,6 +99,20 @@ class TestCase(unittest.TestCase):
                 f"Backend {backend.backend()} does not support sparse tensors",
             )
 
+    def assertDType(self, x, dtype, msg=None):
+        if hasattr(x, "dtype"):
+            x_dtype = backend.standardize_dtype(x.dtype)
+        else:
+            # If x is a python number
+            x_dtype = backend.standardize_dtype(type(x))
+        standardized_dtype = backend.standardize_dtype(dtype)
+        default_msg = (
+            "The dtype of x does not match the expected one. "
+            f"Received: x.dtype={x_dtype} and dtype={dtype}"
+        )
+        msg = msg or default_msg
+        self.assertEqual(x_dtype, standardized_dtype, msg=msg)
+
     def run_class_serialization_test(self, instance, custom_objects=None):
         from keras.src.saving import custom_object_scope
         from keras.src.saving import deserialize_keras_object
