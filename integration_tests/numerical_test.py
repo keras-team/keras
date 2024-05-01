@@ -173,8 +173,6 @@ def numerical_test():
         if not DEBUGGING:
             raise
 
-    print("All tests in numerical_test.py passed successfully.")
-
 
 if __name__ == "__main__":
     keras.utils.set_random_seed(1337)

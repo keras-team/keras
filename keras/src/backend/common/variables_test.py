@@ -801,4 +801,3 @@ class TestStandardizeShapeWithOutTorch(test_case.TestCase):
         shape_valid = [3, 4, 5]
         standardized_shape = standardize_shape(shape_valid)
         self.assertEqual(standardized_shape, (3, 4, 5))
-
