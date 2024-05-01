@@ -26,6 +26,15 @@ MLX_DTYPES = {
 }
 
 
+def to_mlx_dtype(dtype):
+    if isinstance(dtype, mx.Dtype):
+        return dtype
+    standardized_dtype = MLX_DTYPES.get(standardize_dtype(dtype), None)
+    if standardized_dtype is None:
+        raise ValueError(f"Unsupported dtype for MLX: {dtype}")
+    return standardized_dtype
+
+
 class Variable(KerasVariable):
     def _initialize(self, value):
         self._value = convert_to_tensor(value, dtype=self._dtype)
@@ -44,15 +53,6 @@ class Variable(KerasVariable):
         if dtype:
             return value.astype(dtype)
         return value
-
-
-def to_mlx_dtype(dtype):
-    if isinstance(dtype, mx.Dtype):
-        return dtype
-    standardized_dtype = MLX_DTYPES.get(standardize_dtype(dtype), None)
-    if standardized_dtype is None:
-        raise ValueError(f"Unsupported dtype for MLX: {dtype}")
-    return standardized_dtype
 
 
 def convert_to_tensor(x, dtype=None, sparse=None):
