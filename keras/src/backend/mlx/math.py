@@ -6,11 +6,37 @@ from keras.src.backend.mlx.core import convert_to_tensor
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
-    raise NotImplementedError("segment_sum is not implemented for mlx")
+    data = convert_to_tensor(data)
+    segment_ids = convert_to_tensor(segment_ids)
+    segment_max = mx.max(segment_ids)
+    segment_max = segment_max.item() + 1
+    num_segments = num_segments or segment_max
+
+    segment_ids = mx.where(segment_ids >= 0, segment_ids, segment_max)
+
+    data_shape = (num_segments + 1,) + tuple(data.shape[1:])
+    result = mx.zeros(data_shape, dtype=data.dtype)
+
+    result = result.at[segment_ids].add(data)
+    result = result[:-1, ...]
+    return result
 
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
-    raise NotImplementedError("segment_max is not implemented for mlx")
+    data = convert_to_tensor(data)
+    segment_ids = convert_to_tensor(segment_ids)
+    segment_max = mx.max(segment_ids)
+    segment_max = segment_max.item() + 1
+    num_segments = num_segments or segment_max
+
+    segment_ids = mx.where(segment_ids >= 0, segment_ids, segment_max)
+
+    data_shape = (num_segments + 1,) + tuple(data.shape[1:])
+    result = mx.zeros(data_shape, dtype=data.dtype)
+
+    result = result.at[segment_ids].maximum(data)
+    result = result[:-1, ...]
+    return result
 
 
 def top_k(x, k, sorted=True):
