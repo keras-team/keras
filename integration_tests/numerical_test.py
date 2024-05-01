@@ -3,9 +3,11 @@ import keras  # isort: skip, keep it on top for torch test
 import numpy as np
 import tf_keras
 
+
 keras.backend.set_image_data_format("channels_last")
 tf_keras.backend.set_image_data_format("channels_last")
 
+DEBUGGING = True
 NUM_CLASSES = 10
 BATCH_SIZE = 32
 EPOCHS = 1
@@ -93,6 +95,7 @@ def check_history(h1, h2):
 def predict_model(model, x):
     return model.predict(x, batch_size=BATCH_SIZE, verbose=0)
 
+
 def numerical_test():
     print("Building data and creating models:")
     try:
@@ -102,7 +105,8 @@ def numerical_test():
         print("Data building and model creation passed.")
     except Exception as e:
         print("Data building and model creation failed with error:", e)
-        return
+        if not DEBUGGING:
+            raise
 
     print("Setting and checking weights:")
     try:
@@ -113,7 +117,8 @@ def numerical_test():
         print("Weight setting and checking passed.")
     except Exception as e:
         print("Weight setting and checking failed with error:", e)
-        return
+        if not DEBUGGING:
+            raise
 
     print("Compiling models:")
     try:
@@ -122,7 +127,8 @@ def numerical_test():
         print("Model compilation passed.")
     except Exception as e:
         print("Model compilation failed with error:", e)
-        return
+        if not DEBUGGING:
+            raise
 
     print("Training models and checking histories:")
     try:
@@ -132,7 +138,8 @@ def numerical_test():
         print("Training and history checking passed.")
     except Exception as e:
         print("Training and history checking failed with error:", e)
-        return
+        if not DEBUGGING:
+            raise
 
     print("Checking trained weights:")
     try:
@@ -141,7 +148,8 @@ def numerical_test():
         print("Trained weights checking passed.")
     except Exception as e:
         print("Trained weights checking failed with error:", e)
-        return
+        if not DEBUGGING:
+            raise
 
     print("Predicting with models:")
     try:
@@ -151,7 +159,8 @@ def numerical_test():
         print("Prediction passed.")
     except Exception as e:
         print("Prediction failed with error:", e)
-        return
+        if not DEBUGGING:
+            raise
 
     print("Evaluating models:")
     try:
@@ -161,7 +170,8 @@ def numerical_test():
         print("Evaluation passed.")
     except Exception as e:
         print("Evaluation failed with error:", e)
-        return
+        if not DEBUGGING:
+            raise
 
     print("All tests in numerical_test.py passed successfully.")
 
