@@ -507,13 +507,19 @@ def initialize_all_variables():
 def standardize_dtype(dtype):
     if dtype is None:
         return config.floatx()
+
+    # Convert MLX data types to strings for comparison
+    if hasattr(dtype, "__module__") and dtype.__module__.startswith("mlx."):
+        dtype = str(dtype).split(".")[-1]
+
     dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
+
+    # Existing logic for other backends
     if hasattr(dtype, "name"):
         dtype = dtype.name
     elif hasattr(dtype, "__str__") and (
         "torch" in str(dtype)
         or "jax.numpy" in str(dtype)
-        or "mlx" in str(dtype)
     ):
         dtype = str(dtype).split(".")[-1]
     elif hasattr(dtype, "__name__"):
