@@ -2,12 +2,12 @@ import numpy as np
 import tensorflow as tf
 
 import keras
-from keras import layers
-from keras import losses
-from keras import metrics
-from keras import models
-from keras import optimizers
-from keras.callbacks import LearningRateScheduler
+from keras.src import layers
+from keras.src import losses
+from keras.src import metrics
+from keras.src import models
+from keras.src import optimizers
+from keras.src.callbacks import LearningRateScheduler
 
 
 def test_model_fit():
@@ -49,9 +49,6 @@ def test_model_fit():
             ),
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
-            # TODO(scottzhu): Find out where is the variable
-            #  that is not created eagerly and break the usage of XLA.
-            jit_compile=False,
         )
         history = model.fit(
             x,

@@ -48,7 +48,7 @@ STEPS_PER_EPOCH = len(train_labels) // BATCH_SIZE
 
 """ Keras model
 Simple but non-trivial model with:
-* Batch Normalization (non-trainable state updated during trainig, different training-time and inference behavior)
+* Batch Normalization (non-trainable state updated during training, different training-time and inference behavior)
 * Dropout (randomness, different training time and inference behavior)
 """
 
@@ -263,7 +263,7 @@ def compute_loss(trainable_variables, non_trainable_variables, x, y):
 compute_gradients = jax.value_and_grad(compute_loss, has_aux=True)
 
 
-# Trainig step: Keras provides a pure functional optimizer.stateless_apply
+# Training step: Keras provides a pure functional optimizer.stateless_apply
 @jax.jit
 def train_step(train_state, x, y):
     (loss_value, non_trainable_variables), grads = compute_gradients(
@@ -284,7 +284,7 @@ def train_step(train_state, x, y):
 
 # training loop
 EPOCHS = 5
-print("\nTrainig:")
+print("\nTraining:")
 data_iter = iter(train_data)
 for epoch in range(EPOCHS):
     for i in tqdm(range(STEPS_PER_EPOCH)):
