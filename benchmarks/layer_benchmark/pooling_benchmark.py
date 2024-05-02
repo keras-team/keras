@@ -12,7 +12,6 @@ python3 -m benchmarks.layer_benchmark.pooling_benchmark \
 ```
 """
 
-
 from absl import app
 from absl import flags
 

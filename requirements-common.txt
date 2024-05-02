@@ -1,4 +1,4 @@
-namex
+namex>=0.0.8
 black>=22
 flake8
 isort
@@ -9,10 +9,11 @@ pandas
 absl-py
 requests
 h5py
+ml-dtypes
 protobuf
 google
 tensorboard-plugin-profile
 rich
 build
-dm-tree
+optree
 pytest-cov

@@ -4,14 +4,18 @@ on:
     - cron: "30 1 * * *"
 jobs:
   close-issues:
+    # Don't do this in forks
+    if: github.repository == 'keras-team/keras'
     runs-on: ubuntu-latest
     permissions:
       issues: write
       pull-requests: write
+      actions: write
     steps:
       - name: Awaiting response issues
-        uses: actions/stale@v8
+        uses: actions/stale@v9
         with:
+          operations-per-run: 500
           days-before-issue-stale: 14
           days-before-issue-close: 14
           stale-issue-label: "stale"
@@ -32,8 +36,9 @@ jobs:
           close-pr-message: "This PR was closed because it has been inactive for 28 days. Please reopen if you'd like to work on this further."
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Contribution issues
-        uses: actions/stale@v8
+        uses: actions/stale@v9
         with:
+          operations-per-run: 500
           days-before-issue-stale: 180
           days-before-issue-close: 365
           stale-issue-label: "stale"

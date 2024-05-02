@@ -6,6 +6,7 @@ Last modified: 2020/04/12
 Description: Complete guide to the functional API.
 Accelerator: GPU
 """
+
 """
 ## Setup
 """
