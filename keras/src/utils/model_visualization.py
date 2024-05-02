@@ -112,18 +112,32 @@ def make_layer_label(layer, **kwargs):
             output_shape = tree.map_structure(lambda x: x.shape, layer.output)
         except (ValueError, AttributeError):
             pass
+
+        def format_shape(shape):
+            if shape is not None:
+                if isinstance(shape, dict):
+                    shape_str = ", ".join(
+                        [f"{k}: {v}" for k, v in shape.items()]
+                    )
+                else:
+                    shape_str = f"{shape}"
+                shape_str = shape_str.replace("}", "").replace("{", "")
+            else:
+                shape_str = "?"
+            return shape_str
+
         if class_name != "InputLayer":
             cols.append(
                 (
                     '<td bgcolor="white"><font point-size="14">'
-                    f'Input shape: <b>{input_shape or "?"}</b>'
+                    f"Input shape: <b>{format_shape(input_shape)}</b>"
                     "</font></td>"
                 )
             )
         cols.append(
             (
                 '<td bgcolor="white"><font point-size="14">'
-                f'Output shape: <b>{output_shape or "?"}</b>'
+                f"Output shape: <b>{format_shape(output_shape)}</b>"
                 "</font></td>"
             )
         )

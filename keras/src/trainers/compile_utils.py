@@ -164,7 +164,7 @@ class CompileMetrics(metrics_module.Metric):
         if not self.built:
             return []
         vars = []
-        for m in self._flat_metrics + self._flat_weighted_metrics:
+        for m in self.metrics:
             if m is not None:
                 vars.extend(m.variables)
         return vars
@@ -413,10 +413,14 @@ class CompileLoss(losses_module.Loss):
         reduction="sum_over_batch_size",
         output_names=None,
     ):
-        if loss_weights and not isinstance(loss_weights, (list, tuple, dict)):
+        if loss_weights and not isinstance(
+            loss_weights, (list, tuple, dict, float)
+        ):
             raise ValueError(
-                "Expected `loss_weights` argument to be a list, tuple, or "
-                f"dict. Received instead: loss_weights={loss_weights} "
+                "Expected `loss_weights` argument to be a float "
+                "(single output case) or a list, tuple, or "
+                "dict (multiple output case). "
+                f"Received instead: loss_weights={loss_weights} "
                 f"of type {type(loss_weights)}"
             )
         self._user_loss = loss

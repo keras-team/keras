@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 import pytest
 
@@ -245,6 +247,13 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(model.outputs, [model.layers[-1].output])
         self.assertEqual(model.input_shape, (None, 2))
         self.assertEqual(model.output_shape, (None, 4))
+
+    def test_pickleable(self):
+        model = Sequential(name="seq")
+        model.add(layers.Dense(4))
+
+        result = pickle.loads(pickle.dumps(model))
+        assert len(result.layers) == 1
 
     def test_bad_layer(self):
         model = Sequential(name="seq")

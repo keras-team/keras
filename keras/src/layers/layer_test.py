@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 import pytest
 
@@ -11,6 +13,7 @@ from keras.src import testing
 
 
 class LayerTest(testing.TestCase):
+
     def test_compute_output_spec(self):
         # Test that implementing compute_output_shape
         # is enough to make compute_output_spec work.
@@ -434,13 +437,13 @@ class LayerTest(testing.TestCase):
         y = layer(x)
         self.assertEqual(layer.compute_dtype, "float16")
         self.assertEqual(layer.variable_dtype, "float16")
-        self.assertEqual(backend.standardize_dtype(y.dtype), "float16")
+        self.assertDType(y, "float16")
 
         layer = layers.Dense(2, dtype="mixed_float16")
         y = layer(x)
         self.assertEqual(layer.compute_dtype, "float16")
         self.assertEqual(layer.variable_dtype, "float32")
-        self.assertEqual(backend.standardize_dtype(y.dtype), "float16")
+        self.assertDType(y, "float16")
         self.assertEqual(layer.kernel.dtype, "float32")
 
     @pytest.mark.skipif(
@@ -448,7 +451,7 @@ class LayerTest(testing.TestCase):
         reason="Some torch ops not implemented for float16 on CPU.",
     )
     def test_autocast(self):
-        assertEqual = self.assertEqual
+        assertDType = self.assertDType
 
         # A layer with a int dtype (some preprocessing layers do this).
         class InnerLayerOne(layers.Layer):
@@ -464,7 +467,7 @@ class LayerTest(testing.TestCase):
 
             def call(self, x):
                 # Should not autocast.
-                assertEqual(backend.standardize_dtype(self.v.dtype), "float32")
+                assertDType(self.v, "float32")
                 return ops.cast(x, "float32") + self.v
 
         # A layer that is explicitly full precision.
@@ -480,7 +483,7 @@ class LayerTest(testing.TestCase):
 
             def call(self, x):
                 # Should not autocast.
-                assertEqual(backend.standardize_dtype(self.v.dtype), "float32")
+                assertDType(self.v, "float32")
                 return x + self.v
 
         # A layer that is explicitly mixed precision but with autocast=False
@@ -498,7 +501,7 @@ class LayerTest(testing.TestCase):
 
             def call(self, x):
                 # Should not autocast `self.v`.
-                assertEqual(backend.standardize_dtype(self.v.dtype), "float32")
+                assertDType(self.v, "float32")
                 return ops.add(x, self.v)
 
         # A layer that is explicitly mixed precision with inner layers.
@@ -517,7 +520,7 @@ class LayerTest(testing.TestCase):
 
             def call(self, x):
                 # Should autocast.
-                assertEqual(backend.standardize_dtype(self.v.dtype), "float16")
+                assertDType(self.v, "float16")
                 return self.inner_three(
                     self.inner_two(self.inner_one(x + self.v))
                 )
@@ -525,6 +528,21 @@ class LayerTest(testing.TestCase):
         layer = MixedPrecisionLayer()
         y = layer(np.array(0.0))
         self.assertEqual(y, 4.0)
+
+    def test_autocast_with_np_array(self):
+        assertDType = self.assertDType
+
+        class CustomLayer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+            def call(self, x):
+                # Here are the assertions.
+                assertDType(x[0], "float32")  # Cast to compute_dtype
+                assertDType(x[1], "int32")  # Untouched
+
+        x = [np.zeros(1, dtype="float64"), np.zeros(1, dtype="int32")]
+        CustomLayer()(x)
 
     @pytest.mark.skipif(
         backend.backend() == "numpy",
@@ -957,3 +975,8 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.dtype_policy.name, "mixed_float16")
         self.assertEqual(layer.dtype_policy.compute_dtype, "float16")
         self.assertEqual(layer.dtype_policy.variable_dtype, "float32")
+
+    def test_pickle_layer(self):
+        layer = layers.Dense(2)
+        reloaded = pickle.loads(pickle.dumps(layer))
+        self.assertEqual(layer.get_config(), reloaded.get_config())

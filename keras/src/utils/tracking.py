@@ -146,10 +146,10 @@ class TrackedList(list):
             self.tracker.track(value)
         super().append(value)
 
-    def insert(self, value):
+    def insert(self, index, value):
         if self.tracker:
             self.tracker.track(value)
-        super().insert(value)
+        super().insert(index, value)
 
     def extend(self, values):
         if self.tracker:

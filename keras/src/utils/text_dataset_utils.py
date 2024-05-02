@@ -258,21 +258,28 @@ def paths_and_labels_to_dataset(
 ):
     """Constructs a dataset of text strings and labels."""
     path_ds = tf.data.Dataset.from_tensor_slices(file_paths)
-    if shuffle:
-        path_ds = path_ds.shuffle(
-            buffer_size=shuffle_buffer_size or 1024, seed=seed
-        )
-
-    string_ds = path_ds.map(
-        lambda x: path_to_string_content(x, max_length),
-        num_parallel_calls=tf.data.AUTOTUNE,
-    )
     if label_mode:
         label_ds = dataset_utils.labels_to_dataset(
             labels, label_mode, num_classes
         )
-        string_ds = tf.data.Dataset.zip((string_ds, label_ds))
-    return string_ds
+        ds = tf.data.Dataset.zip((path_ds, label_ds))
+    else:
+        ds = path_ds
+
+    if shuffle:
+        ds = ds.shuffle(buffer_size=shuffle_buffer_size or 1024, seed=seed)
+
+    if label_mode:
+        ds = ds.map(
+            lambda x, y: (path_to_string_content(x, max_length), y),
+            num_parallel_calls=tf.data.AUTOTUNE,
+        )
+    else:
+        ds = ds.map(
+            lambda x: path_to_string_content(x, max_length),
+            num_parallel_calls=tf.data.AUTOTUNE,
+        )
+    return ds
 
 
 def path_to_string_content(path, max_length):

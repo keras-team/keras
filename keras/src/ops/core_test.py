@@ -338,10 +338,12 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(x, y)
 
     def test_shape(self):
-        x = np.ones((2, 3, 7, 1))
+        x = ops.ones((2, 3, 7, 1))
+        self.assertEqual(core.shape(x).__class__, tuple)
         self.assertAllEqual(core.shape(x), (2, 3, 7, 1))
 
         x = KerasTensor((None, 3, None, 1))
+        self.assertEqual(core.shape(x).__class__, tuple)
         self.assertAllEqual(core.shape(x), (None, 3, None, 1))
 
     @pytest.mark.skipif(

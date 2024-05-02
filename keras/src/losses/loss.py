@@ -2,11 +2,12 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils.naming import auto_name
 
 
 @keras_export(["keras.Loss", "keras.losses.Loss"])
-class Loss:
+class Loss(KerasSaveable):
     """Loss base class.
 
     To be implemented by subclasses:
@@ -68,6 +69,9 @@ class Loss:
     @classmethod
     def from_config(cls, config):
         return cls(**config)
+
+    def _obj_type(self):
+        return "Loss"
 
 
 def standardize_reduction(reduction):

@@ -101,6 +101,15 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(q.shape, qref_shape)
         self.assertEqual(r.shape, rref_shape)
 
+    def test_qr_invalid_mode(self):
+        # backend agnostic error message
+        x = np.array([[1, 2], [3, 4]])
+        invalid_mode = "invalid_mode"
+        with self.assertRaisesRegex(
+            ValueError, "Expected one of {'reduced', 'complete'}."
+        ):
+            linalg.qr(x, mode=invalid_mode)
+
     def test_solve(self):
         a = KerasTensor([None, 20, 20])
         b = KerasTensor([None, 20, 5])

@@ -11,11 +11,18 @@ from keras.src.backend.jax.core import convert_to_tensor
 
 def cholesky(a):
     out = jnp.linalg.cholesky(a)
-    if jnp.any(jnp.isnan(out)):
-        raise ValueError(
-            "Cholesky decomposition failed. "
-            "The input might not be a valid positive definite matrix."
-        )
+    try:
+        # In eager mode, raise for nan to
+        # achieve behavior consistency with numpy
+        if jnp.any(jnp.isnan(out)):
+            raise ValueError(
+                "Cholesky decomposition failed. "
+                "The input might not be a valid "
+                "positive definite matrix."
+            )
+    except jax.errors.TracerBoolConversionError:
+        # Cannot raise for nan in tracing mode
+        pass
     return out
 
 

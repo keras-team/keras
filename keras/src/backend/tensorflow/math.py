@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.experimental import numpy as tfnp
 
 from keras.src.backend import config
 from keras.src.backend import standardize_dtype
@@ -260,6 +259,8 @@ def solve(a, b):
 
 
 def norm(x, ord=None, axis=None, keepdims=False):
+    from keras.src.backend.tensorflow.numpy import moveaxis
+
     x = convert_to_tensor(x)
     x_shape = x.shape
     ndim = x_shape.rank
@@ -328,7 +329,7 @@ def norm(x, ord=None, axis=None, keepdims=False):
                 keepdims=keepdims,
             )
         else:
-            x = tfnp.moveaxis(x, axis, (-2, -1))
+            x = moveaxis(x, axis, (-2, -1))
             if ord == -2:
                 x = tf.math.reduce_min(
                     tf.linalg.svd(x, compute_uv=False), axis=-1

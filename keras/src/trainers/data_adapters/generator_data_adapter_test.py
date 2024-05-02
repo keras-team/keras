@@ -3,12 +3,14 @@ import math
 import jax
 import jax.experimental.sparse as jax_sparse
 import numpy as np
+import pytest
 import scipy
 import tensorflow as tf
 import torch
 from absl.testing import parameterized
 from jax import numpy as jnp
 
+from keras.src import backend
 from keras.src import testing
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import generator_data_adapter
@@ -37,10 +39,9 @@ class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
                 {"testcase_name": "no_weight", "use_sample_weight": False},
             ],
             generator_type=["np", "tf", "jax", "torch"],
-            iterator_type=["np", "tf", "jax", "torch"],
         )
     )
-    def test_basic_flow(self, use_sample_weight, generator_type, iterator_type):
+    def test_basic_flow(self, use_sample_weight, generator_type):
         x = np.random.random((34, 4)).astype("float32")
         y = np.array([[i, i] for i in range(34)], dtype="float32")
         sw = np.random.random((34,)).astype("float32")
@@ -64,16 +65,16 @@ class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
         )
 
         adapter = generator_data_adapter.GeneratorDataAdapter(make_generator())
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = jax.Array
-        elif iterator_type == "torch":
+        elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
 
@@ -101,10 +102,7 @@ class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
                 sample_order.append(by[i, 0])
         self.assertAllClose(sample_order, list(range(34)))
 
-    @parameterized.named_parameters(
-        named_product(iterator_type=["np", "tf", "jax", "torch"])
-    )
-    def test_with_different_shapes(self, iterator_type):
+    def test_with_different_shapes(self):
         def generator():
             yield np.ones([16, 4], "float32"), np.ones([16, 2], "float32")
             yield np.ones([16, 5], "float32"), np.ones([16, 2], "float32")
@@ -112,13 +110,13 @@ class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
 
         adapter = generator_data_adapter.GeneratorDataAdapter(generator())
 
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
-        elif iterator_type == "torch":
+        elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
 
         for i, batch in enumerate(it):
@@ -137,11 +135,13 @@ class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
                 self.assertEqual(by.shape, (2, 2))
 
     @parameterized.named_parameters(
-        named_product(
-            generator_type=["tf", "jax", "scipy"], iterator_type=["tf", "jax"]
-        )
+        named_product(generator_type=["tf", "jax", "scipy"])
     )
-    def test_scipy_sparse_tensors(self, generator_type, iterator_type):
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors",
+    )
+    def test_scipy_sparse_tensors(self, generator_type):
         if generator_type == "tf":
             x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 4))
             y = tf.SparseTensor([[0, 0], [1, 1]], [3.0, 4.0], (2, 2))
@@ -158,10 +158,10 @@ class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
 
         adapter = generator_data_adapter.GeneratorDataAdapter(generate())
 
-        if iterator_type == "tf":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.SparseTensor
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = jax_sparse.BCOO
 

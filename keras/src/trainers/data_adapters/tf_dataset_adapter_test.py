@@ -2,20 +2,18 @@ from unittest import mock
 
 import jax
 import numpy as np
+import pytest
 import tensorflow as tf
 import torch
 from absl.testing import parameterized
 
+from keras.src import backend
 from keras.src import testing
-from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import tf_dataset_adapter
 
 
 class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
-    @parameterized.named_parameters(
-        named_product(iterator_type=["np", "tf", "jax", "torch"])
-    )
-    def test_basic_flow(self, iterator_type):
+    def test_basic_flow(self):
         x = tf.random.normal((34, 4))
         y = tf.random.normal((34, 2))
         base_ds = tf.data.Dataset.from_tensor_slices((x, y)).batch(16)
@@ -26,16 +24,16 @@ class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
         self.assertEqual(adapter.has_partial_batch, None)
         self.assertEqual(adapter.partial_batch_size, None)
 
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = jax.Array
-        elif iterator_type == "torch":
+        elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
 
@@ -258,10 +256,11 @@ class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
                 self.assertEqual(tuple(bx.shape), (2, 4))
                 self.assertEqual(tuple(by.shape), (2, 2))
 
-    @parameterized.named_parameters(
-        named_product(iterator_type=["np", "tf", "jax"])
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS and backend.backend() != "numpy",
+        reason="Backend does not support sparse tensors",
     )
-    def test_tf_sparse_tensors(self, iterator_type):
+    def test_tf_sparse_tensors(self):
         x = tf.SparseTensor(
             indices=[[0, 0], [1, 2]], values=[1.0, 2.0], dense_shape=(2, 4)
         )
@@ -271,13 +270,13 @@ class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
         base_ds = tf.data.Dataset.from_tensors((x, y))
         adapter = tf_dataset_adapter.TFDatasetAdapter(base_ds)
 
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.SparseTensor
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = jax.experimental.sparse.BCOO
 

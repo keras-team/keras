@@ -7,6 +7,7 @@ It generates API and formats user and generated APIs.
 """
 
 import os
+import re
 import shutil
 
 import namex
@@ -78,8 +79,7 @@ def create_legacy_directory(package_dir):
         for path in os.listdir(os.path.join(src_dir, "legacy"))
         if os.path.isdir(os.path.join(src_dir, "legacy", path))
     ]
-
-    for root, _, fnames in os.walk(os.path.join(package_dir, "_legacy")):
+    for root, _, fnames in os.walk(os.path.join(api_dir, "_legacy")):
         for fname in fnames:
             if fname.endswith(".py"):
                 legacy_fpath = os.path.join(root, fname)
@@ -109,6 +109,20 @@ def create_legacy_directory(package_dir):
                         core_api_contents = core_api_contents.replace(
                             f"keras.api.{legacy_submodule}",
                             f"keras.api._tf_keras.keras.{legacy_submodule}",
+                        )
+                    # Remove duplicate generated comments string.
+                    legacy_contents = re.sub(r"\n", r"\\n", legacy_contents)
+                    legacy_contents = re.sub('""".*"""', "", legacy_contents)
+                    legacy_contents = re.sub(r"\\n", r"\n", legacy_contents)
+                    # If the same module is in legacy and core_api, use legacy
+                    legacy_imports = re.findall(
+                        r"import (\w+)", legacy_contents
+                    )
+                    for import_name in legacy_imports:
+                        core_api_contents = re.sub(
+                            f"\n.* import {import_name}\n",
+                            r"\n",
+                            core_api_contents,
                         )
                     legacy_contents = core_api_contents + "\n" + legacy_contents
                 with open(tf_keras_fpath, "w") as f:

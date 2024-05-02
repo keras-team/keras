@@ -8,7 +8,7 @@ from keras.src.backend.torch.core import convert_to_tensor
 
 
 def cholesky(x):
-    return torch.cholesky(x)
+    return torch.linalg.cholesky(x)
 
 
 def det(x):

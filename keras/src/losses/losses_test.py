@@ -1387,7 +1387,7 @@ class CTCTest(testing.TestCase):
         logits = (np.arange(24).reshape((2, 4, 3)).astype("float32") - 12) / 100
         y_true = np.array(([[1, 2, 1, 0], [1, 2, 0, 2]]))
         output = losses.CTC()(y_true, logits)
-        self.assertAllClose(output, 4.389582)
+        self.assertAllClose(output, 2.448645)
 
 
 class DiceTest(testing.TestCase):

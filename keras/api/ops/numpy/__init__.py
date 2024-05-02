@@ -22,6 +22,7 @@ from keras.src.ops.numpy import arctan2
 from keras.src.ops.numpy import arctanh
 from keras.src.ops.numpy import argmax
 from keras.src.ops.numpy import argmin
+from keras.src.ops.numpy import argpartition
 from keras.src.ops.numpy import argsort
 from keras.src.ops.numpy import array
 from keras.src.ops.numpy import average
@@ -112,10 +113,12 @@ from keras.src.ops.numpy import repeat
 from keras.src.ops.numpy import reshape
 from keras.src.ops.numpy import roll
 from keras.src.ops.numpy import round
+from keras.src.ops.numpy import select
 from keras.src.ops.numpy import sign
 from keras.src.ops.numpy import sin
 from keras.src.ops.numpy import sinh
 from keras.src.ops.numpy import size
+from keras.src.ops.numpy import slogdet
 from keras.src.ops.numpy import sort
 from keras.src.ops.numpy import split
 from keras.src.ops.numpy import sqrt
@@ -140,6 +143,7 @@ from keras.src.ops.numpy import triu
 from keras.src.ops.numpy import true_divide
 from keras.src.ops.numpy import var
 from keras.src.ops.numpy import vdot
+from keras.src.ops.numpy import vectorize
 from keras.src.ops.numpy import vstack
 from keras.src.ops.numpy import where
 from keras.src.ops.numpy import zeros

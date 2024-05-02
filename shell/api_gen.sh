@@ -9,4 +9,4 @@ python3 "${base_dir}"/api_gen.py
 
 echo "Formatting api directory..."
 # Format API Files
-bash "${base_dir}"/shell/format.sh > /dev/null 2>&1
+bash "${base_dir}"/shell/format.sh

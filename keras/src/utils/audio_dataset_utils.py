@@ -409,27 +409,44 @@ def paths_and_labels_to_dataset(
 ):
     """Constructs a fixed-size dataset of audio and labels."""
     path_ds = tf.data.Dataset.from_tensor_slices(file_paths)
-    if shuffle:
-        path_ds = path_ds.shuffle(
-            buffer_size=shuffle_buffer_size or 1024, seed=seed
-        )
-
-    audio_ds = path_ds.map(
-        lambda x: read_and_decode_audio(
-            x, sampling_rate, output_sequence_length
-        ),
-        num_parallel_calls=tf.data.AUTOTUNE,
-    )
-
-    if ragged:
-        audio_ds = audio_ds.map(
-            lambda x: tf.RaggedTensor.from_tensor(x),
-            num_parallel_calls=tf.data.AUTOTUNE,
-        )
-
     if label_mode:
         label_ds = dataset_utils.labels_to_dataset(
             labels, label_mode, num_classes
         )
-        audio_ds = tf.data.Dataset.zip((audio_ds, label_ds))
-    return audio_ds
+        ds = tf.data.Dataset.zip((path_ds, label_ds))
+    else:
+        ds = path_ds
+
+    if shuffle:
+        ds = ds.shuffle(buffer_size=shuffle_buffer_size or 1024, seed=seed)
+
+    if label_mode:
+        ds = ds.map(
+            lambda x, y: (
+                read_and_decode_audio(x, sampling_rate, output_sequence_length),
+                y,
+            ),
+            num_parallel_calls=tf.data.AUTOTUNE,
+        )
+
+        if ragged:
+            ds = ds.map(
+                lambda x, y: (tf.RaggedTensor.from_tensor(x), y),
+                num_parallel_calls=tf.data.AUTOTUNE,
+            )
+
+    else:
+        ds = ds.map(
+            lambda x: read_and_decode_audio(
+                x, sampling_rate, output_sequence_length
+            ),
+            num_parallel_calls=tf.data.AUTOTUNE,
+        )
+
+        if ragged:
+            ds = ds.map(
+                lambda x: tf.RaggedTensor.from_tensor(x),
+                num_parallel_calls=tf.data.AUTOTUNE,
+            )
+
+    return ds

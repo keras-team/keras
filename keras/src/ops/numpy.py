@@ -1,147 +1,3 @@
-"""
-MANIFEST:
-
-abs
-absolute
-add
-all
-amax
-amin
-append
-arange
-arccos
-arccosh
-arcsin
-arcsinh
-arctan
-arctan2
-arctanh
-argmax
-argmin
-argsort
-array
-average
-bincount
-broadcast_to
-ceil
-clip
-concatenate
-conj
-conjugate
-copy
-correlate
-cos
-cosh
-count_nonzero
-cross
-cumprod
-cumsum
-diag
-diagonal
-diff
-digitize
-divide
-dot
-dtype
-einsum
-empty
-equal
-exp
-expand_dims
-expm1
-eye
-flip
-floor
-full
-full_like
-greater
-greater_equal
-hstack
-identity
-imag
-interp
-isclose
-isfinite
-isinf
-isnan
-less
-less_equal
-linspace
-log
-log10
-log1p
-log2
-logaddexp
-logical_and
-logical_not
-logical_or
-logspace
-matmul
-max
-maximum
-mean
-median
-meshgrid
-mgrid
-min
-minimum
-mod
-moveaxis
-multiply
-nan_to_num
-ndim
-nonzero
-not_equal
-ones
-ones_like
-outer
-pad
-percentile
-power
-prod
-quantile
-ravel
-real
-reciprocal
-repeat
-reshape
-roll
-round
-sign
-sin
-sinh
-size
-sort
-split
-sqrt
-square
-squeeze
-stack
-std
-subtract
-sum
-swapaxes
-take
-take_along_axis
-tan
-tanh
-tensordot
-tile
-trace
-transpose
-tri
-tril
-triu
-true_divide
-vdot
-vstack
-where
-zeros
-zeros_like
-
-
-"""
-
 import builtins
 import re
 
@@ -3955,8 +3811,19 @@ def moveaxis(x, source, destination):
 
 
 class NanToNum(Operation):
+    def __init__(self, nan=0.0, posinf=None, neginf=None):
+        super().__init__()
+        self.nan = nan
+        self.posinf = posinf
+        self.neginf = neginf
+
     def call(self, x):
-        return backend.numpy.nan_to_num(x)
+        return backend.numpy.nan_to_num(
+            x, nan=self.nan, posinf=self.posinf, neginf=self.neginf
+        )
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
 
 
 @keras_export(
@@ -3965,16 +3832,23 @@ class NanToNum(Operation):
         "keras.ops.numpy.nan_to_num",
     ]
 )
-def nan_to_num(x):
+def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     """Replace NaN with zero and infinity with large finite numbers.
 
     Args:
         x: Input data.
+        nan: Optional float or int. Value to replace `NaN` entries with.
+        posinf: Optional float or int.
+            Value to replace positive infinity with.
+        neginf: Optional float or int.
+            Value to replace negative infinity with.
 
     Returns:
         `x`, with non-finite values replaced.
     """
-    return backend.numpy.nan_to_num(x)
+    if any_symbolic_tensors((x,)):
+        return NanToNum(nan=nan, posinf=posinf, neginf=neginf).symbolic_call(x)
+    return backend.numpy.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
 
 
 class Ndim(Operation):
@@ -4007,7 +3881,7 @@ class Nonzero(Operation):
         return backend.numpy.nonzero(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor([None] * len(x.shape))
+        return KerasTensor([None] * len(x.shape), dtype="int32")
 
 
 @keras_export(["keras.ops.nonzero", "keras.ops.numpy.nonzero"])
@@ -5266,14 +5140,18 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 class Tri(Operation):
-    def call(self, N, M=None, k=0, dtype=None):
-        return backend.numpy.tri(N, M=M, k=k, dtype=dtype)
+    def __init__(self, k=0, dtype=None):
+        super().__init__()
+        self.k = k
+        self.dtype = dtype or backend.floatx()
 
-    def compute_output_spec(self, N, M=None, k=0, dtype=None):
+    def call(self, N, M=None):
+        return backend.numpy.tri(N=N, M=M, k=self.k, dtype=self.dtype)
+
+    def compute_output_spec(self, N, M=None):
         if M is None:
             M = N
-        dtype = dtype or backend.floatx()
-        return KerasTensor((N, M), dtype=dtype)
+        return KerasTensor((N, M), dtype=self.dtype)
 
 
 @keras_export(["keras.ops.tri", "keras.ops.numpy.tri"])
@@ -5391,6 +5269,48 @@ def vdot(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Vdot().symbolic_call(x1, x2)
     return backend.numpy.vdot(x1, x2)
+
+
+@keras_export(["keras.ops.vectorize", "keras.ops.numpy.vectorize"])
+def vectorize(pyfunc, *, excluded=None, signature=None):
+    """Turn a function into a vectorized function.
+
+    Example:
+
+    ```python
+    def myfunc(a, b):
+        return a + b
+
+    vfunc = np.vectorize(myfunc)
+    y = vfunc([1, 2, 3, 4], 2)  # Returns Tensor([3, 4, 5, 6])
+    ```
+
+    Args:
+        pyfunc: Callable of a single tensor argument.
+        excluded: Optional set of integers representing
+            positional arguments for which the function
+            will not be vectorized.
+            These will be passed directly to `pyfunc` unmodified.
+        signature: Optional generalized universal function signature,
+            e.g., `"(m,n),(n)->(m)"` for vectorized
+            matrix-vector multiplication. If provided,
+            `pyfunc` will be called with (and expected to return)
+            arrays with shapes given by the size of corresponding
+            core dimensions. By default, `pyfunc` is assumed
+            to take scalars tensors as input and output.
+
+    Returns:
+        A new function that applies `pyfunc` to every element
+        of its input along axis 0 (the batch axis).
+    """
+    if not callable(pyfunc):
+        raise ValueError(
+            "Expected argument `pyfunc` to be a callable. "
+            f"Received: pyfunc={pyfunc}"
+        )
+    return backend.numpy.vectorize(
+        pyfunc, excluded=excluded, signature=signature
+    )
 
 
 class Vstack(Operation):
@@ -6021,14 +5941,18 @@ def ones(shape, dtype=None):
 
 
 class Eye(Operation):
-    def call(self, N, M=None, k=0, dtype=None):
-        return backend.numpy.eye(N, M=M, k=k, dtype=dtype)
+    def __init__(self, k=0, dtype=None):
+        super().__init__()
+        self.k = k
+        self.dtype = dtype or backend.floatx()
 
-    def compute_output_spec(self, N, M=None, k=0, dtype=None):
+    def call(self, N, M=None):
+        return backend.numpy.eye(N, M=M, k=self.k, dtype=self.dtype)
+
+    def compute_output_spec(self, N, M=None):
         if M is None:
             M = N
-        dtype = dtype or backend.floatx()
-        return KerasTensor((N, M), dtype=dtype)
+        return KerasTensor((N, M), dtype=self.dtype)
 
 
 @keras_export(["keras.ops.eye", "keras.ops.numpy.eye"])
@@ -6172,3 +6096,140 @@ def correlate(x1, x2, mode="valid"):
     if any_symbolic_tensors((x1, x2)):
         return Correlate(mode=mode).symbolic_call(x1, x2)
     return backend.numpy.correlate(x1, x2, mode=mode)
+
+
+class Select(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, condlist, choicelist, default=0):
+        return backend.numpy.select(condlist, choicelist, default)
+
+    def compute_output_spec(self, condlist, choicelist, default=0):
+        first_element = choicelist[0]
+        return KerasTensor(first_element.shape, dtype=first_element.dtype)
+
+
+@keras_export(["keras.ops.select", "keras.ops.numpy.select"])
+def select(condlist, choicelist, default=0):
+    """Return elements from `choicelist`, based on conditions in `condlist`.
+
+    Args:
+        condlist: List of boolean tensors.
+            The list of conditions which determine from which array
+            in choicelist the output elements are taken.
+            When multiple conditions are satisfied,
+            the first one encountered in condlist is used.
+        choicelist: List of tensors.
+            The list of tensors from which the output elements are taken.
+            This list has to be of the same length as `condlist`.
+        defaults: Optional scalar value.
+            The element inserted in the output
+            when all conditions evaluate to `False`.
+
+    Returns:
+        Tensor where the output at position `m` is the `m`-th element
+        of the tensor in `choicelist` where the `m`-th element of the
+        corresponding tensor in `condlist` is `True`.
+
+    Example:
+
+    ```python
+    from keras import ops
+
+    x = ops.arange(6)
+    condlist = [x<3, x>3]
+    choicelist = [x, x**2]
+    ops.select(condlist, choicelist, 42)
+    # Returns: tensor([0,  1,  2, 42, 16, 25])
+    ```
+    """
+    if not isinstance(condlist, list) or not isinstance(choicelist, list):
+        raise ValueError(
+            "condlist and choicelist must be lists. Received: "
+            f"type(condlist) = {type(condlist)}, "
+            f"type(choicelist) = {type(choicelist)}"
+        )
+    if not condlist or not choicelist:
+        raise ValueError(
+            "condlist and choicelist must not be empty. Received: "
+            f"condlist = {condlist}, "
+            f"choicelist = {choicelist}"
+        )
+    if any_symbolic_tensors(condlist + choicelist + [default]):
+        return Select().symbolic_call(condlist, choicelist, default)
+    return backend.numpy.select(condlist, choicelist, default)
+
+
+class Slogdet(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.numpy.slogdet(x)
+
+    def compute_output_spec(self, x):
+        sign = KerasTensor((), dtype=x.dtype)
+        logabsdet = KerasTensor((), dtype=x.dtype)
+        return (sign, logabsdet)
+
+
+@keras_export(["keras.ops.slogdet", "keras.ops.numpy.slogdet"])
+def slogdet(x):
+    """Compute the sign and natural logarithm of the determinant of a matrix.
+
+    Args:
+        x: Input matrix. It must 2D and square.
+
+    Returns:
+        A tuple `(sign, logabsdet)`. `sign` is a number representing
+        the sign of the determinant. For a real matrix, this is 1, 0, or -1.
+        For a complex matrix, this is a complex number with absolute value 1
+        (i.e., it is on the unit circle), or else 0.
+        `logabsdet` is the natural log of the absolute value of the determinant.
+    """
+    if any_symbolic_tensors((x,)):
+        return Slogdet().symbolic_call(x)
+    return backend.numpy.slogdet(x)
+
+
+class Argpartition(Operation):
+    def __init__(self, kth, axis=-1):
+        super().__init__()
+        if not isinstance(kth, int):
+            raise ValueError("kth must be an integer. Received:" f"kth = {kth}")
+        self.kth = kth
+        self.axis = axis
+
+    def call(self, x):
+        return backend.numpy.argpartition(x, kth=self.kth, axis=self.axis)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="int32")
+
+
+@keras_export(["keras.ops.argpartition", "keras.ops.numpy.argpartition"])
+def argpartition(x, kth, axis=-1):
+    """Performs an indirect partition along the given axis.
+
+    It returns an array
+    of indices of the same shape as `x` that index data along the given axis
+    in partitioned order.
+
+    Args:
+        a: Array to sort.
+        kth: Element index to partition by.
+            The k-th element will be in its final sorted position and all
+            smaller elements will be moved before it and all larger elements
+            behind it. The order of all elements in the partitions is undefined.
+            If provided with a sequence of k-th it will partition all of them
+            into their sorted position at once.
+        axis: Axis along which to sort. The default is -1 (the last axis).
+            If `None`, the flattened array is used.
+
+    Returns:
+        Array of indices that partition `x` along the specified `axis`.
+    """
+    if any_symbolic_tensors((x,)):
+        return Argpartition(kth, axis).symbolic_call(x)
+    return backend.numpy.argpartition(x, kth, axis)
