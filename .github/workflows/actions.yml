@@ -126,3 +126,12 @@ jobs:
           fi
       - name: Lint
         run: bash shell/lint.sh
+      - name: Check for API changes
+        run: |
+          bash shell/api_gen.sh
+          git status
+          clean=$(git status | grep "nothing to commit")
+          if [ -z "$clean" ]; then
+            echo "Please run shell/api_gen.sh to generate API."
+            exit 1
+          fi

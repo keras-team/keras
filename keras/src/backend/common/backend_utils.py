@@ -1,4 +1,6 @@
+import functools
 import operator
+import re
 import warnings
 
 
@@ -288,3 +290,224 @@ def to_tuple_or_list(value):
     if isinstance(value, int):
         return (value,)
     return value
+
+
+### Code for ops.vectorize() used for TF and torch backends.
+
+# See http://docs.scipy.org/doc/numpy/reference/c-api.generalized-ufuncs.html
+_DIMENSION_NAME = r"\w+"
+_CORE_DIMENSION_LIST = "(?:{0:}(?:,{0:})*)?".format(_DIMENSION_NAME)
+_ARGUMENT = rf"\({_CORE_DIMENSION_LIST}\)"
+_ARGUMENT_LIST = "{0:}(?:,{0:})*".format(_ARGUMENT)
+_SIGNATURE = "^{0:}->{0:}$".format(_ARGUMENT_LIST)
+
+
+def _vectorize_parse_gufunc_signature(
+    signature,
+):
+    if not re.match(_SIGNATURE, signature):
+        raise ValueError(f"not a valid gufunc signature: {signature}")
+    args, retvals = (
+        [
+            tuple(re.findall(_DIMENSION_NAME, arg))
+            for arg in re.findall(_ARGUMENT, arg_list)
+        ]
+        for arg_list in signature.split("->")
+    )
+    return args, retvals
+
+
+def _vectorize_update_dim_sizes(dim_sizes, shape, core_dims, is_input=True):
+    num_core_dims = len(core_dims)
+    if is_input:
+        if len(shape) < num_core_dims:
+            raise ValueError(
+                f"input with shape {shape} does not "
+                "have enough dimensions for all core "
+                f"dimensions {core_dims}"
+            )
+    else:
+        if len(shape) != num_core_dims:
+            raise ValueError(
+                f"output shape {shape} does not "
+                f"match core dimensions {core_dims}"
+            )
+
+    core_shape = shape[-num_core_dims:] if core_dims else ()
+    for dim, size in zip(core_dims, core_shape):
+        if dim not in dim_sizes:
+            dim_sizes[dim] = size
+        elif size != dim_sizes[dim]:
+            raise ValueError(
+                f"inconsistent size for core dimension {dim}: "
+                f"{size} vs {dim_sizes[dim]}"
+            )
+
+
+def _vectorize_parse_input_dimensions(
+    args,
+    input_core_dims,
+):
+    from keras.src import ops
+
+    if len(args) != len(input_core_dims):
+        raise TypeError(
+            "wrong number of positional arguments: "
+            f"expected {len(input_core_dims)}, got {len(args)}"
+        )
+    shapes = []
+    dim_sizes: dict[str, int] = {}
+    for arg, core_dims in zip(args, input_core_dims):
+        _vectorize_update_dim_sizes(
+            dim_sizes, arg.shape, core_dims, is_input=True
+        )
+        ndim = arg.ndim - len(core_dims)
+        shapes.append(arg.shape[:ndim])
+    broadcast_shape = shapes[0]
+    for s in shapes:
+        broadcast_shape = ops.broadcast_shapes(broadcast_shape, s)
+    return broadcast_shape, dim_sizes
+
+
+def _vectorize_check_output_dims(
+    func,
+    dim_sizes,
+    expected_output_core_dims,
+):
+    from keras.src import ops
+
+    def wrapped(*args):
+        out = func(*args)
+        if isinstance(out, (list, tuple)):
+            out_shapes = [ops.shape(x) for x in out]
+        else:
+            out_shapes = [out.shape]
+
+        if expected_output_core_dims is None:
+            output_core_dims = [()] * len(out_shapes)
+        else:
+            output_core_dims = expected_output_core_dims
+            if len(output_core_dims) > 1 and not isinstance(out, tuple):
+                raise TypeError(
+                    "output must be a tuple when multiple outputs "
+                    f"are expected, got: {out}"
+                )
+            if len(out_shapes) != len(output_core_dims):
+                raise TypeError(
+                    "wrong number of output arguments: "
+                    f"expected {len(output_core_dims)}, got {len(out_shapes)}"
+                )
+
+        sizes = dict(dim_sizes)
+        for shape, core_dims in zip(out_shapes, output_core_dims):
+            _vectorize_update_dim_sizes(sizes, shape, core_dims, is_input=False)
+
+        return out
+
+    return wrapped
+
+
+def _vectorize_apply_excluded(func, excluded, args, kwargs):
+    if not excluded:
+        return func, args, kwargs
+
+    dynamic_args = [arg for i, arg in enumerate(args) if i not in excluded]
+    dynamic_kwargs = {
+        key: val for key, val in kwargs.items() if key not in excluded
+    }
+    static_args = [
+        (i, args[i])
+        for i in sorted(e for e in excluded if isinstance(e, int))
+        if i < len(args)
+    ]
+    static_kwargs = {key: val for key, val in kwargs.items() if key in excluded}
+
+    def new_func(*args, **kwargs):
+        args = list(args)
+        for i, arg in static_args:
+            args.insert(i, arg)
+        return func(*args, **kwargs, **static_kwargs)
+
+    return new_func, dynamic_args, dynamic_kwargs
+
+
+def vectorize_impl(pyfunc, vmap_fn, *, excluded=None, signature=None):
+    """Implementation adapted from JAX and NumPy."""
+
+    from keras.src import ops
+
+    excluded = None or set()
+
+    @functools.wraps(pyfunc)
+    def wrapped(*args, **kwargs):
+        excluded_func, args, kwargs = _vectorize_apply_excluded(
+            pyfunc, excluded, args, kwargs
+        )
+
+        if signature is not None:
+            input_core_dims, output_core_dims = (
+                _vectorize_parse_gufunc_signature(signature)
+            )
+        else:
+            input_core_dims = [()] * len(args)
+            output_core_dims = None
+
+        none_args = {i for i, arg in enumerate(args) if arg is None}
+        if any(none_args):
+            if any(input_core_dims[i] != () for i in none_args):
+                raise ValueError(
+                    f"Cannot pass None at locations {none_args} "
+                    f"with signature={signature}"
+                )
+            excluded_func, args, _ = _vectorize_apply_excluded(
+                excluded_func, none_args, args, {}
+            )
+            input_core_dims = [
+                dim
+                for i, dim in enumerate(input_core_dims)
+                if i not in none_args
+            ]
+
+        args = tuple(map(ops.convert_to_tensor, args))
+
+        broadcast_shape, dim_sizes = _vectorize_parse_input_dimensions(
+            args, input_core_dims
+        )
+        checked_func = _vectorize_check_output_dims(
+            excluded_func, dim_sizes, output_core_dims
+        )
+        squeezed_args = []
+        rev_filled_shapes = []
+        for arg, core_dims in zip(args, input_core_dims):
+            noncore_shape = arg.shape[: arg.ndim - len(core_dims)]
+
+            pad_ndim = len(broadcast_shape) - len(noncore_shape)
+            filled_shape = pad_ndim * (1,) + noncore_shape
+            rev_filled_shapes.append(filled_shape[::-1])
+
+            squeeze_indices = tuple(
+                i for i, size in enumerate(noncore_shape) if size == 1
+            )
+            squeezed_arg = ops.squeeze(arg, axis=squeeze_indices)
+            squeezed_args.append(squeezed_arg)
+
+        vectorized_func = checked_func
+        dims_to_expand = []
+        for negdim, axis_sizes in enumerate(zip(*rev_filled_shapes)):
+            in_axes = tuple(None if size == 1 else 0 for size in axis_sizes)
+            if all(axis is None for axis in in_axes):
+                dims_to_expand.append(len(broadcast_shape) - 1 - negdim)
+            else:
+                vectorized_func = vmap_fn(vectorized_func, in_axes)
+        result = vectorized_func(*squeezed_args)
+
+        if not dims_to_expand:
+            return result
+        elif isinstance(result, tuple):
+            return tuple(
+                ops.expand_dims(r, axis=dims_to_expand) for r in result
+            )
+        else:
+            return ops.expand_dims(result, axis=dims_to_expand)
+
+    return wrapped

@@ -59,7 +59,7 @@ Besides the virtual environment, the hardware (GPUs or TPUs) can also be attacke
 
 ## Reporting a Vulnerability
 
-Beware that none of the topics under [Using Keras Securely](#using-Keras-securely) are considered vulnerabilities of Keras.
+Beware that none of the topics under [Using Keras Securely](#using-keras-securely) are considered vulnerabilities of Keras.
 
 If you have discovered a security vulnerability in this project, please report it
 privately. **Do not disclose it as a public issue.** This gives us time to work with you

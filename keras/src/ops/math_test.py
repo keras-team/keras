@@ -1,5 +1,6 @@
 import math
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
 import scipy.signal
@@ -1256,3 +1257,90 @@ class ISTFTTest(testing.TestCase):
         expected_shape = real_part.shape[:-1] + (None,)
 
         self.assertEqual(output_spec.shape, expected_shape)
+
+
+class TestMathErrors(testing.TestCase):
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax", reason="Testing Jax errors only"
+    )
+    def test_segment_sum_no_num_segments(self):
+        data = jnp.array([1, 2, 3, 4])
+        segment_ids = jnp.array([0, 0, 1, 1])
+        with self.assertRaisesRegex(
+            ValueError,
+            "Argument `num_segments` must be set when using the JAX backend.",
+        ):
+            kmath.segment_sum(data, segment_ids)
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax", reason="Testing Jax errors only"
+    )
+    def test_segment_max_no_num_segments(self):
+        data = jnp.array([1, 2, 3, 4])
+        segment_ids = jnp.array([0, 0, 1, 1])
+        with self.assertRaisesRegex(
+            ValueError,
+            "Argument `num_segments` must be set when using the JAX backend.",
+        ):
+            kmath.segment_max(data, segment_ids)
+
+    def test_stft_invalid_input_type(self):
+        # backend agnostic error message
+        x = np.array([1, 2, 3, 4])
+        sequence_length = 2
+        sequence_stride = 1
+        fft_length = 4
+        with self.assertRaisesRegex(TypeError, "`float32` or `float64`"):
+            kmath.stft(x, sequence_length, sequence_stride, fft_length)
+
+    def test_invalid_fft_length(self):
+        # backend agnostic error message
+        x = np.array([1.0, 2.0, 3.0, 4.0])
+        sequence_length = 4
+        sequence_stride = 1
+        fft_length = 2
+        with self.assertRaisesRegex(ValueError, "`fft_length` must equal or"):
+            kmath.stft(x, sequence_length, sequence_stride, fft_length)
+
+    def test_stft_invalid_window(self):
+        # backend agnostic error message
+        x = np.array([1.0, 2.0, 3.0, 4.0])
+        sequence_length = 2
+        sequence_stride = 1
+        fft_length = 4
+        window = "invalid_window"
+        with self.assertRaisesRegex(ValueError, "If a string is passed to"):
+            kmath.stft(
+                x, sequence_length, sequence_stride, fft_length, window=window
+            )
+
+    def test_stft_invalid_window_shape(self):
+        # backend agnostic error message
+        x = np.array([1.0, 2.0, 3.0, 4.0])
+        sequence_length = 2
+        sequence_stride = 1
+        fft_length = 4
+        window = np.ones((sequence_length + 1))
+        with self.assertRaisesRegex(ValueError, "The shape of `window` must"):
+            kmath.stft(
+                x, sequence_length, sequence_stride, fft_length, window=window
+            )
+
+    def test_istft_invalid_window_shape_2D_inputs(self):
+        # backend agnostic error message
+        x = (np.array([[1.0, 2.0]]), np.array([[3.0, 4.0]]))
+        sequence_length = 2
+        sequence_stride = 1
+        fft_length = 4
+        incorrect_window = np.ones((sequence_length + 1,))
+        with self.assertRaisesRegex(
+            ValueError, "The shape of `window` must be equal to"
+        ):
+            kmath.istft(
+                x,
+                sequence_length,
+                sequence_stride,
+                fft_length,
+                window=incorrect_window,
+            )

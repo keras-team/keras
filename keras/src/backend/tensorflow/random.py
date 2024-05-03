@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.experimental import numpy as tfnp
 
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.config import floatx
@@ -87,12 +86,14 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
 
 
 def shuffle(x, axis=0, seed=None):
+    from keras.src.backend.tensorflow.numpy import swapaxes
+
     seed = tf_draw_seed(seed)
     if axis == 0:
         return tf.random.experimental.stateless_shuffle(x, seed=seed)
-    x = tfnp.swapaxes(x, axis1=0, axis2=axis)
+    x = swapaxes(x, axis1=0, axis2=axis)
     x = tf.random.experimental.stateless_shuffle(x, seed=seed)
-    x = tfnp.swapaxes(x, axis1=0, axis2=axis)
+    x = swapaxes(x, axis1=0, axis2=axis)
     return x
 
 

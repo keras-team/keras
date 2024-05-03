@@ -25,7 +25,7 @@ class SpectralNormalizationTest(testing.TestCase):
         self.run_layer_test(
             layers.SpectralNormalization,
             init_kwargs={"layer": layers.Embedding(10, 4)},
-            input_data=np.random.randint(10, size=(10,)),
+            input_data=np.random.randint(10, size=(10,)).astype("float32"),
             expected_output_shape=(10, 4),
             expected_num_trainable_weights=1,
             expected_num_non_trainable_weights=1,

@@ -8,6 +8,7 @@ from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
+from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
@@ -172,8 +173,11 @@ def max(x, axis=None, keepdims=False, initial=None):
         result = result.values
 
     if initial is not None:
-        initial = convert_to_tensor(initial)
-        return torch.maximum(result, torch.full(result.shape, initial))
+        dtype = to_torch_dtype(result.dtype)
+        initial = convert_to_tensor(initial, dtype=dtype)
+        return torch.maximum(
+            result, torch.full(result.shape, initial, dtype=dtype)
+        )
     return result
 
 
@@ -198,15 +202,15 @@ def zeros_like(x, dtype=None):
 
 
 def absolute(x):
-    return abs(x)
-
-
-def abs(x):
     x = convert_to_tensor(x)
     # bool are always non-negative
     if standardize_dtype(x.dtype) == "bool":
         return x
     return torch.abs(x)
+
+
+def abs(x):
+    return absolute(x)
 
 
 def all(x, axis=None, keepdims=False):
@@ -744,8 +748,15 @@ def linspace(
         dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = to_torch_dtype(dtype)
 
-    if endpoint is False:
-        stop = stop - ((stop - start) / num)
+    step = convert_to_tensor(torch.nan)
+    if endpoint:
+        if num > 1:
+            step = (stop - start) / (num - 1)
+    else:
+        if num > 0:
+            step = (stop - start) / num
+        if num > 1:
+            stop = stop - ((stop - start) / num)
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
         start = convert_to_tensor(start, dtype=dtype)
         stop = convert_to_tensor(stop, dtype=dtype)
@@ -766,7 +777,7 @@ def linspace(
             device=get_device(),
         )
     if retstep is True:
-        return (linspace, num)
+        return (linspace, step)
     return linspace
 
 
@@ -949,7 +960,8 @@ def min(x, axis=None, keepdims=False, initial=None):
         result = result.values
 
     if initial is not None:
-        initial = convert_to_tensor(initial)
+        dtype = to_torch_dtype(result.dtype)
+        initial = convert_to_tensor(initial, dtype=dtype)
         return torch.minimum(result, initial)
     return result
 
@@ -983,9 +995,9 @@ def moveaxis(x, source, destination):
     return torch.moveaxis(x, source=source, destination=destination)
 
 
-def nan_to_num(x):
+def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = convert_to_tensor(x)
-    return torch.nan_to_num(x)
+    return torch.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
 
 
 def ndim(x):
@@ -1265,6 +1277,13 @@ def swapaxes(x, axis1, axis2):
 def take(x, indices, axis=None):
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices).long()
+    # Correct the indices using "fill" mode which is the same as in jax
+    x_dim = x.shape[axis] if axis is not None else x.shape[0]
+    indices = torch.where(
+        indices < 0,
+        indices + x_dim,
+        indices,
+    )
     if x.ndim == 2 and axis == 0:
         # This case is equivalent to embedding lookup.
         return torch.nn.functional.embedding(indices, x)
@@ -1285,6 +1304,13 @@ def take(x, indices, axis=None):
 def take_along_axis(x, indices, axis=None):
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices).long()
+    # Correct the indices using "fill" mode which is the same as in jax
+    x_dim = x.shape[axis] if axis is not None else x.shape[0]
+    indices = torch.where(
+        indices < 0,
+        indices + x_dim,
+        indices,
+    )
     return torch.take_along_dim(x, indices, dim=axis)
 
 
@@ -1385,6 +1411,12 @@ def vdot(x1, x2):
 def vstack(xs):
     xs = [convert_to_tensor(x) for x in xs]
     return torch.vstack(xs)
+
+
+def vectorize(pyfunc, *, excluded=None, signature=None):
+    return vectorize_impl(
+        pyfunc, torch.vmap, excluded=excluded, signature=signature
+    )
 
 
 def where(condition, x1, x2):
@@ -1567,3 +1599,34 @@ def correlate(x1, x2, mode="valid"):
         result = result[..., start_idx : start_idx + x1_len]
 
     return torch.squeeze(result)
+
+
+def select(condlist, choicelist, default=0):
+    condlist = [convert_to_tensor(c) for c in condlist]
+    choicelist = [convert_to_tensor(c) for c in choicelist]
+    out = convert_to_tensor(default)
+    for c, v in reversed(list(zip(condlist, choicelist))):
+        out = torch.where(c, v, out)
+    return out
+
+
+def slogdet(x):
+    x = convert_to_tensor(x)
+    return tuple(torch.linalg.slogdet(x))
+
+
+def argpartition(x, kth, axis=-1):
+    x = convert_to_tensor(x, "int32")
+    x = torch.transpose(x, axis, -1)
+    bottom_ind = torch.topk(-x, kth + 1)[1]
+
+    def set_to_zero(a, i):
+        a[i] = torch.zeros(1, dtype=a.dtype, device=a.device)
+        return a
+
+    for _ in range(x.dim() - 1):
+        set_to_zero = torch.vmap(set_to_zero)
+    proxy = set_to_zero(torch.ones_like(x, dtype=torch.int32), bottom_ind)
+    top_ind = torch.topk(proxy, x.shape[-1] - kth - 1)[1]
+    out = torch.cat([bottom_ind, top_ind], dim=x.dim() - 1)
+    return cast(torch.transpose(out, -1, axis), "int32")

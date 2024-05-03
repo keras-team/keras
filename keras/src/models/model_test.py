@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -117,6 +119,29 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         self.assertIsInstance(new_model, Functional)
 
     @parameterized.named_parameters(
+        ("single_output_1", _get_model_single_output),
+        ("single_output_2", _get_model_single_output),
+        ("single_output_3", _get_model_single_output),
+        ("single_output_4", _get_model_single_output),
+        ("single_list_output_1", _get_model_single_output_list),
+        ("single_list_output_2", _get_model_single_output_list),
+        ("single_list_output_3", _get_model_single_output_list),
+        ("single_list_output_4", _get_model_single_output_list),
+    )
+    def test_functional_pickling(self, model_fn):
+        model = model_fn()
+        self.assertIsInstance(model, Functional)
+        model.compile()
+        x = np.random.rand(8, 3)
+
+        reloaded_pickle = pickle.loads(pickle.dumps(model))
+
+        pred_reloaded = reloaded_pickle.predict(x)
+        pred = model.predict(x)
+
+        self.assertAllClose(np.array(pred_reloaded), np.array(pred))
+
+    @parameterized.named_parameters(
         ("single_output_1", _get_model_single_output, None),
         ("single_output_2", _get_model_single_output, "list"),
         ("single_output_3", _get_model_single_output, "dict"),
@@ -138,7 +163,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
             loss = [loss]
         elif loss_type == "dict":
             loss = {"output_a": loss}
-        elif loss_type == "dict_lsit":
+        elif loss_type == "dict_list":
             loss = {"output_a": [loss]}
         model.compile(
             optimizer="sgd",

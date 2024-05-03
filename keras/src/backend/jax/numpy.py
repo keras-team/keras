@@ -223,10 +223,8 @@ def absolute(x):
     return jnp.absolute(x)
 
 
-@sparse.elementwise_unary(linear=False)
 def abs(x):
-    x = convert_to_tensor(x)
-    return jnp.absolute(x)
+    return absolute(x)
 
 
 def all(x, axis=None, keepdims=False):
@@ -770,9 +768,9 @@ def moveaxis(x, source, destination):
     return jnp.moveaxis(x, source=source, destination=destination)
 
 
-def nan_to_num(x):
+def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = convert_to_tensor(x)
-    return jnp.nan_to_num(x)
+    return jnp.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
 
 
 def ndim(x):
@@ -974,7 +972,18 @@ def tensordot(x1, x2, axes=2):
 @sparse.elementwise_unary(linear=False)
 def round(x, decimals=0):
     x = convert_to_tensor(x)
-    return jnp.round(x, decimals=decimals)
+
+    # jnp.round doesn't support decimals < 0 for integers
+    x_dtype = standardize_dtype(x.dtype)
+    if "int" in x_dtype and decimals < 0:
+        factor = cast(math.pow(10, decimals), config.floatx())
+        x = cast(x, config.floatx())
+        x = jnp.multiply(x, factor)
+        x = jnp.round(x)
+        x = jnp.divide(x, factor)
+        return cast(x, x_dtype)
+    else:
+        return jnp.round(x, decimals=decimals)
 
 
 def tile(x, repeats):
@@ -1012,6 +1021,12 @@ def vdot(x1, x2):
 
 def vstack(xs):
     return jnp.vstack(xs)
+
+
+def vectorize(pyfunc, *, excluded=None, signature=None):
+    if excluded is None:
+        excluded = set()
+    return jnp.vectorize(pyfunc, excluded=excluded, signature=signature)
 
 
 def where(condition, x1, x2):
@@ -1143,3 +1158,16 @@ def correlate(x1, x2, mode="valid"):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jnp.correlate(x1, x2, mode)
+
+
+def select(condlist, choicelist, default=0):
+    return jnp.select(condlist, choicelist, default=default)
+
+
+def slogdet(x):
+    x = convert_to_tensor(x)
+    return tuple(jnp.linalg.slogdet(x))
+
+
+def argpartition(x, kth, axis=-1):
+    return jnp.argpartition(x, kth, axis)

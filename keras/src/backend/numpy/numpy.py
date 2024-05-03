@@ -688,8 +688,8 @@ def moveaxis(x, source, destination):
     return np.moveaxis(x, source=source, destination=destination)
 
 
-def nan_to_num(x):
-    return np.nan_to_num(x)
+def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
+    return np.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
 
 
 def ndim(x):
@@ -937,6 +937,10 @@ def vstack(xs):
     return np.vstack(xs)
 
 
+def vectorize(pyfunc, *, excluded=None, signature=None):
+    return np.vectorize(pyfunc, excluded=excluded, signature=signature)
+
+
 def where(condition, x1, x2):
     if x1 is not None and x2 is not None:
         if not isinstance(x1, (int, float)):
@@ -1090,3 +1094,15 @@ def correlate(x1, x2, mode="valid"):
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
     return np.correlate(x1, x2, mode)
+
+
+def select(condlist, choicelist, default=0):
+    return np.select(condlist, choicelist, default=default)
+
+
+def slogdet(x):
+    return tuple(np.linalg.slogdet(x))
+
+
+def argpartition(x, kth, axis=-1):
+    return np.argpartition(x, kth, axis).astype("int32")

@@ -10,6 +10,7 @@ from keras.src.ops.nn import binary_crossentropy
 from keras.src.ops.nn import categorical_crossentropy
 from keras.src.ops.nn import conv
 from keras.src.ops.nn import conv_transpose
+from keras.src.ops.nn import ctc_decode
 from keras.src.ops.nn import ctc_loss
 from keras.src.ops.nn import depthwise_conv
 from keras.src.ops.nn import elu
@@ -25,6 +26,7 @@ from keras.src.ops.nn import moments
 from keras.src.ops.nn import multi_hot
 from keras.src.ops.nn import normalize
 from keras.src.ops.nn import one_hot
+from keras.src.ops.nn import psnr
 from keras.src.ops.nn import relu
 from keras.src.ops.nn import relu6
 from keras.src.ops.nn import selu

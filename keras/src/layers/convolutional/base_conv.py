@@ -307,9 +307,11 @@ class BaseConv(Layer):
         # Do nothing if the layer isn't yet built
         if not self.built:
             return
-        store["0"] = self.kernel
+        target_variables = [self.kernel]
         if self.use_bias:
-            store["1"] = self.bias
+            target_variables.append(self.bias)
+        for i, variable in enumerate(target_variables):
+            store[str(i)] = variable
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
@@ -317,9 +319,11 @@ class BaseConv(Layer):
         # Do nothing if the layer isn't yet built
         if not self.built:
             return
-        self._kernel.assign(store["0"])
+        target_variables = [self._kernel]
         if self.use_bias:
-            self.bias.assign(store["1"])
+            target_variables.append(self.bias)
+        for i, variable in enumerate(target_variables):
+            variable.assign(store[str(i)])
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
