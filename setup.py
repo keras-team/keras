@@ -43,6 +43,7 @@ setup(
         "h5py",
         "optree",
         "ml-dtypes",
+        "packaging",
     ],
     # Supported Python versions
     python_requires=">=3.9",
