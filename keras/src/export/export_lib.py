@@ -635,16 +635,31 @@ def _get_save_spec(model):
     if not shapes_dict:
         return None
 
+    def make_tensor_spec(structure):
+        # We need to turn wrapper structures like TrackingDict or _DictWrapper
+        # into plain Python structures because they don't work with jax2tf/JAX.
+        if isinstance(structure, dict):
+            return {k: make_tensor_spec(v) for k, v in structure.items()}
+        if isinstance(structure, (list, tuple)):
+            if all(isinstance(d, (int, type(None))) for d in structure):
+                return tf.TensorSpec(
+                    shape=(None,) + structure[1:], dtype=model.input_dtype
+                )
+            result = [make_tensor_spec(v) for v in structure]
+            return tuple(result) if isinstance(structure, tuple) else result
+        else:
+            raise ValueError(
+                f"Unsupported type {type(structure)} for {structure}"
+            )
+
     if len(shapes_dict) == 1:
-        shape = list(shapes_dict.values())[0]
-        shape = (None,) + shape[1:]
-        return tf.TensorSpec(shape=shape, dtype=model.input_dtype)
+        value = list(shapes_dict.values())[0]
+        return make_tensor_spec(value)
 
     specs = {}
-    for key, shape in shapes_dict.items():
+    for key, value in shapes_dict.items():
         key = key.rstrip("_shape")
-        shape = (None,) + shape[1:]
-        specs[key] = tf.TensorSpec(shape=shape, dtype=model.input_dtype)
+        specs[key] = make_tensor_spec(value)
 
     return specs
 
