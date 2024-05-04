@@ -79,8 +79,8 @@ def convert_to_numpy(x):
     if isinstance(x, jax_sparse.JAXSparse):
         x = x.todense()
     if is_tensor(x) and x.dtype == "bfloat16":
-        return np.asarray(x, ml_dtypes.bfloat16)
-    return np.asarray(x)
+        return np.array(x, dtype=ml_dtypes.bfloat16)
+    return np.array(x)
 
 
 def is_tensor(x):

@@ -128,7 +128,7 @@ def convert_to_numpy(x):
         x = tf.convert_to_tensor(x)
     elif isinstance(x, tf.RaggedTensor):
         x = x.to_tensor()
-    return np.asarray(x)
+    return np.array(x)
 
 
 def is_tensor(x):

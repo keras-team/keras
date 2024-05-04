@@ -633,6 +633,13 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
                 expected_dtype,
             )
 
+    def test_convert_to_numpy(self):
+        x = ops.array([1, 2, 3], dtype="float32")
+        y = ops.convert_to_numpy(x)
+        self.assertIsInstance(y, np.ndarray)
+        # Test assignment -- should not fail.
+        y[0] = 1.0
+
 
 class CoreOpsCallsTests(testing.TestCase):
     def test_scatter_basic_call(self):
