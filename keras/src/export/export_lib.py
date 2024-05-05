@@ -324,7 +324,9 @@ class ExportArchive:
 
         if input_signature:
             if backend.backend() == "tensorflow":
-                decorated_fn = tf.function(fn, input_signature=input_signature)
+                decorated_fn = tf.function(
+                    fn, input_signature=input_signature, autograph=False
+                )
             else:  # JAX backend
 
                 # 1. Create a stateless wrapper for `fn`
