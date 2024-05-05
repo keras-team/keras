@@ -66,6 +66,20 @@ def model_from_config(config, custom_objects=None):
     if axis is not None and isinstance(axis, list) and len(axis) == 1:
         config["config"]["axis"] = int(axis[0])
 
+    # Keras 2.x models allowed nested output layers, keras 3.x does not, so
+    # flatten outputs. keras 2.x can be identified by missing 'trainable' key
+    if ("output_layers" in config["config"]
+            and "trainable" not in config["config"]):
+        flat_outputs = tree.flatten(config["config"]["output_layers"])
+        if len(flat_outputs) % 3 == 0:
+            new_outputs = [flat_outputs[i:i + 3]
+                           for i in range(0, len(flat_outputs), 3)]
+            if all(all((isinstance(x[0], str),
+                        isinstance(x[1], int),
+                        isinstance(x[2], int)))
+                   for x in new_outputs):
+                config["config"]["output_layers"] = new_outputs
+
     # Handle backwards compatibility for Keras lambdas
     if config["class_name"] == "Lambda":
         for dep_arg in LAMBDA_DEP_ARGS:
