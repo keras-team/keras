@@ -183,7 +183,6 @@ def compute_output_spec(fn, *args, **kwargs):
             with StatelessScope():
                 return fn(*rec_args, **kwargs, **static_kwargs)
 
-        output_spec = None
         if has_none:
             ms_args_1, ms_kwargs_1 = tree.map_structure(
                 lambda x: convert_keras_tensor_to_jax(x, fill_value=83),
