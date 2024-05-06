@@ -192,7 +192,7 @@ class StringLookup(IndexLookup):
            [0., 0., 1., 0., 0.],
            [0., 0., 0., 1., 0.],
            [0., 0., 0., 0., 1.],
-           [1., 0., 0., 0., 0.]], dtype=float32)
+           [1., 0., 0., 0., 0.]], dtype=int64)
 
     **Multi-hot output**
 
@@ -204,7 +204,7 @@ class StringLookup(IndexLookup):
     >>> layer = StringLookup(vocabulary=vocab, output_mode='multi_hot')
     >>> layer(data)
     array([[0., 1., 0., 1., 1.],
-           [1., 0., 1., 0., 1.]], dtype=float32)
+           [1., 0., 1., 0., 1.]], dtype=int64)
 
     **Token count output**
 
@@ -216,7 +216,7 @@ class StringLookup(IndexLookup):
     >>> layer = StringLookup(vocabulary=vocab, output_mode='count')
     >>> layer(data)
     array([[0., 1., 0., 1., 2.],
-           [2., 0., 1., 0., 1.]], dtype=float32)
+           [2., 0., 1., 0., 1.]], dtype=int64)
 
     **TF-IDF output**
 
