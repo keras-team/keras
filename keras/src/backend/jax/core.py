@@ -203,10 +203,7 @@ def compute_output_spec(fn, *args, **kwargs):
 
             def merge_shapes(shape1, shape2):
                 return tuple(
-                    [
-                        d1 if d1 == d2 else None
-                        for d1, d2 in zip(shape1, shape2)
-                    ]
+                    [d1 if d1 == d2 else None for d1, d2 in zip(shape1, shape2)]
                 )
 
             def convert_jax_specs_to_keras_tensor(x1, x2):
@@ -246,9 +243,7 @@ def compute_output_spec(fn, *args, **kwargs):
                 return KerasTensor(x.shape, x.dtype, sparse=True)
             return x
 
-        return tree.map_structure(
-            convert_jax_spec_to_keras_tensor, jax_out
-        )
+        return tree.map_structure(convert_jax_spec_to_keras_tensor, jax_out)
 
 
 def cond(pred, true_fn, false_fn):

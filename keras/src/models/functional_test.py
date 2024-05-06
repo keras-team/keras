@@ -1,3 +1,4 @@
+import os
 import warnings
 
 import numpy as np
@@ -5,6 +6,7 @@ import pytest
 
 from keras.src import backend
 from keras.src import layers
+from keras.src import saving
 from keras.src import testing
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
@@ -93,9 +95,14 @@ class FunctionalTest(testing.TestCase):
         outputs = layers.Dense(4)(x)
 
         with self.assertRaisesRegex(
-            ValueError, "all values in the dict must be KerasTensors"
+            ValueError, "All `inputs` values must be KerasTensors"
         ):
-            model = Functional({"aa": [input_a], "bb": input_b}, outputs)
+            model = Functional({"a": "input_a", "b": input_b}, outputs)
+
+        with self.assertRaisesRegex(
+            ValueError, "All `outputs` values must be KerasTensors"
+        ):
+            model = Functional({"a": input_a, "b": input_b}, "outputs")
 
         model = Functional({"a": input_a, "b": input_b}, outputs)
 
@@ -371,6 +378,59 @@ class FunctionalTest(testing.TestCase):
         self.assertIsInstance(partial_model_4.layers[0], layers.InputLayer)
         self.assertEqual(partial_model_4.layers[1].name, "dense1")
         self.assertEqual(partial_model_4.layers[2].name, "dense2")
+
+    def test_deeply_nested_model(self):
+        i1, i2, i3 = Input((1,)), Input((2,)), Input((3,))
+        o1, o2, o3 = (
+            layers.Dense(1)(i1),
+            layers.Dense(2)(i2),
+            layers.Dense(3)(i3),
+        )
+        model = Model(
+            {"1": i1, "others": {"2": i2, "3": i3}},
+            {"1": o1, "others": {"2": o2, "3": o3}},
+        )
+        out_eager = model(
+            {
+                "1": np.ones((2, 1)),
+                "others": {"2": np.ones((2, 2)), "3": np.ones((2, 3))},
+            }
+        )
+        out_symbolic = model(
+            {
+                "1": Input((1,), batch_size=2),
+                "others": {
+                    "2": Input((2,), batch_size=2),
+                    "3": Input((3,), batch_size=2),
+                },
+            }
+        )
+        for out in [out_eager, out_symbolic]:
+            self.assertIsInstance(out, dict)
+            self.assertEqual(set(out.keys()), {"1", "others"})
+            self.assertEqual(out["1"].shape, (2, 1))
+            self.assertIsInstance(out["others"], dict)
+            self.assertEqual(set(out["others"].keys()), {"2", "3"})
+            self.assertEqual(out["others"]["2"].shape, (2, 2))
+            self.assertEqual(out["others"]["3"].shape, (2, 3))
+
+        # Test serialization boundaries
+        temp_filepath = os.path.join(self.get_temp_dir(), "deeply_nested.keras")
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+        new_out_eager = loaded_model(
+            {
+                "1": np.ones((2, 1)),
+                "others": {"2": np.ones((2, 2)), "3": np.ones((2, 3))},
+            }
+        )
+        self.assertAllClose(out_eager["1"], new_out_eager["1"])
+        self.assertAllClose(
+            out_eager["others"]["2"], new_out_eager["others"]["2"]
+        )
+        self.assertAllClose(
+            out_eager["others"]["3"], new_out_eager["others"]["3"]
+        )
 
     def test_add_loss(self):
         # TODO
