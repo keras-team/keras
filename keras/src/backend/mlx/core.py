@@ -71,8 +71,6 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         return x.value
 
     if isinstance(x, np.ndarray):
-        if x.dtype == np.int64:
-            x = x.astype(np.int32)
         x = x.astype(standardize_dtype(x.dtype))
         return mx.array(x, dtype=mlx_dtype)
 
@@ -211,6 +209,10 @@ def vectorized_map(function, elements):
 def scatter(indices, values, shape):
     indices = convert_to_tensor(indices)
     values = convert_to_tensor(values)
+    if values.dtype == mx.int64:
+        values = values.astype(mx.int32)
+    elif values.dtype == mx.uint64:
+        values = values.astype(mx.uint32)
     zeros = mx.zeros(shape, dtype=values.dtype)
     indices = tuple(indices[..., i] for i in range(indices.shape[-1]))
     zeros = zeros.at[indices].add(values)
@@ -222,6 +224,10 @@ def scatter_update(inputs, indices, updates):
     inputs = convert_to_tensor(inputs)
     indices = convert_to_tensor(indices)
     updates = convert_to_tensor(updates)
+    if inputs.dtype == mx.int64:
+        inputs = inputs.astype(mx.int32)
+    elif inputs.dtype == mx.uint64:
+        inputs = inputs.astype(mx.uint32)
     indices = tuple(indices[..., i] for i in range(indices.shape[-1]))
     inputs[indices] = updates
 

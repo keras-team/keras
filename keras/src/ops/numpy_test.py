@@ -4943,7 +4943,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         ]
     elif backend.backend() == "mlx":
         ALL_DTYPES = [x for x in ALL_DTYPES if x != "float64"]
-        # FLOAT_DTYPES = [x for x in FLOAT_DTYPES if x != "float64" ]
+        FLOAT_DTYPES = tuple([x for x in FLOAT_DTYPES if x != "float64"])
     # Remove float8 dtypes for the following tests
     ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
 
