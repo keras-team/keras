@@ -1961,28 +1961,42 @@ class Dice(LossFunctionWrapper):
 
     Returns:
         Dice loss value.
+
+    Examples:
+
+    y_true = tf.constant([[[[1.0], [1.0]], [[0.0], [0.0]]], [[[1.0], [1.0]], [[0.0], [0.0]]]])
+    y_pred = tf.constant([[[[0.0], [1.0]], [[0.0], [1.0]]], [[[0.4], [0.0]], [[0.0], [0.9]]]])
+
+    axis = (1, 2, 3)
+    d = Dice(axis=axis, reduction=None)
+    print(d(y_true, y_pred))
+    print(dice(y_true, y_pred, axis=axis))
     """
 
     def __init__(
         self,
         reduction="sum_over_batch_size",
         name="dice",
+        axis=None,
     ):
         super().__init__(
             dice,
             name=name,
             reduction=reduction,
+            axis=axis,
         )
+        self.axis = axis
 
     def get_config(self):
         return {
             "name": self.name,
             "reduction": self.reduction,
+            "axis": self.axis,
         }
 
 
 @keras_export("keras.losses.dice")
-def dice(y_true, y_pred):
+def dice(y_true, y_pred, axis=None):
     """Computes the Dice loss value between `y_true` and `y_pred`.
 
     Formula:
@@ -1993,6 +2007,7 @@ def dice(y_true, y_pred):
     Args:
         y_true: tensor of true targets.
         y_pred: tensor of predicted targets.
+        axis: tuple for which dimensions the loss is calculated
 
     Returns:
         Dice loss value.
@@ -2000,13 +2015,13 @@ def dice(y_true, y_pred):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    inputs = ops.reshape(y_true, [-1])
-    targets = ops.reshape(y_pred, [-1])
+    inputs = y_true
+    targets = y_pred
 
-    intersection = ops.sum(inputs * targets)
+    intersection = ops.sum(inputs * targets, axis=axis)
     dice = ops.divide(
         2.0 * intersection,
-        ops.sum(y_true) + ops.sum(y_pred) + backend.epsilon(),
+        ops.sum(y_true, axis=axis) + ops.sum(y_pred, axis=axis) + backend.epsilon(),
     )
 
     return 1 - dice
