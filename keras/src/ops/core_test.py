@@ -707,13 +707,6 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
                 expected_dtype,
             )
 
-    def test_convert_to_numpy(self):
-        x = ops.array([1, 2, 3], dtype="float32")
-        y = ops.convert_to_numpy(x)
-        self.assertIsInstance(y, np.ndarray)
-        # Test assignment -- should not fail.
-        y[0] = 1.0
-
 
 class CoreOpsCallsTests(testing.TestCase):
     def test_scan_basic_call(self):
@@ -970,3 +963,34 @@ class CoreOpsCallsTests(testing.TestCase):
                 (mock_spec,), (mock_spec, mock_spec_different)
             )
         )
+
+
+class CoreOpsBehaviorTests(testing.TestCase):
+    def test_convert_to_numpy(self):
+        x = ops.array([1, 2, 3], dtype="float32")
+        y = ops.convert_to_numpy(x)
+        self.assertIsInstance(y, np.ndarray)
+        # Test assignment -- should not fail.
+        y[0] = 1.0
+
+    def test_scan_invalid_arguments(self):
+        def cumsum(carry, xs):
+            carry = carry + xs
+            return carry, carry
+
+        init = np.array(0, dtype="float32")
+        xs = np.array([1, 2, 3, 4, 10, 20], dtype="float32")
+
+        # Test non-callable
+        with self.assertRaisesRegex(TypeError, "should be a callable."):
+            core.scan(123, init, xs)
+
+        # Test bad unroll
+        with self.assertRaisesRegex(
+            TypeError, "must be an positive integer or boolean."
+        ):
+            core.scan(cumsum, init, xs, unroll=-1)
+
+        # Test both xs and length are None
+        with self.assertRaisesRegex(ValueError, "to scan over and"):
+            core.scan(cumsum, init, xs=None, length=None)

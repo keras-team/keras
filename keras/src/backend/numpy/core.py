@@ -144,11 +144,12 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     # Ref: jax.lax.scan
     if not callable(f):
         raise TypeError(f"`f` should be a callable. Received: f={f}")
-    if not isinstance(unroll, (bool, int)):
-        raise TypeError(
-            "`unroll` must be an positive integer or boolean. "
-            f"Received: unroll={unroll}"
-        )
+    if not isinstance(unroll, bool):
+        if not isinstance(unroll, int) or unroll < 1:
+            raise TypeError(
+                "`unroll` must be an positive integer or boolean. "
+                f"Received: unroll={unroll}"
+            )
     if xs is None and length is None:
         raise ValueError("Got no `xs` to scan over and `length` not provided.")
 
