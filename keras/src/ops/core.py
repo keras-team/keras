@@ -40,14 +40,16 @@ class Scan(Operation):
     def compute_output_spec(self, f, init, xs, length):
         if xs is None:
             n = int(length)
+            x = None
         else:
             n = (
                 int(length)
                 if length is not None
                 else tree.flatten(xs)[0].shape[0]
             )
+            x = xs[0]
 
-        carry_spec, y_spec = backend.compute_output_spec(f, init, xs[0])
+        carry_spec, y_spec = backend.compute_output_spec(f, init, x)
         y_spec.shape = (n,) + y_spec.shape
         return carry_spec, y_spec
 

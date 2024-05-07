@@ -30,6 +30,13 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(carry.shape, ())
         self.assertEqual(result.shape, (6,))
 
+        def f2(carry, _):
+            return carry, carry
+
+        carry, result = core.scan(f2, init, xs=None, length=3)
+        self.assertEqual(carry.shape, ())
+        self.assertEqual(result.shape, (3,))
+
     def test_scatter(self):
         indices = KerasTensor((5, 2))
         values = KerasTensor((5,))
