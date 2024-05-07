@@ -180,6 +180,11 @@ def argsort(x, axis=-1):
     return mx.argsort(x, axis=axis)
 
 
+def argpartition(x, kth, axis=-1):
+    x = convert_to_tensor(x)
+    return mx.argpartition(x, kth, axis).astype(mx.int32)
+
+
 def array(x, dtype=None):
     return convert_to_tensor(x, dtype=dtype)
 
