@@ -597,7 +597,9 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             import jax
 
             def stateless_loss_fn(trainable_variables, x, dy):
-                y = layer.stateless_call(trainable_variables, [], x)[0]
+                y = layer.stateless_call(
+                    trainable_variables, [], x, training=True
+                )[0]
                 loss = y * ops.cast(dy, y.dtype)
                 return ops.sum(loss)
 
