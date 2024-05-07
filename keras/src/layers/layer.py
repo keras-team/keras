@@ -747,8 +747,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # 2. Enforce that only tensors can be passed positionally.
         if not self._allow_non_tensor_positional_args:
             for arg in tree.flatten(args):
-                if not isinstance(arg, KerasTensor) and not backend.is_tensor(
-                    arg
+                if (
+                    not isinstance(arg, KerasTensor)
+                    and not backend.is_tensor(arg)
+                    and arg is not None
                 ):
                     raise ValueError(
                         "Only input tensors may be passed as "
@@ -1448,7 +1450,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         return backend.name_scope(self.name, caller=self)
 
 
-def is_backend_tensor_or_symbolic(x):
+def is_backend_tensor_or_symbolic(x, allow_none=False):
+    if allow_none and x is None:
+        return True
     return backend.is_tensor(x) or isinstance(x, backend.KerasTensor)
 
 
@@ -1483,7 +1487,10 @@ class CallSpec:
                 tensor_arg_dict[name] = value
             elif tree.is_nested(value) and len(value) > 0:
                 flat_values = tree.flatten(value)
-                if all(is_backend_tensor_or_symbolic(x) for x in flat_values):
+                if all(
+                    is_backend_tensor_or_symbolic(x, allow_none=True)
+                    for x in flat_values
+                ):
                     tensor_args.append(value)
                     tensor_arg_names.append(name)
                     tensor_arg_dict[name] = value
