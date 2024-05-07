@@ -304,7 +304,7 @@ class FunctionalTest(testing.TestCase):
             ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
         ):
             model(np.zeros((2, 3)))
-        with self.assertRaisesRegex(ValueError, "expected 1 input"):
+        with self.assertRaisesRegex(ValueError, "expects 1 input"):
             model([np.zeros((2, 4)), np.zeros((2, 4))])
 
         # List input
@@ -313,7 +313,7 @@ class FunctionalTest(testing.TestCase):
         x = input_a + input_b
         outputs = layers.Dense(2)(x)
         model = Functional([input_a, input_b], outputs)
-        with self.assertRaisesRegex(ValueError, "expected 2 input"):
+        with self.assertRaisesRegex(ValueError, "expects 2 input"):
             model(np.zeros((2, 3)))
         with self.assertRaisesRegex(
             ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
@@ -322,7 +322,7 @@ class FunctionalTest(testing.TestCase):
 
         # Dict input
         model = Functional({"a": input_a, "b": input_b}, outputs)
-        with self.assertRaisesRegex(ValueError, "expected 2 input"):
+        with self.assertRaisesRegex(ValueError, "expects 2 input"):
             model(np.zeros((2, 3)))
         with self.assertRaisesRegex(
             ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
@@ -431,6 +431,26 @@ class FunctionalTest(testing.TestCase):
         self.assertAllClose(
             out_eager["others"]["3"], new_out_eager["others"]["3"]
         )
+
+    def test_optional_inputs(self):
+        class OptionalInputLayer(layers.Layer):
+            def call(self, x, y=None):
+                if y is not None:
+                    return x + y
+                return x
+
+            def compute_output_shape(self, x_shape):
+                return x_shape
+
+        i1 = Input((2,))
+        i2 = Input((2,), optional=True)
+        outputs = OptionalInputLayer()(i1, i2)
+        model = Model([i1, i2], outputs)
+
+        # Eager test
+        out = model([np.ones((2, 2)), None])
+        self.assertAllClose(out, np.ones((2, 2)))
+        # Note: it's not intended to work in symbolic mode (yet).
 
     def test_add_loss(self):
         # TODO

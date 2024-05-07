@@ -207,15 +207,23 @@ class Functional(Function, Model):
     def _convert_inputs_to_tensors(self, flat_inputs):
         converted = []
         for x, input in zip(flat_inputs, self._inputs):
-            converted.append(
-                ops.convert_to_tensor(x, dtype=input.dtype, sparse=input.sparse)
-            )
+            if x is None:  # TODO: check if optional
+                converted.append(x)
+            else:
+                converted.append(
+                    ops.convert_to_tensor(
+                        x, dtype=input.dtype, sparse=input.sparse
+                    )
+                )
         return converted
 
     def _adjust_input_rank(self, flat_inputs):
         flat_ref_shapes = [x.shape for x in self._inputs]
         adjusted = []
         for x, ref_shape in zip(flat_inputs, flat_ref_shapes):
+            if x is None:
+                adjusted.append(x)
+                continue
             x_rank = len(x.shape)
             ref_rank = len(ref_shape)
             if x_rank == ref_rank:
@@ -273,10 +281,15 @@ class Functional(Function, Model):
             return tuple(x)
 
         def make_spec_for_tensor(x):
+            optional = False
+            if isinstance(x._keras_history[0], InputLayer):
+                if x._keras_history[0].optional:
+                    optional = True
             return InputSpec(
                 shape=shape_with_no_batch_size(x.shape),
                 allow_last_axis_squeeze=True,
                 name=x._keras_history[0].name,
+                optional=optional,
             )
 
         if isinstance(self._inputs_struct, dict):

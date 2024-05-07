@@ -747,8 +747,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # 2. Enforce that only tensors can be passed positionally.
         if not self._allow_non_tensor_positional_args:
             for arg in tree.flatten(args):
-                if not isinstance(arg, KerasTensor) and not backend.is_tensor(
-                    arg
+                if (
+                    not isinstance(arg, KerasTensor)
+                    and not backend.is_tensor(arg)
+                    and arg is not None
                 ):
                     raise ValueError(
                         "Only input tensors may be passed as "
