@@ -994,7 +994,7 @@ class CoreOpsBehaviorTests(testing.TestCase):
 
         # Test bad unroll
         with self.assertRaisesRegex(
-            TypeError, "must be an positive integer or boolean."
+            ValueError, "must be an positive integer or boolean."
         ):
             core.scan(cumsum, init, xs, unroll=-1)
 

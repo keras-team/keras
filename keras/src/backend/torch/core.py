@@ -346,7 +346,7 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
         raise TypeError(f"`f` should be a callable. Received: f={f}")
     if not isinstance(unroll, bool):
         if not isinstance(unroll, int) or unroll < 1:
-            raise TypeError(
+            raise ValueError(
                 "`unroll` must be an positive integer or boolean. "
                 f"Received: unroll={unroll}"
             )
