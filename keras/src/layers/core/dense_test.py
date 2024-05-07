@@ -733,6 +733,7 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
                 len(model.non_trainable_weights),
             )
 
+    @pytest.mark.requires_trainable_backend
     def test_quantize_float8_inference(self):
         config = dict(units=16)
         layer = layers.Dense(**config)

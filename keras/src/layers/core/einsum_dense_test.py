@@ -871,6 +871,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
                 len(model.non_trainable_weights),
             )
 
+    @pytest.mark.requires_trainable_backend
     def test_quantize_float8_inference(self):
         config = dict(
             equation="ab,bcd->acd",
