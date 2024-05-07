@@ -732,3 +732,16 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
                 reloaded_layer.non_trainable_weights,
                 len(model.non_trainable_weights),
             )
+
+    def test_quantize_float8_inference(self):
+        config = dict(units=16)
+        layer = layers.Dense(**config)
+        layer.build((None, 8))
+        layer.quantize("float8")
+
+        # Try calling with `training=False` and the result must match
+        # `training=True` because there is no update.
+        x = np.random.random((64, 8))
+        y_inference = layer(x, training=False)
+        y_training = layer(x, training=True)
+        self.assertAllClose(y_inference, y_training)
