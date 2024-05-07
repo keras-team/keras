@@ -1,4 +1,5 @@
 """
+scan
 scatter
 scatter_update
 slice
@@ -23,6 +24,111 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.ops.operation import Operation
 from keras.src.utils import traceback_utils
+
+
+class Scan(Operation):
+    def __init__(self, reverse=False, unroll=1):
+        super().__init__()
+        self.reverse = reverse
+        self.unroll = unroll
+
+    def call(self, f, init, xs, length):
+        return backend.core.scan(
+            f, init, xs, length, reverse=self.reverse, unroll=self.unroll
+        )
+
+    def compute_output_spec(self, f, init, xs, length):
+        if xs is None:
+            n = int(length)
+        else:
+            n = (
+                int(length)
+                if length is not None
+                else tree.flatten(xs)[0].shape[0]
+            )
+
+        carry_spec, y_spec = backend.compute_output_spec(f, init, xs[0])
+        y_spec.shape = (n,) + y_spec.shape
+        return carry_spec, y_spec
+
+
+@keras_export("keras.ops.scan")
+def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
+    """Scan a function over leading array axes while carrying along state.
+
+    When the type of `xs` is an array type or `None`, and the type of `ys` is an
+    array type, the semantics of `scan()` are given roughly by this Python
+    implementation:
+
+    ```python
+    def scan(f, init, xs, length=None):
+        if xs is None:
+            xs = [None] * length
+        carry = init
+        ys = []
+        for x in xs:
+            carry, y = f(carry, x)
+            ys.append(y)
+        return carry, np.stack(ys)
+    ```
+
+    The loop-carried value `carry` (`init`) must hold a fixed shape and dtype
+    across all iterations.
+
+    In TensorFlow, `y` must match `carry` in shape and dtype. This is not
+    required in other backends.
+
+    Args:
+        f: Callable defines the logic for each loop iteration. This accepts two
+            arguments where the first is a value of the loop carry and the
+            second is a slice of `xs` along its leading axis.
+            This callable returns a pair where the first represents a new value
+            for the loop carry and the second represents a slice of the output.
+        init: The initial loop carry value. This can be a scalar, tensor, or any
+            nested structure. It must match the structure of the first element
+            returned by `f`.
+        xs: Optional value to scan along its leading axis. This can be a tensor
+            or any nested structure. If `xs` is not provided, you must specify
+            `length` to define the number of loop iterations.
+            Defaults to `None`.
+        length: Optional integer specifying the number of loop iterations.
+            If `length` is not provided, it defaults to the sizes of leading
+            axis of the arrays in `xs`. Defaults to `None`.
+        reverse: Optional boolean specifying whether to run the scan iteration
+            forward or in reverse, equivalent to reversing the leading axes of
+            the arrays in both `xs` and in `ys`.
+        unroll: Optional positive integer or boolean specifying how many scan
+            iterations to unroll within a single iteration of a loop. If an
+            integer is provided, it determines how many unrolled loop iterations
+            to run within a single rolled iteration of the loop. If a boolean is
+            provided, it will determine if the loop is completely unrolled
+            (`unroll=True`) or left completely unrolled (`unroll=False`).
+            Note that unrolling is only supported by JAX and TensorFlow
+            backends.
+
+    Returns:
+        A pair where the first element represents the final loop carry value and
+        the second element represents the stacked outputs of `f` when scanned
+        over the leading axis of the inputs.
+
+    Examples:
+
+    >>> sum_fn = lambda c, x: (c + x, c + x)
+    >>> init = keras.ops.array(0)
+    >>> xs = keras.ops.array([1, 2, 3, 4, 5])
+    >>> carry, result = ops.scan(sum_fn, init, xs)
+    >>> carry
+    15
+    >>> result
+    [1, 3, 6, 10, 15]
+    """
+    if any_symbolic_tensors((init, xs)):
+        return Scan(reverse=reverse, unroll=unroll).symbolic_call(
+            f, init, xs, length
+        )
+    return backend.core.scan(
+        f, init, xs, length, reverse=reverse, unroll=unroll
+    )
 
 
 class Scatter(Operation):

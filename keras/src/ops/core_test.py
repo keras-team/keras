@@ -19,6 +19,17 @@ from keras.src.ops import core
 
 
 class CoreOpsStaticShapeTest(testing.TestCase):
+    def test_scan(self):
+        def f(carry, xs):
+            xs = xs + carry
+            return carry, carry
+
+        init = KerasTensor(())
+        xs = KerasTensor((6,))
+        carry, result = core.scan(f, init, xs)
+        self.assertEqual(carry.shape, ())
+        self.assertEqual(result.shape, (6,))
+
     def test_scatter(self):
         indices = KerasTensor((5, 2))
         values = KerasTensor((5,))
@@ -85,6 +96,69 @@ class CoreOpsStaticShapeTest(testing.TestCase):
 
 
 class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+    def test_scan(self):
+        # Test cumsum
+        def cumsum(carry, xs):
+            carry = carry + xs
+            return carry, carry
+
+        init = np.array(0, dtype="float32")
+        xs = np.array([1, 2, 3, 4, 10, 20], dtype="float32")
+        carry, result = core.scan(cumsum, init, xs)
+        self.assertAllClose(carry, 40.0)
+        self.assertAllClose(result, ops.cumsum(xs))
+
+        # Test reverse=True
+        carry, result = core.scan(cumsum, init, xs, reverse=True)
+        self.assertAllClose(carry, 40.0)
+        self.assertAllClose(result, [40, 39, 37, 34, 30, 20])
+
+        # Test unroll
+        for unroll in (True, False, 2):
+            carry, result = core.scan(cumsum, init, xs, unroll=unroll)
+            self.assertAllClose(carry, 40.0)
+            self.assertAllClose(result, ops.cumsum(xs))
+
+        # Test xs is None
+        def fibonaccis(carry, _):
+            return (carry[1], carry[0] + carry[1]), None
+
+        init = (np.array(0, dtype="float32"), np.array(1, dtype="float32"))
+        carry, _ = core.scan(fibonaccis, init, length=6)
+        self.assertAllClose(carry, [8, 13])
+
+        # Test nested init
+        if backend.backend() != "tensorflow":
+            # tensorflow doesn't support arbitrary shape/dtype of the output of
+            # `f`. It must be the same as `init`.
+            def multiply_two(carry, _):
+                value1 = carry["value1"]
+                value2 = carry["value2"]
+                return (
+                    {"value1": value1 * 2, "value2": value2 * 2},
+                    value1 * 2 + value2 * 2,
+                )
+
+            init = {"value1": 2.0, "value2": 3.0}
+            carry, result = core.scan(multiply_two, init, length=3)
+            self.assertAllClose(carry["value1"], 16)
+            self.assertAllClose(carry["value2"], 24)
+            self.assertAllClose(result, [10, 20, 40])
+
+        # Test nested xs
+        def reduce_add(carry, xs):
+            value1 = xs["value1"]
+            value2 = xs["value2"]
+            return carry, value1 + value2
+
+        init = np.array(0, dtype="float32")
+        xs = {
+            "value1": np.array([1, 2, 3], dtype="float32"),
+            "value2": np.array([10, 20, 30], dtype="float32"),
+        }
+        _, result = core.scan(reduce_add, init, xs)
+        self.assertAllClose(result, [11, 22, 33])
+
     def test_scatter(self):
         # Test 1D
         indices = np.array([[1], [3], [4], [7]])
@@ -642,6 +716,18 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
 
 
 class CoreOpsCallsTests(testing.TestCase):
+    def test_scan_basic_call(self):
+        def cumsum(carry, xs):
+            carry = carry + xs
+            return carry, carry
+
+        init = np.array(0, dtype="float32")
+        xs = np.array([1, 2, 3, 4, 10, 20], dtype="float32")
+        scan_op = core.Scan()
+        carry, result = scan_op.call(cumsum, init, xs, None)
+        self.assertAllClose(carry, 40.0)
+        self.assertAllClose(result, ops.cumsum(xs))
+
     def test_scatter_basic_call(self):
         indices = np.array([[1, 0], [0, 1]])
         values = np.array([10, 20])

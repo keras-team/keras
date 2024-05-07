@@ -276,6 +276,12 @@ def vectorized_map(function, elements):
     return jax.vmap(function)(elements)
 
 
+def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
+    return jax.lax.scan(
+        f, init=init, xs=xs, length=length, reverse=reverse, unroll=unroll
+    )
+
+
 def scatter(indices, values, shape):
     zeros = jnp.zeros(shape, values.dtype)
     key = tuple(jnp.moveaxis(indices, -1, 0))
