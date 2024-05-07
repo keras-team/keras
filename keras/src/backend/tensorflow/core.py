@@ -212,8 +212,7 @@ def vectorized_map(function, elements):
 
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     # We have reimplemented `scan` to match the behavior of `jax.lax.scan`
-    # Ref: https://github.com/tensorflow/tensorflow/blob/v2.16.1/tensorflow/python/ops/functional_ops.py#L437
-    # Ref: https://github.com/google/jax/blob/jaxlib-v0.4.26/jax/_src/lax/control_flow/loops.py#L105
+    # Ref: tf.scan, jax.lax.scan
     if not callable(f):
         raise TypeError(f"`f` should be a callable. Received: f={f}")
     if not isinstance(unroll, (bool, int)):

@@ -141,7 +141,7 @@ def compute_output_spec(fn, *args, **kwargs):
 
 
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
-    # Ref: https://github.com/google/jax/blob/jaxlib-v0.4.26/jax/_src/lax/control_flow/loops.py#L105
+    # Ref: jax.lax.scan
     if not callable(f):
         raise TypeError(f"`f` should be a callable. Received: f={f}")
     if not isinstance(unroll, (bool, int)):
