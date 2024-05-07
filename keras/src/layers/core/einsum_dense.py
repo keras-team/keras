@@ -206,7 +206,7 @@ class EinsumDense(Layer):
     def compute_output_shape(self, _):
         return self.full_output_shape
 
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         x = ops.einsum(self.equation, inputs, self.kernel)
         if self.bias is not None:
             x += self.bias
@@ -369,7 +369,7 @@ class EinsumDense(Layer):
                 f"Expected: {[v.name for v in all_vars]}"
             )
 
-    """Quantization-related (int8 and float8) methods"""
+    # Quantization-related (int8 and float8) methods
 
     QUANTIZATION_MODE_ERROR_TEMPLATE = (
         f"Invalid quantization mode. Expected one of "
@@ -488,11 +488,11 @@ class EinsumDense(Layer):
         self.outputs_grad_amax_history.overwrite_with_gradient = True
         self._is_quantized = True
 
-    def quantized_call(self, inputs):
+    def quantized_call(self, inputs, training=None):
         if self.dtype_policy.quantization_mode == "int8":
             return self._int8_call(inputs)
         elif self.dtype_policy.quantization_mode == "float8":
-            return self._float8_call(inputs)
+            return self._float8_call(inputs, training=training)
         else:
             mode = self.dtype_policy.quantization_mode
             raise NotImplementedError(
@@ -562,7 +562,7 @@ class EinsumDense(Layer):
             x = self.activation(x)
         return x
 
-    def _float8_call(self, inputs):
+    def _float8_call(self, inputs, training=None):
         if self.lora_enabled:
             raise NotImplementedError(
                 "Currently, `_float8_call` doesn't support LoRA"
@@ -570,18 +570,22 @@ class EinsumDense(Layer):
 
         @ops.custom_gradient
         def quantized_dequantize_inputs(inputs, scale, amax_history):
-            new_scale = quantizers.compute_float8_scale(
-                ops.max(amax_history, axis=0),
-                scale,
-                ops.cast(
-                    float(ml_dtypes.finfo("float8_e4m3fn").max), "float32"
-                ),
-            )
+            if training:
+                new_scale = quantizers.compute_float8_scale(
+                    ops.max(amax_history, axis=0),
+                    scale,
+                    ops.cast(
+                        float(ml_dtypes.finfo("float8_e4m3fn").max), "float32"
+                    ),
+                )
+                new_amax_history = quantizers.compute_float8_amax_history(
+                    inputs, amax_history
+                )
+            else:
+                new_scale = None
+                new_amax_history = None
             qdq_inputs = quantizers.quantize_and_dequantize(
                 inputs, scale, "float8_e4m3fn", self.compute_dtype
-            )
-            new_amax_history = quantizers.compute_float8_amax_history(
-                inputs, amax_history
             )
 
             def grad(*args, upstream=None, variables=None):
