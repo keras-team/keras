@@ -283,6 +283,11 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         policy = QuantizedFloat8DTypePolicy("float8_from_mixed_bfloat16", 512)
         self.assertEqual(policy.amax_history_length, 512)
 
+        # Test default_amax_history_length
+        self.assertEqual(
+            QuantizedFloat8DTypePolicy.default_amax_history_length, 1024
+        )
+
     def test_invalid_properties_for_float8(self):
         with self.assertRaisesRegex(TypeError, "must be an integer."):
             QuantizedFloat8DTypePolicy("float8_from_float32", "512")

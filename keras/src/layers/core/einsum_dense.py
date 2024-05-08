@@ -273,7 +273,7 @@ class EinsumDense(Layer):
                 target_variables.append(self.outputs_grad_amax_history)
             else:
                 raise NotImplementedError(
-                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
                 )
         for i, variable in enumerate(target_variables):
             store[str(i)] = variable
@@ -302,7 +302,7 @@ class EinsumDense(Layer):
                 target_variables.append(self.outputs_grad_amax_history)
             else:
                 raise NotImplementedError(
-                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
                 )
         for i, variable in enumerate(target_variables):
             variable.assign(store[str(i)])
@@ -391,7 +391,7 @@ class EinsumDense(Layer):
             self._float8_build()
         else:
             raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
             )
 
     def _int8_build(
@@ -439,14 +439,15 @@ class EinsumDense(Layer):
         self._is_quantized = True
 
     def _float8_build(self):
-        if not isinstance(
-            self.dtype_policy, dtype_policies.QuantizedFloat8DTypePolicy
-        ):
-            raise TypeError(
-                "`self.dtype_policy` must be the type of "
-                f"QuantizedFloat8DTypePolicy. Received {self.dtype_policy}"
-            )
-        amax_history_length = self.dtype_policy.amax_history_length
+        from keras.src.dtype_policies import QuantizedFloat8DTypePolicy
+
+        # If `self.dtype_policy` is not QuantizedFloat8DTypePolicy, then set
+        # `amax_history_length` to its default value.
+        amax_history_length = getattr(
+            self.dtype_policy,
+            "amax_history_length",
+            QuantizedFloat8DTypePolicy.default_amax_history_length,
+        )
         # We set `trainable=True` because we will use the gradients to overwrite
         # these variables
         scale_kwargs = {
@@ -496,7 +497,7 @@ class EinsumDense(Layer):
         else:
             mode = self.dtype_policy.quantization_mode
             raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
             )
 
     def _int8_call(self, inputs):
@@ -665,15 +666,6 @@ class EinsumDense(Layer):
             )
         self._check_quantize_args(mode, self.compute_dtype)
 
-        # Set new dtype policy
-        if not isinstance(
-            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-        ):
-            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
-            # We set the internal `self._dtype_policy` instead of using the
-            # setter to avoid double `quantize` call
-            self._dtype_policy = dtype_policies.get(quantized_dtype)
-
         self._tracker.unlock()
         if mode == "int8":
             (
@@ -717,9 +709,18 @@ class EinsumDense(Layer):
             self._float8_build()
         else:
             raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
             )
         self._tracker.lock()
+
+        # Set new dtype policy
+        if not isinstance(
+            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+        ):
+            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
+            # We set the internal `self._dtype_policy` instead of using the
+            # setter to avoid double `quantize` call
+            self._dtype_policy = dtype_policies.get(quantized_dtype)
 
         # Release memory manually because sometimes the backend doesn't
         gc.collect()

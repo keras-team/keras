@@ -206,7 +206,7 @@ class Embedding(Layer):
                 target_variables.append(embeddings_scale)
             else:
                 raise NotImplementedError(
-                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
                 )
         for i, variable in enumerate(target_variables):
             store[str(i)] = variable
@@ -226,7 +226,7 @@ class Embedding(Layer):
                 target_variables.append(self.embeddings_scale)
             else:
                 raise NotImplementedError(
-                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
                 )
         for i, variable in enumerate(target_variables):
             variable.assign(store[str(i)])
@@ -307,7 +307,7 @@ class Embedding(Layer):
             self._int8_build()
         else:
             raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
             )
 
     def _int8_build(
@@ -339,7 +339,7 @@ class Embedding(Layer):
         else:
             mode = self.dtype_policy.quantization_mode
             raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
             )
 
     def _int8_call(self, inputs):
@@ -371,15 +371,6 @@ class Embedding(Layer):
             )
         self._check_quantize_args(mode, self.compute_dtype)
 
-        # Set new dtype policy
-        if not isinstance(
-            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-        ):
-            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
-            # We set the internal `self._dtype_policy` instead of using the
-            # setter to avoid double `quantize` call
-            self._dtype_policy = dtype_policies.get(quantized_dtype)
-
         self._tracker.unlock()
         if mode == "int8":
             # Quantize `self._embeddings` to int8 and compute corresponding
@@ -398,9 +389,18 @@ class Embedding(Layer):
             )
         else:
             raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
+                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
             )
         self._tracker.lock()
+
+        # Set new dtype policy
+        if not isinstance(
+            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
+        ):
+            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
+            # We set the internal `self._dtype_policy` instead of using the
+            # setter to avoid double `quantize` call
+            self._dtype_policy = dtype_policies.get(quantized_dtype)
 
         # Release memory manually because sometimes the backend doesn't
         gc.collect()
