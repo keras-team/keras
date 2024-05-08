@@ -7723,7 +7723,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 expected_dtype = expected_dtype.replace("64", "32")
             # TODO: Remove below once we have a version>=0.4.47 for the
             # CPU & GPU tests
-            if version.parse(jax.__version__) >= version.parse("0.4.47"):
+            if version.parse(jax.__version__) >= version.parse("0.4.27"):
                 if dtype in ("uint8", "uint16"):
                     expected_dtype = "uint32"
 
