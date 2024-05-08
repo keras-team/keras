@@ -70,7 +70,7 @@ class Conv1D(BaseConv):
         A 3D tensor with shape: `(batch_shape, channels, steps)`
 
     Output shape:
-    
+
     - If `data_format="channels_last"`:
         A 3D tensor with shape: `(batch_shape, new_steps, filters)`
     - If `data_format="channels_first"`:

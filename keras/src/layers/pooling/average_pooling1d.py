@@ -38,7 +38,7 @@ class AveragePooling1D(BasePooling):
         3D tensor with shape `(batch_size, features, steps)`.
 
     Output shape:
-    
+
     - If `data_format="channels_last"`:
         3D tensor with shape `(batch_size, downsampled_steps, features)`.
     - If `data_format="channels_first"`:
