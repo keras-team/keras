@@ -7699,10 +7699,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_trace(self, dtype):
-        import jax
         import jax.experimental
         import jax.numpy as jnp
-        from packaging.version import parse
 
         # We have to disable x64 for jax since jnp.trace doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
@@ -7721,13 +7719,6 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 expected_dtype = "int64"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
-            # TODO: Remove below once we have a version>=0.4.47 for both
-            # CPU & GPU tests
-            if backend.backend() != "jax" and parse(jax.__version__) >= parse(
-                "0.4.27"
-            ):
-                if dtype in ("uint8", "uint16"):
-                    expected_dtype = "int32"  # Originally, it is "uint32"
 
             self.assertDType(knp.trace(x), expected_dtype)
             self.assertDType(knp.Trace().symbolic_call(x), expected_dtype)
