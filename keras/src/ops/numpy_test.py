@@ -3974,6 +3974,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     def test_split(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertIsInstance(knp.split(x, 2), list)
         self.assertAllClose(knp.split(x, 2), np.split(x, 2))
         self.assertAllClose(knp.Split(2)(x), np.split(x, 2))
         self.assertAllClose(

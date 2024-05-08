@@ -1251,8 +1251,8 @@ def split(x, indices_or_sections, axis=0):
         dim=axis,
     )
     if dim == 0 and isinstance(indices_or_sections, int):
-        out = tuple(out[0].clone() for _ in range(indices_or_sections))
-    return out
+        out = [out[0].clone() for _ in range(indices_or_sections)]
+    return list(out)
 
 
 def stack(x, axis=0):

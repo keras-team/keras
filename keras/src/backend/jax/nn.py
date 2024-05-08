@@ -273,9 +273,11 @@ def conv(
             f"kernel in_channels {kernel_in_channels}. "
         )
     feature_group_count = channels // kernel_in_channels
+    kernel = convert_to_tensor(kernel)
+    inputs = convert_to_tensor(inputs, dtype=kernel.dtype)
     return jax.lax.conv_general_dilated(
-        convert_to_tensor(inputs),
-        convert_to_tensor(kernel),
+        inputs,
+        kernel,
         strides,
         padding,
         rhs_dilation=dilation_rate,

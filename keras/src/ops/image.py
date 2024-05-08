@@ -1076,15 +1076,26 @@ def _crop_images(
             f"Received: target_width={target_width}"
         )
 
+    if isinstance(top_cropping, int) and isinstance(left_cropping, int):
+        start_indices = [0, top_cropping, left_cropping, 0]
+    else:
+        start_indices = backend.numpy.stack([0, top_cropping, left_cropping, 0])
+    if (
+        isinstance(batch, int)
+        and isinstance(target_height, int)
+        and isinstance(target_width, int)
+        and isinstance(depth, int)
+    ):
+        shape = [batch, target_height, target_width, depth]
+    else:
+        shape = backend.numpy.stack([batch, target_height, target_width, depth])
     cropped = ops.slice(
         images,
-        backend.numpy.stack([0, top_cropping, left_cropping, 0]),
-        backend.numpy.stack([batch, target_height, target_width, depth]),
+        start_indices,
+        shape,
     )
 
-    cropped_shape = [batch, target_height, target_width, depth]
-    cropped = backend.numpy.reshape(cropped, cropped_shape)
-
+    cropped = backend.numpy.reshape(cropped, shape)
     if not is_batch:
         cropped = backend.numpy.squeeze(cropped, axis=[0])
     return cropped
