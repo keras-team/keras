@@ -67,12 +67,14 @@ class DepthwiseConv1D(BaseDepthwiseConv):
             bias after being updated by an `Optimizer`.
 
     Input shape:
+
     - If `data_format="channels_last"`:
         A 3D tensor with shape: `(batch_shape, steps, channels)`
     - If `data_format="channels_first"`:
         A 3D tensor with shape: `(batch_shape, channels, steps)`
 
     Output shape:
+
     - If `data_format="channels_last"`:
         A 3D tensor with shape:
         `(batch_shape, new_steps, channels * depth_multiplier)`
