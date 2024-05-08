@@ -7717,6 +7717,12 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 expected_dtype = "float64"
             elif dtype == "int64":
                 expected_dtype = "int64"
+            # TODO: Remove the condition of uint8 and uint16 once we have
+            # jax>=0.4.27 for both CPU & GPU environments.
+            # uint8 and uint16 will be casted to uint32 when jax>=0.4.27 but to
+            # int32 otherwise.
+            elif dtype in ("uint8", "uint16"):
+                expected_dtype = "int32"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
 
