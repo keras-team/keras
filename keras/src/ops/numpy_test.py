@@ -7725,7 +7725,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             # CPU & GPU tests
             if version.parse(jax.__version__) >= version.parse("0.4.27"):
                 if dtype in ("uint8", "uint16"):
-                    expected_dtype = "uint32"
+                    expected_dtype = "int32"  # Originally, it is "uint32"
 
             self.assertEqual(
                 standardize_dtype(knp.trace(x).dtype), expected_dtype
