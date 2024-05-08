@@ -15,6 +15,7 @@ from keras.src.ops.core import convert_to_tensor
 from keras.src.ops.core import custom_gradient
 from keras.src.ops.core import fori_loop
 from keras.src.ops.core import is_tensor
+from keras.src.ops.core import scan
 from keras.src.ops.core import scatter
 from keras.src.ops.core import scatter_update
 from keras.src.ops.core import shape
