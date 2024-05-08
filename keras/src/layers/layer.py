@@ -870,12 +870,14 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             # Set masks on outputs,
             # provided only the first positional input arg and its mask.
             # TODO: consider extending this to all args and kwargs.
-            previous_mask = getattr(call_spec.first_arg, "_keras_mask", None)
+            previous_mask = tree.map_structure(
+                lambda x: getattr(x, "_keras_mask", None), call_spec.first_arg
+            )
             if self.supports_masking:
                 self._set_mask_metadata(
                     call_spec.first_arg, outputs, previous_mask
                 )
-            elif previous_mask is not None:
+            elif any(m is not None for m in tree.flatten(previous_mask)):
                 warnings.warn(
                     f"Layer '{self.name}' (of type {self.__class__.__name__}) "
                     "was passed an input with a mask attached to it. "

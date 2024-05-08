@@ -145,11 +145,15 @@ class Concatenate(Merge):
                 masks.append(ops.ones_like(input_i, dtype="bool"))
             elif mask_i.ndim < input_i.ndim:
                 # Mask is smaller than the input, expand it
-                masks.append(ops.expand_dims(mask_i, axis=-1))
+                masks.append(
+                    ops.broadcast_to(
+                        ops.expand_dims(mask_i, axis=-1), ops.shape(input_i)
+                    )
+                )
             else:
                 masks.append(mask_i)
         concatenated = ops.concatenate(masks, axis=self.axis)
-        return ops.all(concatenated, axis=-1, keepdims=False)
+        return ops.any(concatenated, axis=-1, keepdims=False)
 
     def get_config(self):
         config = {"axis": self.axis}
