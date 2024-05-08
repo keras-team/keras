@@ -7727,13 +7727,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 if dtype in ("uint8", "uint16"):
                     expected_dtype = "int32"  # Originally, it is "uint32"
 
-            self.assertEqual(
-                standardize_dtype(knp.trace(x).dtype), expected_dtype
-            )
-            self.assertEqual(
-                standardize_dtype(knp.Trace().symbolic_call(x).dtype),
-                expected_dtype,
-            )
+            self.assertDType(knp.trace(x), expected_dtype)
+            self.assertDType(knp.Trace().symbolic_call(x), expected_dtype)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_transpose(self, dtype):
