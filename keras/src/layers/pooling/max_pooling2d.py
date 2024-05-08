@@ -47,7 +47,7 @@ class MaxPooling2D(BasePooling):
         4D tensor with shape `(batch_size, channels, height, width)`.
 
     Output shape:
-    
+
     - If `data_format="channels_last"`:
         4D tensor with shape
         `(batch_size, pooled_height, pooled_width, channels)`.

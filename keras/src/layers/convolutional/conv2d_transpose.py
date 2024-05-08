@@ -66,7 +66,7 @@ class Conv2DTranspose(BaseConvTranspose):
         A 4D tensor with shape: `(batch_size, channels, height, width)`
 
     Output shape:
-    
+
     - If `data_format="channels_last"`:
         A 4D tensor with shape: `(batch_size, new_height, new_width, filters)`
     - If `data_format="channels_first"`:

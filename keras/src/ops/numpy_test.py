@@ -7702,7 +7702,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         import jax.experimental
         import jax.numpy as jnp
 
-        # We have to disable x64 for jax since jnp.true_divide doesn't respect
+        # We have to disable x64 for jax since jnp.trace doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
         with jax.experimental.disable_x64():
@@ -7717,16 +7717,17 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 expected_dtype = "float64"
             elif dtype == "int64":
                 expected_dtype = "int64"
+            # TODO: Remove the condition of uint8 and uint16 once we have
+            # jax>=0.4.27 for both CPU & GPU environments.
+            # uint8 and uint16 will be casted to uint32 when jax>=0.4.27 but to
+            # int32 otherwise.
+            elif dtype in ("uint8", "uint16"):
+                expected_dtype = "int32"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
 
-            self.assertEqual(
-                standardize_dtype(knp.trace(x).dtype), expected_dtype
-            )
-            self.assertEqual(
-                standardize_dtype(knp.Trace().symbolic_call(x).dtype),
-                expected_dtype,
-            )
+            self.assertDType(knp.trace(x), expected_dtype)
+            self.assertDType(knp.Trace().symbolic_call(x), expected_dtype)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_transpose(self, dtype):
