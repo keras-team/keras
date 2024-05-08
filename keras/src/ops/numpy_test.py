@@ -7,6 +7,7 @@ import warnings
 import numpy as np
 import pytest
 from absl.testing import parameterized
+from packaging import version
 
 import keras
 from keras.src import backend
@@ -7699,10 +7700,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_trace(self, dtype):
+        import jax
         import jax.experimental
         import jax.numpy as jnp
 
-        # We have to disable x64 for jax since jnp.true_divide doesn't respect
+        # We have to disable x64 for jax since jnp.trace doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
         with jax.experimental.disable_x64():
@@ -7719,6 +7721,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 expected_dtype = "int64"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
+            # TODO: Remove below once we have a version>=0.4.47 for the
+            # CPU & GPU tests
+            if version.parse(jax.__version__) >= version.parse("0.4.47"):
+                if dtype in ("uint8", "uint16"):
+                    expected_dtype = "uint32"
 
             self.assertEqual(
                 standardize_dtype(knp.trace(x).dtype), expected_dtype
