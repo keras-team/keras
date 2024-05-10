@@ -30,6 +30,7 @@ def Xception(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="xception",
 ):
     """Instantiates the Xception architecture.
 
@@ -86,6 +87,7 @@ def Xception(
             `classifier_activation=None` to return the logits of the "top"
             layer.  When loading pretrained weights, `classifier_activation` can
             only be `None` or `"softmax"`.
+        name: The name of the model (string).
 
     Returns:
         A model instance.
@@ -308,7 +310,7 @@ def Xception(
     else:
         inputs = img_input
     # Create model.
-    model = Functional(inputs, x, name="xception")
+    model = Functional(inputs, x, name=name)
 
     # Load weights.
     if weights == "imagenet":

@@ -113,6 +113,7 @@ def DenseNet(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="densenet",
 ):
     """Instantiates the DenseNet architecture.
 
@@ -176,6 +177,7 @@ def DenseNet(
             `classifier_activation=None` to return the logits of the "top"
             layer. When loading pretrained weights, `classifier_activation`
             can only be `None` or `"softmax"`.
+        name: The name of the model (string).
 
     Returns:
         A model instance.
@@ -261,14 +263,7 @@ def DenseNet(
         inputs = img_input
 
     # Create model.
-    if blocks == [6, 12, 24, 16]:
-        model = Functional(inputs, x, name="densenet121")
-    elif blocks == [6, 12, 32, 32]:
-        model = Functional(inputs, x, name="densenet169")
-    elif blocks == [6, 12, 48, 32]:
-        model = Functional(inputs, x, name="densenet201")
-    else:
-        model = Functional(inputs, x, name="densenet")
+    model = Functional(inputs, x, name=name)
 
     # Load weights.
     if weights == "imagenet":
@@ -337,6 +332,7 @@ def DenseNet121(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="densenet121",
 ):
     """Instantiates the Densenet121 architecture."""
     return DenseNet(
@@ -348,6 +344,7 @@ def DenseNet121(
         pooling,
         classes,
         classifier_activation,
+        name=name,
     )
 
 
@@ -365,6 +362,7 @@ def DenseNet169(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="densenet169",
 ):
     """Instantiates the Densenet169 architecture."""
     return DenseNet(
@@ -376,6 +374,7 @@ def DenseNet169(
         pooling,
         classes,
         classifier_activation,
+        name=name,
     )
 
 
@@ -393,6 +392,7 @@ def DenseNet201(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="densenet201",
 ):
     """Instantiates the Densenet201 architecture."""
     return DenseNet(
@@ -404,6 +404,7 @@ def DenseNet201(
         pooling,
         classes,
         classifier_activation,
+        name=name,
     )
 
 
@@ -442,40 +443,41 @@ on your inputs before passing them to the model.
 
 Args:
     include_top: whether to include the fully-connected
-    layer at the top of the network.
+        layer at the top of the network.
     weights: one of `None` (random initialization),
-    `"imagenet"` (pre-training on ImageNet),
-    or the path to the weights file to be loaded.
-    input_tensor: optional Keras tensor
-    (i.e. output of `layers.Input()`)
-    to use as image input for the model.
+        `"imagenet"` (pre-training on ImageNet),
+        or the path to the weights file to be loaded.
+        input_tensor: optional Keras tensor
+        (i.e. output of `layers.Input()`)
+        to use as image input for the model.
     input_shape: optional shape tuple, only to be specified
-    if `include_top` is False (otherwise the input shape
-    has to be `(224, 224, 3)` (with `'channels_last'` data format)
-    or `(3, 224, 224)` (with `'channels_first'` data format).
-    It should have exactly 3 inputs channels,
-    and width and height should be no smaller than 32.
-    E.g. `(200, 200, 3)` would be one valid value.
+        if `include_top` is False (otherwise the input shape
+        has to be `(224, 224, 3)` (with `'channels_last'` data format)
+        or `(3, 224, 224)` (with `'channels_first'` data format).
+        It should have exactly 3 inputs channels,
+        and width and height should be no smaller than 32.
+        E.g. `(200, 200, 3)` would be one valid value.
     pooling: Optional pooling mode for feature extraction
-    when `include_top` is `False`.
-    - `None` means that the output of the model will be
-        the 4D tensor output of the
-        last convolutional block.
-    - `avg` means that global average pooling
-        will be applied to the output of the
-        last convolutional block, and thus
-        the output of the model will be a 2D tensor.
-    - `max` means that global max pooling will
-        be applied.
+        when `include_top` is `False`.
+        - `None` means that the output of the model will be
+            the 4D tensor output of the
+            last convolutional block.
+        - `avg` means that global average pooling
+            will be applied to the output of the
+            last convolutional block, and thus
+            the output of the model will be a 2D tensor.
+        - `max` means that global max pooling will
+            be applied.
     classes: optional number of classes to classify images
-    into, only to be specified if `include_top` is `True`, and
-    if no `weights` argument is specified.
+        into, only to be specified if `include_top` is `True`, and
+        if no `weights` argument is specified.
     classifier_activation: A `str` or callable.
-    The activation function to use
-    on the "top" layer. Ignored unless `include_top=True`. Set
-    `classifier_activation=None` to return the logits
-    of the "top" layer. When loading pretrained weights,
-    `classifier_activation` can only be `None` or `"softmax"`.
+        The activation function to use
+        on the "top" layer. Ignored unless `include_top=True`. Set
+        `classifier_activation=None` to return the logits
+        of the "top" layer. When loading pretrained weights,
+        `classifier_activation` can only be `None` or `"softmax"`.
+    name: The name of the model (string).
 
 Returns:
     A Keras model instance.
