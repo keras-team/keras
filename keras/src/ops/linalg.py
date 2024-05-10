@@ -656,7 +656,7 @@ def lstsq(a, b, rcond=None):
     Returns:
         Tensor with shape `(N,)` or `(N, K)` containing
         the least-squares solutions.
-    
+
     **NOTE:** The output differs from `numpy.linalg.lstsq`.
     NumPy returns a tuple with four elements, the first of which
     being the least-squares solutions and the others
