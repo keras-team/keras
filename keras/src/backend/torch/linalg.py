@@ -72,3 +72,9 @@ def svd(x, full_matrices=True, compute_uv=True):
             "`compute_uv=False` is not supported for torch backend."
         )
     return torch.linalg.svd(x, full_matrices=full_matrices)
+
+
+def lstsq(a, b, rcond=None):
+    a = convert_to_tensor(a)
+    b = convert_to_tensor(b)
+    return torch.linalg.lstsq(a, b, rcond=rcond)[0]

@@ -80,3 +80,9 @@ def solve_triangular(a, b, lower=False):
 
 def svd(x, full_matrices=True, compute_uv=True):
     return np.linalg.svd(x, full_matrices=full_matrices, compute_uv=compute_uv)
+
+
+def lstsq(a, b, rcond=None):
+    a = convert_to_tensor(a)
+    b = convert_to_tensor(b)
+    return np.linalg.lstsq(a, b, rcond=rcond)[0]
