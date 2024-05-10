@@ -444,6 +444,8 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
     )
     def test_norm(self, ndim, ord, axis, keepdims):
+        if backend.backend() == "mlx" and ord == "nuc":
+            self.skipTest("ord='nuc' not supported in MLX")
         if ndim == 1:
             x = np.random.random((5,))
         else:

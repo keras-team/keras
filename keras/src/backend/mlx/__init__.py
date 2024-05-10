@@ -2,6 +2,7 @@
 
 from keras.src.backend.mlx import core
 from keras.src.backend.mlx import image
+from keras.src.backend.mlx import linalg
 from keras.src.backend.mlx import math
 from keras.src.backend.mlx import nn
 from keras.src.backend.mlx import numpy
