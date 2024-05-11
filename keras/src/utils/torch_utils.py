@@ -16,6 +16,9 @@ class TorchModuleWrapper(Layer):
     `torch.nn.Module` into a Keras layer, in particular by making its
     parameters trackable by Keras.
 
+    `TorchModuleWrapper` is only compatible with the torch backend and
+    cannot be used with TensorFlow or JAX backends.
+
     Args:
         module: `torch.nn.Module` instance. If it's a `LazyModule`
             instance, then its parameters must be initialized before
