@@ -445,6 +445,19 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         self.assertAllEqual(core.shape(x), (2, 3))
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Backend does not support ragged tensors.",
+    )
+    def test_shape_ragged(self):
+        import tensorflow as tf
+
+        x = tf.ragged.constant([[3, 1, 4, 1], [], [5, 9, 2], [6], []])
+        self.assertAllEqual(core.shape(x), (5, None))
+
+        x = tf.RaggedTensor.from_row_lengths(tf.zeros([15, 2]), [4, 5, 6])
+        self.assertAllEqual(core.shape(x), (3, None, 2))
+
     def test_convert_to_tensor(self):
         x = np.ones((2,))
         x = ops.convert_to_tensor(x)

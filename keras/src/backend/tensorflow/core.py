@@ -148,14 +148,22 @@ def shape(x):
         return x.shape
     if not tf.is_tensor(x):
         x = tf.convert_to_tensor(x)
-    dynamic = tf.shape(x)
     if x.shape == tf.TensorShape(None):
         raise ValueError(
             "All tensors passed to `ops.shape` must have a statically known "
             f"rank. Received: x={x} with unknown rank."
         )
-    static = x.shape.as_list()
-    return tuple(dynamic[i] if s is None else s for i, s in enumerate(static))
+    shape = x.shape.as_list()
+    dynamic = tf.shape(x)
+    for i in range(len(shape)):
+        if shape[i] is None:
+            try:
+                shape[i] = dynamic[i]
+            except:
+                # With RaggedTensors, accessing a ragged dimension will fail,
+                # we leave it as None.
+                pass
+    return tuple(shape)
 
 
 def cast(x, dtype):

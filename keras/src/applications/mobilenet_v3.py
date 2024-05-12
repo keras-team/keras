@@ -162,6 +162,7 @@ def MobileNetV3(
     dropout_rate=0.2,
     classifier_activation="softmax",
     include_preprocessing=True,
+    name=None,
 ):
     if not (weights in {"imagenet", None} or file_utils.exists(weights)):
         raise ValueError(
@@ -373,7 +374,7 @@ def MobileNetV3(
         inputs = img_input
 
     # Create model.
-    model = Functional(inputs, x, name="MobilenetV3" + model_type)
+    model = Functional(inputs, x, name=name)
 
     # Load weights.
     if weights == "imagenet":
@@ -412,6 +413,7 @@ def MobileNetV3Small(
     dropout_rate=0.2,
     classifier_activation="softmax",
     include_preprocessing=True,
+    name="MobileNetV3Small",
 ):
     def stack_fn(x, kernel, activation, se_ratio):
         def depth(d):
@@ -461,6 +463,7 @@ def MobileNetV3Small(
         dropout_rate,
         classifier_activation,
         include_preprocessing,
+        name=name,
     )
 
 
@@ -477,6 +480,7 @@ def MobileNetV3Large(
     dropout_rate=0.2,
     classifier_activation="softmax",
     include_preprocessing=True,
+    name="MobileNetV3Large",
 ):
     def stack_fn(x, kernel, activation, se_ratio):
         def depth(d):
@@ -524,6 +528,7 @@ def MobileNetV3Large(
         dropout_rate,
         classifier_activation,
         include_preprocessing,
+        name=name,
     )
 
 
