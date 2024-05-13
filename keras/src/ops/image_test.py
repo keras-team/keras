@@ -273,6 +273,14 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                     f"Received: interpolation={interpolation}, "
                     f"antialias={antialias}."
                 )
+        if backend.backend() == "mlx":
+            if interpolation in ["lanczos3", "lanczos5", "bicubic"]:
+                self.skipTest(
+                    f"Resizing with  interpolation={interpolation} is "
+                    "not supported by the mlx backend. "
+                )
+            elif antialias:
+                self.skipTest("antialias=True not supported by mlx backend.")
         # Unbatched case
         if data_format == "channels_first":
             x = np.random.random((3, 50, 50)) * 255
