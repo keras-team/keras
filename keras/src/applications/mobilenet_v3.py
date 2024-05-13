@@ -135,6 +135,7 @@ Args:
         be `None` or `"softmax"`.
     include_preprocessing: Boolean, whether to include the preprocessing
         layer (`Rescaling`) at the bottom of the network. Defaults to `True`.
+    name: String, the name of the model.
 
 Call arguments:
     inputs: A floating point `numpy.array` or backend-native tensor,
