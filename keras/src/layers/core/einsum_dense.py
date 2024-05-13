@@ -156,8 +156,8 @@ class EinsumDense(Layer):
         # `self._int8_build` needs `self.input_spec`
         self.input_spec = InputSpec(ndim=len(input_shape))
         # We use `self._dtype_policy` to check to avoid issues in torch dynamo
-        is_quantized = isinstance(
-            self._dtype_policy, dtype_policies.QuantizedDTypePolicy
+        is_quantized = dtype_policies.is_quantized_dtype_policy(
+            self._dtype_policy
         )
         if is_quantized:
             self.quantized_build(
@@ -260,7 +260,7 @@ class EinsumDense(Layer):
         target_variables = [kernel_value]
         if self.bias is not None:
             target_variables.append(self.bias)
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if dtype_policies.is_quantized_dtype_policy(self.dtype_policy):
             mode = self.dtype_policy.quantization_mode
             if mode == "int8":
                 target_variables.append(kernel_scale)
@@ -289,7 +289,7 @@ class EinsumDense(Layer):
         target_variables = [self._kernel]
         if self.bias is not None:
             target_variables.append(self.bias)
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if dtype_policies.is_quantized_dtype_policy(self.dtype_policy):
             mode = self.dtype_policy.quantization_mode
             if mode == "int8":
                 target_variables.append(self.kernel_scale)
@@ -714,9 +714,7 @@ class EinsumDense(Layer):
         self._tracker.lock()
 
         # Set new dtype policy
-        if not isinstance(
-            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-        ):
+        if not dtype_policies.is_quantized_dtype_policy(self.dtype_policy):
             quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
             # We set the internal `self._dtype_policy` instead of using the
             # setter to avoid double `quantize` call
@@ -726,7 +724,7 @@ class EinsumDense(Layer):
         gc.collect()
 
     def _get_kernel_with_merged_lora(self):
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if dtype_policies.is_quantized_dtype_policy(self.dtype_policy):
             kernel_value = self._kernel
             kernel_scale = self.kernel_scale
             if self.lora_enabled:

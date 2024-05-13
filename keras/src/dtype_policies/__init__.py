@@ -6,6 +6,7 @@ from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
+from keras.src.dtype_policies.dtype_policy import is_quantized_dtype_policy
 
 ALL_OBJECTS = {
     DTypePolicy,
