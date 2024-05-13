@@ -9,6 +9,7 @@ from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
 from keras.src.dtype_policies.dtype_policy import dtype_policy
+from keras.src.dtype_policies.dtype_policy import is_quantized_dtype_policy
 from keras.src.dtype_policies.dtype_policy import set_dtype_policy
 from keras.src.testing import test_case
 
@@ -419,6 +420,23 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
             "is incompatible with the current supported quantization.",
         ):
             _get_quantized_dtype_policy_by_str("float7")
+
+    def test_is_quantized_dtype_policy(self):
+        policy = DTypePolicy("float32")
+        self.assertFalse(is_quantized_dtype_policy(policy))
+        self.assertFalse(is_quantized_dtype_policy("float32"))
+
+        policy = FloatDTypePolicy("mixed_bfloat16")
+        self.assertFalse(is_quantized_dtype_policy(policy))
+        self.assertFalse(is_quantized_dtype_policy("mixed_bfloat16"))
+
+        policy = QuantizedDTypePolicy("int8_from_mixed_bfloat16")
+        self.assertTrue(is_quantized_dtype_policy(policy))
+        self.assertTrue(is_quantized_dtype_policy("int8_from_mixed_bfloat16"))
+
+        policy = QuantizedFloat8DTypePolicy("float8_from_mixed_bfloat16")
+        self.assertTrue(is_quantized_dtype_policy(policy))
+        self.assertTrue(is_quantized_dtype_policy("float8_from_mixed_bfloat16"))
 
 
 class DTypePolicyGlobalFunctionsTest(test_case.TestCase):

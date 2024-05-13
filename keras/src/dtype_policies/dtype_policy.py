@@ -368,6 +368,17 @@ def dtype_policy():
     return policy
 
 
+@keras_export("keras.dtype_policies.is_quantized_dtype_policy")
+def is_quantized_dtype_policy(dtype_policy):
+    from keras.src.dtype_policies import get
+
+    dtype_policy = get(dtype_policy)
+    if isinstance(dtype_policy, QuantizedDTypePolicy):
+        return True
+    else:
+        return False
+
+
 def _get_quantized_dtype_policy_by_str(policy):
     if not isinstance(policy, str):
         raise TypeError(f"`policy` must be a string. Received: policy={policy}")
