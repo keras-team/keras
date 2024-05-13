@@ -202,6 +202,10 @@ class FloatDTypePolicy(DTypePolicy):
         return f'<FloatDTypePolicy "{self._name}">'
 
 
+GLOBAL_DEFAULT_PLACEHOLDER = "global_default"
+"""A placeholder for global default dtype policy for QuantizedDTypePolicy."""
+
+
 @keras_export("keras.dtype_policies.QuantizedDTypePolicy")
 class QuantizedDTypePolicy(DTypePolicy):
     def __init__(self, name):
@@ -225,10 +229,18 @@ class QuantizedDTypePolicy(DTypePolicy):
             return mode, "float16", "float32"
         elif from_name == "mixed_bfloat16":
             return mode, "bfloat16", "float32"
+        elif from_name == GLOBAL_DEFAULT_PLACEHOLDER:
+            default_global_policy = dtype_policy()
+            compute_dtype = default_global_policy.compute_dtype
+            variable_dtype = default_global_policy.variable_dtype
+            self._name = name.replace(
+                GLOBAL_DEFAULT_PLACEHOLDER, default_global_policy.name
+            )
+            return mode, compute_dtype, variable_dtype
         try:
             dtype = backend.standardize_dtype(from_name)
             if dtype == "float16" and mode == "int8":
-                raise ValueError
+                raise ValueError(error_msg)
             return mode, dtype, dtype
         except ValueError:
             raise ValueError(error_msg)
@@ -298,7 +310,7 @@ class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
         ]
         valid_policies = [
             f"{mode}_from_{policy}"
-            for mode in ("float8")
+            for mode in ("float8",)
             for policy in valid_float_policies
         ]
         return valid_policies

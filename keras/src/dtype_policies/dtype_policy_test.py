@@ -3,6 +3,7 @@ from absl.testing import parameterized
 from keras.src.dtype_policies import deserialize
 from keras.src.dtype_policies import get
 from keras.src.dtype_policies import serialize
+from keras.src.dtype_policies.dtype_policy import GLOBAL_DEFAULT_PLACEHOLDER
 from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
@@ -179,6 +180,16 @@ class FloatDTypePolicyTest(test_case.TestCase):
 
 
 class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
+    def setUp(self):
+        """Record the global dtype policy before each test."""
+        super().setUp()
+        self._global_dtype_policy = dtype_policy()
+
+    def tearDown(self):
+        super().tearDown()
+        """Restore the global dtype policy after each test."""
+        set_dtype_policy(self._global_dtype_policy)
+
     @parameterized.named_parameters(
         ("float32", "float32", "float32", "float32"),
         ("bfloat16", "bfloat16", "bfloat16", "bfloat16"),
@@ -196,6 +207,26 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(
         ("float32", "float32", "float32", "float32"),
+        ("bfloat16", "bfloat16", "bfloat16", "bfloat16"),
+        ("mixed_bfloat16", "mixed_bfloat16", "bfloat16", "float32"),
+    )
+    def test_initialization_for_int8_from_global_default(
+        self,
+        global_dtype_policy,
+        expected_compute_dtype,
+        expected_variable_dtype,
+    ):
+        set_dtype_policy(global_dtype_policy)
+        name = f"int8_from_{GLOBAL_DEFAULT_PLACEHOLDER}"
+        expected_name = f"int8_from_{global_dtype_policy}"
+
+        policy = QuantizedDTypePolicy(name)
+        self.assertEqual(policy.name, expected_name)
+        self.assertEqual(policy.compute_dtype, expected_compute_dtype)
+        self.assertEqual(policy.variable_dtype, expected_variable_dtype)
+
+    @parameterized.named_parameters(
+        ("float32", "float32", "float32", "float32"),
         ("float16", "float16", "float16", "float16"),
         ("bfloat16", "bfloat16", "bfloat16", "bfloat16"),
         ("mixed_float16", "mixed_float16", "float16", "float32"),
@@ -210,6 +241,28 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         self.assertEqual(policy.compute_dtype, expected_compute_dtype)
         self.assertEqual(policy.variable_dtype, expected_variable_dtype)
         self.assertEqual(repr(policy), f'<QuantizedFloat8DTypePolicy "{name}">')
+
+    @parameterized.named_parameters(
+        ("float32", "float32", "float32", "float32"),
+        ("float16", "float16", "float16", "float16"),
+        ("bfloat16", "bfloat16", "bfloat16", "bfloat16"),
+        ("mixed_float16", "mixed_float16", "float16", "float32"),
+        ("mixed_bfloat16", "mixed_bfloat16", "bfloat16", "float32"),
+    )
+    def test_initialization_for_float_from_global_default(
+        self,
+        global_dtype_policy,
+        expected_compute_dtype,
+        expected_variable_dtype,
+    ):
+        set_dtype_policy(global_dtype_policy)
+        name = f"float8_from_{GLOBAL_DEFAULT_PLACEHOLDER}"
+        expected_name = f"float8_from_{global_dtype_policy}"
+
+        policy = QuantizedFloat8DTypePolicy(name)
+        self.assertEqual(policy.name, expected_name)
+        self.assertEqual(policy.compute_dtype, expected_compute_dtype)
+        self.assertEqual(policy.variable_dtype, expected_variable_dtype)
 
     @parameterized.named_parameters(
         ("abc", "abc"),
