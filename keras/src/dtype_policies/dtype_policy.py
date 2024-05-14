@@ -78,6 +78,7 @@ class DTypePolicy:
         self._name = name
         self._compute_dtype = backend.floatx()
         self._variable_dtype = backend.floatx()
+        self._is_quantized = False
 
     def _parse_name(self, name):
         """Parses a `DTypePolicy` name into a compute and variable dtype.
@@ -132,6 +133,11 @@ class DTypePolicy:
     def name(self):
         """Returns the name of this policy."""
         return self._name
+
+    @property
+    def is_quantized(self):
+        """Whether a quantized dtype policy."""
+        return self._is_quantized
 
     def convert_input(self, x, autocast, dtype):
         """Converts the input dtype based on `autocast` and `dtype`.
@@ -202,7 +208,7 @@ class FloatDTypePolicy(DTypePolicy):
         return f'<FloatDTypePolicy "{self._name}">'
 
 
-GLOBAL_DEFAULT_PLACEHOLDER = "global_default"
+DEFAULT_DTYPE_POLICY = "default"
 """A placeholder for global default dtype policy for QuantizedDTypePolicy."""
 
 
@@ -213,6 +219,7 @@ class QuantizedDTypePolicy(DTypePolicy):
         self._quantization_mode, self._compute_dtype, self._variable_dtype = (
             self._parse_name(name)
         )
+        self._is_quantized = True
 
     def _parse_name(self, name):
         error_msg = (
@@ -229,12 +236,12 @@ class QuantizedDTypePolicy(DTypePolicy):
             return mode, "float16", "float32"
         elif from_name == "mixed_bfloat16":
             return mode, "bfloat16", "float32"
-        elif from_name == GLOBAL_DEFAULT_PLACEHOLDER:
+        elif from_name == DEFAULT_DTYPE_POLICY:
             default_global_policy = dtype_policy()
             compute_dtype = default_global_policy.compute_dtype
             variable_dtype = default_global_policy.variable_dtype
             self._name = name.replace(
-                GLOBAL_DEFAULT_PLACEHOLDER, default_global_policy.name
+                DEFAULT_DTYPE_POLICY, default_global_policy.name
             )
             return mode, compute_dtype, variable_dtype
         try:
@@ -366,17 +373,6 @@ def dtype_policy():
         policy = FloatDTypePolicy(backend.floatx())
         set_dtype_policy(policy)
     return policy
-
-
-@keras_export("keras.dtype_policies.is_quantized_dtype_policy")
-def is_quantized_dtype_policy(dtype_policy):
-    from keras.src.dtype_policies import get
-
-    dtype_policy = get(dtype_policy)
-    if isinstance(dtype_policy, QuantizedDTypePolicy):
-        return True
-    else:
-        return False
 
 
 def _get_quantized_dtype_policy_by_str(policy):
