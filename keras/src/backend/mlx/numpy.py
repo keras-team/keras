@@ -314,34 +314,14 @@ def _diagonal_indices(H, W, k):
 
 def diag(x, k=0):
     x = convert_to_tensor(x)
-
-    if len(x.shape) == 2:
-        return x[_diagonal_indices(*x.shape, k)]
-
-    elif len(x.shape) == 1:
-        N = x.shape[0] + abs(k)
-        zeros = mx.zeros((N, N))
-        zeros[_diagonal_indices(N, N, k)] = x
-        return zeros
-
-    else:
-        raise ValueError("Input must be 1d or 2d")
+    if x.dtype in [mx.int64, mx.uint64]:
+        return mx.diag(x, k=k, stream=mx.Device(type=mx.DeviceType.cpu))
+    return mx.diag(x, k=k)
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
-
-    ndim = x.ndim
-    axis1 = (ndim + axis1) % ndim
-    axis2 = (ndim + axis2) % ndim
-
-    max_axis = builtins.max(axis1, axis2)
-    indices = [slice(None) for _ in range(max_axis + 1)]
-    indices[axis1], indices[axis2] = _diagonal_indices(
-        x.shape[axis1], x.shape[axis2], offset
-    )
-
-    return x[indices]
+    return mx.diagonal(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
 def diff(x, n=1, axis=-1):
