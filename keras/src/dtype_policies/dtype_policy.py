@@ -56,7 +56,10 @@ class DTypePolicy:
     to explicitly construct a `DTypePolicy` object.
     """
 
-    def __init__(self, name):
+    def __init__(self, name=None):
+        # Use the global dtype policy if `name` is not specified
+        if name is None:
+            name = dtype_policy().name
         self._name = name
         self._compute_dtype, self._variable_dtype = self._parse_name(name)
         self._is_quantized = False
@@ -169,6 +172,9 @@ class DTypePolicy:
     def from_config(cls, config):
         return cls(**config)
 
+    def __repr__(self):
+        return f'<FloatDTypePolicy "{self._name}">'
+
     def _should_cast(self, x, autocast, dtype):
         x_dtype = backend.standardize_dtype(x.dtype)
         if autocast and backend.is_float_dtype(x_dtype) and x_dtype != dtype:
@@ -182,14 +188,12 @@ class DTypePolicy:
 )
 class FloatDTypePolicy(DTypePolicy):
     # Alias to DTypePolicy
-
-    def __repr__(self):
-        return f'<FloatDTypePolicy "{self._name}">'
+    pass
 
 
 @keras_export("keras.dtype_policies.QuantizedDTypePolicy")
 class QuantizedDTypePolicy(DTypePolicy):
-    def __init__(self, mode, source_name):
+    def __init__(self, mode, source_name=None):
         # Use the global dtype policy if `source_name` is not specified
         if source_name is None:
             source_name = dtype_policy().name
