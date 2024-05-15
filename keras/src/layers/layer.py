@@ -1442,7 +1442,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         base_config = super().get_config()
         config = {
             "trainable": self.trainable,
-            "dtype": self.dtype_policy.name,
+            "dtype": dtype_policies.serialize(self.dtype_policy),
         }
         return {**base_config, **config}
 
