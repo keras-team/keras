@@ -262,7 +262,7 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         ("mixed_float16", "mixed_float16", "float16", "float32"),
         ("mixed_bfloat16", "mixed_bfloat16", "bfloat16", "float32"),
     )
-    def test_initialization_for_float8_default_dtype_policy(
+    def test_initialization_for_float8_from_default_dtype_policy(
         self,
         global_dtype_policy,
         expected_compute_dtype,
@@ -285,6 +285,16 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
             QuantizedDTypePolicy(mode="int8", source_name=invalid_name)
         with self.assertRaisesRegex(ValueError, "Cannot convert"):
             QuantizedFloat8DTypePolicy(mode="float8", source_name=invalid_name)
+
+    @parameterized.named_parameters(
+        ("int7", "int7"),
+        ("float7", "float7"),
+    )
+    def test_initialization_with_invalid_mode(self, invalid_mode):
+        with self.assertRaisesRegex(ValueError, "Invalid quantization mode."):
+            QuantizedDTypePolicy(mode=invalid_mode)
+        with self.assertRaisesRegex(ValueError, "Invalid quantization mode."):
+            QuantizedFloat8DTypePolicy(mode=invalid_mode)
 
     @parameterized.named_parameters(
         ("int8_from_float16", "float16"),
@@ -517,6 +527,38 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
         """Test dtype_policy default value."""
         policy = dtype_policy()
         self.assertEqual(policy.name, "float32")
+
+    def test_get_valid_policy(self):
+        policy = get("bfloat16")
+        self.assertEqual(policy.name, "bfloat16")
+
+        policy = get("mixed_float16")
+        self.assertEqual(policy.name, "mixed_float16")
+
+    def test_get_valid_policy_quantized(self):
+        policy = get("int8_from_mixed_bfloat16")
+        self.assertEqual(policy.name, "int8_from_mixed_bfloat16")
+
+        policy = get("float8_from_float32")
+        self.assertEqual(policy.name, "float8_from_float32")
+
+    def test_get_invalid_policy(self):
+        with self.assertRaisesRegex(ValueError, "Cannot convert"):
+            get("mixed_bfloat15")
+        with self.assertRaisesRegex(
+            ValueError, "Cannot interpret `dtype` argument."
+        ):
+            get(123)
+
+    def test_get_invalid_policy_quantized(self):
+        with self.assertRaisesRegex(ValueError, "Cannot convert"):
+            get("int8_from_mixed_bfloat15")
+        with self.assertRaisesRegex(ValueError, "Cannot convert"):
+            get("int8_from_")
+        with self.assertRaisesRegex(
+            ValueError, "Cannot convert `policy` into a valid pair"
+        ):
+            get("int8_abc_")
 
 
 class FloatDTypePolicyEdgeCasesTest(test_case.TestCase):

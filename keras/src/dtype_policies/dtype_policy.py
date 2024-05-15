@@ -244,7 +244,7 @@ class QuantizedDTypePolicy(DTypePolicy):
 class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
     default_amax_history_length = 1024
 
-    def __init__(self, mode, source_name, amax_history_length=1024):
+    def __init__(self, mode, source_name=None, amax_history_length=1024):
         super().__init__(mode=mode, source_name=source_name)
         if not isinstance(amax_history_length, int):
             raise TypeError(
