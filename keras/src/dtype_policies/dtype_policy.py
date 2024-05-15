@@ -187,7 +187,7 @@ class DTypePolicy:
     ["keras.FloatDTypePolicy", "keras.dtype_policies.FloatDTypePolicy"]
 )
 class FloatDTypePolicy(DTypePolicy):
-    # Alias to DTypePolicy
+    # An alias for `DTypePolicy`
     pass
 
 
