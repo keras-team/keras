@@ -1962,15 +1962,28 @@ class Dice(LossFunctionWrapper):
     Returns:
         Dice loss value.
 
-    Examples:
+    Example:
 
-    y_true = tf.constant([[[[1.0], [1.0]], [[0.0], [0.0]]], [[[1.0], [1.0]], [[0.0], [0.0]]]])
-    y_pred = tf.constant([[[[0.0], [1.0]], [[0.0], [1.0]]], [[[0.4], [0.0]], [[0.0], [0.9]]]])
+    >>> y_true = [[[[1.0], [1.0]], [[0.0], [0.0]]], [[[1.0], [1.0]], [[0.0], [0.0]]]]
+    >>> y_pred = [[[[0.0], [1.0]], [[0.0], [1.0]]], [[[0.4], [0.0]], [[0.0], [0.9]]]]
+    >>> axis = (1, 2, 3)
+    >>> loss = keras.losses.dice(y_true, y_pred, axis=axis)
+    >>> assert loss.shape == (2,)
+    >>> loss
+    array([0.5, 0.75757575], shape=(2,), dtype=float32)
 
-    axis = (1, 2, 3)
-    d = Dice(axis=axis, reduction=None)
-    print(d(y_true, y_pred))
-    print(dice(y_true, y_pred, axis=axis))
+    >>> loss = keras.losses.dice(y_true, y_pred)
+    >>> assert loss.shape == ()
+    >>> loss
+    array(0.6164384, shape=(), dtype=float32)
+
+    >>> y_true = np.array(y_true)
+    >>> y_pred = np.array(y_pred)
+    >>> loss = keras.losses.Dice(axis=axis, reduction=None)(y_true, y_pred)
+    >>> assert loss.shape == (2,)
+    >>> loss
+    array([0.5, 0.75757575], shape=(2,), dtype=float32)
+
     """
 
     def __init__(
@@ -2021,7 +2034,9 @@ def dice(y_true, y_pred, axis=None):
     intersection = ops.sum(inputs * targets, axis=axis)
     dice = ops.divide(
         2.0 * intersection,
-        ops.sum(y_true, axis=axis) + ops.sum(y_pred, axis=axis) + backend.epsilon(),
+        ops.sum(y_true, axis=axis)
+        + ops.sum(y_pred, axis=axis)
+        + backend.epsilon(),
     )
 
     return 1 - dice
