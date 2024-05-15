@@ -1,6 +1,7 @@
 import numpy as np
 from absl.testing import parameterized
 
+from keras.src import dtype_policies
 from keras.src import layers
 from keras.src import testing
 
@@ -44,7 +45,7 @@ class ZeroPadding1DTest(testing.TestCase, parameterized.TestCase):
     def test_zero_padding_1d_get_config(self):
         layer = layers.ZeroPadding1D(padding=(1, 2))
         expected_config = {
-            "dtype": layer.dtype_policy.name,
+            "dtype": dtype_policies.serialize(layer.dtype_policy),
             "name": layer.name,
             "padding": (1, 2),
             "trainable": layer.trainable,

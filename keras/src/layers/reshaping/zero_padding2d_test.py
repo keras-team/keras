@@ -2,6 +2,7 @@ import numpy as np
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import dtype_policies
 from keras.src import layers
 from keras.src import testing
 
@@ -89,7 +90,7 @@ class ZeroPadding2DTest(testing.TestCase, parameterized.TestCase):
         layer = layers.ZeroPadding2D(padding=(1, 2), data_format=data_format)
         expected_config = {
             "data_format": data_format,
-            "dtype": layer.dtype_policy.name,
+            "dtype": dtype_policies.serialize(layer.dtype_policy),
             "name": layer.name,
             "padding": ((1, 1), (2, 2)),
             "trainable": layer.trainable,

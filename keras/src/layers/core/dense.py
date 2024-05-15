@@ -102,9 +102,7 @@ class Dense(Layer):
     def build(self, input_shape):
         input_dim = input_shape[-1]
         # We use `self._dtype_policy` to check to avoid issues in torch dynamo
-        is_quantized = isinstance(
-            self._dtype_policy, dtype_policies.QuantizedDTypePolicy
-        )
+        is_quantized = self._dtype_policy.is_quantized
         if is_quantized:
             self.quantized_build(
                 input_shape, mode=self.dtype_policy.quantization_mode
@@ -205,7 +203,7 @@ class Dense(Layer):
         target_variables = [kernel_value]
         if self.use_bias:
             target_variables.append(self.bias)
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if self.dtype_policy.is_quantized:
             mode = self.dtype_policy.quantization_mode
             if mode == "int8":
                 target_variables.append(kernel_scale)
@@ -234,7 +232,7 @@ class Dense(Layer):
         target_variables = [self._kernel]
         if self.use_bias:
             target_variables.append(self.bias)
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if self.dtype_policy.is_quantized:
             mode = self.dtype_policy.quantization_mode
             if mode == "int8":
                 target_variables.append(self.kernel_scale)
@@ -577,9 +575,7 @@ class Dense(Layer):
         self._tracker.lock()
 
         # Set new dtype policy
-        if not isinstance(
-            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-        ):
+        if not self.dtype_policy.is_quantized:
             quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
             # We set the internal `self._dtype_policy` instead of using the
             # setter to avoid double `quantize` call
@@ -589,7 +585,7 @@ class Dense(Layer):
         gc.collect()
 
     def _get_kernel_with_merged_lora(self):
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if self.dtype_policy.is_quantized:
             kernel_value = self._kernel
             kernel_scale = self.kernel_scale
             if self.lora_enabled:

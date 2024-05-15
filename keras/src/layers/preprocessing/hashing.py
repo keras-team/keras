@@ -162,7 +162,9 @@ class Hashing(Layer):
                 f"non-positive values. Received: num_bins={num_bins}."
             )
 
-        if output_mode == "int" and not kwargs["dtype"] in ("int32", "int64"):
+        if output_mode == "int" and (
+            self.dtype_policy.name not in ("int32", "int64")
+        ):
             raise ValueError(
                 'When `output_mode="int"`, `dtype` should be an integer '
                 f"type, 'int32' or 'in64'. Received: dtype={kwargs['dtype']}"
