@@ -12,11 +12,21 @@ from keras.src.dtype_policies.dtype_policy import set_dtype_policy
 from keras.src.testing import test_case
 
 
-class FloatDTypePolicyTest(test_case.TestCase):
+class FloatDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
     """Test `FloatDTypePolicy`.
 
     In the tests, we also test `DTypePolicy` for historical reasons.
     """
+
+    def setUp(self):
+        """Record the global dtype policy before each test."""
+        super().setUp()
+        self._global_dtype_policy = dtype_policy()
+
+    def tearDown(self):
+        super().tearDown()
+        """Restore the global dtype policy after each test."""
+        set_dtype_policy(self._global_dtype_policy)
 
     def test_initialization_valid_name(self):
         """Test initialization with a valid name."""
@@ -27,6 +37,31 @@ class FloatDTypePolicyTest(test_case.TestCase):
         policy = FloatDTypePolicy("mixed_float16")
         self.assertEqual(policy.compute_dtype, "float16")
         self.assertEqual(policy.variable_dtype, "float32")
+
+    @parameterized.named_parameters(
+        ("float32", "float32", "float32", "float32"),
+        ("float16", "float16", "float16", "float16"),
+        ("bfloat16", "bfloat16", "bfloat16", "bfloat16"),
+        ("mixed_float16", "mixed_float16", "float16", "float32"),
+        ("mixed_bfloat16", "mixed_bfloat16", "bfloat16", "float32"),
+    )
+    def test_initialization_from_global(
+        self,
+        global_dtype_policy,
+        expected_compute_dtype,
+        expected_variable_dtype,
+    ):
+        set_dtype_policy(global_dtype_policy)
+
+        policy = DTypePolicy(name=None)
+        self.assertEqual(policy.name, global_dtype_policy)
+        self.assertEqual(policy.compute_dtype, expected_compute_dtype)
+        self.assertEqual(policy.variable_dtype, expected_variable_dtype)
+
+        policy = FloatDTypePolicy(name=None)
+        self.assertEqual(policy.name, global_dtype_policy)
+        self.assertEqual(policy.compute_dtype, expected_compute_dtype)
+        self.assertEqual(policy.variable_dtype, expected_variable_dtype)
 
     def test_initialization_invalid_name(self):
         """Test initialization with an invalid name."""
@@ -222,7 +257,7 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         ("bfloat16", "bfloat16", "bfloat16", "bfloat16"),
         ("mixed_bfloat16", "mixed_bfloat16", "bfloat16", "float32"),
     )
-    def test_initialization_for_int8_from_default_dtype_policy(
+    def test_initialization_for_int8_from_global(
         self,
         global_dtype_policy,
         expected_compute_dtype,
@@ -262,7 +297,7 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         ("mixed_float16", "mixed_float16", "float16", "float32"),
         ("mixed_bfloat16", "mixed_bfloat16", "bfloat16", "float32"),
     )
-    def test_initialization_for_float8_from_default_dtype_policy(
+    def test_initialization_for_float8_from_global(
         self,
         global_dtype_policy,
         expected_compute_dtype,
