@@ -88,10 +88,12 @@ class Function(Operation):
 
     @property
     def inputs(self):
+        """Flat list of the symbolic inputs of the Function."""
         return self._inputs
 
     @property
     def outputs(self):
+        """Flat list of the symbolic outputs of the Function."""
         return self._outputs
 
     def compute_output_spec(self, inputs):

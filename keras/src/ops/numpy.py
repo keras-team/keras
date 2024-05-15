@@ -5262,7 +5262,7 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
     def myfunc(a, b):
         return a + b
 
-    vfunc = np.vectorize(myfunc)
+    vfunc = keras.ops.vectorize(myfunc)
     y = vfunc([1, 2, 3, 4], 2)  # Returns Tensor([3, 4, 5, 6])
     ```
 

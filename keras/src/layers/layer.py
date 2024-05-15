@@ -747,8 +747,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # 2. Enforce that only tensors can be passed positionally.
         if not self._allow_non_tensor_positional_args:
             for arg in tree.flatten(args):
-                if not isinstance(arg, KerasTensor) and not backend.is_tensor(
-                    arg
+                if (
+                    not isinstance(arg, KerasTensor)
+                    and not backend.is_tensor(arg)
+                    and arg is not None
                 ):
                     raise ValueError(
                         "Only input tensors may be passed as "
@@ -868,12 +870,14 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             # Set masks on outputs,
             # provided only the first positional input arg and its mask.
             # TODO: consider extending this to all args and kwargs.
-            previous_mask = getattr(call_spec.first_arg, "_keras_mask", None)
+            previous_mask = tree.map_structure(
+                lambda x: getattr(x, "_keras_mask", None), call_spec.first_arg
+            )
             if self.supports_masking:
                 self._set_mask_metadata(
                     call_spec.first_arg, outputs, previous_mask
                 )
-            elif previous_mask is not None:
+            elif any(m is not None for m in tree.flatten(previous_mask)):
                 warnings.warn(
                     f"Layer '{self.name}' (of type {self.__class__.__name__}) "
                     "was passed an input with a mask attached to it. "
@@ -1448,7 +1452,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         return backend.name_scope(self.name, caller=self)
 
 
-def is_backend_tensor_or_symbolic(x):
+def is_backend_tensor_or_symbolic(x, allow_none=False):
+    if allow_none and x is None:
+        return True
     return backend.is_tensor(x) or isinstance(x, backend.KerasTensor)
 
 
@@ -1483,7 +1489,10 @@ class CallSpec:
                 tensor_arg_dict[name] = value
             elif tree.is_nested(value) and len(value) > 0:
                 flat_values = tree.flatten(value)
-                if all(is_backend_tensor_or_symbolic(x) for x in flat_values):
+                if all(
+                    is_backend_tensor_or_symbolic(x, allow_none=True)
+                    for x in flat_values
+                ):
                     tensor_args.append(value)
                     tensor_arg_names.append(name)
                     tensor_arg_dict[name] = value

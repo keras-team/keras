@@ -533,6 +533,27 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         ]
         self.assertAllClose(x_reconstructed, x, atol=1e-4)
 
+    @parameterized.named_parameters(
+        ("b_rank_1", 1, None),
+        ("b_rank_2", 2, None),
+        ("rcond", 1, 1e-3),
+    )
+    def test_lstsq(self, b_rank, rcond):
+        a = np.random.random((5, 7)).astype("float32")
+        a_symb = backend.KerasTensor((5, 7))
+        if b_rank == 1:
+            b = np.random.random((5,)).astype("float32")
+            b_symb = backend.KerasTensor((5,))
+        else:
+            b = np.random.random((5, 4)).astype("float32")
+            b_symb = backend.KerasTensor((5, 4))
+        out = linalg.lstsq(a, b, rcond=rcond)
+        ref_out = np.linalg.lstsq(a, b, rcond=rcond)[0]
+        self.assertAllClose(out, ref_out, atol=1e-5)
+
+        out_symb = linalg.lstsq(a_symb, b_symb)
+        self.assertEqual(out_symb.shape, out.shape)
+
 
 class QrOpTest(testing.TestCase):
     def test_qr_init_mode_reduced(self):

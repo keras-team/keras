@@ -212,6 +212,8 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
 
+    # Test quantization-related (int8) methods
+
     def test_quantize_int8(self):
         layer = layers.Embedding(10, 16)
         layer.build()
@@ -336,6 +338,38 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
         layer.build()
         layer.dtype_policy = policy
         self.assertLen(layer.variables, expected_num_variables)
+
+    @parameterized.named_parameters(
+        ("int7", "int7"),
+        ("float7", "float7"),
+    )
+    def test_quantize_invalid_mode(self, mode):
+        layer = layers.Embedding(10, 16)
+        layer.build()
+        x = np.random.randint(0, 9, size=(1, 3))
+        # dtype_policy should not be altered by failed quantization
+        original_dtype_policy = layer.dtype_policy
+
+        # Test quantize
+        with self.assertRaisesRegex(ValueError, "Invalid quantization mode."):
+            layer.quantize(mode)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+        # Test quantized_build
+        with self.assertRaisesRegex(
+            NotImplementedError, "Invalid quantization mode."
+        ):
+            layer.quantized_build((None, 2), mode)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+        # Test quantized_call
+        with self.assertRaisesRegex(
+            NotImplementedError, "Invalid quantization mode."
+        ):
+            # Explicitly set quantization_mode
+            layer._dtype_policy.quantization_mode = mode
+            layer.quantized_call(x)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_when_lora_enabled(self):

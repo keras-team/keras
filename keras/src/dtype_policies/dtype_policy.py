@@ -266,6 +266,8 @@ class QuantizedDTypePolicy(DTypePolicy):
 
 @keras_export("keras.dtype_policies.QuantizedFloat8DTypePolicy")
 class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
+    default_amax_history_length = 1024
+
     def __init__(self, name, amax_history_length=1024):
         super().__init__(name)
         if not isinstance(amax_history_length, int):
