@@ -1410,6 +1410,16 @@ class DiceTest(testing.TestCase):
         output = losses.Dice()(y_true, y_pred)
         self.assertAllClose(output, 0.77777773)
 
+    def test_binary_segmentation_with_axis(self):
+        y_true = np.array(
+            [[[[1.0], [1.0]], [[0.0], [0.0]]], [[[1.0], [1.0]], [[0.0], [0.0]]]]
+        )
+        y_pred = np.array(
+            [[[[0.0], [1.0]], [[0.0], [1.0]]], [[[0.4], [0.0]], [[0.0], [0.9]]]]
+        )
+        output = losses.Dice(axis=(1, 2, 3), reduction=None)(y_true, y_pred)
+        self.assertAllClose(output, [0.5, 0.75757575])
+
 
 class TverskyTest(testing.TestCase):
     def test_config(self):
