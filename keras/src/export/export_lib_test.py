@@ -145,6 +145,31 @@ class ExportArchiveTest(testing.TestCase, parameterized.TestCase):
         )
         revived_model.serve(bigger_input)
 
+    def test_model_with_multiple_inputs(self):
+
+        class TwoInputsModel(models.Model):
+            def call(self, x, y):
+                return x + y
+
+            def build(self, y_shape, x_shape):
+                self.built = True
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = TwoInputsModel()
+        ref_input_x = tf.random.normal((3, 10))
+        ref_input_y = tf.random.normal((3, 10))
+        ref_output = model(ref_input_x, ref_input_y)
+
+        export_lib.export_model(model, temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(
+            ref_output, revived_model.serve(ref_input_x, ref_input_y)
+        )
+        # Test with a different batch size
+        revived_model.serve(
+            tf.random.normal((6, 10)), tf.random.normal((6, 10))
+        )
+
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
     )
