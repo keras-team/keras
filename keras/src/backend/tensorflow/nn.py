@@ -459,7 +459,8 @@ def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
         cast(x, "int32"), num_classes, axis=axis, dtype=dtype, sparse=sparse
     )
     if sparse:
-        # We don't use `tf.sparse.bincount`, it doesn't handle negative indices.
+        # We don't use `tf.sparse.bincount`, it doesn't handle negative indices
+        # and has a rank limitation.
         return tf.sparse.reduce_max(
             one_hot_outputs, axis=reduction_axis, output_is_sparse=True
         )
