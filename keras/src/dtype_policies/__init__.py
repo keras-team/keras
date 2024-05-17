@@ -60,7 +60,7 @@ def get(identifier):
     The `identifier` may be the string name of a `DTypePolicy` class.
 
     >>> policy = dtype_policies.get("mixed_bfloat16")
-    >>> type(loss)
+    >>> type(policy)
     <class '...FloatDTypePolicy'>
 
     You can also specify `config` of the dtype policy to this function by
@@ -70,7 +70,7 @@ def get(identifier):
     >>> identifier = {"class_name": "FloatDTypePolicy",
     ...               "config": {"name": "float32"}}
     >>> policy = dtype_policies.get(identifier)
-    >>> type(loss)
+    >>> type(policy)
     <class '...FloatDTypePolicy'>
 
     Args:

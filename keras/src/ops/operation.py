@@ -98,10 +98,16 @@ class Operation:
         out of the box in most cases without forcing the user
         to manually implement `get_config()`.
         """
+        instance = super(Operation, cls).__new__(cls)
+
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
-        instance = super(Operation, cls).__new__(cls)
+        if "dtype" in kwargs and isinstance(
+            kwargs["dtype"], dtype_policies.DTypePolicy
+        ):
+            kwargs["dtype"] = kwargs["dtype"].get_config()
+
         # For safety, we only rely on auto-configs for a small set of
         # serializable types.
         supported_types = (str, int, float, bool, type(None))
@@ -187,20 +193,19 @@ class Operation:
 
     @classmethod
     def from_config(cls, config):
-        """Creates a layer from its config.
+        """Creates an operation from its config.
 
-        This method is the reverse of `get_config`,
-        capable of instantiating the same layer from the config
-        dictionary. It does not handle layer connectivity
-        (handled by Network), nor weights (handled by `set_weights`).
+        This method is the reverse of `get_config`, capable of instantiating the
+        same operation from the config dictionary.
 
         Args:
-            config: A Python dictionary, typically the
-                output of get_config.
+            config: A Python dictionary, typically the output of `get_config`.
 
         Returns:
-            A layer instance.
+            An operation instance.
         """
+        if "dtype" in config and isinstance(config["dtype"], dict):
+            config["dtype"] = dtype_policies.deserialize(config["dtype"])
         try:
             return cls(**config)
         except Exception as e:
