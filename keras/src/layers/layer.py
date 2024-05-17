@@ -50,6 +50,8 @@ elif backend.backend() == "torch":
     from keras.src.backend.torch.layer import TorchLayer as BackendLayer
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.layer import NumpyLayer as BackendLayer
+elif backend.backend() == "openvino":
+    from keras.src.backend.openvino.layer import NumpyLayer as BackendLayer
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement a layer mixin class."
@@ -289,6 +291,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         self._convert_input_args = True
         # Whether to allow non-tensors as positional arguments in `call()`.
         self._allow_non_tensor_positional_args = False
+        if backend.backend() == "openvino":
+            self._allow_non_tensor_positional_args = True
+
         # Dict of shapes that were used to call `build()`.
         self._build_shapes_dict = None
         # Parent path

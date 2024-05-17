@@ -163,8 +163,18 @@ class Functional(Function, Model):
         return layers
 
     def call(self, inputs, training=None, mask=None):
+        from keras.src.backend.config import backend
         # Add support for traning, masking
         inputs = self._standardize_inputs(inputs)
+        if backend() == "openvino":
+            from keras.src.backend.openvino.core import get_device
+            if self._ov_device != get_device():
+                # update the current device and re-compile a model
+                self._ov_device = get_device()
+                self._ov_compiled_model = self._ov_core.compile_model(self._ov_model, self._openvino_device)
+            outputs = self._ov_compiled_model(inputs)
+            return unpack_singleton(tree.pack_sequence_as(self._outputs_struct, outputs.to_tuple()))
+
         if mask is None:
             masks = [None] * len(inputs)
         else:

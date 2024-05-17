@@ -41,5 +41,9 @@ elif backend() == "numpy":
     from keras.src.backend.numpy import *  # noqa: F403
 
     distribution_lib = None
+elif backend() == "openvino":
+    from keras.src.backend.openvino import *  # noqa: F403
+
+    distribution_lib = None
 else:
     raise ValueError(f"Unable to import backend : {backend()}")

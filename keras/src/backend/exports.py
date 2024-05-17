@@ -15,6 +15,11 @@ elif backend.backend() == "numpy":
 
     BackendVariable = NumpyVariable
     backend_name_scope = backend.common.name_scope.name_scope
+elif backend.backend() == "openvino":
+    from keras.src.backend.openvino.core import Variable as OpenVINOVariable
+
+    BackendVariable = OpenVINOVariable
+    backend_name_scope = backend.common.name_scope.name_scope
 else:
     raise RuntimeError(f"Invalid backend: {backend.backend()}")
 

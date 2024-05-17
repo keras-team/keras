@@ -86,7 +86,10 @@ class DynamicBackend:
             from keras.src import backend as numpy_backend
 
             return getattr(numpy_backend, name)
+        if self._backend == "openvino":
+            from keras.src.backend import openvino as openvino_backend
 
+            return getattr(openvino_backend, name)
 
 @keras_export("keras.config.set_backend")
 def set_backend(backend):

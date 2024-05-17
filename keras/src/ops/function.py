@@ -81,6 +81,32 @@ class Function(Operation):
         self._nodes_by_depth = nodes_by_depth
         self._operations = operations
         self._operations_by_depth = operations_by_depth
+        if backend() == "openvino":
+            from keras.src.backend.openvino.core import OPENVINO_DTYPES
+            from keras.src.backend.openvino.core import get_device
+            import openvino as ov
+            import openvino.runtime.opset14 as ov_opset
+            from openvino import Core
+            # prepare OpenVINO parameters
+            ov_inputs = []
+            for _input in self._inputs:
+                ov_type = OPENVINO_DTYPES[_input.dtype]
+                ov_shape = _input.shape
+                ov_shape = list(ov_shape)
+                for i in range(len(ov_shape)):
+                    if ov_shape[i] is None:
+                        ov_shape[i] = -1
+                param = ov_opset.parameter(shape=ov_shape, dtype=ov_type)
+                ov_inputs.append(param)
+                pass
+            # build OpenVINO graph - ov.Model
+            ov_outputs = self._run_through_graph(ov_inputs, operation_fn=lambda op: op)
+            ov_outputs = tree.flatten(ov_outputs)
+            self._ov_model = ov.Model(results=ov_outputs, parameters=ov_inputs)
+            self._ov_core = Core()
+            self._ov_device = get_device()
+            self._ov_compiled_model = self._ov_core.compile_model(self._ov_model, self._ov_device)
+            pass
 
     @property
     def operations(self):
@@ -121,6 +147,15 @@ class Function(Operation):
     def call(self, inputs):
         """Computes output tensors for new inputs."""
         self._assert_input_compatibility(inputs)
+        if backend() == "openvino":
+            from keras.src.backend.openvino.core import get_device
+            if self._ov_device != get_device():
+                # update the current device and re-compile a model
+                self._ov_device = get_device()
+                self._ov_compiled_model = self._ov_core.compile_model(self._ov_model, self._openvino_device)
+                inputs = tree.flatten(inputs)
+                outputs = self._ov_compiled_model(inputs)
+                return tree.pack_sequence_as(self._outputs_struct, outputs.to_tuple())
         return self._run_through_graph(inputs, operation_fn=lambda op: op)
 
     def _run_through_graph(self, inputs, operation_fn, call_fn=None):
