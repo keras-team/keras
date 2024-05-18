@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras.src import backend
+from keras.src import dtype_policies
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
 from keras.src.ops import numpy as knp
@@ -38,6 +39,17 @@ class OpWithCustomConstructor(operation.Operation):
         if self.mode == "foo":
             return x
         return self.alpha * x
+
+    def compute_output_spec(self, x):
+        return keras_tensor.KerasTensor(x.shape, x.dtype)
+
+
+class OpWithCustomDtype(operation.Operation):
+    def __init__(self, dtype):
+        super().__init__(dtype=dtype)
+
+    def call(self, x):
+        return x
 
     def compute_output_spec(self, x):
         return keras_tensor.KerasTensor(x.shape, x.dtype)
@@ -160,3 +172,11 @@ class OperationTest(testing.TestCase):
             ValueError, "must be a string and cannot contain character `/`."
         ):
             OpWithMultipleOutputs(name="test/op")
+
+    def test_dtype(self):
+        op = OpWithCustomDtype(dtype="bfloat16")
+        self.assertEqual(op._dtype_policy.name, "bfloat16")
+
+        policy = dtype_policies.DTypePolicy("mixed_bfloat16")
+        op = OpWithCustomDtype(dtype=policy)
+        self.assertEqual(op._dtype_policy.name, "mixed_bfloat16")
