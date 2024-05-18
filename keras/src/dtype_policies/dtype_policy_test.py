@@ -570,12 +570,24 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
         policy = get("mixed_float16")
         self.assertEqual(policy.name, "mixed_float16")
 
+        policy = get(DTypePolicy("bfloat16"))
+        self.assertEqual(policy.name, "bfloat16")
+
+        policy = get(FloatDTypePolicy("mixed_float16"))
+        self.assertEqual(policy.name, "mixed_float16")
+
     def test_get_valid_policy_quantized(self):
         policy = get("int8_from_mixed_bfloat16")
         self.assertEqual(policy.name, "int8_from_mixed_bfloat16")
 
         policy = get("float8_from_float32")
         self.assertEqual(policy.name, "float8_from_float32")
+
+        policy = get(QuantizedDTypePolicy("int8", "mixed_bfloat16"))
+        self.assertEqual(policy.name, "int8_from_mixed_bfloat16")
+
+        policy = get(QuantizedFloat8DTypePolicy("float8", "mixed_float16"))
+        self.assertEqual(policy.name, "float8_from_mixed_float16")
 
     def test_get_invalid_policy(self):
         with self.assertRaisesRegex(ValueError, "Cannot convert"):
