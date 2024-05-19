@@ -27,7 +27,7 @@ given `x`.  We'll use a class of neural networks called
 "Mixture Density Networks".
 
 I'm going to use the new
-[Keras Core project](https://github.com/keras-team/keras) to
+[Keras project](https://github.com/keras-team/keras) to
 build my Mixture Density networks.
 Great job to the Keras team on the project - it's awesome to be able to swap
 frameworks in one line of code.
