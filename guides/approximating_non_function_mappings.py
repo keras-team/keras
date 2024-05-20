@@ -48,6 +48,7 @@ import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 import keras
+from keras.src.losses import LossFunctionWrapper
 from keras import callbacks, layers, ops
 
 # Replace with `from tensorflow_probability import distributions as tfd` for TensorFlow backend
@@ -235,40 +236,46 @@ Network layer based on the true values and our expected outputs:
 """
 
 
-def get_mixture_loss_func(output_dim, num_mixes):
-    def mdn_loss_func(y_true, y_pred):
-        # Reshape inputs in case this is used in a TimeDistributed layer
-        y_pred = ops.reshape(
-            y_pred,
-            [-1, (2 * num_mixes * output_dim) + num_mixes],
+class MDNLoss(LossFunctionWrapper):
+
+    def __init__(self, output_dim, num_mixes, **kwargs):
+        super().__init__(
+            fn=mdn_loss_func,
+            output_dim=output_dim,
+            num_mixes=num_mixes,
+            **kwargs
         )
-        y_true = ops.reshape(y_true, [-1, output_dim])
-        out_mu, out_sigma, out_pi = ops.split(
-            y_pred,
-            3,
-            axis=-1,
-        )
-        # Construct the mixture models
-        cat = tfd.Categorical(logits=out_pi)
-
-        mus = ops.split(out_mu, num_mixes, axis=1)
-        sigs = ops.split(out_sigma, num_mixes, axis=1)
-        coll = [
-            tfd.MultivariateNormalDiag(loc=loc, scale_diag=scale)
-            for loc, scale in zip(mus, sigs)
-        ]
-        mixture = tfd.Mixture(cat=cat, components=coll)
-        loss = mixture.log_prob(y_true)
-        loss = ops.negative(loss)
-        loss = ops.mean(loss)
-        return loss
-
-    return mdn_loss_func
 
 
-mdn_network.compile(
-    loss=get_mixture_loss_func(OUTPUT_DIMS, N_MIXES), optimizer="adam"
-)
+def mdn_loss_func(y_true, y_pred, *, output_dim, num_mixes):
+    # Reshape inputs in case this is used in a TimeDistributed layer
+    y_pred = ops.reshape(
+        y_pred,
+        [-1, (2 * num_mixes * output_dim) + num_mixes],
+    )
+    y_true = ops.reshape(y_true, [-1, output_dim])
+    out_mu, out_sigma, out_pi = ops.split(
+        y_pred,
+        3,
+        axis=-1,
+    )
+    # Construct the mixture models
+    cat = tfd.Categorical(logits=out_pi)
+
+    mus = ops.split(out_mu, num_mixes, axis=1)
+    sigs = ops.split(out_sigma, num_mixes, axis=1)
+    coll = [
+        tfd.MultivariateNormalDiag(loc=loc, scale_diag=scale)
+        for loc, scale in zip(mus, sigs)
+    ]
+    mixture = tfd.Mixture(cat=cat, components=coll)
+    loss = mixture.log_prob(y_true)
+    loss = ops.negative(loss)
+    loss = ops.mean(loss)
+    return loss
+
+
+mdn_network.compile(loss=MDNLoss(OUTPUT_DIMS, N_MIXES), optimizer="adam")
 
 """
 Finally, we can call `model.fit()` like any other Keras model.
