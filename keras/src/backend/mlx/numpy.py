@@ -751,21 +751,7 @@ def reciprocal(x):
 
 def repeat(x, repeats, axis=None):
     x = convert_to_tensor(x)
-
-    if axis is None:
-        x = x.reshape(-1)
-        axis = 0
-
-    shape = x.shape
-    shape.insert(axis + 1, 1)
-    x = x.reshape(shape)
-    shape[axis + 1] = repeats
-    x = mx.broadcast_to(x, shape)
-    shape.pop(axis + 1)
-    shape[axis] *= repeats
-    x = x.reshape(shape)
-
-    return x
+    return mx.repeat(x, repeats, axis=axis)
 
 
 def reshape(x, new_shape):
@@ -1004,7 +990,7 @@ def eye(N, M=None, k=None, dtype=None):
     dtype = to_mlx_dtype(dtype or config.floatx())
     M = N if M is None else M
     k = 0 if k is None else k
-    return mx.eye(N, M, k)
+    return mx.eye(N, M, k, dtype=dtype)
 
 
 def floor_divide(x1, x2):
