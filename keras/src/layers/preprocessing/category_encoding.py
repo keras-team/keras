@@ -44,7 +44,8 @@ class CategoryEncoding(TFDataLayer):
     >>> layer = keras.layers.CategoryEncoding(
     ...           num_tokens=4, output_mode="count")
     >>> count_weights = np.array([[.1, .2], [.1, .1], [.2, .3], [.4, .2]])
-    >>> layer([[0, 1], [0, 0], [1, 2], [3, 1]], count_weights=count_weights)
+    >>> inputs = np.array([[0, 1], [0, 0], [1, 2], [3, 1]])
+    >>> layer(inputs, count_weights=count_weights)
       array([[0.1, 0.2, 0. , 0. ],
              [0.2, 0. , 0. , 0. ],
              [0. , 0.2, 0.3, 0. ],
