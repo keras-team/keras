@@ -148,6 +148,7 @@ class CategoryEncoding(TFDataLayer):
         return outputs
 
     def _encode(self, inputs, count_weights=None):
+        inputs = self.backend.core.convert_to_tensor(inputs)
         if self.output_mode == "multi_hot":
             return self.backend.nn.multi_hot(
                 inputs, self.num_tokens, dtype=self.dtype, sparse=self.sparse
