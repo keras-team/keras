@@ -5,7 +5,7 @@ import numpy as np
 from keras.src import backend
 from keras.src.layers.layer import Layer
 from keras.src.utils import argument_validation
-from keras.src.utils import tf_utils
+from keras.src.utils import numerical_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -565,6 +565,8 @@ class IndexLookup(Layer):
         return backend.KerasTensor(output_shape, dtype=output_dtype)
 
     def adapt(self, data, steps=None):
+        from keras.src.backend import tensorflow as tf_backend
+
         self.reset_state()
         if isinstance(data, tf.data.Dataset):
             if steps is not None:
@@ -572,7 +574,9 @@ class IndexLookup(Layer):
             for batch in data:
                 self.update_state(batch)
         else:
-            data = tf_utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
+            data = tf_backend.convert_to_tensor(
+                data, dtype=self.vocabulary_dtype
+            )
             if data.shape.rank == 1:
                 # A plain list of strings
                 # is treated as as many documents
@@ -581,6 +585,8 @@ class IndexLookup(Layer):
         self.finalize_state()
 
     def update_state(self, data):
+        from keras.src.backend import tensorflow as tf_backend
+
         if self._has_input_vocabulary:
             raise ValueError(
                 f"Cannot adapt layer '{self.name}' after setting a static "
@@ -588,7 +594,7 @@ class IndexLookup(Layer):
                 "`set_vocabulary()` method."
             )
 
-        data = tf_utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
+        data = tf_backend.convert_to_tensor(data, dtype=self.vocabulary_dtype)
         if data.shape.rank == 0:
             data = tf.expand_dims(data, 0)
         if data.shape.rank == 1:
@@ -698,9 +704,11 @@ class IndexLookup(Layer):
             self.num_documents.assign(0)
 
     def call(self, inputs):
+        from keras.src.backend import tensorflow as tf_backend
+
         self._ensure_known_vocab_size()
 
-        inputs = tf_utils.ensure_tensor(inputs, dtype=self._key_dtype)
+        inputs = tf_backend.convert_to_tensor(inputs, dtype=self._key_dtype)
         original_shape = inputs.shape
         # Some ops will not handle scalar input, so uprank to rank 1.
         if inputs.shape.rank == 0:
@@ -731,14 +739,26 @@ class IndexLookup(Layer):
         idf_weights = (
             self.idf_weights_const if self.output_mode == "tf_idf" else None
         )
-        return tf_utils.encode_categorical_inputs(
+        output = numerical_utils.encode_categorical_inputs(
             lookups,
-            output_mode=self.output_mode,
+            output_mode=(
+                "count" if self.output_mode == "tf_idf" else self.output_mode
+            ),
             depth=depth,
             dtype=self._value_dtype,
             sparse=self.sparse,
-            idf_weights=idf_weights,
+            backend_module=tf_backend,
         )
+        if self.output_mode == "tf_idf":
+            if idf_weights is None:
+                raise ValueError(
+                    "When `output_mode` is `'tf_idf'`, `idf_weights` must be "
+                    "provided."
+                )
+            output = tf_backend.numpy.multiply(
+                tf_backend.core.cast(output, idf_weights.dtype), idf_weights
+            )
+        return output
 
     def _lookup_dense(self, inputs):
         """Lookup table values for a dense Tensor, handling masking and OOV."""
