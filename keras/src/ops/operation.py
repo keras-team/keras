@@ -205,6 +205,7 @@ class Operation:
             An operation instance.
         """
         if "dtype" in config and isinstance(config["dtype"], dict):
+            config = config.copy()
             config["dtype"] = dtype_policies.deserialize(config["dtype"])
         try:
             return cls(**config)
