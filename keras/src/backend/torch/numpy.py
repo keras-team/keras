@@ -1007,7 +1007,7 @@ def ndim(x):
 
 def nonzero(x):
     x = convert_to_tensor(x)
-    return tuple(cast(indices, "int32") for indices in torch.nonzero(x).T)
+    return cast(torch.nonzero(x).T, "int32")
 
 
 def not_equal(x1, x2):
