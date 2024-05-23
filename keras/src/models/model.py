@@ -245,9 +245,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 which is the starting layer name and ending layer name
                 (both inclusive) indicating the range of layers to be printed
                 in summary. It also accepts regex patterns instead of exact
-                names. In such case, the start predicate will be the first element
-                it matches to `layer_range[0]` and the end predicate will be
-                the last element it matches to `layer_range[1]`.
+                names. In this case, the start predicate will be
+                the first element that matches `layer_range[0]`
+                and the end predicate will be the last element
+                that matches `layer_range[1]`.
                 By default `None` considers all layers of the model.
 
         Raises:
@@ -268,8 +269,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         """Saves a model as a `.keras` file.
 
         Args:
-            filepath: `str` or `pathlib.Path` object.The path where to save
-                the model. Must end in `.keras`.
+            filepath: `str` or `pathlib.Path` object.
+                The path where to save the model. Must end in `.keras`.
             overwrite: Whether we should overwrite any existing model at
                 the target location, or instead ask the user via
                 an interactive prompt.
