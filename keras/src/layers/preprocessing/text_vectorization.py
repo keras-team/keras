@@ -8,6 +8,7 @@ from keras.src.layers.preprocessing.string_lookup import StringLookup
 from keras.src.saving import serialization_lib
 from keras.src.utils import argument_validation
 from keras.src.utils import backend_utils
+from keras.src.utils import tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -412,8 +413,6 @@ class TextVectorization(Layer):
                 repeating dataset, you must specify the `steps` argument. This
                 argument is not supported with array inputs or list inputs.
         """
-        from keras.src.backend import tensorflow as tf_backend
-
         self.reset_state()
         if isinstance(data, tf.data.Dataset):
             if steps is not None:
@@ -421,7 +420,7 @@ class TextVectorization(Layer):
             for batch in data:
                 self.update_state(batch)
         else:
-            data = tf_backend.convert_to_tensor(data, dtype="string")
+            data = tf_utils.ensure_tensor(data, dtype="string")
             if data.shape.rank == 1:
                 # A plain list of strings
                 # is treated as as many documents
@@ -520,9 +519,7 @@ class TextVectorization(Layer):
         self._lookup_layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
 
     def _preprocess(self, inputs):
-        from keras.src.backend import tensorflow as tf_backend
-
-        inputs = tf_backend.convert_to_tensor(inputs, dtype=tf.string)
+        inputs = tf_utils.ensure_tensor(inputs, dtype=tf.string)
         if self._standardize in ("lower", "lower_and_strip_punctuation"):
             inputs = tf.strings.lower(inputs)
         if self._standardize in (
