@@ -4265,6 +4265,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         y = knp.select(condlist, choicelist, 42)
         self.assertAllClose(y, [0, 1, 2, 42, 16, 25])
 
+        # Test with tuples
+        condlist = (x < 3, x > 3)
+        choicelist = (x, x**2)
+        y = knp.select(condlist, choicelist, 42)
+        self.assertAllClose(y, [0, 1, 2, 42, 16, 25])
+
+        # Test with symbolic tensors
         x = backend.KerasTensor((6,))
         condlist = [x < 3, x > 3]
         choicelist = [x, x**2]

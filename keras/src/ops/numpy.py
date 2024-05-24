@@ -6125,12 +6125,16 @@ def select(condlist, choicelist, default=0):
     # Returns: tensor([0,  1,  2, 42, 16, 25])
     ```
     """
-    if not isinstance(condlist, list) or not isinstance(choicelist, list):
+    if not isinstance(condlist, (list, tuple)) or not isinstance(
+        choicelist, (list, tuple)
+    ):
         raise ValueError(
             "condlist and choicelist must be lists. Received: "
             f"type(condlist) = {type(condlist)}, "
             f"type(choicelist) = {type(choicelist)}"
         )
+    condlist = list(condlist)
+    choicelist = list(choicelist)
     if not condlist or not choicelist:
         raise ValueError(
             "condlist and choicelist must not be empty. Received: "
