@@ -46,6 +46,11 @@ class OpWithCustomConstructor(operation.Operation):
 
 class OpWithCustomDtype(operation.Operation):
     def __init__(self, dtype):
+        if not isinstance(dtype, (str, dtype_policies.DTypePolicy)):
+            raise AssertionError(
+                "`dtype` must be a instance of `DTypePolicy` or str. "
+                f"Received: dtype={dtype} of type {type(dtype)}"
+            )
         super().__init__(dtype=dtype)
 
     def call(self, x):
@@ -180,3 +185,14 @@ class OperationTest(testing.TestCase):
         policy = dtype_policies.DTypePolicy("mixed_bfloat16")
         op = OpWithCustomDtype(dtype=policy)
         self.assertEqual(op._dtype_policy.name, "mixed_bfloat16")
+
+        # Test dtype argument serialization
+        config = op.get_config()
+        revived_op = OpWithCustomDtype.from_config(config)
+        self.assertEqual(op._dtype_policy.name, revived_op._dtype_policy.name)
+
+        # Test dtype config to ensure it remains unchanged
+        config = op.get_config()
+        copied_config = config.copy()
+        OpWithCustomDtype.from_config(config)
+        self.assertEqual(config, copied_config)

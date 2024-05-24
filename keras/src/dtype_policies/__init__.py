@@ -87,9 +87,7 @@ def get(identifier):
 
     if identifier is None:
         return dtype_policy.dtype_policy()
-    if isinstance(
-        identifier, (DTypePolicy, FloatDTypePolicy, QuantizedDTypePolicy)
-    ):
+    if isinstance(identifier, DTypePolicy):
         return identifier
     if isinstance(identifier, dict):
         return deserialize(identifier)
