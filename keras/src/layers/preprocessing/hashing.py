@@ -3,6 +3,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.utils import backend_utils
 from keras.src.utils import numerical_utils
+from keras.src.utils import tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -211,7 +212,7 @@ class Hashing(Layer):
     def call(self, inputs):
         from keras.src.backend import tensorflow as tf_backend
 
-        inputs = tf_backend.convert_to_tensor(inputs)
+        inputs = tf_utils.ensure_tensor(inputs)
         if self.output_mode == "one_hot" and inputs.shape[-1] == 1:
             # One hot only unpranks if the final dimension is not 1.
             inputs = tf_backend.numpy.squeeze(inputs, axis=-1)

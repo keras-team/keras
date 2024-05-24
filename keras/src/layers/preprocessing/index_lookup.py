@@ -6,6 +6,7 @@ from keras.src import backend
 from keras.src.layers.layer import Layer
 from keras.src.utils import argument_validation
 from keras.src.utils import numerical_utils
+from keras.src.utils import tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -565,8 +566,6 @@ class IndexLookup(Layer):
         return backend.KerasTensor(output_shape, dtype=output_dtype)
 
     def adapt(self, data, steps=None):
-        from keras.src.backend import tensorflow as tf_backend
-
         self.reset_state()
         if isinstance(data, tf.data.Dataset):
             if steps is not None:
@@ -574,9 +573,7 @@ class IndexLookup(Layer):
             for batch in data:
                 self.update_state(batch)
         else:
-            data = tf_backend.convert_to_tensor(
-                data, dtype=self.vocabulary_dtype
-            )
+            data = tf_utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
             if data.shape.rank == 1:
                 # A plain list of strings
                 # is treated as as many documents
@@ -585,8 +582,6 @@ class IndexLookup(Layer):
         self.finalize_state()
 
     def update_state(self, data):
-        from keras.src.backend import tensorflow as tf_backend
-
         if self._has_input_vocabulary:
             raise ValueError(
                 f"Cannot adapt layer '{self.name}' after setting a static "
@@ -594,7 +589,7 @@ class IndexLookup(Layer):
                 "`set_vocabulary()` method."
             )
 
-        data = tf_backend.convert_to_tensor(data, dtype=self.vocabulary_dtype)
+        data = tf_utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
         if data.shape.rank == 0:
             data = tf.expand_dims(data, 0)
         if data.shape.rank == 1:
@@ -708,7 +703,7 @@ class IndexLookup(Layer):
 
         self._ensure_known_vocab_size()
 
-        inputs = tf_backend.convert_to_tensor(inputs, dtype=self._key_dtype)
+        inputs = tf_utils.ensure_tensor(inputs, dtype=self._key_dtype)
         original_shape = inputs.shape
         # Some ops will not handle scalar input, so uprank to rank 1.
         if inputs.shape.rank == 0:

@@ -4,6 +4,7 @@ from keras.src.layers.layer import Layer
 from keras.src.utils import argument_validation
 from keras.src.utils import backend_utils
 from keras.src.utils import numerical_utils
+from keras.src.utils import tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -138,7 +139,7 @@ class HashedCrossing(Layer):
         from keras.src.backend import tensorflow as tf_backend
 
         self._check_at_least_two_inputs(inputs)
-        inputs = [tf_backend.convert_to_tensor(x) for x in inputs]
+        inputs = [tf_utils.ensure_tensor(x) for x in inputs]
         self._check_input_shape_and_type(inputs)
 
         # Uprank to rank 2 for the cross_hashed op.
