@@ -157,7 +157,9 @@ def arctan(x):
 
 
 def arctan2(x1, x2):
-    raise NotImplementedError("The MLX backend doesn't support arctan2 yet")
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return mx.arctan2(x1, x2)
 
 
 def arctanh(x):
