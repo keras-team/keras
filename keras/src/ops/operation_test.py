@@ -179,6 +179,7 @@ class OperationTest(testing.TestCase):
             OpWithMultipleOutputs(name="test/op")
 
     def test_dtype(self):
+        # Test dtype argument
         op = OpWithCustomDtype(dtype="bfloat16")
         self.assertEqual(op._dtype_policy.name, "bfloat16")
 
@@ -186,13 +187,24 @@ class OperationTest(testing.TestCase):
         op = OpWithCustomDtype(dtype=policy)
         self.assertEqual(op._dtype_policy.name, "mixed_bfloat16")
 
-        # Test dtype argument serialization
-        config = op.get_config()
-        revived_op = OpWithCustomDtype.from_config(config)
-        self.assertEqual(op._dtype_policy.name, revived_op._dtype_policy.name)
-
         # Test dtype config to ensure it remains unchanged
         config = op.get_config()
         copied_config = config.copy()
         OpWithCustomDtype.from_config(config)
         self.assertEqual(config, copied_config)
+
+        # Test floating dtype serialization
+        op = OpWithCustomDtype(dtype="mixed_bfloat16")
+        config = op.get_config()
+        self.assertEqual(config["dtype"], "mixed_bfloat16")  # A plain string
+        revived_op = OpWithCustomDtype.from_config(config)
+        self.assertEqual(op._dtype_policy.name, revived_op._dtype_policy.name)
+
+        # Test quantized dtype serialization
+        policy = dtype_policies.QuantizedDTypePolicy("int8", "bfloat16")
+        op = OpWithCustomDtype(policy)
+        self.assertEqual(op._dtype_policy.name, "int8_from_bfloat16")
+        config = op.get_config()  # A serialized config
+        self.assertEqual(config["dtype"], dtype_policies.serialize(policy))
+        revived_op = OpWithCustomDtype.from_config(config)
+        self.assertEqual(op._dtype_policy.name, revived_op._dtype_policy.name)

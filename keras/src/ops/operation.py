@@ -105,10 +105,15 @@ class Operation:
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
 
         # Explicitly serialize `dtype` into dict to support _auto_config
-        if "dtype" in kwargs and isinstance(
-            kwargs["dtype"], dtype_policies.DTypePolicy
-        ):
-            kwargs["dtype"] = dtype_policies.serialize(kwargs["dtype"])
+        dtype = kwargs.get("dtype", None)
+        if dtype is not None and isinstance(dtype, dtype_policies.DTypePolicy):
+            # For backward compatibility, we use a plain string (`name`) for
+            # `FloatDTypePolicy`
+            if not dtype.is_quantized:
+                kwargs["dtype"] = dtype.name
+            # Otherwise, use `dtype_policies.serialize`
+            else:
+                kwargs["dtype"] = dtype_policies.serialize(dtype)
 
         # For safety, we only rely on auto-configs for a small set of
         # serializable types.
