@@ -104,10 +104,10 @@ class Operation:
         arg_names = inspect.getfullargspec(cls.__init__).args
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
 
-        # Explicitly serialize `dtype` into dict to support _auto_config
+        # Explicitly serialize `dtype` to support auto_config
         dtype = kwargs.get("dtype", None)
         if dtype is not None and isinstance(dtype, dtype_policies.DTypePolicy):
-            # For backward compatibility, we use a plain string (`name`) for
+            # For backward compatibility, we use a str (`name`) for
             # `FloatDTypePolicy`
             if not dtype.is_quantized:
                 kwargs["dtype"] = dtype.name
@@ -210,7 +210,7 @@ class Operation:
 
         ```python
         if "dtype" in config and isinstance(config["dtype"], dict):
-            config["dtype"] = dtype_policies.deserialize(config["dtype"])
+            policy = dtype_policies.deserialize(config["dtype"])
         ```
 
         Args:
