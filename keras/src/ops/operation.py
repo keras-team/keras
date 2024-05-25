@@ -103,10 +103,17 @@ class Operation:
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
-        if "dtype" in kwargs and isinstance(
-            kwargs["dtype"], dtype_policies.DTypePolicy
-        ):
-            kwargs["dtype"] = kwargs["dtype"].get_config()
+
+        # Explicitly serialize `dtype` to support auto_config
+        dtype = kwargs.get("dtype", None)
+        if dtype is not None and isinstance(dtype, dtype_policies.DTypePolicy):
+            # For backward compatibility, we use a str (`name`) for
+            # `FloatDTypePolicy`
+            if not dtype.is_quantized:
+                kwargs["dtype"] = dtype.name
+            # Otherwise, use `dtype_policies.serialize`
+            else:
+                kwargs["dtype"] = dtype_policies.serialize(dtype)
 
         # For safety, we only rely on auto-configs for a small set of
         # serializable types.
@@ -198,12 +205,22 @@ class Operation:
         This method is the reverse of `get_config`, capable of instantiating the
         same operation from the config dictionary.
 
+        Note: If you override this method, you might receive a serialized dtype
+        config, which is a `dict`. You can deserialize it as follows:
+
+        ```python
+        if "dtype" in config and isinstance(config["dtype"], dict):
+            policy = dtype_policies.deserialize(config["dtype"])
+        ```
+
         Args:
             config: A Python dictionary, typically the output of `get_config`.
 
         Returns:
             An operation instance.
         """
+        # Explicitly deserialize dtype config if needed. This enables users to
+        # directly interact with the instance of `DTypePolicy`.
         if "dtype" in config and isinstance(config["dtype"], dict):
             config = config.copy()
             config["dtype"] = dtype_policies.deserialize(config["dtype"])
