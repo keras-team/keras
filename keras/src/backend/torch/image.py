@@ -4,6 +4,7 @@ import operator
 
 import torch
 
+from keras.src import backend
 from keras.src.backend.torch.core import convert_to_tensor
 
 RESIZE_INTERPOLATIONS = {}  # populated after torchvision import
@@ -14,7 +15,8 @@ UNSUPPORTED_INTERPOLATIONS = (
 )
 
 
-def rgb_to_grayscale(image, data_format="channel_last"):
+def rgb_to_grayscale(image, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
     try:
         import torchvision
     except:
@@ -55,8 +57,9 @@ def resize(
     pad_to_aspect_ratio=False,
     fill_mode="constant",
     fill_value=0.0,
-    data_format="channels_last",
+    data_format=None,
 ):
+    data_format = backend.standardize_data_format(data_format)
     try:
         import torchvision
         from torchvision.transforms import InterpolationMode as im
@@ -216,8 +219,9 @@ def affine_transform(
     interpolation="bilinear",
     fill_mode="constant",
     fill_value=0,
-    data_format="channels_last",
+    data_format=None,
 ):
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "

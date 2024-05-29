@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -37,6 +38,26 @@ class StringLookupTest(testing.TestCase):
         output = layer(input_data)
         self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([2, 3, 0]))
+
+    @pytest.mark.skipif(
+        not backend.backend() == "tensorflow", reason="Requires tf.SparseTensor"
+    )
+    def test_sparse_inputs(self):
+        import tensorflow as tf
+
+        layer = layers.StringLookup(
+            output_mode="int",
+            vocabulary=["a", "b", "c"],
+        )
+        input_data = tf.SparseTensor(
+            indices=[[0, 0], [1, 1], [2, 2]],
+            values=["b", "c", "d"],
+            dense_shape=(3, 3),
+        )
+        output = layer(input_data)
+        self.assertIsInstance(output, tf.SparseTensor)
+        self.assertAllClose(output, np.array([[2, 0, 0], [0, 3, 0], [0, 0, 0]]))
+        self.assertAllClose(output.values, np.array([2, 3, 0]))
 
     def test_set_vocabulary(self):
         layer = layers.StringLookup(

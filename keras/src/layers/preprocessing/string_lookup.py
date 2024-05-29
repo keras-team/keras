@@ -382,7 +382,7 @@ class StringLookup(IndexLookup):
         return {**base_config, **config}
 
     def call(self, inputs):
-        if isinstance(inputs, (tf.Tensor, tf.RaggedTensor)):
+        if isinstance(inputs, (tf.Tensor, tf.RaggedTensor, tf.SparseTensor)):
             tf_inputs = True
         else:
             tf_inputs = False
