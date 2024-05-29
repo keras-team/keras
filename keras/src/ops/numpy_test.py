@@ -2517,7 +2517,7 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             )[0],
         )
 
-        # Test `num` as tensor
+        # Test `num` as a tensor
         # https://github.com/keras-team/keras/issues/19772
         self.assertAllClose(
             knp.linspace(0, 10, backend.convert_to_tensor(5)),
