@@ -8,17 +8,13 @@ from keras.src.ops.operation_utils import compute_conv_output_shape
 
 
 class RGBToGrayscale(Operation):
-    def __init__(
-        self,
-        data_format="channels_last",
-    ):
+    def __init__(self, data_format=None):
         super().__init__()
-        self.data_format = data_format
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, image):
         return backend.image.rgb_to_grayscale(
-            image,
-            data_format=self.data_format,
+            image, data_format=self.data_format
         )
 
     def compute_output_spec(self, image):
@@ -52,10 +48,7 @@ class RGBToGrayscale(Operation):
 
 
 @keras_export("keras.ops.image.rgb_to_grayscale")
-def rgb_to_grayscale(
-    image,
-    data_format="channels_last",
-):
+def rgb_to_grayscale(image, data_format=None):
     """Convert RGB images to grayscale.
 
     This function converts RGB images to grayscale images. It supports both
@@ -70,7 +63,8 @@ def rgb_to_grayscale(
             `"channels_last"` corresponds to inputs with shape
             `(batch, height, width, channels)`, while `"channels_first"`
             corresponds to inputs with shape `(batch, channels, height, width)`.
-            Defaults to `"channels_last"`.
+            If not specified, the value will be interpreted by
+            `keras.config.image_data_format`. Defaults to `None`.
 
     Returns:
         Grayscale image or batch of grayscale images.
@@ -114,13 +108,13 @@ class Resize(Operation):
         pad_to_aspect_ratio=False,
         fill_mode="constant",
         fill_value=0.0,
-        data_format="channels_last",
+        data_format=None,
     ):
         super().__init__()
         self.size = tuple(size)
         self.interpolation = interpolation
         self.antialias = antialias
-        self.data_format = data_format
+        self.data_format = backend.standardize_data_format(data_format)
         self.crop_to_aspect_ratio = crop_to_aspect_ratio
         self.pad_to_aspect_ratio = pad_to_aspect_ratio
         self.fill_mode = fill_mode
@@ -172,7 +166,7 @@ def resize(
     pad_to_aspect_ratio=False,
     fill_mode="constant",
     fill_value=0.0,
-    data_format="channels_last",
+    data_format=None,
 ):
     """Resize images to size using the specified interpolation method.
 
@@ -199,14 +193,13 @@ def resize(
             supported at this time
             (fill with constant value, equal to `fill_value`).
         fill_value: Float. Padding value to use when `pad_to_aspect_ratio=True`.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, weight)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
-            `"channels_last"`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will be interpreted by
+            `keras.config.image_data_format`. Defaults to `None`.
 
     Returns:
         Resized image or batch of images.
@@ -275,13 +268,13 @@ class AffineTransform(Operation):
         interpolation="bilinear",
         fill_mode="constant",
         fill_value=0,
-        data_format="channels_last",
+        data_format=None,
     ):
         super().__init__()
         self.interpolation = interpolation
         self.fill_mode = fill_mode
         self.fill_value = fill_value
-        self.data_format = data_format
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, image, transform):
         return backend.image.affine_transform(
@@ -316,7 +309,7 @@ def affine_transform(
     interpolation="bilinear",
     fill_mode="constant",
     fill_value=0,
-    data_format="channels_last",
+    data_format=None,
 ):
     """Applies the given transform(s) to the image(s).
 
@@ -350,14 +343,13 @@ def affine_transform(
                 The input is extended by the nearest pixel.
         fill_value: Value used for points outside the boundaries of the input if
             `fill_mode="constant"`. Defaults to `0`.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, weight)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
-            `"channels_last"`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will be interpreted by
+            `keras.config.image_data_format`. Defaults to `None`.
 
     Returns:
         Applied affine transform image or batch of images.
@@ -417,7 +409,7 @@ class ExtractPatches(Operation):
         strides=None,
         dilation_rate=1,
         padding="valid",
-        data_format="channels_last",
+        data_format=None,
     ):
         super().__init__()
         if isinstance(size, int):
@@ -426,7 +418,7 @@ class ExtractPatches(Operation):
         self.strides = strides
         self.dilation_rate = dilation_rate
         self.padding = padding
-        self.data_format = data_format
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, image):
         return _extract_patches(
@@ -471,7 +463,7 @@ def extract_patches(
     strides=None,
     dilation_rate=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
 ):
     """Extracts patches from the image(s).
 
@@ -485,14 +477,13 @@ def extract_patches(
             strides must be 1. NOTE: `strides > 1` is not supported in
             conjunction with `dilation_rate > 1`
         padding: The type of padding algorithm to use: `"same"` or `"valid"`.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, weight)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
-            `"channels_last"`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will be interpreted by
+            `keras.config.image_data_format`. Defaults to `None`.
 
     Returns:
         Extracted patches 3D (if not batched) or 4D (if batched)
@@ -530,7 +521,7 @@ def _extract_patches(
     strides=None,
     dilation_rate=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
 ):
     if isinstance(size, int):
         patch_h = patch_w = size
@@ -541,6 +532,7 @@ def _extract_patches(
             "Invalid `size` argument. Expected an "
             f"int or a tuple of length 2. Received: size={size}"
         )
+    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         channels_in = image.shape[-1]
     elif data_format == "channels_first":

@@ -1,6 +1,7 @@
 import jax
 import numpy as np
 
+from keras.src import backend
 from keras.src.backend.numpy.core import convert_to_tensor
 from keras.src.utils.module_utils import scipy
 
@@ -13,7 +14,8 @@ RESIZE_INTERPOLATIONS = (
 )
 
 
-def rgb_to_grayscale(image, data_format="channels_last"):
+def rgb_to_grayscale(image, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_first":
         if len(image.shape) == 4:
             image = np.transpose(image, (0, 2, 3, 1))
@@ -45,8 +47,9 @@ def resize(
     pad_to_aspect_ratio=False,
     fill_mode="constant",
     fill_value=0.0,
-    data_format="channels_last",
+    data_format=None,
 ):
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -231,8 +234,9 @@ def affine_transform(
     interpolation="bilinear",
     fill_mode="constant",
     fill_value=0,
-    data_format="channels_last",
+    data_format=None,
 ):
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
