@@ -316,6 +316,7 @@ class StringLookup(IndexLookup):
             raise ValueError(
                 "`sparse=True` can only be used with the " "TensorFlow backend."
             )
+        self.encoding = encoding
         super().__init__(
             max_tokens=max_tokens,
             num_oov_indices=num_oov_indices,
@@ -331,7 +332,6 @@ class StringLookup(IndexLookup):
             vocabulary_dtype="string",
             **kwargs,
         )
-        self.encoding = encoding
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
         self.supports_jit = False

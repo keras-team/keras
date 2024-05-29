@@ -5,6 +5,7 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.ops import convert_to_tensor
 
 
 class StringLookupTest(testing.TestCase):
@@ -79,3 +80,12 @@ class StringLookupTest(testing.TestCase):
         for output in ds.take(1):
             output = output.numpy()
         self.assertAllClose(output, np.array([2, 3, 0]))
+
+    def test_tensor_as_vocab(self):
+        vocab = convert_to_tensor(["a", "b", "c", "d"])
+        data = [["a", "c", "d"], ["d", "z", "b"]]
+        layer = layers.StringLookup(
+            vocabulary=vocab,
+        )
+        output = layer(data)
+        self.assertAllClose(output, np.array([[1, 3, 4], [4, 0, 2]]))
