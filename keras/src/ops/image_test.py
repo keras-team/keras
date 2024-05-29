@@ -56,6 +56,35 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.pad_images(x, 2, 3, target_height=20, target_width=30)
         self.assertEqual(out.shape, (20, 30, 3))
 
+        # Test unknown shape
+        x = KerasTensor([None, None, 3])
+        out = kimage.pad_images(x, 2, 3, 2, 3)
+        self.assertEqual(out.shape, (None, None, 3))
+
+        # Test channels_first and batched
+        x = KerasTensor([None, 3, 15, 25])
+        out = kimage.pad_images(
+            x,
+            2,
+            3,
+            target_height=20,
+            target_width=30,
+            data_format="channels_first",
+        )
+        self.assertEqual(out.shape, (None, 3, 20, 30))
+
+        # Test channels_first and unbatched
+        x = KerasTensor([3, None, None])
+        out = kimage.pad_images(
+            x,
+            2,
+            3,
+            target_height=20,
+            target_width=30,
+            data_format="channels_first",
+        )
+        self.assertEqual(out.shape, (3, 20, 30))
+
     def test_crop_images(self):
         x = KerasTensor([None, 15, 25, 3])
         out = kimage.crop_images(x, 2, 3, target_height=10, target_width=20)
@@ -64,6 +93,30 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, None, 3])
         out = kimage.crop_images(x, 2, 3, target_height=10, target_width=20)
         self.assertEqual(out.shape, (10, 20, 3))
+
+        # Test channels_first and batched
+        x = KerasTensor([None, 3, 15, 25])
+        out = kimage.crop_images(
+            x,
+            2,
+            3,
+            target_height=10,
+            target_width=20,
+            data_format="channels_first",
+        )
+        self.assertEqual(out.shape, (None, 3, 10, 20))
+
+        # Test channels_first and unbatched
+        x = KerasTensor([3, None, None])
+        out = kimage.crop_images(
+            x,
+            2,
+            3,
+            target_height=10,
+            target_width=20,
+            data_format="channels_first",
+        )
+        self.assertEqual(out.shape, (3, 10, 20))
 
 
 class ImageOpsStaticShapeTest(testing.TestCase):
@@ -108,6 +161,30 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         )
         self.assertEqual(out_batch.shape, (2, 20, 30, 3))
 
+        # Test channels_first and unbatched
+        x = KerasTensor([3, 15, 25])
+        out = kimage.pad_images(
+            x,
+            2,
+            3,
+            target_height=20,
+            target_width=30,
+            data_format="channels_first",
+        )
+        self.assertEqual(out.shape, (3, 20, 30))
+
+        # Test channels_first and batched
+        x_batch = KerasTensor([2, 3, 15, 25])
+        out_batch = kimage.pad_images(
+            x_batch,
+            2,
+            3,
+            target_height=20,
+            target_width=30,
+            data_format="channels_first",
+        )
+        self.assertEqual(out_batch.shape, (2, 3, 20, 30))
+
     def test_crop_images(self):
         x = KerasTensor([15, 25, 3])
         out = kimage.crop_images(x, 2, 3, target_height=10, target_width=20)
@@ -118,6 +195,30 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             x_batch, 2, 3, target_height=10, target_width=20
         )
         self.assertEqual(out_batch.shape, (2, 10, 20, 3))
+
+        # Test channels_first and unbatched
+        x = KerasTensor([3, 15, 25])
+        out = kimage.crop_images(
+            x,
+            2,
+            3,
+            target_height=10,
+            target_width=20,
+            data_format="channels_first",
+        )
+        self.assertEqual(out.shape, (3, 10, 20))
+
+        # Test channels_first and batched
+        x_batch = KerasTensor([2, 3, 15, 25])
+        out_batch = kimage.crop_images(
+            x_batch,
+            2,
+            3,
+            target_height=10,
+            target_width=20,
+            data_format="channels_first",
+        )
+        self.assertEqual(out_batch.shape, (2, 3, 10, 20))
 
 
 AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
@@ -597,6 +698,8 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             (0, 0, None, None, 0, 1),
             (0, 0, None, None, 1, 0),
             (1, 2, None, None, 3, 4),
+            (0, 0, 3, 3, None, None, "channels_first"),
+            (1, 0, 4, 3, None, None, "channels_first"),
         ]
     )
     def test_pad_images(
@@ -607,31 +710,41 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         target_width,
         bottom_padding,
         right_padding,
+        data_format="channels_last",
     ):
         image = np.random.uniform(size=(3, 3, 1))
+        if data_format == "channels_first":
+            image = np.transpose(image, [2, 0, 1])
         padded_image = kimage.pad_images(
             image,
             top_padding,
             left_padding,
-            target_height,
-            target_width,
             bottom_padding,
             right_padding,
+            target_height,
+            target_width,
+            data_format=data_format,
         )
         if target_height is None:
             target_height = image.shape[0] + top_padding + bottom_padding
         if target_width is None:
             target_width = image.shape[1] + left_padding + right_padding
+
+        # `tf.image.pad_to_bounding_box` only accepts channels_last format
+        if data_format == "channels_first":
+            image = np.transpose(image, [1, 2, 0])
         ref_padded_image = tf.image.pad_to_bounding_box(
             image, top_padding, left_padding, target_height, target_width
         )
+        ref_padded_image = ref_padded_image.numpy()
+        if data_format == "channels_first":
+            ref_padded_image = np.transpose(ref_padded_image, [2, 0, 1])
+
         self.assertEqual(
             tuple(padded_image.shape), tuple(ref_padded_image.shape)
         )
         self.assertAllClose(
-            ref_padded_image.numpy(),
-            backend.convert_to_numpy(padded_image),
-            atol=1e-5,
+            ref_padded_image, backend.convert_to_numpy(padded_image)
         )
 
     @parameterized.parameters(
@@ -644,6 +757,8 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             (0, 0, None, None, 0, 1),
             (0, 0, None, None, 1, 0),
             (1, 2, None, None, 3, 4),
+            (0, 0, 3, 3, None, None, "channels_first"),
+            (1, 0, 4, 3, None, None, "channels_first"),
         ]
     )
     def test_crop_images(
@@ -654,31 +769,41 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         target_width,
         bottom_cropping,
         right_cropping,
+        data_format="channels_last",
     ):
         image = np.random.uniform(size=(10, 10, 1))
+        if data_format == "channels_first":
+            image = np.transpose(image, [2, 0, 1])
         cropped_image = kimage.crop_images(
             image,
             top_cropping,
             left_cropping,
-            target_height,
-            target_width,
             bottom_cropping,
             right_cropping,
+            target_height,
+            target_width,
+            data_format,
         )
         if target_height is None:
             target_height = image.shape[0] - top_cropping - bottom_cropping
         if target_width is None:
             target_width = image.shape[1] - left_cropping - right_cropping
+
+        # `tf.image.crop_to_bounding_box` only accepts channels_last format
+        if data_format == "channels_first":
+            image = np.transpose(image, [1, 2, 0])
         ref_cropped_image = tf.image.crop_to_bounding_box(
             image, top_cropping, left_cropping, target_height, target_width
         )
+        ref_cropped_image = ref_cropped_image.numpy()
+        if data_format == "channels_first":
+            ref_cropped_image = np.transpose(ref_cropped_image, [2, 0, 1])
+
         self.assertEqual(
             tuple(cropped_image.shape), tuple(ref_cropped_image.shape)
         )
         self.assertAllClose(
-            ref_cropped_image.numpy(),
-            backend.convert_to_numpy(cropped_image),
-            atol=1e-5,
+            ref_cropped_image, backend.convert_to_numpy(cropped_image)
         )
 
     def test_rgb_to_grayscale_invalid_rank_two_tensor(self):
@@ -834,3 +959,20 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             expected_shape,
             "Output shape should be correct for valid inputs",
         )
+
+
+class ImageOpsBehaviorTests(testing.TestCase):
+    def test_crop_images_unknown_shape(self):
+        # Test unknown height and target_height
+        x = KerasTensor([None, 10, 3])
+        with self.assertRaisesRegex(
+            ValueError, "When the height of the images is unknown"
+        ):
+            kimage.crop_images(x, 2, 3, 4, 5)
+
+        # Test unknown width and target_width
+        x = KerasTensor([10, None, 3])
+        with self.assertRaisesRegex(
+            ValueError, "When the width of the images is unknown"
+        ):
+            kimage.crop_images(x, 2, 3, 4, 5)

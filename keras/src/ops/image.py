@@ -114,11 +114,11 @@ class Resize(Operation):
         self.size = tuple(size)
         self.interpolation = interpolation
         self.antialias = antialias
-        self.data_format = backend.standardize_data_format(data_format)
         self.crop_to_aspect_ratio = crop_to_aspect_ratio
         self.pad_to_aspect_ratio = pad_to_aspect_ratio
         self.fill_mode = fill_mode
         self.fill_value = fill_value
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, image):
         return backend.image.resize(
@@ -657,6 +657,7 @@ class PadImages(Operation):
         right_padding=None,
         target_height=None,
         target_width=None,
+        data_format=None,
     ):
         super().__init__()
         self.top_padding = top_padding
@@ -665,6 +666,7 @@ class PadImages(Operation):
         self.right_padding = right_padding
         self.target_height = target_height
         self.target_width = target_width
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
         return _pad_images(
@@ -675,36 +677,27 @@ class PadImages(Operation):
             self.right_padding,
             self.target_height,
             self.target_width,
+            self.data_format,
         )
 
     def compute_output_spec(self, images):
-        images_shape = ops.shape(images)
-        if self.target_height is None:
-            height_axis = 0 if len(images_shape) == 3 else 1
-            self.target_height = (
-                self.top_padding
-                + images_shape[height_axis]
-                + self.bottom_padding
-            )
-        if self.target_width is None:
-            width_axis = 0 if len(images_shape) == 3 else 2
-            self.target_width = (
-                self.left_padding
-                + images_shape[width_axis]
-                + self.right_padding
-            )
-        out_shape = (
-            images_shape[0],
-            self.target_height,
-            self.target_width,
-            images_shape[-1],
-        )
-        if len(images_shape) == 3:
-            out_shape = out_shape[1:]
-        return KerasTensor(
-            shape=out_shape,
-            dtype=images.dtype,
-        )
+        images_shape = list(images.shape)
+
+        if self.data_format == "channels_last":
+            height_axis, width_axis = -3, -2
+            height, width = images_shape[height_axis], images_shape[width_axis]
+        else:
+            height_axis, width_axis = -2, -1
+            height, width = images_shape[height_axis], images_shape[width_axis]
+
+        if self.target_height is None and height is not None:
+            self.target_height = self.top_padding + height + self.bottom_padding
+        if self.target_width is None and width is not None:
+            self.target_width = self.left_padding + width + self.right_padding
+
+        images_shape[height_axis] = self.target_height
+        images_shape[width_axis] = self.target_width
+        return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.pad_images")
@@ -712,10 +705,11 @@ def pad_images(
     images,
     top_padding=None,
     left_padding=None,
-    target_height=None,
-    target_width=None,
     bottom_padding=None,
     right_padding=None,
+    target_height=None,
+    target_width=None,
+    data_format=None,
 ):
     """Pad `images` with zeros to the specified `height` and `width`.
 
@@ -728,12 +722,16 @@ def pad_images(
         right_padding: Number of columns of zeros to add on the right.
         target_height: Height of output images.
         target_width: Width of output images.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will be interpreted by
+            `keras.config.image_data_format`. Defaults to `None`.
 
     Returns:
-        If `images` were 4D, a 4D float Tensor of shape
-            `(batch, target_height, target_width, channels)`
-        If `images` were 3D, a 3D float Tensor of shape
-            `(target_height, target_width, channels)`
+        Padded image or batch of images.
 
     Example:
 
@@ -759,6 +757,7 @@ def pad_images(
             right_padding,
             target_height,
             target_width,
+            data_format,
         ).symbolic_call(images)
 
     return _pad_images(
@@ -769,6 +768,7 @@ def pad_images(
         right_padding,
         target_height,
         target_width,
+        data_format,
     )
 
 
@@ -780,22 +780,19 @@ def _pad_images(
     right_padding,
     target_height,
     target_width,
+    data_format=None,
 ):
+    data_format = backend.standardize_data_format(data_format)
     images = backend.convert_to_tensor(images)
-    is_batch = True
     images_shape = ops.shape(images)
-    if len(images_shape) == 3:
-        is_batch = False
-        images = backend.numpy.expand_dims(images, 0)
-    elif len(images_shape) != 4:
+
+    # Check
+    if len(images_shape) not in (3, 4):
         raise ValueError(
             f"Invalid shape for argument `images`: "
             "it must have rank 3 or 4. "
             f"Received: images.shape={images_shape}"
         )
-
-    batch, height, width, depth = ops.shape(images)
-
     if [top_padding, bottom_padding, target_height].count(None) != 1:
         raise ValueError(
             "Must specify exactly two of "
@@ -813,6 +810,13 @@ def _pad_images(
             f"target_width={target_width}"
         )
 
+    is_batch = False if len(images_shape) == 3 else True
+    if data_format == "channels_last":
+        height, width = images_shape[-3], images_shape[-2]
+    else:
+        height, width = images_shape[-2], images_shape[-1]
+
+    # Infer padding
     if top_padding is None:
         top_padding = target_height - bottom_padding - height
     if bottom_padding is None:
@@ -824,7 +828,7 @@ def _pad_images(
 
     if top_padding < 0:
         raise ValueError(
-            "top_padding must be >= 0. " f"Received: top_padding={top_padding}"
+            f"top_padding must be >= 0. Received: top_padding={top_padding}"
         )
     if left_padding < 0:
         raise ValueError(
@@ -842,33 +846,17 @@ def _pad_images(
             f"Received: bottom_padding={bottom_padding}"
         )
 
-    paddings = backend.numpy.reshape(
-        backend.numpy.stack(
-            [
-                0,
-                0,
-                top_padding,
-                bottom_padding,
-                left_padding,
-                right_padding,
-                0,
-                0,
-            ]
-        ),
-        [4, 2],
-    )
-    padded = backend.numpy.pad(images, paddings)
+    # Compute pad_width
+    pad_width = [[top_padding, bottom_padding], [left_padding, right_padding]]
+    if data_format == "channels_last":
+        pad_width = pad_width + [[0, 0]]
+    else:
+        pad_width = [[0, 0]] + pad_width
+    if is_batch:
+        pad_width = [[0, 0]] + pad_width
 
-    if target_height is None:
-        target_height = top_padding + height + bottom_padding
-    if target_width is None:
-        target_width = left_padding + width + right_padding
-    padded_shape = [batch, target_height, target_width, depth]
-    padded = backend.numpy.reshape(padded, padded_shape)
-
-    if not is_batch:
-        padded = backend.numpy.squeeze(padded, axis=[0])
-    return padded
+    padded_images = backend.numpy.pad(images, pad_width)
+    return padded_images
 
 
 class CropImages(Operation):
@@ -880,6 +868,7 @@ class CropImages(Operation):
         right_cropping,
         target_height,
         target_width,
+        data_format=None,
     ):
         super().__init__()
         self.top_cropping = top_cropping
@@ -888,6 +877,7 @@ class CropImages(Operation):
         self.right_cropping = right_cropping
         self.target_height = target_height
         self.target_width = target_width
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
         return _crop_images(
@@ -898,42 +888,44 @@ class CropImages(Operation):
             self.right_cropping,
             self.target_height,
             self.target_width,
+            self.data_format,
         )
 
     def compute_output_spec(self, images):
-        images_shape = ops.shape(images)
-        out_shape = (
-            images_shape[0],
-            self.target_height,
-            self.target_width,
-            images_shape[-1],
-        )
+        images_shape = list(images.shape)
+
+        if self.data_format == "channels_last":
+            height_axis, width_axis = -3, -2
+            height, width = images_shape[height_axis], images_shape[width_axis]
+        else:
+            height_axis, width_axis = -2, -1
+            height, width = images_shape[height_axis], images_shape[width_axis]
+
+        if height is None and self.target_height is None:
+            raise ValueError(
+                "When the height of the images is unknown, `target_height` "
+                "must be specified."
+                f"Received images.shape={images_shape} and "
+                f"target_height={self.target_height}"
+            )
+        if width is None and self.target_width is None:
+            raise ValueError(
+                "When the width of the images is unknown, `target_width` "
+                "must be specified."
+                f"Received images.shape={images_shape} and "
+                f"target_width={self.target_width}"
+            )
+
         if self.target_height is None:
-            height_axis = 0 if len(images_shape) == 3 else 1
             self.target_height = (
-                self.top_cropping
-                - images_shape[height_axis]
-                - self.bottom_cropping
+                height - self.top_cropping - self.bottom_cropping
             )
         if self.target_width is None:
-            width_axis = 0 if len(images_shape) == 3 else 2
-            self.target_width = (
-                self.left_cropping
-                - images_shape[width_axis]
-                - self.right_cropping
-            )
-        out_shape = (
-            images_shape[0],
-            self.target_height,
-            self.target_width,
-            images_shape[-1],
-        )
-        if len(images_shape) == 3:
-            out_shape = out_shape[1:]
-        return KerasTensor(
-            shape=out_shape,
-            dtype=images.dtype,
-        )
+            self.target_width = width - self.left_cropping - self.right_cropping
+
+        images_shape[height_axis] = self.target_height
+        images_shape[width_axis] = self.target_width
+        return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.crop_images")
@@ -941,10 +933,11 @@ def crop_images(
     images,
     top_cropping=None,
     left_cropping=None,
-    target_height=None,
-    target_width=None,
     bottom_cropping=None,
     right_cropping=None,
+    target_height=None,
+    target_width=None,
+    data_format=None,
 ):
     """Crop `images` to a specified `height` and `width`.
 
@@ -957,12 +950,16 @@ def crop_images(
         right_cropping: Number of columns to crop from the right.
         target_height: Height of the output images.
         target_width: Width of the output images.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will be interpreted by
+            `keras.config.image_data_format`. Defaults to `None`.
 
     Returns:
-        If `images` were 4D, a 4D float Tensor of shape
-            `(batch, target_height, target_width, channels)`
-        If `images` were 3D, a 3D float Tensor of shape
-            `(target_height, target_width, channels)`
+        Cropped image or batch of images.
 
     Example:
 
@@ -984,6 +981,7 @@ def crop_images(
             right_cropping,
             target_height,
             target_width,
+            data_format,
         ).symbolic_call(images)
 
     return _crop_images(
@@ -994,6 +992,7 @@ def crop_images(
         right_cropping,
         target_height,
         target_width,
+        data_format,
     )
 
 
@@ -1005,22 +1004,19 @@ def _crop_images(
     right_cropping,
     target_height,
     target_width,
+    data_format=None,
 ):
+    data_format = backend.standardize_data_format(data_format)
     images = backend.convert_to_tensor(images)
-    is_batch = True
     images_shape = ops.shape(images)
-    if len(images_shape) == 3:
-        is_batch = False
-        images = backend.numpy.expand_dims(images, 0)
-    elif len(images_shape) != 4:
+
+    # Check
+    if len(images_shape) not in (3, 4):
         raise ValueError(
             f"Invalid shape for argument `images`: "
             "it must have rank 3 or 4. "
             f"Received: images.shape={images_shape}"
         )
-
-    batch, height, width, depth = ops.shape(images)
-
     if [top_cropping, bottom_cropping, target_height].count(None) != 1:
         raise ValueError(
             "Must specify exactly two of "
@@ -1038,6 +1034,15 @@ def _crop_images(
             f"target_width={target_width}"
         )
 
+    is_batch = False if len(images_shape) == 3 else True
+    if data_format == "channels_last":
+        height, width = images_shape[-3], images_shape[-2]
+        channels = images_shape[-1]
+    else:
+        height, width = images_shape[-2], images_shape[-1]
+        channels = images_shape[-3]
+
+    # Infer padding
     if top_cropping is None:
         top_cropping = height - target_height - bottom_cropping
     if target_height is None:
@@ -1068,26 +1073,19 @@ def _crop_images(
             f"Received: target_width={target_width}"
         )
 
-    if isinstance(top_cropping, int) and isinstance(left_cropping, int):
-        start_indices = [0, top_cropping, left_cropping, 0]
+    # Compute start_indices and shape
+    start_indices = [top_cropping, left_cropping]
+    shape = [target_height, target_width]
+    if data_format == "channels_last":
+        start_indices = start_indices + [0]
+        shape = shape + [channels]
     else:
-        start_indices = backend.numpy.stack([0, top_cropping, left_cropping, 0])
-    if (
-        isinstance(batch, int)
-        and isinstance(target_height, int)
-        and isinstance(target_width, int)
-        and isinstance(depth, int)
-    ):
-        shape = [batch, target_height, target_width, depth]
-    else:
-        shape = backend.numpy.stack([batch, target_height, target_width, depth])
-    cropped = ops.slice(
-        images,
-        start_indices,
-        shape,
-    )
+        start_indices = [0] + start_indices
+        shape = [channels] + shape
+    if is_batch:
+        batch_size = images_shape[0]
+        start_indices = [0] + start_indices
+        shape = [batch_size] + shape
 
-    cropped = backend.numpy.reshape(cropped, shape)
-    if not is_batch:
-        cropped = backend.numpy.squeeze(cropped, axis=[0])
-    return cropped
+    cropped_images = ops.slice(images, start_indices, shape)
+    return cropped_images
