@@ -1329,11 +1329,11 @@ def linspace(
     if endpoint:
         result = tf.linspace(start, stop, num, axis=axis)
         if num > 1:
-            step = (stop - start) / (num - 1)
+            step = (stop - start) / (tf.cast(num, dtype) - 1)
     else:
         # tf.linspace doesn't support endpoint=False, so we manually handle it
         if num > 0:
-            step = (stop - start) / num
+            step = (stop - start) / tf.cast(num, dtype)
         if num > 1:
             new_stop = tf.cast(stop, step.dtype) - step
             start = tf.cast(start, new_stop.dtype)
