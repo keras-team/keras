@@ -13,6 +13,16 @@ from keras.src.ops import image as kimage
 
 
 class ImageOpsDynamicShapeTest(testing.TestCase):
+    def setUp(self):
+        # Defaults to channels_last
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
     def test_rgb_to_grayscale(self):
         x = KerasTensor([None, 20, 20, 3])
         out = kimage.rgb_to_grayscale(x)
@@ -120,6 +130,16 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
 
 
 class ImageOpsStaticShapeTest(testing.TestCase):
+    def setUp(self):
+        # Defaults to channels_last
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
     def test_rgb_to_grayscale(self):
         x = KerasTensor([20, 20, 3])
         out = kimage.rgb_to_grayscale(x)
@@ -298,6 +318,16 @@ def _fixed_map_coordinates(
 
 
 class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+    def setUp(self):
+        # Defaults to channels_last
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
     @parameterized.parameters(
         [
             ("channels_last"),
@@ -690,14 +720,14 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.parameters(
         [
-            (0, 0, 3, 3, None, None),
-            (1, 0, 4, 3, None, None),
-            (0, 1, 3, 4, None, None),
-            (0, 0, 4, 3, None, None),
-            (0, 0, 3, 4, None, None),
-            (0, 0, None, None, 0, 1),
-            (0, 0, None, None, 1, 0),
-            (1, 2, None, None, 3, 4),
+            (0, 0, 3, 3, None, None, "channels_last"),
+            (1, 0, 4, 3, None, None, "channels_last"),
+            (0, 1, 3, 4, None, None, "channels_last"),
+            (0, 0, 4, 3, None, None, "channels_last"),
+            (0, 0, 3, 4, None, None, "channels_last"),
+            (0, 0, None, None, 0, 1, "channels_last"),
+            (0, 0, None, None, 1, 0, "channels_last"),
+            (1, 2, None, None, 3, 4, "channels_last"),
             (0, 0, 3, 3, None, None, "channels_first"),
             (1, 0, 4, 3, None, None, "channels_first"),
         ]
@@ -710,11 +740,12 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         target_width,
         bottom_padding,
         right_padding,
-        data_format="channels_last",
+        data_format,
     ):
-        image = np.random.uniform(size=(3, 3, 1))
-        if data_format == "channels_first":
-            image = np.transpose(image, [2, 0, 1])
+        if data_format == "channels_last":
+            image = np.random.uniform(size=(3, 3, 1))
+        else:
+            image = np.random.uniform(size=(1, 3, 3))
         padded_image = kimage.pad_images(
             image,
             top_padding,
@@ -749,14 +780,14 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.parameters(
         [
-            (0, 0, 3, 3, None, None),
-            (1, 0, 4, 3, None, None),
-            (0, 1, 3, 4, None, None),
-            (0, 0, 4, 3, None, None),
-            (0, 0, 3, 4, None, None),
-            (0, 0, None, None, 0, 1),
-            (0, 0, None, None, 1, 0),
-            (1, 2, None, None, 3, 4),
+            (0, 0, 3, 3, None, None, "channels_last"),
+            (1, 0, 4, 3, None, None, "channels_last"),
+            (0, 1, 3, 4, None, None, "channels_last"),
+            (0, 0, 4, 3, None, None, "channels_last"),
+            (0, 0, 3, 4, None, None, "channels_last"),
+            (0, 0, None, None, 0, 1, "channels_last"),
+            (0, 0, None, None, 1, 0, "channels_last"),
+            (1, 2, None, None, 3, 4, "channels_last"),
             (0, 0, 3, 3, None, None, "channels_first"),
             (1, 0, 4, 3, None, None, "channels_first"),
         ]
@@ -769,11 +800,12 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         target_width,
         bottom_cropping,
         right_cropping,
-        data_format="channels_last",
+        data_format,
     ):
-        image = np.random.uniform(size=(10, 10, 1))
-        if data_format == "channels_first":
-            image = np.transpose(image, [2, 0, 1])
+        if data_format == "channels_last":
+            image = np.random.uniform(size=(10, 10, 1))
+        else:
+            image = np.random.uniform(size=(1, 10, 10))
         cropped_image = kimage.crop_images(
             image,
             top_cropping,
@@ -962,6 +994,16 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
 
 class ImageOpsBehaviorTests(testing.TestCase):
+    def setUp(self):
+        # Defaults to channels_last
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
     def test_crop_images_unknown_shape(self):
         # Test unknown height and target_height
         x = KerasTensor([None, 10, 3])
