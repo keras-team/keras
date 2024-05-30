@@ -81,9 +81,7 @@ class StringLookupTest(testing.TestCase):
             output = output.numpy()
         self.assertAllClose(output, np.array([2, 3, 0]))
 
-    @pytest.mark.skipif(
-        not backend.backend() == "tensorflow", reason="tf only"
-    )
+    @pytest.mark.skipif(not backend.backend() == "tensorflow", reason="tf only")
     def test_tensor_as_vocab(self):
         vocab = convert_to_tensor(["a", "b", "c", "d"])
         data = [["a", "c", "d"], ["d", "z", "b"]]
