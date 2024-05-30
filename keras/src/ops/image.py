@@ -40,9 +40,7 @@ def rgb_to_grayscale(images, data_format=None):
     3D and 4D tensors, where the last dimension represents channels.
 
     Args:
-        images: Input RGB image or batch of RGB images. Must be a 3D tensor
-            with shape `(height, width, channels)` or a 4D tensor with shape
-            `(batch, height, width, channels)`.
+        images: Input image or batch of images. Must be 3D or 4D.
         data_format: A string specifying the data format of the input tensor.
             It can be either `"channels_last"` or `"channels_first"`.
             `"channels_last"` corresponds to inputs with shape
@@ -691,8 +689,7 @@ def pad_images(
     """Pad `images` with zeros to the specified `height` and `width`.
 
     Args:
-        images: 4D Tensor of shape `(batch, height, width, channels)` or 3D
-            Tensor of shape `(height, width, channels)`.
+        images: Input image or batch of images. Must be 3D or 4D.
         top_padding: Number of rows of zeros to add on top.
         left_padding: Number of columns of zeros to add on the left.
         bottom_padding: Number of rows of zeros to add at the bottom.
