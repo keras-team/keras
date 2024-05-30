@@ -203,9 +203,9 @@ def resize(
         )
     if len(images.shape) < 3 or len(images.shape) > 4:
         raise ValueError(
-            "Expected an image array with shape `(height, width, "
-            "channels)`, or `(batch_size, height, width, channels)`, but "
-            f"got input with incorrect rank, of shape {images.shape}."
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
         )
     if pad_to_aspect_ratio and crop_to_aspect_ratio:
         raise ValueError(
@@ -627,8 +627,8 @@ class PadImages(Operation):
     def __init__(
         self,
         top_padding=None,
-        bottom_padding=None,
         left_padding=None,
+        bottom_padding=None,
         right_padding=None,
         target_height=None,
         target_width=None,
@@ -636,8 +636,8 @@ class PadImages(Operation):
     ):
         super().__init__()
         self.top_padding = top_padding
-        self.bottom_padding = bottom_padding
         self.left_padding = left_padding
+        self.bottom_padding = bottom_padding
         self.right_padding = right_padding
         self.target_height = target_height
         self.target_width = target_width
@@ -647,8 +647,8 @@ class PadImages(Operation):
         return _pad_images(
             images,
             self.top_padding,
-            self.bottom_padding,
             self.left_padding,
+            self.bottom_padding,
             self.right_padding,
             self.target_height,
             self.target_width,
@@ -665,13 +665,15 @@ class PadImages(Operation):
             height_axis, width_axis = -2, -1
             height, width = images_shape[height_axis], images_shape[width_axis]
 
-        if self.target_height is None and height is not None:
-            self.target_height = self.top_padding + height + self.bottom_padding
-        if self.target_width is None and width is not None:
-            self.target_width = self.left_padding + width + self.right_padding
+        target_height = self.target_height
+        if target_height is None and height is not None:
+            target_height = self.top_padding + height + self.bottom_padding
+        target_width = self.target_width
+        if target_width is None and width is not None:
+            target_width = self.left_padding + width + self.right_padding
 
-        images_shape[height_axis] = self.target_height
-        images_shape[width_axis] = self.target_width
+        images_shape[height_axis] = target_height
+        images_shape[width_axis] = target_width
         return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
@@ -692,8 +694,8 @@ def pad_images(
         images: 4D Tensor of shape `(batch, height, width, channels)` or 3D
             Tensor of shape `(height, width, channels)`.
         top_padding: Number of rows of zeros to add on top.
-        bottom_padding: Number of rows of zeros to add at the bottom.
         left_padding: Number of columns of zeros to add on the left.
+        bottom_padding: Number of rows of zeros to add at the bottom.
         right_padding: Number of columns of zeros to add on the right.
         target_height: Height of output images.
         target_width: Width of output images.
@@ -727,8 +729,8 @@ def pad_images(
     if any_symbolic_tensors((images,)):
         return PadImages(
             top_padding,
-            bottom_padding,
             left_padding,
+            bottom_padding,
             right_padding,
             target_height,
             target_width,
@@ -738,8 +740,8 @@ def pad_images(
     return _pad_images(
         images,
         top_padding,
-        bottom_padding,
         left_padding,
+        bottom_padding,
         right_padding,
         target_height,
         target_width,
@@ -750,8 +752,8 @@ def pad_images(
 def _pad_images(
     images,
     top_padding,
-    bottom_padding,
     left_padding,
+    bottom_padding,
     right_padding,
     target_height,
     target_width,
@@ -838,8 +840,8 @@ class CropImages(Operation):
     def __init__(
         self,
         top_cropping,
-        bottom_cropping,
         left_cropping,
+        bottom_cropping,
         right_cropping,
         target_height,
         target_width,
@@ -858,8 +860,8 @@ class CropImages(Operation):
         return _crop_images(
             images,
             self.top_cropping,
-            self.bottom_cropping,
             self.left_cropping,
+            self.bottom_cropping,
             self.right_cropping,
             self.target_height,
             self.target_width,
@@ -920,8 +922,8 @@ def crop_images(
         images: 4-D batch of images of shape `(batch, height, width, channels)`
              or 3-D single image of shape `(height, width, channels)`.
         top_cropping: Number of columns to crop from the top.
-        bottom_cropping: Number of columns to crop from the bottom.
         left_cropping: Number of columns to crop from the left.
+        bottom_cropping: Number of columns to crop from the bottom.
         right_cropping: Number of columns to crop from the right.
         target_height: Height of the output images.
         target_width: Width of the output images.
@@ -951,8 +953,8 @@ def crop_images(
     if any_symbolic_tensors((images,)):
         return CropImages(
             top_cropping,
-            bottom_cropping,
             left_cropping,
+            bottom_cropping,
             right_cropping,
             target_height,
             target_width,
@@ -962,8 +964,8 @@ def crop_images(
     return _crop_images(
         images,
         top_cropping,
-        bottom_cropping,
         left_cropping,
+        bottom_cropping,
         right_cropping,
         target_height,
         target_width,
@@ -974,8 +976,8 @@ def crop_images(
 def _crop_images(
     images,
     top_cropping,
-    bottom_cropping,
     left_cropping,
+    bottom_cropping,
     right_cropping,
     target_height,
     target_width,

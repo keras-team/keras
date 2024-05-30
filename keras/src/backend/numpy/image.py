@@ -82,7 +82,7 @@ def resize(
             size = (images.shape[0],) + size
     else:
         raise ValueError(
-            "Invalid input rank: expected rank 3 (single image) "
+            "Invalid images rank: expected rank 3 (single image) "
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )

@@ -270,6 +270,8 @@ AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
 
 
 def _compute_affine_transform_coordinates(image, transform):
+    image = image.copy()
+    transform = transform.copy()
     need_squeeze = False
     if len(image.shape) == 3:  # unbatched
         need_squeeze = True
@@ -380,6 +382,10 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=0.3)
 
+        # Test class
+        out = kimage.RGBToGrayscale()(x)
+        self.assertAllClose(ref_out, out, atol=0.3)
+
     @parameterized.named_parameters(
         named_product(
             interpolation=[
@@ -475,6 +481,14 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         ref_out = tf.transpose(ref_out, [0, 3, 1, 2])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=0.3)
+
+        # Test class
+        out = kimage.Resize(
+            size=(15, 15),
+            interpolation=interpolation,
+            antialias=antialias,
+        )(x)
         self.assertAllClose(ref_out, out, atol=0.3)
 
     def test_resize_with_crop(self):
@@ -649,6 +663,12 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=1e-2)
 
+        # Test class
+        out = kimage.AffineTransform(
+            interpolation=interpolation, fill_mode=fill_mode
+        )(x, transform)
+        self.assertAllClose(ref_out, out, atol=1e-2)
+
     @parameterized.named_parameters(
         named_product(
             size=[(3, 3), (5, 5)],
@@ -674,7 +694,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         # Test channels_last
         image = np.random.uniform(size=(1, 20, 20, 3)).astype("float32")
         patches_out = kimage.extract_patches(
-            backend.convert_to_tensor(image, dtype="float32"),
+            image,
             size=size,
             strides=strides,
             dilation_rate=dilation_rate,
@@ -698,7 +718,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         backend.set_image_data_format("channels_first")
         image = np.random.uniform(size=(1, 3, 20, 20)).astype("float32")
         patches_out = kimage.extract_patches(
-            backend.convert_to_tensor(image, dtype="float32"),
+            image,
             size=size,
             strides=strides,
             dilation_rate=dilation_rate,
@@ -713,6 +733,15 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         patches_ref = tf.transpose(patches_ref, [0, 3, 1, 2])
         self.assertEqual(tuple(patches_out.shape), tuple(patches_ref.shape))
+        self.assertAllClose(patches_ref, patches_out, atol=0.3)
+
+        # Test class
+        patches_out = kimage.ExtractPatches(
+            size=size,
+            strides=strides,
+            dilation_rate=dilation_rate,
+            padding=padding,
+        )(image)
         self.assertAllClose(patches_ref, patches_out, atol=0.3)
 
     @parameterized.named_parameters(
@@ -741,7 +770,10 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         ]
         output = kimage.map_coordinates(input, coordinates, order, fill_mode)
         expected = _fixed_map_coordinates(input, coordinates, order, fill_mode)
+        self.assertAllClose(output, expected)
 
+        # Test class
+        output = kimage.MapCoordinates(order, fill_mode)(input, coordinates)
         self.assertAllClose(output, expected)
 
     @parameterized.parameters(
@@ -815,6 +847,17 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertAllClose(ref_padded_image, padded_image)
 
+        # Test class
+        padded_image = kimage.PadImages(
+            top_padding,
+            left_padding,
+            bottom_padding,
+            right_padding,
+            target_height,
+            target_width,
+        )(image)
+        self.assertAllClose(ref_padded_image, padded_image)
+
     @parameterized.parameters(
         [
             (0, 0, 3, 3, None, None),
@@ -886,6 +929,17 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertAllClose(ref_cropped_image, cropped_image)
 
+        # Test class
+        cropped_image = kimage.CropImages(
+            top_cropping,
+            left_cropping,
+            bottom_cropping,
+            right_cropping,
+            target_height,
+            target_width,
+        )(image)
+        self.assertAllClose(ref_cropped_image, cropped_image)
+
 
 class ImageOpsBehaviorTests(testing.TestCase):
     def setUp(self):
@@ -925,6 +979,33 @@ class ImageOpsBehaviorTests(testing.TestCase):
         ):
             kimage.RGBToGrayscale()(invalid_image)
 
+        # Test rank=2, symbolic tensor
+        invalid_image = KerasTensor(shape=(10, 10))
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid images rank: expected rank 3",
+        ):
+            kimage.rgb_to_grayscale(invalid_image)
+
+    def test_resize_invalid_rank(self):
+        # Test rank=2
+        invalid_image = np.random.uniform(size=(10, 10))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.resize(invalid_image, (5, 5))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.Resize((5, 5))(invalid_image)
+
+        # Test rank=2, symbolic tensor
+        invalid_image = KerasTensor(shape=(10, 10))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.resize(invalid_image, (5, 5))
+
     def test_affine_transform_invalid_images_rank(self):
         # Test rank=2
         invalid_image = np.random.uniform(size=(10, 10))
@@ -950,6 +1031,14 @@ class ImageOpsBehaviorTests(testing.TestCase):
         ):
             kimage.AffineTransform()(invalid_image, transform)
 
+        # Test rank=2, symbolic tensor
+        invalid_image = KerasTensor(shape=(10, 10))
+        transform = KerasTensor(shape=(6,))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.affine_transform(invalid_image, transform)
+
     def test_affine_transform_invalid_transform_rank(self):
         # Test rank=3
         images = np.random.uniform(size=(10, 10, 3))
@@ -973,6 +1062,14 @@ class ImageOpsBehaviorTests(testing.TestCase):
             ValueError, "Invalid transform rank: expected rank 1"
         ):
             kimage.AffineTransform()(images, invalid_transform)
+
+        # Test rank=3, symbolic tensor
+        images = KerasTensor(shape=(10, 10, 3))
+        invalid_transform = KerasTensor(shape=(2, 3, 2))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid transform rank: expected rank 1"
+        ):
+            kimage.affine_transform(images, invalid_transform)
 
     def test_extract_patches_invalid_size(self):
         size = (3, 3, 3)  # Invalid size, too many dimensions

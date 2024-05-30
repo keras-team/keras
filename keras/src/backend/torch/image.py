@@ -86,17 +86,17 @@ def resize(
         )
     size = tuple(size)
     images = convert_to_tensor(images)
+    if images.ndim not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
     if data_format == "channels_last":
         if images.ndim == 4:
             images = images.permute((0, 3, 1, 2))
-        elif images.ndim == 3:
-            images = images.permute((2, 0, 1))
         else:
-            raise ValueError(
-                "Invalid input rank: expected rank 3 (single image) "
-                "or rank 4 (batch of images). Received input with shape: "
-                f"images.shape={images.shape}"
-            )
+            images = images.permute((2, 0, 1))
 
     if crop_to_aspect_ratio:
         shape = images.shape

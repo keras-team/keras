@@ -73,17 +73,18 @@ def resize(
             f"(height, width). Received: size={size}"
         )
     size = tuple(size)
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
     if data_format == "channels_first":
         if len(images.shape) == 4:
             images = tf.transpose(images, (0, 2, 3, 1))
-        elif len(images.shape) == 3:
-            images = tf.transpose(images, (1, 2, 0))
         else:
-            raise ValueError(
-                "Invalid input rank: expected rank 3 (single image) "
-                "or rank 4 (batch of images). Received input with shape: "
-                f"images.shape={images.shape}"
-            )
+            images = tf.transpose(images, (1, 2, 0))
+
     if crop_to_aspect_ratio:
         shape = tf.shape(images)
         height, width = shape[-3], shape[-2]
