@@ -12,50 +12,35 @@ class RGBToGrayscale(Operation):
         super().__init__()
         self.data_format = backend.standardize_data_format(data_format)
 
-    def call(self, image):
+    def call(self, images):
         return backend.image.rgb_to_grayscale(
-            image, data_format=self.data_format
+            images, data_format=self.data_format
         )
 
-    def compute_output_spec(self, image):
-        if len(image.shape) not in (3, 4):
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        if len(images_shape) not in (3, 4):
             raise ValueError(
-                "Invalid image rank: expected rank 3 (single image) "
-                "or rank 4 (batch of images). Received input with shape: "
-                f"image.shape={image.shape}"
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). "
+                f"Received: images.shape={images_shape}"
             )
-
-        if len(image.shape) == 3:
-            if self.data_format == "channels_last":
-                return KerasTensor(image.shape[:-1] + (1,), dtype=image.dtype)
-            else:
-                return KerasTensor((1,) + image.shape[1:], dtype=image.dtype)
-        elif len(image.shape) == 4:
-            if self.data_format == "channels_last":
-                return KerasTensor(
-                    (image.shape[0],) + image.shape[1:-1] + (1,),
-                    dtype=image.dtype,
-                )
-            else:
-                return KerasTensor(
-                    (
-                        image.shape[0],
-                        1,
-                    )
-                    + image.shape[2:],
-                    dtype=image.dtype,
-                )
+        if self.data_format == "channels_last":
+            images_shape[-1] = 1
+        else:
+            images_shape[-3] = 1
+        return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.rgb_to_grayscale")
-def rgb_to_grayscale(image, data_format=None):
+def rgb_to_grayscale(images, data_format=None):
     """Convert RGB images to grayscale.
 
     This function converts RGB images to grayscale images. It supports both
     3D and 4D tensors, where the last dimension represents channels.
 
     Args:
-        image: Input RGB image or batch of RGB images. Must be a 3D tensor
+        images: Input RGB image or batch of RGB images. Must be a 3D tensor
             with shape `(height, width, channels)` or a 4D tensor with shape
             `(batch, height, width, channels)`.
         data_format: A string specifying the data format of the input tensor.
@@ -88,14 +73,9 @@ def rgb_to_grayscale(image, data_format=None):
     >>> y.shape
     (2, 1, 4, 4)
     """
-    if any_symbolic_tensors((image,)):
-        return RGBToGrayscale(
-            data_format=data_format,
-        ).symbolic_call(image)
-    return backend.image.rgb_to_grayscale(
-        image,
-        data_format=data_format,
-    )
+    if any_symbolic_tensors((images,)):
+        return RGBToGrayscale(data_format=data_format).symbolic_call(images)
+    return backend.image.rgb_to_grayscale(images, data_format=data_format)
 
 
 class Resize(Operation):
@@ -120,9 +100,9 @@ class Resize(Operation):
         self.fill_value = fill_value
         self.data_format = backend.standardize_data_format(data_format)
 
-    def call(self, image):
+    def call(self, images):
         return backend.image.resize(
-            image,
+            images,
             self.size,
             interpolation=self.interpolation,
             antialias=self.antialias,
@@ -133,32 +113,26 @@ class Resize(Operation):
             fill_value=self.fill_value,
         )
 
-    def compute_output_spec(self, image):
-        if len(image.shape) == 3:
-            return KerasTensor(
-                self.size + (image.shape[-1],), dtype=image.dtype
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        if len(images_shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"images.shape={images.shape}"
             )
-        elif len(image.shape) == 4:
-            if self.data_format == "channels_last":
-                return KerasTensor(
-                    (image.shape[0],) + self.size + (image.shape[-1],),
-                    dtype=image.dtype,
-                )
-            else:
-                return KerasTensor(
-                    (image.shape[0], image.shape[1]) + self.size,
-                    dtype=image.dtype,
-                )
-        raise ValueError(
-            "Invalid input rank: expected rank 3 (single image) "
-            "or rank 4 (batch of images). Received input with shape: "
-            f"image.shape={image.shape}"
-        )
+        if self.data_format == "channels_last":
+            height_axis, width_axis = -3, -2
+        else:
+            height_axis, width_axis = -2, -1
+        images_shape[height_axis] = self.size[0]
+        images_shape[width_axis] = self.size[1]
+        return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.resize")
 def resize(
-    image,
+    images,
     size,
     interpolation="bilinear",
     antialias=False,
@@ -171,7 +145,7 @@ def resize(
     """Resize images to size using the specified interpolation method.
 
     Args:
-        image: Input image or batch of images. Must be 3D or 4D.
+        images: Input image or batch of images. Must be 3D or 4D.
         size: Size of output image in `(height, width)` format.
         interpolation: Interpolation method. Available methods are `"nearest"`,
             `"bilinear"`, and `"bicubic"`. Defaults to `"bilinear"`.
@@ -227,18 +201,18 @@ def resize(
             "Expected `size` to be a tuple of 2 integers. "
             f"Received: size={size}"
         )
-    if len(image.shape) < 3 or len(image.shape) > 4:
+    if len(images.shape) < 3 or len(images.shape) > 4:
         raise ValueError(
             "Expected an image array with shape `(height, width, "
             "channels)`, or `(batch_size, height, width, channels)`, but "
-            f"got input with incorrect rank, of shape {image.shape}."
+            f"got input with incorrect rank, of shape {images.shape}."
         )
     if pad_to_aspect_ratio and crop_to_aspect_ratio:
         raise ValueError(
             "Only one of `pad_to_aspect_ratio` & `crop_to_aspect_ratio` "
             "can be `True`."
         )
-    if any_symbolic_tensors((image,)):
+    if any_symbolic_tensors((images,)):
         return Resize(
             size,
             interpolation=interpolation,
@@ -248,9 +222,9 @@ def resize(
             pad_to_aspect_ratio=pad_to_aspect_ratio,
             fill_mode=fill_mode,
             fill_value=fill_value,
-        ).symbolic_call(image)
+        ).symbolic_call(images)
     return backend.image.resize(
-        image,
+        images,
         size,
         interpolation=interpolation,
         antialias=antialias,
@@ -276,9 +250,9 @@ class AffineTransform(Operation):
         self.fill_value = fill_value
         self.data_format = backend.standardize_data_format(data_format)
 
-    def call(self, image, transform):
+    def call(self, images, transform):
         return backend.image.affine_transform(
-            image,
+            images,
             transform,
             interpolation=self.interpolation,
             fill_mode=self.fill_mode,
@@ -286,12 +260,12 @@ class AffineTransform(Operation):
             data_format=self.data_format,
         )
 
-    def compute_output_spec(self, image, transform):
-        if len(image.shape) not in (3, 4):
+    def compute_output_spec(self, images, transform):
+        if len(images.shape) not in (3, 4):
             raise ValueError(
-                "Invalid image rank: expected rank 3 (single image) "
+                "Invalid images rank: expected rank 3 (single image) "
                 "or rank 4 (batch of images). Received input with shape: "
-                f"image.shape={image.shape}"
+                f"images.shape={images.shape}"
             )
         if len(transform.shape) not in (1, 2):
             raise ValueError(
@@ -299,12 +273,12 @@ class AffineTransform(Operation):
                 "or rank 2 (batch of transforms). Received input with shape: "
                 f"transform.shape={transform.shape}"
             )
-        return KerasTensor(image.shape, dtype=image.dtype)
+        return KerasTensor(images.shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.affine_transform")
 def affine_transform(
-    image,
+    images,
     transform,
     interpolation="bilinear",
     fill_mode="constant",
@@ -314,7 +288,7 @@ def affine_transform(
     """Applies the given transform(s) to the image(s).
 
     Args:
-        image: Input image or batch of images. Must be 3D or 4D.
+        images: Input image or batch of images. Must be 3D or 4D.
         transform: Projective transform matrix/matrices. A vector of length 8 or
             tensor of size N x 8. If one row of transform is
             `[a0, a1, a2, b0, b1, b2, c0, c1]`, then it maps the output point
@@ -385,15 +359,15 @@ def affine_transform(
     >>> y.shape
     (2, 3, 64, 80)
     """
-    if any_symbolic_tensors((image, transform)):
+    if any_symbolic_tensors((images, transform)):
         return AffineTransform(
             interpolation=interpolation,
             fill_mode=fill_mode,
             fill_value=fill_value,
             data_format=data_format,
-        ).symbolic_call(image, transform)
+        ).symbolic_call(images, transform)
     return backend.image.affine_transform(
-        image,
+        images,
         transform,
         interpolation=interpolation,
         fill_mode=fill_mode,
@@ -420,9 +394,9 @@ class ExtractPatches(Operation):
         self.padding = padding
         self.data_format = backend.standardize_data_format(data_format)
 
-    def call(self, image):
+    def call(self, images):
         return _extract_patches(
-            image=image,
+            images=images,
             size=self.size,
             strides=self.strides,
             dilation_rate=self.dilation_rate,
@@ -430,20 +404,21 @@ class ExtractPatches(Operation):
             data_format=self.data_format,
         )
 
-    def compute_output_spec(self, image):
-        image_shape = image.shape
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        original_ndim = len(images_shape)
         if not self.strides:
             strides = (self.size[0], self.size[1])
         if self.data_format == "channels_last":
-            channels_in = image.shape[-1]
+            channels_in = images_shape[-1]
         else:
-            channels_in = image.shape[-3]
-        if len(image.shape) == 3:
-            image_shape = (1,) + image_shape
+            channels_in = images_shape[-3]
+        if original_ndim == 3:
+            images_shape = [1] + images_shape
         filters = self.size[0] * self.size[1] * channels_in
         kernel_size = (self.size[0], self.size[1])
         out_shape = compute_conv_output_shape(
-            image_shape,
+            images_shape,
             filters,
             kernel_size,
             strides=strides,
@@ -451,14 +426,14 @@ class ExtractPatches(Operation):
             data_format=self.data_format,
             dilation_rate=self.dilation_rate,
         )
-        if len(image.shape) == 3:
+        if original_ndim == 3:
             out_shape = out_shape[1:]
-        return KerasTensor(shape=out_shape, dtype=image.dtype)
+        return KerasTensor(shape=out_shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.extract_patches")
 def extract_patches(
-    image,
+    images,
     size,
     strides=None,
     dilation_rate=1,
@@ -468,7 +443,7 @@ def extract_patches(
     """Extracts patches from the image(s).
 
     Args:
-        image: Input image or batch of images. Must be 3D or 4D.
+        images: Input image or batch of images. Must be 3D or 4D.
         size: Patch size int or tuple (patch_height, patch_widht)
         strides: strides along height and width. If not specified, or
             if `None`, it defaults to the same value as `size`.
@@ -501,22 +476,22 @@ def extract_patches(
     >>> patches.shape
     (18, 18, 27)
     """
-    if any_symbolic_tensors((image,)):
+    if any_symbolic_tensors((images,)):
         return ExtractPatches(
             size=size,
             strides=strides,
             dilation_rate=dilation_rate,
             padding=padding,
             data_format=data_format,
-        ).symbolic_call(image)
+        ).symbolic_call(images)
 
     return _extract_patches(
-        image, size, strides, dilation_rate, padding, data_format=data_format
+        images, size, strides, dilation_rate, padding, data_format=data_format
     )
 
 
 def _extract_patches(
-    image,
+    images,
     size,
     strides=None,
     dilation_rate=1,
@@ -534,22 +509,22 @@ def _extract_patches(
         )
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
-        channels_in = image.shape[-1]
+        channels_in = images.shape[-1]
     elif data_format == "channels_first":
-        channels_in = image.shape[-3]
+        channels_in = images.shape[-3]
     if not strides:
         strides = size
     out_dim = patch_h * patch_w * channels_in
-    kernel = backend.numpy.eye(out_dim, dtype=image.dtype)
+    kernel = backend.numpy.eye(out_dim, dtype=images.dtype)
     kernel = backend.numpy.reshape(
         kernel, (patch_h, patch_w, channels_in, out_dim)
     )
     _unbatched = False
-    if len(image.shape) == 3:
+    if len(images.shape) == 3:
         _unbatched = True
-        image = backend.numpy.expand_dims(image, axis=0)
+        images = backend.numpy.expand_dims(images, axis=0)
     patches = backend.nn.conv(
-        inputs=image,
+        inputs=images,
         kernel=kernel,
         strides=strides,
         padding=padding,
@@ -562,27 +537,27 @@ def _extract_patches(
 
 
 class MapCoordinates(Operation):
-    def __init__(self, order=1, fill_mode="constant", fill_value=0):
+    def __init__(self, order, fill_mode="constant", fill_value=0):
         super().__init__()
         self.order = order
         self.fill_mode = fill_mode
         self.fill_value = fill_value
 
-    def call(self, image, coordinates):
+    def call(self, inputs, coordinates):
         return backend.image.map_coordinates(
-            image,
+            inputs,
             coordinates,
             order=self.order,
             fill_mode=self.fill_mode,
             fill_value=self.fill_value,
         )
 
-    def compute_output_spec(self, image, coordinates):
-        if coordinates.shape[0] != len(image.shape):
+    def compute_output_spec(self, inputs, coordinates):
+        if coordinates.shape[0] != len(inputs.shape):
             raise ValueError(
                 "First dim of `coordinates` must be the same as the rank of "
-                "`image`. "
-                f"Received image with shape: {image.shape} and coordinate "
+                "`inputs`. "
+                f"Received inputs with shape: {inputs.shape} and coordinate "
                 f"leading dim of {coordinates.shape[0]}"
             )
         if len(coordinates.shape) < 2:
@@ -590,57 +565,57 @@ class MapCoordinates(Operation):
                 "Invalid coordinates rank: expected at least rank 2."
                 f" Received input with shape: {coordinates.shape}"
             )
-        return KerasTensor(coordinates.shape[1:], dtype=image.dtype)
+        return KerasTensor(coordinates.shape[1:], dtype=inputs.dtype)
 
 
 @keras_export("keras.ops.image.map_coordinates")
 def map_coordinates(
-    input, coordinates, order, fill_mode="constant", fill_value=0
+    inputs, coordinates, order, fill_mode="constant", fill_value=0
 ):
-    """Map the input array to new coordinates by interpolation..
+    """Map the input array to new coordinates by interpolation.
 
     Note that interpolation near boundaries differs from the scipy function,
     because we fixed an outstanding bug
     [scipy/issues/2640](https://github.com/scipy/scipy/issues/2640).
 
     Args:
-        input: The input array.
-        coordinates: The coordinates at which input is evaluated.
+        inputs: The input array.
+        coordinates: The coordinates at which inputs is evaluated.
         order: The order of the spline interpolation. The order must be `0` or
             `1`. `0` indicates the nearest neighbor and `1` indicates the linear
             interpolation.
-        fill_mode: Points outside the boundaries of the input are filled
+        fill_mode: Points outside the boundaries of the inputs are filled
             according to the given mode. Available methods are `"constant"`,
             `"nearest"`, `"wrap"` and `"mirror"` and `"reflect"`. Defaults to
             `"constant"`.
             - `"constant"`: `(k k k k | a b c d | k k k k)`
-                The input is extended by filling all values beyond
+                The inputs is extended by filling all values beyond
                 the edge with the same constant value k specified by
                 `fill_value`.
             - `"nearest"`: `(a a a a | a b c d | d d d d)`
-                The input is extended by the nearest pixel.
+                The inputs is extended by the nearest pixel.
             - `"wrap"`: `(a b c d | a b c d | a b c d)`
-                The input is extended by wrapping around to the opposite edge.
+                The inputs is extended by wrapping around to the opposite edge.
             - `"mirror"`: `(c d c b | a b c d | c b a b)`
-                The input is extended by mirroring about the edge.
+                The inputs is extended by mirroring about the edge.
             - `"reflect"`: `(d c b a | a b c d | d c b a)`
-                The input is extended by reflecting about the edge of the last
+                The inputs is extended by reflecting about the edge of the last
                 pixel.
-        fill_value: Value used for points outside the boundaries of the input if
-            `fill_mode="constant"`. Defaults to `0`.
+        fill_value: Value used for points outside the boundaries of the inputs
+            if `fill_mode="constant"`. Defaults to `0`.
 
     Returns:
-        Output image or batch of images.
+        Output input or batch of inputs.
 
     """
-    if any_symbolic_tensors((input, coordinates)):
+    if any_symbolic_tensors((inputs, coordinates)):
         return MapCoordinates(
             order,
             fill_mode,
             fill_value,
-        ).symbolic_call(input, coordinates)
+        ).symbolic_call(inputs, coordinates)
     return backend.image.map_coordinates(
-        input,
+        inputs,
         coordinates,
         order,
         fill_mode,
