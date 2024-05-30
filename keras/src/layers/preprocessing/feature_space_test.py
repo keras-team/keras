@@ -365,6 +365,7 @@ class FeatureSpaceTest(testing.TestCase):
         ds = self._get_train_data_dict(as_dataset=True)
         model.predict(ds.batch(4))
 
+    @pytest.mark.requires_trainable_backend
     def test_tf_data_async_processing(self):
         fs = feature_space.FeatureSpace(
             features={
