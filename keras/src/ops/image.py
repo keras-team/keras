@@ -873,10 +873,9 @@ class CropImages(Operation):
 
         if self.data_format == "channels_last":
             height_axis, width_axis = -3, -2
-            height, width = images_shape[height_axis], images_shape[width_axis]
         else:
             height_axis, width_axis = -2, -1
-            height, width = images_shape[height_axis], images_shape[width_axis]
+        height, width = images_shape[height_axis], images_shape[width_axis]
 
         if height is None and self.target_height is None:
             raise ValueError(
@@ -893,15 +892,15 @@ class CropImages(Operation):
                 f"target_width={self.target_width}"
             )
 
-        if self.target_height is None:
-            self.target_height = (
-                height - self.top_cropping - self.bottom_cropping
-            )
-        if self.target_width is None:
-            self.target_width = width - self.left_cropping - self.right_cropping
+        target_height = self.target_height
+        if target_height is None:
+            target_height = height - self.top_cropping - self.bottom_cropping
+        target_width = self.target_width
+        if target_width is None:
+            target_width = width - self.left_cropping - self.right_cropping
 
-        images_shape[height_axis] = self.target_height
-        images_shape[width_axis] = self.target_width
+        images_shape[height_axis] = target_height
+        images_shape[width_axis] = target_width
         return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
@@ -919,8 +918,7 @@ def crop_images(
     """Crop `images` to a specified `height` and `width`.
 
     Args:
-        images: 4-D batch of images of shape `(batch, height, width, channels)`
-             or 3-D single image of shape `(height, width, channels)`.
+        images: Input image or batch of images. Must be 3D or 4D.
         top_cropping: Number of columns to crop from the top.
         left_cropping: Number of columns to crop from the left.
         bottom_cropping: Number of columns to crop from the bottom.
