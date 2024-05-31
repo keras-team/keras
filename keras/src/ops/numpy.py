@@ -2801,8 +2801,8 @@ def imag(x):
 
 
 class Isclose(Operation):
-    def call(self, x1, x2):
-        return backend.numpy.isclose(x1, x2)
+    def call(self, x1, x2, **kwargs):
+        return backend.numpy.isclose(x1, x2, **kwargs)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
