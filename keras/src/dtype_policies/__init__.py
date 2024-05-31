@@ -6,12 +6,14 @@ from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
+from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 
 ALL_OBJECTS = {
     DTypePolicy,
     FloatDTypePolicy,
     QuantizedDTypePolicy,
     QuantizedFloat8DTypePolicy,
+    DTypePolicyMap,
 }
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 
@@ -96,6 +98,11 @@ def get(identifier):
             return _get_quantized_dtype_policy_by_str(identifier)
         else:
             return FloatDTypePolicy(identifier)
+    if isinstance(identifier, DTypePolicyMap):
+        raise TypeError(
+            "Cannot interpret `dtype` argument because it is a DTypePolicyMap. "
+            "You should pass a value from the DTypePolicyMap instead."
+        )
     try:
         return FloatDTypePolicy(backend.standardize_dtype(identifier))
     except:
