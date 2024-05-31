@@ -13,8 +13,8 @@ class DTypePolicyMap(MutableMapping):
                 "If specified, `policy_map` must be a dict. "
                 f"Received: policy_map={policy_map} of type {type(policy_map)}"
             )
-        # If `default_policy` is not specified, the policy from
-        # `keras.config.dtype_policy` will be used.
+        # `default_policy=None` enables us to defer to
+        # `keras.config.dtype_policy` during loading.
         if default_policy is not None:
             default_policy = dtype_policies.get(default_policy)
         self._default_policy = default_policy
@@ -60,8 +60,8 @@ class DTypePolicyMap(MutableMapping):
     def get_config(self):
         policy_map = self._policy_map
         if self._default_policy is None:
-            # `None` means we want to make these policies follow
-            # the setting of `keras.config.dtype_policy` during loading.
+            # `self._default_policy=None` enables us to defer to
+            # `keras.config.dtype_policy` during loading.
             # To support this feature, we can set `name` and `source_name` to
             # `None` in `FloatDTypePolicy` and `QuantizedDTypePolicy`,
             # respectively.
