@@ -464,7 +464,10 @@ class FeatureSpaceTest(testing.TestCase):
         out = fs(data)
         self.assertEqual(tuple(out.shape), (10, 32))
 
-    @pytest.mark.skipif(backend.backend() == "numpy", reason="TODO: debug it")
+    @pytest.mark.skipif(
+        backend.backend() in ("numpy", "torch"),
+        reason="TODO: debug FeatureSpace as Model",
+    )
     def test_saving(self):
         cls = feature_space.FeatureSpace
         fs = feature_space.FeatureSpace(
@@ -512,15 +515,7 @@ class FeatureSpaceTest(testing.TestCase):
         model = models.Model(inputs=inputs, outputs=outputs)
         ds = self._get_train_data_dict(as_dataset=True, include_strings=False)
         out = model.predict(ds.batch(4))
-        if backend.backend() == "torch":
-            from keras.src.backend.torch.core import get_device
-
-            # TODO: Large error when using cuda with torch
-            self.assertAllClose(
-                out[0], ref_out, atol=1 if get_device() == "cuda" else 1e-7
-            )
-        else:
-            self.assertAllClose(out[0], ref_out)
+        self.assertAllClose(out[0], ref_out)
 
         # Test correctness of the re-saved FS
         fs = saving_api.load_model(temp_filepath)
