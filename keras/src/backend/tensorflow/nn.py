@@ -428,6 +428,12 @@ def conv_transpose(
 
 def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     x = convert_to_tensor(x, dtype="int64")
+    input_shape = x.shape
+    # Shrink the last dimension if the shape is (..., 1).
+    if input_shape and input_shape[-1] == 1 and len(input_shape) > 1:
+        input_shape = tuple(input_shape[:-1])
+    x = tf.reshape(x, -1)
+
     if dtype is None:
         dtype = "float32"
     if sparse:
