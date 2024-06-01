@@ -65,6 +65,10 @@ class DynamicBackend:
     def reset(self):
         self._backend = backend_module.backend()
 
+    @property
+    def name(self):
+        return self._backend
+
     def __getattr__(self, name):
         if self._backend == "tensorflow":
             from keras.src.backend import tensorflow as tf_backend

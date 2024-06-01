@@ -306,22 +306,25 @@ class Normalization(TFDataLayer):
         inputs = self.backend.core.convert_to_tensor(
             inputs, dtype=self.compute_dtype
         )
+        # Enusre the weights are in the correct backend. Without this, it is
+        # possible to cause breakage when using this layer in tf.data.
+        mean = self.convert_weight(self.mean)
+        variance = self.convert_weight(self.variance)
         if self.invert:
             return self.backend.numpy.add(
-                self.mean,
+                mean,
                 self.backend.numpy.multiply(
                     inputs,
                     self.backend.numpy.maximum(
-                        self.backend.numpy.sqrt(self.variance),
-                        backend.epsilon(),
+                        self.backend.numpy.sqrt(variance), backend.epsilon()
                     ),
                 ),
             )
         else:
             return self.backend.numpy.divide(
-                self.backend.numpy.subtract(inputs, self.mean),
+                self.backend.numpy.subtract(inputs, mean),
                 self.backend.numpy.maximum(
-                    self.backend.numpy.sqrt(self.variance), backend.epsilon()
+                    self.backend.numpy.sqrt(variance), backend.epsilon()
                 ),
             )
 
