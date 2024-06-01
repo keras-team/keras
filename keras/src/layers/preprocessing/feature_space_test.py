@@ -466,7 +466,10 @@ class FeatureSpaceTest(testing.TestCase):
 
     @pytest.mark.skipif(
         backend.backend() in ("numpy", "torch"),
-        reason="TODO: debug FeatureSpace as Model",
+        reason=(
+            "TODO: When using FeatureSpace as a Model in torch and numpy, "
+            "the error is large."
+        ),
     )
     def test_saving(self):
         cls = feature_space.FeatureSpace
