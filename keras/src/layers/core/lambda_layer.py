@@ -215,7 +215,7 @@ class Lambda(Layer):
                 )
                 config["output_shape"] = fn
             else:
-                config["output_shape"] = (
+                config["output_shape"] = tuple(
                     serialization_lib.deserialize_keras_object(
                         fn_config, custom_objects=custom_objects
                     )
