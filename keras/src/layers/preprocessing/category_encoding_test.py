@@ -195,6 +195,16 @@ class CategoryEncodingTest(testing.TestCase, parameterized.TestCase):
             layer.compute_output_shape(input_data.shape),
         )
 
+        # Test compute_output_shape with 1 extra dimension
+        input_data = np.array([[3], [2], [0], [1]])
+        layer = layers.CategoryEncoding(
+            num_tokens=num_tokens, output_mode="one_hot", sparse=sparse
+        )
+        self.assertEqual(
+            layer(input_data).shape,
+            layer.compute_output_shape(input_data.shape),
+        )
+
         input_data = np.array((4,))
         layer = layers.CategoryEncoding(
             num_tokens=num_tokens, output_mode="one_hot", sparse=sparse
