@@ -214,12 +214,20 @@ class Lambda(Layer):
                     closure=inner_config["closure"],
                 )
                 config["output_shape"] = fn
-            else:
-                config["output_shape"] = (
+            elif (
+                isinstance(fn_config, list)
+                and all(isinstance(e, (int, None)) for e in fn_config)
+            ):
+                config["output_shape"] = tuple(
                     serialization_lib.deserialize_keras_object(
                         fn_config, custom_objects=custom_objects
                     )
                 )
+            else:
+                config["output_shape"] = serialization_lib.deserialize_keras_object(
+                    fn_config, custom_objects=custom_objects
+                )
+
         if "arguments" in config:
             config["arguments"] = serialization_lib.deserialize_keras_object(
                 config["arguments"], custom_objects=custom_objects
