@@ -2802,7 +2802,7 @@ def imag(x):
 
 class Isclose(Operation):
     def call(self, x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-        return backend.numpy.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+        return backend.numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
