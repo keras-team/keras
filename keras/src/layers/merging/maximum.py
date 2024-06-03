@@ -31,10 +31,7 @@ class Maximum(Merge):
     """
 
     def _merge_function(self, inputs):
-        output = inputs[0]
-        for i in range(1, len(inputs)):
-            output = ops.maximum(output, inputs[i])
-        return output
+        return self._apply_merge_op_and_or_mask(ops.maximum, inputs)
 
 
 @keras_export("keras.layers.maximum")

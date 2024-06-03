@@ -252,6 +252,12 @@ def conv(
         # If kernel's in_channel does not match input's channels,  it indicates
         # convolution is broken down into groups.
         return _conv_xla()
+    if data_format == "channels_first" and len(inputs.shape) == 5:
+        inputs = convert_to_tensor(inputs)
+        if inputs.device.split(":")[-2] == "CPU":
+            inputs = tf.transpose(inputs, perm=(0, 2, 3, 4, 1))
+            data_format = "channels_last"
+            return tf.transpose(_conv(), perm=(0, 4, 1, 2, 3))
     return _conv()
 
 
@@ -453,7 +459,8 @@ def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
         cast(x, "int32"), num_classes, axis=axis, dtype=dtype, sparse=sparse
     )
     if sparse:
-        # We don't use `tf.sparse.bincount`, it doesn't handle negative indices.
+        # We don't use `tf.sparse.bincount`, it doesn't handle negative indices
+        # and has a rank limitation.
         return tf.sparse.reduce_max(
             one_hot_outputs, axis=reduction_axis, output_is_sparse=True
         )

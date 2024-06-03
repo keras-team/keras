@@ -319,12 +319,12 @@ class CategoryEncodingTest(testing.TestCase, parameterized.TestCase):
         layer = layers.CategoryEncoding(num_tokens=4, output_mode="count")
         input_array = np.array([1, 2, 3, 1])
         expected_output = np.array([0, 2, 1, 1])
-        output = layer._count(input_array)
+        output = layer(input_array)
         self.assertAllClose(expected_output, output)
 
     def test_count_batched_samples(self):
         layer = layers.CategoryEncoding(num_tokens=4, output_mode="count")
         input_array = np.array([[1, 2, 3, 1], [0, 3, 1, 0]])
         expected_output = np.array([[0, 2, 1, 1], [2, 1, 0, 1]])
-        output = layer._count(input_array)
+        output = layer(input_array)
         self.assertAllClose(expected_output, output)

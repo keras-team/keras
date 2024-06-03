@@ -2488,17 +2488,13 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             np.linspace(start, stop, 5, retstep=True)[0],
         )
         self.assertAllClose(
-            backend.convert_to_numpy(
-                knp.linspace(start, stop, 5, endpoint=False, retstep=True)[0]
-            ),
+            knp.linspace(start, stop, 5, endpoint=False, retstep=True)[0],
             np.linspace(start, stop, 5, endpoint=False, retstep=True)[0],
         )
         self.assertAllClose(
-            backend.convert_to_numpy(
-                knp.linspace(
-                    start, stop, 5, endpoint=False, retstep=True, dtype="int32"
-                )[0]
-            ),
+            knp.linspace(
+                start, stop, 5, endpoint=False, retstep=True, dtype="int32"
+            )[0],
             np.linspace(
                 start, stop, 5, endpoint=False, retstep=True, dtype="int32"
             )[0],
@@ -2509,20 +2505,27 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             np.linspace(start, stop, 5, retstep=True)[0],
         )
         self.assertAllClose(
-            backend.convert_to_numpy(
-                knp.Linspace(5, endpoint=False, retstep=True)(start, stop)[0]
-            ),
+            knp.Linspace(5, endpoint=False, retstep=True)(start, stop)[0],
             np.linspace(start, stop, 5, endpoint=False, retstep=True)[0],
         )
         self.assertAllClose(
-            backend.convert_to_numpy(
-                knp.Linspace(5, endpoint=False, retstep=True, dtype="int32")(
-                    start, stop
-                )[0]
-            ),
+            knp.Linspace(5, endpoint=False, retstep=True, dtype="int32")(
+                start, stop
+            )[0],
             np.linspace(
                 start, stop, 5, endpoint=False, retstep=True, dtype="int32"
             )[0],
+        )
+
+        # Test `num` as a tensor
+        # https://github.com/keras-team/keras/issues/19772
+        self.assertAllClose(
+            knp.linspace(0, 10, backend.convert_to_tensor(5)),
+            np.linspace(0, 10, 5),
+        )
+        self.assertAllClose(
+            knp.linspace(0, 10, backend.convert_to_tensor(5), endpoint=False),
+            np.linspace(0, 10, 5, endpoint=False),
         )
 
     def test_logical_and(self):
@@ -3974,6 +3977,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     def test_split(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertIsInstance(knp.split(x, 2), list)
         self.assertAllClose(knp.split(x, 2), np.split(x, 2))
         self.assertAllClose(knp.Split(2)(x), np.split(x, 2))
         self.assertAllClose(
@@ -4264,6 +4268,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         y = knp.select(condlist, choicelist, 42)
         self.assertAllClose(y, [0, 1, 2, 42, 16, 25])
 
+        # Test with tuples
+        condlist = (x < 3, x > 3)
+        choicelist = (x, x**2)
+        y = knp.select(condlist, choicelist, 42)
+        self.assertAllClose(y, [0, 1, 2, 42, 16, 25])
+
+        # Test with symbolic tensors
         x = backend.KerasTensor((6,))
         condlist = [x < 3, x > 3]
         choicelist = [x, x**2]
@@ -7702,7 +7713,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         import jax.experimental
         import jax.numpy as jnp
 
-        # We have to disable x64 for jax since jnp.true_divide doesn't respect
+        # We have to disable x64 for jax since jnp.trace doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
         with jax.experimental.disable_x64():
@@ -7717,16 +7728,17 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 expected_dtype = "float64"
             elif dtype == "int64":
                 expected_dtype = "int64"
+            # TODO: Remove the condition of uint8 and uint16 once we have
+            # jax>=0.4.27 for both CPU & GPU environments.
+            # uint8 and uint16 will be casted to uint32 when jax>=0.4.27 but to
+            # int32 otherwise.
+            elif dtype in ("uint8", "uint16"):
+                expected_dtype = "int32"
             if backend.backend() == "jax":
                 expected_dtype = expected_dtype.replace("64", "32")
 
-            self.assertEqual(
-                standardize_dtype(knp.trace(x).dtype), expected_dtype
-            )
-            self.assertEqual(
-                standardize_dtype(knp.Trace().symbolic_call(x).dtype),
-                expected_dtype,
-            )
+            self.assertDType(knp.trace(x), expected_dtype)
+            self.assertDType(knp.Trace().symbolic_call(x), expected_dtype)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_transpose(self, dtype):

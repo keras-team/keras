@@ -130,7 +130,8 @@ class Trainer:
                 wrapped in a `LossScaleOptimizer`, which will dynamically
                 scale the loss to prevent underflow.
         """
-        self.optimizer = optimizers.get(optimizer)
+        optimizer = optimizers.get(optimizer)
+        self.optimizer = optimizer
         if (
             auto_scale_loss
             and self.dtype_policy.name == "mixed_float16"

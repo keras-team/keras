@@ -349,6 +349,25 @@ def compute_transpose_output_shape(input_shape, axes):
     return tuple(input_shape[ax] for ax in axes)
 
 
+def compute_take_along_axis_output_shape(input_shape, indices_shape, axis):
+    input_shape = list(input_shape)
+    indices_shape = list(indices_shape)
+    if axis is None:
+        input_shape = (
+            [None] if None in input_shape else [int(np.prod(input_shape))]
+        )
+
+    if len(input_shape) != len(indices_shape):
+        raise ValueError(
+            "`x` and `indices` must have the same number of dimensions, "
+            f"but receive shape {input_shape} and {indices_shape}."
+        )
+
+    input_shape[axis] = indices_shape[axis]
+    output_shape = broadcast_shapes(input_shape, indices_shape)
+    return output_shape
+
+
 def reduce_shape(shape, axis=None, keepdims=False):
     shape = list(shape)
     if axis is None:

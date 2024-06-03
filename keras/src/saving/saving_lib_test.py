@@ -359,7 +359,9 @@ class SavingTest(testing.TestCase):
         )
         self.assertEqual(
             config_dict["compile_config"]["optimizer"],
-            "adam",
+            keras.src.saving.serialize_keras_object(
+                keras.src.optimizers.get("adam")
+            ),
         )
         self.assertEqual(
             config_dict["compile_config"]["loss"]["config"],

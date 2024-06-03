@@ -79,19 +79,16 @@ class Operation:
         try:
             return backend.compute_output_spec(self.call, *args, **kwargs)
         except Exception as e:
-            if isinstance(e, TypeError):
-                raise e
-            else:
-                new_e = RuntimeError(
-                    "Could not automatically infer the output shape / dtype of "
-                    f"'{self.name}' (of type {self.__class__.__name__}). "
-                    f"Either the `{self.__class__.__name__}.call()` method "
-                    f"is incorrect, or you need to implement the "
-                    f"`{self.__class__.__name__}.compute_output_spec() / "
-                    "compute_output_shape()` method. "
-                    f"Error encountered:\n\n{e}"
-                )
-                raise new_e.with_traceback(e.__traceback__) from None
+            new_e = e.__class__(
+                "Could not automatically infer the output shape / dtype of "
+                f"'{self.name}' (of type {self.__class__.__name__}). "
+                f"Either the `{self.__class__.__name__}.call()` method "
+                f"is incorrect, or you need to implement the "
+                f"`{self.__class__.__name__}.compute_output_spec() / "
+                "compute_output_shape()` method. "
+                f"Error encountered:\n\n{e}"
+            )
+            raise new_e.with_traceback(e.__traceback__) from None
 
     def __new__(cls, *args, **kwargs):
         """We override __new__ to saving serializable constructor arguments.
@@ -101,10 +98,23 @@ class Operation:
         out of the box in most cases without forcing the user
         to manually implement `get_config()`.
         """
+        instance = super(Operation, cls).__new__(cls)
+
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
-        instance = super(Operation, cls).__new__(cls)
+
+        # Explicitly serialize `dtype` to support auto_config
+        dtype = kwargs.get("dtype", None)
+        if dtype is not None and isinstance(dtype, dtype_policies.DTypePolicy):
+            # For backward compatibility, we use a str (`name`) for
+            # `FloatDTypePolicy`
+            if not dtype.is_quantized:
+                kwargs["dtype"] = dtype.name
+            # Otherwise, use `dtype_policies.serialize`
+            else:
+                kwargs["dtype"] = dtype_policies.serialize(dtype)
+
         # For safety, we only rely on auto-configs for a small set of
         # serializable types.
         supported_types = (str, int, float, bool, type(None))
@@ -190,20 +200,30 @@ class Operation:
 
     @classmethod
     def from_config(cls, config):
-        """Creates a layer from its config.
+        """Creates an operation from its config.
 
-        This method is the reverse of `get_config`,
-        capable of instantiating the same layer from the config
-        dictionary. It does not handle layer connectivity
-        (handled by Network), nor weights (handled by `set_weights`).
+        This method is the reverse of `get_config`, capable of instantiating the
+        same operation from the config dictionary.
+
+        Note: If you override this method, you might receive a serialized dtype
+        config, which is a `dict`. You can deserialize it as follows:
+
+        ```python
+        if "dtype" in config and isinstance(config["dtype"], dict):
+            policy = dtype_policies.deserialize(config["dtype"])
+        ```
 
         Args:
-            config: A Python dictionary, typically the
-                output of get_config.
+            config: A Python dictionary, typically the output of `get_config`.
 
         Returns:
-            A layer instance.
+            An operation instance.
         """
+        # Explicitly deserialize dtype config if needed. This enables users to
+        # directly interact with the instance of `DTypePolicy`.
+        if "dtype" in config and isinstance(config["dtype"], dict):
+            config = config.copy()
+            config["dtype"] = dtype_policies.deserialize(config["dtype"])
         try:
             return cls(**config)
         except Exception as e:
