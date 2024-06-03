@@ -75,7 +75,11 @@ def to_categorical(x, num_classes=None):
     if backend.is_tensor(x):
         input_shape = backend.core.shape(x)
         # Shrink the last dimension if the shape is (..., 1).
-        if input_shape is not None and len(input_shape) > 1 and input_shape[-1] == 1:
+        if (
+            input_shape is not None
+            and len(input_shape) > 1
+            and input_shape[-1] == 1
+        ):
             newshape = tuple(input_shape[:-1])
             x = backend.numpy.reshape(x, newshape)
         return backend.nn.one_hot(x, num_classes)
@@ -137,7 +141,11 @@ def encode_categorical_inputs(
     elif output_mode == "one_hot":
         input_shape = backend_module.core.shape(inputs)
         # Shrink the last dimension if the shape is (..., 1).
-        if input_shape is not None and len(input_shape) > 1 and input_shape[-1] == 1:
+        if (
+            input_shape is not None
+            and len(input_shape) > 1
+            and input_shape[-1] == 1
+        ):
             newshape = tuple(input_shape[:-1])
             inputs = backend_module.numpy.reshape(inputs, newshape)
         return backend_module.nn.one_hot(
