@@ -505,8 +505,8 @@ def imag(x):
     return np.imag(x)
 
 
-def isclose(x1, x2, **kwargs):
-    return np.isclose(x1, x2, **kwargs)
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    return np.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
 
 
 def isfinite(x):
