@@ -4,6 +4,7 @@ import os
 import sys
 
 from keras.src import backend as backend_module
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
@@ -60,6 +61,11 @@ class DynamicBackend:
         self._backend = backend or backend_module.backend()
 
     def set_backend(self, backend):
+        if backend not in ("tensorflow", "jax", "torch", "numpy"):
+            raise ValueError(
+                "Avaiable backends are ('tensorflow', 'jax', 'torch' and "
+                f"'numpy'). Received: backend={backend}"
+            )
         self._backend = backend
 
     def reset(self):
@@ -71,25 +77,26 @@ class DynamicBackend:
 
     def __getattr__(self, name):
         if self._backend == "tensorflow":
-            from keras.src.backend import tensorflow as tf_backend
+            import keras.src.backend.tensorflow as tf_backend
 
             return getattr(tf_backend, name)
         if self._backend == "jax":
-            from keras.src.backend import jax as jax_backend
+            import keras.src.backend.jax as jax_backend
 
             return getattr(jax_backend, name)
         if self._backend == "torch":
-            from keras.src.backend import torch as torch_backend
+            import keras.src.backend.torch as torch_backend
 
             return getattr(torch_backend, name)
         if self._backend == "numpy":
-            # TODO (ariG23498):
-            # The import `from keras.src.backend import numpy as numpy_backend`
-            # is not working. This is a temporary fix.
-            # The import is redirected to `keras.backend.numpy.numpy.py`
-            from keras.src import backend as numpy_backend
+            # import keras.src.backend.numpy as numpy_backend will fail if
+            # backend() == "numpy", so we reroute `keras.ops` for this.
+            if backend_module.backend() == "numpy":
+                return getattr(ops, name)
+            else:
+                import keras.src.backend.numpy as numpy_backend
 
-            return getattr(numpy_backend, name)
+                return getattr(numpy_backend, name)
 
 
 @keras_export("keras.config.set_backend")
