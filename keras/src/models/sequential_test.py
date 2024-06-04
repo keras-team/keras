@@ -8,6 +8,7 @@ from keras.src import layers
 from keras.src import testing
 from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
+from keras.src.models.model import Model
 from keras.src.models.sequential import Sequential
 
 
@@ -134,6 +135,34 @@ class SequentialTest(testing.TestCase):
         x = np.random.random((3, 2))
         y = model(x)
         self.assertEqual(y.shape, (3, 4))
+
+    def test_basic_flow_as_submodel(self):
+        # Test `built=False`
+        inputs = Input((3, 4))
+        nested_model = Sequential()
+        nested_model.add(layers.Flatten())
+        self.assertFalse(nested_model.built)
+
+        outputs = layers.TimeDistributed(nested_model)(inputs)
+        model = Model(inputs=inputs, outputs=outputs)
+
+        x = np.random.random((2, 3, 4))
+        y = model(x)
+        self.assertEqual(y.shape, (2, 3, 4))
+
+        # Test `built=True`
+        inputs = Input((3, 4))
+        nested_model = Sequential()
+        nested_model.add(layers.Input([4]))
+        nested_model.add(layers.Flatten())
+        self.assertTrue(nested_model.built)
+
+        outputs = layers.TimeDistributed(nested_model)(inputs)
+        model = Model(inputs=inputs, outputs=outputs)
+
+        x = np.random.random((2, 3, 4))
+        y = model(x)
+        self.assertEqual(y.shape, (2, 3, 4))
 
     def test_dict_inputs(self):
         class DictLayer(layers.Layer):
