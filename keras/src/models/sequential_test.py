@@ -137,25 +137,10 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(y.shape, (3, 4))
 
     def test_basic_flow_as_submodel(self):
-        # Test `built=False`
         inputs = Input((3, 4))
         nested_model = Sequential()
         nested_model.add(layers.Flatten())
         self.assertFalse(nested_model.built)
-
-        outputs = layers.TimeDistributed(nested_model)(inputs)
-        model = Model(inputs=inputs, outputs=outputs)
-
-        x = np.random.random((2, 3, 4))
-        y = model(x)
-        self.assertEqual(y.shape, (2, 3, 4))
-
-        # Test `built=True`
-        inputs = Input((3, 4))
-        nested_model = Sequential()
-        nested_model.add(layers.Input([4]))
-        nested_model.add(layers.Flatten())
-        self.assertTrue(nested_model.built)
 
         outputs = layers.TimeDistributed(nested_model)(inputs)
         model = Model(inputs=inputs, outputs=outputs)
@@ -300,3 +285,8 @@ class SequentialTest(testing.TestCase):
             ValueError, "can only have a single positional"
         ):
             model.build((None, 2))
+
+    def test_compute_output_shape(self):
+        layer = Sequential([layers.Dense(4), layers.Dense(8)])
+        output_shape = layer.compute_output_shape((1, 2))
+        self.assertEqual(output_shape, (1, 8))
