@@ -24,7 +24,6 @@ class BackendUtilsTest(testing.TestCase, parameterized.TestCase):
                     NotImplementedError,
                     "Currently, we cannot dynamically import the numpy backend",
                 ):
-                    
                     y = dynamic_backend.numpy.log10(x)
             else:
                 y = dynamic_backend.numpy.log10(x)
