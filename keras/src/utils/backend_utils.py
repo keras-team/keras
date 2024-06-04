@@ -4,7 +4,6 @@ import os
 import sys
 
 from keras.src import backend as backend_module
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
@@ -92,7 +91,7 @@ class DynamicBackend:
             # import keras.src.backend.numpy as numpy_backend will fail if
             # backend() == "numpy", so we reroute `keras.ops` for this.
             if backend_module.backend() == "numpy":
-                return getattr(ops, name)
+                return getattr(backend_module, name)
             else:
                 import keras.src.backend.numpy as numpy_backend
 
