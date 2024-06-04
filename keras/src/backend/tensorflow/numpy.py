@@ -1250,18 +1250,8 @@ def imag(x):
     return tf.math.imag(x)
 
 
-def isclose(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    x1 = tf.cast(x1, dtype)
-    x2 = tf.cast(x2, dtype)
-    if "float" in dtype:
-        # atol defaults to 1e-08
-        # rtol defaults to 1e-05
-        return tf.abs(x1 - x2) <= (1e-08 + 1e-05 * tf.abs(x2))
-    else:
-        return tf.equal(x1, x2)
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    return tf.experimental.numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 @sparse.densifying_unary(True)
