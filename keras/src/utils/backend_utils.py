@@ -88,8 +88,9 @@ class DynamicBackend:
 
             return getattr(torch_backend, name)
         if self._backend == "numpy":
-            # import keras.src.backend.numpy as numpy_backend will fail if
-            # backend() == "numpy", so we reroute `keras.ops` for this.
+            # `import keras.src.backend.numpy as numpy_backend` will fail if
+            # `backend() == "numpy"``, so we reroute `keras.src.backend` for
+            # this.
             if backend_module.backend() == "numpy":
                 return getattr(backend_module, name)
             else:
