@@ -76,27 +76,22 @@ class DynamicBackend:
 
     def __getattr__(self, name):
         if self._backend == "tensorflow":
-            import keras.src.backend.tensorflow as tf_backend
-
-            return getattr(tf_backend, name)
+            module = importlib.import_module("keras.src.backend.tensorflow")
+            return getattr(module, name)
         if self._backend == "jax":
-            import keras.src.backend.jax as jax_backend
-
-            return getattr(jax_backend, name)
+            module = importlib.import_module("keras.src.backend.jax")
+            return getattr(module, name)
         if self._backend == "torch":
-            import keras.src.backend.torch as torch_backend
-
-            return getattr(torch_backend, name)
+            module = importlib.import_module("keras.src.backend.torch")
+            return getattr(module, name)
         if self._backend == "numpy":
-            # `import keras.src.backend.numpy as numpy_backend` will fail if
-            # `backend() == "numpy"``, so we reroute `keras.src.backend` for
-            # this.
             if backend_module.backend() == "numpy":
                 return getattr(backend_module, name)
             else:
-                import keras.src.backend.numpy as numpy_backend
-
-                return getattr(numpy_backend, name)
+                raise NotImplementedError(
+                    "Currently, we cannot dynamically import the numpy backend "
+                    "because it would disrupt the namespace of the import."
+                )
 
 
 @keras_export("keras.config.set_backend")
