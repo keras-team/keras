@@ -2804,7 +2804,9 @@ class Isclose(Operation):
     def call(self, x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         return backend.numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
-    def compute_output_spec(self, x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    def compute_output_spec(
+            self, x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False
+    ):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
