@@ -14,7 +14,7 @@ class Permute(Layer):
     Args:
         dims: Tuple of integers. Permutation pattern does not include the
             batch dimension. Indexing starts at 1.
-            For instance, `(2, 1)` permutes the first and second dimensions
+            For instance, `(1, 3, 2)` permutes the second and third dimensions
             of the input.
 
     Input shape:
