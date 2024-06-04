@@ -63,7 +63,7 @@ class DynamicBackend:
     def set_backend(self, backend):
         if backend not in ("tensorflow", "jax", "torch", "numpy"):
             raise ValueError(
-                "Avaiable backends are ('tensorflow', 'jax', 'torch' and "
+                "Available backends are ('tensorflow', 'jax', 'torch' and "
                 f"'numpy'). Received: backend={backend}"
             )
         self._backend = backend

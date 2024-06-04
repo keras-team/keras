@@ -41,5 +41,5 @@ class BackendUtilsTest(testing.TestCase, parameterized.TestCase):
 
     def test_dynamic_backend_invalid_name(self):
         backend = backend_utils.DynamicBackend()
-        with self.assertRaisesRegex(ValueError, "Avaiable backends are"):
+        with self.assertRaisesRegex(ValueError, "Available backends are"):
             backend.set_backend("abc")
