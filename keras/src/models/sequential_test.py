@@ -137,12 +137,13 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(y.shape, (3, 4))
 
     def test_basic_flow_as_submodel(self):
-        inputs = Input((3, 4))
-        nested_model = Sequential()
-        nested_model.add(layers.Flatten())
-        self.assertFalse(nested_model.built)
+        # Build submodel
+        submodel = Sequential()
+        submodel.add(layers.Flatten())
+        self.assertFalse(submodel.built)
 
-        outputs = layers.TimeDistributed(nested_model)(inputs)
+        inputs = Input((3, 4))
+        outputs = layers.TimeDistributed(submodel)(inputs)
         model = Model(inputs=inputs, outputs=outputs)
 
         x = np.random.random((2, 3, 4))
