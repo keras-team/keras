@@ -2812,7 +2812,7 @@ class Isclose(Operation):
 
 
 @keras_export(["keras.ops.isclose", "keras.ops.numpy.isclose"])
-def isclose(x1, x2):
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     """Return whether two tensors are element-wise almost equal.
 
     Args:
@@ -2823,8 +2823,8 @@ def isclose(x1, x2):
         Output boolean tensor.
     """
     if any_symbolic_tensors((x1, x2)):
-        return Isclose().symbolic_call(x1, x2)
-    return backend.numpy.isclose(x1, x2)
+        return Isclose().symbolic_call(x1, x2, rtol, atol, equal_nan)
+    return backend.numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 class Isfinite(Operation):
