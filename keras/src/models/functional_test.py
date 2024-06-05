@@ -118,13 +118,13 @@ class FunctionalTest(testing.TestCase):
         out_val = model(in_val)
         self.assertEqual(out_val.shape, (2, 4))
 
-    def test_basic_flow_as_submodel(self):
+    def test_basic_flow_as_a_submodel(self):
         # Build submodel
         submodel_inputs = Input([4])
         submodel_outputs = layers.Flatten()(submodel_inputs)
         submodel = Model(submodel_inputs, submodel_outputs)
 
-        inputs = Input((3, 4))
+        inputs = Input((None, 4))
         outputs = layers.TimeDistributed(submodel)(inputs)
         model = Model(inputs=inputs, outputs=outputs)
 

@@ -56,9 +56,9 @@ class FunctionTest(testing.TestCase):
         self.assertEqual(out.shape, (4, 3))
 
         # Test with compute_output_shape
-        out = fn.compute_output_shape((4, 3))
+        out = fn.compute_output_shape((None, 3))
         self.assertIsInstance(out, tuple)
-        self.assertEqual(out, (4, 3))
+        self.assertEqual(out, (None, 3))
 
         # Test with call
         out = fn(keras_tensor.KerasTensor((4, 3)))

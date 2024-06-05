@@ -136,13 +136,13 @@ class SequentialTest(testing.TestCase):
         y = model(x)
         self.assertEqual(y.shape, (3, 4))
 
-    def test_basic_flow_as_submodel(self):
+    def test_basic_flow_as_a_submodel(self):
         # Build submodel
         submodel = Sequential()
         submodel.add(layers.Flatten())
         self.assertFalse(submodel.built)
 
-        inputs = Input((3, 4))
+        inputs = Input((None, 4))
         outputs = layers.TimeDistributed(submodel)(inputs)
         model = Model(inputs=inputs, outputs=outputs)
 
