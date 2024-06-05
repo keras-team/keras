@@ -8,6 +8,7 @@ import warnings
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
+from tensorflow.python.ops.math_ops import is_nan
 
 from keras.src import tree
 from keras.src.backend import config
@@ -1251,7 +1252,18 @@ def imag(x):
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-    return tf.experimental.numpy.isclose(x1, x2, rtol, atol, equal_nan)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    if "float" in dtype:
+        result = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        if equal_nan:
+            result = result | (is_nan(x1) & is_nan(x2))
+        return result
+    else:
+        return tf.equal(x1, x2)
 
 
 @sparse.densifying_unary(True)
