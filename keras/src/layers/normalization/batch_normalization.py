@@ -214,6 +214,16 @@ class BatchNormalization(Layer):
         return input_shape
 
     def call(self, inputs, training=None, mask=None):
+        # Check if the mask has one less dimension than the inputs.
+        if mask is not None:
+            if len(mask.shape) != len(inputs.shape) - 1:
+                # Raise a value error
+                raise ValueError(
+                    "The mask provided should be one dimension less "
+                    "than the inputs. Received: "
+                    f"mask.shape={mask.shape}, inputs.shape={inputs.shape}"
+                )
+
         input_dtype = standardize_dtype(inputs.dtype)
         if input_dtype in ("float16", "bfloat16"):
             # BN is prone to overflowing for float16/bfloat16 inputs, so we opt

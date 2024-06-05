@@ -36,5 +36,6 @@ class ActivityRegularization(Layer):
 
     def get_config(self):
         base_config = super().get_config()
+        base_config.pop("activity_regularizer", None)
         config = {"l1": self.l1, "l2": self.l2}
         return {**base_config, **config}

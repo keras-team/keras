@@ -287,6 +287,10 @@ def slice_update(inputs, start_indices, updates):
     return jax.lax.dynamic_update_slice(inputs, updates, start_indices)
 
 
+def switch(index, branches, *operands):
+    return jax.lax.switch(index, branches, *operands)
+
+
 def while_loop(
     cond,
     body,

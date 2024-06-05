@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 
 from keras.src import tree
@@ -241,6 +243,12 @@ def slice_update(inputs, start_indices, updates):
     return inputs
 
 
+def switch(index, branches, *operands):
+    index = convert_to_tensor(index, "int32")
+    index = np.clip(index, 0, len(branches) - 1)
+    return branches[index](*operands)
+
+
 def while_loop(
     cond,
     body,
@@ -279,7 +287,21 @@ def unstack(x, num=None, axis=0):
     return [x[i] for i in range(x.shape[0])]
 
 
-def custom_gradient(fun):
-    raise NotImplementedError(
-        "`custom_gradient` is not supported with numpy backend"
-    )
+class custom_gradient:
+    """Decorator for custom gradients.
+
+    Args:
+        fun: Forward pass function.
+    """
+
+    def __init__(self, fun):
+        warnings.warn(
+            "`custom_gradient` for the numpy backend acts as a pass-through to "
+            "support the forward pass. No gradient computation or modification "
+            "takes place."
+        )
+        self.fun = fun
+
+    def __call__(self, *args, **kwargs):
+        outputs, _ = self.fun(*args, **kwargs)
+        return outputs

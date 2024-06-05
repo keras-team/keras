@@ -208,3 +208,21 @@ class OperationTest(testing.TestCase):
         self.assertEqual(config["dtype"], dtype_policies.serialize(policy))
         revived_op = OpWithCustomDtype.from_config(config)
         self.assertEqual(op._dtype_policy.name, revived_op._dtype_policy.name)
+
+    def test_is_auto_name(self):
+        class OpWithCustomName(operation.Operation):
+            def __init__(self, name=None):
+                super().__init__(name=name)
+
+            def call(self, x):
+                return x
+
+            def compute_output_spec(self, x):
+                return keras_tensor.KerasTensor(x.shape, x.dtype)
+
+        op = OpWithCustomName()
+        self.assertTrue(op.is_auto_name)
+
+        op = OpWithCustomName(name="op")
+        self.assertEqual(op.name, "op")
+        self.assertFalse(op.is_auto_name)

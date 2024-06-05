@@ -507,7 +507,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             else:
                 initializer = "zeros"
         initializer = initializers.get(initializer)
-        with self._open_name_scope():
+        with backend.name_scope(self.name, caller=self):
             variable = backend.Variable(
                 initializer=initializer,
                 shape=shape,
@@ -676,6 +676,16 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                     f"shape {value.shape}."
                 )
             variable.assign(value)
+
+    @property
+    def dtype_argument(self):
+        """Passed dtype argument to the constructor of the layer.
+
+        This property might be a `str` (like `"float32"`), a serialized
+        `DTypePolicy` config and a `DTypePolicyMap`. This property should only
+        be used internally.
+        """
+        return self._dtype_argument
 
     @property
     def dtype_policy(self):

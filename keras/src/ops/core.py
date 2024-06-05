@@ -118,7 +118,7 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     >>> sum_fn = lambda c, x: (c + x, c + x)
     >>> init = keras.ops.array(0)
     >>> xs = keras.ops.array([1, 2, 3, 4, 5])
-    >>> carry, result = ops.scan(sum_fn, init, xs)
+    >>> carry, result = keras.ops.scan(sum_fn, init, xs)
     >>> carry
     15
     >>> result
@@ -254,7 +254,7 @@ def slice(inputs, start_indices, shape):
     inputs = np.zeros((5, 5))
     start_indices = np.array([3, 3])
     shape = np.array([2, 2])
-    inputs = keras.ops.slice(inputs, start_indices, updates)
+    inputs = keras.ops.slice(inputs, start_indices, shape)
     ```
 
     Args:
@@ -313,6 +313,57 @@ def slice_update(inputs, start_indices, updates):
     if any_symbolic_tensors((inputs, start_indices, updates)):
         return SliceUpdate().symbolic_call(inputs, start_indices, updates)
     return backend.core.slice_update(inputs, start_indices, updates)
+
+
+class Switch(Operation):
+    def call(self, index, branches, *operands):
+        return backend.core.switch(index, branches, *operands)
+
+    def compute_output_spec(self, index, branches, *operands):
+        # We use first branch for output_spec
+        spec = backend.compute_output_spec(branches[0], *operands)
+        return spec
+
+
+@keras_export("keras.ops.switch")
+def switch(index, branches, *operands):
+    """Apply exactly one of the `branches` given by `index`.
+
+    If `index` is out of bounds, it is clamped to within bounds.
+
+    The semantics of `switch` are given roughly by this Python implementation:
+
+    ```python
+    def switch(index, branches, *operands):
+        index = clamp(0, index, len(branches) - 1)
+        return branches[index](*operands)
+    ```
+
+    Args:
+        index: An integer scalar indicating which branch function to apply.
+        branches: A sequence of functions to be applied based on `index`.
+        operands: Inputs to whichever branch is applied.
+
+    Returns:
+        The outputs of `branch(*operands)` for the branch that was selected
+        based on `index`.
+
+    Examples:
+
+    >>> add_fn = lambda x, y: x + y
+    >>> substract_fn = lambda x, y: x - y
+    >>> x = keras.ops.array(2.0)
+    >>> y = keras.ops.array(0.5)
+    >>> branches = [add_fn, substract_fn]
+    >>> keras.ops.switch(0, branches, x, y)
+    2.5
+
+    >>> keras.ops.switch(1, branches, x, y)
+    1.5
+    """
+    if any_symbolic_tensors(operands):
+        return Switch().symbolic_call(index, branches, *operands)
+    return backend.core.switch(index, branches, *operands)
 
 
 class WhileLoop(Operation):

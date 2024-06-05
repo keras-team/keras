@@ -35,6 +35,9 @@ class LazyModule:
             self.initialize()
         return getattr(self.module, name)
 
+    def __repr__(self):
+        return f"LazyModule({self.name})"
+
 
 tensorflow = LazyModule("tensorflow")
 gfile = LazyModule("tensorflow.io.gfile", pip_name="tensorflow")

@@ -209,9 +209,9 @@ class Metric(KerasSaveable):
 
     @property
     def variables(self):
-        variables = self._variables[:]
+        variables = list(self._variables)
         for metric in self._metrics:
-            variables.extend(metric._variables)
+            variables.extend(metric.variables)
         return variables
 
     def __call__(self, *args, **kwargs):

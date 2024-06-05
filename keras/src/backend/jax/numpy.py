@@ -598,10 +598,10 @@ def imag(x):
     return jnp.imag(x)
 
 
-def isclose(x1, x2):
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return jnp.isclose(x1, x2)
+    return jnp.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 @sparse.densifying_unary

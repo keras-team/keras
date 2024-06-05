@@ -15,6 +15,7 @@ from keras.src.utils.naming import auto_name
 @keras_export("keras.Operation")
 class Operation:
     def __init__(self, dtype=None, name=None):
+        is_auto_name = True if name is None else False
         if name is None:
             name = auto_name(self.__class__.__name__)
         if not isinstance(name, str) or "/" in name:
@@ -27,6 +28,8 @@ class Operation:
             self._dtype_policy = dtype_policies.get(dtype[name])
         else:
             self._dtype_policy = dtype_policies.get(dtype)
+        self._dtype_argument = dtype
+        self.is_auto_name = is_auto_name  # can be used for `DTypePolicyMap`
         self.name = name
         self._inbound_nodes = []
         self._outbound_nodes = []
