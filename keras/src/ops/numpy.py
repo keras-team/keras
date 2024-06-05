@@ -2820,6 +2820,9 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     Args:
         x1: First input tensor.
         x2: Second input tensor.
+        rtol: Relative tolerance.
+        atol: Absolute tolerance.
+        equal_nan: If `True`, element-wise NaNs are considered equal.
 
     Returns:
         Output boolean tensor.
