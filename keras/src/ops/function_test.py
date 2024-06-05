@@ -55,6 +55,11 @@ class FunctionTest(testing.TestCase):
         self.assertIsInstance(out, keras_tensor.KerasTensor)
         self.assertEqual(out.shape, (4, 3))
 
+        # Test with compute_output_shape
+        out = fn.compute_output_shape((None, 3))
+        self.assertIsInstance(out, tuple)
+        self.assertEqual(out, (None, 3))
+
         # Test with call
         out = fn(keras_tensor.KerasTensor((4, 3)))
         self.assertIsInstance(out, keras_tensor.KerasTensor)
