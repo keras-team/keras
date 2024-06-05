@@ -252,6 +252,15 @@ class Sequential(Model):
             inputs = outputs
         return outputs
 
+    def compute_output_shape(self, input_shape):
+        if self._functional:
+            return self._functional.compute_output_shape(input_shape)
+        # Direct application
+        for layer in self.layers:
+            output_shape = layer.compute_output_shape(input_shape)
+            input_shape = output_shape
+        return output_shape
+
     @property
     def input_shape(self):
         if self._functional:
