@@ -182,7 +182,8 @@ class Functional(Function, Model):
         return super().compute_output_spec(inputs)
 
     def compute_output_shape(self, input_shape):
-        return self.output_shape
+        # From Function
+        return super().compute_output_shape(input_shape)
 
     def build(self, input_shape):
         self.built = True

@@ -254,7 +254,7 @@ class Sequential(Model):
 
     def compute_output_shape(self, input_shape):
         if self._functional:
-            return self._functional.output_shape
+            return self._functional.compute_output_shape(input_shape)
         # Direct application
         for layer in self.layers:
             output_shape = layer.compute_output_shape(input_shape)
