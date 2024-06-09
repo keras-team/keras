@@ -1650,6 +1650,15 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertSparse(output_2d, sparse)
 
+        # Test 1D one-hot with 1 extra dimension.
+        indices_1d = np.array([[0], [1], [2], [3]])
+        output_1d = knn.one_hot(indices_1d, 4, sparse=sparse)
+        self.assertAllClose(output_1d, np.eye(4)[indices_1d])
+        self.assertSparse(output_1d, sparse)
+        output_1d = knn.one_hot(indices_1d, 4, axis=0, sparse=sparse)
+        self.assertAllClose(output_1d, np.eye(4)[indices_1d].swapaxes(1, 2))
+        self.assertSparse(output_1d, sparse)
+
         # Test 1D one-hot with negative inputs
         indices_1d = np.array([0, -1, -1, 3])
         output_1d = knn.one_hot(indices_1d, 4, sparse=sparse)

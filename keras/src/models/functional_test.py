@@ -118,6 +118,20 @@ class FunctionalTest(testing.TestCase):
         out_val = model(in_val)
         self.assertEqual(out_val.shape, (2, 4))
 
+    def test_basic_flow_as_a_submodel(self):
+        # Build submodel
+        submodel_inputs = Input([4])
+        submodel_outputs = layers.Flatten()(submodel_inputs)
+        submodel = Model(submodel_inputs, submodel_outputs)
+
+        inputs = Input((None, 4))
+        outputs = layers.TimeDistributed(submodel)(inputs)
+        model = Model(inputs=inputs, outputs=outputs)
+
+        x = np.random.random((2, 3, 4))
+        y = model(x)
+        self.assertEqual(y.shape, (2, 3, 4))
+
     @pytest.mark.requires_trainable_backend
     def test_named_input_dict_io(self):
         input_a = Input(shape=(3,), batch_size=2, name="a")

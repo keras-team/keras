@@ -138,9 +138,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
     def __new__(cls, *args, **kwargs):
         # Signature detection for usage of `Model` as a `Functional`
         if functional_init_arguments(args, kwargs) and cls == Model:
-            from keras.src.models import functional
+            from keras.src.models.functional import Functional
 
-            return functional.Functional(*args, **kwargs)
+            return Functional.__new__(Functional, *args, **kwargs)
         return typing.cast(Model, super().__new__(cls))
 
     def __init__(self, *args, **kwargs):

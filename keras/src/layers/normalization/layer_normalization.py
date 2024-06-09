@@ -243,6 +243,7 @@ class LayerNormalization(Layer):
             "epsilon": self.epsilon,
             "center": self.center,
             "scale": self.scale,
+            "rms_scaling": self.rms_scaling,
             "beta_initializer": initializers.serialize(self.beta_initializer),
             "gamma_initializer": initializers.serialize(self.gamma_initializer),
             "beta_regularizer": regularizers.serialize(self.beta_regularizer),

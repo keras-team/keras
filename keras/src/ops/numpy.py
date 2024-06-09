@@ -2801,10 +2801,12 @@ def imag(x):
 
 
 class Isclose(Operation):
-    def call(self, x1, x2):
-        return backend.numpy.isclose(x1, x2)
+    def call(self, x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+        return backend.numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
-    def compute_output_spec(self, x1, x2):
+    def compute_output_spec(
+        self, x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False
+    ):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
@@ -2812,19 +2814,22 @@ class Isclose(Operation):
 
 
 @keras_export(["keras.ops.isclose", "keras.ops.numpy.isclose"])
-def isclose(x1, x2):
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     """Return whether two tensors are element-wise almost equal.
 
     Args:
         x1: First input tensor.
         x2: Second input tensor.
+        rtol: Relative tolerance.
+        atol: Absolute tolerance.
+        equal_nan: If `True`, element-wise NaNs are considered equal.
 
     Returns:
         Output boolean tensor.
     """
     if any_symbolic_tensors((x1, x2)):
-        return Isclose().symbolic_call(x1, x2)
-    return backend.numpy.isclose(x1, x2)
+        return Isclose().symbolic_call(x1, x2, rtol, atol, equal_nan)
+    return backend.numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 class Isfinite(Operation):
