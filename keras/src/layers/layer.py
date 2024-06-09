@@ -1444,6 +1444,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             "trainable": self.trainable,
             "dtype": dtype_policies.serialize(self.dtype_policy),
         }
+        if self.activity_regularizer is not None:
+            config["activity_regularizer"] = regularizers.serialize(
+                self.activity_regularizer
+            )
         return {**base_config, **config}
 
     def _open_name_scope(self):
