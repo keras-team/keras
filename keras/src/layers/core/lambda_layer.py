@@ -219,7 +219,7 @@ class Lambda(Layer):
                     fn_config, custom_objects=custom_objects
                 )
                 if isinstance(output_shape, list) and all(
-                    isinstance(e, (int, None)) for e in output_shape
+                    isinstance(e, (int, type(None))) for e in output_shape
                 ):
                     output_shape = tuple(output_shape)
                 config["output_shape"] = output_shape
