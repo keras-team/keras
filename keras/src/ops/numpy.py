@@ -4368,12 +4368,12 @@ class Repeat(Operation):
             return KerasTensor(output_shape, dtype=x.dtype)
 
         size_on_ax = x_shape[self.axis]
+        if size_on_ax is None:
+            return KerasTensor(x_shape, dtype=x.dtype)
+
         output_shape = x_shape
         if broadcast:
-            if size_on_ax is None:
-                output_shape[self.axis] = None
-            else:
-                output_shape[self.axis] = size_on_ax * repeats[0]
+            output_shape[self.axis] = size_on_ax * repeats[0]
         elif size_on_ax != repeats_size:
             raise ValueError(
                 "Size of `repeats` and "
