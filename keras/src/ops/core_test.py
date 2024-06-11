@@ -74,13 +74,14 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_switch(self):
-        def f(x, y):
-            return x + y
+        def fn(x, y):
+            return x[:, 0], y[0, :]
 
         index = KerasTensor(())
         x = KerasTensor((5, 2))
         y = KerasTensor((5, 2))
-        self.assertEqual(core.switch(index, [f], x, y).shape, (5, 2))
+        self.assertEqual(core.switch(index, [fn], x, y)[0].shape, (5,))
+        self.assertEqual(core.switch(index, [fn], x, y)[1].shape, (2,))
 
     def test_fori_loop(self):
         def body_fun(i, x):
@@ -313,15 +314,15 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(outputs[1:3, 1:3, 2:4, 2:4], np.zeros([2, 2, 2, 2]))
 
     def test_switch(self):
-        def f1(x, y):
+        def fn1(x, y):
             return x + y
 
-        def f2(x, y):
+        def fn2(x, y):
             return x - y
 
         x = np.random.rand(2, 3, 4).astype("float32")
         y = np.random.rand(2, 3, 4).astype("float32")
-        branches = [f1, f2]
+        branches = [fn1, fn2]
         self.assertAllClose(core.switch(0, branches, x, y), x + y)
         self.assertAllClose(core.switch(1, branches, x, y), x - y)
 
@@ -828,15 +829,15 @@ class CoreOpsCallsTests(testing.TestCase):
         self.assertAllClose(core.convert_to_numpy(result), expected_output)
 
     def test_switch_basic_call(self):
-        def f1(x, y):
+        def fn1(x, y):
             return x + y
 
-        def f2(x, y):
+        def fn2(x, y):
             return x - y
 
         x = np.random.rand(2, 3, 4).astype("float32")
         y = np.random.rand(2, 3, 4).astype("float32")
-        branches = [f1, f2]
+        branches = [fn1, fn2]
         switch_op = core.Switch()
         index = 0
         outputs = switch_op.call(index, branches, x, y)
