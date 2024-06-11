@@ -331,7 +331,9 @@ def cond(pred, true_fn, false_fn):
     if get_device() == "meta":
         return true_fn()
 
-    return torch.cond(pred, true_fn, false_fn)
+    if pred:
+        return true_fn()
+    return false_fn()
 
 
 def vectorized_map(function, elements):
