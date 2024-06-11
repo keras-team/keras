@@ -219,8 +219,9 @@ class BatchNormalization(Layer):
             if len(mask.shape) != len(inputs.shape) - 1:
                 # Raise a value error
                 raise ValueError(
-                    "The mask provided should be one dimension less than the inputs. "
-                    f"Received: mask.shape={mask.shape}, inputs.shape={inputs.shape}"
+                    "The mask provided should be one dimension less "
+                    "than the inputs. Received: "
+                    f"mask.shape={mask.shape}, inputs.shape={inputs.shape}"
                 )
 
         input_dtype = standardize_dtype(inputs.dtype)
