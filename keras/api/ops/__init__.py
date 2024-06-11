@@ -22,6 +22,7 @@ from keras.src.ops.core import shape
 from keras.src.ops.core import slice
 from keras.src.ops.core import slice_update
 from keras.src.ops.core import stop_gradient
+from keras.src.ops.core import switch
 from keras.src.ops.core import unstack
 from keras.src.ops.core import vectorized_map
 from keras.src.ops.core import while_loop

@@ -73,6 +73,15 @@ class CoreOpsStaticShapeTest(testing.TestCase):
             core.slice_update(inputs, start_indices, updates).shape, (4, 4, 4)
         )
 
+    def test_switch(self):
+        def f(x, y):
+            return x + y
+
+        index = KerasTensor(())
+        x = KerasTensor((5, 2))
+        y = KerasTensor((5, 2))
+        self.assertEqual(core.switch(index, [f], x, y).shape, (5, 2))
+
     def test_fori_loop(self):
         def body_fun(i, x):
             return x + i
@@ -302,6 +311,23 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         updates = np.zeros([2, 2, 2, 2])
         outputs = core.slice_update(inputs, start_indices, updates)
         self.assertAllClose(outputs[1:3, 1:3, 2:4, 2:4], np.zeros([2, 2, 2, 2]))
+
+    def test_switch(self):
+        def f1(x, y):
+            return x + y
+
+        def f2(x, y):
+            return x - y
+
+        x = np.random.rand(2, 3, 4).astype("float32")
+        y = np.random.rand(2, 3, 4).astype("float32")
+        branches = [f1, f2]
+        self.assertAllClose(core.switch(0, branches, x, y), x + y)
+        self.assertAllClose(core.switch(1, branches, x, y), x - y)
+
+        # Test out-of-bound index
+        self.assertAllClose(core.switch(-100, branches, x, y), x + y)
+        self.assertAllClose(core.switch(100, branches, x, y), x - y)
 
     @parameterized.named_parameters(
         [
@@ -800,6 +826,25 @@ class CoreOpsCallsTests(testing.TestCase):
         result = slice_update.call(inputs, start_indices, updates)
         expected_output = np.array([[1, 2, 3], [4, 10, 11], [7, 12, 13]])
         self.assertAllClose(core.convert_to_numpy(result), expected_output)
+
+    def test_switch_basic_call(self):
+        def f1(x, y):
+            return x + y
+
+        def f2(x, y):
+            return x - y
+
+        x = np.random.rand(2, 3, 4).astype("float32")
+        y = np.random.rand(2, 3, 4).astype("float32")
+        branches = [f1, f2]
+        switch_op = core.Switch()
+        index = 0
+        outputs = switch_op.call(index, branches, x, y)
+        self.assertAllClose(outputs, x + y)
+
+        index = 1
+        outputs = switch_op.call(index, branches, x, y)
+        self.assertAllClose(outputs, x - y)
 
     def test_while_loop_basic_functionality(self):
         # Loop condition: continue if i < 5

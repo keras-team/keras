@@ -331,9 +331,7 @@ def cond(pred, true_fn, false_fn):
     if get_device() == "meta":
         return true_fn()
 
-    if pred:
-        return true_fn()
-    return false_fn()
+    return torch.cond(pred, true_fn, false_fn)
 
 
 def vectorized_map(function, elements):
@@ -443,6 +441,12 @@ def slice_update(inputs, start_indices, updates):
     outputs = torch.clone(inputs)
     outputs[slices] = updates
     return outputs
+
+
+def switch(index, branches, *operands):
+    index = convert_to_tensor(index, "int32")
+    index = torch.clamp(index, 0, len(branches))
+    return branches[index](*operands)
 
 
 def while_loop(

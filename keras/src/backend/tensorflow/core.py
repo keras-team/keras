@@ -355,6 +355,19 @@ def slice_update(inputs, start_indices, updates):
     return dynamic_update_slice(inputs, updates, start_indices)
 
 
+def switch(index, branches, *operands):
+    index = convert_to_tensor(index, "int32")
+    index = tf.clip_by_value(index, 0, len(branches) - 1)
+
+    # Workaround to deal with python closures. More details:
+    # https://github.com/tensorflow/tensorflow/issues/8776#issuecomment-311383887
+    def gen_fn(i):
+        return lambda: branches[i](*operands)
+
+    branch_fns = [gen_fn(i) for i in range(len(branches))]
+    return tf.switch_case(index, branch_fns)
+
+
 def while_loop(
     cond,
     body,
