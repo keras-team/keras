@@ -19,5 +19,4 @@ optree
 pytest-cov
 packaging
 # for tree_test.py
-parameterized
 dm_tree
