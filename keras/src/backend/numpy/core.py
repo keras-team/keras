@@ -243,7 +243,7 @@ def slice_update(inputs, start_indices, updates):
 
 def switch(index, branches, *operands):
     index = convert_to_tensor(index, "int32")
-    index = np.clip(index, 0, len(branches))
+    index = np.clip(index, 0, len(branches) - 1)
     return branches[index](*operands)
 
 
