@@ -4361,7 +4361,8 @@ class Repeat(Operation):
             elif repeats_size != x_flatten_size:
                 raise ValueError(
                     "Size of `repeats` and "
-                    "dimensions of `x` after flattening should be compatible"
+                    "dimensions of `x` after flattening should be compatible. "
+                    f"Received: {repeats_size} and {x_flatten_size}"
                 )
             else:
                 output_shape = [int(np.sum(repeats))]
@@ -4377,7 +4378,8 @@ class Repeat(Operation):
         elif size_on_ax != repeats_size:
             raise ValueError(
                 "Size of `repeats` and "
-                f"dimensions of `axis {self.axis} of x` should be compatible"
+                f"dimensions of `axis {self.axis} of x` should be compatible. "
+                f"Received: {repeats_size} and {x_shape}"
             )
         else:
             output_shape[self.axis] = int(np.sum(repeats))
