@@ -161,6 +161,12 @@ class MetricTest(testing.TestCase):
         }
         self.assertEqual(len(metric.variables), 6)
 
+        # Two levels deep
+        metric = ExampleMetric(name="mse")
+        metric.submetric = ExampleMetric(name="submse")
+        metric.submetric.submetric = ExampleMetric(name="subsubmse")
+        self.assertEqual(len(metric.variables), 6)
+
     def test_serialization(self):
         self.run_class_serialization_test(
             ExampleMetric(name="mse"),
