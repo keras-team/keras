@@ -49,6 +49,7 @@ ALL_OBJECTS_DICT.update(
         "uniform": RandomUniform,
         "normal": RandomNormal,
         "orthogonal": OrthogonalInitializer,
+        "Orthogonal": OrthogonalInitializer,  # Legacy
         "one": Ones,
         "zero": Zeros,
     }
