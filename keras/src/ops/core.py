@@ -254,7 +254,7 @@ def slice(inputs, start_indices, shape):
     inputs = np.zeros((5, 5))
     start_indices = np.array([3, 3])
     shape = np.array([2, 2])
-    inputs = keras.ops.slice(inputs, start_indices, updates)
+    inputs = keras.ops.slice(inputs, start_indices, shape)
     ```
 
     Args:
