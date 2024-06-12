@@ -9,10 +9,7 @@ def accuracy(y_true, y_pred):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
-    return ops.mean(
-        ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx()),
-        axis=-1,
-    )
+    return ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx())
 
 
 @keras_export("keras.metrics.Accuracy")
@@ -69,10 +66,7 @@ def binary_accuracy(y_true, y_pred, threshold=0.5):
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     threshold = ops.cast(threshold, y_pred.dtype)
     y_pred = ops.cast(y_pred > threshold, y_true.dtype)
-    return ops.mean(
-        ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx()),
-        axis=-1,
-    )
+    return ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx())
 
 
 @keras_export("keras.metrics.BinaryAccuracy")

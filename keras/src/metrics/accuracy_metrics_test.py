@@ -41,6 +41,33 @@ class AccuracyTest(testing.TestCase):
         result = acc_obj.result()
         self.assertAllClose(result, 0.5, atol=1e-3)
 
+    def test_weighted_rank_1(self):
+        acc_obj = accuracy_metrics.Accuracy(name="accuracy", dtype="float32")
+        y_true = np.array([1, 2, 3, 4])
+        y_pred = np.array([0, 2, 3, 4])
+        sample_weight = np.array([1, 1, 0, 0])
+        acc_obj.update_state(y_true, y_pred, sample_weight=sample_weight)
+        result = acc_obj.result()
+        self.assertAllClose(result, 0.5, atol=1e-3)
+
+    def test_weighted_nd_weights(self):
+        acc_obj = accuracy_metrics.Accuracy(name="accuracy", dtype="float32")
+        y_true = np.array([[1, 2], [3, 4]])
+        y_pred = np.array([[0, 2], [3, 4]])
+        sample_weight = np.array([[1, 0], [0, 1]])
+        acc_obj.update_state(y_true, y_pred, sample_weight=sample_weight)
+        result = acc_obj.result()
+        self.assertAllClose(result, 0.5, atol=1e-3)
+
+    def test_weighted_nd_broadcast_weights(self):
+        acc_obj = accuracy_metrics.Accuracy(name="accuracy", dtype="float32")
+        y_true = np.array([[1, 2], [3, 4]])
+        y_pred = np.array([[0, 2], [3, 4]])
+        sample_weight = np.array([[1, 0]])
+        acc_obj.update_state(y_true, y_pred, sample_weight=sample_weight)
+        result = acc_obj.result()
+        self.assertAllClose(result, 0.5, atol=1e-3)
+
 
 class BinaryAccuracyTest(testing.TestCase):
     def test_config(self):
@@ -94,6 +121,39 @@ class BinaryAccuracyTest(testing.TestCase):
         bin_acc_obj.update_state(y_true, y_pred, sample_weight=sample_weight)
         result = bin_acc_obj.result()
         self.assertAllClose(result, 0.5, atol=1e-3)
+
+    def test_weighted_rank_1(self):
+        bin_acc_obj = accuracy_metrics.BinaryAccuracy(
+            name="binary_accuracy", dtype="float32"
+        )
+        y_true = np.array([1, 1, 0, 0])
+        y_pred = np.array([0.98, 1, 0, 0.6])
+        sample_weight = np.array([1, 0, 0, 1])
+        bin_acc_obj.update_state(y_true, y_pred, sample_weight=sample_weight)
+        result = bin_acc_obj.result()
+        self.assertAllClose(result, 0.5, atol=1e-3)
+
+    def test_weighted_nd_weights(self):
+        bin_acc_obj = accuracy_metrics.BinaryAccuracy(
+            name="binary_accuracy", dtype="float32"
+        )
+        y_true = np.array([[1, 1], [0, 0]])
+        y_pred = np.array([[0.98, 1], [0, 0.6]])
+        sample_weight = np.array([[1, 0], [0, 1]])
+        bin_acc_obj.update_state(y_true, y_pred, sample_weight=sample_weight)
+        result = bin_acc_obj.result()
+        self.assertAllClose(result, 0.5, atol=1e-3)
+
+    def test_weighted_nd_broadcast_weights(self):
+        bin_acc_obj = accuracy_metrics.BinaryAccuracy(
+            name="binary_accuracy", dtype="float32"
+        )
+        y_true = np.array([[1, 1], [0, 0]])
+        y_pred = np.array([[0.98, 1], [0, 0.6]])
+        sample_weight = np.array([[1, 0]])
+        bin_acc_obj.update_state(y_true, y_pred, sample_weight=sample_weight)
+        result = bin_acc_obj.result()
+        self.assertAllClose(result, 1.0, atol=1e-3)
 
     def test_threshold(self):
         bin_acc_obj_1 = accuracy_metrics.BinaryAccuracy(
