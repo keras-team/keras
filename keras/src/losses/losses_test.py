@@ -1189,6 +1189,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         loss = cce_obj(y_true, logits)
         self.assertAllClose([[0.0, 1.48012]], loss, 3)
 
+
 class BinaryFocalCrossentropyTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(
