@@ -147,6 +147,10 @@ class InitializersTest(testing.TestCase):
 
         self.run_class_serialization_test(initializer)
 
+        # Test legacy class_name
+        initializer = initializers.get("Orthogonal")
+        self.assertIsInstance(initializer, initializers.OrthogonalInitializer)
+
     def test_get_method(self):
         obj = initializers.get("glorot_normal")
         self.assertTrue(obj, initializers.GlorotNormal)
