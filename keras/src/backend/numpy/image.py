@@ -36,6 +36,96 @@ def rgb_to_grayscale(images, data_format=None):
     return grayscales.astype(original_dtype)
 
 
+def rgb_to_hsv(images, data_format=None):
+    # Ref: dm_pix
+    images = convert_to_tensor(images)
+    dtype = images.dtype
+    data_format = backend.standardize_data_format(data_format)
+    channels_axis = -1 if data_format == "channels_last" else -3
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    if not backend.is_float_dtype(dtype):
+        raise ValueError(
+            "Invalid images dtype: expected float dtype. "
+            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+        )
+    eps = np.finfo(dtype).eps
+    images = np.where(np.abs(images) < eps, 0.0, images)
+    red, green, blue = np.split(images, 3, channels_axis)
+    red = np.squeeze(red, channels_axis)
+    green = np.squeeze(green, channels_axis)
+    blue = np.squeeze(blue, channels_axis)
+
+    def rgb_planes_to_hsv_planes(r, g, b):
+        value = np.maximum(np.maximum(r, g), b)
+        minimum = np.minimum(np.minimum(r, g), b)
+        range_ = value - minimum
+
+        safe_value = np.where(value > 0, value, 1.0)
+        safe_range = np.where(range_ > 0, range_, 1.0)
+
+        saturation = np.where(value > 0, range_ / safe_value, 0.0)
+        norm = 1.0 / (6.0 * safe_range)
+
+        hue = np.where(
+            value == g,
+            norm * (b - r) + 2.0 / 6.0,
+            norm * (r - g) + 4.0 / 6.0,
+        )
+        hue = np.where(value == r, norm * (g - b), hue)
+        hue = np.where(range_ > 0, hue, 0.0) + (hue < 0.0).astype(hue.dtype)
+        return hue, saturation, value
+
+    images = np.stack(
+        rgb_planes_to_hsv_planes(red, green, blue), axis=channels_axis
+    )
+    return images.astype(dtype)
+
+
+def hsv_to_rgb(images, data_format=None):
+    # Ref: dm_pix
+    images = convert_to_tensor(images)
+    dtype = images.dtype
+    data_format = backend.standardize_data_format(data_format)
+    channels_axis = -1 if data_format == "channels_last" else -3
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    if not backend.is_float_dtype(dtype):
+        raise ValueError(
+            "Invalid images dtype: expected float dtype. "
+            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+        )
+    hue, saturation, value = np.split(images, 3, channels_axis)
+    hue = np.squeeze(hue, channels_axis)
+    saturation = np.squeeze(saturation, channels_axis)
+    value = np.squeeze(value, channels_axis)
+
+    def hsv_planes_to_rgb_planes(hue, saturation, value):
+        dh = np.mod(hue, 1.0) * 6.0
+        dr = np.clip(np.abs(dh - 3.0) - 1.0, 0.0, 1.0)
+        dg = np.clip(2.0 - np.abs(dh - 2.0), 0.0, 1.0)
+        db = np.clip(2.0 - np.abs(dh - 4.0), 0.0, 1.0)
+        one_minus_s = 1.0 - saturation
+
+        red = value * (one_minus_s + saturation * dr)
+        green = value * (one_minus_s + saturation * dg)
+        blue = value * (one_minus_s + saturation * db)
+        return red, green, blue
+
+    images = np.stack(
+        hsv_planes_to_rgb_planes(hue, saturation, value), axis=channels_axis
+    )
+    return images.astype(dtype)
+
+
 def resize(
     images,
     size,
