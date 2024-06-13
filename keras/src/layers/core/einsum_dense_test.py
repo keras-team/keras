@@ -382,7 +382,6 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
 
     # Test quantization-related (int8 and float8) methods
 
-    @pytest.mark.requires_trainable_backend
     def test_quantize_int8(self):
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
@@ -471,7 +470,6 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         ("btd,ndh->btnh", "btd,ndh->btnh", (None, 2, 8), (1, 2, 4)),
         ("btd,df->btf", "btd,df->btf", (None, 4), (1, 2, 4)),
     )
-    @pytest.mark.requires_trainable_backend
     def test_quantize_int8_with_specific_equations(
         self, equation, output_shape, input_shape
     ):
@@ -903,7 +901,6 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
                 len(model.non_trainable_weights),
             )
 
-    @pytest.mark.requires_trainable_backend
     def test_quantize_float8_inference(self):
         config = dict(
             equation="ab,bcd->acd",

@@ -65,6 +65,8 @@ def matmul(x1, x2):
         dtype = "int32"
     else:
         dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.matmul(x1, x2).astype(dtype)
 
 
