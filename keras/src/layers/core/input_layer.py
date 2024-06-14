@@ -16,6 +16,7 @@ class InputLayer(Layer):
         sparse=None,
         batch_shape=None,
         input_tensor=None,
+        optional=False,
         name=None,
         **kwargs,
     ):
@@ -69,6 +70,7 @@ class InputLayer(Layer):
         self._input_tensor = input_tensor
         Node(operation=self, call_args=(), call_kwargs={}, outputs=input_tensor)
         self.built = True
+        self.optional = optional
 
     def call(self):
         return
@@ -95,6 +97,7 @@ def Input(
     batch_shape=None,
     name=None,
     tensor=None,
+    optional=False,
 ):
     """Used to instantiate a Keras tensor.
 
@@ -127,6 +130,8 @@ def Input(
         tensor: Optional existing tensor to wrap into the `Input` layer.
             If set, the layer will use this tensor rather
             than creating a new placeholder tensor.
+        optional: Boolean, whether the input is optional or not.
+            An optional input can accept `None` values.
 
     Returns:
       A Keras tensor.
@@ -148,5 +153,6 @@ def Input(
         batch_shape=batch_shape,
         name=name,
         input_tensor=tensor,
+        optional=optional,
     )
     return layer.output

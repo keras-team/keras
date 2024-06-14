@@ -332,12 +332,8 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
 
-    """Test quantization-related (int8 and float8) methods"""
+    # Test quantization-related (int8 and float8) methods
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason=f"{backend.backend()} does not support ops.custom_gradient.",
-    )
     def test_quantize_int8(self):
         layer = layers.Dense(units=16)
         layer.build((None, 8))
@@ -450,6 +446,38 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         layer.build((None, 2))
         layer.dtype_policy = policy
         self.assertLen(layer.variables, expected_num_variables)
+
+    @parameterized.named_parameters(
+        ("int7", "int7"),
+        ("float7", "float7"),
+    )
+    def test_quantize_invalid_mode(self, mode):
+        layer = layers.Dense(units=2)
+        layer.build((None, 2))
+        x = np.random.random((1, 2))
+        # dtype_policy should not be altered by failed quantization
+        original_dtype_policy = layer.dtype_policy
+
+        # Test quantize
+        with self.assertRaisesRegex(ValueError, "Invalid quantization mode."):
+            layer.quantize(mode)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+        # Test quantized_build
+        with self.assertRaisesRegex(
+            NotImplementedError, "Invalid quantization mode."
+        ):
+            layer.quantized_build((None, 2), mode)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+        # Test quantized_call
+        with self.assertRaisesRegex(
+            NotImplementedError, "Invalid quantization mode."
+        ):
+            # Explicitly set quantization_mode
+            layer._dtype_policy.quantization_mode = mode
+            layer.quantized_call(x)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_int8_dtype_argument(self):
@@ -597,7 +625,9 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             import jax
 
             def stateless_loss_fn(trainable_variables, x, dy):
-                y = layer.stateless_call(trainable_variables, [], x)[0]
+                y = layer.stateless_call(
+                    trainable_variables, [], x, training=True
+                )[0]
                 loss = y * ops.cast(dy, y.dtype)
                 return ops.sum(loss)
 
@@ -732,3 +762,16 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
                 reloaded_layer.non_trainable_weights,
                 len(model.non_trainable_weights),
             )
+
+    def test_quantize_float8_inference(self):
+        config = dict(units=16)
+        layer = layers.Dense(**config)
+        layer.build((None, 8))
+        layer.quantize("float8")
+
+        # Try calling with `training=False` and the result must match
+        # `training=True` because there is no update.
+        x = np.random.random((64, 8))
+        y_inference = layer(x, training=False)
+        y_training = layer(x, training=True)
+        self.assertAllClose(y_inference, y_training)

@@ -226,7 +226,7 @@ class RandomRotation(TFDataLayer):
         if training:
             rotation_matrix = self._get_rotation_matrix(inputs)
             transformed_image = self.backend.image.affine_transform(
-                image=inputs,
+                images=inputs,
                 transform=rotation_matrix,
                 interpolation=self.interpolation,
                 fill_mode=self.fill_mode,

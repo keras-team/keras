@@ -131,6 +131,7 @@ Args:
         Defaults to `"softmax"`.
         When loading pretrained weights, `classifier_activation` can only
         be `None` or `"softmax"`.
+    name: The name of the model (string).
 
 Returns:
     A model instance.
@@ -333,7 +334,7 @@ def ConvNeXt(
     drop_path_rate=0.0,
     layer_scale_init_value=1e-6,
     default_size=224,
-    model_name="convnext",
+    name="convnext",
     include_preprocessing=True,
     include_top=True,
     weights=None,
@@ -342,6 +343,7 @@ def ConvNeXt(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    weights_name=None,
 ):
     """Instantiates ConvNeXt architecture given specific configuration.
 
@@ -354,7 +356,7 @@ def ConvNeXt(
         layer_scale_init_value: Layer scale coefficient. If 0.0, layer scaling
             won't be used.
         default_size: Default input image size.
-        model_name: An optional name for the model.
+        name: An optional name for the model.
         include_preprocessing: boolean denoting whther to
             include preprocessing in the model.
             When `weights="imagenet"` this should always be `True`.
@@ -440,7 +442,7 @@ def ConvNeXt(
         )
         num_channels = input_shape[channel_axis - 1]
         if num_channels == 3:
-            x = PreStem(name=model_name)(x)
+            x = PreStem(name=name)(x)
 
     # Stem block.
     stem = Sequential(
@@ -449,13 +451,13 @@ def ConvNeXt(
                 projection_dims[0],
                 kernel_size=4,
                 strides=4,
-                name=model_name + "_stem_conv",
+                name=name + "_stem_conv",
             ),
             layers.LayerNormalization(
-                epsilon=1e-6, name=model_name + "_stem_layernorm"
+                epsilon=1e-6, name=name + "_stem_layernorm"
             ),
         ],
-        name=model_name + "_stem",
+        name=name + "_stem",
     )
 
     # Downsampling blocks.
@@ -468,16 +470,16 @@ def ConvNeXt(
             [
                 layers.LayerNormalization(
                     epsilon=1e-6,
-                    name=model_name + "_downsampling_layernorm_" + str(i),
+                    name=name + "_downsampling_layernorm_" + str(i),
                 ),
                 layers.Conv2D(
                     projection_dims[i + 1],
                     kernel_size=2,
                     strides=2,
-                    name=model_name + "_downsampling_conv_" + str(i),
+                    name=name + "_downsampling_conv_" + str(i),
                 ),
             ],
-            name=model_name + "_downsampling_block_" + str(i),
+            name=name + "_downsampling_block_" + str(i),
         )
         downsample_layers.append(downsample_layer)
 
@@ -499,7 +501,7 @@ def ConvNeXt(
                 projection_dim=projection_dims[i],
                 drop_path_rate=depth_drop_rates[cur + j],
                 layer_scale_init_value=layer_scale_init_value,
-                name=model_name + f"_stage_{i}_block_{j}",
+                name=name + f"_stage_{i}_block_{j}",
             )(x)
         cur += depths[i]
 
@@ -508,7 +510,7 @@ def ConvNeXt(
         x = Head(
             num_classes=classes,
             classifier_activation=classifier_activation,
-            name=model_name,
+            name=name,
         )(x)
 
     else:
@@ -518,17 +520,17 @@ def ConvNeXt(
             x = layers.GlobalMaxPooling2D()(x)
         x = layers.LayerNormalization(epsilon=1e-6)(x)
 
-    model = Functional(inputs=inputs, outputs=x, name=model_name)
+    model = Functional(inputs=inputs, outputs=x, name=name)
 
     # Load weights.
     if weights == "imagenet":
         if include_top:
             file_suffix = ".h5"
-            file_hash = WEIGHTS_HASHES[model_name][0]
+            file_hash = WEIGHTS_HASHES[weights_name][0]
         else:
             file_suffix = "_notop.h5"
-            file_hash = WEIGHTS_HASHES[model_name][1]
-        file_name = model_name + file_suffix
+            file_hash = WEIGHTS_HASHES[weights_name][1]
+        file_name = name + file_suffix
         weights_path = file_utils.get_file(
             file_name,
             BASE_WEIGHTS_PATH + file_name,
@@ -552,7 +554,6 @@ def ConvNeXt(
     ]
 )
 def ConvNeXtTiny(
-    model_name="convnext_tiny",
     include_top=True,
     include_preprocessing=True,
     weights="imagenet",
@@ -561,14 +562,16 @@ def ConvNeXtTiny(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="convnext_tiny",
 ):
     return ConvNeXt(
+        weights_name="convnext_tiny",
         depths=MODEL_CONFIGS["tiny"]["depths"],
         projection_dims=MODEL_CONFIGS["tiny"]["projection_dims"],
         drop_path_rate=0.0,
         layer_scale_init_value=1e-6,
         default_size=MODEL_CONFIGS["tiny"]["default_size"],
-        model_name=model_name,
+        name=name,
         include_top=include_top,
         include_preprocessing=include_preprocessing,
         weights=weights,
@@ -587,7 +590,6 @@ def ConvNeXtTiny(
     ]
 )
 def ConvNeXtSmall(
-    model_name="convnext_small",
     include_top=True,
     include_preprocessing=True,
     weights="imagenet",
@@ -596,14 +598,16 @@ def ConvNeXtSmall(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="convnext_small",
 ):
     return ConvNeXt(
+        weights_name="convnext_small",
         depths=MODEL_CONFIGS["small"]["depths"],
         projection_dims=MODEL_CONFIGS["small"]["projection_dims"],
         drop_path_rate=0.0,
         layer_scale_init_value=1e-6,
         default_size=MODEL_CONFIGS["small"]["default_size"],
-        model_name=model_name,
+        name=name,
         include_top=include_top,
         include_preprocessing=include_preprocessing,
         weights=weights,
@@ -622,7 +626,6 @@ def ConvNeXtSmall(
     ]
 )
 def ConvNeXtBase(
-    model_name="convnext_base",
     include_top=True,
     include_preprocessing=True,
     weights="imagenet",
@@ -631,14 +634,16 @@ def ConvNeXtBase(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="convnext_base",
 ):
     return ConvNeXt(
+        weights_name="convnext_base",
         depths=MODEL_CONFIGS["base"]["depths"],
         projection_dims=MODEL_CONFIGS["base"]["projection_dims"],
         drop_path_rate=0.0,
         layer_scale_init_value=1e-6,
         default_size=MODEL_CONFIGS["base"]["default_size"],
-        model_name=model_name,
+        name=name,
         include_top=include_top,
         include_preprocessing=include_preprocessing,
         weights=weights,
@@ -657,7 +662,6 @@ def ConvNeXtBase(
     ]
 )
 def ConvNeXtLarge(
-    model_name="convnext_large",
     include_top=True,
     include_preprocessing=True,
     weights="imagenet",
@@ -666,14 +670,16 @@ def ConvNeXtLarge(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="convnext_large",
 ):
     return ConvNeXt(
+        weights_name="convnext_large",
         depths=MODEL_CONFIGS["large"]["depths"],
         projection_dims=MODEL_CONFIGS["large"]["projection_dims"],
         drop_path_rate=0.0,
         layer_scale_init_value=1e-6,
         default_size=MODEL_CONFIGS["large"]["default_size"],
-        model_name=model_name,
+        name=name,
         include_top=include_top,
         include_preprocessing=include_preprocessing,
         weights=weights,
@@ -692,7 +698,6 @@ def ConvNeXtLarge(
     ]
 )
 def ConvNeXtXLarge(
-    model_name="convnext_xlarge",
     include_top=True,
     include_preprocessing=True,
     weights="imagenet",
@@ -701,14 +706,16 @@ def ConvNeXtXLarge(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="convnext_xlarge",
 ):
     return ConvNeXt(
+        weights_name="convnext_xlarge",
         depths=MODEL_CONFIGS["xlarge"]["depths"],
         projection_dims=MODEL_CONFIGS["xlarge"]["projection_dims"],
         drop_path_rate=0.0,
         layer_scale_init_value=1e-6,
         default_size=MODEL_CONFIGS["xlarge"]["default_size"],
-        model_name=model_name,
+        name=name,
         include_top=include_top,
         include_preprocessing=include_preprocessing,
         weights=weights,

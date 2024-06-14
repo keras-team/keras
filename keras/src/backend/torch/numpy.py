@@ -697,13 +697,13 @@ def imag(x):
     return torch.imag(x)
 
 
-def isclose(x1, x2):
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = cast(x1, result_dtype)
     x2 = cast(x2, result_dtype)
-    return torch.isclose(x1, x2)
+    return torch.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 def isfinite(x):
@@ -1007,7 +1007,7 @@ def ndim(x):
 
 def nonzero(x):
     x = convert_to_tensor(x)
-    return tuple(cast(indices, "int32") for indices in torch.nonzero(x).T)
+    return cast(torch.nonzero(x).T, "int32")
 
 
 def not_equal(x1, x2):
@@ -1251,8 +1251,8 @@ def split(x, indices_or_sections, axis=0):
         dim=axis,
     )
     if dim == 0 and isinstance(indices_or_sections, int):
-        out = tuple(out[0].clone() for _ in range(indices_or_sections))
-    return out
+        out = [out[0].clone() for _ in range(indices_or_sections)]
+    return list(out)
 
 
 def stack(x, axis=0):

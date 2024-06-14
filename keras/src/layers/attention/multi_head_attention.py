@@ -59,6 +59,7 @@ class MultiHeadAttention(Layer):
         activity_regularizer: Regularizer for dense layer activity.
         kernel_constraint: Constraint for dense layer kernels.
         bias_constraint: Constraint for dense layer kernels.
+        seed: Optional integer to seed the dropout layer.
 
     Call arguments:
         query: Query tensor of shape `(B, T, dim)`, where `B` is the batch size,
@@ -110,6 +111,7 @@ class MultiHeadAttention(Layer):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
+        seed=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -137,6 +139,7 @@ class MultiHeadAttention(Layer):
                 f"Received: attention_axes={attention_axes}"
             )
         self._attention_axes = attention_axes
+        self.seed = seed
 
     @property
     def num_heads(self):
@@ -189,6 +192,7 @@ class MultiHeadAttention(Layer):
             ),
             "kernel_constraint": constraints.serialize(self._kernel_constraint),
             "bias_constraint": constraints.serialize(self._bias_constraint),
+            "seed": self.seed,
         }
         return {**base_config, **config}
 
@@ -359,7 +363,7 @@ class MultiHeadAttention(Layer):
         )
         self._softmax = Softmax(axis=norm_axes, dtype=self.dtype_policy)
         self._dropout_layer = Dropout(
-            rate=self._dropout, dtype=self.dtype_policy
+            rate=self._dropout, dtype=self.dtype_policy, seed=self.seed
         )
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
 

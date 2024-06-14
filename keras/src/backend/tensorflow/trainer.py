@@ -51,8 +51,12 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 y_pred = self(x, training=True)
             else:
                 y_pred = self(x)
-            loss = self.compute_loss(
-                x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+            loss = self._compute_loss(
+                x=x,
+                y=y,
+                y_pred=y_pred,
+                sample_weight=sample_weight,
+                training=True,
             )
             self._loss_tracker.update_state(
                 loss, sample_weight=tf.shape(tree.flatten(x)[0])[0]
@@ -78,8 +82,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
             y_pred = self(x, training=False)
         else:
             y_pred = self(x)
-        loss = self.compute_loss(
-            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        loss = self._compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
         self._loss_tracker.update_state(
             loss, sample_weight=tf.shape(tree.flatten(x)[0])[0]
@@ -601,8 +605,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self, y, y_pred, sample_weight=None, regularization_losses=None
     ):
         warnings.warn(
-            "`model.compiled_loss()` is deprecated. "
-            "Instead, use `model.compute_loss(x, y, y_pred, sample_weight)`.",
+            "`model.compiled_loss()` is deprecated. Instead, use "
+            "`model.compute_loss(x, y, y_pred, sample_weight, training)`.",
         )
         return self.compute_loss(
             x=None, y=y, y_pred=y_pred, sample_weight=sample_weight
@@ -610,8 +614,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
     def loss(self, y, y_pred, sample_weight=None):
         warnings.warn(
-            "`model.loss` is deprecated. "
-            "Instead, use `model.compute_loss(x, y, y_pred, sample_weight)`.",
+            "`model.loss()` is deprecated. Instead, use "
+            "`model.compute_loss(x, y, y_pred, sample_weight, training)`.",
         )
         return self.compute_loss(
             x=None, y=y, y_pred=y_pred, sample_weight=sample_weight

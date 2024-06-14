@@ -195,6 +195,16 @@ class CategoryEncodingTest(testing.TestCase, parameterized.TestCase):
             layer.compute_output_shape(input_data.shape),
         )
 
+        # Test compute_output_shape with 1 extra dimension
+        input_data = np.array([[3], [2], [0], [1]])
+        layer = layers.CategoryEncoding(
+            num_tokens=num_tokens, output_mode="one_hot", sparse=sparse
+        )
+        self.assertEqual(
+            layer(input_data).shape,
+            layer.compute_output_shape(input_data.shape),
+        )
+
         input_data = np.array((4,))
         layer = layers.CategoryEncoding(
             num_tokens=num_tokens, output_mode="one_hot", sparse=sparse
@@ -319,12 +329,12 @@ class CategoryEncodingTest(testing.TestCase, parameterized.TestCase):
         layer = layers.CategoryEncoding(num_tokens=4, output_mode="count")
         input_array = np.array([1, 2, 3, 1])
         expected_output = np.array([0, 2, 1, 1])
-        output = layer._count(input_array)
+        output = layer(input_array)
         self.assertAllClose(expected_output, output)
 
     def test_count_batched_samples(self):
         layer = layers.CategoryEncoding(num_tokens=4, output_mode="count")
         input_array = np.array([[1, 2, 3, 1], [0, 3, 1, 0]])
         expected_output = np.array([[0, 2, 1, 1], [2, 1, 0, 1]])
-        output = layer._count(input_array)
+        output = layer(input_array)
         self.assertAllClose(expected_output, output)

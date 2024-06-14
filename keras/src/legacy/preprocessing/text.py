@@ -79,7 +79,7 @@ def hashing_trick(
 
 
 @keras_export("keras._legacy.preprocessing.text.Tokenizer")
-class Tokenizer(object):
+class Tokenizer:
     """DEPRECATED."""
 
     def __init__(

@@ -380,12 +380,8 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             supports_masking=False,
         )
 
-    """Test quantization-related (int8 and float8) methods"""
+    # Test quantization-related (int8 and float8) methods
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason=f"{backend.backend()} does not support ops.custom_gradient.",
-    )
     def test_quantize_int8(self):
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
@@ -473,10 +469,6 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         ("btnh,nhd->btd", "btnh,nhd->btd", (None, 8), (1, 2, 2, 4)),
         ("btd,ndh->btnh", "btd,ndh->btnh", (None, 2, 8), (1, 2, 4)),
         ("btd,df->btf", "btd,df->btf", (None, 4), (1, 2, 4)),
-    )
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason=f"{backend.backend()} does not support ops.custom_gradient.",
     )
     def test_quantize_int8_with_specific_equations(
         self, equation, output_shape, input_shape
@@ -574,6 +566,42 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         layer.build((None, 3))
         layer.dtype_policy = policy
         self.assertLen(layer.variables, expected_num_variables)
+
+    @parameterized.named_parameters(
+        ("int7", "int7"),
+        ("float7", "float7"),
+    )
+    def test_quantize_invalid_mode(self, mode):
+        layer = layers.EinsumDense(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer.build((None, 3))
+        x = np.random.random((1, 3))
+        # dtype_policy should not be altered by failed quantization
+        original_dtype_policy = layer.dtype_policy
+
+        # Test quantize
+        with self.assertRaisesRegex(ValueError, "Invalid quantization mode."):
+            layer.quantize(mode)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+        # Test quantized_build
+        with self.assertRaisesRegex(
+            NotImplementedError, "Invalid quantization mode."
+        ):
+            layer.quantized_build((None, 2), mode)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+        # Test quantized_call
+        with self.assertRaisesRegex(
+            NotImplementedError, "Invalid quantization mode."
+        ):
+            # Explicitly set quantization_mode
+            layer._dtype_policy.quantization_mode = mode
+            layer.quantized_call(x)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_int8_dtype_argument(self):
@@ -731,7 +759,9 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             import jax
 
             def stateless_loss_fn(trainable_variables, x, dy):
-                y = layer.stateless_call(trainable_variables, [], x)[0]
+                y = layer.stateless_call(
+                    trainable_variables, [], x, training=True
+                )[0]
                 loss = y * ops.cast(dy, y.dtype)
                 return ops.sum(loss)
 
@@ -870,3 +900,20 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
                 reloaded_layer.non_trainable_weights,
                 len(model.non_trainable_weights),
             )
+
+    def test_quantize_float8_inference(self):
+        config = dict(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer = layers.EinsumDense(**config)
+        layer.build((None, 3))
+        layer.quantize("float8")
+
+        # Try calling with `training=False` and the result must match
+        # `training=True` because there is no update.
+        x = np.random.random((64, 3))
+        y_inference = layer(x, training=False)
+        y_training = layer(x, training=True)
+        self.assertAllClose(y_inference, y_training)

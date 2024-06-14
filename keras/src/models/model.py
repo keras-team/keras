@@ -39,7 +39,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
     You start from `Input`,
     you chain layer calls to specify the model's forward pass,
-    and finally you create your model from inputs and outputs:
+    and finally, you create your model from inputs and outputs:
 
     ```python
     inputs = keras.Input(shape=(37,))
@@ -138,9 +138,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
     def __new__(cls, *args, **kwargs):
         # Signature detection for usage of `Model` as a `Functional`
         if functional_init_arguments(args, kwargs) and cls == Model:
-            from keras.src.models import functional
+            from keras.src.models.functional import Functional
 
-            return functional.Functional(*args, **kwargs)
+            return Functional.__new__(Functional, *args, **kwargs)
         return typing.cast(Model, super().__new__(cls))
 
     def __init__(self, *args, **kwargs):
@@ -245,10 +245,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 which is the starting layer name and ending layer name
                 (both inclusive) indicating the range of layers to be printed
                 in summary. It also accepts regex patterns instead of exact
-                name. In such case, start predicate will be the first element
-                it matches to `layer_range[0]` and the end predicate will be
-                the last element it matches to `layer_range[1]`.
-                By default `None` which considers all layers of model.
+                names. In this case, the start predicate will be
+                the first element that matches `layer_range[0]`
+                and the end predicate will be the last element
+                that matches `layer_range[1]`.
+                By default `None` considers all layers of the model.
 
         Raises:
             ValueError: if `summary()` is called before the model is built.
@@ -268,8 +269,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         """Saves a model as a `.keras` file.
 
         Args:
-            filepath: `str` or `pathlib.Path` object. Path where to save
-                the model. Must end in `.keras`.
+            filepath: `str` or `pathlib.Path` object.
+                The path where to save the model. Must end in `.keras`.
             overwrite: Whether we should overwrite any existing model at
                 the target location, or instead ask the user via
                 an interactive prompt.
@@ -475,7 +476,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         # Create the artifact
         model.export("path/to/location")
 
-        # Later, in a different process / environment...
+        # Later, in a different process/environment...
         reloaded_artifact = tf.saved_model.load("path/to/location")
         predictions = reloaded_artifact.serve(input_data)
         ```

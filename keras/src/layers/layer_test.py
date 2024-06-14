@@ -980,3 +980,16 @@ class LayerTest(testing.TestCase):
         layer = layers.Dense(2)
         reloaded = pickle.loads(pickle.dumps(layer))
         self.assertEqual(layer.get_config(), reloaded.get_config())
+
+    def test_serialize_activity_regularizer(self):
+        layer = layers.Dense(2, activity_regularizer="l2")
+        config = layer.get_config()
+        self.assertIn("activity_regularizer", config)
+        new_layer = layers.Dense.from_config(config)
+        self.assertEqual(
+            new_layer.activity_regularizer.__class__.__name__, "L2"
+        )
+
+        layer = layers.Dense(2)
+        config = layer.get_config()
+        self.assertNotIn("activity_regularizer", config)

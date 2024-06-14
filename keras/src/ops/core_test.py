@@ -19,6 +19,24 @@ from keras.src.ops import core
 
 
 class CoreOpsStaticShapeTest(testing.TestCase):
+    def test_scan(self):
+        def f(carry, xs):
+            xs = xs + carry
+            return carry, carry
+
+        init = KerasTensor(())
+        xs = KerasTensor((6,))
+        carry, result = core.scan(f, init, xs)
+        self.assertEqual(carry.shape, ())
+        self.assertEqual(result.shape, (6,))
+
+        def f2(carry, _):
+            return carry, carry
+
+        carry, result = core.scan(f2, init, xs=None, length=3)
+        self.assertEqual(carry.shape, ())
+        self.assertEqual(result.shape, (3,))
+
     def test_scatter(self):
         indices = KerasTensor((5, 2))
         values = KerasTensor((5,))
@@ -55,6 +73,16 @@ class CoreOpsStaticShapeTest(testing.TestCase):
             core.slice_update(inputs, start_indices, updates).shape, (4, 4, 4)
         )
 
+    def test_switch(self):
+        def fn(x, y):
+            return x[:, 0], y[0, :]
+
+        index = KerasTensor(())
+        x = KerasTensor((5, 2))
+        y = KerasTensor((5, 2))
+        self.assertEqual(core.switch(index, [fn], x, y)[0].shape, (5,))
+        self.assertEqual(core.switch(index, [fn], x, y)[1].shape, (2,))
+
     def test_fori_loop(self):
         def body_fun(i, x):
             return x + i
@@ -85,6 +113,69 @@ class CoreOpsStaticShapeTest(testing.TestCase):
 
 
 class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+    def test_scan(self):
+        # Test cumsum
+        def cumsum(carry, xs):
+            carry = carry + xs
+            return carry, carry
+
+        init = np.array(0, dtype="float32")
+        xs = np.array([1, 2, 3, 4, 10, 20], dtype="float32")
+        carry, result = core.scan(cumsum, init, xs)
+        self.assertAllClose(carry, 40.0)
+        self.assertAllClose(result, ops.cumsum(xs))
+
+        # Test reverse=True
+        carry, result = core.scan(cumsum, init, xs, reverse=True)
+        self.assertAllClose(carry, 40.0)
+        self.assertAllClose(result, [40, 39, 37, 34, 30, 20])
+
+        # Test unroll
+        for unroll in (True, False, 2):
+            carry, result = core.scan(cumsum, init, xs, unroll=unroll)
+            self.assertAllClose(carry, 40.0)
+            self.assertAllClose(result, ops.cumsum(xs))
+
+        # Test xs is None
+        def fibonaccis(carry, _):
+            return (carry[1], carry[0] + carry[1]), None
+
+        init = (np.array(0, dtype="float32"), np.array(1, dtype="float32"))
+        carry, _ = core.scan(fibonaccis, init, length=6)
+        self.assertAllClose(carry, [8, 13])
+
+        # Test nested init
+        if backend.backend() != "tensorflow":
+            # tensorflow doesn't support arbitrary shape/dtype of the output of
+            # `f`. It must be the same as `init`.
+            def multiply_two(carry, _):
+                value1 = carry["value1"]
+                value2 = carry["value2"]
+                return (
+                    {"value1": value1 * 2, "value2": value2 * 2},
+                    value1 * 2 + value2 * 2,
+                )
+
+            init = {"value1": 2.0, "value2": 3.0}
+            carry, result = core.scan(multiply_two, init, length=3)
+            self.assertAllClose(carry["value1"], 16)
+            self.assertAllClose(carry["value2"], 24)
+            self.assertAllClose(result, [10, 20, 40])
+
+        # Test nested xs
+        def reduce_add(carry, xs):
+            value1 = xs["value1"]
+            value2 = xs["value2"]
+            return carry, value1 + value2
+
+        init = np.array(0, dtype="float32")
+        xs = {
+            "value1": np.array([1, 2, 3], dtype="float32"),
+            "value2": np.array([10, 20, 30], dtype="float32"),
+        }
+        _, result = core.scan(reduce_add, init, xs)
+        self.assertAllClose(result, [11, 22, 33])
+
     def test_scatter(self):
         # Test 1D
         indices = np.array([[1], [3], [4], [7]])
@@ -221,6 +312,23 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         updates = np.zeros([2, 2, 2, 2])
         outputs = core.slice_update(inputs, start_indices, updates)
         self.assertAllClose(outputs[1:3, 1:3, 2:4, 2:4], np.zeros([2, 2, 2, 2]))
+
+    def test_switch(self):
+        def fn1(x, y):
+            return x + y
+
+        def fn2(x, y):
+            return x - y
+
+        x = np.random.rand(2, 3, 4).astype("float32")
+        y = np.random.rand(2, 3, 4).astype("float32")
+        branches = [fn1, fn2]
+        self.assertAllClose(core.switch(0, branches, x, y), x + y)
+        self.assertAllClose(core.switch(1, branches, x, y), x - y)
+
+        # Test out-of-bound index
+        self.assertAllClose(core.switch(-100, branches, x, y), x + y)
+        self.assertAllClose(core.switch(100, branches, x, y), x - y)
 
     @parameterized.named_parameters(
         [
@@ -363,6 +471,19 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             self.fail(f"Sparse is unsupported with backend {backend.backend()}")
 
         self.assertAllEqual(core.shape(x), (2, 3))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Backend does not support ragged tensors.",
+    )
+    def test_shape_ragged(self):
+        import tensorflow as tf
+
+        x = tf.ragged.constant([[3, 1, 4, 1], [], [5, 9, 2], [6], []])
+        self.assertAllEqual(core.shape(x), (5, None))
+
+        x = tf.RaggedTensor.from_row_lengths(tf.zeros([15, 2]), [4, 5, 6])
+        self.assertAllEqual(core.shape(x), (3, None, 2))
 
     def test_convert_to_tensor(self):
         x = np.ones((2,))
@@ -635,6 +756,18 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
 
 
 class CoreOpsCallsTests(testing.TestCase):
+    def test_scan_basic_call(self):
+        def cumsum(carry, xs):
+            carry = carry + xs
+            return carry, carry
+
+        init = np.array(0, dtype="float32")
+        xs = np.array([1, 2, 3, 4, 10, 20], dtype="float32")
+        scan_op = core.Scan()
+        carry, result = scan_op.call(cumsum, init, xs, None)
+        self.assertAllClose(carry, 40.0)
+        self.assertAllClose(result, ops.cumsum(xs))
+
     def test_scatter_basic_call(self):
         indices = np.array([[1, 0], [0, 1]])
         values = np.array([10, 20])
@@ -694,6 +827,25 @@ class CoreOpsCallsTests(testing.TestCase):
         result = slice_update.call(inputs, start_indices, updates)
         expected_output = np.array([[1, 2, 3], [4, 10, 11], [7, 12, 13]])
         self.assertAllClose(core.convert_to_numpy(result), expected_output)
+
+    def test_switch_basic_call(self):
+        def fn1(x, y):
+            return x + y
+
+        def fn2(x, y):
+            return x - y
+
+        x = np.random.rand(2, 3, 4).astype("float32")
+        y = np.random.rand(2, 3, 4).astype("float32")
+        branches = [fn1, fn2]
+        switch_op = core.Switch()
+        index = 0
+        outputs = switch_op.call(index, branches, x, y)
+        self.assertAllClose(outputs, x + y)
+
+        index = 1
+        outputs = switch_op.call(index, branches, x, y)
+        self.assertAllClose(outputs, x - y)
 
     def test_while_loop_basic_functionality(self):
         # Loop condition: continue if i < 5
@@ -877,3 +1029,34 @@ class CoreOpsCallsTests(testing.TestCase):
                 (mock_spec,), (mock_spec, mock_spec_different)
             )
         )
+
+
+class CoreOpsBehaviorTests(testing.TestCase):
+    def test_convert_to_numpy(self):
+        x = ops.array([1, 2, 3], dtype="float32")
+        y = ops.convert_to_numpy(x)
+        self.assertIsInstance(y, np.ndarray)
+        # Test assignment -- should not fail.
+        y[0] = 1.0
+
+    def test_scan_invalid_arguments(self):
+        def cumsum(carry, xs):
+            carry = carry + xs
+            return carry, carry
+
+        init = np.array(0, dtype="float32")
+        xs = np.array([1, 2, 3, 4, 10, 20], dtype="float32")
+
+        # Test non-callable
+        with self.assertRaisesRegex(TypeError, "should be a callable."):
+            core.scan(123, init, xs)
+
+        # Test bad unroll
+        with self.assertRaisesRegex(
+            ValueError, "must be an positive integer or boolean."
+        ):
+            core.scan(cumsum, init, xs, unroll=-1)
+
+        # Test both xs and length are None
+        with self.assertRaisesRegex(ValueError, "to scan over and"):
+            core.scan(cumsum, init, xs=None, length=None)

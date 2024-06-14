@@ -59,6 +59,7 @@ class Conv3DTranspose(BaseConvTranspose):
             bias after being updated by an `Optimizer`.
 
     Input shape:
+
     - If `data_format="channels_last"`:
         5D tensor with shape:
         `(batch_size, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
@@ -67,6 +68,7 @@ class Conv3DTranspose(BaseConvTranspose):
         `(batch_size, channels, spatial_dim1, spatial_dim2, spatial_dim3)`
 
     Output shape:
+
     - If `data_format="channels_last"`:
         5D tensor with shape:
         `(batch_size, new_spatial_dim1, new_spatial_dim2, new_spatial_dim3,

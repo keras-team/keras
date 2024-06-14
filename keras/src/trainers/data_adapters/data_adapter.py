@@ -1,4 +1,4 @@
-class DataAdapter(object):
+class DataAdapter:
     """Base class for input data adapters.
 
     The purpose of a DataAdapter is to provide a unfied interface to

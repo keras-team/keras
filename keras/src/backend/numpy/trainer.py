@@ -28,8 +28,8 @@ class NumpyTrainer(base_trainer.Trainer):
             y_pred = self(x, training=False)
         else:
             y_pred = self(x)
-        loss = self.compute_loss(
-            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        loss = self._compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
         self._loss_tracker.update_state(
             loss, sample_weight=tree.flatten(x)[0].shape[0]

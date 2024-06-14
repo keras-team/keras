@@ -365,9 +365,7 @@ class FeatureSpaceTest(testing.TestCase):
         ds = self._get_train_data_dict(as_dataset=True)
         model.predict(ds.batch(4))
 
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="TODO: debug it"
-    )
+    @pytest.mark.requires_trainable_backend
     def test_tf_data_async_processing(self):
         fs = feature_space.FeatureSpace(
             features={
@@ -433,9 +431,6 @@ class FeatureSpaceTest(testing.TestCase):
         out = fs(data)
         self.assertEqual(out.shape, (148,))
 
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="TODO: debug it"
-    )
     def test_manual_kpl(self):
         data = {
             "text": ["1st string", "2nd string", "3rd string"],
@@ -454,7 +449,7 @@ class FeatureSpaceTest(testing.TestCase):
         )
         fs.adapt(tf_data.Dataset.from_tensor_slices(data))
         out = fs(data)
-        self.assertEqual(out.shape, [3, 5])
+        self.assertEqual(list(out.shape), [3, 5])
 
     def test_no_adapt(self):
         data = {
@@ -470,11 +465,13 @@ class FeatureSpaceTest(testing.TestCase):
         self.assertEqual(tuple(out.shape), (10, 32))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="TODO: debug it"
+        backend.backend() in ("numpy", "torch"),
+        reason=(
+            "TODO: When using FeatureSpace as a Model in torch and numpy, "
+            "the error is large."
+        ),
     )
     def test_saving(self):
-        # Torch GPU: `model.predict(ds.batch(4))` fails on device placement
-        # JAX GPU: out[0] and ref_out don't match. May be concat feature order?
         cls = feature_space.FeatureSpace
         fs = feature_space.FeatureSpace(
             features={

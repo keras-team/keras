@@ -324,7 +324,9 @@ class ExportArchive:
 
         if input_signature:
             if backend.backend() == "tensorflow":
-                decorated_fn = tf.function(fn, input_signature=input_signature)
+                decorated_fn = tf.function(
+                    fn, input_signature=input_signature, autograph=False
+                )
             else:  # JAX backend
 
                 # 1. Create a stateless wrapper for `fn`
@@ -619,34 +621,39 @@ def export_model(model, filepath):
             input_signature = [input_signature]
         export_archive.add_endpoint("serve", model.__call__, input_signature)
     else:
-        save_spec = _get_save_spec(model)
-        if not save_spec or not model._called:
+        input_signature = _get_input_signature(model)
+        if not input_signature or not model._called:
             raise ValueError(
                 "The model provided has never called. "
                 "It must be called at least once before export."
             )
-        input_signature = [save_spec]
         export_archive.add_endpoint("serve", model.__call__, input_signature)
     export_archive.write_out(filepath)
 
 
-def _get_save_spec(model):
+def _get_input_signature(model):
     shapes_dict = getattr(model, "_build_shapes_dict", None)
     if not shapes_dict:
         return None
 
-    if len(shapes_dict) == 1:
-        shape = list(shapes_dict.values())[0]
-        shape = (None,) + shape[1:]
-        return tf.TensorSpec(shape=shape, dtype=model.input_dtype)
+    def make_tensor_spec(structure):
+        # We need to turn wrapper structures like TrackingDict or _DictWrapper
+        # into plain Python structures because they don't work with jax2tf/JAX.
+        if isinstance(structure, dict):
+            return {k: make_tensor_spec(v) for k, v in structure.items()}
+        if isinstance(structure, (list, tuple)):
+            if all(isinstance(d, (int, type(None))) for d in structure):
+                return tf.TensorSpec(
+                    shape=(None,) + structure[1:], dtype=model.input_dtype
+                )
+            result = [make_tensor_spec(v) for v in structure]
+            return tuple(result) if isinstance(structure, tuple) else result
+        else:
+            raise ValueError(
+                f"Unsupported type {type(structure)} for {structure}"
+            )
 
-    specs = {}
-    for key, shape in shapes_dict.items():
-        key = key.rstrip("_shape")
-        shape = (None,) + shape[1:]
-        specs[key] = tf.TensorSpec(shape=shape, dtype=model.input_dtype)
-
-    return specs
+    return [make_tensor_spec(value) for value in shapes_dict.values()]
 
 
 @keras_export("keras.layers.TFSMLayer")

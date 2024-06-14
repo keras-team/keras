@@ -55,3 +55,11 @@ class TFDataLayer(Layer):
         seed_generator = SeedGenerator(self.seed, backend=self.backend)
         self._backend_generators[backend] = seed_generator
         return seed_generator
+
+    def convert_weight(self, weight):
+        """Convert the weight if it is from the a different backend."""
+        if self.backend.name == keras.backend.backend():
+            return weight
+        else:
+            weight = keras.ops.convert_to_numpy(weight)
+            return self.backend.convert_to_tensor(weight)

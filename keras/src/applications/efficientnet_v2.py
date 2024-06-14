@@ -579,6 +579,7 @@ Args:
         Defaults to `"softmax"`.
         When loading pretrained weights, `classifier_activation` can only
         be `None` or `"softmax"`.
+    name: The name of the model (string).
 
 Returns:
     A model instance.
@@ -830,7 +831,7 @@ def EfficientNetV2(
     bn_momentum=0.9,
     activation="swish",
     blocks_args="default",
-    model_name="efficientnetv2",
+    name="efficientnetv2",
     include_top=True,
     weights="imagenet",
     input_tensor=None,
@@ -839,6 +840,7 @@ def EfficientNetV2(
     classes=1000,
     classifier_activation="softmax",
     include_preprocessing=True,
+    weights_name=None,
 ):
     """Instantiates the EfficientNetV2 architecture using given scaling
     coefficients.
@@ -854,7 +856,7 @@ def EfficientNetV2(
         bn_momentum: float. Momentum parameter for Batch Normalization layers.
         activation: activation function.
         blocks_args: list of dicts, parameters to construct block modules.
-        model_name: string, model name.
+        name: string, model name.
         include_top: whether to include the fully-connected layer at the top of
             the network.
         weights: one of `None` (random initialization), `"imagenet"`
@@ -888,7 +890,7 @@ def EfficientNetV2(
     """
 
     if blocks_args == "default":
-        blocks_args = DEFAULT_BLOCKS_ARGS[model_name]
+        blocks_args = DEFAULT_BLOCKS_ARGS[name]
 
     if not (weights in {"imagenet", None} or file_utils.exists(weights)):
         raise ValueError(
@@ -931,7 +933,7 @@ def EfficientNetV2(
         # Apply original V1 preprocessing for Bx variants
         # if number of channels allows it
         num_channels = input_shape[bn_axis - 1]
-        if model_name.split("-")[-1].startswith("b") and num_channels == 3:
+        if name.split("-")[-1].startswith("b") and num_channels == 3:
             x = layers.Rescaling(scale=1.0 / 255)(x)
             x = layers.Normalization(
                 mean=[0.485, 0.456, 0.406],
@@ -1057,17 +1059,17 @@ def EfficientNetV2(
         inputs = img_input
 
     # Create model.
-    model = Functional(inputs, x, name=model_name)
+    model = Functional(inputs, x, name=name)
 
     # Load weights.
     if weights == "imagenet":
         if include_top:
             file_suffix = ".h5"
-            file_hash = WEIGHTS_HASHES[model_name[-2:]][0]
+            file_hash = WEIGHTS_HASHES[weights_name][0]
         else:
             file_suffix = "_notop.h5"
-            file_hash = WEIGHTS_HASHES[model_name[-2:]][1]
-        file_name = model_name + file_suffix
+            file_hash = WEIGHTS_HASHES[weights_name][1]
+        file_name = name + file_suffix
         weights_path = file_utils.get_file(
             file_name,
             BASE_WEIGHTS_PATH + file_name,
@@ -1096,12 +1098,13 @@ def EfficientNetV2B0(
     classes=1000,
     classifier_activation="softmax",
     include_preprocessing=True,
+    name="efficientnetv2-b0",
 ):
     return EfficientNetV2(
         width_coefficient=1.0,
         depth_coefficient=1.0,
         default_size=224,
-        model_name="efficientnetv2-b0",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -1110,6 +1113,7 @@ def EfficientNetV2B0(
         classes=classes,
         classifier_activation=classifier_activation,
         include_preprocessing=include_preprocessing,
+        weights_name="b0",
     )
 
 
@@ -1128,12 +1132,13 @@ def EfficientNetV2B1(
     classes=1000,
     classifier_activation="softmax",
     include_preprocessing=True,
+    name="efficientnetv2-b1",
 ):
     return EfficientNetV2(
         width_coefficient=1.0,
         depth_coefficient=1.1,
         default_size=240,
-        model_name="efficientnetv2-b1",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -1142,6 +1147,7 @@ def EfficientNetV2B1(
         classes=classes,
         classifier_activation=classifier_activation,
         include_preprocessing=include_preprocessing,
+        weights_name="b1",
     )
 
 
@@ -1160,12 +1166,13 @@ def EfficientNetV2B2(
     classes=1000,
     classifier_activation="softmax",
     include_preprocessing=True,
+    name="efficientnetv2-b2",
 ):
     return EfficientNetV2(
         width_coefficient=1.1,
         depth_coefficient=1.2,
         default_size=260,
-        model_name="efficientnetv2-b2",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -1174,6 +1181,7 @@ def EfficientNetV2B2(
         classes=classes,
         classifier_activation=classifier_activation,
         include_preprocessing=include_preprocessing,
+        weights_name="b2",
     )
 
 
@@ -1192,12 +1200,13 @@ def EfficientNetV2B3(
     classes=1000,
     classifier_activation="softmax",
     include_preprocessing=True,
+    name="efficientnetv2-b3",
 ):
     return EfficientNetV2(
         width_coefficient=1.2,
         depth_coefficient=1.4,
         default_size=300,
-        model_name="efficientnetv2-b3",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -1206,6 +1215,7 @@ def EfficientNetV2B3(
         classes=classes,
         classifier_activation=classifier_activation,
         include_preprocessing=include_preprocessing,
+        weights_name="b3",
     )
 
 
@@ -1224,12 +1234,13 @@ def EfficientNetV2S(
     classes=1000,
     classifier_activation="softmax",
     include_preprocessing=True,
+    name="efficientnetv2-s",
 ):
     return EfficientNetV2(
         width_coefficient=1.0,
         depth_coefficient=1.0,
         default_size=384,
-        model_name="efficientnetv2-s",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -1238,6 +1249,7 @@ def EfficientNetV2S(
         classes=classes,
         classifier_activation=classifier_activation,
         include_preprocessing=include_preprocessing,
+        weights_name="-s",
     )
 
 
@@ -1256,12 +1268,13 @@ def EfficientNetV2M(
     classes=1000,
     classifier_activation="softmax",
     include_preprocessing=True,
+    name="efficientnetv2-m",
 ):
     return EfficientNetV2(
         width_coefficient=1.0,
         depth_coefficient=1.0,
         default_size=480,
-        model_name="efficientnetv2-m",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -1270,6 +1283,7 @@ def EfficientNetV2M(
         classes=classes,
         classifier_activation=classifier_activation,
         include_preprocessing=include_preprocessing,
+        weights_name="-m",
     )
 
 
@@ -1288,12 +1302,13 @@ def EfficientNetV2L(
     classes=1000,
     classifier_activation="softmax",
     include_preprocessing=True,
+    name="efficientnetv2-l",
 ):
     return EfficientNetV2(
         width_coefficient=1.0,
         depth_coefficient=1.0,
         default_size=480,
-        model_name="efficientnetv2-l",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -1302,6 +1317,7 @@ def EfficientNetV2L(
         classes=classes,
         classifier_activation=classifier_activation,
         include_preprocessing=include_preprocessing,
+        weights_name="-l",
     )
 
 

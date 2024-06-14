@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.utils import backend_utils
+from keras.src.utils import numerical_utils
 from keras.src.utils import tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -162,7 +163,9 @@ class Hashing(Layer):
                 f"non-positive values. Received: num_bins={num_bins}."
             )
 
-        if output_mode == "int" and not kwargs["dtype"] in ("int32", "int64"):
+        if output_mode == "int" and (
+            self.dtype_policy.name not in ("int32", "int64")
+        ):
             raise ValueError(
                 'When `output_mode="int"`, `dtype` should be an integer '
                 f"type, 'int32' or 'in64'. Received: dtype={kwargs['dtype']}"
@@ -207,10 +210,12 @@ class Hashing(Layer):
         self.supports_jit = False
 
     def call(self, inputs):
-        if not isinstance(
-            inputs, (tf.Tensor, tf.SparseTensor, tf.RaggedTensor)
-        ):
-            inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
+        from keras.src.backend import tensorflow as tf_backend
+
+        inputs = tf_utils.ensure_tensor(inputs)
+        if self.output_mode == "one_hot" and inputs.shape[-1] == 1:
+            # One hot only unpranks if the final dimension is not 1.
+            inputs = tf_backend.numpy.squeeze(inputs, axis=-1)
         if isinstance(inputs, tf.SparseTensor):
             indices = tf.SparseTensor(
                 indices=inputs.indices,
@@ -219,12 +224,13 @@ class Hashing(Layer):
             )
         else:
             indices = self._hash_values_to_bins(inputs)
-        outputs = tf_utils.encode_categorical_inputs(
+        outputs = numerical_utils.encode_categorical_inputs(
             indices,
             output_mode=self.output_mode,
             depth=self.num_bins,
             sparse=self.sparse,
             dtype=self.dtype,
+            backend_module=tf_backend,
         )
         return backend_utils.convert_tf_tensor(outputs)
 

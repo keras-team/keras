@@ -268,7 +268,7 @@ class HashingTest(testing.TestCase, parameterized.TestCase):
 
         model = models.Model(inputs, outputs)
         output_data = model(input_array)
-        self.assertAllEqual(expected_output, output_data)
+        self.assertAllClose(expected_output, output_data)
 
     def test_multi_hot_output(self):
         input_array = np.array([[0, 1, 2, 3, 4]])
@@ -283,7 +283,7 @@ class HashingTest(testing.TestCase, parameterized.TestCase):
 
         model = models.Model(inputs, outputs)
         output_data = model(input_array)
-        self.assertAllEqual(expected_output, output_data)
+        self.assertAllClose(expected_output, output_data)
 
     @parameterized.named_parameters(
         (
