@@ -6,8 +6,7 @@ from absl import logging
 from keras.src.api_export import keras_export
 from keras.src.legacy.saving import legacy_h5_format
 from keras.src.saving import saving_lib
-from keras.src.utils import file_utils
-from keras.src.utils import io_utils
+from keras.src.utils import file_utils, io_utils
 
 try:
     import h5py
@@ -88,7 +87,7 @@ def save_model(model, filepath, overwrite=True, **kwargs):
 
     # If file exists and should not be overwritten.
     try:
-        exists = os.path.exists(filepath)
+        exists = (not str(filepath).startswith("hf://")) and os.path.exists(filepath)
     except TypeError:
         exists = False
     if exists and not overwrite:
@@ -96,7 +95,7 @@ def save_model(model, filepath, overwrite=True, **kwargs):
         if not proceed:
             return
 
-    if str(filepath).endswith(".keras"):
+    if str(filepath).endswith(".keras") or str(filepath).startswith("hf://"):
         saving_lib.save_model(model, filepath)
     elif str(filepath).endswith((".h5", ".hdf5")):
         legacy_h5_format.save_model_to_hdf5(
@@ -153,12 +152,16 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     is_keras_zip = str(filepath).endswith(".keras") and zipfile.is_zipfile(
         filepath
     )
+    is_hf_repo = str(filepath).startswith("hf://")
+    if is_keras_zip and is_hf_repo:
+        raise ValueError("""Loading a .keras file from the Hugging Face Hub is not supported.""")
 
     # Support for remote zip files
     if (
         file_utils.is_remote_path(filepath)
         and not file_utils.isdir(filepath)
         and not is_keras_zip
+        and not is_hf_repo
     ):
         local_path = os.path.join(
             saving_lib.get_temp_dir(), os.path.basename(filepath)
@@ -172,7 +175,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             filepath = local_path
             is_keras_zip = True
 
-    if is_keras_zip:
+    if is_keras_zip or is_hf_repo:
         return saving_lib.load_model(
             filepath,
             custom_objects=custom_objects,

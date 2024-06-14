@@ -3,10 +3,12 @@
 import datetime
 import io
 import json
+import os
 import tempfile
 import warnings
 import zipfile
 
+import huggingface_hub
 import ml_dtypes
 import numpy as np
 
@@ -16,12 +18,14 @@ from keras.src.layers.layer import Layer
 from keras.src.losses.loss import Loss
 from keras.src.metrics.metric import Metric
 from keras.src.optimizers.optimizer import Optimizer
-from keras.src.saving.serialization_lib import ObjectSharingScope
-from keras.src.saving.serialization_lib import deserialize_keras_object
-from keras.src.saving.serialization_lib import serialize_keras_object
+from keras.src.saving.serialization_lib import (
+    ObjectSharingScope,
+    deserialize_keras_object,
+    serialize_keras_object,
+)
 from keras.src.trainers.compile_utils import CompileMetrics
-from keras.src.utils import file_utils
-from keras.src.utils import naming
+from keras.src.utils import file_utils, naming, plot_model
+from keras.src.utils.model_visualization import check_pydot
 from keras.src.version import __version__ as keras_version
 
 try:
@@ -34,6 +38,18 @@ _METADATA_FILENAME = "metadata.json"
 _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
 _ASSETS_DIRNAME = "assets"
 
+
+_MODEL_CARD_TEMPLATE = """
+---
+library_name: keras
+---
+
+This model has been uploaded using the Keras library and can be used with JAX, TensorFlow, and PyTorch backends.
+
+This model card has been generated automatically and should be completed by the model author. See [Model Cards documentation](https://huggingface.co/docs/hub/model-cards) for more information.
+
+For more details about the model architecture, check out [config.json](./config.json).
+"""
 
 def save_model(model, filepath, weights_format="h5"):
     """Save a zip-archive representing a Keras model to the given file or path.
@@ -76,6 +92,11 @@ def save_model(model, filepath, weights_format="h5"):
         return
 
     filepath = str(filepath)
+    if filepath.startswith("hf://"):
+        # Save to Hugging Face Hub
+        _save_and_upload_model_to_hf(model, filepath, weights_format)
+        return
+
     if not filepath.endswith(".keras"):
         raise ValueError(
             "Invalid `filepath` argument: expected a `.keras` extension. "
@@ -91,6 +112,37 @@ def save_model(model, filepath, weights_format="h5"):
         with open(filepath, "wb") as f:
             _save_model_to_fileobj(model, f, weights_format)
 
+def _save_and_upload_model_to_hf(model, hf_path, weights_format):
+    if hf_path.startswith("hf://"):
+        hf_path = hf_path[5:]
+    if hf_path.count("/") > 1:
+        raise ValueError(
+            "Invalid `hf_path` argument: expected `namespace/model_name` format. "
+            f"Received: hf_path={hf_path}"
+        )
+
+    api = huggingface_hub.HfApi(library_name="keras", library_version=keras_version)
+    repo_url = api.create_repo(hf_path, exist_ok=True)
+    repo_id = repo_url.repo_id
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        _save_model_to_folder(model, tmp_dir, weights_format)
+
+        model_card = _MODEL_CARD_TEMPLATE
+
+        if check_pydot():
+            plot_path = os.path.join(tmp_dir, "assets", "config.png")
+            plot_model(model, to_file=plot_path, show_layer_names=True, show_shapes=True, show_dtype=True)
+            model_card += "\n\n![](./assets/config.png)"
+
+        with open(os.path.join(tmp_dir, "README.md"), "w") as f:
+            f.write(model_card)
+
+        api.upload_folder(
+            repo_id=repo_id, folder_path=tmp_dir, commit_message="Save model using Keras."
+        )
+        print("Model saved to the Hugging Face Hub:", repo_url)
+        print("To load back the model, use `keras.saving.load_model('hf://" + repo_id + "')`")
 
 def _save_model_to_fileobj(model, fileobj, weights_format):
     with ObjectSharingScope():
@@ -135,12 +187,56 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
         asset_store.close()
 
 
+def _save_model_to_folder(model, folder_path, weights_format):
+    with ObjectSharingScope():
+        serialized_model_dict = serialize_keras_object(model)
+    metadata_dict = {
+        "keras_version": keras_version,
+        "date_saved": datetime.datetime.now().strftime("%Y-%m-%d@%H:%M:%S"),
+    }
+
+    with open(os.path.join(folder_path, _METADATA_FILENAME), "w") as f:
+        json.dump(metadata_dict, f, indent=4)
+    with open(os.path.join(folder_path, _CONFIG_FILENAME), "w") as f:
+        json.dump(serialized_model_dict, f, indent=4)
+
+    if weights_format == "h5":
+        weights_store = H5IOStore(os.path.join(folder_path, _VARS_FNAME + ".h5"), mode="w")
+    elif weights_format == "npz":
+        weights_store = NpzIOStore(os.path.join(folder_path, _VARS_FNAME + ".npz"), mode="w")
+    else:
+        raise ValueError(
+            "Unknown `weights_format` argument. "
+            "Expected 'h5' or 'npz'. "
+            f"Received: weights_format={weights_format}"
+        )
+
+    asset_store = DiskIOStore(os.path.join(folder_path, _ASSETS_DIRNAME), mode="w")
+
+    _save_state(
+        model,
+        weights_store=weights_store,
+        assets_store=asset_store,
+        inner_path="",
+        visited_saveables=set(),
+    )
+    weights_store.close()
+    asset_store.close()
+
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     """Load a zip archive representing a Keras model."""
     if isinstance(filepath, io.IOBase):
         return _load_model_from_fileobj(
             filepath, custom_objects, compile, safe_mode
         )
+    elif str(filepath).startswith("hf://"):
+        repo_id = filepath[5:]
+        folder_path = huggingface_hub.snapshot_download(
+            repo_id=repo_id,
+            library_name="keras",
+            library_version=keras_version,
+        )
+        return _load_model_from_folder(folder_path, custom_objects, compile, safe_mode)
     else:
         filepath = str(filepath)
         if not filepath.endswith(".keras"):
@@ -207,6 +303,58 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
             _raise_loading_failure(error_msgs)
     return model
 
+
+def _load_model_from_folder(folder_path, custom_objects, compile, safe_mode):
+    with open(os.path.join(folder_path, _CONFIG_FILENAME), "r") as f:
+        config_json = f.read()
+
+    # Note: we should NOT use a custom JSON decoder. Anything that
+    # needs custom decoding must be handled in deserialize_keras_object.
+    config_dict = json.loads(config_json)
+    if not compile:
+        # Disable compilation
+        config_dict["compile_config"] = None
+    # Construct the model from the configuration file in the archive.
+    with ObjectSharingScope():
+        model = deserialize_keras_object(
+            config_dict, custom_objects, safe_mode=safe_mode
+        )
+
+    all_filenames = os.listdir(folder_path)
+    if _VARS_FNAME + ".h5" in all_filenames:
+        weights_store = H5IOStore(os.path.join(folder_path, _VARS_FNAME + ".h5"), mode="r")
+    elif _VARS_FNAME + ".npz" in all_filenames:
+        weights_store = NpzIOStore(
+            os.path.join(folder_path, _VARS_FNAME + ".npz"), mode="r"
+        )
+    else:
+        raise ValueError(
+            f"Expected a {_VARS_FNAME}.h5 or {_VARS_FNAME}.npz file."
+        )
+
+    if len(all_filenames) > 3:
+        asset_store = DiskIOStore(_ASSETS_DIRNAME, mode="r")
+    else:
+        asset_store = None
+
+    failed_saveables = set()
+    error_msgs = {}
+    _load_state(
+        model,
+        weights_store=weights_store,
+        assets_store=asset_store,
+        inner_path="",
+        visited_saveables=set(),
+        failed_saveables=failed_saveables,
+        error_msgs=error_msgs,
+    )
+    weights_store.close()
+    if asset_store:
+        asset_store.close()
+
+    if failed_saveables:
+        _raise_loading_failure(error_msgs)
+    return model
 
 def save_weights_only(model, filepath, objects_to_skip=None):
     """Save only the weights of a model to a target filepath (.weights.h5).
