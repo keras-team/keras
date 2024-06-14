@@ -3,6 +3,7 @@
 import datetime
 import io
 import json
+import pathlib
 import tempfile
 import warnings
 import zipfile
@@ -32,6 +33,8 @@ except ImportError:
 _CONFIG_FILENAME = "config.json"
 _METADATA_FILENAME = "metadata.json"
 _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
+_VARS_FNAME_H5 = _VARS_FNAME + ".h5"
+_VARS_FNAME_NPZ = _VARS_FNAME + ".npz"
 _ASSETS_DIRNAME = "assets"
 
 
@@ -109,30 +112,50 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
         with zf.open(_CONFIG_FILENAME, "w") as f:
             f.write(config_json.encode())
 
-        if weights_format == "h5":
-            weights_store = H5IOStore(_VARS_FNAME + ".h5", archive=zf, mode="w")
-        elif weights_format == "npz":
-            weights_store = NpzIOStore(
-                _VARS_FNAME + ".npz", archive=zf, mode="w"
-            )
-        else:
-            raise ValueError(
-                "Unknown `weights_format` argument. "
-                "Expected 'h5' or 'npz'. "
-                f"Received: weights_format={weights_format}"
-            )
+        weights_file_path = None
+        try:
+            if weights_format == "h5":
+                if isinstance(fileobj, io.BufferedWriter):
+                    # First, open the .h5 file, then write it to `zf` at the end
+                    # of the function call.
+                    working_dir = pathlib.Path(fileobj.name).parent
+                    weights_file_path = working_dir / _VARS_FNAME_H5
+                    weights_store = H5IOStore(weights_file_path, mode="w")
+                else:
+                    # Fall back when `fileobj` is an `io.BytesIO`. Typically,
+                    # this usage is for pickling.
+                    weights_store = H5IOStore(
+                        _VARS_FNAME_H5, archive=zf, mode="w"
+                    )
+            elif weights_format == "npz":
+                weights_store = NpzIOStore(
+                    _VARS_FNAME_NPZ, archive=zf, mode="w"
+                )
+            else:
+                raise ValueError(
+                    "Unknown `weights_format` argument. "
+                    "Expected 'h5' or 'npz'. "
+                    f"Received: weights_format={weights_format}"
+                )
 
-        asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="w")
+            asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="w")
 
-        _save_state(
-            model,
-            weights_store=weights_store,
-            assets_store=asset_store,
-            inner_path="",
-            visited_saveables=set(),
-        )
-        weights_store.close()
-        asset_store.close()
+            _save_state(
+                model,
+                weights_store=weights_store,
+                assets_store=asset_store,
+                inner_path="",
+                visited_saveables=set(),
+            )
+        except:
+            # Skip the final `zf.write` if any exception is raised
+            weights_file_path = None
+            raise
+        finally:
+            weights_store.close()
+            asset_store.close()
+            if weights_file_path:
+                zf.write(weights_file_path, weights_file_path.name)
 
 
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
@@ -172,36 +195,49 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
             )
 
         all_filenames = zf.namelist()
-        if _VARS_FNAME + ".h5" in all_filenames:
-            weights_store = H5IOStore(_VARS_FNAME + ".h5", archive=zf, mode="r")
-        elif _VARS_FNAME + ".npz" in all_filenames:
-            weights_store = NpzIOStore(
-                _VARS_FNAME + ".npz", archive=zf, mode="r"
-            )
-        else:
-            raise ValueError(
-                f"Expected a {_VARS_FNAME}.h5 or {_VARS_FNAME}.npz file."
-            )
+        weights_file_path = None
+        try:
+            if _VARS_FNAME_H5 in all_filenames:
+                if isinstance(fileobj, io.BufferedReader):
+                    # First, extract the model.weights.h5 file, then load it
+                    # using h5py.
+                    working_dir = pathlib.Path(fileobj.name).parent
+                    zf.extract(_VARS_FNAME_H5, working_dir)
+                    weights_file_path = working_dir / _VARS_FNAME_H5
+                    weights_store = H5IOStore(weights_file_path, mode="r")
+                else:
+                    # Fall back when `fileobj` is an `io.BytesIO`. Typically,
+                    # this usage is for pickling.
+                    weights_store = H5IOStore(_VARS_FNAME_H5, zf, mode="r")
+            elif _VARS_FNAME_NPZ in all_filenames:
+                weights_store = NpzIOStore(_VARS_FNAME_NPZ, zf, mode="r")
+            else:
+                raise ValueError(
+                    f"Expected a {_VARS_FNAME_H5} or {_VARS_FNAME_NPZ} file."
+                )
 
-        if len(all_filenames) > 3:
-            asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="r")
-        else:
-            asset_store = None
+            if len(all_filenames) > 3:
+                asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="r")
+            else:
+                asset_store = None
 
-        failed_saveables = set()
-        error_msgs = {}
-        _load_state(
-            model,
-            weights_store=weights_store,
-            assets_store=asset_store,
-            inner_path="",
-            visited_saveables=set(),
-            failed_saveables=failed_saveables,
-            error_msgs=error_msgs,
-        )
-        weights_store.close()
-        if asset_store:
-            asset_store.close()
+            failed_saveables = set()
+            error_msgs = {}
+            _load_state(
+                model,
+                weights_store=weights_store,
+                assets_store=asset_store,
+                inner_path="",
+                visited_saveables=set(),
+                failed_saveables=failed_saveables,
+                error_msgs=error_msgs,
+            )
+        finally:
+            weights_store.close()
+            if asset_store:
+                asset_store.close()
+            if weights_file_path:
+                weights_file_path.unlink()
 
         if failed_saveables:
             _raise_loading_failure(error_msgs)
@@ -250,9 +286,7 @@ def load_weights_only(
         weights_store = H5IOStore(filepath, mode="r")
     elif filepath.endswith(".keras"):
         archive = zipfile.ZipFile(filepath, "r")
-        weights_store = H5IOStore(
-            _VARS_FNAME + ".h5", archive=archive, mode="r"
-        )
+        weights_store = H5IOStore(_VARS_FNAME_H5, archive=archive, mode="r")
 
     failed_saveables = set()
     if objects_to_skip is not None:
