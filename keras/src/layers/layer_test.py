@@ -993,3 +993,84 @@ class LayerTest(testing.TestCase):
         layer = layers.Dense(2)
         config = layer.get_config()
         self.assertNotIn("activity_regularizer", config)
+
+    def test_custom_layer_add_weight_in_init_name(self):
+        class TrainingLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = InnerLayer()
+
+        class InnerLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.var = self.add_weight(
+                    shape=(1,),
+                    name="inner",
+                )
+                self.inner = InnerInnerLayer()
+
+        class InnerInnerLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.var = self.add_weight(
+                    shape=(1,),
+                    name="inner",
+                )
+
+        layer = TrainingLayer()
+        layer.build(None)
+        self.assertEqual(len(layer.variables), 2)
+        variable_paths = set(v.path for v in layer.variables)
+        self.assertTrue("inner_layer/inner" in variable_paths)
+        self.assertTrue("inner_inner_layer/inner" in variable_paths)
+
+    def test_custom_layer_add_weight_in_build_name(self):
+        class TrainingLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = InnerLayer()
+
+            def call(self, input):
+                return self.inner(input)
+
+        class InnerLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = InnerInnerLayer()
+
+            def build(self, _):
+                self.var = self.add_weight(
+                    shape=(1,),
+                    name="inner",
+                )
+
+            def call(self, input):
+                return self.var + self.inner(input)
+
+        class InnerInnerLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+
+            def build(self, _):
+                self.var = self.add_weight(
+                    shape=(1,),
+                    name="inner",
+                )
+
+            def call(self, input):
+                return self.var + input
+
+        layer = TrainingLayer()
+        output = layer(
+            backend.KerasTensor(
+                (4, 1),
+            )
+        )
+        self.assertEqual(output.shape, (4, 1))
+        self.assertEqual(len(layer.variables), 2)
+        variable_paths = set(v.path for v in layer.variables)
+        self.assertTrue("training_layer/inner_layer/inner" in variable_paths)
+        self.assertTrue(
+            "training_layer/inner_layer/inner_inner_layer/inner"
+            in variable_paths
+        )
