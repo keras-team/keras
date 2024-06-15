@@ -678,6 +678,16 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             variable.assign(value)
 
     @property
+    def dtype_argument(self):
+        """Passed dtype argument to the constructor of the layer.
+
+        This property might be a `str` (like `"float32"`), a serialized
+        `DTypePolicy` config or a `DTypePolicyMap`. This property should only
+        be used internally.
+        """
+        return self._dtype_argument
+
+    @property
     def dtype_policy(self):
         return self._dtype_policy
 

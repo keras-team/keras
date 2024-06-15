@@ -225,6 +225,19 @@ class FloatDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
             repr(copied_policy), '<FloatDTypePolicy "mixed_float16">'
         )
 
+    def test_eq(self):
+        policy = DTypePolicy("mixed_bfloat16")
+
+        # Test True
+        self.assertEqual(policy, DTypePolicy("mixed_bfloat16"))
+        self.assertEqual(policy, FloatDTypePolicy("mixed_bfloat16"))
+
+        # Test False
+        self.assertNotEqual(policy, "mixed_float16")
+        self.assertNotEqual(
+            policy, QuantizedDTypePolicy("int8", "mixed_bfloat16")
+        )
+
 
 class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
     def setUp(self):
@@ -492,6 +505,19 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         self.assertEqual(policy.name, reloaded_policy.name)
         self.assertEqual(
             policy.amax_history_length, reloaded_policy.amax_history_length
+        )
+
+    def test_eq(self):
+        policy = QuantizedDTypePolicy("int8", "mixed_bfloat16")
+
+        # Test True
+        self.assertEqual(policy, QuantizedDTypePolicy("int8", "mixed_bfloat16"))
+
+        # Test False
+        self.assertNotEqual(policy, "mixed_bfloat16")
+        self.assertNotEqual(policy, DTypePolicy("mixed_bfloat16"))
+        self.assertNotEqual(
+            policy, QuantizedFloat8DTypePolicy("float8", "mixed_bfloat16")
         )
 
     @parameterized.named_parameters(

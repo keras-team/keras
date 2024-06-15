@@ -23,7 +23,11 @@ class Operation:
                 "cannot contain character `/`. "
                 f"Received: name={name} (of type {type(name)})"
             )
-        self._dtype_policy = dtype_policies.get(dtype)
+        if isinstance(dtype, dtype_policies.DTypePolicyMap):
+            self._dtype_policy = dtype_policies.get(dtype[name])
+        else:
+            self._dtype_policy = dtype_policies.get(dtype)
+        self._dtype_argument = dtype
         self.name = name
         self._inbound_nodes = []
         self._outbound_nodes = []

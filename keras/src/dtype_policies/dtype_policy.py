@@ -173,7 +173,19 @@ class DTypePolicy:
         return cls(**config)
 
     def __repr__(self):
-        return f'<FloatDTypePolicy "{self._name}">'
+        class_name = self.__class__.__name__
+        if class_name == "DTypePolicy":
+            class_name = "FloatDTypePolicy"
+        return f'<{class_name} "{self._name}">'
+
+    def __eq__(self, other):
+        if self.__class__ in (DTypePolicy, FloatDTypePolicy):
+            if type(other) not in (DTypePolicy, FloatDTypePolicy):
+                return False
+        else:
+            if type(other) is not self.__class__:
+                return False
+        return self._name == other._name
 
     def _should_cast(self, x, autocast, dtype):
         x_dtype = backend.standardize_dtype(x.dtype)
@@ -217,8 +229,13 @@ class QuantizedDTypePolicy(DTypePolicy):
         """
         return self._quantization_mode
 
-    def __repr__(self):
-        return f'<QuantizedDTypePolicy "{self._name}">'
+    def __eq__(self, other):
+        if super().__eq__(other) is False:
+            return False
+        return (
+            self._quantization_mode == other._quantization_mode
+            and self._source_name == other._source_name
+        )
 
     def get_config(self):
         return {
@@ -261,8 +278,10 @@ class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
         """
         return self._amax_history_length
 
-    def __repr__(self):
-        return f'<QuantizedFloat8DTypePolicy "{self._name}">'
+    def __eq__(self, other):
+        if super().__eq__(other) is False:
+            return False
+        return self._amax_history_length == other._amax_history_length
 
     def get_config(self):
         config = super().get_config()
