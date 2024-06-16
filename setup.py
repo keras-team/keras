@@ -60,5 +60,8 @@ setup(
         "Topic :: Scientific/Engineering",
         "Topic :: Software Development",
     ],
-    packages=find_packages(include=("keras", "keras.*",), exclude=("*_test.py", "benchmarks")),
+    packages=find_packages(
+        include=("keras", "keras.*",),
+        exclude=("*_test.py", "benchmarks"),
+    ),
 )
