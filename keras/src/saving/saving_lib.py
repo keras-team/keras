@@ -25,7 +25,7 @@ from keras.src.saving.serialization_lib import (
     serialize_keras_object,
 )
 from keras.src.trainers.compile_utils import CompileMetrics
-from keras.src.utils import file_utils, naming, plot_model
+from keras.src.utils import file_utils, io_utils, naming, plot_model
 from keras.src.utils.model_visualization import check_pydot
 from keras.src.version import __version__ as keras_version
 
@@ -47,9 +47,13 @@ _MODEL_CARD_TEMPLATE = """
 library_name: keras
 ---
 
-This model has been uploaded using the Keras library and can be used with JAX, TensorFlow, and PyTorch backends.
+This model has been uploaded using the Keras library and can be used with JAX,
+TensorFlow, and PyTorch backends.
 
-This model card has been generated automatically and should be completed by the model author. See [Model Cards documentation](https://huggingface.co/docs/hub/model-cards) for more information.
+This model card has been generated automatically and should be completed by the
+model author.
+See [Model Cards documentation](https://huggingface.co/docs/hub/model-cards) for more
+information.
 
 For more details about the model architecture, check out [config.json](./config.json).
 """
@@ -139,7 +143,13 @@ def _save_and_upload_model_to_hf(model, hf_path, weights_format):
 
         if check_pydot():
             plot_path = os.path.join(tmp_dir, "assets", "config.png")
-            plot_model(model, to_file=plot_path, show_layer_names=True, show_shapes=True, show_dtype=True)
+            plot_model(
+                model,
+                to_file=plot_path,
+                show_layer_names=True,
+                show_shapes=True,
+                show_dtype=True,
+            )
             model_card += "\n\n![](./assets/config.png)"
 
         with open(os.path.join(tmp_dir, "README.md"), "w") as f:
@@ -148,8 +158,10 @@ def _save_and_upload_model_to_hf(model, hf_path, weights_format):
         api.upload_folder(
             repo_id=repo_id, folder_path=tmp_dir, commit_message="Save model using Keras."
         )
-        print("Model saved to the Hugging Face Hub:", repo_url)
-        print("To load back the model, use `keras.saving.load_model('hf://" + repo_id + "')`")
+        io_utils.print_msg(
+            f"Model saved to the Hugging Face Hub: {repo_url}\n"
+            f"To load back the model, use `keras.saving.load_model('hf://{repo_id}')`"
+        )
 
 def _serialize_model_as_json(model):
     with ObjectSharingScope():
