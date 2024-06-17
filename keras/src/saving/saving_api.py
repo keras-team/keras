@@ -6,7 +6,8 @@ from absl import logging
 from keras.src.api_export import keras_export
 from keras.src.legacy.saving import legacy_h5_format
 from keras.src.saving import saving_lib
-from keras.src.utils import file_utils, io_utils
+from keras.src.utils import file_utils
+from keras.src.utils import io_utils
 
 try:
     import h5py
@@ -164,7 +165,6 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         file_utils.is_remote_path(filepath)
         and not file_utils.isdir(filepath)
         and not is_keras_zip
-        and not is_keras_dir
     ):
         local_path = file_utils.join(
             saving_lib.get_temp_dir(), os.path.basename(filepath)
