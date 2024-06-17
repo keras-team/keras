@@ -12,6 +12,9 @@ import huggingface_hub
 import ml_dtypes
 import numpy as np
 
+from keras.src import backend
+from keras.src.backend.common import global_state
+from keras.src.layers.layer import Layer
 from keras.src.losses.loss import Loss
 from keras.src.metrics.metric import Metric
 from keras.src.optimizers.optimizer import Optimizer
