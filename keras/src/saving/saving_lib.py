@@ -252,7 +252,7 @@ def _upload_model_to_hf(model, hf_path, weights_format):
         model_card = _MODEL_CARD_TEMPLATE
 
         if check_pydot():
-            plot_path = file_utils.join(tmp_dir, "assets", "config.png")
+            plot_path = file_utils.join(tmp_dir, "assets", "summary_plot.png")
             plot_model(
                 model,
                 to_file=plot_path,
@@ -260,7 +260,7 @@ def _upload_model_to_hf(model, hf_path, weights_format):
                 show_shapes=True,
                 show_dtype=True,
             )
-            model_card += "\n\n![](./assets/config.png)"
+            model_card += "\n\n![](./assets/summary_plot.png)"
 
         with open(file_utils.join(tmp_dir, "README.md"), "w") as f:
             f.write(model_card)
