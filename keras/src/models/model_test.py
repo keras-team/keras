@@ -11,6 +11,27 @@ from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
 from keras.src.models.model import model_from_json
+from keras.src.saving.object_registration import register_keras_serializable
+
+
+@pytest.fixture
+def my_custom_dense():
+    @register_keras_serializable(package="MyLayers", name="CustomDense")
+    class CustomDense(layers.Layer):
+        def __init__(self, units, **kwargs):
+            super().__init__(**kwargs)
+            self.units = units
+            self.dense = layers.Dense(units)
+
+        def call(self, x):
+            return self.dense(x)
+
+        def get_config(self):
+            config = super().get_config()
+            config.update({"units": self.units})
+            return config
+
+    return CustomDense
 
 
 def _get_model():
@@ -65,6 +86,13 @@ def _get_model_multi_outputs_dict():
     output_a = layers.Dense(1, name="output_a")(x)
     output_b = layers.Dense(1, name="output_b", activation="sigmoid")(x)
     model = Model(x, {"output_a": output_a, "output_b": output_b})
+    return model
+
+
+def _get_model_custom_layer():
+    x = Input(shape=(3,), name="input_a")
+    output_a = my_custom_dense()(10, name="output_a")(x)
+    model = Model(x, output_a)
     return model
 
 
@@ -127,6 +155,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         ("single_list_output_2", _get_model_single_output_list),
         ("single_list_output_3", _get_model_single_output_list),
         ("single_list_output_4", _get_model_single_output_list),
+        ("custom_layer", _get_model_custom_layer),
     )
     def test_functional_pickling(self, model_fn):
         model = model_fn()
