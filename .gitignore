@@ -19,4 +19,3 @@ examples/**/*.jpg
 .python-version
 .coverage
 *coverage.xml
-.env
