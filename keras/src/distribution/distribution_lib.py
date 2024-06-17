@@ -520,9 +520,11 @@ class ModelParallel(Distribution):
     layout_map['conv2d.*kernel'] = (None, None, None, 'model')
     layout_map['conv2d.*bias'] = ('model',)
 
-    distribution = ModelParallel(device_mesh=device_mesh,
-                                 layout_map=layout_map,
-                                 batch_dim_name='batch')
+    distribution = ModelParallel(
+        layout_map=layout_map,
+        batch_dim_name='batch',
+    )
+
     # Set the global distribution, or via `with distribution.scope():`
     set_distribution(distribution)
 
@@ -533,12 +535,16 @@ class ModelParallel(Distribution):
 
     You can quickly update the device mesh shape to change the sharding factor
     of the variables. E.g.
-    ```
+
+    ```python
     # With only the shape change for the device mesh, the variables will be
     # sharded across 8 devices instead of 4, which further reduces the memory
     # footprint of variables on each of the device.
-    device_mesh = DeviceMesh(shape=(1, 8), axis_names=('batch', 'model'),
-                             devices=devices)
+    device_mesh = DeviceMesh(
+        shape=(1, 8),
+        axis_names=('batch', 'model'),
+        devices=devices,
+    )
     ```
 
     To figure out a proper layout mapping rule for all the model variables, you
@@ -546,25 +552,32 @@ class ModelParallel(Distribution):
     key to map the variables to `TensorLayout`.
 
     e.g.
-    ```
+
+    ```python
     model = create_model()
     for v in model.variables:
         print(v.path)
     ```
 
     Args:
-        device_mesh: `DeviceMesh` instance for physical device and its
-            logical mapping.
         layout_map: `LayoutMap` instance which map the variable path to the
-            corresponding `TensorLayout`. The axis names of the
-            `TensorLayout`s should match to the axis names in the
-            device_mesh, or exception will be raised.
-        batch_dim_name: optional string, the axis name in the `device_mesh`
+            corresponding tensor layout.
+        batch_dim_name: Optional string, the axis name in the device mesh
+            (of the `layout_map` object)
             that will be used to distribute data. If unspecified, the
-            first axis from the `device_mesh` will be used.
+            first axis from the device mesh will be used.
     """
 
-    def __init__(self, device_mesh, layout_map, batch_dim_name=None):
+    def __init__(self, *, layout_map=None, batch_dim_name=None, **kwargs):
+        kwargs.pop("device_mesh", None)
+        if layout_map is None:
+            raise ValueError("You must specify a layout_map argument.")
+        if not isinstance(layout_map, LayoutMap):
+            raise ValueError(
+                "Argument `layout_map` must be a `LayoutMap` instance. "
+                f"Received: layout_map={layout_map}"
+            )
+        device_mesh = layout_map.device_mesh
         super().__init__(device_mesh)
         self._layout_map = layout_map
         self._batch_dim_name = batch_dim_name or self.device_mesh.axis_names[0]
@@ -693,11 +706,11 @@ class LayoutMap(collections.abc.MutableMapping):
     as value, and will be converted to `TensorLayout`.
 
     ```python
-    layout_map = LayoutMap(device_mesh=None)
-    layout_map['dense.*kernel'] = (None, 'model')         # layout_2d
-    layout_map['dense.*bias'] = ('model',)                # layout_1d
-    layout_map['conv2d.*kernel'] = TensorLayout((None, None, None, 'model'))
-    layout_map['conv2d.*bias'] = TensorLayout(('model',))  # layout_1d
+    layout_map = LayoutMap(device_mesh)
+    layout_map['dense.*kernel'] = (None, 'model')
+    layout_map['dense.*bias'] = ('model',)
+    layout_map['conv2d.*kernel'] = (None, None, None, 'model')
+    layout_map['conv2d.*bias'] = ('model',)
 
     layout_1 = layout_map['dense_1.kernel']             # layout_1 == layout_2d
     layout_2 = layout_map['dense_1.bias']               # layout_2 == layout_1d
@@ -710,11 +723,10 @@ class LayoutMap(collections.abc.MutableMapping):
     ```
 
     Args:
-        device_mesh: An optional `DeviceMesh` that can be used to populate the
-            `TensorLayout.device_mesh` if `TensorLayout.device_mesh` is not set.
+        device_mesh: `keras.distribution.DeviceMesh` instance.
     """
 
-    def __init__(self, device_mesh=None):
+    def __init__(self, device_mesh):
         self._layout_map = collections.OrderedDict()
         self._device_mesh = device_mesh
 

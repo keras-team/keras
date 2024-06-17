@@ -14,7 +14,7 @@ class HashedCrossing(Layer):
 
     This layer performs crosses of categorical features using the "hashing
     trick". Conceptually, the transformation can be thought of as:
-    `hash(concatenate(features)) % num_bins.
+    `hash(concatenate(features)) % num_bins`.
 
     This layer currently only performs crosses of scalar inputs and batches of
     scalar inputs. Valid input shapes are `(batch_size, 1)`, `(batch_size,)` and

@@ -179,7 +179,7 @@ class JaxDistributionLibTest(testing.TestCase):
         layout_map[".*dense.*bias"] = distribution_lib.TensorLayout(["model"])
 
         distribution = distribution_lib.ModelParallel(
-            device_mesh, layout_map, batch_dim_name="batch"
+            layout_map=layout_map, batch_dim_name="batch"
         )
 
         with distribution.scope():
@@ -242,7 +242,7 @@ class JaxDistributionLibTest(testing.TestCase):
         layout_map[".*dense.*bias"] = distribution_lib.TensorLayout(["model"])
 
         distribution = distribution_lib.ModelParallel(
-            device_mesh, layout_map, batch_dim_name="batch"
+            layout_map=layout_map, batch_dim_name="batch"
         )
         with distribution.scope():
             inputs = layers.Input(shape=[28, 28, 1])
@@ -284,7 +284,7 @@ class JaxDistributionLibTest(testing.TestCase):
         layout_map[".*dense.*output"] = ("batch", None)
 
         distribution = distribution_lib.ModelParallel(
-            device_mesh, layout_map, batch_dim_name="batch"
+            layout_map=layout_map, batch_dim_name="batch"
         )
         sharding_capture = ShardingCaptureLayer()
         with distribution.scope():
