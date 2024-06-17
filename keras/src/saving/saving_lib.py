@@ -52,10 +52,11 @@ TensorFlow, and PyTorch backends.
 
 This model card has been generated automatically and should be completed by the
 model author.
-See [Model Cards documentation](https://huggingface.co/docs/hub/model-cards) for more
-information.
+See [Model Cards documentation](https://huggingface.co/docs/hub/model-cards) for
+more information.
 
-For more details about the model architecture, check out [config.json](./config.json).
+For more details about the model architecture, check out
+[config.json](./config.json).
 """
 
 
@@ -113,8 +114,8 @@ def save_model(model, filepath, weights_format="h5", zipped=True):
         )
     if zipped and is_hf:
         raise ValueError(
-            "When saving to the Hugging Face Hub, you should not save the model "
-            f"as zipped. Received: filepath={filepath}, zipped={zipped}"
+            "When saving to the Hugging Face Hub, you should not save the "
+            f"model as zipped. Received: filepath={filepath}, zipped={zipped}"
         )
     if is_hf:
         _upload_model_to_hf(model, filepath, weights_format)
@@ -233,16 +234,19 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
             if weights_file_path:
                 zf.write(weights_file_path, weights_file_path.name)
 
+
 def _upload_model_to_hf(model, hf_path, weights_format):
     if hf_path.startswith("hf://"):
         hf_path = hf_path[5:]
     if hf_path.count("/") > 1:
         raise ValueError(
-            "Invalid `hf_path` argument: expected `namespace/model_name` format. "
-            f"Received: hf_path={hf_path}"
+            "Invalid `hf_path` argument: expected `namespace/model_name`"
+            f" format. Received: hf_path={hf_path}"
         )
 
-    api = huggingface_hub.HfApi(library_name="keras", library_version=keras_version)
+    api = huggingface_hub.HfApi(
+        library_name="keras", library_version=keras_version
+    )
     repo_url = api.create_repo(hf_path, exist_ok=True)
     repo_id = repo_url.repo_id
 
@@ -266,12 +270,16 @@ def _upload_model_to_hf(model, hf_path, weights_format):
             f.write(model_card)
 
         api.upload_folder(
-            repo_id=repo_id, folder_path=tmp_dir, commit_message="Save model using Keras."
+            repo_id=repo_id,
+            folder_path=tmp_dir,
+            commit_message="Save model using Keras.",
         )
         io_utils.print_msg(
             f"Model saved to the Hugging Face Hub: {repo_url}\n"
-            f"To load back the model, use `keras.saving.load_model('hf://{repo_id}')`"
+            "To load back the model, use "
+            f"`keras.saving.load_model('hf://{repo_id}')`"
         )
+
 
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     """Load a zip archive representing a Keras model."""
@@ -286,7 +294,9 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             library_name="keras",
             library_version=keras_version,
         )
-        return _load_model_from_dir(folder_path, custom_objects, compile, safe_mode)
+        return _load_model_from_dir(
+            folder_path, custom_objects, compile, safe_mode
+        )
     else:
         filepath = str(filepath)
         if not filepath.endswith(".keras"):

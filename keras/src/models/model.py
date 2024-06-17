@@ -277,8 +277,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 the target location, or instead ask the user via
                 an interactive prompt.
             zipped: Whether to save the model as a zipped `.keras`
-                archive (default when saving locally), or as an unzipped directory
-                (default when saving on the Hugging Face Hub).
+                archive (default when saving locally), or as an
+                unzipped directory (default when saving on the
+                Hugging Face Hub).
 
         Example:
 
