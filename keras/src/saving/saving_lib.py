@@ -3,7 +3,6 @@
 import datetime
 import io
 import json
-import os
 import pathlib
 import tempfile
 import warnings
@@ -251,7 +250,7 @@ def _upload_model_to_hf(model, hf_path, weights_format):
         model_card = _MODEL_CARD_TEMPLATE
 
         if check_pydot():
-            plot_path = os.path.join(tmp_dir, "assets", "config.png")
+            plot_path = file_utils.join(tmp_dir, "assets", "config.png")
             plot_model(
                 model,
                 to_file=plot_path,
@@ -261,7 +260,7 @@ def _upload_model_to_hf(model, hf_path, weights_format):
             )
             model_card += "\n\n![](./assets/config.png)"
 
-        with open(os.path.join(tmp_dir, "README.md"), "w") as f:
+        with open(file_utils.join(tmp_dir, "README.md"), "w") as f:
             f.write(model_card)
 
         api.upload_folder(
