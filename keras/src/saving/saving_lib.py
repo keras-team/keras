@@ -38,7 +38,7 @@ _VARS_FNAME_NPZ = _VARS_FNAME + ".npz"
 _ASSETS_DIRNAME = "assets"
 
 
-def save_model(model, filepath, weights_format="h5"):
+def save_model(model, filepath, weights_format="h5", zipped=True):
     """Save a zip-archive representing a Keras model to the given file or path.
 
     The zip-based archive contains the following structure:
@@ -79,23 +79,31 @@ def save_model(model, filepath, weights_format="h5"):
         return
 
     filepath = str(filepath)
-    if not filepath.endswith(".keras"):
+    if zipped and not filepath.endswith(".keras"):
         raise ValueError(
             "Invalid `filepath` argument: expected a `.keras` extension. "
             f"Received: filepath={filepath}"
         )
-    if file_utils.is_remote_path(filepath):
-        # Remote path. Zip to local memory byte io and copy to remote
-        zip_filepath = io.BytesIO()
-        _save_model_to_fileobj(model, zip_filepath, weights_format)
-        with file_utils.File(filepath, "wb") as f:
-            f.write(zip_filepath.getvalue())
+    if not zipped and filepath.endswith(".keras"):
+        raise ValueError(
+            "When using `zipped=False`, the `filepath` argument should not "
+            f"end in `.keras`. Received: filepath={filepath}"
+        )
+    if not zipped:
+        _save_model_to_dir(model, filepath, weights_format)
     else:
-        with open(filepath, "wb") as f:
-            _save_model_to_fileobj(model, f, weights_format)
+        if file_utils.is_remote_path(filepath):
+            # Remote path. Zip to local memory byte io and copy to remote
+            zip_filepath = io.BytesIO()
+            _save_model_to_fileobj(model, zip_filepath, weights_format)
+            with file_utils.File(filepath, "wb") as f:
+                f.write(zip_filepath.getvalue())
+        else:
+            with open(filepath, "wb") as f:
+                _save_model_to_fileobj(model, f, weights_format)
 
 
-def _save_model_to_fileobj(model, fileobj, weights_format):
+def _serialize_model_as_json(model):
     with ObjectSharingScope():
         serialized_model_dict = serialize_keras_object(model)
     config_json = json.dumps(serialized_model_dict)
@@ -105,6 +113,45 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
             "date_saved": datetime.datetime.now().strftime("%Y-%m-%d@%H:%M:%S"),
         }
     )
+    return config_json, metadata_json
+
+
+def _save_model_to_dir(model, dirpath, weights_format):
+    if not file_utils.exists(dirpath):
+        file_utils.makedirs(dirpath)
+    config_json, metadata_json = _serialize_model_as_json(model)
+    with open(file_utils.join(dirpath, _METADATA_FILENAME), "w") as f:
+        f.write(metadata_json)
+    with open(file_utils.join(dirpath, _CONFIG_FILENAME), "w") as f:
+        f.write(config_json)
+    weights_filepath = file_utils.join(dirpath, _VARS_FNAME_H5)
+    assert_dirpath = file_utils.join(dirpath, _ASSETS_DIRNAME)
+    try:
+        if weights_format == "h5":
+            weights_store = H5IOStore(weights_filepath, mode="w")
+        elif weights_format == "npz":
+            weights_store = NpzIOStore(weights_filepath, mode="w")
+        else:
+            raise ValueError(
+                "Unknown `weights_format` argument. "
+                "Expected 'h5' or 'npz'. "
+                f"Received: weights_format={weights_format}"
+            )
+        asset_store = DiskIOStore(assert_dirpath, mode="w")
+        _save_state(
+            model,
+            weights_store=weights_store,
+            assets_store=asset_store,
+            inner_path="",
+            visited_saveables=set(),
+        )
+    finally:
+        weights_store.close()
+        asset_store.close()
+
+
+def _save_model_to_fileobj(model, fileobj, weights_format):
+    config_json, metadata_json = _serialize_model_as_json(model)
 
     with zipfile.ZipFile(fileobj, "w") as zf:
         with zf.open(_METADATA_FILENAME, "w") as f:
@@ -167,6 +214,13 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     else:
         filepath = str(filepath)
         if not filepath.endswith(".keras"):
+            is_keras_dir = file_utils.isdir(filepath) and file_utils.exists(
+                file_utils.join(filepath, "config.json")
+            )
+            if is_keras_dir:
+                return _load_model_from_dir(
+                    filepath, custom_objects, compile, safe_mode
+                )
             raise ValueError(
                 "Invalid filename: expected a `.keras` extension. "
                 f"Received: filepath={filepath}"
@@ -177,22 +231,81 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             )
 
 
+def _load_model_from_dir(dirpath, custom_objects, compile, safe_mode):
+    if not file_utils.exists(dirpath):
+        raise ValueError(f"Directory doesn't exist: {dirpath}")
+    if not file_utils.isdir(dirpath):
+        raise ValueError(f"Path isn't a directory: {dirpath}")
+
+    with open(file_utils.join(dirpath, _CONFIG_FILENAME), "r") as f:
+        config_json = f.read()
+    model = _model_from_config(config_json, custom_objects, compile, safe_mode)
+
+    all_filenames = file_utils.listdir(dirpath)
+    try:
+        if _VARS_FNAME_H5 in all_filenames:
+            weights_file_path = file_utils.join(dirpath, _VARS_FNAME_H5)
+            weights_store = H5IOStore(weights_file_path, mode="r")
+        elif _VARS_FNAME_NPZ in all_filenames:
+            weights_file_path = file_utils.join(dirpath, _VARS_FNAME_NPZ)
+            weights_store = NpzIOStore(weights_file_path, mode="r")
+        else:
+            raise ValueError(
+                f"Expected a {_VARS_FNAME_H5} or {_VARS_FNAME_NPZ} file."
+            )
+        if len(all_filenames) > 3:
+            asset_store = DiskIOStore(
+                file_utils.join(dirpath, _ASSETS_DIRNAME), mode="r"
+            )
+
+        else:
+            asset_store = None
+
+        failed_saveables = set()
+        error_msgs = {}
+        _load_state(
+            model,
+            weights_store=weights_store,
+            assets_store=asset_store,
+            inner_path="",
+            visited_saveables=set(),
+            failed_saveables=failed_saveables,
+            error_msgs=error_msgs,
+        )
+
+    finally:
+        weights_store.close()
+        if asset_store:
+            asset_store.close()
+
+    if failed_saveables:
+        _raise_loading_failure(error_msgs)
+    return model
+
+
+def _model_from_config(config_json, custom_objects, compile, safe_mode):
+    # Note: we should NOT use a custom JSON decoder. Anything that
+    # needs custom decoding must be handled in deserialize_keras_object.
+    config_dict = json.loads(config_json)
+    if not compile:
+        # Disable compilation
+        config_dict["compile_config"] = None
+    # Construct the model from the configuration file in the archive.
+    with ObjectSharingScope():
+        model = deserialize_keras_object(
+            config_dict, custom_objects, safe_mode=safe_mode
+        )
+    return model
+
+
 def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
     with zipfile.ZipFile(fileobj, "r") as zf:
         with zf.open(_CONFIG_FILENAME, "r") as f:
             config_json = f.read()
 
-        # Note: we should NOT use a custom JSON decoder. Anything that
-        # needs custom decoding must be handled in deserialize_keras_object.
-        config_dict = json.loads(config_json)
-        if not compile:
-            # Disable compilation
-            config_dict["compile_config"] = None
-        # Construct the model from the configuration file in the archive.
-        with ObjectSharingScope():
-            model = deserialize_keras_object(
-                config_dict, custom_objects, safe_mode=safe_mode
-            )
+        model = _model_from_config(
+            config_json, custom_objects, compile, safe_mode
+        )
 
         all_filenames = zf.namelist()
         weights_file_path = None
