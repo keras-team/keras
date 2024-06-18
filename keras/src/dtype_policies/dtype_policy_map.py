@@ -69,11 +69,13 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
                 "If specified, `policy_map` must be a dict. "
                 f"Received: policy_map={policy_map} of type {type(policy_map)}"
             )
-        # `default_policy=None` enables us to defer to
-        # `keras.config.dtype_policy()` during loading.
-        if default_policy is not None:
-            default_policy = dtype_policies.get(default_policy)
-        self._default_policy = default_policy
+        # Don't allow nesting maps. Should we?
+        if isinstance(default_policy, DTypePolicyMap):
+            default_policy = default_policy.default_policy
+        self._default_policy_arg = default_policy
+        self._default_policy = dtype_policies.get(default_policy)
+        if isinstance(self._default_policy, DTypePolicyMap):
+            self._default_policy = self._default_policy.default_policy
         self._policy_map = policy_map or dict()
 
     @property
@@ -167,8 +169,8 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
         from keras.src.saving import serialization_lib
 
         policy_map = self._policy_map
-        if self._default_policy is None:
-            # `self._default_policy=None` enables us to defer to
+        if self._default_policy_arg is None:
+            # `default_policy=None` enables us to defer to
             # `keras.config.dtype_policy()` during loading.
             # To support this feature, we can set `_name` and `_source_name` to
             # `None` in `FloatDTypePolicy` and `QuantizedDTypePolicy`,
@@ -180,7 +182,7 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
                 elif isinstance(policy, dtype_policies.DTypePolicy):
                     policy._name = None
         return {
-            "default_policy": self._default_policy,
+            "default_policy": self._default_policy_arg,
             "policy_map": serialization_lib.serialize_keras_object(policy_map),
         }
 
