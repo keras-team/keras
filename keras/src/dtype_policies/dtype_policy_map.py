@@ -2,11 +2,12 @@ import re
 from collections.abc import MutableMapping
 
 from keras.src import dtype_policies
+from keras.src.dtype_policies import DTypePolicy
 from keras.src.api_export import keras_export
 
 
 @keras_export(["keras.dtype_policies.DTypePolicyMap"])
-class DTypePolicyMap(MutableMapping):
+class DTypePolicyMap(DTypePolicy, MutableMapping):
     """A dict-like object that maps string to `DTypePolicy` instances.
 
     `DTypePolicyMap` can be used in `get_config` in layers and subclasses to
@@ -76,6 +77,10 @@ class DTypePolicyMap(MutableMapping):
         self._policy_map = policy_map or dict()
 
     @property
+    def name(self):
+        return "map_" + self.default_policy._name
+
+    @property
     def default_policy(self):
         """The default dtype policy.
 
@@ -83,6 +88,18 @@ class DTypePolicyMap(MutableMapping):
         will be `keras.config.dtype_policy()`.
         """
         return dtype_policies.get(self._default_policy)
+
+    @property
+    def is_quantized(self):
+        return self.default_policy._is_quantized
+
+    @property
+    def variable_dtype(self):
+        return self.default_policy.variable_dtype
+
+    @property
+    def compute_dtype(self):
+        return self.default_policy.compute_dtype
 
     def __getitem__(self, key):
         """Retrieves the corresponding `DTypePolicy` by the string key.
