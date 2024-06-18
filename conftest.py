@@ -15,6 +15,9 @@ except ImportError:
 import pytest  # noqa: E402
 
 from keras.src.backend import backend  # noqa: E402
+from keras.src.saving.object_registration import (  # noqa: E402
+    get_custom_objects,
+)
 
 
 def pytest_configure(config):
@@ -32,3 +35,9 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "requires_trainable_backend" in item.keywords:
             item.add_marker(requires_trainable_backend)
+
+
+# Ensure each test is run in isolation regarding the custom objects dict
+@pytest.fixture(autouse=True)
+def reset_custom_objects_global_dictionary(request):
+    get_custom_objects().clear()
