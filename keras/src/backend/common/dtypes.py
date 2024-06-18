@@ -40,6 +40,8 @@ ALLOWED_DTYPES = (
     "string",
     "float8_e4m3fn",
     "float8_e5m2",
+    "complex64",
+    "complex128"
 )
 PYTHON_DTYPES_MAP = {
     bool: "bool",
