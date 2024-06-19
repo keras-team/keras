@@ -292,7 +292,7 @@ class MultiHeadAttention(Layer):
             activity_regularizer=self._activity_regularizer,
             kernel_constraint=self._kernel_constraint,
             bias_constraint=self._bias_constraint,
-            dtype=self.dtype_argument,
+            dtype=self.dtype_policy,
         )
         # Create new clone of kernel/bias initializer, so that we don't reuse
         # the initializer instance, which could lead to same init value since

@@ -33,6 +33,8 @@ from keras.src.backend import KerasTensor
 from keras.src.backend.common import global_state
 from keras.src.backend.common.name_scope import current_path
 from keras.src.distribution import distribution_lib
+from keras.src.dtype_policies import DTypePolicyMap
+from keras.src.dtype_policies import QuantizedDTypePolicy
 from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
 from keras.src.ops.operation import Operation
@@ -220,6 +222,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         @wraps(original_build_method)
         def build_wrapper(*args, **kwargs):
             with obj._open_name_scope():
+                obj.build_name_scope = current_path()
                 original_build_method(*args, **kwargs)
             # Record build config.
             signature = inspect.signature(original_build_method)
@@ -678,23 +681,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             variable.assign(value)
 
     @property
-    def dtype_argument(self):
-        """Passed dtype argument to the constructor of the layer.
-
-        This property might be a `str` (like `"float32"`), a serialized
-        `DTypePolicy` config or a `DTypePolicyMap`. This property should only
-        be used internally.
-        """
-        return self._dtype_argument
-
-    @property
     def dtype_policy(self):
         return self._dtype_policy
 
     @dtype_policy.setter
     def dtype_policy(self, value):
         self._dtype_policy = dtype_policies.get(value)
-        if isinstance(self._dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if isinstance(self._dtype_policy, QuantizedDTypePolicy):
             if self.built:
                 self.quantize(self._dtype_policy.quantization_mode)
 
@@ -706,17 +699,33 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     @property
     def compute_dtype(self):
         """The dtype of the computations performed by the layer."""
-        return self.dtype_policy.compute_dtype
+        policy = self.dtype_policy
+        if isinstance(self.dtype_policy, DTypePolicyMap) and self.built:
+            policy = self.dtype_policy[self.build_name_scope]
+        return policy.compute_dtype
 
     @property
     def variable_dtype(self):
         """The dtype of the state (weights) of the layer."""
-        return self.dtype_policy.variable_dtype
+        policy = self.dtype_policy
+        if isinstance(self.dtype_policy, DTypePolicyMap) and self.built:
+            policy = self.dtype_policy[self.build_name_scope]
+        return policy.variable_dtype
+
+    @property
+    def quantization_mode(self):
+        """The quantization_mode, or None if the layer is not quantized."""
+        policy = self.dtype_policy
+        if isinstance(self.dtype_policy, DTypePolicyMap) and self.built:
+            policy = self.dtype_policy[self.build_name_scope]
+        if isinstance(policy, QuantizedDTypePolicy):
+            return policy.quantization_mode
+        return None
 
     @property
     def input_dtype(self):
         """The dtype layer inputs should be converted to."""
-        return self.dtype_policy.compute_dtype
+        return self.compute_dtype
 
     @property
     def supports_masking(self):
@@ -1001,9 +1010,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         with backend.StatelessScope(
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
-            if isinstance(
-                self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-            ):
+            if isinstance(self.dtype_policy, QuantizedDTypePolicy):
                 outputs = self.quantized_call(*args, **kwargs)
             else:
                 outputs = self.call(*args, **kwargs)

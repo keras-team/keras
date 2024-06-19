@@ -98,11 +98,6 @@ def get(identifier):
             return _get_quantized_dtype_policy_by_str(identifier)
         else:
             return FloatDTypePolicy(identifier)
-    if isinstance(identifier, DTypePolicyMap):
-        raise TypeError(
-            "Cannot interpret `dtype` argument because it is a DTypePolicyMap. "
-            "You should pass a value from the DTypePolicyMap instead."
-        )
     try:
         return FloatDTypePolicy(backend.standardize_dtype(identifier))
     except:
