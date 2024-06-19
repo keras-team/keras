@@ -8,7 +8,7 @@ from keras.src.dtype_policies import DTypePolicy
 
 @keras_export(["keras.dtype_policies.DTypePolicyMap"])
 class DTypePolicyMap(DTypePolicy, MutableMapping):
-    """A dict-like object that maps string to `DTypePolicy` instances.
+    """Dict-like object mapping layer paths to `DTypePolicy` instances.
 
     `DTypePolicyMap` can be used in `get_config` in layers and subclasses to
     support a complex configurations of dtype policies.
@@ -24,23 +24,20 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
             dtype_policy_map = dtype_policies.DTypePolicyMap()
             for layer in self._flatten_layers():
                 if layer.dtype_policy.is_quantized:
-                    dtype_policy_map[layer.name] = layer.dtype_policy
+                    dtype_policy_map[layer.path] = layer.dtype_policy
             if len(dtype_policy_map) > 0:
                 config.update({"dtype": dtype_policy_map})
             return config
     ```
 
-    Internally, `DTypePolicyMap` uses a string as key and a `DTypePolicy`
-    as value. There is a behavior difference between a normal Python dict and
-    this class. The string key will be treated as a regex when retrieving the
-    value. See the docstring of `get` for more details.
+    Internally, `DTypePolicyMap` uses a string as a key and a `DTypePolicy`
+    as the value. Typically, the key used for querying is the `Layer.path`.
+    However, it is also possible to set a regex as the key. See the docstring of
+    `get` for more details.
 
     See below for a usage example. You can define the naming schema
     of the `DTypePolicy`, and then retrieve the corresponding `DTypePolicy`
     instance.
-
-    In the normal case, the key to query is usually the `layer.name`, which
-    is the `name` of the layer.
 
     ```python
     dtype_policy_map = DTypePolicyMap()

@@ -45,8 +45,8 @@ class DTypePolicyMapTest(testing.TestCase):
                 config = super().get_config()
                 dtype_policy_map = DTypePolicyMap()
                 for layer in self._flatten_layers():
-                    if layer.dtype_policy.is_quantized:
-                        dtype_policy_map[layer.name] = layer.dtype_policy
+                    if layer.quantization_mode is not None:
+                        dtype_policy_map[layer.path] = layer.dtype_policy
                 if len(dtype_policy_map) > 0:
                     config.update({"dtype": dtype_policy_map})
                 return config

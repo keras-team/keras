@@ -560,10 +560,8 @@ class Dense(Layer):
 
         # Set new dtype policy
         if not self.dtype_policy.is_quantized:
-            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
-            # We set the internal `self._dtype_policy` instead of using the
-            # setter to avoid double `quantize` call
-            self._dtype_policy = dtype_policies.get(quantized_dtype)
+            policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
+            self.dtype_policy = policy
 
         # Release memory manually because sometimes the backend doesn't
         gc.collect()

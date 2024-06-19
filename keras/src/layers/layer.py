@@ -34,7 +34,6 @@ from keras.src.backend.common import global_state
 from keras.src.backend.common.name_scope import current_path
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
-from keras.src.dtype_policies import QuantizedDTypePolicy
 from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
 from keras.src.ops.operation import Operation
@@ -222,7 +221,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         @wraps(original_build_method)
         def build_wrapper(*args, **kwargs):
             with obj._open_name_scope():
-                obj.build_name_scope = current_path()
+                obj._path = current_path()
                 original_build_method(*args, **kwargs)
             # Record build config.
             signature = inspect.signature(original_build_method)
@@ -269,8 +268,8 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 f"passed to {self.__class__.__name__}: {kwargs}"
             )
 
+        self._path = None  # Will be determined in `build_wrapper`
         self.built = False
-        self.build_name_scope = None
         self.autocast = autocast
         self._input_spec = None
         self._called = False
@@ -349,6 +348,14 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         if backend.backend() == "tensorflow":
             # Reset attribute tracking (TF-specific)
             self._self_setattr_tracking = _self_setattr_tracking
+
+    @property
+    def path(self):
+        """The path of the layer.
+
+        If the layer has not been built yet, it will be `None`.
+        """
+        return self._path
 
     @property
     def input_spec(self):
@@ -683,27 +690,18 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     @property
     def dtype_policy(self):
-        if (
-            isinstance(self._dtype_policy, DTypePolicyMap)
-            and self.build_name_scope
-        ):
-            policy = self._dtype_policy[self.build_name_scope]
-        else:
-            policy = self._dtype_policy
-        return policy
+        return self._dtype_policy
 
     @dtype_policy.setter
     def dtype_policy(self, value):
         policy = dtype_policies.get(value)
-        if (
-            isinstance(self._dtype_policy, DTypePolicyMap)
-            and self.build_name_scope
-        ):
-            del self._dtype_policy[self.build_name_scope]
-            self._dtype_policy[self.build_name_scope] = policy
+        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
+            if self.path in self._dtype_policy:
+                del self._dtype_policy[self.path]
+            self._dtype_policy[self.path] = policy
         else:
             self._dtype_policy = policy
-        if isinstance(policy, QuantizedDTypePolicy):
+        if policy.is_quantized and not getattr(self, "_is_quantized", False):
             if self.built:
                 self.quantize(policy.quantization_mode)
 
@@ -715,19 +713,29 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     @property
     def compute_dtype(self):
         """The dtype of the computations performed by the layer."""
-        return self.dtype_policy.compute_dtype
+        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
+            policy = self._dtype_policy[self.path]
+        else:
+            policy = self._dtype_policy
+        return policy.compute_dtype
 
     @property
     def variable_dtype(self):
         """The dtype of the state (weights) of the layer."""
-        return self.dtype_policy.variable_dtype
+        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
+            policy = self._dtype_policy[self.path]
+        else:
+            policy = self._dtype_policy
+        return policy.variable_dtype
 
     @property
     def quantization_mode(self):
         """The quantization_mode, or None if the layer is not quantized."""
-        if isinstance(self.dtype_policy, QuantizedDTypePolicy):
-            return self.dtype_policy.quantization_mode
-        return None
+        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
+            policy = self._dtype_policy[self.path]
+        else:
+            policy = self._dtype_policy
+        return policy.quantization_mode if policy.is_quantized else None
 
     @property
     def input_dtype(self):
@@ -1017,7 +1025,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         with backend.StatelessScope(
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
-            if isinstance(self.dtype_policy, QuantizedDTypePolicy):
+            if self.dtype_policy.is_quantized:
                 outputs = self.quantized_call(*args, **kwargs)
             else:
                 outputs = self.call(*args, **kwargs)

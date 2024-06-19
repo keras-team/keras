@@ -28,14 +28,6 @@ class Operation:
         self._inbound_nodes = []
         self._outbound_nodes = []
 
-    @property
-    def dtype_policy(self):
-        if isinstance(self._dtype_policy, dtype_policies.DTypePolicyMap):
-            policy = self._dtype_policy.default_policy
-        else:
-            policy = self._dtype_policy
-        return policy
-
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
         if traceback_utils.is_traceback_filtering_enabled():
@@ -43,9 +35,7 @@ class Operation:
             if any_symbolic_tensors(args, kwargs):
                 call_fn = self.symbolic_call
             else:
-                if isinstance(
-                    self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-                ):
+                if getattr(self, "quantization_mode", None) is not None:
                     call_fn = self.quantized_call
                 else:
                     call_fn = self.call
@@ -58,7 +48,7 @@ class Operation:
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
             return self.symbolic_call(*args, **kwargs)
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if getattr(self, "quantization_mode", None) is not None:
             return self.quantized_call(*args, **kwargs)
         else:
             return self.call(*args, **kwargs)
