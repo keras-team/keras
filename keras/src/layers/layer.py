@@ -270,6 +270,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             )
 
         self.built = False
+        self.build_name_scope = None
         self.autocast = autocast
         self._input_spec = None
         self._called = False
@@ -682,14 +683,29 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     @property
     def dtype_policy(self):
-        return self._dtype_policy
+        if (
+            isinstance(self._dtype_policy, DTypePolicyMap)
+            and self.build_name_scope
+        ):
+            policy = self._dtype_policy[self.build_name_scope]
+        else:
+            policy = self._dtype_policy
+        return policy
 
     @dtype_policy.setter
     def dtype_policy(self, value):
-        self._dtype_policy = dtype_policies.get(value)
-        if isinstance(self._dtype_policy, QuantizedDTypePolicy):
+        policy = dtype_policies.get(value)
+        if (
+            isinstance(self._dtype_policy, DTypePolicyMap)
+            and self.build_name_scope
+        ):
+            del self._dtype_policy[self.build_name_scope]
+            self._dtype_policy[self.build_name_scope] = policy
+        else:
+            self._dtype_policy = policy
+        if isinstance(policy, QuantizedDTypePolicy):
             if self.built:
-                self.quantize(self._dtype_policy.quantization_mode)
+                self.quantize(policy.quantization_mode)
 
     @property
     def dtype(self):
@@ -699,27 +715,18 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     @property
     def compute_dtype(self):
         """The dtype of the computations performed by the layer."""
-        policy = self.dtype_policy
-        if isinstance(self.dtype_policy, DTypePolicyMap) and self.built:
-            policy = self.dtype_policy[self.build_name_scope]
-        return policy.compute_dtype
+        return self.dtype_policy.compute_dtype
 
     @property
     def variable_dtype(self):
         """The dtype of the state (weights) of the layer."""
-        policy = self.dtype_policy
-        if isinstance(self.dtype_policy, DTypePolicyMap) and self.built:
-            policy = self.dtype_policy[self.build_name_scope]
-        return policy.variable_dtype
+        return self.dtype_policy.variable_dtype
 
     @property
     def quantization_mode(self):
         """The quantization_mode, or None if the layer is not quantized."""
-        policy = self.dtype_policy
-        if isinstance(self.dtype_policy, DTypePolicyMap) and self.built:
-            policy = self.dtype_policy[self.build_name_scope]
-        if isinstance(policy, QuantizedDTypePolicy):
-            return policy.quantization_mode
+        if isinstance(self.dtype_policy, QuantizedDTypePolicy):
+            return self.dtype_policy.quantization_mode
         return None
 
     @property

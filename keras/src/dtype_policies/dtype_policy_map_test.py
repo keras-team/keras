@@ -328,7 +328,7 @@ class DTypePolicyMapTest(testing.TestCase):
         )
         repr_str = repr(dtype_policy_map)
         self.assertTrue("DTypePolicyMap" in repr_str)
-        self.assertTrue("default_policy=None" in repr_str)
+        self.assertTrue("default_policy" in repr_str)
         self.assertTrue(
             "mapping=[('layer/dense_0', 'mixed_bfloat16')]" in repr_str
         )

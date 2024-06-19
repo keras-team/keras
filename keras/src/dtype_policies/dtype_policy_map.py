@@ -2,8 +2,8 @@ import re
 from collections.abc import MutableMapping
 
 from keras.src import dtype_policies
-from keras.src.dtype_policies import DTypePolicy
 from keras.src.api_export import keras_export
+from keras.src.dtype_policies import DTypePolicy
 
 
 @keras_export(["keras.dtype_policies.DTypePolicyMap"])
@@ -64,18 +64,15 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
     """
 
     def __init__(self, default_policy=None, policy_map=None):
+        if isinstance(default_policy, DTypePolicyMap):
+            raise ValueError("`default_policy` cannot be a `DTypePolicyMap`.")
         if policy_map is not None and not isinstance(policy_map, dict):
             raise TypeError(
                 "If specified, `policy_map` must be a dict. "
                 f"Received: policy_map={policy_map} of type {type(policy_map)}"
             )
-        # Don't allow nesting maps. Should we?
-        if isinstance(default_policy, DTypePolicyMap):
-            default_policy = default_policy.default_policy
         self._default_policy_arg = default_policy
         self._default_policy = dtype_policies.get(default_policy)
-        if isinstance(self._default_policy, DTypePolicyMap):
-            self._default_policy = self._default_policy.default_policy
         self._policy_map = policy_map or dict()
 
     @property
