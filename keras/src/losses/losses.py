@@ -11,9 +11,14 @@ from keras.src.utils.numerical_utils import normalize
 
 class LossFunctionWrapper(Loss):
     def __init__(
-        self, fn, reduction="sum_over_batch_size", name=None, **kwargs
+        self,
+        fn,
+        reduction="sum_over_batch_size",
+        name=None,
+        dtype=None,
+        **kwargs,
     ):
-        super().__init__(reduction=reduction, name=name)
+        super().__init__(reduction=reduction, name=name, dtype=dtype)
         self.fn = fn
         self._fn_kwargs = kwargs
 
@@ -22,10 +27,10 @@ class LossFunctionWrapper(Loss):
         return self.fn(y_true, y_pred, **self._fn_kwargs)
 
     def get_config(self):
-        base_config = super().get_config()
-        config = {"fn": serialization_lib.serialize_keras_object(self.fn)}
+        config = super().get_config()
+        config.update({"fn": serialization_lib.serialize_keras_object(self.fn)})
         config.update(serialization_lib.serialize_keras_object(self._fn_kwargs))
-        return {**base_config, **config}
+        return config
 
     @classmethod
     def from_config(cls, config):
@@ -52,9 +57,14 @@ class MeanSquaredError(LossFunctionWrapper):
     """
 
     def __init__(
-        self, reduction="sum_over_batch_size", name="mean_squared_error"
+        self,
+        reduction="sum_over_batch_size",
+        name="mean_squared_error",
+        dtype=None,
     ):
-        super().__init__(mean_squared_error, reduction=reduction, name=name)
+        super().__init__(
+            mean_squared_error, reduction=reduction, name=name, dtype=dtype
+        )
 
     def get_config(self):
         return Loss.get_config(self)
@@ -78,9 +88,14 @@ class MeanAbsoluteError(LossFunctionWrapper):
     """
 
     def __init__(
-        self, reduction="sum_over_batch_size", name="mean_absolute_error"
+        self,
+        reduction="sum_over_batch_size",
+        name="mean_absolute_error",
+        dtype=None,
     ):
-        super().__init__(mean_absolute_error, reduction=reduction, name=name)
+        super().__init__(
+            mean_absolute_error, reduction=reduction, name=name, dtype=dtype
+        )
 
     def get_config(self):
         return Loss.get_config(self)
@@ -107,9 +122,13 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
         self,
         reduction="sum_over_batch_size",
         name="mean_absolute_percentage_error",
+        dtype=None,
     ):
         super().__init__(
-            mean_absolute_percentage_error, reduction=reduction, name=name
+            mean_absolute_percentage_error,
+            reduction=reduction,
+            name=name,
+            dtype=dtype,
         )
 
     def get_config(self):
@@ -137,9 +156,13 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
         self,
         reduction="sum_over_batch_size",
         name="mean_squared_logarithmic_error",
+        dtype=None,
     ):
         super().__init__(
-            mean_squared_logarithmic_error, reduction=reduction, name=name
+            mean_squared_logarithmic_error,
+            reduction=reduction,
+            name=name,
+            dtype=dtype,
         )
 
     def get_config(self):
@@ -177,9 +200,14 @@ class CosineSimilarity(LossFunctionWrapper):
         axis=-1,
         reduction="sum_over_batch_size",
         name="cosine_similarity",
+        dtype=None,
     ):
         super().__init__(
-            cosine_similarity, reduction=reduction, name=name, axis=axis
+            cosine_similarity,
+            reduction=reduction,
+            name=name,
+            dtype=dtype,
+            axis=axis,
         )
 
     def get_config(self):
@@ -217,8 +245,11 @@ class Huber(LossFunctionWrapper):
         delta=1.0,
         reduction="sum_over_batch_size",
         name="huber_loss",
+        dtype=None,
     ):
-        super().__init__(huber, name=name, reduction=reduction, delta=delta)
+        super().__init__(
+            huber, name=name, reduction=reduction, dtype=dtype, delta=delta
+        )
 
     def get_config(self):
         return Loss.get_config(self)
@@ -243,8 +274,10 @@ class LogCosh(LossFunctionWrapper):
         name: Optional name for the instance.
     """
 
-    def __init__(self, reduction="sum_over_batch_size", name="log_cosh"):
-        super().__init__(log_cosh, name=name, reduction=reduction)
+    def __init__(
+        self, reduction="sum_over_batch_size", name="log_cosh", dtype=None
+    ):
+        super().__init__(log_cosh, reduction=reduction, name=name, dtype=dtype)
 
     def get_config(self):
         return Loss.get_config(self)
@@ -270,8 +303,10 @@ class Hinge(LossFunctionWrapper):
         name: Optional name for the loss instance.
     """
 
-    def __init__(self, reduction="sum_over_batch_size", name="hinge"):
-        super().__init__(hinge, reduction=reduction, name=name)
+    def __init__(
+        self, reduction="sum_over_batch_size", name="hinge", dtype=None
+    ):
+        super().__init__(hinge, reduction=reduction, name=name, dtype=dtype)
 
     def get_config(self):
         return Loss.get_config(self)
@@ -297,8 +332,12 @@ class SquaredHinge(LossFunctionWrapper):
         name: Optional name for the loss instance.
     """
 
-    def __init__(self, reduction="sum_over_batch_size", name="squared_hinge"):
-        super().__init__(squared_hinge, reduction=reduction, name=name)
+    def __init__(
+        self, reduction="sum_over_batch_size", name="squared_hinge", dtype=None
+    ):
+        super().__init__(
+            squared_hinge, reduction=reduction, name=name, dtype=dtype
+        )
 
     def get_config(self):
         return Loss.get_config(self)
@@ -324,9 +363,14 @@ class CategoricalHinge(LossFunctionWrapper):
     """
 
     def __init__(
-        self, reduction="sum_over_batch_size", name="categorical_hinge"
+        self,
+        reduction="sum_over_batch_size",
+        name="categorical_hinge",
+        dtype=None,
     ):
-        super().__init__(categorical_hinge, reduction=reduction, name=name)
+        super().__init__(
+            categorical_hinge, reduction=reduction, name=name, dtype=dtype
+        )
 
     def get_config(self):
         return Loss.get_config(self)
@@ -353,8 +397,12 @@ class KLDivergence(LossFunctionWrapper):
         name: Optional name for the loss instance.
     """
 
-    def __init__(self, reduction="sum_over_batch_size", name="kl_divergence"):
-        super().__init__(kl_divergence, reduction=reduction, name=name)
+    def __init__(
+        self, reduction="sum_over_batch_size", name="kl_divergence", dtype=None
+    ):
+        super().__init__(
+            kl_divergence, reduction=reduction, name=name, dtype=dtype
+        )
 
     def get_config(self):
         return Loss.get_config(self)
@@ -377,8 +425,10 @@ class Poisson(LossFunctionWrapper):
         name: Optional name for the loss instance.
     """
 
-    def __init__(self, reduction="sum_over_batch_size", name="poisson"):
-        super().__init__(poisson, reduction=reduction, name=name)
+    def __init__(
+        self, reduction="sum_over_batch_size", name="poisson", dtype=None
+    ):
+        super().__init__(poisson, reduction=reduction, name=name, dtype=dtype)
 
     def get_config(self):
         return Loss.get_config(self)
@@ -473,11 +523,13 @@ class BinaryCrossentropy(LossFunctionWrapper):
         axis=-1,
         reduction="sum_over_batch_size",
         name="binary_crossentropy",
+        dtype=None,
     ):
         super().__init__(
             binary_crossentropy,
-            name=name,
             reduction=reduction,
+            name=name,
+            dtype=dtype,
             from_logits=from_logits,
             label_smoothing=label_smoothing,
             axis=axis,
@@ -638,14 +690,16 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
         axis=-1,
         reduction="sum_over_batch_size",
         name="binary_focal_crossentropy",
+        dtype=None,
     ):
         super().__init__(
             binary_focal_crossentropy,
+            reduction=reduction,
+            name=name,
+            dtype=dtype,
             apply_class_balancing=apply_class_balancing,
             alpha=alpha,
             gamma=gamma,
-            name=name,
-            reduction=reduction,
             from_logits=from_logits,
             label_smoothing=label_smoothing,
             axis=axis,
@@ -737,11 +791,13 @@ class CategoricalCrossentropy(LossFunctionWrapper):
         axis=-1,
         reduction="sum_over_batch_size",
         name="categorical_crossentropy",
+        dtype=None,
     ):
         super().__init__(
             categorical_crossentropy,
-            name=name,
             reduction=reduction,
+            name=name,
+            dtype=dtype,
             from_logits=from_logits,
             label_smoothing=label_smoothing,
             axis=axis,
@@ -870,14 +926,16 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
         axis=-1,
         reduction="sum_over_batch_size",
         name="categorical_focal_crossentropy",
+        dtype=None,
     ):
         """Initializes `CategoricalFocalCrossentropy` instance."""
         super().__init__(
             categorical_focal_crossentropy,
+            reduction=reduction,
+            name=name,
+            dtype=dtype,
             alpha=alpha,
             gamma=gamma,
-            name=name,
-            reduction=reduction,
             from_logits=from_logits,
             label_smoothing=label_smoothing,
             axis=axis,
@@ -963,11 +1021,13 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
         ignore_class=None,
         reduction="sum_over_batch_size",
         name="sparse_categorical_crossentropy",
+        dtype=None,
     ):
         super().__init__(
             sparse_categorical_crossentropy,
-            name=name,
             reduction=reduction,
+            name=name,
+            dtype=dtype,
             from_logits=from_logits,
             ignore_class=ignore_class,
         )
@@ -1897,12 +1957,9 @@ class CTC(LossFunctionWrapper):
         self,
         reduction="sum_over_batch_size",
         name="ctc",
+        dtype=None,
     ):
-        super().__init__(
-            ctc,
-            name=name,
-            reduction=reduction,
-        )
+        super().__init__(ctc, name=name, reduction=reduction, dtype=dtype)
 
     def get_config(self):
         return {
@@ -1996,11 +2053,13 @@ class Dice(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="dice",
         axis=None,
+        dtype=None,
     ):
         super().__init__(
             dice,
-            name=name,
             reduction=reduction,
+            name=name,
+            dtype=dtype,
             axis=axis,
         )
         self.axis = axis
@@ -2077,13 +2136,15 @@ class Tversky(LossFunctionWrapper):
         beta=0.5,
         reduction="sum_over_batch_size",
         name="tversky",
+        dtype=None,
     ):
         super().__init__(
             tversky,
+            reduction=reduction,
+            name=name,
+            dtype=dtype,
             alpha=alpha,
             beta=beta,
-            name=name,
-            reduction=reduction,
         )
         self.alpha = alpha
         self.beta = beta

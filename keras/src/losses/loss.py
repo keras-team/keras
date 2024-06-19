@@ -24,10 +24,73 @@ class Loss(KerasSaveable):
     ```
     """
 
+    SPEC_TENSOR = "tensor"
+
     def __init__(self, name=None, reduction="sum_over_batch_size", dtype=None):
         self.name = name or auto_name(self.__class__.__name__)
         self.reduction = standardize_reduction(reduction)
         self.dtype = dtype or backend.floatx()
+
+        # `self.*_spec` can open the possibility to have different signature for
+        # `y_true` and `y_pred`.
+        # By default, `y_true` and `y_pred` will be a sinlge tensor.
+        self.y_true_spec = self.SPEC_TENSOR
+        self.y_pred_spec = self.SPEC_TENSOR
+
+    def set_specs(self, y_true, y_pred):
+        """Set the specs for `y_true` and `y_pred`.
+
+        By default, `y_true` and `y_pred` must be single tensors. If you want to
+        use a nested structure, you can set the specs with this function.
+
+        Args:
+            y_true: A plain tensor or a nested tensor.
+            y_pred: A plain tensor or a nested tensor.
+
+        Example:
+
+        ```python
+        class CustomLossWithList(losses_module.Loss):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            def call(self, y_true, y_pred):
+                # Expect `y_true` to be a list
+                y_true_0, y_true_1 = y_true
+                result = y_pred + y_true_0 - y_true_1
+                return result
+
+        y_true = [
+            np.array([[2.2, 2.1], [2.0, 2.9], [2.8, 2.7]]),
+            np.array([[3.2, 3.1], [3.0, 3.9], [3.8, 3.7]]),
+        ]
+        y_pred = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
+        custom_loss = CustomLossWithList()
+        custom_loss.set_specs(y_true, y_pred)
+
+        # `model` is a `keras.Model`
+        model.compile(loss=custom_loss)
+        loss = model.compute_loss(y=y_true, y_pred=y_pred)
+        ```
+        """
+
+        def tensor_to_symbol(x):
+            if backend.is_keras_tensor(x):
+                return self.SPEC_TENSOR
+            else:
+                # Can be numpy array or backend tensor.
+                try:
+                    ops.convert_to_tensor(x)
+                    return self.SPEC_TENSOR
+                except Exception:
+                    raise TypeError(
+                        "`y_true` and `y_pred` should only contains tensors or "
+                        "`KerasTensor`. "
+                        f"Received: {x} of type {type(x)}"
+                    )
+
+        self.y_true_spec = tree.map_structure(tensor_to_symbol, y_true)
+        self.y_pred_spec = tree.map_structure(tensor_to_symbol, y_pred)
 
     def __call__(self, y_true, y_pred, sample_weight=None):
         in_mask = getattr(y_pred, "_keras_mask", None)

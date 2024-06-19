@@ -2,7 +2,7 @@ import numpy as np
 from absl.testing import parameterized
 
 from keras.src import backend
-from keras.src import metrics as losses_module
+from keras.src import losses as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import testing
@@ -347,3 +347,82 @@ class TestCompileLoss(testing.TestCase, parameterized.TestCase):
         }
         value = compile_loss(y_true, y_pred)
         self.assertAllClose(value, 1.07666, atol=1e-5)
+
+    def test_custom_loss(self):
+        class CustomLoss(losses_module.Loss):
+            def __init__(
+                self, reduction="sum_over_batch_size", name=None, dtype=None
+            ):
+                super().__init__(reduction=reduction, name=name, dtype=dtype)
+
+            def call(self, y_true, y_pred):
+                return y_true + y_pred
+
+        compile_loss = CompileLoss(loss=CustomLoss())
+        y_true = backend.KerasTensor((3, 2))
+        y_pred = backend.KerasTensor((3, 2))
+        compile_loss.build(y_true, y_pred)
+        y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
+        y_pred = np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]])
+        value = compile_loss(y_true, y_pred)
+        expected_value = np.mean(y_true + y_pred)
+        self.assertAllClose(value, expected_value, atol=1e-5)
+
+    def test_custom_loss_with_list_y_true(self):
+        class CustomLossWithList(losses_module.Loss):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            def call(self, y_true, y_pred):
+                y_true_0, y_true_1 = y_true
+                result = y_pred + y_true_0 - y_true_1
+                return result
+
+        loss = CustomLossWithList()
+        y_true = [
+            np.array([[2.2, 2.1], [2.0, 2.9], [2.8, 2.7]]),
+            np.array([[3.2, 3.1], [3.0, 3.9], [3.8, 3.7]]),
+        ]
+        y_pred = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
+        loss.set_specs(y_true, y_pred)
+        compile_loss = CompileLoss(loss=loss)
+        compile_loss.build(y_true, y_pred)
+        value = compile_loss(y_true, y_pred)
+        expected_value = np.mean(y_pred + y_true[0] - y_true[1])
+        self.assertAllClose(value, expected_value, atol=1e-5)
+
+    def test_custom_loss_with_nested_dict(self):
+        class CustomLossWithNestedDict(losses_module.Loss):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            def call(self, y_true, y_pred):
+                y_true_0, y_true_1 = y_true["a"]
+                y_pred_0, y_pred_1 = y_pred["a"]["x"], y_pred["a"]["y"]
+                result = y_pred_0 + y_true_0 - y_pred_1 - y_true_1
+                return result
+
+        loss = CustomLossWithNestedDict()
+        y_true = {
+            "a": [
+                np.array([[2.2, 2.1], [2.0, 2.9], [2.8, 2.7]]),
+                np.array([[3.2, 3.1], [3.0, 3.9], [3.8, 3.7]]),
+            ],
+        }
+        y_pred = {
+            "a": {
+                "x": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
+                "y": np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]]),
+            }
+        }
+        loss.set_specs(y_true, y_pred)
+        compile_loss = CompileLoss(loss={"a": loss})
+        compile_loss.build(y_true, y_pred)
+        value = compile_loss(y_true, y_pred)
+        expected_value = np.mean(
+            y_pred["a"]["x"]
+            + y_true["a"][0]
+            - y_pred["a"]["y"]
+            - y_true["a"][1]
+        )
+        self.assertAllClose(value, expected_value, atol=1e-5)

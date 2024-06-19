@@ -474,9 +474,9 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         )
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
-            ValueError,
-            "In the dict argument `loss`, "
-            "key 'output_c' does not correspond to any model output",
+            KeyError,
+            "in the `loss` argument, but they can't be found in the "
+            "model's output",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -492,9 +492,9 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         )
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
-            ValueError,
-            "In the dict argument `loss`, "
-            "key 'output_a' does not correspond to any model output",
+            KeyError,
+            "in the `loss` argument, but they can't be found in the "
+            "model's output",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -537,9 +537,9 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         )
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
-            ValueError,
-            "In the dict argument `loss`, "
-            "key 'output_c' does not correspond to any model output",
+            KeyError,
+            "in the `loss` argument, but they can't be found in the "
+            "model's output",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -583,8 +583,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
             ValueError,
-            "when providing the `loss` argument as a list, "
-            "it should have as many entries as the model has outputs",
+            "When providing the `loss` argument, it should match the specs ",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 

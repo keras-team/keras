@@ -2,6 +2,7 @@ import inspect
 
 from keras.src.api_export import keras_export
 from keras.src.losses.loss import Loss
+from keras.src.losses.losses import CTC
 from keras.src.losses.losses import BinaryCrossentropy
 from keras.src.losses.losses import BinaryFocalCrossentropy
 from keras.src.losses.losses import CategoricalCrossentropy
@@ -71,6 +72,8 @@ ALL_OBJECTS = {
     # Image segmentation
     Dice,
     Tversky,
+    # Sequence
+    CTC,
     # Probabilistic
     kl_divergence,
     poisson,
@@ -94,6 +97,8 @@ ALL_OBJECTS = {
     # Image segmentation
     dice,
     tversky,
+    # Sequence
+    ctc,
 }
 
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
