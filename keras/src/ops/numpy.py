@@ -5047,6 +5047,8 @@ class Tile(Operation):
     def compute_output_spec(self, x):
         x_shape = list(x.shape)
         repeats = self.repeats
+        if isinstance(repeats, int):
+            repeats = [repeats]
         if len(x_shape) > len(repeats):
             repeats = [1] * (len(x_shape) - len(repeats)) + repeats
         else:
