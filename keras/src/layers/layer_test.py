@@ -1150,8 +1150,8 @@ class LayerTest(testing.TestCase):
             "training_layer/post_build_modify_layer/var2",
         )
         if backend.backend() == "torch":
-            # TODO (haohuanw, fchollet): Needs further discussion on how to 
-            # properly manage torch params. Post build modification cannot 
+            # TODO (haohuanw, fchollet): Needs further discussion on how to
+            # properly manage torch params. Post build modification cannot
             # propagate to parent torch params.
             parameter_names = [pname for pname, _ in layer.named_parameters()]
             # Below check should have 2 parameters instead of 1.
@@ -1182,8 +1182,8 @@ class LayerTest(testing.TestCase):
             "training_layer/post_build_modify_layer/var2",
         )
         if backend.backend() == "torch":
-            # TODO (haohuanw, fchollet): Needs further discussion on how to 
-            # properly manage torch params. Post build modification cannot 
+            # TODO (haohuanw, fchollet): Needs further discussion on how to
+            # properly manage torch params. Post build modification cannot
             # propagate to parent torch params.
             parameter_names = [pname for pname, _ in layer.named_parameters()]
             # Below check should have 1 parameters instead of 2, torch_params
