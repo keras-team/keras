@@ -31,7 +31,7 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
             )
         # Broadcast sample_weight. It doesn't change the multiplication below
         # but changes the sample_weight reduction applied later.
-        sample_weight = ops.broadcast_to(sample_weight, values.shape)
+        sample_weight = ops.broadcast_to(sample_weight, ops.shape(values))
         values = values * sample_weight
         if weight_ndim > 1:
             sample_weight = reduce_fn(
