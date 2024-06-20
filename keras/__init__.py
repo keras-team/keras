@@ -20,7 +20,6 @@ from keras.api import Sequential
 from keras.api import StatelessScope
 from keras.api import Variable
 from keras.api import __version__
-from keras.api import _tf_keras
 from keras.api import activations
 from keras.api import applications
 from keras.api import backend
