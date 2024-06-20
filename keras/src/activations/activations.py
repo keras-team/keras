@@ -328,6 +328,38 @@ def sigmoid(x):
     assumed to be zero. The sigmoid function always returns a value between
     0 and 1.
 
+    ```
+    python
+
+    # Example 1:
+
+    import tensorflow as tf
+
+    input = tf.constant([-5.0, 3.0, 6.0])
+    output = tf.keras.activations.sigmoid(input)
+    print("Input:", input, "\n\nOutput:", output)
+
+    # Input: tf.Tensor([-5.  3.  6.], shape=(3,), dtype=float32) 
+
+    # Output: tf.Tensor([0.00669285 0.95257413 0.9975274 ], shape=(3,), dtype=float32)
+
+    # Example 2:
+
+    input = tf.random.uniform(shape=(3, 2), minval=-6.0, maxval=10.0)
+    output = tf.keras.activations.sigmoid(input)
+    print("Input:", input, "\n\nOutput: ", output)
+
+    # Input: tf.Tensor(
+    #   [[ 5.783142    4.2033443 ]
+    #    [ 4.562557   -2.7583256 ]
+    #    [-0.27368164 -4.40827   ]], shape=(3, 2), dtype=float32) 
+
+    # Output:  tf.Tensor(
+    #   [[0.9969304  0.98527455]
+    #    [0.9896724  0.05961818]
+    #    [0.43200353 0.01202975]], shape=(3, 2), dtype=float32)
+
+    ```
     Args:
         x: Input tensor.
     """
