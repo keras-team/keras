@@ -13,6 +13,7 @@ from keras.src.ops.core import cond
 from keras.src.ops.core import convert_to_numpy
 from keras.src.ops.core import convert_to_tensor
 from keras.src.ops.core import custom_gradient
+from keras.src.ops.core import dtype
 from keras.src.ops.core import fori_loop
 from keras.src.ops.core import is_tensor
 from keras.src.ops.core import scan
