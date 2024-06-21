@@ -475,7 +475,7 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             NotImplementedError, "Invalid quantization mode."
         ):
             # Explicitly set quantization_mode
-            layer._dtype_policy.quantization_mode = mode
+            layer._dtype_policy._quantization_mode = mode
             layer.quantized_call(x)
         self.assertEqual(layer.dtype_policy, original_dtype_policy)
 

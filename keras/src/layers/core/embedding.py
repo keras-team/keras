@@ -376,7 +376,7 @@ class Embedding(Layer):
         self._tracker.lock()
 
         # Set new dtype policy
-        if not self.dtype_policy.is_quantized:
+        if self.dtype_policy.quantization_mode is None:
             policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
             self.dtype_policy = policy
 
@@ -384,7 +384,7 @@ class Embedding(Layer):
         gc.collect()
 
     def _get_embeddings_with_merged_lora(self):
-        if self.dtype_policy.is_quantized:
+        if self.dtype_policy.quantization_mode is not None:
             embeddings_value = self._embeddings
             embeddings_scale = self.embeddings_scale
             if self.lora_enabled:

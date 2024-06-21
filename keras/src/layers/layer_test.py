@@ -994,6 +994,46 @@ class LayerTest(testing.TestCase):
         reloaded = pickle.loads(pickle.dumps(layer))
         self.assertEqual(layer.get_config(), reloaded.get_config())
 
+    def test_serialize_dtype(self):
+        assertIsNone = self.assertIsNone
+        assertIsNotNone = self.assertIsNotNone
+
+        class AssertionDense(layers.Dense):
+            def __init__(self, *args, **kwargs):
+                dtype = kwargs["dtype"]
+                if isinstance(dtype, str):
+                    # `dtype` is a plain string, it should be the `name` from a
+                    # `FloatDTypePolicy`
+                    dtype = dtype_policies.get(dtype)
+                    assertIsNone(dtype.quantization_mode)
+                else:
+                    # `dtype` is a DTypePolicy instance, it should be an
+                    # instance of `QuantizedDTypePolicy`
+                    assertIsNotNone(dtype.quantization_mode)
+                super().__init__(*args, **kwargs)
+
+        # Test floating dtype serialization
+        layer = layers.Dense(2, dtype="bfloat16")
+        config = layer.get_config()
+        self.assertIn("dtype", config)
+        self.assertEqual(
+            config["dtype"],
+            dtype_policies.serialize(
+                dtype_policies.FloatDTypePolicy("bfloat16")
+            ),
+        )
+        AssertionDense.from_config(config)  # Assertion inside
+
+        # Test quantized dtype serialization
+        layer = layers.Dense(2, dtype="int8_from_bfloat16")
+        config = layer.get_config()
+        self.assertIn("dtype", config)
+        self.assertEqual(
+            config["dtype"],
+            dtype_policies.serialize(dtype_policies.get("int8_from_bfloat16")),
+        )
+        AssertionDense.from_config(config)  # Assertion inside
+
     def test_serialize_activity_regularizer(self):
         layer = layers.Dense(2, activity_regularizer="l2")
         config = layer.get_config()

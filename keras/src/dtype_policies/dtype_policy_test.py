@@ -113,13 +113,13 @@ class FloatDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         self.assertEqual(policy.variable_dtype, "float32")
         self.assertEqual(policy.compute_dtype, "float16")
         self.assertEqual(policy.name, "mixed_float16")
-        self.assertFalse(policy.is_quantized)
+        self.assertIsNone(policy.quantization_mode)
 
         policy = FloatDTypePolicy("mixed_float16")
         self.assertEqual(policy.variable_dtype, "float32")
         self.assertEqual(policy.compute_dtype, "float16")
         self.assertEqual(policy.name, "mixed_float16")
-        self.assertFalse(policy.is_quantized)
+        self.assertIsNone(policy.quantization_mode)
 
     def test_properties_uint8(self):
         """Test properties for 'uint8'."""
@@ -365,7 +365,7 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         self.assertEqual(policy.variable_dtype, "float32")
         self.assertEqual(policy.compute_dtype, "bfloat16")
         self.assertEqual(policy.name, "int8_from_mixed_bfloat16")
-        self.assertTrue(policy.is_quantized)
+        self.assertEqual(policy.quantization_mode, "int8")
 
         # Test float8
         policy = QuantizedFloat8DTypePolicy(
@@ -374,7 +374,7 @@ class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         self.assertEqual(policy.variable_dtype, "float32")
         self.assertEqual(policy.compute_dtype, "bfloat16")
         self.assertEqual(policy.name, "float8_from_mixed_bfloat16")
-        self.assertTrue(policy.is_quantized)
+        self.assertEqual(policy.quantization_mode, "float8")
         self.assertEqual(policy.amax_history_length, 1024)
 
         # Test float8 with amax_history_length

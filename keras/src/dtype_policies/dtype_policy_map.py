@@ -23,7 +23,7 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
             config = super().get_config()
             dtype_policy_map = dtype_policies.DTypePolicyMap()
             for layer in self._flatten_layers():
-                if layer.dtype_policy.is_quantized:
+                if layer.dtype_policy.quantization_mode is not None:
                     dtype_policy_map[layer.path] = layer.dtype_policy
             if len(dtype_policy_map) > 0:
                 config.update({"dtype": dtype_policy_map})
@@ -86,16 +86,16 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
         return dtype_policies.get(self._default_policy)
 
     @property
-    def is_quantized(self):
-        return self.default_policy._is_quantized
-
-    @property
     def variable_dtype(self):
         return self.default_policy.variable_dtype
 
     @property
     def compute_dtype(self):
         return self.default_policy.compute_dtype
+
+    @property
+    def quantization_mode(self):
+        return self.default_policy.quantization_mode
 
     def __getitem__(self, key):
         """Retrieves the corresponding `DTypePolicy` by the string key.

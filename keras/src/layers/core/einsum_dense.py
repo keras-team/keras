@@ -697,7 +697,7 @@ class EinsumDense(Layer):
         self._tracker.lock()
 
         # Set new dtype policy
-        if not self.dtype_policy.is_quantized:
+        if self.dtype_policy.quantization_mode is None:
             policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
             self.dtype_policy = policy
 
@@ -705,7 +705,7 @@ class EinsumDense(Layer):
         gc.collect()
 
     def _get_kernel_with_merged_lora(self):
-        if self.dtype_policy.is_quantized:
+        if self.dtype_policy.quantization_mode is not None:
             kernel_value = self._kernel
             kernel_scale = self.kernel_scale
             if self.lora_enabled:
