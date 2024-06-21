@@ -216,9 +216,6 @@ class MultiHeadAttention(Layer):
         einsum_equation, bias_axes, output_rank = _build_proj_equation(
             query_rank - 1, bound_dims=1, output_dims=2
         )
-        print("dtype_policy", self.dtype_policy)
-        print("path", self.path)
-        print(self._get_common_kwargs_for_sublayer()["dtype"])
         self._query_dense = EinsumDense(
             einsum_equation,
             output_shape=_get_output_shape(
