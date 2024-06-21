@@ -597,6 +597,29 @@ def shape(x):
     return backend.core.shape(x)
 
 
+@keras_export("keras.ops.dtype")
+def dtype(x):
+    """
+    Gets the dtype of the tensor input as a standardized string.
+    Note that due to the standardization, the dtype will not compare equal
+    to the backend-specific version of the dtype.
+
+    Args:
+        x: A tensor. This function will try to access the `dtype` attribute of
+            the input tensor.
+
+    Returns: A string indicating the dtype of the input tensor.
+
+    Example:
+
+    >>> x = keras.ops.zeros((8, 12))
+    >>> keras.ops.dtype(x)
+    'float32'
+
+    """
+    return backend.standardize_dtype(x.dtype)
+
+
 class Cast(Operation):
     def __init__(self, dtype):
         super().__init__()
