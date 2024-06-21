@@ -62,7 +62,7 @@ class DTypePolicy:
             name = dtype_policy().name
         self._name = name
         self._compute_dtype, self._variable_dtype = self._parse_name(name)
-        self._is_quantized = False
+        self._quantization_mode = None
 
     def _parse_name(self, name):
         """Parses a `DTypePolicy` name into a compute and variable dtype.
@@ -137,9 +137,14 @@ class DTypePolicy:
         return self._name
 
     @property
-    def is_quantized(self):
-        """Whether a quantized dtype policy."""
-        return self._is_quantized
+    def quantization_mode(self):
+        """The quantization mode of this policy.
+
+        Returns:
+            The quantization mode of this policy, as a string. If this policy is
+            not quantized, it will return `None`.
+        """
+        return self._quantization_mode
 
     def convert_input(self, x, autocast, dtype):
         """Converts the input dtype based on `autocast` and `dtype`.
@@ -218,16 +223,6 @@ class QuantizedDTypePolicy(DTypePolicy):
         self._name = name
         self._source_name = source_name
         self._quantization_mode = mode
-        self._is_quantized = True
-
-    @property
-    def quantization_mode(self):
-        """The quantization mode of this policy.
-
-        Returns:
-            The quantization mode of this policy, as a string.
-        """
-        return self._quantization_mode
 
     def __eq__(self, other):
         if super().__eq__(other) is False:

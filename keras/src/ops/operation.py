@@ -107,7 +107,7 @@ class Operation:
         if dtype is not None and isinstance(dtype, dtype_policies.DTypePolicy):
             # For backward compatibility, we use a str (`name`) for
             # `FloatDTypePolicy`
-            if not dtype.is_quantized:
+            if dtype.quantization_mode is None:
                 kwargs["dtype"] = dtype.name
             # Otherwise, use `dtype_policies.serialize`
             else:
@@ -221,7 +221,15 @@ class Operation:
         # directly interact with the instance of `DTypePolicy`.
         if "dtype" in config and isinstance(config["dtype"], dict):
             config = config.copy()
-            config["dtype"] = dtype_policies.deserialize(config["dtype"])
+            policy = dtype_policies.deserialize(config["dtype"])
+            if (
+                not isinstance(policy, dtype_policies.DTypePolicyMap)
+                and policy.quantization_mode is None
+            ):
+                # For backward compatibility, we use a str (`name`) for
+                # `FloatDTypePolicy`
+                policy = policy.name
+            config["dtype"] = policy
         try:
             return cls(**config)
         except Exception as e:

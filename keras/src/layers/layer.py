@@ -701,8 +701,8 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             self._dtype_policy[self.path] = policy
         else:
             self._dtype_policy = policy
-        if policy.is_quantized and not getattr(self, "_is_quantized", False):
-            if self.built:
+        if policy.quantization_mode is not None:
+            if self.built and not getattr(self, "_is_quantized", False):
                 self.quantize(policy.quantization_mode)
 
     @property
@@ -730,12 +730,12 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     @property
     def quantization_mode(self):
-        """The quantization_mode, or None if the layer is not quantized."""
+        """The quantization mode of this layer, `None` if not quantized."""
         if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
             policy = self._dtype_policy[self.path]
         else:
             policy = self._dtype_policy
-        return policy.quantization_mode if policy.is_quantized else None
+        return policy.quantization_mode
 
     @property
     def input_dtype(self):
@@ -1025,7 +1025,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         with backend.StatelessScope(
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
-            if self.dtype_policy.is_quantized:
+            if self.dtype_policy.quantization_mode is not None:
                 outputs = self.quantized_call(*args, **kwargs)
             else:
                 outputs = self.call(*args, **kwargs)
