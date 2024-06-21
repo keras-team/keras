@@ -599,8 +599,7 @@ def shape(x):
 
 @keras_export("keras.ops.dtype")
 def dtype(x):
-    """
-    Gets the dtype of the tensor input as a standardized string.
+    """Gets the dtype of the tensor input as a standardized string.
     Note that due to the standardization, the dtype will not compare equal
     to the backend-specific version of the dtype.
 
