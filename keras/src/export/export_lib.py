@@ -338,8 +338,15 @@ class ExportArchive:
                 # 5. Wrap in a `tf.function`
                 def stateless_fn(variables, *args, **kwargs):
                     state_mapping = zip(self._backend_variables, variables)
-                    with StatelessScope(state_mapping=state_mapping):
-                        return fn(*args, **kwargs)
+                    with StatelessScope(state_mapping=state_mapping) as scope:
+                        output = fn(*args, **kwargs)
+
+                    # Gather updated non-trainable variables
+                    non_trainable_variables = []
+                    for var in self._backend_non_trainable_variables:
+                        new_value = scope.get_current_value(var)
+                        non_trainable_variables.append(new_value)
+                    return output, non_trainable_variables
 
                 jax2tf_stateless_fn = self._convert_jax2tf_function(
                     stateless_fn,
@@ -348,12 +355,18 @@ class ExportArchive:
                 )
 
                 def stateful_fn(*args, **kwargs):
-                    return jax2tf_stateless_fn(
+                    output, non_trainable_variables = jax2tf_stateless_fn(
                         # Change the trackable `ListWrapper` to a plain `list`
                         list(self._tf_trackable.variables),
                         *args,
                         **kwargs,
                     )
+                    for var, new_value in zip(
+                        self._tf_trackable.non_trainable_variables,
+                        non_trainable_variables,
+                    ):
+                        var.assign(new_value)
+                    return output
 
                 # Note: we truncate the number of parameters to what is
                 # specified by `input_signature`.
