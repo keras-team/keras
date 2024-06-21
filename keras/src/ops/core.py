@@ -588,7 +588,7 @@ def shape(x):
 
     Example:
 
-    >>> x = keras.zeros((8, 12))
+    >>> x = keras.ops.zeros((8, 12))
     >>> keras.ops.shape(x)
     (8, 12)
     """
