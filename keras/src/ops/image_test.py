@@ -36,6 +36,30 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.rgb_to_grayscale(x)
         self.assertEqual(out.shape, (None, 1, 20, 20))
 
+    def test_rgb_to_hsv(self):
+        # Test channels_last
+        x = KerasTensor([None, 20, 20, 3])
+        out = kimage.rgb_to_hsv(x)
+        self.assertEqual(out.shape, (None, 20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, 20, 20])
+        out = kimage.rgb_to_hsv(x)
+        self.assertEqual(out.shape, (None, 3, 20, 20))
+
+    def test_hsv_to_rgb(self):
+        # Test channels_last
+        x = KerasTensor([None, 20, 20, 3])
+        out = kimage.hsv_to_rgb(x)
+        self.assertEqual(out.shape, (None, 20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, 20, 20])
+        out = kimage.hsv_to_rgb(x)
+        self.assertEqual(out.shape, (None, 3, 20, 20))
+
     def test_resize(self):
         # Test channels_last
         x = KerasTensor([None, 20, 20, 3])
@@ -162,6 +186,30 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([3, 20, 20])
         out = kimage.rgb_to_grayscale(x)
         self.assertEqual(out.shape, (1, 20, 20))
+
+    def test_rgb_to_hsv(self):
+        # Test channels_last
+        x = KerasTensor([20, 20, 3])
+        out = kimage.rgb_to_hsv(x)
+        self.assertEqual(out.shape, (20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([3, 20, 20])
+        out = kimage.rgb_to_hsv(x)
+        self.assertEqual(out.shape, (3, 20, 20))
+
+    def test_hsv_to_rgb(self):
+        # Test channels_last
+        x = KerasTensor([20, 20, 3])
+        out = kimage.hsv_to_rgb(x)
+        self.assertEqual(out.shape, (20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([3, 20, 20])
+        out = kimage.hsv_to_rgb(x)
+        self.assertEqual(out.shape, (3, 20, 20))
 
     def test_resize(self):
         # Test channels_last
@@ -358,13 +406,13 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         out = kimage.rgb_to_grayscale(x)
         ref_out = tf.image.rgb_to_grayscale(x)
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out)
 
         x = np.random.random((2, 50, 50, 3)).astype("float32") * 255
         out = kimage.rgb_to_grayscale(x)
         ref_out = tf.image.rgb_to_grayscale(x)
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -373,18 +421,86 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         ref_out = tf.image.rgb_to_grayscale(np.transpose(x, [1, 2, 0]))
         ref_out = tf.transpose(ref_out, [2, 0, 1])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out)
 
         x = np.random.random((2, 3, 50, 50)).astype("float32") * 255
         out = kimage.rgb_to_grayscale(x)
         ref_out = tf.image.rgb_to_grayscale(np.transpose(x, [0, 2, 3, 1]))
         ref_out = tf.transpose(ref_out, [0, 3, 1, 2])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out)
 
         # Test class
         out = kimage.RGBToGrayscale()(x)
-        self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out)
+
+    def test_rgb_to_hsv(self):
+        # Test channels_last
+        x = np.random.random((50, 50, 3)).astype("float32")
+        out = kimage.rgb_to_hsv(x)
+        ref_out = tf.image.rgb_to_hsv(x)
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out)
+
+        x = np.random.random((2, 50, 50, 3)).astype("float32")
+        out = kimage.rgb_to_hsv(x)
+        ref_out = tf.image.rgb_to_hsv(x)
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out)
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = np.random.random((3, 50, 50)).astype("float32")
+        out = kimage.rgb_to_hsv(x)
+        ref_out = tf.image.rgb_to_hsv(np.transpose(x, [1, 2, 0]))
+        ref_out = tf.transpose(ref_out, [2, 0, 1])
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out)
+
+        x = np.random.random((2, 3, 50, 50)).astype("float32")
+        out = kimage.rgb_to_hsv(x)
+        ref_out = tf.image.rgb_to_hsv(np.transpose(x, [0, 2, 3, 1]))
+        ref_out = tf.transpose(ref_out, [0, 3, 1, 2])
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out)
+
+        # Test class
+        out = kimage.RGBToHSV()(x)
+        self.assertAllClose(ref_out, out)
+
+    def test_hsv_to_rgb(self):
+        # Test channels_last
+        x = np.random.random((50, 50, 3)).astype("float32")
+        out = kimage.hsv_to_rgb(x)
+        ref_out = tf.image.hsv_to_rgb(x)
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out)
+
+        x = np.random.random((2, 50, 50, 3)).astype("float32")
+        out = kimage.hsv_to_rgb(x)
+        ref_out = tf.image.hsv_to_rgb(x)
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out)
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = np.random.random((3, 50, 50)).astype("float32")
+        out = kimage.hsv_to_rgb(x)
+        ref_out = tf.image.hsv_to_rgb(np.transpose(x, [1, 2, 0]))
+        ref_out = tf.transpose(ref_out, [2, 0, 1])
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out)
+
+        x = np.random.random((2, 3, 50, 50)).astype("float32")
+        out = kimage.hsv_to_rgb(x)
+        ref_out = tf.image.hsv_to_rgb(np.transpose(x, [0, 2, 3, 1]))
+        ref_out = tf.transpose(ref_out, [0, 3, 1, 2])
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out)
+
+        # Test class
+        out = kimage.HSVToRGB()(x)
+        self.assertAllClose(ref_out, out)
 
     @parameterized.named_parameters(
         named_product(
@@ -429,7 +545,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             antialias=antialias,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out, atol=1e-4)
 
         x = np.random.random((2, 30, 30, 3)).astype("float32") * 255
         out = kimage.resize(
@@ -445,7 +561,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             antialias=antialias,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out, atol=1e-4)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -464,7 +580,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         ref_out = tf.transpose(ref_out, [2, 0, 1])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out, atol=1e-4)
 
         x = np.random.random((2, 3, 30, 30)).astype("float32") * 255
         out = kimage.resize(
@@ -481,7 +597,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         ref_out = tf.transpose(ref_out, [0, 3, 1, 2])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out, atol=1e-4)
 
         # Test class
         out = kimage.Resize(
@@ -489,7 +605,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             interpolation=interpolation,
             antialias=antialias,
         )(x)
-        self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out, atol=1e-4)
 
     def test_resize_with_crop(self):
         # Test channels_last
@@ -708,7 +824,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             padding=padding.upper(),
         )
         self.assertEqual(tuple(patches_out.shape), tuple(patches_ref.shape))
-        self.assertAllClose(patches_ref, patches_out, atol=0.3)
+        self.assertAllClose(patches_ref, patches_out, atol=1e-2)
 
         # Test channels_first
         if backend.backend() == "tensorflow":
@@ -733,7 +849,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         patches_ref = tf.transpose(patches_ref, [0, 3, 1, 2])
         self.assertEqual(tuple(patches_out.shape), tuple(patches_ref.shape))
-        self.assertAllClose(patches_ref, patches_out, atol=0.3)
+        self.assertAllClose(patches_ref, patches_out, atol=1e-2)
 
         # Test class
         patches_out = kimage.ExtractPatches(
@@ -742,7 +858,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             dilation_rate=dilation_rate,
             padding=padding,
         )(image)
-        self.assertAllClose(patches_ref, patches_out, atol=0.3)
+        self.assertAllClose(patches_ref, patches_out, atol=1e-2)
 
     @parameterized.named_parameters(
         named_product(
@@ -941,7 +1057,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(ref_cropped_image, cropped_image)
 
 
-class ImageOpsBehaviorTests(testing.TestCase):
+class ImageOpsBehaviorTests(testing.TestCase, parameterized.TestCase):
     def setUp(self):
         # Defaults to channels_last
         self.data_format = backend.image_data_format()
@@ -952,9 +1068,10 @@ class ImageOpsBehaviorTests(testing.TestCase):
         backend.set_image_data_format(self.data_format)
         return super().tearDown()
 
-    def test_rgb_to_grayscale_invalid_rank(self):
-        # Test rank=2
-        invalid_image = np.random.uniform(size=(10, 10))
+    @parameterized.named_parameters(named_product(rank=[2, 5]))
+    def test_rgb_to_grayscale_invalid_rank(self, rank):
+        shape = [3] * rank
+        invalid_image = np.random.uniform(size=shape)
         with self.assertRaisesRegex(
             ValueError,
             "Invalid images rank: expected rank 3",
@@ -965,27 +1082,80 @@ class ImageOpsBehaviorTests(testing.TestCase):
             "Invalid images rank: expected rank 3",
         ):
             kimage.RGBToGrayscale()(invalid_image)
-
-        # Test rank=5
-        invalid_image = np.random.uniform(size=(2, 3, 10, 10, 3))
+        invalid_image = KerasTensor(shape=shape)
         with self.assertRaisesRegex(
             ValueError,
             "Invalid images rank: expected rank 3",
         ):
             kimage.rgb_to_grayscale(invalid_image)
-        with self.assertRaisesRegex(
-            ValueError,
-            "Invalid images rank: expected rank 3",
-        ):
-            kimage.RGBToGrayscale()(invalid_image)
 
-        # Test rank=2, symbolic tensor
-        invalid_image = KerasTensor(shape=(10, 10))
+    @parameterized.named_parameters(named_product(rank=[2, 5]))
+    def test_rgb_to_hsv_invalid_rank(self, rank):
+        shape = [3] * rank
+        invalid_image = np.random.uniform(size=shape)
         with self.assertRaisesRegex(
-            ValueError,
-            "Invalid images rank: expected rank 3",
+            ValueError, "Invalid images rank: expected rank 3"
         ):
-            kimage.rgb_to_grayscale(invalid_image)
+            kimage.rgb_to_hsv(invalid_image)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.RGBToHSV()(invalid_image)
+        invalid_image = KerasTensor(shape=shape)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.rgb_to_hsv(invalid_image)
+
+    def test_rgb_to_hsv_invalid_dtype(self):
+        invalid_image = np.random.uniform(size=(10, 10, 3)).astype("int32")
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images dtype: expected float dtype."
+        ):
+            kimage.rgb_to_hsv(invalid_image)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images dtype: expected float dtype."
+        ):
+            kimage.RGBToHSV()(invalid_image)
+        invalid_image = KerasTensor(shape=(10, 10, 3), dtype="int32")
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images dtype: expected float dtype."
+        ):
+            kimage.rgb_to_hsv(invalid_image)
+
+    @parameterized.named_parameters(named_product(rank=[2, 5]))
+    def test_hsv_to_rgb_invalid_rank(self, rank):
+        shape = [3] * rank
+        invalid_image = np.random.uniform(size=shape)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.hsv_to_rgb(invalid_image)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.HSVToRGB()(invalid_image)
+        invalid_image = KerasTensor(shape=shape)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.hsv_to_rgb(invalid_image)
+
+    def test_hsv_to_rgb_invalid_dtype(self):
+        invalid_image = np.random.uniform(size=(10, 10, 3)).astype("int32")
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images dtype: expected float dtype."
+        ):
+            kimage.hsv_to_rgb(invalid_image)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images dtype: expected float dtype."
+        ):
+            kimage.HSVToRGB()(invalid_image)
+        invalid_image = KerasTensor(shape=(10, 10, 3), dtype="int32")
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images dtype: expected float dtype."
+        ):
+            kimage.hsv_to_rgb(invalid_image)
 
     def test_resize_invalid_rank(self):
         # Test rank=2

@@ -10,6 +10,7 @@ from keras.src import metrics
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import global_state
 
 
 class LayerTest(testing.TestCase):
@@ -993,3 +994,239 @@ class LayerTest(testing.TestCase):
         layer = layers.Dense(2)
         config = layer.get_config()
         self.assertNotIn("activity_regularizer", config)
+
+    def test_custom_layer_add_weight_in_init_name(self):
+        class TrainingLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = InnerLayer()
+
+        class InnerLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.var = self.add_weight(
+                    shape=(1,),
+                    name="inner",
+                )
+                self.inner = InnerInnerLayer()
+
+        class InnerInnerLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.var = self.add_weight(
+                    shape=(1,),
+                    name="inner",
+                )
+
+        layer = TrainingLayer()
+        layer.build(None)
+        self.assertEqual(len(layer.variables), 2)
+        variable_paths = set(v.path for v in layer.variables)
+        self.assertTrue("inner_layer/inner" in variable_paths)
+        self.assertTrue("inner_inner_layer/inner" in variable_paths)
+        if backend.backend() == "torch":
+            parameter_names = set(
+                param_name.replace("torch_params.", "")
+                for param_name, _ in layer.named_parameters()
+            )
+            self.assertSetEqual(variable_paths, parameter_names)
+
+    def test_custom_layer_add_weight_in_build_name(self):
+        class TrainingLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = InnerLayer()
+
+            def call(self, input):
+                return self.inner(input)
+
+        class InnerLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = InnerInnerLayer()
+
+            def build(self, _):
+                self.var = self.add_weight(
+                    shape=(1,),
+                    name="inner",
+                )
+
+            def call(self, input):
+                return self.var + self.inner(input)
+
+        class InnerInnerLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+
+            def build(self, _):
+                self.var = self.add_weight(
+                    shape=(1,),
+                    name="inner",
+                )
+
+            def call(self, input):
+                return self.var + input
+
+        layer = TrainingLayer()
+        output = layer(
+            backend.KerasTensor(
+                (4, 1),
+            )
+        )
+        self.assertEqual(output.shape, (4, 1))
+        self.assertEqual(len(layer.variables), 2)
+        variable_paths = set(v.path for v in layer.variables)
+        self.assertTrue("training_layer/inner_layer/inner" in variable_paths)
+        self.assertTrue(
+            "training_layer/inner_layer/inner_inner_layer/inner"
+            in variable_paths
+        )
+        if backend.backend() == "torch":
+            parameter_names = set(
+                param_name.replace("torch_params.", "")
+                for param_name, _ in layer.named_parameters()
+            )
+            self.assertSetEqual(variable_paths, parameter_names)
+
+    def test_layer_variable_tracking_correct(self):
+        class TrainingLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.post_build_modify_layer = PostBuildModifyLayer()
+
+            def call(self, input):
+                return self.post_build_modify_layer(input)
+
+        class PostBuildModifyLayer(layers.Layer):
+
+            def call(self, input):
+                return self.var + input
+
+            def build(self, _):
+                self.var = self.add_weight(
+                    shape=(2,),
+                    name="var",
+                )
+
+            def post_build_add(self):
+                self._tracker.unlock()
+                self.additional_var = self.add_weight(
+                    shape=(2,),
+                    name="var2",
+                )
+                self._tracker.lock()
+
+            def post_build_remove(self):
+                self._tracker.unlock()
+                self._untrack_variable(self.var)
+                del self.var
+                self._tracker.lock()
+
+        layer = TrainingLayer()
+        output = layer(backend.KerasTensor((4, 2)))
+
+        self.assertEqual(output.shape, (4, 2))
+        self.assertEqual(len(layer.variables), 1)
+        self.assertEqual(
+            layer.variables[0].path,
+            "training_layer/post_build_modify_layer/var",
+        )
+        if backend.backend() == "torch":
+            parameter_names = [pname for pname, _ in layer.named_parameters()]
+            self.assertEqual(len(parameter_names), 1)
+            self.assertEqual(
+                parameter_names[0],
+                "torch_params.training_layer/post_build_modify_layer/var",
+            )
+
+        layer.post_build_modify_layer.post_build_add()
+        self.assertEqual(len(layer.variables), 2)
+        self.assertEqual(
+            layer.variables[0].path,
+            "training_layer/post_build_modify_layer/var",
+        )
+        self.assertEqual(
+            layer.variables[1].path,
+            "training_layer/post_build_modify_layer/var2",
+        )
+        if backend.backend() == "torch":
+            # TODO (haohuanw, fchollet): Needs further discussion on how to
+            # properly manage torch params. Post build modification cannot
+            # propagate to parent torch params.
+            parameter_names = [pname for pname, _ in layer.named_parameters()]
+            # Below check should have 2 parameters instead of 1.
+            self.assertEqual(len(parameter_names), 1)
+            self.assertEqual(
+                parameter_names[0],
+                "torch_params.training_layer/post_build_modify_layer/var",
+            )
+
+            parameter_names = [
+                pname
+                for pname, _ in layer.post_build_modify_layer.named_parameters()
+            ]
+            self.assertEqual(len(parameter_names), 2)
+            self.assertEqual(
+                parameter_names[0],
+                "torch_params.training_layer/post_build_modify_layer/var",
+            )
+            self.assertEqual(
+                parameter_names[1],
+                "torch_params.training_layer/post_build_modify_layer/var2",
+            )
+
+        layer.post_build_modify_layer.post_build_remove()
+        self.assertEqual(len(layer.variables), 1)
+        self.assertEqual(
+            layer.variables[0].path,
+            "training_layer/post_build_modify_layer/var2",
+        )
+        if backend.backend() == "torch":
+            # TODO (haohuanw, fchollet): Needs further discussion on how to
+            # properly manage torch params. Post build modification cannot
+            # propagate to parent torch params.
+            parameter_names = [pname for pname, _ in layer.named_parameters()]
+            # Below check should have 1 parameters instead of 2, torch_params
+            # in parent layer is wrong.
+            self.assertEqual(len(parameter_names), 2)
+            self.assertEqual(
+                parameter_names[0],
+                "post_build_modify_layer.torch_params.training_layer/"
+                "post_build_modify_layer/var2",
+            )
+            self.assertEqual(
+                parameter_names[1],
+                "torch_params.training_layer/post_build_modify_layer/var",
+            )
+
+            parameter_names = [
+                pname
+                for pname, _ in layer.post_build_modify_layer.named_parameters()
+            ]
+            self.assertEqual(len(parameter_names), 1)
+            self.assertEqual(
+                parameter_names[0],
+                "torch_params.training_layer/post_build_modify_layer/var2",
+            )
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    def test_torch_params_create_deterministic(self):
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w1 = self.add_weight()
+                self.w2 = self.add_weight(dtype="int32", trainable=False)
+                self.w3 = self.add_weight(dtype="bool", trainable=False)
+                self.w4 = self.add_weight(
+                    dtype="int32", shape=(2, 2), trainable=False
+                )
+                self.w5 = self.add_weight(initializer="ones", shape=(2, 2))
+
+        layer1 = MyLayer()
+        layer1.build(None)
+        layer1_names = list(pname for pname, _ in layer1.named_parameters())
+        global_state.clear_session()
+        layer2 = MyLayer()
+        layer2.build(None)
+        layer2_names = list(pname for pname, _ in layer2.named_parameters())
+        self.assertListEqual(layer1_names, layer2_names)

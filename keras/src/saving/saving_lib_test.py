@@ -612,6 +612,53 @@ class SavingTest(testing.TestCase):
 
         self.assertAllClose(pred1, pred2, atol=1e-5)
 
+    def test_save_model_exception_raised(self):
+        # Assume we have an error in `save_own_variables`.
+        class RaiseErrorLayer(keras.layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+            def call(self, inputs):
+                return inputs
+
+            def save_own_variables(self, store):
+                raise ValueError
+
+        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer()])
+        filepath = f"{self.get_temp_dir()}/model.keras"
+        with self.assertRaises(ValueError):
+            saving_lib.save_model(model, filepath)
+
+        # Ensure we don't have a bad "model.weights.h5" inside the zip file.
+        self.assertTrue(Path(filepath).exists())
+        with zipfile.ZipFile(filepath) as zf:
+            all_filenames = zf.namelist()
+            self.assertNotIn("model.weights.h5", all_filenames)
+
+    def test_load_model_exception_raised(self):
+        # Assume we have an error in `load_own_variables`.
+        class RaiseErrorLayer(keras.layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+            def call(self, inputs):
+                return inputs
+
+            def load_own_variables(self, store):
+                raise ValueError
+
+        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer()])
+        filepath = f"{self.get_temp_dir()}/model.keras"
+        saving_lib.save_model(model, filepath)
+        with self.assertRaises(ValueError):
+            saving_lib.load_model(
+                filepath, custom_objects={"RaiseErrorLayer": RaiseErrorLayer}
+            )
+
+        # Ensure we don't leave a bad "model.weights.h5" on the filesystem.
+        self.assertTrue(Path(filepath).exists())
+        self.assertFalse(Path(filepath).with_name("model.weights.h5").exists())
+
 
 @pytest.mark.requires_trainable_backend
 class SavingAPITest(testing.TestCase):

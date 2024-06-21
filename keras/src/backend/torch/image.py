@@ -39,6 +39,96 @@ def rgb_to_grayscale(images, data_format=None):
     return images
 
 
+def rgb_to_hsv(images, data_format=None):
+    # Ref: dm_pix
+    images = convert_to_tensor(images)
+    dtype = images.dtype
+    data_format = backend.standardize_data_format(data_format)
+    channels_axis = -1 if data_format == "channels_last" else -3
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    if not backend.is_float_dtype(dtype):
+        raise ValueError(
+            "Invalid images dtype: expected float dtype. "
+            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+        )
+    eps = torch.finfo(dtype).eps
+    images = torch.where(torch.abs(images) < eps, 0.0, images)
+    red, green, blue = torch.split(images, [1, 1, 1], channels_axis)
+    red = torch.squeeze(red, channels_axis)
+    green = torch.squeeze(green, channels_axis)
+    blue = torch.squeeze(blue, channels_axis)
+
+    def rgb_planes_to_hsv_planes(r, g, b):
+        value = torch.maximum(torch.maximum(r, g), b)
+        minimum = torch.minimum(torch.minimum(r, g), b)
+        range_ = value - minimum
+
+        safe_value = torch.where(value > 0, value, 1.0)
+        safe_range = torch.where(range_ > 0, range_, 1.0)
+
+        saturation = torch.where(value > 0, range_ / safe_value, 0.0)
+        norm = 1.0 / (6.0 * safe_range)
+
+        hue = torch.where(
+            value == g,
+            norm * (b - r) + 2.0 / 6.0,
+            norm * (r - g) + 4.0 / 6.0,
+        )
+        hue = torch.where(value == r, norm * (g - b), hue)
+        hue = torch.where(range_ > 0, hue, 0.0) + (hue < 0.0).to(hue.dtype)
+        return hue, saturation, value
+
+    images = torch.stack(
+        rgb_planes_to_hsv_planes(red, green, blue), axis=channels_axis
+    )
+    return images
+
+
+def hsv_to_rgb(images, data_format=None):
+    # Ref: dm_pix
+    images = convert_to_tensor(images)
+    dtype = images.dtype
+    data_format = backend.standardize_data_format(data_format)
+    channels_axis = -1 if data_format == "channels_last" else -3
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    if not backend.is_float_dtype(dtype):
+        raise ValueError(
+            "Invalid images dtype: expected float dtype. "
+            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+        )
+    hue, saturation, value = torch.split(images, [1, 1, 1], channels_axis)
+    hue = torch.squeeze(hue, channels_axis)
+    saturation = torch.squeeze(saturation, channels_axis)
+    value = torch.squeeze(value, channels_axis)
+
+    def hsv_planes_to_rgb_planes(hue, saturation, value):
+        dh = torch.remainder(hue, 1.0) * 6.0
+        dr = torch.clip(torch.abs(dh - 3.0) - 1.0, 0.0, 1.0)
+        dg = torch.clip(2.0 - torch.abs(dh - 2.0), 0.0, 1.0)
+        db = torch.clip(2.0 - torch.abs(dh - 4.0), 0.0, 1.0)
+        one_minus_s = 1.0 - saturation
+
+        red = value * (one_minus_s + saturation * dr)
+        green = value * (one_minus_s + saturation * dg)
+        blue = value * (one_minus_s + saturation * db)
+        return red, green, blue
+
+    images = torch.stack(
+        hsv_planes_to_rgb_planes(hue, saturation, value), axis=channels_axis
+    )
+    return images
+
+
 def resize(
     images,
     size,

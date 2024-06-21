@@ -16,7 +16,6 @@ RESIZE_INTERPOLATIONS = (
 
 
 def rgb_to_grayscale(images, data_format=None):
-    # return images
     images = convert_to_tensor(images)
     data_format = backend.standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
@@ -29,7 +28,7 @@ def rgb_to_grayscale(images, data_format=None):
     # Convert to floats
     original_dtype = images.dtype
     compute_dtype = backend.result_type(images.dtype, float)
-    images = backend.cast(images, compute_dtype)
+    images = images.astype(compute_dtype)
 
     # Ref: tf.image.rgb_to_grayscale
     rgb_weights = convert_to_tensor(
@@ -37,7 +36,97 @@ def rgb_to_grayscale(images, data_format=None):
     )
     images = jnp.tensordot(images, rgb_weights, axes=(channels_axis, -1))
     images = jnp.expand_dims(images, axis=channels_axis)
-    return backend.cast(images, original_dtype)
+    return images.astype(original_dtype)
+
+
+def rgb_to_hsv(images, data_format=None):
+    # Ref: dm_pix
+    images = convert_to_tensor(images)
+    dtype = images.dtype
+    data_format = backend.standardize_data_format(data_format)
+    channels_axis = -1 if data_format == "channels_last" else -3
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    if not backend.is_float_dtype(dtype):
+        raise ValueError(
+            "Invalid images dtype: expected float dtype. "
+            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+        )
+    eps = jnp.finfo(dtype).eps
+    images = jnp.where(jnp.abs(images) < eps, 0.0, images)
+    red, green, blue = jnp.split(images, 3, channels_axis)
+    red = jnp.squeeze(red, channels_axis)
+    green = jnp.squeeze(green, channels_axis)
+    blue = jnp.squeeze(blue, channels_axis)
+
+    def rgb_planes_to_hsv_planes(r, g, b):
+        value = jnp.maximum(jnp.maximum(r, g), b)
+        minimum = jnp.minimum(jnp.minimum(r, g), b)
+        range_ = value - minimum
+
+        safe_value = jnp.where(value > 0, value, 1.0)
+        safe_range = jnp.where(range_ > 0, range_, 1.0)
+
+        saturation = jnp.where(value > 0, range_ / safe_value, 0.0)
+        norm = 1.0 / (6.0 * safe_range)
+
+        hue = jnp.where(
+            value == g,
+            norm * (b - r) + 2.0 / 6.0,
+            norm * (r - g) + 4.0 / 6.0,
+        )
+        hue = jnp.where(value == r, norm * (g - b), hue)
+        hue = jnp.where(range_ > 0, hue, 0.0) + (hue < 0.0).astype(hue.dtype)
+        return hue, saturation, value
+
+    images = jnp.stack(
+        rgb_planes_to_hsv_planes(red, green, blue), axis=channels_axis
+    )
+    return images
+
+
+def hsv_to_rgb(images, data_format=None):
+    # Ref: dm_pix
+    images = convert_to_tensor(images)
+    dtype = images.dtype
+    data_format = backend.standardize_data_format(data_format)
+    channels_axis = -1 if data_format == "channels_last" else -3
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    if not backend.is_float_dtype(dtype):
+        raise ValueError(
+            "Invalid images dtype: expected float dtype. "
+            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+        )
+    hue, saturation, value = jnp.split(images, 3, channels_axis)
+    hue = jnp.squeeze(hue, channels_axis)
+    saturation = jnp.squeeze(saturation, channels_axis)
+    value = jnp.squeeze(value, channels_axis)
+
+    def hsv_planes_to_rgb_planes(hue, saturation, value):
+        dh = jnp.mod(hue, 1.0) * 6.0
+        dr = jnp.clip(jnp.abs(dh - 3.0) - 1.0, 0.0, 1.0)
+        dg = jnp.clip(2.0 - jnp.abs(dh - 2.0), 0.0, 1.0)
+        db = jnp.clip(2.0 - jnp.abs(dh - 4.0), 0.0, 1.0)
+        one_minus_s = 1.0 - saturation
+
+        red = value * (one_minus_s + saturation * dr)
+        green = value * (one_minus_s + saturation * dg)
+        blue = value * (one_minus_s + saturation * db)
+        return red, green, blue
+
+    images = jnp.stack(
+        hsv_planes_to_rgb_planes(hue, saturation, value), axis=channels_axis
+    )
+    return images
 
 
 def resize(

@@ -1359,6 +1359,8 @@ def round(x, decimals=0):
 def tile(x, repeats):
     if is_tensor(repeats):
         repeats = tuple(repeats.int().numpy())
+    if isinstance(repeats, int):
+        repeats = (repeats,)
     x = convert_to_tensor(x)
     return torch.tile(x, dims=repeats)
 

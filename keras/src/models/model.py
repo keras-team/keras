@@ -265,18 +265,19 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         )
 
     @traceback_utils.filter_traceback
-    def save(self, filepath, overwrite=True, **kwargs):
+    def save(self, filepath, overwrite=True, zipped=True, **kwargs):
         """Saves a model as a `.keras` file.
 
         Args:
             filepath: `str` or `pathlib.Path` object.
-                The path where to save the model. Must end in `.keras`.
+                The path where to save the model. Must end in `.keras`
+                (unless saving the model as an unzipped directory
+                via `zipped=False`).
             overwrite: Whether we should overwrite any existing model at
                 the target location, or instead ask the user via
                 an interactive prompt.
-            save_format: The `save_format` argument is deprecated in Keras 3.
-                Format to use, as a string. Only the `"keras"` format is
-                supported at this time.
+            zipped: Whether to save the model as a zipped `.keras`
+                archive (default), or as an unzipped directory.
 
         Example:
 
@@ -303,7 +304,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         Thus models can be reinstantiated in the exact same state.
         """
-        return saving_api.save_model(self, filepath, overwrite, **kwargs)
+        return saving_api.save_model(
+            self, filepath, overwrite=overwrite, zipped=zipped, **kwargs
+        )
 
     @traceback_utils.filter_traceback
     def save_weights(self, filepath, overwrite=True):

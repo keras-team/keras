@@ -37,7 +37,7 @@ def rgb_to_grayscale(images, data_format=None):
     """Convert RGB images to grayscale.
 
     This function converts RGB images to grayscale images. It supports both
-    3D and 4D tensors, where the last dimension represents channels.
+    3D and 4D tensors.
 
     Args:
         images: Input image or batch of images. Must be 3D or 4D.
@@ -46,8 +46,8 @@ def rgb_to_grayscale(images, data_format=None):
             `"channels_last"` corresponds to inputs with shape
             `(batch, height, width, channels)`, while `"channels_first"`
             corresponds to inputs with shape `(batch, channels, height, width)`.
-            If not specified, the value will be interpreted by
-            `keras.config.image_data_format`. Defaults to `None`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
 
     Returns:
         Grayscale image or batch of grayscale images.
@@ -55,7 +55,7 @@ def rgb_to_grayscale(images, data_format=None):
     Examples:
 
     >>> import numpy as np
-    >>> from keras.src import ops
+    >>> from keras import ops
     >>> x = np.random.random((2, 4, 4, 3))
     >>> y = ops.image.rgb_to_grayscale(x)
     >>> y.shape
@@ -74,6 +74,147 @@ def rgb_to_grayscale(images, data_format=None):
     if any_symbolic_tensors((images,)):
         return RGBToGrayscale(data_format=data_format).symbolic_call(images)
     return backend.image.rgb_to_grayscale(images, data_format=data_format)
+
+
+class RGBToHSV(Operation):
+    def __init__(self, data_format=None):
+        super().__init__()
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images):
+        return backend.image.rgb_to_hsv(images, data_format=self.data_format)
+
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        dtype = images.dtype
+        if len(images_shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). "
+                f"Received: images.shape={images_shape}"
+            )
+        if not backend.is_float_dtype(dtype):
+            raise ValueError(
+                "Invalid images dtype: expected float dtype. "
+                f"Received: images.dtype={dtype}"
+            )
+        return KerasTensor(shape=images_shape, dtype=images.dtype)
+
+
+@keras_export("keras.ops.image.rgb_to_hsv")
+def rgb_to_hsv(images, data_format=None):
+    """Convert RGB images to HSV.
+
+    `images` must be of float dtype, and the output is only well defined if the
+    values in `images` are in `[0, 1]`.
+
+    All HSV values are in `[0, 1]`. A hue of `0` corresponds to pure red, `1/3`
+    is pure green, and `2/3` is pure blue.
+
+    Args:
+        images: Input image or batch of images. Must be 3D or 4D.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        HSV image or batch of HSV images.
+
+    Examples:
+
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.random.random((2, 4, 4, 3))
+    >>> y = ops.image.rgb_to_hsv(x)
+    >>> y.shape
+    (2, 4, 4, 3)
+
+    >>> x = np.random.random((4, 4, 3)) # Single RGB image
+    >>> y = ops.image.rgb_to_hsv(x)
+    >>> y.shape
+    (4, 4, 3)
+
+    >>> x = np.random.random((2, 3, 4, 4))
+    >>> y = ops.image.rgb_to_hsv(x, data_format="channels_first")
+    >>> y.shape
+    (2, 3, 4, 4)
+    """
+    if any_symbolic_tensors((images,)):
+        return RGBToHSV(data_format=data_format).symbolic_call(images)
+    return backend.image.rgb_to_hsv(images, data_format=data_format)
+
+
+class HSVToRGB(Operation):
+    def __init__(self, data_format=None):
+        super().__init__()
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images):
+        return backend.image.hsv_to_rgb(images, data_format=self.data_format)
+
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        dtype = images.dtype
+        if len(images_shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). "
+                f"Received: images.shape={images_shape}"
+            )
+        if not backend.is_float_dtype(dtype):
+            raise ValueError(
+                "Invalid images dtype: expected float dtype. "
+                f"Received: images.dtype={dtype}"
+            )
+        return KerasTensor(shape=images_shape, dtype=images.dtype)
+
+
+@keras_export("keras.ops.image.hsv_to_rgb")
+def hsv_to_rgb(images, data_format=None):
+    """Convert HSV images to RGB.
+
+    `images` must be of float dtype, and the output is only well defined if the
+    values in `images` are in `[0, 1]`.
+
+    Args:
+        images: Input image or batch of images. Must be 3D or 4D.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        RGB image or batch of RGB images.
+
+    Examples:
+
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.random.random((2, 4, 4, 3))
+    >>> y = ops.image.hsv_to_rgb(x)
+    >>> y.shape
+    (2, 4, 4, 3)
+
+    >>> x = np.random.random((4, 4, 3)) # Single HSV image
+    >>> y = ops.image.hsv_to_rgb(x)
+    >>> y.shape
+    (4, 4, 3)
+
+    >>> x = np.random.random((2, 3, 4, 4))
+    >>> y = ops.image.hsv_to_rgb(x, data_format="channels_first")
+    >>> y.shape
+    (2, 3, 4, 4)
+    """
+    if any_symbolic_tensors((images,)):
+        return HSVToRGB(data_format=data_format).symbolic_call(images)
+    return backend.image.hsv_to_rgb(images, data_format=data_format)
 
 
 class Resize(Operation):
@@ -170,8 +311,8 @@ def resize(
             `"channels_last"` corresponds to inputs with shape
             `(batch, height, width, channels)`, while `"channels_first"`
             corresponds to inputs with shape `(batch, channels, height, width)`.
-            If not specified, the value will be interpreted by
-            `keras.config.image_data_format`. Defaults to `None`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
 
     Returns:
         Resized image or batch of images.
@@ -320,8 +461,8 @@ def affine_transform(
             `"channels_last"` corresponds to inputs with shape
             `(batch, height, width, channels)`, while `"channels_first"`
             corresponds to inputs with shape `(batch, channels, height, width)`.
-            If not specified, the value will be interpreted by
-            `keras.config.image_data_format`. Defaults to `None`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
 
     Returns:
         Applied affine transform image or batch of images.
@@ -455,8 +596,8 @@ def extract_patches(
             `"channels_last"` corresponds to inputs with shape
             `(batch, height, width, channels)`, while `"channels_first"`
             corresponds to inputs with shape `(batch, channels, height, width)`.
-            If not specified, the value will be interpreted by
-            `keras.config.image_data_format`. Defaults to `None`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
 
     Returns:
         Extracted patches 3D (if not batched) or 4D (if batched)
@@ -701,8 +842,8 @@ def pad_images(
             `"channels_last"` corresponds to inputs with shape
             `(batch, height, width, channels)`, while `"channels_first"`
             corresponds to inputs with shape `(batch, channels, height, width)`.
-            If not specified, the value will be interpreted by
-            `keras.config.image_data_format`. Defaults to `None`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
 
     Returns:
         Padded image or batch of images.
@@ -927,8 +1068,8 @@ def crop_images(
             `"channels_last"` corresponds to inputs with shape
             `(batch, height, width, channels)`, while `"channels_first"`
             corresponds to inputs with shape `(batch, channels, height, width)`.
-            If not specified, the value will be interpreted by
-            `keras.config.image_data_format`. Defaults to `None`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
 
     Returns:
         Cropped image or batch of images.
