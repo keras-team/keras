@@ -156,12 +156,9 @@ class EinsumDense(Layer):
         # `self._int8_build` needs `self.input_spec`
         self.input_spec = InputSpec(ndim=len(input_shape))
         # We use `self._dtype_policy` to check to avoid issues in torch dynamo
-        is_quantized = self._dtype_policy.is_quantized
-        if is_quantized:
-            self.quantized_build(
-                input_shape, mode=self.dtype_policy.quantization_mode
-            )
-        if not is_quantized or self.dtype_policy.quantization_mode != "int8":
+        if self.quantization_mode is not None:
+            self.quantized_build(input_shape, mode=self.quantization_mode)
+        if self.quantization_mode != "int8":
             # If the layer is quantized to int8, `self._kernel` will be added
             # in `self._int8_build`. Therefore, we skip it here.
             self._kernel = self.add_weight(
@@ -258,11 +255,10 @@ class EinsumDense(Layer):
         target_variables = [kernel_value]
         if self.bias is not None:
             target_variables.append(self.bias)
-        if self.dtype_policy.is_quantized:
-            mode = self.dtype_policy.quantization_mode
-            if mode == "int8":
+        if self.quantization_mode is not None:
+            if self.quantization_mode == "int8":
                 target_variables.append(kernel_scale)
-            elif mode == "float8":
+            elif self.quantization_mode == "float8":
                 target_variables.append(self.inputs_scale)
                 target_variables.append(self.inputs_amax_history)
                 target_variables.append(self.kernel_scale)
@@ -270,9 +266,7 @@ class EinsumDense(Layer):
                 target_variables.append(self.outputs_grad_scale)
                 target_variables.append(self.outputs_grad_amax_history)
             else:
-                raise NotImplementedError(
-                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
-                )
+                raise self._quantization_mode_error(self.quantization_mode)
         for i, variable in enumerate(target_variables):
             store[str(i)] = variable
 
@@ -287,11 +281,10 @@ class EinsumDense(Layer):
         target_variables = [self._kernel]
         if self.bias is not None:
             target_variables.append(self.bias)
-        if self.dtype_policy.is_quantized:
-            mode = self.dtype_policy.quantization_mode
-            if mode == "int8":
+        if self.quantization_mode is not None:
+            if self.quantization_mode == "int8":
                 target_variables.append(self.kernel_scale)
-            elif mode == "float8":
+            elif self.quantization_mode == "float8":
                 target_variables.append(self.inputs_scale)
                 target_variables.append(self.inputs_amax_history)
                 target_variables.append(self.kernel_scale)
@@ -299,9 +292,7 @@ class EinsumDense(Layer):
                 target_variables.append(self.outputs_grad_scale)
                 target_variables.append(self.outputs_grad_amax_history)
             else:
-                raise NotImplementedError(
-                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
-                )
+                raise self._quantization_mode_error(self.quantization_mode)
         for i, variable in enumerate(target_variables):
             variable.assign(store[str(i)])
         if self.lora_enabled:
@@ -369,11 +360,12 @@ class EinsumDense(Layer):
 
     # Quantization-related (int8 and float8) methods
 
-    QUANTIZATION_MODE_ERROR_TEMPLATE = (
-        f"Invalid quantization mode. Expected one of "
-        f"{dtype_policies.QUANTIZATION_MODES}. "
-        "Received: quantization_mode={mode}"
-    )
+    def _quantization_mode_error(self, mode):
+        return NotImplementedError(
+            "Invalid quantization mode. Expected one of "
+            f"{dtype_policies.QUANTIZATION_MODES}. "
+            f"Received: quantization_mode={mode}"
+        )
 
     def quantized_build(self, input_shape, mode):
         if mode == "int8":
@@ -388,9 +380,7 @@ class EinsumDense(Layer):
         elif mode == "float8":
             self._float8_build()
         else:
-            raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
-            )
+            raise self._quantization_mode_error(mode)
 
     def _int8_build(
         self,
@@ -488,15 +478,12 @@ class EinsumDense(Layer):
         self._is_quantized = True
 
     def quantized_call(self, inputs, training=None):
-        if self.dtype_policy.quantization_mode == "int8":
+        if self.quantization_mode == "int8":
             return self._int8_call(inputs)
-        elif self.dtype_policy.quantization_mode == "float8":
+        elif self.quantization_mode == "float8":
             return self._float8_call(inputs, training=training)
         else:
-            mode = self.dtype_policy.quantization_mode
-            raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
-            )
+            raise self._quantization_mode_error(self.quantization_mode)
 
     def _int8_call(self, inputs):
         @ops.custom_gradient
@@ -706,17 +693,13 @@ class EinsumDense(Layer):
         elif mode == "float8":
             self._float8_build()
         else:
-            raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
-            )
+            raise self._quantization_mode_error(mode)
         self._tracker.lock()
 
         # Set new dtype policy
         if not self.dtype_policy.is_quantized:
-            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
-            # We set the internal `self._dtype_policy` instead of using the
-            # setter to avoid double `quantize` call
-            self._dtype_policy = dtype_policies.get(quantized_dtype)
+            policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
+            self.dtype_policy = policy
 
         # Release memory manually because sometimes the backend doesn't
         gc.collect()

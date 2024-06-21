@@ -35,9 +35,7 @@ class Operation:
             if any_symbolic_tensors(args, kwargs):
                 call_fn = self.symbolic_call
             else:
-                if isinstance(
-                    self._dtype_policy, dtype_policies.QuantizedDTypePolicy
-                ):
+                if getattr(self, "quantization_mode", None) is not None:
                     call_fn = self.quantized_call
                 else:
                     call_fn = self.call
@@ -50,7 +48,7 @@ class Operation:
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
             return self.symbolic_call(*args, **kwargs)
-        if isinstance(self._dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if getattr(self, "quantization_mode", None) is not None:
             return self.quantized_call(*args, **kwargs)
         else:
             return self.call(*args, **kwargs)

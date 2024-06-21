@@ -111,15 +111,9 @@ class Embedding(Layer):
     def build(self, input_shape=None):
         if self.built:
             return
-        # We use `self._dtype_policy` to check to avoid issues in torch dynamo
-        is_quantized = isinstance(
-            self._dtype_policy, dtype_policies.QuantizedDTypePolicy
-        )
-        if is_quantized:
-            self.quantized_build(
-                input_shape, mode=self.dtype_policy.quantization_mode
-            )
-        if not is_quantized or self.dtype_policy.quantization_mode != "int8":
+        if self.quantization_mode is not None:
+            self.quantized_build(input_shape, mode=self.quantization_mode)
+        if self.quantization_mode != "int8":
             self._embeddings = self.add_weight(
                 shape=(self.input_dim, self.output_dim),
                 initializer=self.embeddings_initializer,
@@ -200,14 +194,11 @@ class Embedding(Layer):
             self._get_embeddings_with_merged_lora()
         )
         target_variables = [embeddings_value]
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            mode = self.dtype_policy.quantization_mode
-            if mode == "int8":
+        if self.quantization_mode is not None:
+            if self.quantization_mode == "int8":
                 target_variables.append(embeddings_scale)
             else:
-                raise NotImplementedError(
-                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
-                )
+                raise self._quantization_mode_error(self.quantization_mode)
         for i, variable in enumerate(target_variables):
             store[str(i)] = variable
 
@@ -220,14 +211,11 @@ class Embedding(Layer):
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
         target_variables = [self._embeddings]
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            mode = self.dtype_policy.quantization_mode
-            if mode == "int8":
+        if self.quantization_mode is not None:
+            if self.quantization_mode == "int8":
                 target_variables.append(self.embeddings_scale)
             else:
-                raise NotImplementedError(
-                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
-                )
+                raise self._quantization_mode_error(self.quantization_mode)
         for i, variable in enumerate(target_variables):
             variable.assign(store[str(i)])
         if self.lora_enabled:
@@ -297,18 +285,17 @@ class Embedding(Layer):
 
     """Quantization-related (int8) methods"""
 
-    QUANTIZATION_MODE_ERROR_TEMPLATE = (
-        "Invalid quantization mode. Expected 'int8'. "
-        "Received: quantization_mode={mode}"
-    )
+    def _quantization_mode_error(self, mode):
+        return NotImplementedError(
+            "Invalid quantization mode. Expected 'int8'. "
+            f"Received: quantization_mode={mode}"
+        )
 
     def quantized_build(self, input_shape, mode):
         if mode == "int8":
             self._int8_build()
         else:
-            raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
-            )
+            raise self._quantization_mode_error(mode)
 
     def _int8_build(
         self,
@@ -334,13 +321,10 @@ class Embedding(Layer):
         self._is_quantized = True
 
     def quantized_call(self, inputs):
-        if self.dtype_policy.quantization_mode == "int8":
+        if self.quantization_mode == "int8":
             return self._int8_call(inputs)
         else:
-            mode = self.dtype_policy.quantization_mode
-            raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
-            )
+            raise self._quantization_mode_error(self.quantization_mode)
 
     def _int8_call(self, inputs):
         # We cannot update quantized self._embeddings, so the custom gradient is
@@ -388,25 +372,19 @@ class Embedding(Layer):
                 lambda shape, dtype: embeddings_scale,
             )
         else:
-            raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode=mode)
-            )
+            raise self._quantization_mode_error(mode)
         self._tracker.lock()
 
         # Set new dtype policy
-        if not isinstance(
-            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-        ):
-            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
-            # We set the internal `self._dtype_policy` instead of using the
-            # setter to avoid double `quantize` call
-            self._dtype_policy = dtype_policies.get(quantized_dtype)
+        if not self.dtype_policy.is_quantized:
+            policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
+            self.dtype_policy = policy
 
         # Release memory manually because sometimes the backend doesn't
         gc.collect()
 
     def _get_embeddings_with_merged_lora(self):
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if self.dtype_policy.is_quantized:
             embeddings_value = self._embeddings
             embeddings_scale = self.embeddings_scale
             if self.lora_enabled:
