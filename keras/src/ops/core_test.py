@@ -19,6 +19,23 @@ from keras.src.ops import core
 
 
 class CoreOpsStaticShapeTest(testing.TestCase):
+    def test_map(self):
+        def f(x):
+            return x**2
+
+        xs = KerasTensor((6,))
+        ys = core.map(f, xs)
+        self.assertEqual(ys.shape, (6,))
+
+        # Test nested output
+        def f2(x):
+            return {"a": x**2, "b": x * 10}
+
+        xs = KerasTensor((6,))
+        ys = core.map(f2, xs)
+        self.assertEqual(ys["a"].shape, (6,))
+        self.assertEqual(ys["b"].shape, (6,))
+
     def test_scan(self):
         def f(carry, xs):
             xs = xs + carry
@@ -113,6 +130,22 @@ class CoreOpsStaticShapeTest(testing.TestCase):
 
 
 class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+    def test_map(self):
+        def f(x):
+            return x**2
+
+        xs = np.arange(10)
+        self.assertAllClose(ops.map(f, xs), xs**2)
+
+        # Test nested output
+        def f2(x):
+            return {"a": x**2, "b": x * 10}
+
+        xs = np.random.rand(2, 3, 4).astype("float32")
+        outputs = ops.map(f2, xs)
+        self.assertAllClose(outputs["a"], xs**2)
+        self.assertAllClose(outputs["b"], xs * 10)
+
     def test_scan(self):
         # Test cumsum
         def cumsum(carry, xs):
@@ -756,6 +789,15 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
 
 
 class CoreOpsCallsTests(testing.TestCase):
+    def test_map_basic_call(self):
+        def f(x):
+            return x**2
+
+        xs = np.arange(10)
+        map_op = core.Map()
+        ys = map_op.call(f, xs)
+        self.assertAllClose(ys, xs**2)
+
     def test_scan_basic_call(self):
         def cumsum(carry, xs):
             carry = carry + xs

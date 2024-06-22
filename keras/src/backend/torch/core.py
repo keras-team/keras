@@ -1,3 +1,4 @@
+import builtins
 import contextlib
 
 import ml_dtypes
@@ -305,7 +306,9 @@ def compute_output_spec(fn, *args, **kwargs):
     with StatelessScope(), torch.no_grad():
         outputs = symbolic_call(fn, args, kwargs, fill_value=83)
 
-        none_in_shape = any(map(has_none_shape, tree.flatten((args, kwargs))))
+        none_in_shape = any(
+            builtins.map(has_none_shape, tree.flatten((args, kwargs)))
+        )
         if none_in_shape:
             outputs_1 = outputs
             outputs_2 = symbolic_call(fn, args, kwargs, fill_value=89)
@@ -338,6 +341,14 @@ def cond(pred, true_fn, false_fn):
 
 def vectorized_map(function, elements):
     return torch.vmap(function)(elements)
+
+
+def map(f, xs):
+    def g(_, x):
+        return (), f(x)
+
+    _, ys = scan(g, (), xs)
+    return ys
 
 
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
