@@ -253,6 +253,10 @@ def vectorized_map(function, elements):
     return jax.vmap(function)(elements)
 
 
+def map(f, xs):
+    return jax.lax.map(f, xs)
+
+
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     if not isinstance(unroll, bool):
         if not isinstance(unroll, int) or unroll < 1:

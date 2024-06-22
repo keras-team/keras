@@ -1,3 +1,4 @@
+import builtins
 import warnings
 
 import numpy as np
@@ -91,7 +92,9 @@ def compute_output_spec(fn, *args, **kwargs):
                 return None in x.shape
             return False
 
-        none_in_shape = any(map(has_none_shape, tree.flatten((args, kwargs))))
+        none_in_shape = any(
+            builtins.map(has_none_shape, tree.flatten((args, kwargs)))
+        )
 
         def convert_keras_tensor_to_numpy(x, fill_value=None):
             if isinstance(x, KerasTensor):
@@ -140,6 +143,14 @@ def compute_output_spec(fn, *args, **kwargs):
 
         output_spec = tree.map_structure(convert_numpy_to_keras_tensor, outputs)
     return output_spec
+
+
+def map(f, xs):
+    def g(_, x):
+        return (), f(x)
+
+    _, ys = scan(g, (), xs)
+    return ys
 
 
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):

@@ -218,6 +218,17 @@ def vectorized_map(function, elements):
     return tf.vectorized_map(function, elements)
 
 
+def map(f, xs):
+    xs = tree.map_structure(convert_to_tensor, xs)
+
+    def get_fn_output_signature(x):
+        out = f(x)
+        return tree.map_structure(tf.TensorSpec.from_tensor, out)
+
+    fn_output_signature = get_fn_output_signature(xs[0])
+    return tf.map_fn(f, xs, fn_output_signature=fn_output_signature)
+
+
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     # We have reimplemented `scan` to match the behavior of `jax.lax.scan`
     # Ref: tf.scan, jax.lax.scan
