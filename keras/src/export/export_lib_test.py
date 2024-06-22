@@ -132,6 +132,21 @@ class ExportArchiveTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(counter2, 3)
 
     @parameterized.named_parameters(
+        named_product(model_type=["sequential", "functional", "subclass"])
+    )
+    def test_model_with_tf_data_layer(self, model_type):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model(model_type, layer_list=[layers.Rescaling(scale=2.0)])
+        ref_input = tf.random.normal((3, 10))
+        ref_output = model(ref_input)
+
+        export_lib.export_model(model, temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        # Test with a different batch size
+        revived_model.serve(tf.random.normal((6, 10)))
+
+    @parameterized.named_parameters(
         named_product(struct_type=["tuple", "array", "dict"])
     )
     def test_model_with_input_structure(self, struct_type):
