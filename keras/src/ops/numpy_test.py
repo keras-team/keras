@@ -2083,6 +2083,7 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors.",
     )
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_matmul_sparse(self, dtype, x_shape, y_shape, x_sparse, y_sparse):
         if backend.backend() == "tensorflow":
             import tensorflow as tf
