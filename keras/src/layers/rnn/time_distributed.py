@@ -72,8 +72,8 @@ class TimeDistributed(Wrapper):
         self.built = True
 
     def call(self, inputs, training=None, mask=None):
-        input_shape = inputs.shape
-        mask_shape = None if mask is None else tuple(mask.shape)
+        input_shape = ops.shape(inputs)
+        mask_shape = None if mask is None else ops.shape(mask)
         batch_size = input_shape[0]
         timesteps = input_shape[1]
 
