@@ -197,7 +197,9 @@ class ExportArchiveTest(testing.TestCase, parameterized.TestCase):
         revived_model.serve(bigger_input)
 
         # Test with keras.saving_lib
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model.keras")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "exported_model.keras"
+        )
         saving_lib.save_model(model, temp_filepath)
         revived_model = saving_lib.load_model(
             temp_filepath,
