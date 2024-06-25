@@ -1212,7 +1212,8 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         Args:
             store: Dict where the state of the model will be saved.
         """
-        for i, v in enumerate(self.variables):
+        all_vars = self.trainable_variables + self.non_trainable_variables
+        for i, v in enumerate(all_vars):
             store[f"{i}"] = v
 
     def load_own_variables(self, store):
