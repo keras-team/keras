@@ -433,6 +433,7 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             y = KerasTensor((2, 3, 4))
             knp.matmul(x, y)
 
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_matmul_sparse(self):
         x = KerasTensor((2, 3), sparse=True)
         y = KerasTensor((3, 2))
