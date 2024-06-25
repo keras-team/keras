@@ -164,7 +164,10 @@ class DTypePolicy:
                 x.dtype = dtype
             return x
         elif hasattr(x, "__array__"):
-            x = backend.convert_to_tensor(x)
+            try:
+                x = backend.convert_to_tensor(x)
+            except TypeError:
+                x = backend.convert_to_tensor(x, dtype=dtype)
             if self._should_cast(x, autocast, dtype):
                 x = backend.cast(x, dtype=dtype)
             return x
