@@ -110,6 +110,9 @@ class TimeDistributed(Wrapper):
             return time_distributed_transpose(outputs)
 
         # Implementation #2: use backend.vectorized_map.
+        
+        if timesteps is None:
+            timesteps=backend.shape(inputs)[1]
 
         outputs = backend.vectorized_map(step_function, ops.arange(timesteps))
         return time_distributed_transpose(outputs)
