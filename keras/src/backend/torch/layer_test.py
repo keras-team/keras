@@ -47,7 +47,7 @@ class LayerTest(testing.TestCase):
             layer = MyLayer()
             layer.build(None)
             layer_params = list(
-                (pname, np.copy(p.detach().numpy()))
+                (pname, np.copy(backend.convert_to_numpy(p)))
                 for pname, p in layer.named_parameters()
             )
             self.assertEqual(len(layer_params), 4)
@@ -99,13 +99,13 @@ class LayerTest(testing.TestCase):
         w5_value = w5[1]
 
         np.testing.assert_array_equal(
-            w5_value.detach().numpy(), np.ones((2, 2))
+            backend.convert_to_numpy(w5_value), np.ones((2, 2))
         )
 
         layer.child.grand_child.w5.assign_sub(1)
 
         np.testing.assert_array_equal(
-            w5_value.detach().numpy(), np.zeros((2, 2))
+            backend.convert_to_numpy(w5_value), np.zeros((2, 2))
         )
 
     def test_trainable_modification_propagates(self):
@@ -142,15 +142,15 @@ class LayerTest(testing.TestCase):
         torch_w1_value = torch_w1[1]
         self.assertEqual(torch_w1[0], "torch_params.0")
         np.testing.assert_array_equal(
-            torch_w1_value.detach().numpy(), layer.w1.numpy()
+            backend.convert_to_numpy(torch_w1_value), layer.w1.numpy()
         )
 
         torch_w2 = self.get_torch_parameter_from_variable(layer, layer.w2)
         self.assertIsNotNone(torch_w2)
-        torch_w1_value = torch_w2[1]
+        torch_w2_value = torch_w2[1]
         self.assertEqual(torch_w2[0], "torch_params.1")
         np.testing.assert_array_equal(
-            torch_w1_value.detach().numpy(), layer.w2.numpy()
+            backend.convert_to_numpy(torch_w2_value), layer.w2.numpy()
         )
 
     def test_load_dict_store_restore(self):
@@ -160,7 +160,6 @@ class LayerTest(testing.TestCase):
             def __init__(self):
                 super().__init__()
                 self.w = self.add_weight(shape=(2, 2))
-                self.seed_gen = backend.random.SeedGenerator(seed=1337)
                 self.child = ChildLayer()
 
         class ChildLayer(layers.Layer):
@@ -173,13 +172,15 @@ class LayerTest(testing.TestCase):
                     initializer="zero",
                 )
                 self.w = self.add_weight(shape=(2, 2))
+                self.seed_gen = backend.random.SeedGenerator(seed=1337)
 
         layer1 = Layer()
         layer1.build(None)
-        layer1.seed_gen.next()
+        layer1.child.seed_gen.next()
         layer1.child.stat.assign_add(1)
 
         state_dict = layer1.state_dict()
+        self.assertEqual(len(state_dict), 4)
         global_state.clear_session()
 
         layer2 = Layer()
@@ -207,6 +208,28 @@ class LayerTest(testing.TestCase):
             np.testing.assert_array_equal(
                 layer1_var.numpy(), layer2_var.numpy()
             )
+
+    def test_list_of_layers_tracked_properly(self):
+
+        class Layer(layers.Layer):
+
+            def __init__(self):
+                super().__init__()
+                self.cells = [
+                    Cell(),
+                    Cell(),
+                    Cell(),
+                ]
+
+        class Cell(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight(shape=(2, 2))
+
+        layer = Layer()
+        layer.build(None)
+
+        self.assertEqual(len(list(layer.parameters())), 3)
 
     def test_throw_error_when_build_not_called(self):
         class Layer(layers.Layer):

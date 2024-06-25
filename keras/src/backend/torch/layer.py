@@ -95,10 +95,13 @@ class TorchLayer(torch.nn.Module):
         remove_duplicate: bool = True,
     ) -> Iterator[Tuple[str, torch.nn.Parameter]]:
         if not self._torch_params_tracked():
-            raise RuntimeError(
-                "Torch parameters are not tracked yet. "
-                "Did you forget to call build()?"
-            )
+            if self.built:
+                self._track_torch_params()
+            else:
+                raise RuntimeError(
+                    "Torch parameters are not tracked yet and layer is not "
+                    "built. Did you forget to call build()?"
+                )
         return torch.nn.Module.named_parameters(
             self, prefix, recurse, remove_duplicate
         )
@@ -118,6 +121,16 @@ class TorchLayer(torch.nn.Module):
 
             if not isinstance(self, TorchModuleWrapper):
                 value = TorchModuleWrapper(value)
+        # Torch module don't register list[Module] in its __setattr__, it uses
+        # nn.ModuleList normally. In Keras3, we only need a way for the module
+        # class to be tracked by torch since keras3 user can still do
+        # self._layers to reference all layers instead of using
+        # torch.nn.Module.named_members().
+        if isinstance(value, list) and all(
+            [isinstance(v, Layer) for v in value]
+        ):
+            for idx, v in enumerate(value):
+                self.add_module(f"{name}_{idx}", v)
         return name, value
 
     def _post_track_variable(self, _):
