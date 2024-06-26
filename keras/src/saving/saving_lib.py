@@ -236,12 +236,13 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
 
 
 def _upload_model_to_hf(model, hf_path, weights_format):
+    original_hf_path = hf_path
     if hf_path.startswith("hf://"):
         hf_path = hf_path[5:]
     if hf_path.count("/") > 1:
         raise ValueError(
             "Invalid `hf_path` argument: expected `namespace/model_name`"
-            f" format. Received: hf_path={hf_path}"
+            f" format. Received: hf_path={original_hf_path}"
         )
 
     api = huggingface_hub.HfApi(
