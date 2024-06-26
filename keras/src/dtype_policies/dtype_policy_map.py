@@ -41,13 +41,13 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
 
     ```python
     dtype_policy_map = DTypePolicyMap()
-    dtype_policy_map["layer/dense_0"] = FloatDTypePolicy("bfloat16")
+    dtype_policy_map["layer/dense_0"] = DTypePolicy("bfloat16")
     dtype_policy_map["layer/dense_1"] = QuantizedDTypePolicy("int8", "bfloat16")
 
     policy_0 = dtype_policy_map["layer/dense_0"]
     policy_1 = dtype_policy_map["layer/dense_1"]
     policy_2 = dtype_policy_map["layer/dense_2"]  # No hit
-    assert policy_0 == FloatDTypePolicy("bfloat16")
+    assert policy_0 == DTypePolicy("bfloat16")
     assert policy_1 == QuantizedDTypePolicy("int8", "bfloat16")
     assert policy_2 == keras.config.dtype_policy()
     ```
@@ -167,7 +167,7 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
             # `default_policy=None` enables us to defer to
             # `keras.config.dtype_policy()` during loading.
             # To support this feature, we can set `_name` and `_source_name` to
-            # `None` in `FloatDTypePolicy` and `QuantizedDTypePolicy`,
+            # `None` in `DTypePolicy` and `QuantizedDTypePolicy`,
             # respectively.
             for policy in policy_map.values():
                 if isinstance(policy, dtype_policies.QuantizedDTypePolicy):

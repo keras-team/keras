@@ -66,11 +66,11 @@ class DTypePolicyMapTest(testing.TestCase):
                 )
             elif isinstance(layer, layers.BatchNormalization):
                 self.assertEqual(
-                    layer.dtype_policy, dtype_policies.FloatDTypePolicy()
+                    layer.dtype_policy, dtype_policies.DTypePolicy()
                 )
             elif isinstance(layer, layers.ReLU):
                 self.assertEqual(
-                    layer.dtype_policy, dtype_policies.FloatDTypePolicy()
+                    layer.dtype_policy, dtype_policies.DTypePolicy()
                 )
 
         # Verify the output after saving and loading
@@ -84,7 +84,7 @@ class DTypePolicyMapTest(testing.TestCase):
 
     def test_add(self):
         dtype_policy_map = DTypePolicyMap()
-        dtype_policy_map["layer/dense_0"] = dtype_policies.FloatDTypePolicy(
+        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
             "bfloat16"
         )
         dtype_policy_map["layer/dense_1"] = dtype_policies.QuantizedDTypePolicy(
@@ -97,7 +97,7 @@ class DTypePolicyMapTest(testing.TestCase):
         self.assertLen(dtype_policy_map, 3)
 
         policy = dtype_policy_map["layer/dense_0"]
-        self.assertIsInstance(policy, dtype_policies.FloatDTypePolicy)
+        self.assertIsInstance(policy, dtype_policies.DTypePolicy)
         self.assertEqual(policy.name, "bfloat16")
 
         policy = dtype_policy_map["layer/dense_1"]
@@ -113,7 +113,7 @@ class DTypePolicyMapTest(testing.TestCase):
         with self.assertRaisesRegex(
             ValueError, "layer/dense_0 already exist in the DTypePolicyMap"
         ):
-            dtype_policy_map["layer/dense_0"] = dtype_policies.FloatDTypePolicy(
+            dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
                 "float32"
             )
 
@@ -124,7 +124,7 @@ class DTypePolicyMapTest(testing.TestCase):
 
     def test_get(self):
         dtype_policy_map = DTypePolicyMap()
-        dtype_policy_map["layer/dense_0"] = dtype_policies.FloatDTypePolicy(
+        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
             "bfloat16"
         )
         dtype_policy_map["layer/dense_1"] = dtype_policies.QuantizedDTypePolicy(
@@ -136,7 +136,7 @@ class DTypePolicyMapTest(testing.TestCase):
 
         self.assertEqual(
             dtype_policy_map["layer/dense_0"],
-            dtype_policies.FloatDTypePolicy("bfloat16"),
+            dtype_policies.DTypePolicy("bfloat16"),
         )
         self.assertEqual(
             dtype_policy_map["layer/dense_1"],
@@ -161,8 +161,8 @@ class DTypePolicyMapTest(testing.TestCase):
         )
 
         # It will cause a ValueError in the case of one-to-many.
-        dtype_policy_map["dense"] = dtype_policies.FloatDTypePolicy("float32")
-        dtype_policy_map["dense_1"] = dtype_policies.FloatDTypePolicy("float32")
+        dtype_policy_map["dense"] = dtype_policies.DTypePolicy("float32")
+        dtype_policy_map["dense_1"] = dtype_policies.DTypePolicy("float32")
         with self.assertRaisesRegex(
             ValueError, "Path 'dense_10' matches multiple dtype policy"
         ):
@@ -170,7 +170,7 @@ class DTypePolicyMapTest(testing.TestCase):
 
     def test_delete(self):
         dtype_policy_map = DTypePolicyMap()
-        dtype_policy_map["layer/dense_0"] = dtype_policies.FloatDTypePolicy(
+        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
             "bfloat16"
         )
         dtype_policy_map["layer/dense_1"] = dtype_policies.QuantizedDTypePolicy(
@@ -179,7 +179,7 @@ class DTypePolicyMapTest(testing.TestCase):
 
         self.assertEqual(
             dtype_policy_map.pop("layer/dense_0"),
-            dtype_policies.FloatDTypePolicy("bfloat16"),
+            dtype_policies.DTypePolicy("bfloat16"),
         )
         with self.assertRaises(KeyError):
             dtype_policy_map.pop("layer/dense_0")
@@ -196,7 +196,7 @@ class DTypePolicyMapTest(testing.TestCase):
         dtype_policy_map = DTypePolicyMap()
         self.assertLen(dtype_policy_map, 0)
 
-        dtype_policy_map["layer/dense_0"] = dtype_policies.FloatDTypePolicy(
+        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
             "bfloat16"
         )
         dtype_policy_map["layer/dense_1"] = dtype_policies.QuantizedDTypePolicy(
@@ -206,7 +206,7 @@ class DTypePolicyMapTest(testing.TestCase):
 
     def test_iter(self):
         dtype_policy_map = DTypePolicyMap()
-        dtype_policy_map["layer/dense_0"] = dtype_policies.FloatDTypePolicy(
+        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
             "bfloat16"
         )
         dtype_policy_map["layer/dense_1"] = dtype_policies.QuantizedDTypePolicy(
@@ -226,14 +226,14 @@ class DTypePolicyMapTest(testing.TestCase):
         self.assertEqual(
             values,
             [
-                dtype_policies.FloatDTypePolicy("bfloat16"),
+                dtype_policies.DTypePolicy("bfloat16"),
                 dtype_policies.QuantizedDTypePolicy("int8", "mixed_bfloat16"),
             ],
         )
 
     def test_in(self):
         dtype_policy_map = DTypePolicyMap()
-        dtype_policy_map["layer/dense_0"] = dtype_policies.FloatDTypePolicy(
+        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
             "bfloat16"
         )
         dtype_policy_map["layer/dense_1"] = dtype_policies.QuantizedDTypePolicy(
@@ -247,7 +247,7 @@ class DTypePolicyMapTest(testing.TestCase):
     def test_default_policy(self):
         # Test default_policy is set to `"float32"`
         dtype_policy_map = DTypePolicyMap(default_policy="mixed_bfloat16")
-        dtype_policy_map["layer/dense_0"] = dtype_policies.FloatDTypePolicy(
+        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
             "mixed_bfloat16"
         )
         dtype_policy_map["layer/dense_1"] = dtype_policies.QuantizedDTypePolicy(
@@ -257,7 +257,7 @@ class DTypePolicyMapTest(testing.TestCase):
         dtype_policy_map = DTypePolicyMap.from_config(config)
         self.assertEqual(
             dtype_policy_map["layer/dense_0"],
-            dtype_policies.FloatDTypePolicy("mixed_bfloat16"),
+            dtype_policies.DTypePolicy("mixed_bfloat16"),
         )
         self.assertEqual(
             dtype_policy_map["layer/dense_1"],
@@ -272,7 +272,7 @@ class DTypePolicyMapTest(testing.TestCase):
         # during loading
         set_dtype_policy("bfloat16")
         dtype_policy_map = DTypePolicyMap()
-        dtype_policy_map["layer/dense_0"] = dtype_policies.FloatDTypePolicy(
+        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
             "mixed_bfloat16"
         )
         dtype_policy_map["layer/dense_1"] = dtype_policies.QuantizedDTypePolicy(
@@ -282,7 +282,7 @@ class DTypePolicyMapTest(testing.TestCase):
         dtype_policy_map = DTypePolicyMap.from_config(config)
         self.assertEqual(
             dtype_policy_map["layer/dense_0"],
-            dtype_policies.FloatDTypePolicy("bfloat16"),
+            dtype_policies.DTypePolicy("bfloat16"),
         )
         self.assertEqual(
             dtype_policy_map["layer/dense_1"],
@@ -299,7 +299,7 @@ class DTypePolicyMapTest(testing.TestCase):
 
     def test_serialization(self):
         dtype_policy_map = DTypePolicyMap(default_policy="mixed_bfloat16")
-        dtype_policy_map["layer/dense_0"] = dtype_policies.FloatDTypePolicy(
+        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
             "mixed_bfloat16"
         )
         dtype_policy_map["layer/dense_1"] = dtype_policies.QuantizedDTypePolicy(
@@ -323,7 +323,7 @@ class DTypePolicyMapTest(testing.TestCase):
 
     def test_repr(self):
         dtype_policy_map = DTypePolicyMap()
-        dtype_policy_map["layer/dense_0"] = dtype_policies.FloatDTypePolicy(
+        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
             "mixed_bfloat16"
         )
         repr_str = repr(dtype_policy_map)
@@ -343,5 +343,5 @@ class DTypePolicyMapTest(testing.TestCase):
             TypeError, "If specified, `policy_map` must be a dict."
         ):
             DTypePolicyMap(
-                policy_map=dtype_policies.FloatDTypePolicy("mixed_bfloat16")
+                policy_map=dtype_policies.DTypePolicy("mixed_bfloat16")
             )

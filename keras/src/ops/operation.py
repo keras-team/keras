@@ -106,7 +106,7 @@ class Operation:
         dtype = kwargs.get("dtype", None)
         if dtype is not None and isinstance(dtype, dtype_policies.DTypePolicy):
             # For backward compatibility, we use a str (`name`) for
-            # `FloatDTypePolicy`
+            # `DTypePolicy`
             if dtype.quantization_mode is None:
                 kwargs["dtype"] = dtype.name
             # Otherwise, use `dtype_policies.serialize`
@@ -227,7 +227,7 @@ class Operation:
                 and policy.quantization_mode is None
             ):
                 # For backward compatibility, we use a str (`name`) for
-                # `FloatDTypePolicy`
+                # `DTypePolicy`
                 policy = policy.name
             config["dtype"] = policy
         try:

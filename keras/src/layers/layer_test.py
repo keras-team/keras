@@ -971,8 +971,8 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.dtype_policy.name, "mixed_bfloat16")
         self.assertEqual(layer.dtype_policy.compute_dtype, "bfloat16")
         self.assertEqual(layer.dtype_policy.variable_dtype, "float32")
-        # Set by FloatDTypePolicy
-        layer.dtype_policy = dtype_policies.FloatDTypePolicy("mixed_float16")
+        # Set by DTypePolicy
+        layer.dtype_policy = dtype_policies.DTypePolicy("mixed_float16")
         self.assertEqual(layer.dtype_policy.name, "mixed_float16")
         self.assertEqual(layer.dtype_policy.compute_dtype, "float16")
         self.assertEqual(layer.dtype_policy.variable_dtype, "float32")
@@ -986,7 +986,7 @@ class LayerTest(testing.TestCase):
         )
         self.assertEqual(
             layer._dtype_policy[layer.path],
-            dtype_policies.FloatDTypePolicy("mixed_bfloat16"),
+            dtype_policies.DTypePolicy("mixed_bfloat16"),
         )
 
     def test_pickle_layer(self):
@@ -1003,7 +1003,7 @@ class LayerTest(testing.TestCase):
                 dtype = kwargs["dtype"]
                 if isinstance(dtype, str):
                     # `dtype` is a plain string, it should be the `name` from a
-                    # `FloatDTypePolicy`
+                    # `DTypePolicy`
                     dtype = dtype_policies.get(dtype)
                     assertIsNone(dtype.quantization_mode)
                 else:
@@ -1018,9 +1018,7 @@ class LayerTest(testing.TestCase):
         self.assertIn("dtype", config)
         self.assertEqual(
             config["dtype"],
-            dtype_policies.serialize(
-                dtype_policies.FloatDTypePolicy("bfloat16")
-            ),
+            dtype_policies.serialize(dtype_policies.DTypePolicy("bfloat16")),
         )
         AssertionDense.from_config(config)  # Assertion inside
 
