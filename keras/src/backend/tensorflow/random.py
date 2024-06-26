@@ -167,10 +167,8 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
     # such as for output shape of (2, 3) and alpha shape of (1, 3)
     # So to resolve this, we explicitly broadcast alpha and beta to shape before
     # passing them to the stateless_gamma function.
-    if tf.rank(alpha) > 1:
-        alpha = tf.broadcast_to(alpha, shape)
-    if tf.rank(beta) > 1:
-        beta = tf.broadcast_to(beta, shape)
+    alpha = tf.broadcast_to(alpha, shape)
+    beta = tf.broadcast_to(beta, shape)
 
     gamma_a = tf.cast(
         tf.random.stateless_gamma(
