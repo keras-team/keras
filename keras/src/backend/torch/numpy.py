@@ -1,6 +1,7 @@
 import builtins
 import math
 
+import numpy as np
 import torch
 
 from keras.src.backend import KerasTensor
@@ -1192,6 +1193,13 @@ def reshape(x, newshape):
 def roll(x, shift, axis=None):
     x = convert_to_tensor(x)
     return torch.roll(x, shift, dims=axis)
+
+
+def searchsorted(sorted_sequence, values, side="left"):
+    out_int32 = len(sorted_sequence) <= np.iinfo(np.int32).max
+    return torch.searchsorted(
+        sorted_sequence, values, side=side, out_int32=out_int32
+    )
 
 
 def sign(x):

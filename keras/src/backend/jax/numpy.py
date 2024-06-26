@@ -874,6 +874,10 @@ def roll(x, shift, axis=None):
     return jnp.roll(x, shift, axis=axis)
 
 
+def searchsorted(sorted_sequence, values, side="left"):
+    return jnp.searchsorted(sorted_sequence, values, side=side)
+
+
 @sparse.elementwise_unary(linear=False)
 def sign(x):
     x = convert_to_tensor(x)

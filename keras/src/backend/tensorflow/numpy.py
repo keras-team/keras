@@ -1800,6 +1800,15 @@ def roll(x, shift, axis=None):
     return tf.reshape(x, original_shape)
 
 
+def searchsorted(sorted_sequence, values, side="left"):
+    out_type = (
+        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+    )
+    return tf.searchsorted(
+        sorted_sequence, values, side=side, out_type=out_type
+    )
+
+
 @sparse.elementwise_unary
 def sign(x):
     x = convert_to_tensor(x)
