@@ -4505,6 +4505,8 @@ def round(x, decimals=0):
 
 class SearchSorted(Operation):
     def call(self, sorted_sequence, values, side="left"):
+        sorted_sequence = backend.convert_to_tensor(sorted_sequence)
+        values = backend.convert_to_tensor(values)
         return backend.numpy.searchsorted(sorted_sequence, values, side=side)
 
     def compute_output_spec(self, sorted_sequence, values, side="left"):
@@ -4522,7 +4524,9 @@ def searchsorted(sorted_sequence, values, side="left"):
     into `sorted_sequence` that maintain the sorting order.
 
     Args:
-        sorted_sequence: Sorted 1-dimensional input tensor.
+        sorted_sequence: N-D or 1-D input tensor, sorted along the innermost
+            dimension. Note: for numpy backend, only 1-D input tensors are
+            supported.
         values: N-dimensional tensor of query insertion values.
         side: 'left' or 'right', specifying the direction in which to insert
             for the equality case (tie-breaker).
@@ -4532,6 +4536,9 @@ def searchsorted(sorted_sequence, values, side="left"):
     """
     if any_symbolic_tensors((sorted_sequence, values)):
         return SearchSorted().symbolic_call(sorted_sequence, values, side=side)
+
+    sorted_sequence = backend.convert_to_tensor(sorted_sequence)
+    values = backend.convert_to_tensor(values)
     return backend.numpy.searchsorted(sorted_sequence, values, side=side)
 
 

@@ -1,8 +1,11 @@
 import builtins
 import math
 
+import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
+
+from functools import partial
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
@@ -875,7 +878,12 @@ def roll(x, shift, axis=None):
 
 
 def searchsorted(sorted_sequence, values, side="left"):
-    return jnp.searchsorted(sorted_sequence, values, side=side)
+    fn = partial(jnp.searchsorted, side=side)
+
+    for i in range(ndim(sorted_sequence) - 1):
+        fn = jax.vmap(fn)
+
+    return fn(sorted_sequence, values)
 
 
 @sparse.elementwise_unary(linear=False)
