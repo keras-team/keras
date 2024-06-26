@@ -88,7 +88,7 @@ class DTypePolicy:
         except ValueError:
             raise ValueError(
                 f"Cannot convert '{name}' to a mixed precision "
-                "FloatDTypePolicy. Valid policies include 'mixed_float16', "
+                "DTypePolicy. Valid policies include 'mixed_float16', "
                 "'mixed_bfloat16', and the name of any float dtype such as "
                 "'float32'."
             )
@@ -182,8 +182,8 @@ class DTypePolicy:
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        if class_name == "DTypePolicy":
-            class_name = "FloatDTypePolicy"
+        if class_name == "FloatDTypePolicy":
+            class_name = "DTypePolicy"
         return f'<{class_name} "{self._name}">'
 
     def __eq__(self, other):
@@ -306,7 +306,7 @@ def set_dtype_policy(policy):
             if policy.startswith(QUANTIZATION_MODES):
                 policy = _get_quantized_dtype_policy_by_str(policy)
             else:
-                policy = FloatDTypePolicy(policy)
+                policy = DTypePolicy(policy)
         else:
             raise ValueError(
                 "Invalid `policy` argument. "
@@ -329,7 +329,7 @@ def dtype_policy():
     """Returns the current default dtype policy object."""
     policy = global_state.get_global_attribute("dtype_policy", None)
     if policy is None:
-        policy = FloatDTypePolicy(backend.floatx())
+        policy = DTypePolicy(backend.floatx())
         set_dtype_policy(policy)
     return policy
 
