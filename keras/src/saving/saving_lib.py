@@ -61,8 +61,7 @@ See [Model Cards documentation](https://huggingface.co/docs/hub/model-cards) for
 more information.
 
 For more details about the model architecture, check out
-[config.json](./config.json).
-"""
+[config.json](./config.json)."""
 
 
 def save_model(model, filepath, weights_format="h5", zipped=True):
@@ -276,7 +275,13 @@ def _upload_model_to_hf(model, hf_path, weights_format):
                 show_shapes=True,
                 show_dtype=True,
             )
-            model_card += "\n\n![](./assets/summary_plot.png)"
+            if len(model.layers) <= 10:
+                model_card += "\n\n![](./assets/summary_plot.png)"
+            else:
+                model_card += (
+                    "A plot of the model can be found "
+                    "[here](./assets/summary_plot.png)."
+                )
 
         with open(file_utils.join(tmp_dir, "README.md"), "w") as f:
             f.write(model_card)
