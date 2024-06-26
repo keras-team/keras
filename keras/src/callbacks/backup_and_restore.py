@@ -63,11 +63,11 @@ class BackupAndRestore(Callback):
           When set to an integer, the callback saves the checkpoint every
           `save_freq` batches. Set `save_freq=False` only if using
           preemption checkpointing (i.e. with `save_before_preemption=True`).
-        delete_checkpoint: Boolean, defaults to `True`. This `BackupAndRestore`
+        delete_checkpoint: Boolean. This `BackupAndRestore`
           callback works by saving a checkpoint to back up the training state.
           If `delete_checkpoint=True`, the checkpoint will be deleted after
           training is finished. Use `False` if you'd like to keep the checkpoint
-          for future usage.
+          for future usage. Defaults to `True`.
     """
 
     def __init__(

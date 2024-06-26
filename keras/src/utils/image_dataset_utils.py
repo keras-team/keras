@@ -83,15 +83,15 @@ def image_dataset_from_directory(
             (must match names of subdirectories). Used to control the order
             of the classes (otherwise alphanumerical order is used).
         color_mode: One of `"grayscale"`, `"rgb"`, `"rgba"`.
-            Defaults to `"rgb"`. Whether the images will be converted to
-            have 1, 3, or 4 channels.
+            Whether the images will be converted to
+            have 1, 3, or 4 channels. Defaults to `"rgb"`.
         batch_size: Size of the batches of data. Defaults to 32.
             If `None`, the data will not be batched
             (the dataset will yield individual samples).
         image_size: Size to resize images to after they are read from disk,
-            specified as `(height, width)`. Defaults to `(256, 256)`.
+            specified as `(height, width)`.
             Since the pipeline processes batches of images that must all have
-            the same size, this must be provided.
+            the same size, this must be provided. Defaults to `(256, 256)`.
         shuffle: Whether to shuffle the data. Defaults to `True`.
             If set to `False`, sorts the data in alphanumeric order.
         seed: Optional random seed for shuffling and transformations.
@@ -103,9 +103,10 @@ def image_dataset_from_directory(
             When `subset="both"`, the utility returns a tuple of two datasets
             (the training and validation datasets respectively).
         interpolation: String, the interpolation method used when
-            resizing images. Defaults to `"bilinear"`.
+            resizing images.
             Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`,
             `"lanczos3"`, `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
+            Defaults to `"bilinear"`.
         follow_links: Whether to visit subdirectories pointed to by symlinks.
             Defaults to `False`.
         crop_to_aspect_ratio: If `True`, resize the images without aspect
