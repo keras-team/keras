@@ -4508,7 +4508,12 @@ class SearchSorted(Operation):
         return backend.numpy.searchsorted(sorted_sequence, values, side=side)
 
     def compute_output_spec(self, sorted_sequence, values, side="left"):
-        return KerasTensor(values.shape, dtype="int32")
+        out_type = (
+            "int32"
+            if len(sorted_sequence) <= np.iinfo(np.int32).max
+            else "int64"
+        )
+        return KerasTensor(values.shape, dtype=out_type)
 
 
 @keras_export(["keras.ops.searchsorted"])
