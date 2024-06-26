@@ -415,8 +415,8 @@ class RandomBehaviorTest(testing.TestCase, parameterized.TestCase):
         input_data = np.random.random([2, 4, 4, 3])
         ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
-            output = output.numpy()
-        self.assertEqual(tuple(output.shape), (2, 4, 4, 3))
+            output = ops.convert_to_numpy(output)
+        self.assertEqual(output.shape, (2, 4, 4, 3))
 
 
 class RandomDTypeTest(testing.TestCase, parameterized.TestCase):
