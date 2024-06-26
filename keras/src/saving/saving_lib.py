@@ -8,7 +8,6 @@ import tempfile
 import warnings
 import zipfile
 
-import huggingface_hub
 import ml_dtypes
 import numpy as np
 
@@ -33,6 +32,12 @@ try:
     import h5py
 except ImportError:
     h5py = None
+
+try:
+    import huggingface_hub
+except ImportError:
+    huggingface_hub = None
+
 
 _CONFIG_FILENAME = "config.json"
 _METADATA_FILENAME = "metadata.json"
@@ -236,6 +241,12 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
 
 
 def _upload_model_to_hf(model, hf_path, weights_format):
+    if huggingface_hub is None:
+        raise ImportError(
+            "To save models to the Hugging Face Hub, "
+            "you must install the `huggingface_hub` package."
+        )
+
     original_hf_path = hf_path
     if hf_path.startswith("hf://"):
         hf_path = hf_path[5:]
@@ -289,6 +300,12 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             filepath, custom_objects, compile, safe_mode
         )
     elif str(filepath).startswith("hf://"):
+        if huggingface_hub is None:
+            raise ImportError(
+                "To load models from the Hugging Face Hub, "
+                "you must install the `huggingface_hub` package."
+            )
+
         repo_id = filepath[5:]
         folder_path = huggingface_hub.snapshot_download(
             repo_id=repo_id,

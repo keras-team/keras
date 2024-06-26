@@ -20,5 +20,4 @@ pytest-cov
 packaging
 # for tree_test.py
 dm_tree
-# for loading from the Hugging Face Hub
-huggingface_hub
+
