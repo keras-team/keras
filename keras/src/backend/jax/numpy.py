@@ -1,11 +1,10 @@
 import builtins
 import math
+from functools import partial
 
 import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
-
-from functools import partial
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
