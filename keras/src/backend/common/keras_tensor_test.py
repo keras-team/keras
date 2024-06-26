@@ -17,6 +17,20 @@ class KerasTensorTest(testing.TestCase):
         self.assertEqual(x.shape, (3,))
         self.assertEqual(x.sparse, True)
 
+        # Raise error if trying to set attributes
+        with self.assertRaisesRegex(
+            AttributeError, "The shape of KerasTensor is immutable."
+        ):
+            x.shape = [3, 2]
+        with self.assertRaisesRegex(
+            AttributeError, "The dtype of KerasTensor is immutable."
+        ):
+            x.dtype = "int32"
+        with self.assertRaisesRegex(
+            AttributeError, "The sparse of KerasTensor is immutable."
+        ):
+            x.sparse = False
+
     def test_numpy_methods(self):
         x = keras_tensor.KerasTensor(shape=(3, 2), dtype="float32")
 

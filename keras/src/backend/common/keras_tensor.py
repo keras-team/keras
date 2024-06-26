@@ -37,11 +37,44 @@ class KerasTensor:
     ):
         from keras.src import backend
 
-        self.shape = backend.standardize_shape(shape)
-        self.dtype = backend.standardize_dtype(dtype)
-        self.sparse = sparse
+        self._shape = backend.standardize_shape(shape)
+        self._dtype = backend.standardize_dtype(dtype)
+        self._sparse = bool(sparse)
         self.name = name or auto_name(self.__class__.__name__)
         self.record_history = record_history
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @shape.setter
+    def shape(self, value):
+        raise AttributeError(
+            f"The shape of {self.__class__.__name__} is immutable. One should "
+            "create a new instance of KerasTensor for this."
+        )
+
+    @property
+    def dtype(self):
+        return self._dtype
+
+    @dtype.setter
+    def dtype(self, value):
+        raise AttributeError(
+            f"The dtype of {self.__class__.__name__} is immutable. One should "
+            "create a new instance of KerasTensor for this."
+        )
+
+    @property
+    def sparse(self):
+        return self._sparse
+
+    @sparse.setter
+    def sparse(self, value):
+        raise AttributeError(
+            f"The sparse of {self.__class__.__name__} is immutable. One should "
+            "create a new instance of KerasTensor for this."
+        )
 
     @property
     def ndim(self):

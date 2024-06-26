@@ -127,8 +127,8 @@ class Function(Operation):
         # Ensure that dtype and sparse settings are the same as self._inputs,
         # because we only care about the shape in this function.
         for x, x_ref in zip(tree.flatten(input_shape_struct), self._inputs):
-            x.dtype = x_ref.dtype
-            x.sparse = x_ref.sparse
+            x._dtype = x_ref.dtype
+            x._sparse = x_ref.sparse
         output_spec = self.compute_output_spec(input_shape_struct)
         return tree.map_structure(lambda x: x.shape, output_spec)
 

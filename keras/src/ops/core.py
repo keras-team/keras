@@ -39,8 +39,9 @@ class Map(Operation):
         y = backend.compute_output_spec(f, x)
 
         def append_batch_axis(x):
-            x.shape = (n,) + x.shape
-            return x
+            return KerasTensor(
+                shape=(n,) + x.shape, dtype=x.dtype, sparse=x.sparse
+            )
 
         y = tree.map_structure(append_batch_axis, y)
         return y
@@ -114,9 +115,9 @@ class Scan(Operation):
             )
             x = xs[0]
 
-        carry_spec, y_spec = backend.compute_output_spec(f, init, x)
-        y_spec.shape = (n,) + y_spec.shape
-        return carry_spec, y_spec
+        carry, y = backend.compute_output_spec(f, init, x)
+        y = KerasTensor(shape=(n,) + y.shape, dtype=y.dtype, sparse=y.sparse)
+        return carry, y
 
 
 @keras_export("keras.ops.scan")
