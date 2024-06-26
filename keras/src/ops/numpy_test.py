@@ -3966,6 +3966,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.round(x, decimals=-1), np.round(x, decimals=-1))
         self.assertAllClose(knp.Round(decimals=-1)(x), np.round(x, decimals=-1))
 
+    def test_searchsorted(self):
+        a = np.array([1, 2, 2, 3, 4, 5, 5])
+        v = np.array([4, 3, 5, 1, 2])
+        self.assertAllEqual(knp.searchsorted(a, v), np.searchsorted(a, v))
+        self.assertAllEqual(knp.SearchSorted()(a, v), np.searchsorted(a, v))
+
     def test_sign(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
         self.assertAllClose(knp.sign(x), np.sign(x))
