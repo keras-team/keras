@@ -1,8 +1,6 @@
 import builtins
 import math
-from functools import partial
 
-import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 
