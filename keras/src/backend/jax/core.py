@@ -346,6 +346,11 @@ def unstack(x, num=None, axis=0):
     ]
 
 
+def random_seed_dtype():
+    # jax random seed uses uint32.
+    return standardize_dtype("uint32")
+
+
 def custom_gradient(fun):
     return jax.custom_gradient(fun=fun)
 

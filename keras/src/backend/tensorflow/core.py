@@ -417,6 +417,11 @@ def unstack(x, num=None, axis=0):
     return tf.unstack(x, num=num, axis=axis)
 
 
+def random_seed_dtype():
+    # tensorflow random operation only works on int32/int64, not uint32.
+    return standardize_dtype("int32")
+
+
 def custom_gradient(fun):
     return tf.custom_gradient(f=fun)
 

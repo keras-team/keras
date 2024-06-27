@@ -298,6 +298,10 @@ def unstack(x, num=None, axis=0):
     return [x[i] for i in range(x.shape[0])]
 
 
+def random_seed_dtype():
+    return standardize_dtype("uint32")
+
+
 class custom_gradient:
     """Decorator for custom gradients.
 

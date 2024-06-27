@@ -14,7 +14,7 @@ def tf_draw_seed(seed):
 
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = tf_draw_seed(seed)
+    seed = draw_seed(seed)
     return tf.random.stateless_normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
     )
@@ -22,7 +22,7 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = tf_draw_seed(seed)
+    seed = draw_seed(seed)
     return tf.random.stateless_uniform(
         shape=shape,
         minval=tf.cast(minval, dtype),
@@ -33,7 +33,7 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 
 
 def categorical(logits, num_samples, dtype="int64", seed=None):
-    seed = tf_draw_seed(seed)
+    seed = draw_seed(seed)
     output = tf.random.stateless_categorical(logits, num_samples, seed=seed)
     return tf.cast(output, dtype)
 
@@ -42,7 +42,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
     intemediate_dtype = dtype
     if standardize_dtype(dtype) not in ["int32", "int64"]:
         intemediate_dtype = "int64"
-    seed = tf_draw_seed(seed)
+    seed = draw_seed(seed)
     output = tf.random.stateless_uniform(
         shape=shape,
         minval=minval,
@@ -55,7 +55,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = tf_draw_seed(seed)
+    seed = draw_seed(seed)
     return tf.random.stateless_truncated_normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
     )
@@ -75,7 +75,7 @@ def _get_concrete_noise_shape(inputs, noise_shape):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
-    seed = tf_draw_seed(seed)
+    seed = draw_seed(seed)
     noise_shape = _get_concrete_noise_shape(inputs, noise_shape)
     return tf.nn.experimental.stateless_dropout(
         inputs,
@@ -88,7 +88,7 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
 def shuffle(x, axis=0, seed=None):
     from keras.src.backend.tensorflow.numpy import swapaxes
 
-    seed = tf_draw_seed(seed)
+    seed = draw_seed(seed)
     if axis == 0:
         return tf.random.experimental.stateless_shuffle(x, seed=seed)
     x = swapaxes(x, axis1=0, axis2=axis)
@@ -99,7 +99,7 @@ def shuffle(x, axis=0, seed=None):
 
 def gamma(shape, alpha, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = tf_draw_seed(seed)
+    seed = draw_seed(seed)
     # TODO: `tf.random.stateless_gamma` doesn't support bfloat16
     intemediate_dtype = dtype
     if standardize_dtype(dtype) == "bfloat16":
@@ -117,7 +117,7 @@ def gamma(shape, alpha, dtype=None, seed=None):
 
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = tf_draw_seed(seed)
+    seed = draw_seed(seed)
     # TODO: `tf.random.stateless_binomial` doesn't support bfloat16
     intemediate_dtype = dtype
     if standardize_dtype(dtype) == "bfloat16":
@@ -146,7 +146,7 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
     # gamma random variables to prevent any unintended
     # dependencies and correlations between the generated values
     # due to the usage of same seed.
-    seed_1 = tf_draw_seed(seed)
+    seed_1 = draw_seed(seed)
     # The choice of 12 is totally arbitrary, as we're
     # incrementing the first drawn seed by a CONSTANT to
     # ensure deterministic results.

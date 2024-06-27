@@ -17,6 +17,7 @@ from keras.src.backend.tensorflow.core import convert_to_tensor
 from keras.src.backend.tensorflow.core import device_scope
 from keras.src.backend.tensorflow.core import is_tensor
 from keras.src.backend.tensorflow.core import name_scope
+from keras.src.backend.tensorflow.core import random_seed_dtype
 from keras.src.backend.tensorflow.core import scatter
 from keras.src.backend.tensorflow.core import shape
 from keras.src.backend.tensorflow.core import stop_gradient

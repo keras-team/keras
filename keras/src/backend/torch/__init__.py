@@ -30,6 +30,7 @@ from keras.src.backend.torch.core import convert_to_numpy
 from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import device_scope
 from keras.src.backend.torch.core import is_tensor
+from keras.src.backend.torch.core import random_seed_dtype
 from keras.src.backend.torch.core import scatter
 from keras.src.backend.torch.core import shape
 from keras.src.backend.torch.core import stop_gradient
