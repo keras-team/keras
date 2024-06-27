@@ -299,7 +299,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, 1)
         if backend.backend() == "torch":
-            self.assertLen(layer.torch_params, 3)
+            self.assertLen(list(layer.parameters()), 3)
         # Try eager call
         x = np.random.random((64, 3))
         y = np.random.random((64, 8, 32))
@@ -643,7 +643,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, 2)
         if backend.backend() == "torch":
-            self.assertLen(layer.torch_params, 4)
+            self.assertLen(list(layer.parameters()), 4)
 
         # Try calling fit()
         init_lora_a_kernel_value = layer.lora_kernel_a.numpy()

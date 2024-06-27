@@ -1,9 +1,9 @@
+import warnings
 from typing import Iterator
 from typing import Tuple
 
 import torch
 
-from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.ops.operation import Operation
 
 
@@ -58,18 +58,9 @@ class TorchLayer(torch.nn.Module):
                       if id(p) == id(variable.value)]
     """
 
-    def _post_build(self):
-        # Do not track variables when in a stateless scope.
-        # The variables are not initialized.
-        if in_stateless_scope():
-            return
-        self._track_torch_params()
-
     def _track_torch_params(self):
         for layer in self._layers:
             layer._track_torch_params()
-        if self._torch_params_tracked():
-            return
         torch_params = []
         for v in self._trainable_variables + self._non_trainable_variables:
             torch_params.append(v.value)
@@ -80,13 +71,24 @@ class TorchLayer(torch.nn.Module):
         # parameters.
         self.torch_params = torch.nn.ParameterList(torch_params)
 
-    def _untrack_torch_params(self):
-        for layer in self._layers:
-            layer._untrack_torch_params()
-        del self.torch_params
+    def _all_layers_built(self):
+        sublayers_built = all(
+            layer._all_layers_built() for layer in self._layers
+        )
+        return self.built and sublayers_built
 
     def _torch_params_tracked(self):
         return hasattr(self, "torch_params")
+
+    def _populate_torch_params(self):
+        if not self._all_layers_built():
+            raise RuntimeError(
+                "Torch parameters are not tracked since all layers are not "
+                "built. Did you forget to call model once?"
+            )
+
+        if not self._torch_params_tracked():
+            self._track_torch_params()
 
     def named_parameters(
         self,
@@ -94,17 +96,24 @@ class TorchLayer(torch.nn.Module):
         recurse: bool = True,
         remove_duplicate: bool = True,
     ) -> Iterator[Tuple[str, torch.nn.Parameter]]:
-        if not self._torch_params_tracked():
-            if self.built:
-                self._track_torch_params()
-            else:
-                raise RuntimeError(
-                    "Torch parameters are not tracked yet and layer is not "
-                    "built. Did you forget to call build()?"
-                )
+        self._populate_torch_params()
         return torch.nn.Module.named_parameters(
             self, prefix, recurse, remove_duplicate
         )
+
+    def state_dict(self, *args, destination=None, prefix="", keep_vars=False):
+        self._populate_torch_params()
+        return torch.nn.Module.state_dict(
+            self,
+            *args,
+            destination=destination,
+            prefix=prefix,
+            keep_vars=keep_vars,
+        )
+
+    def load_state_dict(self, state_dict, strict=True, assign=False):
+        self._populate_torch_params()
+        return torch.nn.Module.load_state_dict(self, state_dict, strict, assign)
 
     def forward(self, *args, **kwargs):
         return Operation.__call__(self, *args, **kwargs)
@@ -126,19 +135,36 @@ class TorchLayer(torch.nn.Module):
         # class to be tracked by torch since keras3 user can still do
         # self._layers to reference all layers instead of using
         # torch.nn.Module.named_members().
-        if isinstance(value, list) and all(
-            [isinstance(v, Layer) for v in value]
+        if (
+            isinstance(value, list)
+            and all(isinstance(v, Layer) for v in value)
+            and len(value) > 0
         ):
-            for idx, v in enumerate(value):
-                self.add_module(f"{name}_{idx}", v)
+            warnings.warn(
+                "Torch backend currently cannot track list of "
+                "layers properly as an attribute."
+            )
+
         return name, value
 
     def _post_track_variable(self, _):
         if self._torch_params_tracked():
-            self._untrack_torch_params()
+            if not self._all_layers_built():
+                raise ValueError(
+                    "Torch parameters are tracked but not all "
+                    "layers are built. This is an invalid state "
+                    "in pytorch backend and please raise an "
+                    "issue in github repo."
+                )
             self._track_torch_params()
 
     def _post_untrack_variable(self, _):
         if self._torch_params_tracked():
-            self._untrack_torch_params()
+            if not self._all_layers_built():
+                raise ValueError(
+                    "Torch parameters are tracked but not all "
+                    "layers are built. This is an invalid state "
+                    "in pytorch backend and please raise an "
+                    "issue in github repo."
+                )
             self._track_torch_params()

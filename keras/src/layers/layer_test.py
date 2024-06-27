@@ -1170,6 +1170,7 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
                     shape=(2,),
                     name="var",
                 )
+                self.built = True
 
             def post_build_add(self):
                 self._tracker.unlock()
