@@ -265,7 +265,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         )
 
     @traceback_utils.filter_traceback
-    def save(self, filepath, overwrite=True, zipped=True, **kwargs):
+    def save(self, filepath, overwrite=True, zipped=None, **kwargs):
         """Saves a model as a `.keras` file.
 
         Args:
@@ -277,7 +277,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 the target location, or instead ask the user via
                 an interactive prompt.
             zipped: Whether to save the model as a zipped `.keras`
-                archive (default), or as an unzipped directory.
+                archive (default when saving locally), or as an
+                unzipped directory (default when saving on the
+                Hugging Face Hub).
 
         Example:
 

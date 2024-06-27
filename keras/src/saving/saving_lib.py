@@ -22,7 +22,10 @@ from keras.src.saving.serialization_lib import deserialize_keras_object
 from keras.src.saving.serialization_lib import serialize_keras_object
 from keras.src.trainers.compile_utils import CompileMetrics
 from keras.src.utils import file_utils
+from keras.src.utils import io_utils
 from keras.src.utils import naming
+from keras.src.utils import plot_model
+from keras.src.utils.model_visualization import check_pydot
 from keras.src.version import __version__ as keras_version
 
 try:
@@ -30,12 +33,35 @@ try:
 except ImportError:
     h5py = None
 
+try:
+    import huggingface_hub
+except ImportError:
+    huggingface_hub = None
+
+
 _CONFIG_FILENAME = "config.json"
 _METADATA_FILENAME = "metadata.json"
 _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
 _VARS_FNAME_H5 = _VARS_FNAME + ".h5"
 _VARS_FNAME_NPZ = _VARS_FNAME + ".npz"
 _ASSETS_DIRNAME = "assets"
+
+
+_MODEL_CARD_TEMPLATE = """
+---
+library_name: keras
+---
+
+This model has been uploaded using the Keras library and can be used with JAX,
+TensorFlow, and PyTorch backends.
+
+This model card has been generated automatically and should be completed by the
+model author.
+See [Model Cards documentation](https://huggingface.co/docs/hub/model-cards) for
+more information.
+
+For more details about the model architecture, check out
+[config.json](./config.json)."""
 
 
 def save_model(model, filepath, weights_format="h5", zipped=True):
@@ -79,6 +105,7 @@ def save_model(model, filepath, weights_format="h5", zipped=True):
         return
 
     filepath = str(filepath)
+    is_hf = filepath.startswith("hf://")
     if zipped and not filepath.endswith(".keras"):
         raise ValueError(
             "Invalid `filepath` argument: expected a `.keras` extension. "
@@ -89,7 +116,14 @@ def save_model(model, filepath, weights_format="h5", zipped=True):
             "When using `zipped=False`, the `filepath` argument should not "
             f"end in `.keras`. Received: filepath={filepath}"
         )
-    if not zipped:
+    if zipped and is_hf:
+        raise ValueError(
+            "When saving to the Hugging Face Hub, you should not save the "
+            f"model as zipped. Received: filepath={filepath}, zipped={zipped}"
+        )
+    if is_hf:
+        _upload_model_to_hf(model, filepath, weights_format)
+    elif not zipped:
         _save_model_to_dir(model, filepath, weights_format)
     else:
         if file_utils.is_remote_path(filepath):
@@ -213,11 +247,86 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
                 weights_file_path.unlink()
 
 
+def _upload_model_to_hf(model, hf_path, weights_format):
+    if huggingface_hub is None:
+        raise ImportError(
+            "To save models to the Hugging Face Hub, "
+            "you must install the `huggingface_hub` package."
+        )
+
+    original_hf_path = hf_path
+    if hf_path.startswith("hf://"):
+        hf_path = hf_path[5:]
+    if hf_path.count("/") > 1:
+        raise ValueError(
+            "Invalid `hf_path` argument: expected `namespace/model_name`"
+            f" format. Received: hf_path={original_hf_path}"
+        )
+
+    api = huggingface_hub.HfApi(
+        library_name="keras", library_version=keras_version
+    )
+    repo_url = api.create_repo(hf_path, exist_ok=True)
+    repo_id = repo_url.repo_id
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        _save_model_to_dir(model, tmp_dir, weights_format)
+
+        model_card = _MODEL_CARD_TEMPLATE
+
+        if check_pydot():
+            plot_path = file_utils.join(tmp_dir, "assets", "summary_plot.png")
+            plot_model(
+                model,
+                to_file=plot_path,
+                show_layer_names=True,
+                show_shapes=True,
+                show_dtype=True,
+            )
+            if len(model.layers) <= 10:
+                model_card += "\n\n![](./assets/summary_plot.png)"
+            else:
+                model_card += (
+                    "A plot of the model can be found "
+                    "[here](./assets/summary_plot.png)."
+                )
+
+        with open(file_utils.join(tmp_dir, "README.md"), "w") as f:
+            f.write(model_card)
+
+        api.upload_folder(
+            repo_id=repo_id,
+            folder_path=tmp_dir,
+            commit_message="Save model using Keras.",
+        )
+        io_utils.print_msg(
+            f"Model saved to the Hugging Face Hub: {repo_url}\n"
+            "To load back the model, use "
+            f"`keras.saving.load_model('hf://{repo_id}')`"
+        )
+
+
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     """Load a zip archive representing a Keras model."""
     if isinstance(filepath, io.IOBase):
         return _load_model_from_fileobj(
             filepath, custom_objects, compile, safe_mode
+        )
+    elif str(filepath).startswith("hf://"):
+        if huggingface_hub is None:
+            raise ImportError(
+                "To load models from the Hugging Face Hub, "
+                "you must install the `huggingface_hub` package."
+            )
+
+        repo_id = filepath[5:]
+        folder_path = huggingface_hub.snapshot_download(
+            repo_id=repo_id,
+            library_name="keras",
+            library_version=keras_version,
+        )
+        return _load_model_from_dir(
+            folder_path, custom_objects, compile, safe_mode
         )
     else:
         filepath = str(filepath)
