@@ -877,12 +877,7 @@ def roll(x, shift, axis=None):
 
 
 def searchsorted(sorted_sequence, values, side="left"):
-    fn = partial(jnp.searchsorted, side=side)
-
-    for i in range(ndim(sorted_sequence) - 1):
-        fn = jax.vmap(fn)
-
-    return fn(sorted_sequence, values)
+    return jnp.searchsorted(sorted_sequence, values, side=side)
 
 
 @sparse.elementwise_unary(linear=False)

@@ -3967,28 +3967,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Round(decimals=-1)(x), np.round(x, decimals=-1))
 
     def test_searchsorted(self):
-        # test 1-dimensional
         a = np.array([1, 2, 2, 3, 4, 5, 5])
         v = np.array([4, 3, 5, 1, 2])
-        expected = np.searchsorted(a, v)
+        expected = np.searchsorted(a, v).astype("int32")
         self.assertAllEqual(knp.searchsorted(a, v), expected)
         self.assertAllEqual(knp.SearchSorted()(a, v), expected)
-
-        # test multi-dimensional
-        a = knp.repeat(a[None], 2, axis=0)
-        v = knp.repeat(v[None], 2, axis=0)
-        expected = knp.repeat(expected[None], 2, axis=0)
-
-        if backend.backend() == "numpy":
-            # numpy does not support multi-dimensional searchsorted
-            with self.assertRaises(ValueError):
-                knp.searchsorted(a, v)
-
-            with self.assertRaises(ValueError):
-                knp.SearchSorted()(a, v)
-        else:
-            assert knp.all(knp.searchsorted(a, v) == expected)
-            assert knp.all(knp.SearchSorted()(a, v) == expected)
 
     def test_sign(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
