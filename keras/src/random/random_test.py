@@ -396,21 +396,24 @@ class RandomBehaviorTest(testing.TestCase, parameterized.TestCase):
         import tensorflow as tf
 
         from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+        from keras.src.random.seed_generator import SeedGenerator
 
         class BetaLayer(TFDataLayer):
-            def __init__(self, **kwargs):
+            def __init__(self, seed=None, **kwargs):
                 super().__init__(**kwargs)
-                self.generator = keras.random.SeedGenerator()
+                self.seed = seed
+                self.generator = SeedGenerator(seed)
 
             def compute_output_shape(self, input_shape):
                 return input_shape
 
             def call(self, inputs):
+                seed_generator = self._get_seed_generator(self.backend._backend)
                 noise = self.backend.random.beta(
                     self.backend.shape(inputs),
                     alpha=0.5,
                     beta=0.5,
-                    seed=self._get_seed_generator(),
+                    seed=seed_generator,
                 )
                 inputs = inputs + noise
                 return inputs

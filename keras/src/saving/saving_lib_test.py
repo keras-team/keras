@@ -634,7 +634,10 @@ class SavingTest(testing.TestCase):
         with zipfile.ZipFile(filepath) as zf:
             all_filenames = zf.namelist()
             self.assertNotIn("model.weights.h5", all_filenames)
-        self.assertFalse(Path(filepath).with_name("model.weights.h5").exists())
+
+        # Ensure we don't have any temporary files left.
+        self.assertLen(os.listdir(Path(filepath).parent), 1)
+        self.assertIn("model.keras", os.listdir(Path(filepath).parent))
 
     def test_load_model_exception_raised(self):
         # Assume we have an error in `load_own_variables`.
@@ -656,9 +659,24 @@ class SavingTest(testing.TestCase):
                 filepath, custom_objects={"RaiseErrorLayer": RaiseErrorLayer}
             )
 
-        # Ensure we don't leave a bad "model.weights.h5" on the filesystem.
-        self.assertTrue(Path(filepath).exists())
-        self.assertFalse(Path(filepath).with_name("model.weights.h5").exists())
+        # Ensure we don't have any temporary files left.
+        self.assertLen(os.listdir(Path(filepath).parent), 1)
+        self.assertIn("model.keras", os.listdir(Path(filepath).parent))
+
+    def test_load_model_read_only_system(self):
+        model = keras.Sequential([keras.Input([1]), keras.layers.Dense(2)])
+        filepath = f"{self.get_temp_dir()}/model.keras"
+        saving_lib.save_model(model, filepath)
+
+        # Load the model correctly, regardless of whether an OSError occurs.
+        original_mode = os.stat(Path(filepath).parent).st_mode
+        os.chmod(Path(filepath).parent, mode=0o555)
+        model = saving_lib.load_model(filepath)
+        os.chmod(Path(filepath).parent, mode=original_mode)
+
+        # Ensure we don't have any temporary files left.
+        self.assertLen(os.listdir(Path(filepath).parent), 1)
+        self.assertIn("model.keras", os.listdir(Path(filepath).parent))
 
 
 @pytest.mark.requires_trainable_backend

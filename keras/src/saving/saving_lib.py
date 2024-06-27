@@ -169,8 +169,10 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
                     # First, open the .h5 file, then write it to `zf` at the end
                     # of the function call.
                     working_dir = pathlib.Path(fileobj.name).parent
-                    weights_file_path = working_dir / _VARS_FNAME_H5
-                    weights_store = H5IOStore(weights_file_path, mode="w")
+                    weights_file_path = tempfile.NamedTemporaryFile(
+                        dir=working_dir
+                    )
+                    weights_store = H5IOStore(weights_file_path.name, mode="w")
                     write_zf = True
                 else:
                     # Fall back when `fileobj` is an `io.BytesIO`. Typically,
@@ -208,9 +210,9 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
             if asset_store:
                 asset_store.close()
             if write_zf and weights_file_path:
-                zf.write(weights_file_path, weights_file_path.name)
+                zf.write(weights_file_path.name, _VARS_FNAME_H5)
             if weights_file_path:
-                weights_file_path.unlink()
+                weights_file_path.close()
 
 
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
@@ -316,7 +318,7 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
         )
 
         all_filenames = zf.namelist()
-        weights_file_path = None
+        extract_dir = None
         weights_store = None
         asset_store = None
         try:
@@ -324,14 +326,17 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
                 if isinstance(fileobj, io.BufferedReader):
                     # First, extract the model.weights.h5 file, then load it
                     # using h5py.
-                    working_dir = pathlib.Path(fileobj.name).parent
                     try:
-                        zf.extract(_VARS_FNAME_H5, working_dir)
-                        weights_file_path = working_dir / _VARS_FNAME_H5
-                        weights_store = H5IOStore(weights_file_path, mode="r")
+                        extract_dir = tempfile.TemporaryDirectory(
+                            dir=pathlib.Path(fileobj.name).parent
+                        )
+                        zf.extract(_VARS_FNAME_H5, extract_dir.name)
+                        weights_store = H5IOStore(
+                            pathlib.Path(extract_dir.name, _VARS_FNAME_H5),
+                            mode="r",
+                        )
                     except OSError:
                         # Fall back when it is a read-only system
-                        weights_file_path = None
                         weights_store = H5IOStore(_VARS_FNAME_H5, zf, mode="r")
                 else:
                     # Fall back when `fileobj` is an `io.BytesIO`. Typically,
@@ -363,8 +368,8 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
                 weights_store.close()
             if asset_store:
                 asset_store.close()
-            if weights_file_path:
-                weights_file_path.unlink()
+            if extract_dir:
+                extract_dir.cleanup()
 
         if failed_saveables:
             _raise_loading_failure(error_msgs)
