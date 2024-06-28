@@ -4168,13 +4168,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         y1 = keras.layers.Lambda(
             lambda x: keras.ops.tril(
                 keras.ops.ones((keras.ops.shape(x)[1], keras.ops.shape(x)[1]))
-            )
+            ),
+            output_shape=(None, None, 3),
         )(x)
         y2 = keras.layers.Lambda(
             lambda x: keras.ops.tril(
                 keras.ops.ones((keras.ops.shape(x)[1], keras.ops.shape(x)[1])),
                 k=-1,
-            )
+            ),
+            output_shape=(None, None, 3),
         )(x)
         model = keras.Model(x, [y1, y2])
 
@@ -4182,6 +4184,24 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             result, [np.tril(np.ones((2, 2))), np.tril(np.ones((2, 2)), k=-1)]
         )
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Only test tensorflow backend",
+    )
+    def test_tril_with_jit_in_tf(self):
+        import tensorflow as tf
+
+        x = knp.reshape(knp.arange(24), [1, 2, 3, 4])
+        k = knp.array(0)
+        x_np = np.reshape(np.arange(24), [1, 2, 3, 4])
+        k_np = np.array(0)
+
+        @tf.function(jit_compile=True)
+        def fn(x, k):
+            return knp.tril(x, k=k)
+
+        self.assertAllClose(fn(x, k), np.tril(x_np, k_np))
 
     def test_triu(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
@@ -4200,13 +4220,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         y1 = keras.layers.Lambda(
             lambda x: keras.ops.triu(
                 keras.ops.ones((keras.ops.shape(x)[1], keras.ops.shape(x)[1]))
-            )
+            ),
+            output_shape=(None, None, 3),
         )(x)
         y2 = keras.layers.Lambda(
             lambda x: keras.ops.triu(
                 keras.ops.ones((keras.ops.shape(x)[1], keras.ops.shape(x)[1])),
                 k=-1,
-            )
+            ),
+            output_shape=(None, None, 3),
         )(x)
         model = keras.Model(x, [y1, y2])
 
@@ -4214,6 +4236,24 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             result, [np.triu(np.ones((2, 2))), np.triu(np.ones((2, 2)), k=-1)]
         )
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Only test tensorflow backend",
+    )
+    def test_triu_with_jit_in_tf(self):
+        import tensorflow as tf
+
+        x = knp.reshape(knp.arange(24), [1, 2, 3, 4])
+        k = knp.array(0)
+        x_np = np.reshape(np.arange(24), [1, 2, 3, 4])
+        k_np = np.array(0)
+
+        @tf.function(jit_compile=True)
+        def fn(x, k):
+            return knp.triu(x, k=k)
+
+        self.assertAllClose(fn(x, k), np.triu(x_np, k_np))
 
     def test_vstack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
