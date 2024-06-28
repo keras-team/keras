@@ -1,4 +1,5 @@
 from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
@@ -161,7 +162,7 @@ class DTypePolicy:
             return x
         elif backend.is_keras_tensor(x):
             if self._should_cast(x, autocast, dtype):
-                x.dtype = dtype
+                x = ops.cast(x, dtype=dtype)
             return x
         elif hasattr(x, "__array__"):
             try:
