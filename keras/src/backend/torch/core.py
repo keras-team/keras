@@ -503,7 +503,7 @@ def unstack(x, num=None, axis=0):
 
 def random_seed_dtype():
     # uint32 doesn't exist in torch, use int32 instead.
-    return standardize_dtype("int32")
+    return "int32"
 
 
 class custom_gradient:

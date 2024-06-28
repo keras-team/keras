@@ -299,7 +299,7 @@ def unstack(x, num=None, axis=0):
 
 
 def random_seed_dtype():
-    return standardize_dtype("uint32")
+    return "uint32"
 
 
 class custom_gradient:
