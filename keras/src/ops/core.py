@@ -240,34 +240,40 @@ class AssociativeScan(Operation):
 def associative_scan(f, elems, reverse=False, axis=0):
     """Performs a scan with an associative binary operation, in parallel.
 
-    For an introduction to associative scans, see [BLE1990]_.
+    This operation has a similar use-case to scan. The key difference is that
+    associative_scan is a parallel implementation with
+    potentially significant performance benefits, especially when jit compiled.
+
+    For an introduction to associative scans, refer to the original paper
+    Blelloch, Guy E. 1990. "Prefix Sums and Their Applications"
+    (https://www.cs.cmu.edu/~guyb/papers/Ble93.pdf).
 
     Args:
         f: A Python callable implementing an associative binary operation with
-            signature ``r = f(a, b)``. Function `f` must be associative, i.e.,
+            signature `r = f(a, b)`. Function `f` must be associative, i.e.,
             it must satisfy the equation
-            ``f(a, f(b, c)) == f(f(a, b), c)``.
+            `f(a, f(b, c)) == f(f(a, b), c)`.
 
             The inputs and result are (possibly nested Python tree structures
-            of) array(s) matching ``elems``. Each array has a dimension in place
-            of the ``axis`` dimension. `f` should be applied elementwise over
-            the ``axis`` dimension.
+            of) array(s) matching `elems`. Each array has a dimension in place
+            of the `axis` dimension. `f` should be applied elementwise over
+            the `axis` dimension.
 
-            The result ``r`` has the same shape (and structure) as the
-            two inputs ``a`` and ``b``.
+            The result `r` has the same shape (and structure) as the
+            two inputs `a` and `b`.
         elems: A (possibly nested Python tree structure of) array(s), each with
-            an ``axis`` dimension of size ``num_elems``.
+            an `axis` dimension of size `num_elems`.
         reverse: A boolean stating if the scan should be reversed with respect
-            to the ``axis`` dimension.
+            to the `axis` dimension.
         axis: an integer identifying the axis over which the scan should occur.
 
     Returns:
         A (possibly nested Python tree structure of) array(s) of the same shape
-        and structure as ``elems``, in which the ``k``'th element of ``axis`` is
-        the result of recursively applying ``f`` to combine the first ``k``
-        elements of ``elems`` along ``axis``. For example, given
-        ``elems = [a, b, c, ...]``, the result would be
-        ``[a, f(a, b), f(f(a, b), c), ...]``.
+        and structure as `elems`, in which the `k`'th element of `axis` is
+        the result of recursively applying `f` to combine the first `k`
+        elements of `elems` along `axis`. For example, given
+        `elems = [a, b, c, ...]`, the result would be
+        `[a, f(a, b), f(f(a, b), c), ...]`.
 
     Examples:
 
@@ -282,10 +288,6 @@ def associative_scan(f, elems, reverse=False, axis=0):
     >>> ys = keras.ops.associative_scan(sum_fn, xs, axis=0)
     >>> ys
     [[1, 3], [1, 3], [1, 3]]
-
-    .. [BLE1990] Blelloch, Guy E. 1990. "Prefix Sums and Their Applications.",
-        Technical Report CMU-CS-90-190, School of Computer Science,
-        Carnegie Mellon University.
     """
     if any_symbolic_tensors((elems,)):
         return AssociativeScan(reverse=reverse).symbolic_call(f, elems, axis)
