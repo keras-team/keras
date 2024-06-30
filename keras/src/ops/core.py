@@ -228,8 +228,9 @@ class AssociativeScan(Operation):
         y_spec = backend.compute_output_spec(f, x, x)
 
         def _restore_shape(x):
-            x.shape = elems_flat[0].shape
-            return x
+            return KerasTensor(
+                shape=elems_flat[0].shape, dtype=x.dtype, sparse=x.sparse
+            )
 
         y_spec = tree.map_structure(_restore_shape, y_spec)
         return y_spec
