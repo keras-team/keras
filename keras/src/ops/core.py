@@ -16,12 +16,14 @@ custom_gradient
 """
 
 import numpy as np
+import optree
 
 from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.ops.operation import Operation
 from keras.src.utils import traceback_utils
 
@@ -197,6 +199,99 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     return backend.core.scan(
         f, init, xs, length, reverse=reverse, unroll=unroll
     )
+
+
+class AssociativeScan(Operation):
+    def __init__(self, reverse=False):
+        super().__init__()
+        self.reverse = reverse
+
+    def call(self, f, elems, axis=0):
+        return backend.core.associative_scan(
+            f, elems, reverse=self.reverse, axis=axis
+        )
+
+    def compute_output_spec(self, f, elems, axis):
+        elems_flat, tree_ = optree.tree_flatten(elems)
+        lens = [elem.shape[axis] for elem in elems_flat]
+        if len(set(lens)) != 1:
+            raise ValueError(
+                "Array inputs to associative_scan must have the same "
+                "first dimension. (saw: {})".format(
+                    [elem.shape for elem in elems_flat]
+                )
+            )
+
+        x = optree.tree_unflatten(
+            tree_, [slice_along_axis(x, 0, 1, axis=axis) for x in elems_flat]
+        )
+        y_spec = backend.compute_output_spec(f, x, x)
+
+        def _restore_shape(x):
+            return KerasTensor(
+                shape=elems_flat[0].shape, dtype=x.dtype, sparse=x.sparse
+            )
+
+        y_spec = tree.map_structure(_restore_shape, y_spec)
+        return y_spec
+
+
+@keras_export("keras.ops.associative_scan")
+def associative_scan(f, elems, reverse=False, axis=0):
+    """Performs a scan with an associative binary operation, in parallel.
+
+    This operation has a similar use-case to scan. The key difference is that
+    associative_scan is a parallel implementation with
+    potentially significant performance benefits, especially when jit compiled.
+
+    For an introduction to associative scans, refer to the original paper
+    Blelloch, Guy E. 1990. "Prefix Sums and Their Applications"
+    (https://www.cs.cmu.edu/~guyb/papers/Ble93.pdf).
+
+    Args:
+        f: A Python callable implementing an associative binary operation with
+            signature `r = f(a, b)`. Function `f` must be associative, i.e.,
+            it must satisfy the equation
+            `f(a, f(b, c)) == f(f(a, b), c)`.
+
+            The inputs and result are (possibly nested Python tree structures
+            of) array(s) matching `elems`. Each array has a dimension in place
+            of the `axis` dimension. `f` should be applied elementwise over
+            the `axis` dimension.
+
+            The result `r` has the same shape (and structure) as the
+            two inputs `a` and `b`.
+        elems: A (possibly nested Python tree structure of) array(s), each with
+            an `axis` dimension of size `num_elems`.
+        reverse: A boolean stating if the scan should be reversed with respect
+            to the `axis` dimension.
+        axis: an integer identifying the axis over which the scan should occur.
+
+    Returns:
+        A (possibly nested Python tree structure of) array(s) of the same shape
+        and structure as `elems`, in which the `k`'th element of `axis` is
+        the result of recursively applying `f` to combine the first `k`
+        elements of `elems` along `axis`. For example, given
+        `elems = [a, b, c, ...]`, the result would be
+        `[a, f(a, b), f(f(a, b), c), ...]`.
+
+    Examples:
+
+    >>> sum_fn = lambda x, y: x + y
+    >>> xs = keras.ops.arange(5)
+    >>> ys = keras.ops.associative_scan(sum_fn, xs, axis=0)
+    >>> ys
+    [0, 1, 3, 6, 10]
+
+    >>> sum_fn = lambda x, y: [x[0] + y[0], x[1] + y[1], x[2] + y[2]]
+    >>> xs = [keras.ops.array([[1, 2]]) for _ in range(3)]
+    >>> ys = keras.ops.associative_scan(sum_fn, xs, axis=0)
+    >>> ys
+    [[1, 3], [1, 3], [1, 3]]
+    """
+    if any_symbolic_tensors((elems,)):
+        return AssociativeScan(reverse=reverse).symbolic_call(f, elems, axis)
+    return backend.core.associative_scan(f, elems, reverse=reverse, axis=axis)
 
 
 class Scatter(Operation):
