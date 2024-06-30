@@ -240,25 +240,26 @@ class AssociativeScan(Operation):
 def associative_scan(f, elems, reverse=False, axis=0):
     """Performs a scan with an associative binary operation, in parallel.
 
-    This operation has a similar use-case to scan. The key difference is that
-    associative_scan is a parallel implementation with
+    This operation his similar to `scan`, with the key difference that
+    `associative_scan` is a parallel implementation with
     potentially significant performance benefits, especially when jit compiled.
+    The catch is that it can only be used when `f` is a binary associative
+    operation (i.e. it must verify `f(a, f(b, c)) == f(f(a, b), c)`).
 
-    For an introduction to associative scans, refer to the original paper
-    Blelloch, Guy E. 1990. "Prefix Sums and Their Applications"
-    (https://www.cs.cmu.edu/~guyb/papers/Ble93.pdf).
+    For an introduction to associative scans, refer to this paper:
+    Blelloch, Guy E. 1990.
+    [Prefix Sums and Their Applications](
+        https://www.cs.cmu.edu/~guyb/papers/Ble93.pdf).
 
     Args:
         f: A Python callable implementing an associative binary operation with
             signature `r = f(a, b)`. Function `f` must be associative, i.e.,
             it must satisfy the equation
             `f(a, f(b, c)) == f(f(a, b), c)`.
-
             The inputs and result are (possibly nested Python tree structures
             of) array(s) matching `elems`. Each array has a dimension in place
             of the `axis` dimension. `f` should be applied elementwise over
             the `axis` dimension.
-
             The result `r` has the same shape (and structure) as the
             two inputs `a` and `b`.
         elems: A (possibly nested Python tree structure of) array(s), each with
