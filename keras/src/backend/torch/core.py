@@ -413,6 +413,9 @@ def associative_scan(f, elems, reverse=False, axis=0):
         elems_flat = [torch.flip(elem, (axis,)) for elem in elems_flat]
 
     def _combine(a_flat, b_flat):
+        a_flat = [convert_to_tensor(a) for a in a_flat]
+        b_flat = [convert_to_tensor(b) for b in b_flat]
+
         a = optree.tree_unflatten(tree, a_flat)
         b = optree.tree_unflatten(tree, b_flat)
         c = f(a, b)
