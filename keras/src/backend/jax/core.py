@@ -269,6 +269,10 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     )
 
 
+def associative_scan(f, elems, reverse=False, axis=0):
+    return jax.lax.associative_scan(f, elems, reverse, axis)
+
+
 def scatter(indices, values, shape):
     zeros = jnp.zeros(shape, values.dtype)
     key = tuple(jnp.moveaxis(indices, -1, 0))

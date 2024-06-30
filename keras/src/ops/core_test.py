@@ -1,4 +1,5 @@
 import contextlib
+import operator
 from unittest.mock import Mock
 
 import numpy as np
@@ -53,6 +54,20 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         carry, result = core.scan(f2, init, xs=None, length=3)
         self.assertEqual(carry.shape, ())
         self.assertEqual(result.shape, (3,))
+
+    def test_associative_scan(self):
+        xs = (KerasTensor((5, None)), KerasTensor((5, None)))
+        ys = core.associative_scan(
+            f=lambda x, y: (x[0] + y[0], x[1] + y[1]), elems=xs, axis=0
+        )
+        self.assertEqual(ys[0].shape, (5, None))
+
+        # sum two tuples of unknown (but same) length at axis
+        def _fn(x, y):
+            return tuple([x[i] + y[i] for i in range(len(x))])
+
+        ys = core.associative_scan(f=_fn, elems=xs, axis=1)
+        self.assertEqual(ys[0].shape, (5, None))
 
     def test_scatter(self):
         indices = KerasTensor((5, 2))
@@ -208,6 +223,60 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         }
         _, result = core.scan(reduce_add, init, xs)
         self.assertAllClose(result, [11, 22, 33])
+
+    def test_associative_scan(self):
+        # Test prefix sum
+        arr = np.arange(5)
+        result = core.associative_scan(f=operator.add, elems=arr)
+        self.assertAllEqual(result, [0, 1, 3, 6, 10])
+        # Test reverse
+        result = core.associative_scan(f=operator.add, elems=arr, reverse=True)
+        self.assertAllEqual(result, [10, 10, 9, 7, 4])
+
+        # Test multiple dimensions, across different axes
+        batched_arr = np.stack([arr, arr + 1, arr + 2])
+        result = core.associative_scan(
+            f=operator.add, elems=batched_arr, axis=1
+        )
+        self.assertAllEqual(result[2], [2, 5, 9, 14, 20])
+        result = core.associative_scan(
+            f=operator.add, elems=batched_arr, axis=0
+        )
+        self.assertAllEqual(result[:, 0], [0, 1, 3])
+
+        # Test structured input
+        elems = {
+            "a": np.array([[0, 1, 2], [3, 4, 5]]),
+            "b": np.array([[6, 7, 8], [9, 10, 11]]),
+        }
+
+        def _dict_add(x, y):
+            return {"a": x["a"] + y["b"], "b": x["b"] + y["b"]}
+
+        ax0 = core.associative_scan(f=_dict_add, elems=elems, axis=0)
+        self.assertAllEqual(
+            ax0["b"],
+            [[6, 7, 8], [15, 17, 19]],
+        )
+
+        # Test parallel scan op used in mamba
+        b, l, d, n = 1, 2, 3, 4
+        DB = np.random.rand(b, l, d, n)
+        DA = np.random.rand(b, l, d, n)
+
+        H_seq = np.zeros((b, d, n))
+        for i in range(l):
+            H_seq = DA[:, i] * H_seq + DB[:, i]
+
+        def scan_op(ci, cj):
+            a = cj[0] * ci[0]
+            b = cj[0] * ci[1] + cj[1]
+            return (a, b)
+
+        inputs = (DA.transpose(1, 0, 2, 3), DB.transpose(1, 0, 2, 3))
+        H_par = core.associative_scan(f=scan_op, elems=inputs)[-1][-1]
+
+        self.assertAllClose(H_seq, H_par)
 
     def test_scatter(self):
         # Test 1D
@@ -810,6 +879,13 @@ class CoreOpsCallsTests(testing.TestCase):
         self.assertAllClose(carry, 40.0)
         self.assertAllClose(result, ops.cumsum(xs))
 
+    def test_associative_scan_basic_call(self):
+        xs = np.arange(5, dtype="float32")
+        op = core.AssociativeScan()
+        ys = op.call(operator.add, xs)
+        self.assertAllClose(ys, [0.0, 1.0, 3.0, 6.0, 10.0])
+        self.assertAllClose(ys, ops.cumsum(xs))
+
     def test_scatter_basic_call(self):
         indices = np.array([[1, 0], [0, 1]])
         values = np.array([10, 20])
@@ -1102,3 +1178,19 @@ class CoreOpsBehaviorTests(testing.TestCase):
         # Test both xs and length are None
         with self.assertRaisesRegex(ValueError, "to scan over and"):
             core.scan(cumsum, init, xs=None, length=None)
+
+    def test_associative_scan_invalid_arguments(self):
+        # varying dimension at scan axis
+        x = (np.array([1, 2]), np.array([3, 4]), np.array([5, 6, 7]))
+        with self.assertRaisesRegex(ValueError, " first dimension"):
+            core.associative_scan(lambda x, y: (x[0] + y[0], x[1] + y[1]), x)
+
+        # same error, symbolic
+        x = (
+            KerasTensor((None, 5)),
+            KerasTensor((None, 4)),
+        )
+        with self.assertRaisesRegex(ValueError, " first dimension"):
+            core.associative_scan(
+                lambda x, y: (x[0] + y[0], x[1] + y[1]), x, axis=1
+            )

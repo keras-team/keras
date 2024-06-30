@@ -511,3 +511,15 @@ def vectorize_impl(pyfunc, vmap_fn, *, excluded=None, signature=None):
             return ops.expand_dims(result, axis=dims_to_expand)
 
     return wrapped
+
+
+def slice_along_axis(x, start=0, stop=None, step=1, axis=0):
+    """Slice a Tensor along the given axis."""
+    # Ref: same util function defined in tfp.math.scan_associative
+    if axis >= 0:
+        slices = [slice(None)] * axis + [slice(start, stop, step)]
+    else:
+        slices = [Ellipsis, slice(start, stop, step)] + [slice(None)] * (
+            -1 - axis
+        )
+    return x[tuple(slices)]
