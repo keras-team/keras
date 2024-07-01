@@ -12,6 +12,7 @@ import keras
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import numpy as knp
@@ -5794,7 +5795,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x = knp.array(value, dtype=dtype)
         x_jax = jnp.array(value, dtype=dtype)
         expected_dtype = standardize_dtype(jnp.ceil(x_jax).dtype)
-        if dtype == "int64":
+        # Here, we follow Numpy's rule, not JAX's; ints are promoted to floats.
+        if dtype == "bool" or is_int_dtype(dtype):
             expected_dtype = backend.floatx()
 
         self.assertEqual(standardize_dtype(knp.ceil(x).dtype), expected_dtype)
@@ -6377,7 +6379,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.floor(x_jax).dtype)
-        if dtype == "int64":
+        # Here, we follow Numpy's rule, not JAX's; ints are promoted to floats.
+        if dtype == "bool" or is_int_dtype(dtype):
             expected_dtype = backend.floatx()
 
         self.assertEqual(standardize_dtype(knp.floor(x).dtype), expected_dtype)
