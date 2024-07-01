@@ -1,11 +1,11 @@
 # Tensorflow.
-tensorflow-cpu~=2.16.1;sys_platform != 'darwin'  # Pin to TF 2.16
-tensorflow~=2.16.1;sys_platform == 'darwin'
+tensorflow-cpu~=2.16.2;sys_platform != 'darwin'  # Pin to TF 2.16
+tensorflow~=2.16.2;sys_platform == 'darwin'
 
 # Torch.
 # TODO: Pin to < 2.3.0 (GitHub issue #19602)
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.1.0, <2.3.0
+torch>=2.3.1+cu121, <2.4.0
 torchvision>=0.16.0
 
 # Jax.
