@@ -194,3 +194,18 @@ class CenterCropTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(tuple(output.shape), output_shape)
         self.assertAllClose(ref_output, output)
+
+    @parameterized.parameters(
+        [((5, 17), "channels_last"), ((5, 100), "channels_last")]
+    )
+    def test_image_stretch(self, size, data_format):
+        img = np.random.rand(2, 11, 3, 9)
+        out = layers.CenterCrop(
+            size[0],
+            size[1],
+            data_format=data_format,
+        )(img)
+        ref_out = layers.Resizing(
+            size[0], size[1], data_format=data_format, crop_to_aspect_ratio=True
+        )(img)
+        self.assertAllClose(ref_out, out)

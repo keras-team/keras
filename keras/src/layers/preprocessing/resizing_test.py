@@ -213,3 +213,13 @@ class ResizingTest(testing.TestCase, parameterized.TestCase):
         for output in ds.take(1):
             output = output.numpy()
         self.assertEqual(tuple(output.shape), output_shape)
+
+    @parameterized.parameters(
+        [((15, 10), "channels_last"), ((15, 100), "channels_last")]
+    )
+    def test_data_stretch(self, size, data_format):
+        img = np.random.rand(1, 1, 4, 4)
+        output = layers.Resizing(
+            size[0], size[1], data_format=data_format, crop_to_aspect_ratio=True
+        )(img)
+        self.assertEqual(output.shape, (1, *size, 4))
