@@ -381,7 +381,8 @@ def ceil(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return cast(jnp.ceil(x), dtype)
+    x = cast(x, dtype)
+    return jnp.ceil(x)
 
 
 def clip(x, x_min, x_max):
@@ -558,7 +559,10 @@ def flip(x, axis=None):
 def floor(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
     return jnp.floor(x)
 
 
