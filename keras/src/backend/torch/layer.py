@@ -140,10 +140,8 @@ class TorchLayer(torch.nn.Module):
             and all(isinstance(v, Layer) for v in value)
             and len(value) > 0
         ):
-            warnings.warn(
-                "Torch backend currently cannot track list of "
-                "layers properly as an attribute."
-            )
+            for idx, v in enumerate(value):
+                self.add_module(f"{name}_{idx}", v)
 
         return name, value
 
