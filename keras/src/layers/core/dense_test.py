@@ -408,6 +408,8 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         with self.assertRaises(NotImplementedError):
             layer.quantize(mode)
 
+        layer.quantize(mode, type_check=False)  # No error
+
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
@@ -422,12 +424,7 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             ):
                 layer.quantize(m)
 
-    @parameterized.named_parameters(
-        ("int8", "int8_from_float32"),
-        ("float8", "float8_from_float32"),
-    )
-    def test_quantize_when_already_quantized_using_dtype_argument(self, mode):
-        layer = layers.Dense(units=2, dtype=mode)
+        layer = layers.Dense(units=2, dtype=f"{mode}_from_float32")
         layer.build((None, 2))
         for m in ["int8", "float8"]:
             with self.assertRaisesRegex(
@@ -479,18 +476,21 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             layer.quantized_call(x)
         self.assertEqual(layer.dtype_policy, original_dtype_policy)
 
+    @parameterized.named_parameters(
+        ("int8", "int8_from_mixed_bfloat16", 1, 2),
+        ("float8", "float8_from_mixed_bfloat16", 8, 0),
+    )
     @pytest.mark.requires_trainable_backend
-    def test_quantize_int8_dtype_argument(self):
+    def test_quantize_dtype_argument(
+        self, dtype, num_trainable_weights, num_non_trainable_weights
+    ):
         self.run_layer_test(
             layers.Dense,
-            init_kwargs={
-                "units": 5,
-                "dtype": "int8_from_mixed_bfloat16",
-            },
+            init_kwargs={"units": 5, "dtype": dtype},
             input_shape=(2, 3, 4),
             expected_output_shape=(2, 3, 5),
-            expected_num_trainable_weights=1,
-            expected_num_non_trainable_weights=2,
+            expected_num_trainable_weights=num_trainable_weights,
+            expected_num_non_trainable_weights=num_non_trainable_weights,
             expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=True,
@@ -576,23 +576,6 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
                 reloaded_layer.non_trainable_weights,
                 len(model.non_trainable_weights),
             )
-
-    @pytest.mark.requires_trainable_backend
-    def test_quantize_float8_dtype_argument(self):
-        self.run_layer_test(
-            layers.Dense,
-            init_kwargs={
-                "units": 5,
-                "dtype": "float8_from_mixed_bfloat16",
-            },
-            input_shape=(2, 3, 4),
-            expected_output_shape=(2, 3, 5),
-            expected_num_trainable_weights=8,
-            expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
-            expected_num_losses=0,
-            supports_masking=True,
-        )
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_float8(self):
