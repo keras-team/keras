@@ -3973,6 +3973,19 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllEqual(knp.searchsorted(a, v), expected)
         self.assertAllEqual(knp.SearchSorted()(a, v), expected)
 
+        # test with symbolic tensors
+        a = backend.KerasTensor(a.shape, a.dtype)
+        v = backend.KerasTensor(v.shape, v.dtype)
+        expected = backend.KerasTensor(expected.shape, expected.dtype)
+
+        actual = knp.searchsorted(a, v)
+        self.assertEqual(actual.shape, expected.shape)
+        self.assertEqual(actual.dtype, expected.dtype)
+
+        actual = knp.SearchSorted()(a, v)
+        self.assertEqual(actual.shape, expected.shape)
+        self.assertEqual(actual.dtype, expected.dtype)
+
     def test_sign(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
         self.assertAllClose(knp.sign(x), np.sign(x))
