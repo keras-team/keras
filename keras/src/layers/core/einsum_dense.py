@@ -640,15 +640,12 @@ class EinsumDense(Layer):
             x = self.activation(x)
         return x
 
-    def quantize(self, mode):
+    def quantize(self, mode, type_check=True):
         import gc
 
         # Prevent quantization of the subclasses
-        if type(self) is not EinsumDense:
-            raise NotImplementedError(
-                f"Layer {self.__class__.__name__} does not have a `quantize()` "
-                "method implemented."
-            )
+        if type_check and (type(self) is not EinsumDense):
+            raise self._quantize_not_implemented_error()
         self._check_quantize_args(mode, self.compute_dtype)
 
         self._tracker.unlock()
