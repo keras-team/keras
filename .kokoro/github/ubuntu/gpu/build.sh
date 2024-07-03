@@ -55,7 +55,10 @@ then
                --ignore keras/src/layers/merging/merging_test.py \
                --ignore keras/src/trainers/data_adapters/py_dataset_adapter_test.py \
                --ignore keras/src/backend/jax/distribution_lib_test.py \
+               --ignore keras/src/distribution/distribution_lib_test.py \
                --cov=keras
+
+   pytest keras/src/distribution/distribution_lib_test.py --cov=keras
 fi
 
 if [ "$KERAS_BACKEND" == "torch" ]
