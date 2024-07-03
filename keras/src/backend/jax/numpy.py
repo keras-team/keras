@@ -876,8 +876,10 @@ def roll(x, shift, axis=None):
 
 def searchsorted(sorted_sequence, values, side="left"):
     if ndim(sorted_sequence) != 1:
-        raise ValueError("searchsorted only supports 1-D sorted sequences. Use"
-                         "keras.ops.vectorized_map to extend to N-D sequences.")
+        raise ValueError(
+            "searchsorted only supports 1-D sorted sequences. Use"
+            "keras.ops.vectorized_map to extend to N-D sequences."
+        )
     return jnp.searchsorted(sorted_sequence, values, side=side)
 
 

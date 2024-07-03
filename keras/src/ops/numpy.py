@@ -4510,13 +4510,9 @@ class SearchSorted(Operation):
         return backend.numpy.searchsorted(sorted_sequence, values, side=side)
 
     def compute_output_spec(self, sorted_sequence, values, side="left"):
-        if ndim(sorted_sequence) != 1:
-            raise ValueError(
-                "searchsorted only supports 1-D sorted sequences. Use"
-                "keras.ops.vectorized_map to extend to N-D sequences.")
         out_type = (
             "int32"
-            if len(sorted_sequence) <= np.iinfo(np.int32).max
+            if sorted_sequence.shape[0] <= np.iinfo(np.int32).max
             else "int64"
         )
         return KerasTensor(values.shape, dtype=out_type)
@@ -4528,10 +4524,9 @@ def searchsorted(sorted_sequence, values, side="left"):
     into `sorted_sequence` that maintain the sorting order.
 
     Args:
-        sorted_sequence: N-D or 1-D input tensor, sorted along the innermost
-            dimension. Note: for numpy backend, only 1-D input tensors are
-            supported.
-        values: N-dimensional tensor of query insertion values.
+        sorted_sequence: 1-D input tensor, sorted along the innermost
+            dimension.
+        values: N-D tensor of query insertion values.
         side: 'left' or 'right', specifying the direction in which to insert
             for the equality case (tie-breaker).
 

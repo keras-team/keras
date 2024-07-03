@@ -1197,8 +1197,10 @@ def roll(x, shift, axis=None):
 
 def searchsorted(sorted_sequence, values, side="left"):
     if ndim(sorted_sequence) != 1:
-        raise ValueError("searchsorted only supports 1-D sorted sequences. Use"
-                         "keras.ops.vectorized_map to extend to N-D sequences.")
+        raise ValueError(
+            "searchsorted only supports 1-D sorted sequences. Use"
+            "keras.ops.vectorized_map to extend to N-D sequences."
+        )
     out_int32 = len(sorted_sequence) <= np.iinfo(np.int32).max
     return torch.searchsorted(
         sorted_sequence, values, side=side, out_int32=out_int32
