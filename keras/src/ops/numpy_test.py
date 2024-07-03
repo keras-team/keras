@@ -7338,6 +7338,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_searchsorted(self, dtype):
         import jax.numpy as jnp
 
+        if dtype == "bool":
+            self.skipTest("searchsorted doesn't support bool dtype")
+
         a = knp.ones((3,), dtype=dtype)
         v = knp.ones((3,), dtype=dtype)
 
