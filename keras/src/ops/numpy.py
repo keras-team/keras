@@ -4510,6 +4510,10 @@ class SearchSorted(Operation):
         return backend.numpy.searchsorted(sorted_sequence, values, side=side)
 
     def compute_output_spec(self, sorted_sequence, values, side="left"):
+        if ndim(sorted_sequence) != 1:
+            raise ValueError(
+                "searchsorted only supports 1-D sorted sequences. Use"
+                "keras.ops.vectorized_map to extend to N-D sequences.")
         out_type = (
             "int32"
             if len(sorted_sequence) <= np.iinfo(np.int32).max
