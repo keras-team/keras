@@ -2,7 +2,6 @@ import warnings
 
 from keras.src import backend
 from keras.src import constraints
-from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src import ops
 from keras.src import quantizers
@@ -320,13 +319,12 @@ class Embedding(Layer):
         )
         self._is_quantized = True
 
-    def quantized_call(self, inputs):
-        if self.quantization_mode == "int8":
-            return self._int8_call(inputs)
-        else:
+    def quantized_call(self, *args, **kwargs):
+        if self.quantization_mode != "int8":
             raise self._quantization_mode_error(self.quantization_mode)
+        return super().quantized_call(*args, **kwargs)
 
-    def _int8_call(self, inputs):
+    def _int8_call(self, inputs, training=None):
         # We cannot update quantized self._embeddings, so the custom gradient is
         # not needed
         if backend.standardize_dtype(inputs.dtype) not in ("int32", "int64"):
@@ -345,14 +343,10 @@ class Embedding(Layer):
         return outputs
 
     def quantize(self, mode, type_check=True):
-        import gc
-
         # Prevent quantization of the subclasses
         if type_check and (type(self) is not Embedding):
-            raise self._quantize_not_implemented_error()
-        self._check_quantize_args(mode, self.compute_dtype)
+            raise self._not_implemented_error(self.quantize)
 
-        self._tracker.unlock()
         if mode == "int8":
             # Quantize `self._embeddings` to int8 and compute corresponding
             # scale
@@ -370,15 +364,6 @@ class Embedding(Layer):
             )
         else:
             raise self._quantization_mode_error(mode)
-        self._tracker.lock()
-
-        # Set new dtype policy
-        if self.dtype_policy.quantization_mode is None:
-            policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
-            self.dtype_policy = policy
-
-        # Release memory manually because sometimes the backend doesn't
-        gc.collect()
 
     def _get_embeddings_with_merged_lora(self):
         if self.dtype_policy.quantization_mode is not None:
