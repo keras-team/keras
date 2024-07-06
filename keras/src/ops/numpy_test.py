@@ -775,6 +775,12 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             (2, 3, 1),
         )
 
+    def test_searchsorted(self):
+        a = KerasTensor((3,))
+        v = KerasTensor((2, 3))
+
+        self.assertEqual(knp.searchsorted(a, v).shape, v.shape)
+
     def test_take(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.take(x, 1).shape, ())
@@ -3966,6 +3972,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         x = np.array([[123, 234, 345], [345, 234, 123]], dtype="int32")
         self.assertAllClose(knp.round(x, decimals=-1), np.round(x, decimals=-1))
         self.assertAllClose(knp.Round(decimals=-1)(x), np.round(x, decimals=-1))
+
+    def test_searchsorted(self):
+        a = np.array([1, 2, 2, 3, 4, 5, 5])
+        v = np.array([4, 3, 5, 1, 2])
+        expected = np.searchsorted(a, v).astype("int32")
+        self.assertAllEqual(knp.searchsorted(a, v), expected)
+        self.assertAllEqual(knp.SearchSorted()(a, v), expected)
 
     def test_sign(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
@@ -7361,6 +7374,30 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Quantile().symbolic_call(x, 0.5).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_searchsorted(self, dtype):
+        import jax.numpy as jnp
+
+        if dtype == "bool":
+            self.skipTest("searchsorted doesn't support bool dtype")
+
+        a = knp.ones((3,), dtype=dtype)
+        v = knp.ones((3,), dtype=dtype)
+
+        a_jax = jnp.ones((3,), dtype=dtype)
+        v_jax = jnp.ones((3,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(jnp.searchsorted(a_jax, v_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.searchsorted(a, v).dtype), expected_dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.SearchSorted().symbolic_call(a, v).dtype),
             expected_dtype,
         )
 
