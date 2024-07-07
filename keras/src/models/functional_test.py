@@ -470,12 +470,15 @@ class FunctionalTest(testing.TestCase):
 
     def test_for_functional_in_sequential(self):
         # Test for a v3.4.1 regression.
-        image_size = (100, 100)
+        if backend.image_data_format() == "channels_first":
+            image_size = (3, 100, 100)
+        else:
+            image_size = (100, 100, 3)
         base_model = applications.mobilenet.MobileNet(
             include_top=False, weights=None
         )
         model = Sequential()
-        model.add(layers.Input(shape=image_size + (3,)))
+        model.add(layers.Input(shape=image_size))
         model.add(base_model)
         model.add(layers.GlobalAveragePooling2D())
         model.add(layers.Dense(7, activation="softmax"))
