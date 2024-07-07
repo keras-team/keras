@@ -77,6 +77,7 @@ class EpochIterator:
 
     def enumerate_epoch(self):
         buffer = []
+        self.data_adapter.on_epoch_begin()
         if self.steps_per_epoch:
             if self._current_iterator is None:
                 self._current_iterator = iter(self._get_iterator())

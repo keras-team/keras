@@ -87,6 +87,10 @@ class DataAdapter:
         """
         raise NotImplementedError
 
+    def on_epoch_begin(self):
+        """A hook called before each epoch."""
+        pass
+
     def on_epoch_end(self):
         """A hook called after each epoch."""
         pass

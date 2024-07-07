@@ -592,6 +592,7 @@ A `PyDataset` must implement two methods:
 
 The method `__getitem__` should return a complete batch.
 If you want to modify your dataset between epochs, you may implement `on_epoch_end`.
+You may also implement `on_epoch_begin` to be called at the start of each epoch.
 
 Here's a quick example:
 """

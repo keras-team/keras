@@ -638,6 +638,7 @@ class TFEpochIterator(EpochIterator):
         return self.data_adapter.get_tf_dataset()
 
     def enumerate_epoch(self):
+        self.data_adapter.on_epoch_begin()
         if self.steps_per_epoch:
             if not self._current_iterator:
                 self._current_iterator = iter(self._distributed_dataset)
