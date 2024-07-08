@@ -136,28 +136,36 @@ def _istft(
     return x[..., start:end]
 
 
+def _sum_reduce(left, right):
+    return left + right
+
+
+def _max_reduce(left, right):
+    return np.max(np.stack([left, right]), axis=0)
+
+
 class MathOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
-    def test_segment_sum(self):
+
+    @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
+    def test_segment_reduce(self, segment_reduce_op):
+        # 1D case
         data = KerasTensor((None, 4), dtype="float32")
         segment_ids = KerasTensor((10,), dtype="int32")
-        outputs = kmath.segment_sum(data, segment_ids)
+        outputs = segment_reduce_op(data, segment_ids)
         self.assertEqual(outputs.shape, (None, 4))
 
         data = KerasTensor((None, 4), dtype="float32")
         segment_ids = KerasTensor((10,), dtype="int32")
-        outputs = kmath.segment_sum(data, segment_ids, num_segments=5)
+        outputs = segment_reduce_op(data, segment_ids, num_segments=5)
         self.assertEqual(outputs.shape, (5, 4))
 
-    def test_segment_max(self):
-        data = KerasTensor((None, 4), dtype="float32")
-        segment_ids = KerasTensor((10,), dtype="int32")
-        outputs = kmath.segment_max(data, segment_ids)
-        self.assertEqual(outputs.shape, (None, 4))
-
-        data = KerasTensor((None, 4), dtype="float32")
-        segment_ids = KerasTensor((10,), dtype="int32")
-        outputs = kmath.segment_max(data, segment_ids, num_segments=5)
-        self.assertEqual(outputs.shape, (5, 4))
+        data = KerasTensor((10,), dtype="float32")
+        segment_ids = KerasTensor(
+            (10,),
+            dtype="int32",
+        )
+        outputs = segment_reduce_op(data, segment_ids)
+        self.assertEqual(outputs.shape, (None,))
 
     def test_top_k(self):
         x = KerasTensor((None, 2, 3))
@@ -268,38 +276,39 @@ class MathOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(kmath.rsqrt(x).shape, (None, 3))
 
 
-class MathOpsStaticShapeTest(testing.TestCase):
+class MathOpsStaticShapeTest(testing.TestCase, parameterized.TestCase):
+    @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
         backend.backend() == "jax",
         reason="JAX does not support `num_segments=None`.",
     )
-    def test_segment_sum(self):
+    def test_segment_reduce(self, segment_reduce_op):
+        # 1D case
         data = KerasTensor((10, 4), dtype="float32")
         segment_ids = KerasTensor((10,), dtype="int32")
-        outputs = kmath.segment_sum(data, segment_ids)
+        outputs = segment_reduce_op(data, segment_ids)
         self.assertEqual(outputs.shape, (None, 4))
 
-    def test_segment_sum_explicit_num_segments(self):
+        data = KerasTensor((10,), dtype="float32")
+        segment_ids = KerasTensor((10,), dtype="int32")
+        outputs = segment_reduce_op(data, segment_ids)
+        self.assertEqual(outputs.shape, (None,))
+
+    @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
+    def test_segment_reduce_explicit_num_segments(self, segment_reduce_op):
+        # 1D case
         data = KerasTensor((10, 4), dtype="float32")
         segment_ids = KerasTensor((10,), dtype="int32")
-        outputs = kmath.segment_sum(data, segment_ids, num_segments=5)
+        outputs = segment_reduce_op(data, segment_ids, num_segments=5)
         self.assertEqual(outputs.shape, (5, 4))
 
-    @pytest.mark.skipif(
-        backend.backend() == "jax",
-        reason="JAX does not support `num_segments=None`.",
-    )
-    def test_segment_max(self):
-        data = KerasTensor((10, 4), dtype="float32")
-        segment_ids = KerasTensor((10,), dtype="int32")
-        outputs = kmath.segment_max(data, segment_ids)
-        self.assertEqual(outputs.shape, (None, 4))
-
-    def test_segment_max_explicit_num_segments(self):
-        data = KerasTensor((10, 4), dtype="float32")
-        segment_ids = KerasTensor((10,), dtype="int32")
-        outputs = kmath.segment_max(data, segment_ids, num_segments=5)
-        self.assertEqual(outputs.shape, (5, 4))
+        data = KerasTensor((6,), dtype="float32")
+        segment_ids = KerasTensor(
+            (6,),
+            dtype="int32",
+        )
+        outputs = segment_reduce_op(data, segment_ids, num_segments=5)
+        self.assertEqual(outputs.shape, (5,))
 
     def test_topk(self):
         x = KerasTensor((1, 2, 3))
@@ -395,128 +404,169 @@ class MathOpsStaticShapeTest(testing.TestCase):
 
 
 class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+
+    def run_segment_reduce_test(
+        self,
+        segment_reduce_op,
+        element_wise_reduce_method,
+        num_indices,
+        indices_high,
+        data_dims=tuple(),
+        num_segments=None,
+        add_neg1_to_indices=False,
+        sorted_indices=False,
+    ):
+        if num_segments is not None and indices_high >= num_segments:
+            raise ValueError("Indices high cannot be more than num segments")
+        indices_dims = (num_indices,)
+        full_data_dims = indices_dims + data_dims
+        data = np.random.rand(*full_data_dims).astype(np.float32)
+        segment_ids = np.concatenate(
+            [
+                np.arange(indices_high),
+                np.random.randint(
+                    low=0,
+                    high=indices_high,
+                    size=(indices_dims[0] - indices_high),
+                ),
+            ]
+        ).astype(np.int32)
+        if sorted_indices:
+            segment_ids = np.sort(segment_ids, axis=-1)
+        if add_neg1_to_indices:
+            segment_ids[0] = -1
+        outputs = segment_reduce_op(
+            data, segment_ids, num_segments, sorted=sorted_indices
+        )
+        if num_segments is None:
+            num_segments = np.max(segment_ids).item() + 1
+        expected_shape = (num_segments,) + data_dims
+        if segment_reduce_op == kmath.segment_max:
+            if backend.backend() == "tensorflow":
+                empty_fill_value = -np.finfo(np.float32).max
+            else:
+                empty_fill_value = -np.inf
+            expected = np.full(expected_shape, empty_fill_value)
+        else:
+            expected = np.zeros(expected_shape)
+
+        for idx in range(num_indices):
+            segment_id = segment_ids[idx]
+            if segment_id == -1:
+                continue
+            expected[segment_id] = element_wise_reduce_method(
+                expected[segment_id], data[idx]
+            )
+        self.assertAllClose(outputs, expected)
+
+    @parameterized.product(
+        (
+            dict(
+                segment_reduce_op=kmath.segment_sum,
+                element_wise_reduce_method=_sum_reduce,
+            ),
+            dict(
+                segment_reduce_op=kmath.segment_max,
+                element_wise_reduce_method=_max_reduce,
+            ),
+        ),
+        sorted_indices=(True, False),
+    )
     @pytest.mark.skipif(
         backend.backend() == "jax",
         reason="JAX does not support `num_segments=None`.",
     )
-    def test_segment_sum(self):
+    def test_segment_reduce(
+        self,
+        segment_reduce_op,
+        element_wise_reduce_method,
+        sorted_indices,
+    ):
         # Test 1D case.
-        data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
-        segment_ids = np.array([0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
-        outputs = kmath.segment_sum(data, segment_ids)
+        self.run_segment_reduce_test(
+            segment_reduce_op,
+            element_wise_reduce_method,
+            num_indices=9,
+            indices_high=3,
+            sorted_indices=sorted_indices,
+        )
 
-        # Segment 0: 1 + 2 = 3
-        # Segment 1: 3 + 4 + 5 = 12
-        # Segment 2: 6 + 7 + 8 = 21
-        expected = np.array([3, 12, 21], dtype=np.float32)
-        self.assertAllClose(outputs, expected)
+        # Test ND data case.
+        self.run_segment_reduce_test(
+            segment_reduce_op,
+            element_wise_reduce_method,
+            num_indices=9,
+            indices_high=3,
+            data_dims=(
+                3,
+                3,
+            ),
+            sorted_indices=sorted_indices,
+        )
 
-        # Test N-D case.
-        data = np.random.rand(9, 3, 3)
-        segment_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
-        outputs = kmath.segment_sum(data, segment_ids)
-
-        expected = np.zeros((3, 3, 3))
-        for i in range(data.shape[0]):
-            segment_id = segment_ids[i]
-            expected[segment_id] += data[i]
-
-        self.assertAllClose(outputs, expected)
-
-    def test_segment_sum_explicit_num_segments(self):
-        # Test 1D case.
-        data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
-        segment_ids = np.array([0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
-        outputs = kmath.segment_sum(data, segment_ids, num_segments=4)
-        expected = np.array([3, 12, 21, 0], dtype=np.float32)
-        self.assertAllClose(outputs, expected)
-
-        # Test 1D with -1 case.
-        data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
-        segment_ids = np.array([0, 0, 1, 1, -1, 2, 2, -1], dtype=np.int32)
-        outputs = kmath.segment_sum(data, segment_ids, num_segments=4)
-
-        # Segment ID 0: First two elements (1 + 2) = 3
-        # Segment ID 1: Next two elements (3 + 4) = 7
-        # Segment ID -1: Ignore the next two elements, because segment ID is -1.
-        # Segment ID 2: Next two elements (6 + 7) = 13
-        # Segment ID 3: No elements, so output is 0.
-        expected = np.array([3, 7, 13, 0], dtype=np.float32)
-        self.assertAllClose(outputs, expected)
-
-        # Test N-D case.
-        data = np.random.rand(9, 3, 3)
-        segment_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
-        outputs = kmath.segment_sum(data, segment_ids, num_segments=4)
-
-        expected = np.zeros((4, 3, 3))
-        for i in range(data.shape[0]):
-            segment_id = segment_ids[i]
-            if segment_id != -1:
-                expected[segment_id] += data[i]
-
-        self.assertAllClose(outputs, expected)
-
-    @pytest.mark.skipif(
-        backend.backend() == "jax",
-        reason="JAX does not support `num_segments=None`.",
+    @parameterized.product(
+        (
+            dict(
+                segment_reduce_op=kmath.segment_sum,
+                element_wise_reduce_method=_sum_reduce,
+            ),
+            dict(
+                segment_reduce_op=kmath.segment_max,
+                element_wise_reduce_method=_max_reduce,
+            ),
+        ),
+        (
+            dict(
+                contains_neg1_in_indices=True,
+                sorted_indices=False,
+            ),
+            dict(
+                contains_neg1_in_indices=False,
+                sorted_indices=False,
+            ),
+            dict(
+                contains_neg1_in_indices=False,
+                sorted_indices=True,
+            ),
+        ),
     )
-    def test_segment_max(self):
+    def test_segment_reduce_explicit_num_segments(
+        self,
+        segment_reduce_op,
+        element_wise_reduce_method,
+        contains_neg1_in_indices,
+        sorted_indices,
+    ):
+        if backend.backend() == "tensorflow" and sorted_indices:
+            pytest.skip(
+                "Num segments and sorted_indices=True doesn't work for "
+                "tensorflow."
+            )
         # Test 1D case.
-        data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
-        segment_ids = np.array([0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
-        outputs = kmath.segment_max(data, segment_ids)
+        self.run_segment_reduce_test(
+            segment_reduce_op,
+            element_wise_reduce_method,
+            num_indices=9,
+            indices_high=3,
+            num_segments=4,
+            add_neg1_to_indices=contains_neg1_in_indices,
+            sorted_indices=sorted_indices,
+        )
 
-        # Segment ID 0: Max of the first two elements = 2
-        # Segment ID 1: Max of the next three elements = 5
-        # Segment ID 2: Max of the next three elements = 8
-        expected = np.array([2, 5, 8], dtype=np.float32)
-
-        self.assertAllClose(outputs, expected)
-
-        # Test N-D case.
-        data = np.random.rand(9, 3, 3)
-        segment_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
-        outputs = kmath.segment_max(data, segment_ids)
-        expected = np.zeros((3, 3, 3))
-        for i in range(data.shape[0]):
-            segment_id = segment_ids[i]
-            expected[segment_id] = np.maximum(expected[segment_id], data[i])
-
-        self.assertAllClose(outputs, expected)
-
-    def test_segment_max_explicit_num_segments(self):
-        # Test 1D case.
-        data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
-        segment_ids = np.array([0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
-        outputs = kmath.segment_max(data, segment_ids, num_segments=3)
-
-        # Segment ID 0: Max of the first two elements = 2
-        # Segment ID 1: Max of the next three elements = 5
-        # Segment ID 2: Max of the next three elements = 8
-        expected = np.array([2, 5, 8], dtype=np.float32)
-
-        self.assertAllClose(outputs, expected)
-
-        # Test 1D with -1 case.
-        data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
-        segment_ids = np.array([0, 0, 1, 1, -1, 2, 2, -1], dtype=np.int32)
-        outputs = kmath.segment_max(data, segment_ids, num_segments=3)
-        expected = np.array([2, 4, 7], dtype=np.float32)
-
-        self.assertAllClose(outputs, expected)
-
-        # Test N-D case.
-        data = np.random.rand(9, 3, 3)
-        segment_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
-        outputs = kmath.segment_max(data, segment_ids, num_segments=3)
-
-        expected = np.full((3, 3, 3), -np.inf)
-        for i in range(data.shape[0]):
-            segment_id = segment_ids[i]
-            expected[segment_id] = np.maximum(expected[segment_id], data[i])
-
-        self.assertAllClose(outputs, expected)
+        # Test ND data case.
+        self.run_segment_reduce_test(
+            segment_reduce_op,
+            element_wise_reduce_method,
+            num_indices=9,
+            indices_high=3,
+            data_dims=(
+                3,
+                3,
+            ),
+            num_segments=4,
+            add_neg1_to_indices=contains_neg1_in_indices,
+            sorted_indices=sorted_indices,
+        )
 
     def test_top_k(self):
         x = np.array([0, 4, 2, 1, 3, -1], dtype=np.float32)
@@ -1259,31 +1309,70 @@ class ISTFTTest(testing.TestCase):
         self.assertEqual(output_spec.shape, expected_shape)
 
 
-class TestMathErrors(testing.TestCase):
+class TestMathErrors(testing.TestCase, parameterized.TestCase):
 
+    @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
         backend.backend() != "jax", reason="Testing Jax errors only"
     )
-    def test_segment_sum_no_num_segments(self):
+    def test_segment_reduce_no_num_segments(self, segment_reduce_op):
         data = jnp.array([1, 2, 3, 4])
         segment_ids = jnp.array([0, 0, 1, 1])
         with self.assertRaisesRegex(
             ValueError,
             "Argument `num_segments` must be set when using the JAX backend.",
         ):
-            kmath.segment_sum(data, segment_ids)
+            segment_reduce_op(data, segment_ids)
 
+    @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
-        backend.backend() != "jax", reason="Testing Jax errors only"
+        backend.backend() != "tensorflow", reason="Tensorflow error only"
     )
-    def test_segment_max_no_num_segments(self):
-        data = jnp.array([1, 2, 3, 4])
-        segment_ids = jnp.array([0, 0, 1, 1])
+    def test_segment_reduce_sort_and_num_segments(self, segment_reduce_op):
+        data = np.array([1, 2, 3, 4])
+        segment_ids = np.array([0, 0, 1, 1])
         with self.assertRaisesRegex(
             ValueError,
-            "Argument `num_segments` must be set when using the JAX backend.",
+            "Argument `num_segments` cannot be set when sorted is True when "
+            "using the tensorflow backend.",
         ):
-            kmath.segment_max(data, segment_ids)
+            segment_reduce_op(data, segment_ids, num_segments=2, sorted=True)
+
+    @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
+    def test_segment_reduce_multi_dim_segment_ids(self, segment_reduce_op):
+        data = np.array([1, 2, 3, 4])
+        segment_ids = np.array([0, 0, 1, 1]).reshape((2, 2))
+        with self.assertRaisesRegex(
+            ValueError,
+            "Argument `segment_ids` should be an 1-D vector,",
+        ):
+            segment_reduce_op(data, segment_ids)
+
+    @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
+    def test_segment_reduce_leading_not_match(self, segment_reduce_op):
+        data = np.array([])
+        segment_ids = np.array([0, 0, 1, 1])
+        with self.assertRaisesRegex(
+            ValueError,
+            "Argument `segment_ids` and `data` should have same leading "
+            "dimension.",
+        ):
+            segment_reduce_op(data, segment_ids)
+
+        output_tensor = segment_reduce_op(
+            KerasTensor(shape=(None, 4)), KerasTensor(shape=(5,))
+        )
+        self.assertEqual(output_tensor.shape, (None, 4))
+
+        output_tensor = segment_reduce_op(
+            KerasTensor(shape=(5, 4)), KerasTensor(shape=(None,))
+        )
+        self.assertEqual(output_tensor.shape, (None, 4))
+
+        output_tensor = segment_reduce_op(
+            KerasTensor(shape=(None, 4)), KerasTensor(shape=(None,))
+        )
+        self.assertEqual(output_tensor.shape, (None, 4))
 
     def test_stft_invalid_input_type(self):
         # backend agnostic error message
