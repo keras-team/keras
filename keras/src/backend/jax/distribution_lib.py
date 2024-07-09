@@ -221,15 +221,24 @@ def process_id():
     return jax.process_index()
 
 
-def _to_jax_device(device_id):
-    if isinstance(device_id, jax.Device):
-        return device_id
-    device_type, index = device_id.split(":")
-    index = int(index)
+def get_device_by_id(device_id, devices):
+    for device in devices:
+        if device.id == device_id:
+            return device
+    return None
+
+
+def _to_jax_device(device_name):
+    if isinstance(device_name, jax.Device):
+        return device_name
+    device_type, device_id = device_name.split(":")
+    device_id = int(device_id)
+
     devices = jax.devices(backend=device_type)
-    if index >= len(devices):
-        raise ValueError(f"Unknown device: {device_id}")
-    return devices[index]
+    for device in devices:
+        if device.platform == device_type and device.id == device_id:
+            return device
+    raise ValueError(f"Device not found: {device_name}")
 
 
 def _to_jax_mesh(device_mesh):
