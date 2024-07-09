@@ -225,11 +225,10 @@ def _to_jax_device(device_name):
     if isinstance(device_name, jax.Device):
         return device_name
     device_type, device_id = device_name.split(":")
-    device_id = int(device_id)
 
     devices = jax.devices(backend=device_type)
     for device in devices:
-        if device.platform == device_type and device.id == device_id:
+        if device.platform == device_type and device.id == int(device_id):
             return device
     raise ValueError(f"Device not found: {device_name}")
 
