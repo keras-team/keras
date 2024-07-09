@@ -221,13 +221,6 @@ def process_id():
     return jax.process_index()
 
 
-def get_device_by_id(device_id, devices):
-    for device in devices:
-        if device.id == device_id:
-            return device
-    return None
-
-
 def _to_jax_device(device_name):
     if isinstance(device_name, jax.Device):
         return device_name
