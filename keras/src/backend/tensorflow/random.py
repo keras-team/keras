@@ -29,6 +29,8 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 
 def categorical(logits, num_samples, dtype="int64", seed=None):
     seed = draw_seed(seed)
+    # Only int32 seeds are supported in stateless_categorical.
+    seed = tf.cast(tf.math.floormod(seed, tf.int32.max - 1), dtype="int32")
     output = tf.random.stateless_categorical(logits, num_samples, seed=seed)
     return tf.cast(output, dtype)
 
