@@ -40,6 +40,8 @@ class SwapEMAWeightsTest(testing.TestCase):
         model = Sequential(
             [layers.Dense(2, kernel_initializer="ones", use_bias=False)]
         )
+        model.build((None, 3))
+        optimizer.build(model.trainable_variables)
         model.compile(
             optimizer=optimizer,
             loss=losses.MeanSquaredError(),
