@@ -50,6 +50,7 @@ def test_model_fit():
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
         )
+        model.optimizer.build(model.trainable_variables)
         history = model.fit(
             x,
             y,
