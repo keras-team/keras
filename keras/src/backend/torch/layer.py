@@ -58,4 +58,5 @@ class TorchLayer(torch.nn.Module):
 
     def _post_untrack_variable(self, variable):
         if hasattr(self, "torch_params"):
-            self.torch_params.pop(variable.path)
+            if variable.path in self.torch_params:
+                self.torch_params.pop(variable.path)

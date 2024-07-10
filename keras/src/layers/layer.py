@@ -212,8 +212,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     """
 
     def __new__(cls, *args, **kwargs):
-        from keras.src.models.model import Model
-
         obj = super().__new__(cls, *args, **kwargs)
 
         # Wrap the user-provided `build` method in the `build_wrapper`
@@ -236,33 +234,21 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         obj.build = build_wrapper
 
         # Wrap the user-provided `quantize` method in the `quantize_wrapper`
-        # to add tracker support. Note that we shouldn't wrap the method in
-        # `keras.Model`.
+        # to add tracker support.
         original_quantize_method = obj.quantize
-        if not isinstance(obj, Model):
 
-            @wraps(original_quantize_method)
-            def quantize_wrapper(mode, type_check=True):
-                import gc
+        @wraps(original_quantize_method)
+        def quantize_wrapper(mode, type_check=True):
+            obj._check_quantize_args(mode, obj.compute_dtype)
+            obj._tracker.unlock()
+            try:
+                original_quantize_method(mode, type_check=type_check)
+            except Exception:
+                raise
+            finally:
+                obj._tracker.lock()
 
-                obj._check_quantize_args(mode, obj.compute_dtype)
-                obj._tracker.unlock()
-                try:
-                    original_quantize_method(mode, type_check)
-                    # Set new dtype policy
-                    if obj.dtype_policy.quantization_mode is None:
-                        policy = dtype_policies.get(
-                            f"{mode}_from_{obj.dtype_policy.name}"
-                        )
-                        obj.dtype_policy = policy
-                    # Release memory manually
-                    gc.collect()
-                except Exception:
-                    raise
-                finally:
-                    obj._tracker.lock()
-
-            obj.quantize = quantize_wrapper
+        obj.quantize = quantize_wrapper
 
         return obj
 
@@ -1450,6 +1436,22 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 self._initialize_tracker()
             value = self._tracker.track(value)
         return super().__setattr__(name, value)
+
+    def __delattr__(self, name):
+        obj = getattr(self, name)
+        if isinstance(obj, backend.Variable):
+            import gc
+            import time
+
+            # It will take a short amount of time for the corresponding buffer
+            # to be actually removed from the device.
+            # https://stackoverflow.com/a/74631949
+            self._untrack_variable(obj)
+            super().__delattr__(name)
+            time.sleep(1)
+            gc.collect()
+        else:
+            super().__delattr__(name)
 
     def _check_super_called(self):
         if getattr(self, "_lock", True):

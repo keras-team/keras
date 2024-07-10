@@ -625,7 +625,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
         model = MyModel()
         with self.assertRaisesRegex(
-            ValueError, "The model must be built first before calling"
+            ValueError, "Cannot quantize a layer that isn't yet built."
         ):
             model.quantize(mode)
 

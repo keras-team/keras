@@ -2,6 +2,7 @@ import warnings
 
 from keras.src import backend
 from keras.src import constraints
+from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src import ops
 from keras.src import quantizers
@@ -354,7 +355,6 @@ class Embedding(Layer):
                 self._embeddings, axis=-1
             )
             embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
-            self._untrack_variable(self._embeddings)
             del self._embeddings
             # Utilize a lambda expression as an initializer to prevent adding a
             # large constant to the computation graph.
@@ -364,6 +364,11 @@ class Embedding(Layer):
             )
         else:
             raise self._quantization_mode_error(mode)
+
+        # Set new dtype policy
+        if self.dtype_policy.quantization_mode is None:
+            policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
+            self.dtype_policy = policy
 
     def _get_embeddings_with_merged_lora(self):
         if self.dtype_policy.quantization_mode is not None:

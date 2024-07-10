@@ -6,6 +6,7 @@ import numpy as np
 
 from keras.src import activations
 from keras.src import constraints
+from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src import ops
 from keras.src import quantizers
@@ -657,8 +658,7 @@ class EinsumDense(Layer):
                 kernel_scale = ops.squeeze(
                     kernel_scale, axis=self._kernel_squeeze_axes
                 )
-            self._untrack_variable(self._kernel)
-            kernel_shape = self._kernel.shape
+            kernel_shape = tuple(self._kernel.shape)
             del self._kernel
             # Utilize a lambda expression as an initializer to prevent adding a
             # large constant to the computation graph.
@@ -671,6 +671,11 @@ class EinsumDense(Layer):
             self._float8_build()
         else:
             raise self._quantization_mode_error(mode)
+
+        # Set new dtype policy
+        if self.dtype_policy.quantization_mode is None:
+            policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
+            self.dtype_policy = policy
 
     def _get_kernel_with_merged_lora(self):
         if self.dtype_policy.quantization_mode is not None:
