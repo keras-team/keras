@@ -430,6 +430,8 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     x = convert_to_tensor(x, dtype="int64")
     if dtype is None:
         dtype = "float32"
+    else:
+        dtype = backend.standardize_dtype(dtype)
     if sparse:
         # We don't use `tf.sparse.bincount`, it doesn't handle negative indices
         # and only support rank 1 and 2 tensors (`one_hot` adds a dimension).
@@ -449,22 +451,49 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
         shape = list(x.shape)
         shape.insert(axis, num_classes)
         return tf.SparseTensor(indices, values, shape)
-    return tf.one_hot(x, num_classes, axis=axis, dtype=dtype)
+    on_value, off_value = (True, False) if dtype == "bool" else (None, None)
+    return tf.one_hot(
+        x,
+        num_classes,
+        on_value=on_value,
+        off_value=off_value,
+        axis=axis,
+        dtype=dtype,
+    )
 
 
 def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
-    x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
-    one_hot_outputs = one_hot(
-        cast(x, "int32"), num_classes, axis=axis, dtype=dtype, sparse=sparse
-    )
-    if sparse:
-        # We don't use `tf.sparse.bincount`, it doesn't handle negative indices
-        # and has a rank limitation.
-        return tf.sparse.reduce_max(
-            one_hot_outputs, axis=reduction_axis, output_is_sparse=True
-        )
-    return tf.reduce_max(one_hot_outputs, axis=reduction_axis)
+    if backend.standardize_dtype(dtype) == "bool":
+        if sparse:
+            # `tf.sparse.reduce_max` doesn't work on bool and there is no
+            # `tf.sparse.reduce_any`.
+            outputs = one_hot(
+                x, num_classes, axis=axis, dtype="int8", sparse=True
+            )
+            outputs = tf.sparse.reduce_max(
+                outputs, axis=reduction_axis, output_is_sparse=True
+            )
+            outputs_shape = outputs.shape
+            outputs = tf.cast(outputs, dtype)
+            outputs.set_shape(outputs_shape)
+            return outputs
+        else:
+            outputs = one_hot(x, num_classes, axis=axis, dtype=dtype)
+            return tf.reduce_any(outputs, axis=reduction_axis)
+    else:
+        if sparse:
+            # We don't use `tf.sparse.bincount`, it doesn't handle negative
+            # indices and has a rank limitation.
+            outputs = one_hot(
+                x, num_classes, axis=axis, dtype=dtype, sparse=True
+            )
+            return tf.sparse.reduce_max(
+                outputs, axis=reduction_axis, output_is_sparse=True
+            )
+        else:
+            outputs = one_hot(x, num_classes, axis=axis, dtype=dtype)
+            return tf.reduce_max(outputs, axis=reduction_axis)
 
 
 def _get_logits(output, from_logits, op_type, fn_name):
