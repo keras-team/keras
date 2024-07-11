@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 import tensorflow as tf
+import tf_keras
+from absl.testing import parameterized
 from tensorflow.python.eager import context
 
 from keras.src import backend
@@ -14,7 +16,7 @@ from keras.src.optimizers.sgd import SGD
     backend.backend() != "tensorflow",
     reason="The distribute test can only run with TF backend.",
 )
-class OptimizerDistributeTest(testing.TestCase):
+class OptimizerDistributeTest(testing.TestCase, parameterized.TestCase):
     def setUp(self):
         super().setUp()
         # Need at least 2 devices for distribution related tests.
@@ -39,13 +41,15 @@ class OptimizerDistributeTest(testing.TestCase):
             )
         self.run_class_serialization_test(optimizer)
 
-    def test_single_step(self):
+    @parameterized.parameters([(SGD,), (tf_keras.optimizers.SGD)])
+    def test_single_step(self, optimizer_fn):
         with self.strategy.scope():
-            optimizer = SGD(
+            optimizer = optimizer_fn(
                 learning_rate=0.5,
                 momentum=0.06,
             )
-            vars = backend.Variable([1.0, 2.0, 3.0, 4.0])
+            # use tf variable to work both in k2 & k3.
+            vars = tf.Variable([1.0, 2.0, 3.0, 4.0])
 
             def update():
                 grads = tf.constant([1.0, 6.0, 7.0, 2.0])
