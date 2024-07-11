@@ -15,7 +15,10 @@ class TFRandomTest(TestCase):
     def test_categorical(self):
         inputs = tf.ones([2, 3], dtype="float32")
         outputs = random.categorical(inputs, 2, seed=42)
-        expected = tf.constant([[0, 2], [1, 0]])
+        if tf.config.list_physical_devices("GPU"):
+            expected = tf.constant([[2, 2], [0, 1]])
+        else:
+            expected = tf.constant([[0, 2], [1, 0]])
         self.assertAllClose(outputs, expected)
 
     def test_categorical_seed_cast(self):
