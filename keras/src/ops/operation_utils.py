@@ -7,6 +7,19 @@ from keras.src.api_export import keras_export
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 
+branch_coverage = {
+    "branch_1": False,  
+    "branch_2": False, 
+    "branch_3": False,  
+    "branch_4": False,  
+    "branch_5": False
+}
+
+def printBranchCoverage():
+    for branch, covered in branch_coverage.items():
+        print(f"{branch} {'was hit' if covered else 'was not hit'}")
+    print("Coverage is ", sum(branch_coverage.values()) / len(branch_coverage) * 100, "%\n")
+
 
 def broadcast_shapes(shape1, shape2):
     """Broadcast input shapes to a unified shape.
@@ -371,16 +384,21 @@ def compute_take_along_axis_output_shape(input_shape, indices_shape, axis):
 def reduce_shape(shape, axis=None, keepdims=False):
     shape = list(shape)
     if axis is None:
+        branch_coverage["branch_1"] = True
         if keepdims:
+            branch_coverage["branch_2"] = True
             return tuple([1 for _ in shape])
         else:
+            branch_coverage["branch_3"] = True
             return tuple([])
 
     if keepdims:
+        branch_coverage["branch_4"] = True
         for ax in axis:
             shape[ax] = 1
         return tuple(shape)
     else:
+        branch_coverage["branch_5"] = True
         for ax in sorted(axis, reverse=True):
             del shape[ax]
         return tuple(shape)
