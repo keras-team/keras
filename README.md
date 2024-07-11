@@ -1,120 +1,48 @@
-# Keras 3: Deep Learning for Humans
+# Report for Assignment 1 resit
 
-Keras 3 is a multi-backend deep learning framework, with support for JAX, TensorFlow, and PyTorch.
-Effortlessly build and train models for computer vision, natural language processing, audio processing,
-timeseries forecasting, recommender systems, etc.
+## Project chosen
 
-- **Accelerated model development**: Ship deep learning solutions faster thanks to the high-level UX of Keras
-and the availability of easy-to-debug runtimes like PyTorch or JAX eager execution.
-- **State-of-the-art performance**: By picking the backend that is the fastest for your model architecture (often JAX!),
-leverage speedups ranging from 20% to 350% compared to other frameworks. [Benchmark here](https://keras.io/getting_started/benchmarks/).
-- **Datacenter-scale training**: Scale confidently from your laptop to large clusters of GPUs or TPUs.
+Name: Keras
 
-Join nearly three million developers, from burgeoning startups to global enterprises, in harnessing the power of Keras 3.
+URL: https://github.com/keras-team/keras
 
+Number of lines of code and the tool used to count it: 267262 (lizard)
 
-## Installation
+Programming language: Python
 
-### Install with pip
+## Coverage measurement with existing tool
 
-Keras 3 is available on PyPI as `keras`. Note that Keras 2 remains available as the `tf-keras` package.
+I used Coverage.py as the existing tool to check the coverage of the forked project.
+It was executed by the command `coverage run -m unittest discover `
+![Coverage results](sources/starting_coverage.png)
 
-1. Install `keras`:
+## Coverage improvement
 
-```
-pip install keras --upgrade
-```
+### Individual tests
 
-2. Install backend package(s).
+assert_threshold_range from keras/src/metrics/metrics_utils.py
+[Relevant commit](https://github.com/keras-team/keras/commit/60452d4d23c5de55b52fe0050206ccbe90ad81b7) \
+Old coverage: \
+![Coverage](sources/old_assert_threshold_range.png)
+New coverage: \
+![Coverage](sources/new_assert_threshold_range.png)
 
-To use `keras`, you should also install the backend of choice: `tensorflow`, `jax`, or `torch`.
-Note that `tensorflow` is required for using certain Keras 3 features: certain preprocessing layers
-as well as `tf.data` pipelines.
-
-### Local installation
-
-#### Minimal installation
-
-Keras 3 is compatible with Linux and MacOS systems. For Windows users, we recommend using WSL2 to run Keras.
-To install a local development version:
-
-1. Install dependencies:
-
-```
-pip install -r requirements.txt
-```
-
-2. Run installation command from the root directory.
-
-```
-python pip_build.py --install
-```
-
-3. Run API generation script when creating PRs that update `keras_export` public APIs:
-
-```
-./shell/api_gen.sh
-```
-
-#### Adding GPU support
-
-The `requirements.txt` file will install a CPU-only version of TensorFlow, JAX, and PyTorch. For GPU support, we also
-provide a separate `requirements-{backend}-cuda.txt` for TensorFlow, JAX, and PyTorch. These install all CUDA
-dependencies via `pip` and expect a NVIDIA driver to be pre-installed. We recommend a clean python environment for each
-backend to avoid CUDA version mismatches. As an example, here is how to create a Jax GPU environment with `conda`:
-
-```shell
-conda create -y -n keras-jax python=3.10
-conda activate keras-jax
-pip install -r requirements-jax-cuda.txt
-python pip_build.py --install
-```
-
-## Configuring your backend
-
-You can export the environment variable `KERAS_BACKEND` or you can edit your local config file at `~/.keras/keras.json`
-to configure your backend. Available backend options are: `"tensorflow"`, `"jax"`, `"torch"`. Example:
-
-```
-export KERAS_BACKEND="jax"
-```
-
-In Colab, you can do:
-
-```python
-import os
-os.environ["KERAS_BACKEND"] = "jax"
-
-import keras
-```
-
-**Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after 
-the package has been imported.
-
-## Backwards compatibility
-
-Keras 3 is intended to work as a drop-in replacement for `tf.keras` (when using the TensorFlow backend). Just take your
-existing `tf.keras` code, make sure that your calls to `model.save()` are using the up-to-date `.keras` format, and you're
-done.
-
-If your `tf.keras` model does not include custom components, you can start running it on top of JAX or PyTorch immediately.
-
-If it does include custom components (e.g. custom layers or a custom `train_step()`), it is usually possible to convert it
-to a backend-agnostic implementation in just a few minutes.
-
-In addition, Keras models can consume datasets in any format, regardless of the backend you're using:
-you can train your models with your existing `tf.data.Dataset` pipelines or PyTorch `DataLoaders`.
-
-## Why use Keras 3?
-
-- Run your high-level Keras workflows on top of any framework -- benefiting at will from the advantages of each framework,
-e.g. the scalability and performance of JAX or the production ecosystem options of TensorFlow.
-- Write custom components (e.g. layers, models, metrics) that you can use in low-level workflows in any framework.
-    - You can take a Keras model and train it in a training loop written from scratch in native TF, JAX, or PyTorch.
-    - You can take a Keras model and use it as part of a PyTorch-native `Module` or as part of a JAX-native model function.
-- Make your ML code future-proof by avoiding framework lock-in.
-- As a PyTorch user: get access to power and usability of Keras, at last!
-- As a JAX user: get access to a fully-featured, battle-tested, well-documented modeling and training library.
+As can be seen in the images, the 'assert_threshold_range' function has an improved coverage of 92%. Which used to be 0% before my added testcases.
 
 
-Read more in the [Keras 3 release announcement](https://keras.io/keras_3/).
+reduce_shape from keras/src/ops/operation_utils.py
+[Relevant commit](https://github.com/keras-team/keras/commit/534807455d6440bbdcebbdd977efa5c1d0c8a7e7) \
+Old coverage: \
+![Coverage](sources/old_reduce_shape.png)
+New coverage: \
+![Coverage](sources/new_reduce_shape.png)
+
+As can be seen in the images, the 'reduce_shape' function has an improved coverage of 100%. Which used to be 0% before my added testcases.
+
+### Overall
+
+Overall old coverage: \
+![Coverage results](sources/starting_coverage.png)
+Overall new coverage: \
+![Coverage results](sources/coverage_after_2.png)
+
