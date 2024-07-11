@@ -7,20 +7,32 @@ from keras.src import ops
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.utils.python_utils import to_list
 
-NEG_INF = -1e10
 
+branch_coverage = {
+    "branch_1": False,
+    "branch_2": False,
+}  
+
+def printBranchCoverage():
+    for branch, covered in branch_coverage.items():
+        print(f"{branch} {'was hit' if covered else 'was not hit'}")
+    
+    print("Coverage is ", sum(branch_coverage.values()) / len(branch_coverage) * 100, "%\n")  
+
+NEG_INF = -1e10
 
 def assert_thresholds_range(thresholds):
     if thresholds is not None:
+        branch_coverage["branch_1"] = True
         invalid_thresholds = [
             t for t in thresholds if t is None or t < 0 or t > 1
         ]
         if invalid_thresholds:
+            branch_coverage["branch_2"] = True
             raise ValueError(
                 "Threshold values must be in [0, 1]. "
                 f"Received: {invalid_thresholds}"
             )
-
 
 def parse_init_thresholds(thresholds, default_threshold=0.5):
     if thresholds is not None:
