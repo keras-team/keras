@@ -148,6 +148,10 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
         )
         with self.assertRaisesRegex(ValueError, r"must be equal"):
             layer.compute_output_shape(query_shape, value_shape, key_shape)
+        with self.assertRaisesRegex(ValueError, r"must be equal"):
+            layer(
+                np.ones(query_shape), np.ones(value_shape), np.ones(key_shape)
+            )
 
     def test_initializer(self):
         # Test with a specified initializer.

@@ -4,6 +4,7 @@ import warnings
 import numpy as np
 import pytest
 
+from keras.src import applications
 from keras.src import backend
 from keras.src import layers
 from keras.src import saving
@@ -12,6 +13,7 @@ from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
 from keras.src.models import Functional
 from keras.src.models import Model
+from keras.src.models import Sequential
 
 
 class FunctionalTest(testing.TestCase):
@@ -465,6 +467,23 @@ class FunctionalTest(testing.TestCase):
         out = model([np.ones((2, 2)), None])
         self.assertAllClose(out, np.ones((2, 2)))
         # Note: it's not intended to work in symbolic mode (yet).
+
+    def test_for_functional_in_sequential(self):
+        # Test for a v3.4.1 regression.
+        if backend.image_data_format() == "channels_first":
+            image_size = (3, 100, 100)
+        else:
+            image_size = (100, 100, 3)
+        base_model = applications.mobilenet.MobileNet(
+            include_top=False, weights=None
+        )
+        model = Sequential()
+        model.add(layers.Input(shape=image_size))
+        model.add(base_model)
+        model.add(layers.GlobalAveragePooling2D())
+        model.add(layers.Dense(7, activation="softmax"))
+        config = model.get_config()
+        model = Sequential.from_config(config)
 
     def test_add_loss(self):
         # TODO

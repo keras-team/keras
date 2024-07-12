@@ -8,7 +8,9 @@ from keras.src.backend.numpy.core import convert_to_tensor
 from keras.src.utils.module_utils import scipy
 
 
-def segment_sum(data, segment_ids, num_segments=None, sorted=False):
+def _segment_reduction_fn(
+    data, segment_ids, reduction_method, num_segments, sorted
+):
     if num_segments is None:
         num_segments = np.amax(segment_ids) + 1
 
@@ -21,45 +23,33 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
         num_segments  # Replace first dimension (which corresponds to segments)
     )
 
-    if sorted:
+    if reduction_method == np.maximum:
+        result = np.ones(data_shape, dtype=valid_data.dtype) * -np.inf
+    else:
         result = np.zeros(data_shape, dtype=valid_data.dtype)
-        np.add.at(result, valid_segment_ids, valid_data)
+
+    if sorted:
+        reduction_method.at(result, valid_segment_ids, valid_data)
     else:
         sort_indices = np.argsort(valid_segment_ids)
         sorted_segment_ids = valid_segment_ids[sort_indices]
         sorted_data = valid_data[sort_indices]
 
-        result = np.zeros(data_shape, dtype=valid_data.dtype)
-        np.add.at(result, sorted_segment_ids, sorted_data)
+        reduction_method.at(result, sorted_segment_ids, sorted_data)
 
     return result
+
+
+def segment_sum(data, segment_ids, num_segments=None, sorted=False):
+    return _segment_reduction_fn(
+        data, segment_ids, np.add, num_segments, sorted
+    )
 
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
-    if num_segments is None:
-        num_segments = np.amax(segment_ids) + 1
-
-    valid_indices = segment_ids >= 0  # Ignore segment_ids that are -1
-    valid_data = data[valid_indices]
-    valid_segment_ids = segment_ids[valid_indices]
-
-    data_shape = list(valid_data.shape)
-    data_shape[0] = (
-        num_segments  # Replace first dimension (which corresponds to segments)
+    return _segment_reduction_fn(
+        data, segment_ids, np.maximum, num_segments, sorted
     )
-
-    if sorted:
-        result = np.zeros(data_shape, dtype=valid_data.dtype)
-        np.maximum.at(result, valid_segment_ids, valid_data)
-    else:
-        sort_indices = np.argsort(valid_segment_ids)
-        sorted_segment_ids = valid_segment_ids[sort_indices]
-        sorted_data = valid_data[sort_indices]
-
-        result = np.zeros(data_shape, dtype=valid_data.dtype)
-        np.maximum.at(result, sorted_segment_ids, sorted_data)
-
-    return result
 
 
 def top_k(x, k, sorted=False):

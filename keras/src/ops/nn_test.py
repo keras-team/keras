@@ -210,12 +210,17 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.multi_hot(x, 5, 2).shape, (None, 5, 1))
         self.assertSparse(knn.multi_hot(x, 5, sparse=True))
 
-    @parameterized.product(dtype=["float32", "int32"])
-    def test_multi_hot_dtype(self, dtype):
-        # dtype tests
+    @parameterized.named_parameters(
+        named_product(dtype=["float32", "int32", "bool"], sparse=[False, True])
+    )
+    def test_multi_hot_dtype(self, dtype, sparse):
+        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
+            pytest.skip("Backend does not support sparse tensors")
+
         x = np.arange(5)
-        out = knn.multi_hot(x, 5, axis=0, dtype=dtype)
+        out = knn.multi_hot(x, 5, axis=0, dtype=dtype, sparse=sparse)
         self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+        self.assertSparse(out, sparse)
 
     def test_conv(self):
         data_format = backend.config.image_data_format()
@@ -564,12 +569,17 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.one_hot(x, 5, 2).shape, (None, 3, 5, 1))
         self.assertSparse(knn.one_hot(x, 5, sparse=True))
 
-    @parameterized.product(dtype=["float32", "int32"])
-    def test_one_hot_dtype(self, dtype):
-        # dtype tests
+    @parameterized.named_parameters(
+        named_product(dtype=["float32", "int32", "bool"], sparse=[False, True])
+    )
+    def test_one_hot_dtype(self, dtype, sparse):
+        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
+            pytest.skip("Backend does not support sparse tensors")
+
         x = np.arange(5)
-        out = knn.one_hot(x, 5, axis=0, dtype=dtype)
+        out = knn.one_hot(x, 5, axis=0, dtype=dtype, sparse=sparse)
         self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+        self.assertSparse(out, sparse)
 
     def test_moments(self):
         x = KerasTensor([None, 3, 4])

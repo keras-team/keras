@@ -15,6 +15,8 @@ from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.common.stateless_scope import get_stateless_scope
+from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.config import floatx
 
 SUPPORTS_SPARSE_TENSORS = False
@@ -129,15 +131,38 @@ class Variable(KerasVariable):
 
     @property
     def value(self):
-        value = super().value
-        # Create and use a symbolic tensor stub in symbolic calls.
-        if str(get_device()) == "meta" and str(value.device) != "meta":
-            return torch.empty(
-                size=value.shape,
-                dtype=value.dtype,
-                device="meta",
+        # We cannot chain super() here because it will fail TorchDynamo. The
+        # reason why is unclear.
+        def maybe_use_symbolic_tensor(value):
+            # Create and use a symbolic tensor stub in symbolic calls.
+            if str(get_device()) == "meta" and str(value.device) != "meta":
+                return torch.nn.Parameter(
+                    torch.empty(
+                        size=self._shape,
+                        dtype=to_torch_dtype(self._dtype),
+                        device="meta",
+                    ),
+                    requires_grad=self.trainable,
+                )
+            return value
+
+        if in_stateless_scope():
+            scope = get_stateless_scope()
+            value = scope.get_current_value(self)
+            if value is not None:
+                value = self._maybe_autocast(value)
+                return maybe_use_symbolic_tensor(value)
+        if self._value is None:
+            # Uninitialized variable. Return a placeholder.
+            # This is fine because it's only ever used
+            # in during shape inference / graph tracing
+            # (anything else would be a bug, to be fixed.)
+            value = self._maybe_autocast(
+                self._initializer(self._shape, dtype=self._dtype)
             )
-        return value
+        else:
+            value = self._maybe_autocast(self._value)
+        return maybe_use_symbolic_tensor(value)
 
     @property
     def trainable(self):
@@ -159,6 +184,15 @@ class Variable(KerasVariable):
 def convert_to_tensor(x, dtype=None, sparse=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with torch backend")
+    if type(x) is Variable:
+        # We cannot use `isinstance(x, Variable)` due to the failure of
+        # TorchDynamo.
+        # torch._dynamo.exc.InternalTorchDynamoError:
+        # GetAttrVariable(SuperVariable(), value) has no type.
+        # TorchDynamo has bugs supporting nn.Parameter type check.
+        # Return it directly instead of pass it to the rest of the logic in the
+        # function.
+        return x.value
     if is_tensor(x):
         device = get_device()
         if x.device != device:
@@ -166,11 +200,6 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         if dtype is None:
             return x
         return x.to(to_torch_dtype(dtype))
-    if isinstance(x, Variable):
-        # TorchDynamo has bugs supporting nn.Parameter type check.
-        # Return it directly instead of pass it to the rest of the logic in the
-        # function.
-        return x.value
     if dtype is None:
         if isinstance(x, bool):
             return torch.as_tensor(x, dtype=torch.bool, device=get_device())

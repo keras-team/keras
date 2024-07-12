@@ -90,6 +90,20 @@ class KerasTensor:
 
         return ops.Squeeze(axis)(self)
 
+    def __int__(self):
+        raise ValueError(
+            "A KerasTensor is symbolic: it's a placeholder for a shape "
+            "an a dtype. It doesn't have any actual numerical value. "
+            "You cannot convert it to an int."
+        )
+
+    def __float__(self):
+        raise ValueError(
+            "A KerasTensor is symbolic: it's a placeholder for a shape "
+            "an a dtype. It doesn't have any actual numerical value. "
+            "You cannot convert it to a float."
+        )
+
     def __array__(self):
         raise ValueError(
             "A KerasTensor is symbolic: it's a placeholder for a shape "
@@ -321,6 +335,12 @@ class KerasTensor:
         from keras.src import ops
 
         return ops.GetItem().symbolic_call(self, key)
+
+    def __round__(self, ndigits=None):
+        from keras.src import ops
+
+        decimals = ndigits or 0
+        return ops.Round(decimals=decimals).symbolic_call(self)
 
 
 def any_symbolic_tensors(args=None, kwargs=None):

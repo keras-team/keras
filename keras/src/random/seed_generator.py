@@ -88,7 +88,7 @@ class SeedGenerator:
             increment = self.backend.convert_to_tensor(
                 np.array([0, 1]), dtype=seed_state.dtype
             )
-            self.state.assign(seed_state + increment)
+            self.state.assign(self.backend.numpy.add(seed_state, increment))
         else:
             # This produces a sequence of near-unique numbers
             # between 0 and 1M
