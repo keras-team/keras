@@ -30,7 +30,8 @@ class DataAdapter:
         raise NotImplementedError
 
     def get_jax_iterator(self):
-        """Get a Python iterable for the `DataAdapter`, that yields JAX arrays.
+        """Get a Python iterable for the `DataAdapter`, that yields arrays that
+        that can be fed to JAX. NumPy arrays are preferred for performance.
 
         Returns:
             A Python iterator.
