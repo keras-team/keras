@@ -22,13 +22,15 @@ MLX_DTYPES = {
     "int32": mx.int32,
     "int64": mx.int64,
     "bfloat16": mx.bfloat16,
-    "bool": mx.bool_,
+    "bool": mx.bool_
 }
 
 
 def to_mlx_dtype(dtype):
     if isinstance(dtype, mx.Dtype):
         return dtype
+    if dtype == np.complex128:
+        return mx.complex64
     standardized_dtype = MLX_DTYPES.get(standardize_dtype(dtype), None)
     if standardized_dtype is None:
         raise ValueError(f"Unsupported dtype for MLX: {dtype}")
@@ -71,6 +73,8 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         return x.value
 
     if isinstance(x, np.ndarray):
+        if x.dtype == np.complex128 and dtype is None:
+            return mx.array(x)
         x = x.astype(standardize_dtype(x.dtype))
         return mx.array(x, dtype=mlx_dtype)
 

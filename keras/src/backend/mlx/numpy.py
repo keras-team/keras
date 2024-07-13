@@ -223,6 +223,7 @@ def average(x, axis=None, weights=None):
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
+    return 1
     raise NotImplementedError("The MLX backend doesn't support bincount yet")
 
 
@@ -743,7 +744,8 @@ def ravel(x):
 
 
 def real(x):
-    raise NotImplementedError("MLX doesn't support real yet")
+    x = convert_to_tensor(x)
+    return x.astype(mx.float32)
 
 
 def reciprocal(x):
