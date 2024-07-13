@@ -1644,19 +1644,10 @@ class TrainerDistributeTest(testing.TestCase):
                     ),
                 ]
             )
-            model.build((None, 2))
             model.compile(
                 optimizer="sgd",
                 loss="sparse_categorical_crossentropy",
                 metrics=["sparse_categorical_accuracy"],
-            )
-            # Need to build variables for metrics since metric variable
-            # were created lazily and inside strategy.run().
-            model._compile_metrics.build(
-                (None, 1),
-                [
-                    (None, 2),
-                ],
             )
             model.optimizer.build(model.trainable_variables)
             x = (np.arange(512) / 128).reshape((256, 2))
