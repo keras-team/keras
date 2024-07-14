@@ -14,9 +14,6 @@ class Lamb(optimizer.Optimizer):
     This helps to stabilize the training process and improves convergence
     especially for large batch sizes.
 
-    Based on
-    [Yang et al.](https://arxiv.org/pdf/1904.00962)
-
     Args:
         learning_rate: A float, a
             `keras.optimizers.schedules.LearningRateSchedule` instance, or
@@ -33,6 +30,9 @@ class Lamb(optimizer.Optimizer):
         epsilon: A small constant for numerical stability.
             Defaults to `1e-7`.
         {{base_optimizer_keyword_args}}
+
+    References:
+        - [Yang et al.](https://arxiv.org/pdf/1904.00962)
     """
 
     def __init__(
