@@ -632,14 +632,23 @@ class TensorFlowTrainer(base_trainer.Trainer):
         )
 
     def _symbolic_build(self, iterator=None, data_batch=None):
+        # Unlike jax/torch iterator, tf iterator returns an iterator instead
+        # of data batch in `iterator.enumerate_epoch()`.
         if iterator is not None:
             for _, it in iterator.enumerate_epoch():
-                distributed_data_batch = next(it)
-                data_batch = self.distribute_strategy.reduce(
-                    "MEAN",
-                    distributed_data_batch,
-                    axis=None,
+                maybe_distributed_data_batch = next(it)
+                has_distributed_values = tree.map_structure(
+                    lambda x: isinstance(x, tf.distribute.DistributedValues),
+                    maybe_distributed_data_batch,
                 )
+                if all(tree.flatten(has_distributed_values)):
+                    data_batch = self.distribute_strategy.reduce(
+                        "MEAN",
+                        maybe_distributed_data_batch,
+                        axis=None,
+                    )
+                else:
+                    data_batch = maybe_distributed_data_batch
                 break
         super()._symbolic_build(data_batch=data_batch)
 

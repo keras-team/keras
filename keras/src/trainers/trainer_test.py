@@ -1649,7 +1649,6 @@ class TrainerDistributeTest(testing.TestCase):
                 loss="sparse_categorical_crossentropy",
                 metrics=["sparse_categorical_accuracy"],
             )
-            model.optimizer.build(model.trainable_variables)
             x = (np.arange(512) / 128).reshape((256, 2))
             y = (np.arange(256) % 2).reshape((256, 1))
             out_fit = model.fit(x, y)
