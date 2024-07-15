@@ -3,7 +3,6 @@
 import datetime
 import io
 import json
-import pathlib
 import tempfile
 import warnings
 import zipfile
@@ -193,27 +192,11 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
         with zf.open(_CONFIG_FILENAME, "w") as f:
             f.write(config_json.encode())
 
-        weights_file_path = None
         weights_store = None
         asset_store = None
-        write_zf = False
         try:
             if weights_format == "h5":
-                if isinstance(fileobj, io.BufferedWriter):
-                    # First, open the .h5 file, then write it to `zf` at the end
-                    # of the function call.
-                    working_dir = pathlib.Path(fileobj.name).parent
-                    weights_file_path = tempfile.NamedTemporaryFile(
-                        dir=working_dir
-                    )
-                    weights_store = H5IOStore(weights_file_path.name, mode="w")
-                    write_zf = True
-                else:
-                    # Fall back when `fileobj` is an `io.BytesIO`. Typically,
-                    # this usage is for pickling.
-                    weights_store = H5IOStore(
-                        _VARS_FNAME_H5, archive=zf, mode="w"
-                    )
+                weights_store = H5IOStore(_VARS_FNAME_H5, archive=zf, mode="w")
             elif weights_format == "npz":
                 weights_store = NpzIOStore(
                     _VARS_FNAME_NPZ, archive=zf, mode="w"
@@ -235,18 +218,14 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
                 visited_saveables=set(),
             )
         except:
-            # Skip the final `zf.write` if any exception is raised
-            write_zf = False
+            # Ensure we don't have a bad _VARS_FNAME_H5 inside the zip file.
+            weights_store.archive = None
             raise
         finally:
             if weights_store:
                 weights_store.close()
             if asset_store:
                 asset_store.close()
-            if write_zf and weights_file_path:
-                zf.write(weights_file_path.name, _VARS_FNAME_H5)
-            if weights_file_path:
-                weights_file_path.close()
 
 
 def _upload_model_to_hf(model, hf_path, weights_format):
@@ -427,30 +406,13 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
         )
 
         all_filenames = zf.namelist()
-        extract_dir = None
         weights_store = None
         asset_store = None
         try:
             if _VARS_FNAME_H5 in all_filenames:
-                if isinstance(fileobj, io.BufferedReader):
-                    # First, extract the model.weights.h5 file, then load it
-                    # using h5py.
-                    try:
-                        extract_dir = tempfile.TemporaryDirectory(
-                            dir=pathlib.Path(fileobj.name).parent
-                        )
-                        zf.extract(_VARS_FNAME_H5, extract_dir.name)
-                        weights_store = H5IOStore(
-                            pathlib.Path(extract_dir.name, _VARS_FNAME_H5),
-                            mode="r",
-                        )
-                    except OSError:
-                        # Fall back when it is a read-only system
-                        weights_store = H5IOStore(_VARS_FNAME_H5, zf, mode="r")
-                else:
-                    # Fall back when `fileobj` is an `io.BytesIO`. Typically,
-                    # this usage is for pickling.
-                    weights_store = H5IOStore(_VARS_FNAME_H5, zf, mode="r")
+                weights_store = H5IOStore(
+                    _VARS_FNAME_H5, zf, mode="r", read_to_memory=True
+                )
             elif _VARS_FNAME_NPZ in all_filenames:
                 weights_store = NpzIOStore(_VARS_FNAME_NPZ, zf, mode="r")
             else:
@@ -477,8 +439,6 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
                 weights_store.close()
             if asset_store:
                 asset_store.close()
-            if extract_dir:
-                extract_dir.cleanup()
 
         if failed_saveables:
             _raise_loading_failure(error_msgs)
@@ -878,7 +838,7 @@ class DiskIOStore:
 
 
 class H5IOStore:
-    def __init__(self, root_path, archive=None, mode="r"):
+    def __init__(self, root_path, archive=None, mode="r", **kwargs):
         """Numerical variable store backed by HDF5.
 
         If `archive` is specified, then `root_path` refers to the filename
@@ -891,12 +851,24 @@ class H5IOStore:
         self.mode = mode
         self.archive = archive
         self.io_file = None
+        self.read_to_memory = kwargs.pop("read_to_memory", False)
 
         if self.archive:
             if self.mode == "w":
                 self.io_file = io.BytesIO()
             else:
-                self.io_file = self.archive.open(self.root_path, "r")
+                if self.read_to_memory:
+                    try:
+                        # Try loading entire `io_file` into memory.
+                        self.io_file = io.BytesIO(
+                            self.archive.open(self.root_path, "r").read()
+                        )
+                    except MemoryError:
+                        # If OOM, fall back to use a slow but memory efficeint
+                        # approach.
+                        self.io_file = self.archive.open(self.root_path, "r")
+                else:
+                    self.io_file = self.archive.open(self.root_path, "r")
             self.h5_file = h5py.File(self.io_file, mode=self.mode)
         else:
             self.h5_file = h5py.File(root_path, mode=self.mode)

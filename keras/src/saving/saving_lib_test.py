@@ -678,21 +678,6 @@ class SavingTest(testing.TestCase):
         self.assertLen(os.listdir(Path(filepath).parent), 1)
         self.assertIn("model.keras", os.listdir(Path(filepath).parent))
 
-    def test_load_model_read_only_system(self):
-        model = keras.Sequential([keras.Input([1]), keras.layers.Dense(2)])
-        filepath = f"{self.get_temp_dir()}/model.keras"
-        saving_lib.save_model(model, filepath)
-
-        # Load the model correctly, regardless of whether an OSError occurs.
-        original_mode = os.stat(Path(filepath).parent).st_mode
-        os.chmod(Path(filepath).parent, mode=0o555)
-        model = saving_lib.load_model(filepath)
-        os.chmod(Path(filepath).parent, mode=original_mode)
-
-        # Ensure we don't have any temporary files left.
-        self.assertLen(os.listdir(Path(filepath).parent), 1)
-        self.assertIn("model.keras", os.listdir(Path(filepath).parent))
-
     @pytest.mark.skipif(
         backend.backend() == "jax",
         reason="JAX backend doesn't support Python's multiprocessing",
