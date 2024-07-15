@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-import tf_keras
 from absl.testing import parameterized
 from tensorflow.python.eager import context
 
@@ -41,8 +40,14 @@ class OptimizerDistributeTest(testing.TestCase, parameterized.TestCase):
             )
         self.run_class_serialization_test(optimizer)
 
-    @parameterized.parameters([(SGD,), (tf_keras.optimizers.SGD)])
-    def test_single_step(self, optimizer_fn):
+    @parameterized.parameters([("keras_sgd",), ("tf_keras_sgd",)])
+    def test_single_step(self, optimizer_type):
+        if optimizer_type == "tf_keras_sgd":
+            import tf_keras
+
+            optimizer_fn = tf_keras.optimizers.SGD
+        else:
+            optimizer_fn = SGD
         with self.strategy.scope():
             optimizer = optimizer_fn(
                 learning_rate=0.5,
