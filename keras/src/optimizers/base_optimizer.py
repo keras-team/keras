@@ -142,10 +142,11 @@ class BaseOptimizer(KerasSaveable):
     @property
     def iterations(self):
         if self.gradient_accumulation_steps:
-            return ops.floor_divide(self._iterations, self.gradient_accumulation_steps)
+            return ops.floor_divide(
+                self._iterations, self.gradient_accumulation_steps
+            )
 
         return self._iterations
-
 
     def _track_variable(self, variable):
         self._tracker.add_to_store("variables", variable)

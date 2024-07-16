@@ -331,7 +331,7 @@ class OptimizerTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.parameters(
-         [
+        [
             ("adam",),
             ("sgd",),
             ("adamw",),
@@ -343,16 +343,26 @@ class OptimizerTest(testing.TestCase, parameterized.TestCase):
             ("nadam",),
             ("ftrl",),
             ("adafactor",),
-         ]
+        ]
     )
     def test_gradient_accumulation_with_weigth_decay(self, optimizer):
-        optimizer1 = optimizers.get({'class_name': optimizer, 'config': {'weight_decay': 0.05}})
-        optimizer3 = optimizers.get({'class_name': optimizer, 'config': {'weight_decay': 0.05, 'gradient_accumulation_steps': 3}})
+        optimizer1 = optimizers.get(
+            {"class_name": optimizer, "config": {"weight_decay": 0.05}}
+        )
+        optimizer3 = optimizers.get(
+            {
+                "class_name": optimizer,
+                "config": {
+                    "weight_decay": 0.05,
+                    "gradient_accumulation_steps": 3,
+                },
+            }
+        )
         variable1 = backend.Variable([[0.9], [0.5]])
         variable3 = backend.Variable([[0.9], [0.5]])
 
         for epoch in range(8):
-            grads3 = np.random.random([3, 2, 1]).astype('float32')
+            grads3 = np.random.random([3, 2, 1]).astype("float32")
 
             grads1 = backend.convert_to_tensor(grads3.mean(axis=0))
             optimizer1.apply_gradients([(grads1, variable1)])
