@@ -16,7 +16,7 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
     def _backend_apply_gradients(self, grads, trainable_variables):
         if self.gradient_accumulation_steps:
             is_update_step = (
-                self.iterations + 1
+                self._iterations + 1
             ) % self.gradient_accumulation_steps == 0
             steps = self.gradient_accumulation_steps
 
@@ -109,4 +109,4 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
                         + var.value * should_not_overwrite_model_vars_int
                     )
 
-        self.iterations.assign_add(1)
+        self._iterations.assign_add(1)
