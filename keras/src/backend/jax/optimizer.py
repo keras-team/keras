@@ -47,6 +47,10 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
                 lambda: list(grads),
             )
 
+            # Apply clipping and weight decay.
+            grads = self._clip_gradients(grads)
+            self._apply_weight_decay(trainable_variables)
+
             self._backend_update_step(
                 grads, trainable_variables, self.learning_rate
             )
@@ -71,6 +75,10 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
                 g_acc.assign(n_g_acc)
 
         else:
+            # Apply clipping and weight decay.
+            grads = self._clip_gradients(grads)
+            self._apply_weight_decay(trainable_variables)
+
             self._backend_update_step(
                 grads, trainable_variables, self.learning_rate
             )

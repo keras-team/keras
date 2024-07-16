@@ -313,6 +313,39 @@ class OptimizerTest(testing.TestCase, parameterized.TestCase):
             optimizer._accumulated_gradients[1], [[1.0, 1.0], [1.0, 1.0]]
         )
 
+    @parameterized.parameters(
+         [
+            # ("adam",),
+            ("sgd",),
+            # ("adamw",),
+            # ("adagrad",),
+            # ("rmsprop",),
+            # ("adadelta",),
+            # ("adamax",),
+            # ("lion",),
+            # ("nadam",),
+            # ("ftrl",),
+            # ("adafactor",),
+         ]
+    )
+    def test_gradient_accumulation_with_weigth_decay(self, optimizer):
+        optimizer1 = optimizers.get({'class_name': optimizer, 'config': {'weight_decay': 0.05}})
+        optimizer3 = optimizers.get({'class_name': optimizer, 'config': {'weight_decay': 0.05, 'gradient_accumulation_steps': 3}})
+        variable1 = backend.Variable([[0.9], [0.5]])
+        variable3 = backend.Variable([[0.9], [0.5]])
+
+        for epoch in range(8):
+            grads3 = np.random.random([3, 2, 1]).astype('float32')
+
+            grads1 = backend.convert_to_tensor(grads3.mean(axis=0))
+            optimizer1.apply_gradients([(grads1, variable1)])
+
+            for batch in range(3):
+                grads3_ = backend.convert_to_tensor(grads3[batch])
+                optimizer3.apply_gradients([(grads3_, variable3)])
+
+        self.assertAllClose(variable1, variable3)
+
     def test_setting_lr_to_callable_untracks_lr_var(self):
         adam = optimizers.Adam(learning_rate=0.001)
         self.assertLen(adam.variables, 2)

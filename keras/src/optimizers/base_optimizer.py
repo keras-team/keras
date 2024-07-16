@@ -343,10 +343,6 @@ class BaseOptimizer(KerasSaveable):
             if scale is not None:
                 grads = [g if g is None else g / scale for g in grads]
 
-            # Apply clipping and weight decay.
-            grads = self._clip_gradients(grads)
-            self._apply_weight_decay(trainable_variables)
-
             # Apply gradient updates.
             self._backend_apply_gradients(grads, trainable_variables)
             # Apply variable constraints after applying gradients.
@@ -388,6 +384,11 @@ class BaseOptimizer(KerasSaveable):
                 grads = [
                     (g + acc_g) / steps for g, acc_g in zip(grads, acc_grads)
                 ]
+
+                # Apply clipping and weight decay.
+                grads = self._clip_gradients(grads)
+                self._apply_weight_decay(trainable_variables)
+
                 self._backend_update_step(
                     grads, trainable_variables, self.learning_rate
                 )
@@ -401,6 +402,10 @@ class BaseOptimizer(KerasSaveable):
                 ),
             )
         else:
+            # Apply clipping and weight decay.
+            grads = self._clip_gradients(grads)
+            self._apply_weight_decay(trainable_variables)
+
             # Run udpate step.
             self._backend_update_step(
                 grads, trainable_variables, self.learning_rate
