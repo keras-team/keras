@@ -137,6 +137,12 @@ class Sequential(Model):
         if isinstance(self._layers[0], InputLayer) and len(self._layers) > 1:
             input_shape = self._layers[0].batch_shape
             self.build(input_shape)
+        elif hasattr(self._layers[0], "input_shape") and len(self._layers) > 1:
+            # We can build the Sequential model if the first layer has the
+            # `input_shape` property. This is most commonly found in Functional
+            # model.
+            input_shape = self._layers[0].input_shape
+            self.build(input_shape)
 
     def _lock_state(self):
         # Unlike other layers, Sequential is mutable after build.
