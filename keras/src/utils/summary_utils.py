@@ -96,12 +96,15 @@ def format_layer_shape(layer):
             )
     else:
         try:
-            outputs = layer.compute_output_shape(**layer._build_shapes_dict)
+            if hasattr(layer, "output_shape"):
+                output_shapes = layer.output_shape
+            else:
+                outputs = layer.compute_output_shape(**layer._build_shapes_dict)
+                output_shapes = tree.map_shape_structure(
+                    lambda x: format_shape(x), outputs
+                )
         except NotImplementedError:
             return "?"
-        output_shapes = tree.map_shape_structure(
-            lambda x: format_shape(x), outputs
-        )
     if len(output_shapes) == 1:
         return output_shapes[0]
     out = str(output_shapes)

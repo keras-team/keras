@@ -150,6 +150,58 @@ class SequentialTest(testing.TestCase):
         y = model(x)
         self.assertEqual(y.shape, (2, 3, 4))
 
+    def test_basic_flow_with_functional_model_as_first_layer(self):
+        # Build functional model
+        inputs = Input((16, 16, 3))
+        outputs = layers.Conv2D(4, 3, padding="same")(inputs)
+        functional_model = Model(inputs=inputs, outputs=outputs)
+
+        model = Sequential(
+            [functional_model, layers.Flatten(), layers.Dense(1)]
+        )
+        model.summary()
+        self.assertEqual(len(model.layers), 3)
+        self.assertTrue(model.built)
+        for layer in model.layers:
+            self.assertTrue(layer.built)
+
+        # Test eager call
+        x = np.random.random((1, 16, 16, 3))
+        y = model(x)
+        self.assertEqual(type(model._functional), Functional)
+        self.assertEqual(tuple(y.shape), (1, 1))
+
+        # Test symbolic call
+        x = backend.KerasTensor((1, 16, 16, 3))
+        y = model(x)
+        self.assertEqual(y.shape, (1, 1))
+
+    def test_basic_flow_with_sequential_model_as_first_layer(self):
+        # Build sequential model
+        sequential_model = Sequential(
+            [Input((16, 16, 3)), layers.Conv2D(4, 3, padding="same")]
+        )
+
+        model = Sequential(
+            [sequential_model, layers.Flatten(), layers.Dense(1)]
+        )
+        model.summary()
+        self.assertEqual(len(model.layers), 3)
+        self.assertTrue(model.built)
+        for layer in model.layers:
+            self.assertTrue(layer.built)
+
+        # Test eager call
+        x = np.random.random((1, 16, 16, 3))
+        y = model(x)
+        self.assertEqual(type(model._functional), Functional)
+        self.assertEqual(tuple(y.shape), (1, 1))
+
+        # Test symbolic call
+        x = backend.KerasTensor((1, 16, 16, 3))
+        y = model(x)
+        self.assertEqual(y.shape, (1, 1))
+
     def test_dict_inputs(self):
         class DictLayer(layers.Layer):
             def call(self, inputs):
