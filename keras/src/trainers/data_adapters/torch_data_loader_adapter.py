@@ -39,9 +39,8 @@ class TorchDataLoaderAdapter(DataAdapter):
             )
 
     def get_jax_iterator(self):
-        # We use numpy as an intermediary because the conversion
-        # torch -> numpy -> jax is faster than torch -> jax.
-        return data_adapter_utils.get_jax_iterator(self.get_numpy_iterator())
+        # We use numpy as an intermediary because it is faster.
+        return self.get_numpy_iterator()
 
     def get_tf_dataset(self):
         from keras.src.utils.module_utils import tensorflow as tf
