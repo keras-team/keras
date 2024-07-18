@@ -10,6 +10,7 @@ from unittest import mock
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 import keras
 from keras.src import backend
@@ -245,7 +246,17 @@ def _load_model_fn(filepath):
     saving_lib.load_model(filepath)
 
 
-class SavingTest(testing.TestCase):
+class SavingTest(testing.TestCase, parameterized.TestCase):
+    def setUp(self):
+        # Set `_LARGE_MODEL_THRESHOLD` to zero for testing purpose.
+        self.original_value = saving_lib._LARGE_MODEL_THRESHOLD
+        saving_lib._LARGE_MODEL_THRESHOLD = 0
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        saving_lib._LARGE_MODEL_THRESHOLD = self.original_value
+        return super().tearDown()
+
     def _test_inference_after_instantiation(self, model):
         x_ref = np.random.random((2, 4))
         y_ref = model(x_ref)
@@ -258,28 +269,20 @@ class SavingTest(testing.TestCase):
             self.assertAllClose(w_ref, w)
         self.assertAllClose(y_ref, loaded_model(x_ref))
 
-    def test_inference_after_instantiation_subclassed(self):
-        model = _get_subclassed_model(compile=False)
+    @parameterized.named_parameters(
+        ("subclassed", _get_subclassed_model),
+        ("basic_sequential", _get_basic_sequential_model),
+        ("basic_functional", _get_basic_functional_model),
+        ("custom_sequential", _get_custom_sequential_model),
+        ("custom_functional", _get_custom_functional_model),
+        ("subclassed_functional", _get_subclassed_functional_model),
+    )
+    def test_inference_after_instantiation(self, model_fn):
+        model = model_fn(compile=False)
         self._test_inference_after_instantiation(model)
 
-    def test_inference_after_instantiation_basic_sequential(self):
-        model = _get_basic_sequential_model(compile=False)
-        self._test_inference_after_instantiation(model)
-
-    def test_inference_after_instantiation_basic_functional(self):
-        model = _get_basic_functional_model(compile=False)
-        self._test_inference_after_instantiation(model)
-
-    def test_inference_after_instantiation_custom_sequential(self):
-        model = _get_custom_sequential_model(compile=False)
-        self._test_inference_after_instantiation(model)
-
-    def test_inference_after_instantiation_custom_functional(self):
-        model = _get_custom_functional_model(compile=False)
-        self._test_inference_after_instantiation(model)
-
-    def test_inference_after_instantiation_subclassed_functional(self):
-        model = _get_subclassed_functional_model(compile=False)
+        # Test small model path
+        saving_lib._LARGE_MODEL_THRESHOLD = float("inf")
         self._test_inference_after_instantiation(model)
 
     def _test_compile_preserved(self, model):
@@ -314,34 +317,21 @@ class SavingTest(testing.TestCase):
         for ref_m, m in zip(ref_metrics, new_metrics):
             self.assertAllClose(ref_m, m)
 
+    @parameterized.named_parameters(
+        ("subclassed", _get_subclassed_model),
+        ("basic_sequential", _get_basic_sequential_model),
+        ("basic_functional", _get_basic_functional_model),
+        ("custom_sequential", _get_custom_sequential_model),
+        ("custom_functional", _get_custom_functional_model),
+        ("subclassed_functional", _get_subclassed_functional_model),
+    )
     @pytest.mark.requires_trainable_backend
-    def test_compile_preserved_subclassed(self):
-        model = _get_subclassed_model(compile=True)
+    def test_compile_preserved(self, model_fn):
+        model = model_fn(compile=True)
         self._test_compile_preserved(model)
 
-    @pytest.mark.requires_trainable_backend
-    def test_compile_preserved_basic_sequential(self):
-        model = _get_basic_sequential_model(compile=True)
-        self._test_compile_preserved(model)
-
-    @pytest.mark.requires_trainable_backend
-    def test_compile_preserved_custom_sequential(self):
-        model = _get_custom_sequential_model(compile=True)
-        self._test_compile_preserved(model)
-
-    @pytest.mark.requires_trainable_backend
-    def test_compile_preserved_basic_functional(self):
-        model = _get_basic_functional_model(compile=True)
-        self._test_compile_preserved(model)
-
-    @pytest.mark.requires_trainable_backend
-    def test_compile_preserved_custom_functional(self):
-        model = _get_custom_functional_model(compile=True)
-        self._test_compile_preserved(model)
-
-    @pytest.mark.requires_trainable_backend
-    def test_compile_preserved_subclassed_functional(self):
-        model = _get_subclassed_functional_model(compile=True)
+        # Test small model path
+        saving_lib._LARGE_MODEL_THRESHOLD = float("inf")
         self._test_compile_preserved(model)
 
     def test_saving_preserve_unbuilt_state(self):
@@ -627,19 +617,26 @@ class SavingTest(testing.TestCase):
 
         self.assertAllClose(pred1, pred2, atol=1e-5)
 
-    def test_save_model_exception_raised(self):
+    @parameterized.named_parameters(
+        ("small_model", 1),
+        ("large_model", 64),
+    )
+    def test_save_model_exception_raised(self, units):
+        saving_lib._LARGE_MODEL_THRESHOLD = 128  # 128 B
+
         # Assume we have an error in `save_own_variables`.
         class RaiseErrorLayer(keras.layers.Layer):
-            def __init__(self, **kwargs):
+            def __init__(self, units, **kwargs):
                 super().__init__(**kwargs)
+                self.dense = keras.layers.Dense(units)
 
             def call(self, inputs):
-                return inputs
+                return self.dense(inputs)
 
             def save_own_variables(self, store):
                 raise ValueError
 
-        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer()])
+        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer(units)])
         filepath = f"{self.get_temp_dir()}/model.keras"
         with self.assertRaises(ValueError):
             saving_lib.save_model(model, filepath)
@@ -654,25 +651,47 @@ class SavingTest(testing.TestCase):
         self.assertLen(os.listdir(Path(filepath).parent), 1)
         self.assertIn("model.keras", os.listdir(Path(filepath).parent))
 
-    def test_load_model_exception_raised(self):
+    @parameterized.named_parameters(
+        ("small_model", 1),
+        ("large_model", 64),
+    )
+    def test_load_model_exception_raised(self, units):
+        saving_lib._LARGE_MODEL_THRESHOLD = 128  # 128 B
+
         # Assume we have an error in `load_own_variables`.
         class RaiseErrorLayer(keras.layers.Layer):
-            def __init__(self, **kwargs):
+            def __init__(self, units, **kwargs):
                 super().__init__(**kwargs)
+                self.dense = keras.layers.Dense(units)
 
             def call(self, inputs):
-                return inputs
+                return self.dense(inputs)
 
             def load_own_variables(self, store):
                 raise ValueError
 
-        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer()])
+        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer(units)])
         filepath = f"{self.get_temp_dir()}/model.keras"
         saving_lib.save_model(model, filepath)
         with self.assertRaises(ValueError):
             saving_lib.load_model(
                 filepath, custom_objects={"RaiseErrorLayer": RaiseErrorLayer}
             )
+
+        # Ensure we don't have any temporary files left.
+        self.assertLen(os.listdir(Path(filepath).parent), 1)
+        self.assertIn("model.keras", os.listdir(Path(filepath).parent))
+
+    def test_load_model_read_only_system(self):
+        model = keras.Sequential([keras.Input([1]), keras.layers.Dense(32)])
+        filepath = f"{self.get_temp_dir()}/model.keras"
+        saving_lib.save_model(model, filepath)
+
+        # Load the model correctly, regardless of whether an OSError occurs.
+        original_mode = os.stat(Path(filepath).parent).st_mode
+        os.chmod(Path(filepath).parent, mode=0o555)
+        model = saving_lib.load_model(filepath)
+        os.chmod(Path(filepath).parent, mode=original_mode)
 
         # Ensure we don't have any temporary files left.
         self.assertLen(os.listdir(Path(filepath).parent), 1)

@@ -3,6 +3,7 @@
 import datetime
 import io
 import json
+import pathlib
 import tempfile
 import warnings
 import zipfile
@@ -25,6 +26,7 @@ from keras.src.utils import io_utils
 from keras.src.utils import naming
 from keras.src.utils import plot_model
 from keras.src.utils.model_visualization import check_pydot
+from keras.src.utils.summary_utils import weight_memory_size
 from keras.src.version import __version__ as keras_version
 
 try:
@@ -44,6 +46,7 @@ _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
 _VARS_FNAME_H5 = _VARS_FNAME + ".h5"
 _VARS_FNAME_NPZ = _VARS_FNAME + ".npz"
 _ASSETS_DIRNAME = "assets"
+_LARGE_MODEL_THRESHOLD = 1024 * 1024 * 512  # 512 MB
 
 
 _MODEL_CARD_TEMPLATE = """
@@ -192,11 +195,35 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
         with zf.open(_CONFIG_FILENAME, "w") as f:
             f.write(config_json.encode())
 
+        weights_file_path = None
         weights_store = None
         asset_store = None
+        write_zf = False
         try:
             if weights_format == "h5":
-                weights_store = H5IOStore(_VARS_FNAME_H5, archive=zf, mode="w")
+                try:
+                    if not is_large_model(model):
+                        # Load the model weights into memory before writing
+                        # .keras if the model is not large.
+                        weights_store = H5IOStore(
+                            _VARS_FNAME_H5, archive=zf, mode="w"
+                        )
+                    else:
+                        # Try opening the .h5 file, then writing it to `zf` at
+                        # the end of the function call.
+                        working_dir = pathlib.Path(fileobj.name).parent
+                        weights_file_path = tempfile.NamedTemporaryFile(
+                            dir=working_dir
+                        )
+                        weights_store = H5IOStore(
+                            weights_file_path.name, mode="w"
+                        )
+                        write_zf = True
+                except Exception:
+                    # Revert to the previous behavior.
+                    weights_store = H5IOStore(
+                        _VARS_FNAME_H5, archive=zf, mode="w"
+                    )
             elif weights_format == "npz":
                 weights_store = NpzIOStore(
                     _VARS_FNAME_NPZ, archive=zf, mode="w"
@@ -218,14 +245,20 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
                 visited_saveables=set(),
             )
         except:
-            # Ensure we don't have a bad _VARS_FNAME_H5 inside the zip file.
-            weights_store.archive = None
+            # Skip the final `zf.write` if any exception is raised
+            write_zf = False
+            if weights_store:
+                weights_store.archive = None
             raise
         finally:
             if weights_store:
                 weights_store.close()
             if asset_store:
                 asset_store.close()
+            if write_zf and weights_file_path:
+                zf.write(weights_file_path.name, _VARS_FNAME_H5)
+            if weights_file_path:
+                weights_file_path.close()
 
 
 def _upload_model_to_hf(model, hf_path, weights_format):
@@ -406,13 +439,33 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
         )
 
         all_filenames = zf.namelist()
+        extract_dir = None
         weights_store = None
         asset_store = None
         try:
             if _VARS_FNAME_H5 in all_filenames:
-                weights_store = H5IOStore(
-                    _VARS_FNAME_H5, zf, mode="r", read_to_memory=True
-                )
+                try:
+                    if not is_large_model(model):
+                        # Load the entire file into memory if the model is not
+                        # large.
+                        io_file = io.BytesIO(
+                            zf.open(_VARS_FNAME_H5, "r").read()
+                        )
+                        weights_store = H5IOStore(io_file, mode="r")
+                    else:
+                        # Try extracting the model.weights.h5 file, and then
+                        # loading it using using h5py.
+                        extract_dir = tempfile.TemporaryDirectory(
+                            dir=pathlib.Path(fileobj.name).parent
+                        )
+                        zf.extract(_VARS_FNAME_H5, extract_dir.name)
+                        weights_store = H5IOStore(
+                            pathlib.Path(extract_dir.name, _VARS_FNAME_H5),
+                            mode="r",
+                        )
+                except Exception:
+                    # Revert to the previous behavior.
+                    weights_store = H5IOStore(_VARS_FNAME_H5, zf, mode="r")
             elif _VARS_FNAME_NPZ in all_filenames:
                 weights_store = NpzIOStore(_VARS_FNAME_NPZ, zf, mode="r")
             else:
@@ -439,6 +492,8 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
                 weights_store.close()
             if asset_store:
                 asset_store.close()
+            if extract_dir:
+                extract_dir.cleanup()
 
         if failed_saveables:
             _raise_loading_failure(error_msgs)
@@ -838,7 +893,7 @@ class DiskIOStore:
 
 
 class H5IOStore:
-    def __init__(self, root_path, archive=None, mode="r", **kwargs):
+    def __init__(self, root_path, archive=None, mode="r"):
         """Numerical variable store backed by HDF5.
 
         If `archive` is specified, then `root_path` refers to the filename
@@ -851,24 +906,12 @@ class H5IOStore:
         self.mode = mode
         self.archive = archive
         self.io_file = None
-        self.read_to_memory = kwargs.pop("read_to_memory", False)
 
         if self.archive:
             if self.mode == "w":
                 self.io_file = io.BytesIO()
             else:
-                if self.read_to_memory:
-                    try:
-                        # Try loading entire `io_file` into memory.
-                        self.io_file = io.BytesIO(
-                            self.archive.open(self.root_path, "r").read()
-                        )
-                    except MemoryError:
-                        # If OOM, fall back to use a slow but memory efficeint
-                        # approach.
-                        self.io_file = self.archive.open(self.root_path, "r")
-                else:
-                    self.io_file = self.archive.open(self.root_path, "r")
+                self.io_file = self.archive.open(self.root_path, "r")
             self.h5_file = h5py.File(self.io_file, mode=self.mode)
         else:
             self.h5_file = h5py.File(root_path, mode=self.mode)
@@ -1052,3 +1095,10 @@ def get_attr_skiplist(obj_type):
         f"saving_attr_skiplist_{obj_type}", skiplist
     )
     return skiplist
+
+
+def is_large_model(model):
+    if weight_memory_size(model.variables) > _LARGE_MODEL_THRESHOLD:
+        return True
+    else:
+        return False
