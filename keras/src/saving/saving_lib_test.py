@@ -248,13 +248,13 @@ def _load_model_fn(filepath):
 
 class SavingTest(testing.TestCase, parameterized.TestCase):
     def setUp(self):
-        # Set `_LARGE_MODEL_THRESHOLD` to zero for testing purpose.
-        self.original_value = saving_lib._LARGE_MODEL_THRESHOLD
-        saving_lib._LARGE_MODEL_THRESHOLD = 0
+        # Set `_MEMORY_UPPER_BOUND` to zero for testing purpose.
+        self.original_value = saving_lib._MEMORY_UPPER_BOUND
+        saving_lib._MEMORY_UPPER_BOUND = 0
         return super().setUp()
 
     def tearDown(self) -> None:
-        saving_lib._LARGE_MODEL_THRESHOLD = self.original_value
+        saving_lib._MEMORY_UPPER_BOUND = self.original_value
         return super().tearDown()
 
     def _test_inference_after_instantiation(self, model):
@@ -282,7 +282,7 @@ class SavingTest(testing.TestCase, parameterized.TestCase):
         self._test_inference_after_instantiation(model)
 
         # Test small model path
-        saving_lib._LARGE_MODEL_THRESHOLD = float("inf")
+        saving_lib._MEMORY_UPPER_BOUND = 1.0
         self._test_inference_after_instantiation(model)
 
     def _test_compile_preserved(self, model):
@@ -331,7 +331,7 @@ class SavingTest(testing.TestCase, parameterized.TestCase):
         self._test_compile_preserved(model)
 
         # Test small model path
-        saving_lib._LARGE_MODEL_THRESHOLD = float("inf")
+        saving_lib._MEMORY_UPPER_BOUND = 1.0
         self._test_compile_preserved(model)
 
     def test_saving_preserve_unbuilt_state(self):
@@ -618,11 +618,12 @@ class SavingTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(pred1, pred2, atol=1e-5)
 
     @parameterized.named_parameters(
-        ("small_model", 1),
-        ("large_model", 64),
+        ("small_model", True, 1),
+        ("large_model", False, 64),
     )
-    def test_save_model_exception_raised(self, units):
-        saving_lib._LARGE_MODEL_THRESHOLD = 128  # 128 B
+    def test_save_model_exception_raised(self, is_small_model, units):
+        if not is_small_model:
+            saving_lib._MEMORY_UPPER_BOUND = 0.5  # 50%
 
         # Assume we have an error in `save_own_variables`.
         class RaiseErrorLayer(keras.layers.Layer):
@@ -652,11 +653,12 @@ class SavingTest(testing.TestCase, parameterized.TestCase):
         self.assertIn("model.keras", os.listdir(Path(filepath).parent))
 
     @parameterized.named_parameters(
-        ("small_model", 1),
-        ("large_model", 64),
+        ("small_model", True, 1),
+        ("large_model", False, 64),
     )
-    def test_load_model_exception_raised(self, units):
-        saving_lib._LARGE_MODEL_THRESHOLD = 128  # 128 B
+    def test_load_model_exception_raised(self, is_small_model, units):
+        if not is_small_model:
+            saving_lib._MEMORY_UPPER_BOUND = 0.5  # 50%
 
         # Assume we have an error in `load_own_variables`.
         class RaiseErrorLayer(keras.layers.Layer):
