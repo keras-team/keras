@@ -194,16 +194,19 @@ class OptimizerDistributeTest(testing.TestCase, parameterized.TestCase):
             self.assertAllClose(
                 optimizer._accumulated_gradients[0], [[1.0, 1.0], [2.0, 2.0]]
             )
-            self.assertAllClose(optimizer.iterations, 1)
+            self.assertAllClose(optimizer._iterations, 1)
+            self.assertAllClose(optimizer.iterations, 0)
             self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
             self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
             self.assertAllClose(
                 optimizer._accumulated_gradients[0], [[2.0, 2.0], [4.0, 4.0]]
             )
-            self.assertAllClose(optimizer.iterations, 2)
+            self.assertAllClose(optimizer._iterations, 2)
+            self.assertAllClose(optimizer.iterations, 0)
             self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
             self.assertAllClose(v, [[-1.0, 0.0], [-1.0, 0.0]])
             self.assertAllClose(
                 optimizer._accumulated_gradients[0], [[0.0, 0.0], [0.0, 0.0]]
             )
-            self.assertAllClose(optimizer.iterations, 3)
+            self.assertAllClose(optimizer._iterations, 3)
+            self.assertAllClose(optimizer.iterations, 1)
