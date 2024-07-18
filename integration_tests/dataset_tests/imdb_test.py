@@ -7,9 +7,9 @@ from keras.src.datasets import imdb
 class ImdbLoadDataTest(testing.TestCase):
     def test_load_data_default(self):
         (x_train, y_train), (x_test, y_test) = imdb.load_data()
-        self.assertIsInstance(x_train, list)
+        self.assertIsInstance(x_train, np.ndarray)
         self.assertIsInstance(y_train, np.ndarray)
-        self.assertIsInstance(x_test, list)
+        self.assertIsInstance(x_test, np.ndarray)
         self.assertIsInstance(y_test, np.ndarray)
 
         # Check lengths
