@@ -39,7 +39,7 @@ class Loss(KerasSaveable):
     def __init__(self, name=None, reduction="sum_over_batch_size", dtype=None):
         self.name = name or auto_name(self.__class__.__name__)
         self.reduction = standardize_reduction(reduction)
-        self._dtype_policy = dtype_policies.get(dtype)
+        self._dtype_policy = dtype_policies.get(dtype or backend.floatx())
         self._dtype = self._dtype_policy.compute_dtype
 
     @property
