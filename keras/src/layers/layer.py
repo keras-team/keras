@@ -1441,14 +1441,12 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         obj = getattr(self, name)
         if isinstance(obj, backend.Variable):
             import gc
-            import time
 
             # It will take a short amount of time for the corresponding buffer
             # to be actually removed from the device.
             # https://stackoverflow.com/a/74631949
             self._untrack_variable(obj)
             super().__delattr__(name)
-            time.sleep(1)
             gc.collect()
         else:
             super().__delattr__(name)
