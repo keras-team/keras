@@ -44,6 +44,16 @@ class ExampleMetric(Metric):
 
 
 class MetricTest(testing.TestCase):
+    def setUp(self):
+        self._global_dtype_policy = dtype_policies.dtype_policy.dtype_policy()
+        self._floatx = backend.floatx()
+        return super().setUp()
+
+    def tearDown(self):
+        dtype_policies.dtype_policy.set_dtype_policy(self._global_dtype_policy)
+        backend.set_floatx(self._floatx)
+        return super().tearDown()
+
     def test_end_to_end_flow(self):
         metric = ExampleMetric(name="mse")
         self.assertEqual(metric.name, "mse")
@@ -228,3 +238,20 @@ class MetricTest(testing.TestCase):
         # `dtype` setter should raise AttributeError
         with self.assertRaises(AttributeError):
             metric.dtype = "bfloat16"
+
+    def test_default_dtype(self):
+        y_true = np.random.random((10, 3))
+        y_pred = np.random.random((10, 3))
+
+        # Defaults to `keras.config.floatx()` not global `dtype_policy`
+        dtype_policies.dtype_policy.set_dtype_policy("mixed_float16")
+        metric = ExampleMetric()
+        metric.update_state(y_true, y_pred)
+        result = metric.result()
+        self.assertDType(result, "float32")
+
+        backend.set_floatx("float16")
+        metric = ExampleMetric()
+        metric.update_state(y_true, y_pred)
+        result = metric.result()
+        self.assertDType(result, backend.floatx())
