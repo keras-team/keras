@@ -43,12 +43,9 @@ class OptimizerDistributeTest(testing.TestCase, parameterized.TestCase):
     @parameterized.parameters([("keras_sgd",), ("tf_keras_sgd",)])
     def test_single_step(self, optimizer_type):
         if optimizer_type == "tf_keras_sgd":
-            try:
-                import tf_keras
+            import tf_keras
 
-                optimizer_fn = tf_keras.optimizers.SGD
-            except (ImportError, AttributeError):
-                self.skipTest("tf_keras not installed")
+            optimizer_fn = tf_keras.optimizers.SGD
         else:
             optimizer_fn = SGD
         with self.strategy.scope():
