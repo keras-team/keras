@@ -632,12 +632,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
         )
 
     def _symbolic_build(self, iterator=None, data_batch=None):
-        if self._distribute_strategy is None:
-            # When no distribution strategy is set, defer building
-            # to when the train/test/predict function gets traced.
-            # This maximizes backwards compatibility.
-            return
-
         # Unlike jax/torch iterator, tf iterator returns an iterator instead
         # of data batch in `iterator.enumerate_epoch()`.
         if iterator is not None:
