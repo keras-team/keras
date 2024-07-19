@@ -1313,7 +1313,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     def test_average_pool_valid_padding(self):
         data_format = backend.config.image_data_format()
-        # Test 1D max pooling.
+        # Test 1D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
         else:
@@ -1324,7 +1324,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np_avgpool1d(x, 2, 1, padding="valid", data_format=data_format),
         )
 
-        # Test 2D max pooling.
+        # Test 2D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 10, 9, 3)
         else:
@@ -1335,13 +1335,9 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np_avgpool2d(x, 2, 1, padding="valid", data_format=data_format),
         )
 
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="Torch outputs differently from TF when using `same` padding.",
-    )
     def test_average_pool_same_padding(self):
         data_format = backend.config.image_data_format()
-        # Test 1D max pooling.
+        # Test 1D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
         else:
@@ -1353,7 +1349,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np_avgpool1d(x, 2, 2, padding="same", data_format=data_format),
         )
 
-        # Test 2D max pooling.
+        # Test 2D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 10, 9, 3)
         else:
@@ -1882,7 +1878,11 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         reason="synchronized=True only implemented for TF backend",
     )
     def test_moments_sync_with_distribution_strategy(self, dtype):
+        from tensorflow.python.eager import context
+
         from keras.src.utils.module_utils import tensorflow as tf
+
+        context._reset_context()
 
         # Config 2 CPUs for testing.
         logical_cpus = tf.config.list_logical_devices("CPU")
@@ -1912,6 +1912,8 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(mean.values[0], 4.5)
             self.assertEqual(variance.values[0], 8.75)
             self.assertEqual(variance.values[0], 8.75)
+
+        context._reset_context()
 
     def test_batch_normalization(self):
         x = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])

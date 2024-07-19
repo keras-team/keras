@@ -282,7 +282,7 @@ class Trainer:
                 self.loss_tracker = metrics.Mean(name='loss')
 
             def compute_loss(self, x, y, y_pred, sample_weight, training=True):
-                loss = ops.means((y_pred - y) ** 2)
+                loss = ops.mean((y_pred - y) ** 2)
                 loss += ops.sum(self.losses)
                 self.loss_tracker.update_state(loss)
                 return loss
@@ -408,22 +408,28 @@ class Trainer:
         """Update metric states and collect all metrics to be returned.
 
         Subclasses can optionally override this method to provide custom metric
-        updating and collection logic.
+        updating and collection logic. Custom metrics are not passed in
+        `compile()`, they can be created in `__init__` or `build`. They are
+        automatically tracked and returned by `self.metrics`.
 
         Example:
 
         ```python
         class MyModel(Sequential):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.custom_metric = MyMetric(name="custom_metric")
+
             def compute_metrics(self, x, y, y_pred, sample_weight):
-                # This super call updates `self.compiled_metrics` and returns
+                # This super call updates metrics from `compile` and returns
                 # results for all metrics listed in `self.metrics`.
                 metric_results = super().compute_metrics(
                     x, y, y_pred, sample_weight)
 
-                # Note that `self.custom_metric` is not listed
-                # in `self.metrics`.
+                # `metric_results` contains the previous result for
+                # `custom_metric`, this is where we update it.
                 self.custom_metric.update_state(x, y, y_pred, sample_weight)
-                metric_results['metric_name'] = self.custom_metric.result()
+                metric_results['custom_metric'] = self.custom_metric.result()
                 return metric_results
         ```
 

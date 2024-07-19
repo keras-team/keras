@@ -308,35 +308,21 @@ def average_pool(
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
-    padding_value = 0
     if padding == "same":
-        spatial_shape = inputs.shape[2:]
-        num_spatial_dims = len(spatial_shape)
-        padding_value = []
-        uneven_padding = []
-
-        for i in range(num_spatial_dims):
-            padding_size = _compute_padding_length(
-                spatial_shape[i], pool_size[i], strides[i]
-            )
-            # Torch only supports even padding on each dim, to replicate the
-            # behavior of "same" padding of `tf.keras` as much as possible,
-            # we need to pad evenly using the shorter padding.
-            padding_value.append(padding_size[0])
-            if padding_size[0] != padding_size[1]:
-                # Handle unequal padding.
-                # `torch.nn.pad` sets padding value in the reverse order.
-                uneven_padding = [0, 1] + uneven_padding
-        # Only call tnn.pad when needed.
-        if len(uneven_padding) > 0:
-            inputs = tnn.pad(inputs, uneven_padding)
+        # Torch does not natively support `"same"` padding, we need to manually
+        # apply the right amount of padding to `inputs`.
+        inputs, padding = _apply_same_padding(
+            inputs, pool_size, strides, operation_type="pooling"
+        )
+    else:
+        padding = 0
 
     if num_spatial_dims == 1:
         outputs = tnn.avg_pool1d(
             inputs,
             kernel_size=pool_size,
             stride=strides,
-            padding=padding_value,
+            padding=padding,
             count_include_pad=False,
         )
     elif num_spatial_dims == 2:
@@ -344,7 +330,7 @@ def average_pool(
             inputs,
             kernel_size=pool_size,
             stride=strides,
-            padding=padding_value,
+            padding=padding,
             count_include_pad=False,
         )
     elif num_spatial_dims == 3:
@@ -352,7 +338,7 @@ def average_pool(
             inputs,
             kernel_size=pool_size,
             stride=strides,
-            padding=padding_value,
+            padding=padding,
             count_include_pad=False,
         )
     else:

@@ -26,9 +26,9 @@ class Cifar100LoadDataTest(testing.TestCase):
     def test_dtypes(self):
         (x_train, y_train), (x_test, y_test) = cifar100.load_data()
         self.assertEqual(x_train.dtype, np.uint8)
-        self.assertEqual(y_train.dtype, np.uint8)
+        self.assertEqual(y_train.dtype, np.int64)
         self.assertEqual(x_test.dtype, np.uint8)
-        self.assertEqual(y_test.dtype, np.uint8)
+        self.assertEqual(y_test.dtype, np.int64)
 
     def test_invalid_label_mode(self):
         with self.assertRaises(ValueError):
