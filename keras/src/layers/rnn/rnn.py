@@ -428,9 +428,6 @@ class RNN(Layer):
             output = last_output
 
         if self.return_state:
-            if len(states) == 1:
-                state = states[0]
-                return output, state
             return output, *states
         return output
 
