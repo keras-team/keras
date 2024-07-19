@@ -1479,6 +1479,19 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
 
+        # Test for tracing error on tensorflow backend.
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            @tf.function
+            def conv(x):
+                return knn.conv(
+                    x, kernel, strides, padding=padding, data_format=data_format
+                )
+
+            outputs = conv(inputs_3d)
+            self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
+
     @parameterized.product(
         strides=(1, (1, 1), (2, 2)),
         padding=("valid", "same"),
