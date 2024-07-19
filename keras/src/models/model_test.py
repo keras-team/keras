@@ -68,6 +68,31 @@ def _get_model_multi_outputs_dict():
     return model
 
 
+def _get_model_multi_outputs_dict_with_single_tensor():
+    x = Input(shape=(3,), name="input_a")
+    output = layers.Dense(1, name="output_a")(x)
+    model = Model(x, {"output_a": output, "output_b": output})
+    return model
+
+
+def _get_model_with_custom_compute_loss():
+
+    class MyModel(Model):
+        def __init__(self):
+            inputs = Input(shape=(3,), name="inputs")
+            outputs = layers.Dense(1, name="a")(inputs)
+            super().__init__(inputs=inputs, outputs=outputs)
+
+        def compute_loss(self, x, y, y_pred, sample_weight=None, **kwargs):
+            y_pred = [y_pred, y_pred]  # To list
+            return super().compute_loss(
+                x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, **kwargs
+            )
+
+    model = MyModel()
+    return model
+
+
 @pytest.mark.requires_trainable_backend
 class ModelTest(testing.TestCase, parameterized.TestCase):
     def test_functional_rerouting(self):
@@ -459,6 +484,38 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertListEqual(hist_keys, ref_keys)
 
+    def test_functional_dict_outputs_with_single_tensor(self):
+        model = _get_model_multi_outputs_dict_with_single_tensor()
+        self.assertIsInstance(model, Functional)
+        x = np.random.rand(8, 3)
+        y1 = np.random.rand(8, 1)
+        y2 = np.random.randint(0, 2, (8, 1))
+
+        # `model` has 2 outputs, but there is actually only 1 output tensor.
+        self.assertLen(model.outputs, 2)
+        model.compile(
+            optimizer="sgd",
+            loss={
+                "output_a": "mean_squared_error",
+                "output_b": "binary_crossentropy",
+            },
+        )
+        model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
+
+    def test_functional_list_outputs_with_custom_compute_loss(self):
+        model = _get_model_with_custom_compute_loss()
+        self.assertIsInstance(model, Functional)
+        x = np.random.rand(8, 3)
+        y1 = np.random.rand(8, 1)
+        y2 = np.random.randint(0, 2, (8, 1))
+
+        # `model` has 1 output, but in `compute_loss` it is separated into 2.
+        self.assertLen(model.outputs, 1)
+        model.compile(
+            optimizer="sgd", loss=["mean_squared_error", "binary_crossentropy"]
+        )
+        model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
+
     def test_functional_list_outputs_dict_losses_invalid_keys(self):
         model = _get_model_multi_outputs_list()
         self.assertIsInstance(model, Functional)
@@ -474,9 +531,9 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         )
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
-            ValueError,
-            "In the dict argument `loss`, "
-            "key 'output_c' does not correspond to any model output",
+            KeyError,
+            "in the `loss` argument, but they can't be found in the "
+            "model's output",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -492,9 +549,9 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         )
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
-            ValueError,
-            "In the dict argument `loss`, "
-            "key 'output_a' does not correspond to any model output",
+            KeyError,
+            "in the `loss` argument, but they can't be found in the "
+            "model's output",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -537,9 +594,9 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         )
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
-            ValueError,
-            "In the dict argument `loss`, "
-            "key 'output_c' does not correspond to any model output",
+            KeyError,
+            "in the `loss` argument, but they can't be found in the "
+            "model's output",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
