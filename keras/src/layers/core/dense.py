@@ -517,7 +517,7 @@ class Dense(Layer):
         if mode == "int8":
             # Quantize `self._kernel` to int8 and compute corresponding scale
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                self._kernel, axis=0
+                self._kernel, axis=0, to_numpy=True
             )
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
             kernel_shape = tuple(self._kernel.shape)
@@ -552,7 +552,7 @@ class Dense(Layer):
                     ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
                 )
                 kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                    kernel_value, axis=0
+                    kernel_value, axis=0, to_numpy=True
                 )
                 kernel_scale = ops.squeeze(kernel_scale, axis=0)
             return kernel_value, kernel_scale

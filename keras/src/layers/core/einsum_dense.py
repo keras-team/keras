@@ -645,7 +645,7 @@ class EinsumDense(Layer):
             ) = _analyze_quantization_info(self.equation, self.input_spec.ndim)
             # Quantize `self._kernel` to int8 and compute corresponding scale
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                self._kernel, axis=self._kernel_reduced_axes
+                self._kernel, axis=self._kernel_reduced_axes, to_numpy=True
             )
             kernel_scale = ops.transpose(
                 kernel_scale, self._kernel_transpose_axes
@@ -690,7 +690,7 @@ class EinsumDense(Layer):
                     ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
                 )
                 kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                    kernel_value, axis=self._kernel_reduced_axes
+                    kernel_value, axis=self._kernel_reduced_axes, to_numpy=True
                 )
                 kernel_scale = ops.transpose(
                     kernel_scale, self._kernel_transpose_axes

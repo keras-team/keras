@@ -352,7 +352,7 @@ class Embedding(Layer):
             # Quantize `self._embeddings` to int8 and compute corresponding
             # scale
             embeddings_value, embeddings_scale = quantizers.abs_max_quantize(
-                self._embeddings, axis=-1
+                self._embeddings, axis=-1, to_numpy=True
             )
             embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             del self._embeddings
@@ -385,7 +385,9 @@ class Embedding(Layer):
                     ops.matmul(self.lora_embeddings_a, self.lora_embeddings_b),
                 )
                 embeddings_value, embeddings_scale = (
-                    quantizers.abs_max_quantize(embeddings_value, axis=-1)
+                    quantizers.abs_max_quantize(
+                        embeddings_value, axis=-1, to_numpy=True
+                    )
                 )
                 embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             return embeddings_value, embeddings_scale
