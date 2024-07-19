@@ -9,7 +9,6 @@ pandas
 absl-py
 requests
 h5py
-psutil
 ml-dtypes
 protobuf
 google

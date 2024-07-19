@@ -618,11 +618,11 @@ class SavingTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(pred1, pred2, atol=1e-5)
 
     @parameterized.named_parameters(
-        ("small_model", True, 1),
-        ("large_model", False, 64),
+        ("high_memory_config", True),
+        ("low_memory_config", False),
     )
-    def test_save_model_exception_raised(self, is_small_model, units):
-        if not is_small_model:
+    def test_save_model_exception_raised(self, is_memory_sufficient):
+        if is_memory_sufficient:
             saving_lib._MEMORY_UPPER_BOUND = 0.5  # 50%
 
         # Assume we have an error in `save_own_variables`.
@@ -637,7 +637,7 @@ class SavingTest(testing.TestCase, parameterized.TestCase):
             def save_own_variables(self, store):
                 raise ValueError
 
-        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer(units)])
+        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer(1)])
         filepath = f"{self.get_temp_dir()}/model.keras"
         with self.assertRaises(ValueError):
             saving_lib.save_model(model, filepath)
@@ -653,11 +653,11 @@ class SavingTest(testing.TestCase, parameterized.TestCase):
         self.assertIn("model.keras", os.listdir(Path(filepath).parent))
 
     @parameterized.named_parameters(
-        ("small_model", True, 1),
-        ("large_model", False, 64),
+        ("high_memory_config", True),
+        ("low_memory_config", False),
     )
-    def test_load_model_exception_raised(self, is_small_model, units):
-        if not is_small_model:
+    def test_load_model_exception_raised(self, is_memory_sufficient):
+        if is_memory_sufficient:
             saving_lib._MEMORY_UPPER_BOUND = 0.5  # 50%
 
         # Assume we have an error in `load_own_variables`.
@@ -672,7 +672,7 @@ class SavingTest(testing.TestCase, parameterized.TestCase):
             def load_own_variables(self, store):
                 raise ValueError
 
-        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer(units)])
+        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer(1)])
         filepath = f"{self.get_temp_dir()}/model.keras"
         saving_lib.save_model(model, filepath)
         with self.assertRaises(ValueError):

@@ -41,7 +41,6 @@ setup(
         "rich",
         "namex",
         "h5py",
-        "psutil",
         "optree",
         "ml-dtypes",
         "packaging",

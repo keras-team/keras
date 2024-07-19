@@ -93,15 +93,8 @@ def save_model(model, filepath, weights_format="h5", zipped=True):
     container (list, tuple, or dict), and the container is referenced via a
     layer attribute.
     """
-    if weights_format == "h5":
-        if h5py is None:
-            raise ImportError(
-                "h5py must be installed in order to save a model."
-            )
-        if psutil is None:
-            raise ImportError(
-                "psutil must be installed in order to save a model."
-            )
+    if weights_format == "h5" and h5py is None:
+        raise ImportError("h5py must be installed in order to save a model.")
 
     if not model.built:
         warnings.warn(
@@ -456,14 +449,6 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
         asset_store = None
         try:
             if _VARS_FNAME_H5 in all_filenames:
-                if h5py is None:
-                    raise ImportError(
-                        "h5py must be installed in order to load the model."
-                    )
-                if psutil is None:
-                    raise ImportError(
-                        "psutil must be installed in order to load the model."
-                    )
                 try:
                     if is_memory_sufficient(model):
                         # Load the entire file into memory if the system memory
@@ -1121,8 +1106,16 @@ def get_attr_skiplist(obj_type):
 
 
 def is_memory_sufficient(model):
-    """Check if there is sufficient memory to load the model into memory."""
-    available_memory = float(psutil.virtual_memory().available)
+    """Check if there is sufficient memory to load the model into memory.
+
+    If psutil is installed, we can use it to determine whether the memory is
+    sufficient. Otherwise, we use a predefined value of 1 GB for available
+    memory.
+    """
+    if psutil is None:
+        available_memory = 1024 * 1024 * 1024  # 1 GB in bytes
+    else:
+        available_memory = psutil.virtual_memory().available  # In bytes
     return (
         weight_memory_size(model.variables)
         < available_memory * _MEMORY_UPPER_BOUND
