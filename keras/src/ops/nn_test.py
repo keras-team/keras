@@ -1,8 +1,7 @@
-from itertools import combinations
-
 import numpy as np
 import pytest
 from absl.testing import parameterized
+from itertools import combinations
 
 import keras
 from keras.src import backend
@@ -1869,7 +1868,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
         reason="synchronized=True only implemented for TF backend",
-    )
+        )
     def test_moments_sync(self):
         # Test batch statistics for 4D moments (batch, height, width, channels)
         x = np.random.uniform(size=(2, 28, 28, 3)).astype(np.float32)
@@ -1899,7 +1898,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
         reason="synchronized=True only implemented for TF backend",
-    )
+        )
     def test_moments_sync_with_distribution_strategy(self, dtype):
         from keras.src.utils.module_utils import tensorflow as tf
 
