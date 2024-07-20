@@ -968,7 +968,7 @@ class JAXTrainer(base_trainer.Trainer):
         return tuple(state)
 
 
-def _distribute_data(data, layouts):
+def _distribute_data(data, layouts=None):
     if layouts is not None:
 
         def distribute_single_value(d, layout):
