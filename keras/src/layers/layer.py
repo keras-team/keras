@@ -238,11 +238,11 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         original_quantize_method = obj.quantize
 
         @wraps(original_quantize_method)
-        def quantize_wrapper(mode, type_check=True):
+        def quantize_wrapper(mode, **kwargs):
             obj._check_quantize_args(mode, obj.compute_dtype)
             obj._tracker.unlock()
             try:
-                original_quantize_method(mode, type_check=type_check)
+                original_quantize_method(mode, **kwargs)
             except Exception:
                 raise
             finally:

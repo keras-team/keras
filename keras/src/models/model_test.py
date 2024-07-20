@@ -640,6 +640,14 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         ):
             model.quantize("abc")
 
+        with self.assertRaisesRegex(
+            ValueError, "Unrecognized keyword arguments"
+        ):
+            model.quantize("int8", unrecognized_kwargs=None)
+
+        with self.assertRaisesRegex(ValueError, "Invalid quantization mode"):
+            model.quantize("int7")
+
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
