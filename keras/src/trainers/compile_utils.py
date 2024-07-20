@@ -1,4 +1,3 @@
-from keras.src import backend
 from keras.src import losses as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import ops
@@ -429,209 +428,175 @@ class CompileLoss(losses_module.Loss):
         self.output_names = output_names
         super().__init__(name="compile_loss", reduction=reduction)
 
-    def build(self, y_true, y_pred):
-        if self.output_names:
-            output_names = self.output_names
-        elif isinstance(y_pred, dict):
-            output_names = sorted(list(y_pred.keys()))
-        elif isinstance(y_pred, (list, tuple)):
-            num_outputs = len(y_pred)
-            if all(hasattr(x, "_keras_history") for x in y_pred):
-                output_names = [x._keras_history.operation.name for x in y_pred]
-            else:
-                output_names = None
-        else:
-            output_names = None
-            num_outputs = 1
-        if output_names:
-            num_outputs = len(output_names)
+        # Inferred by `y_pred` and `output_names`
+        self.inferred_output_names = None
 
-        y_pred = self._flatten_y(y_pred)
+    def build(self, y_true, y_pred):
         loss = self._user_loss
         loss_weights = self._user_loss_weights
-        flat_losses = []
-        flat_loss_weights = []
-
-        if isinstance(loss, dict):
-            for name in loss.keys():
-                if name not in output_names:
-                    raise ValueError(
-                        "In the dict argument `loss`, key "
-                        f"'{name}' does not correspond to any model output. "
-                        f"Received:\nloss={loss}"
-                    )
-        if num_outputs == 1:
-            if isinstance(loss, dict):
-                loss = tree.flatten(loss)
-            if isinstance(loss, list) and len(loss) == 1:
-                loss = loss[0]
-            if not is_function_like(loss):
-                raise ValueError(
-                    "When there is only a single output, the `loss` argument "
-                    "must be a callable. "
-                    f"Received instead:\nloss={loss} of type {type(loss)}"
-                )
-            if isinstance(y_pred, list) and len(y_pred) == 1:
-                y_pred = y_pred[0]
+        output_names = self._get_y_pred_output_names(y_pred)
+        inferred_output_names = output_names or self.output_names
 
         if is_function_like(loss) and tree.is_nested(y_pred):
             # The model has multiple outputs but only one loss fn
             # was provided. Broadcast loss to all outputs.
             loss = tree.map_structure(lambda x: loss, y_pred)
 
-        # Iterate over all possible loss formats:
-        # plain function, list/tuple, dict
-        if is_function_like(loss):
-            flat_losses.append(get_loss(loss, y_true, y_pred))
-            if loss_weights:
-                if not isinstance(loss_weights, float):
-                    raise ValueError(
-                        "When there is only a single output, the "
-                        "`loss_weights` argument "
-                        "must be a Python float. "
-                        f"Received instead: loss_weights={loss_weights} of "
-                        f"type {type(loss_weights)}"
-                    )
-                flat_loss_weights.append(loss_weights)
-            else:
-                flat_loss_weights.append(1.0)
-        elif isinstance(loss, (list, tuple)):
-            loss = tree.flatten(loss)
-            if len(loss) != len(y_pred):
-                raise ValueError(
-                    "For a model with multiple outputs, "
-                    "when providing the `loss` argument as a list, "
-                    "it should have as many entries as the model has outputs. "
-                    f"Received:\nloss={loss}\nof length {len(loss)} "
-                    f"whereas the model has {len(y_pred)} outputs."
-                )
-            if not all(is_function_like(e) for e in loss):
-                raise ValueError(
-                    "For a model with multiple outputs, "
-                    "when providing the `loss` argument as a list, "
-                    "each list entry should be a callable (the loss function "
-                    "corresponding to that output). "
-                    f"Received: loss={loss}"
-                )
-            flat_losses = [
-                get_loss(fn, y_true, y_pred) for fn in loss if fn is not None
-            ]
-            if loss_weights:
-                if not isinstance(loss_weights, (list, tuple)):
-                    raise ValueError(
-                        "If the `loss` argument is provided as a list/tuple, "
-                        "the `loss_weight` argument should also be provided as "
-                        "a list/tuple, of equal length. "
-                        f"Received: loss_weights={loss_weights}"
-                    )
-                if len(loss_weights) != len(y_pred):
-                    raise ValueError(
-                        "For a model with multiple outputs, "
-                        "when providing the `loss_weights` argument as a list, "
-                        "it should have as many entries as the model has "
-                        f"outputs. Received: loss_weights={loss_weights} of "
-                        f"length {len(loss_weights)} whereas the model has "
-                        f"{len(y_pred)} outputs."
-                    )
-                if not all(isinstance(e, (int, float)) for e in loss_weights):
-                    raise ValueError(
-                        "For a model with multiple outputs, when providing "
-                        "the `loss_weights` argument as a list, "
-                        "each list entry should be a Python int or float (the "
-                        "weighting coefficient corresponding to the loss for "
-                        f"that output). Received: loss_weights={loss_weights}"
-                    )
-                flat_loss_weights = list(loss_weights)
-            else:
-                flat_loss_weights = [1.0 for _ in loss]
-        elif isinstance(loss, dict):
-            if output_names is None:
+        # Check and filter the keys.
+        if isinstance(loss, dict):
+            if inferred_output_names is None:
                 raise ValueError(
                     "Argument `loss` can only be provided as a dict "
                     "when the model also returns a dict of outputs. "
                     f"Received loss={loss}"
                 )
-            for name in loss.keys():
-                if isinstance(loss[name], list) and len(loss[name]) == 1:
-                    loss[name] = loss[name][0]
-                if not is_function_like(loss[name]):
-                    raise ValueError(
-                        "For a model with multiple outputs, "
-                        "when providing the `loss` argument as a dict, "
-                        "each dict entry should be a callable (the loss "
-                        "function corresponding to that output). "
-                        f"At key '{name}', received invalid type:\n{loss[name]}"
+        filtered_y_pred_keys = []
+        filtered_y_true_keys = []
+        if isinstance(loss, dict):
+            loss_keys = set(loss.keys())
+            if inferred_output_names is not None:
+                y_pred_keys = set(inferred_output_names)
+                if len(loss_keys - y_pred_keys) > 0:
+                    raise KeyError(
+                        f"There are keys: {list(loss_keys - y_pred_keys)} in "
+                        "the `loss` argument, but they can't be found in "
+                        "the model's output (`y_pred`)."
                     )
-            for name, yt, yp in zip(output_names, y_true, y_pred):
-                if name in loss:
-                    if loss[name]:
-                        flat_losses.append(get_loss(loss[name], yt, yp))
-                    else:
-                        flat_losses.append(None)
-                else:
-                    flat_losses.append(None)
-            if loss_weights:
-                if not isinstance(loss_weights, dict):
-                    raise ValueError(
-                        "If the `loss` argument is provided as a dict, "
-                        "the `loss_weight` argument should also be provided as "
-                        f"a dict. Received: loss_weights={loss_weights}"
+                filtered_y_pred_keys.extend(list(y_pred_keys - loss_keys))
+            if isinstance(y_true, dict):
+                y_true_keys = set(y_true.keys())
+                if len(loss_keys - y_true_keys) > 0:
+                    raise KeyError(
+                        f"There are keys: {list(loss_keys - y_true_keys)} in "
+                        "the `loss` argument, but they can't be found in "
+                        "`y` (`y_true`)."
                     )
-                for name in loss_weights.keys():
-                    if name not in output_names:
-                        raise ValueError(
-                            "In the dict argument `loss_weights`, key "
-                            f"'{name}' does not correspond to any model "
-                            f"output. Received: loss_weights={loss_weights}"
-                        )
-                    if not isinstance(loss_weights[name], float):
-                        raise ValueError(
-                            "For a model with multiple outputs, "
-                            "when providing the `loss_weights` argument as a "
-                            "dict, each dict entry should be a Python float "
-                            "(the weighting coefficient corresponding to the "
-                            f"loss for that output). At key '{name}', "
-                            f"received invalid type:\n{loss_weights[name]}"
-                        )
-                for name in output_names:
-                    if name in loss_weights:
-                        flat_loss_weights.append(loss_weights[name])
-                    else:
-                        flat_loss_weights.append(1.0)
-            else:
-                flat_loss_weights = [1.0 for _ in flat_losses]
+                filtered_y_true_keys.extend(list(y_true_keys - loss_keys))
+        filtered_y_pred_keys = set(filtered_y_pred_keys)
+        filtered_y_true_keys = set(filtered_y_true_keys)
+
+        # Filter unused inputs.
+        y_true, y_pred = self._filter_unused_inputs(
+            y_true,
+            y_pred,
+            filtered_y_true_keys,
+            filtered_y_pred_keys,
+            self.inferred_output_names,
+        )
+
+        # `loss` could be a plain function (or a `Loss` instance), a list, a
+        # nested list, or a dict. However, in `call`, we want to iterate over
+        # all losses, so we flatten them into a list regardless of their
+        # original structure.
+        flat_losses = tree.flatten(loss)
+        if loss_weights is None:
+            flat_loss_weights = [None] * len(flat_losses)
+        else:
+            flat_loss_weights = tree.flatten(loss_weights)
+            for loss_weight in flat_loss_weights:
+                if not isinstance(loss_weight, (int, float, type(None))):
+                    raise TypeError(
+                        "When providing the `loss_weights` argument, each "
+                        "element should be a Python int, float (the weighting "
+                        "coefficient corresponding to the loss for that "
+                        "output) or `None`."
+                        f"Received: loss_weights={loss_weights}"
+                    )
+            if len(flat_loss_weights) != len(flat_losses):
+                raise ValueError(
+                    "When providing the `loss_weights` argument, it should "
+                    "have equal length of `loss` argument. "
+                    f"Received: loss_weights length={len(flat_loss_weights)}, "
+                    f"loss legnth={len(flat_losses)}"
+                )
+
+        y_true = tree.flatten(y_true)
+        y_pred = tree.flatten(y_pred)
+        if len(y_pred) != len(flat_losses):
+            raise ValueError(
+                "For a model with multiple outputs, "
+                "when providing the `loss` argument as a list, "
+                "it should have as many entries as the model has outputs. "
+                f"Received:\nloss={loss}\nof length {len(flat_losses)} "
+                f"whereas the model has {len(y_pred)} outputs."
+            )
+
+        # Get the real loss instances.
+        flat_losses = [
+            get_loss(identifier, _y_true, _y_pred)
+            for identifier, _y_true, _y_pred in zip(flat_losses, y_true, y_pred)
+        ]
+
         self.flat_losses = flat_losses
         self.flat_loss_weights = flat_loss_weights
+        self.filtered_y_true_keys = filtered_y_true_keys
+        self.filtered_y_pred_keys = filtered_y_pred_keys
+        self.inferred_output_names = inferred_output_names
         self.built = True
+
+    def _get_y_pred_output_names(self, y_pred):
+        if isinstance(y_pred, dict):
+            output_names = sorted(y_pred.keys())
+        else:
+            y_pred = tree.flatten(y_pred)
+            if all(hasattr(x, "_keras_history") for x in y_pred):
+                output_names = [x._keras_history.operation.name for x in y_pred]
+            else:
+                output_names = None
+        return output_names
+
+    def _filter_unused_inputs(
+        self,
+        y_true,
+        y_pred,
+        filtered_y_true_keys,
+        filtered_y_pred_keys,
+        output_names,
+    ):
+        if len(filtered_y_true_keys) > 0:
+            if isinstance(y_true, dict):
+                for k in filtered_y_true_keys:
+                    y_true.pop(k)
+        if len(filtered_y_pred_keys) > 0:
+            if isinstance(y_pred, dict):
+                for k in filtered_y_pred_keys:
+                    y_pred.pop(k)
+            elif output_names is not None:
+                y_pred = []
+                for x, output_name in zip(tree.flatten(y_pred), output_names):
+                    if output_name not in filtered_y_pred_keys:
+                        y_pred.append(x)
+        return y_true, y_pred
 
     def __call__(self, y_true, y_pred, sample_weight=None):
         with ops.name_scope(self.name):
             return self.call(y_true, y_pred, sample_weight)
 
-    def _flatten_y(self, y):
-        if isinstance(y, dict) and self.output_names:
-            result = []
-            for name in self.output_names:
-                if name in y:
-                    result.append(y[name])
-            return result
-        return tree.flatten(y)
-
     def call(self, y_true, y_pred, sample_weight=None):
         if not self.built:
             self.build(y_true, y_pred)
 
-        y_true = self._flatten_y(y_true)
-        y_pred = self._flatten_y(y_pred)
+        # Filter unused inputs.
+        y_true, y_pred = self._filter_unused_inputs(
+            y_true,
+            y_pred,
+            self.filtered_y_true_keys,
+            self.filtered_y_pred_keys,
+            self.inferred_output_names,
+        )
 
+        # Flatten the inputs.
+        y_true = tree.flatten(y_true)
+        y_pred = tree.flatten(y_pred)
         if sample_weight is not None:
-            sample_weight = self._flatten_y(sample_weight)
+            sample_weight = tree.flatten(sample_weight)
             # For multi-outputs, repeat sample weights for n outputs.
             if len(sample_weight) < len(y_true):
                 sample_weight = [sample_weight[0] for _ in range(len(y_true))]
         else:
             sample_weight = [None for _ in y_true]
 
+        # Iterate all losses in flat form.
         loss_values = []
         for loss, y_t, y_p, loss_weight, sample_weight in zip(
             self.flat_losses,
@@ -641,9 +606,11 @@ class CompileLoss(losses_module.Loss):
             sample_weight,
         ):
             if loss:
-                value = loss_weight * ops.cast(
-                    loss(y_t, y_p, sample_weight), dtype=backend.floatx()
+                value = ops.cast(
+                    loss(y_t, y_p, sample_weight), dtype=self.dtype
                 )
+                if loss_weight is not None:
+                    value = ops.multiply(value, loss_weight)
                 loss_values.append(value)
         if loss_values:
             total_loss = sum(loss_values)

@@ -26,13 +26,17 @@ from keras.src.utils import io_utils
 from keras.src.utils import naming
 from keras.src.utils import plot_model
 from keras.src.utils.model_visualization import check_pydot
+from keras.src.utils.summary_utils import weight_memory_size
 from keras.src.version import __version__ as keras_version
 
 try:
     import h5py
 except ImportError:
     h5py = None
-
+try:
+    import psutil
+except ImportError:
+    psutil = None
 try:
     import huggingface_hub
 except ImportError:
@@ -45,6 +49,7 @@ _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
 _VARS_FNAME_H5 = _VARS_FNAME + ".h5"
 _VARS_FNAME_NPZ = _VARS_FNAME + ".npz"
 _ASSETS_DIRNAME = "assets"
+_MEMORY_UPPER_BOUND = 0.5  # 50%
 
 
 _MODEL_CARD_TEMPLATE = """
@@ -199,18 +204,28 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
         write_zf = False
         try:
             if weights_format == "h5":
-                if isinstance(fileobj, io.BufferedWriter):
-                    # First, open the .h5 file, then write it to `zf` at the end
-                    # of the function call.
-                    working_dir = pathlib.Path(fileobj.name).parent
-                    weights_file_path = tempfile.NamedTemporaryFile(
-                        dir=working_dir
-                    )
-                    weights_store = H5IOStore(weights_file_path.name, mode="w")
-                    write_zf = True
-                else:
-                    # Fall back when `fileobj` is an `io.BytesIO`. Typically,
-                    # this usage is for pickling.
+                try:
+                    if is_memory_sufficient(model):
+                        # Load the model weights into memory before writing
+                        # .keras if the system memory is sufficient.
+                        weights_store = H5IOStore(
+                            _VARS_FNAME_H5, archive=zf, mode="w"
+                        )
+                    else:
+                        # Try opening the .h5 file, then writing it to `zf` at
+                        # the end of the function call. This is more memory
+                        # efficient than writing the weights into memory first.
+                        working_dir = pathlib.Path(fileobj.name).parent
+                        weights_file_path = tempfile.NamedTemporaryFile(
+                            dir=working_dir
+                        )
+                        weights_store = H5IOStore(
+                            weights_file_path.name, mode="w"
+                        )
+                        write_zf = True
+                except:
+                    # If we can't use the local disk for any reason, write the
+                    # weights into memory first, which consumes more memory.
                     weights_store = H5IOStore(
                         _VARS_FNAME_H5, archive=zf, mode="w"
                     )
@@ -237,6 +252,8 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
         except:
             # Skip the final `zf.write` if any exception is raised
             write_zf = False
+            if weights_store:
+                weights_store.archive = None
             raise
         finally:
             if weights_store:
@@ -432,10 +449,18 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
         asset_store = None
         try:
             if _VARS_FNAME_H5 in all_filenames:
-                if isinstance(fileobj, io.BufferedReader):
-                    # First, extract the model.weights.h5 file, then load it
-                    # using h5py.
-                    try:
+                try:
+                    if is_memory_sufficient(model):
+                        # Load the entire file into memory if the system memory
+                        # is sufficient.
+                        io_file = io.BytesIO(
+                            zf.open(_VARS_FNAME_H5, "r").read()
+                        )
+                        weights_store = H5IOStore(io_file, mode="r")
+                    else:
+                        # Try extracting the model.weights.h5 file, and then
+                        # loading it using using h5py. This is significantly
+                        # faster than reading from the zip archive on the fly.
                         extract_dir = tempfile.TemporaryDirectory(
                             dir=pathlib.Path(fileobj.name).parent
                         )
@@ -444,12 +469,10 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
                             pathlib.Path(extract_dir.name, _VARS_FNAME_H5),
                             mode="r",
                         )
-                    except OSError:
-                        # Fall back when it is a read-only system
-                        weights_store = H5IOStore(_VARS_FNAME_H5, zf, mode="r")
-                else:
-                    # Fall back when `fileobj` is an `io.BytesIO`. Typically,
-                    # this usage is for pickling.
+                except:
+                    # If we can't use the local disk for any reason, read the
+                    # weights from the zip archive on the fly, which is less
+                    # efficient.
                     weights_store = H5IOStore(_VARS_FNAME_H5, zf, mode="r")
             elif _VARS_FNAME_NPZ in all_filenames:
                 weights_store = NpzIOStore(_VARS_FNAME_NPZ, zf, mode="r")
@@ -1080,3 +1103,20 @@ def get_attr_skiplist(obj_type):
         f"saving_attr_skiplist_{obj_type}", skiplist
     )
     return skiplist
+
+
+def is_memory_sufficient(model):
+    """Check if there is sufficient memory to load the model into memory.
+
+    If psutil is installed, we can use it to determine whether the memory is
+    sufficient. Otherwise, we use a predefined value of 1 GB for available
+    memory.
+    """
+    if psutil is None:
+        available_memory = 1024 * 1024 * 1024  # 1 GB in bytes
+    else:
+        available_memory = psutil.virtual_memory().available  # In bytes
+    return (
+        weight_memory_size(model.variables)
+        < available_memory * _MEMORY_UPPER_BOUND
+    )

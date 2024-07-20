@@ -91,7 +91,7 @@ class Metric(KerasSaveable):
 
     def __init__(self, dtype=None, name=None):
         self.name = name or auto_name(self.__class__.__name__)
-        self._dtype_policy = dtype_policies.get(dtype)
+        self._dtype_policy = dtype_policies.get(dtype or backend.floatx())
         self._dtype = self._dtype_policy.compute_dtype
         self._metrics = []
         self._variables = []
