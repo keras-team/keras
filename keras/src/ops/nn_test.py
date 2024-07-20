@@ -1,3 +1,5 @@
+from itertools import combinations
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -1248,6 +1250,14 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             ],
         )
 
+    def test_softmax_correctness_with_axis_tuple(self):
+        input = np.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]])
+        combination = combinations(range(3), 2)
+        for axis in list(combination):
+            result = knn.softmax(input, axis=axis)
+            normalized_sum_by_axis = np.sum(result, axis=axis)
+            self.assertAllClose(normalized_sum_by_axis, 1.0)
+
     def test_log_softmax(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
         self.assertAllClose(
@@ -1420,9 +1430,9 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     @parameterized.product(strides=(1, 2), dilation_rate=(1, (2, 1)))
     def test_conv_2d_group_2(self, strides, dilation_rate):
         if (
-            backend.backend() == "tensorflow"
-            and strides == 2
-            and dilation_rate == (2, 1)
+                backend.backend() == "tensorflow"
+                and strides == 2
+                and dilation_rate == (2, 1)
         ):
             # This case is not supported by the TF backend.
             return
@@ -1499,9 +1509,9 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     )
     def test_depthwise_conv_2d(self, strides, padding, dilation_rate):
         if (
-            backend.backend() == "tensorflow"
-            and strides == (2, 2)
-            and dilation_rate == (2, 2)
+                backend.backend() == "tensorflow"
+                and strides == (2, 2)
+                and dilation_rate == (2, 2)
         ):
             # This case is not supported by the TF backend.
             return
@@ -1538,9 +1548,9 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     )
     def test_separable_conv_2d(self, strides, padding, dilation_rate):
         if (
-            backend.backend() == "tensorflow"
-            and strides == 2
-            and dilation_rate == (2, 2)
+                backend.backend() == "tensorflow"
+                and strides == 2
+                and dilation_rate == (2, 2)
         ):
             # This case is not supported by the TF backend.
             return
@@ -2500,25 +2510,25 @@ class NNOpsBehaviorTest(testing.TestCase, parameterized.TestCase):
     def test_normalize_order_validation(self):
         # Test with a non-integer order
         with self.assertRaisesRegex(
-            ValueError, "Argument `order` must be an int >= 1"
+                ValueError, "Argument `order` must be an int >= 1"
         ):
             knn.normalize(np.array([1, 2, 3]), order="a")
 
         # Test with a negative integer
         with self.assertRaisesRegex(
-            ValueError, "Argument `order` must be an int >= 1"
+                ValueError, "Argument `order` must be an int >= 1"
         ):
             knn.normalize(np.array([1, 2, 3]), order=-1)
 
         # Test with zero
         with self.assertRaisesRegex(
-            ValueError, "Argument `order` must be an int >= 1"
+                ValueError, "Argument `order` must be an int >= 1"
         ):
             knn.normalize(np.array([1, 2, 3]), order=0)
 
         # Test with a floating-point number
         with self.assertRaisesRegex(
-            ValueError, "Argument `order` must be an int >= 1"
+                ValueError, "Argument `order` must be an int >= 1"
         ):
             knn.normalize(np.array([1, 2, 3]), order=2.5)
 
@@ -2527,7 +2537,7 @@ class NNOpsBehaviorTest(testing.TestCase, parameterized.TestCase):
         name2, shape2 = "logits", (3, 4, 5)
         ctc_loss_instance = knn.CTCLoss(mask_index=-1)
         with self.assertRaisesRegex(
-            ValueError, "must have the same first dimension"
+                ValueError, "must have the same first dimension"
         ):
             ctc_loss_instance._check_shape_first_dim(
                 name1, shape1, name2, shape2
