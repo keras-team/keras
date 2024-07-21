@@ -555,12 +555,16 @@ def softmax(x, axis=-1):
         axis_to_keep = [v for v in range(len(x.shape)) if v not in axis]
 
         x_transposed = backend.numpy.transpose(x, axes=(*axis_to_keep, *axis))
-        x_reshaped = backend.numpy.reshape(x_transposed, (*[x.shape[v] for v in axis_to_keep], -1))
+        x_reshaped = backend.numpy.reshape(
+            x_transposed, (*[x.shape[v] for v in axis_to_keep], -1)
+        )
 
         x = backend.nn.softmax(x_reshaped, axis=-1)
 
         x = backend.numpy.reshape(x, x_transposed.numpy().shape)
-        x = backend.numpy.transpose(x, axes=backend.numpy.argsort([*axis_to_keep, *axis]))
+        x = backend.numpy.transpose(
+            x, axes=backend.numpy.argsort([*axis_to_keep, *axis])
+        )
         return x
     else:
         return backend.nn.softmax(x, axis=axis)
