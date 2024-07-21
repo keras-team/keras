@@ -563,7 +563,7 @@ def softmax(x, axis=-1):
 
         x = backend.numpy.reshape(x, x_transposed.shape)
         x = backend.numpy.transpose(
-            x, axes=backend.numpy.argsort([*axis_to_keep, *axis])
+            x, axes=list(backend.numpy.argsort([*axis_to_keep, *axis]))
         )
         return x
     else:
