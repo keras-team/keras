@@ -91,7 +91,7 @@ class NumpyTrainer(base_trainer.Trainer):
 
         self.predict_function = predict_step
 
-    def _symbolic_build(self, data_batch, training=True):
+    def _symbolic_build(self, data_batch):
         model_unbuilt = not all(layer.built for layer in self._flatten_layers())
         compile_metrics_unbuilt = (
             self._compile_metrics is not None
@@ -113,7 +113,7 @@ class NumpyTrainer(base_trainer.Trainer):
             ) = data_adapter_utils.unpack_x_y_sample_weight(data_batch)
             # Build all model state with `backend.compute_output_spec`.
             try:
-                y_pred = backend.compute_output_spec(self, x, training=training)
+                y_pred = backend.compute_output_spec(self, x)
             except:
                 raise RuntimeError(
                     "Unable to automatically build the model. "
@@ -246,7 +246,7 @@ class NumpyTrainer(base_trainer.Trainer):
             # Build the model on one batch of data.
             for _, data in epoch_iterator.enumerate_epoch():
                 data_batch = data[0]
-                self._symbolic_build(data_batch, training=False)
+                self._symbolic_build(data_batch)
                 break
 
         # Container that configures and calls callbacks.
@@ -304,7 +304,7 @@ class NumpyTrainer(base_trainer.Trainer):
         data = (x, y, sample_weight)
 
         # Maybe build model
-        self._symbolic_build(data, training=False)
+        self._symbolic_build(data)
         self.make_test_function()
 
         logs = self.test_function([data])
