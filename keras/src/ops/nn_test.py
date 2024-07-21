@@ -1251,14 +1251,11 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_softmax_correctness_with_axis_tuple(self):
-        if backend.backend() == "torch":
-            pytest.skip("unsupported tuple dim by torch")
-
         input = np.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]])
         combination = combinations(range(3), 2)
         for axis in list(combination):
-            result = knn.softmax(input, axis=axis)
-            normalized_sum_by_axis = np.sum(result, axis=axis)
+            result = keras.ops.nn.softmax(input, axis=axis)
+            normalized_sum_by_axis = np.sum(np.asarray(result), axis=axis)
             self.assertAllClose(normalized_sum_by_axis, 1.0)
 
     def test_log_softmax(self):
