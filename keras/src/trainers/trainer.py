@@ -1000,7 +1000,7 @@ class Trainer:
                 msg += f"calling `{method_name}()`."
             raise ValueError(msg)
 
-    def _symbolic_build(self, iterator=None, data_batch=None):
+    def _symbolic_build(self, iterator=None, data_batch=None, training=True):
         model_unbuilt = not all(layer.built for layer in self._flatten_layers())
         compile_metrics_unbuilt = (
             self._compile_metrics is not None
@@ -1012,7 +1012,12 @@ class Trainer:
         optimizer_unbuilt = (
             self.optimizer is not None and not self.optimizer.built
         )
-        if model_unbuilt or compile_metrics_unbuilt or compile_loss_unbuilt:
+        need_build = model_unbuilt or compile_metrics_unbuilt
+        if backend.backend() != "torch":
+            # TODO: TorchModuleWrapper will have incorrect behavior using
+            # `_symbolic_build`. Not sure why.
+            need_build = need_build or compile_loss_unbuilt
+        if need_build:
             # Create symbolic tensors matching an input batch.
 
             def to_symbolic_input(v):
@@ -1035,7 +1040,7 @@ class Trainer:
 
             # Build all model state with `backend.compute_output_spec`.
             try:
-                y_pred = backend.compute_output_spec(self, x)
+                y_pred = backend.compute_output_spec(self, x, training=training)
             except Exception as e:
                 raise RuntimeError(
                     "Unable to automatically build the model. "
@@ -1065,6 +1070,7 @@ class Trainer:
                     y,
                     y_pred,
                     sample_weight=sample_weight,
+                    training=training,
                 )
         if optimizer_unbuilt:
             # Build optimizer

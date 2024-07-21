@@ -447,11 +447,7 @@ class CompileLoss(losses_module.Loss):
     def metrics(self):
         if not self.built:
             return []
-        metrics = []
-        for m in self._metrics:
-            if m is not None:
-                metrics.append(m)
-        return metrics
+        return self._metrics
 
     @property
     def variables(self):
@@ -461,8 +457,7 @@ class CompileLoss(losses_module.Loss):
             return []
         vars = []
         for m in self.metrics:
-            if m is not None:
-                vars.extend(m.variables)
+            vars.extend(m.variables)
         return vars
 
     def build(self, y_true, y_pred):
@@ -563,14 +558,14 @@ class CompileLoss(losses_module.Loss):
 
         # Add `Mean` metric to the tracker for each loss.
         if len(flat_losses) > 1:
-            for i, loss in enumerate(flat_losses):
-                if loss is not None:
+            for i, _loss in enumerate(flat_losses):
+                if _loss is not None:
                     if inferred_output_names is not None and len(
                         inferred_output_names
                     ) == len(flat_losses):
                         name = inferred_output_names[i]
                     else:
-                        name = loss.name
+                        name = _loss.name
                     name += "_loss"
                     self._tracker.add_to_store(
                         "metrics", metrics_module.Mean(name=name)

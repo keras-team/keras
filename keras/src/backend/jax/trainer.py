@@ -536,7 +536,7 @@ class JAXTrainer(base_trainer.Trainer):
                 steps_per_execution=self.steps_per_execution,
             )
 
-        self._symbolic_build(iterator=epoch_iterator)
+        self._symbolic_build(iterator=epoch_iterator, training=False)
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -765,7 +765,7 @@ class JAXTrainer(base_trainer.Trainer):
         data = (x, y, sample_weight)
         data = _distribute_data(data)
         # Maybe build model
-        self._symbolic_build(data_batch=data)
+        self._symbolic_build(data_batch=data, training=False)
         self._record_training_state_sharding_spec()
         self.make_test_function()
 

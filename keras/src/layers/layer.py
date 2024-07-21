@@ -1143,6 +1143,8 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 v = backend.get_stateless_scope().get_current_value(variable)
             else:
                 v = variable
+            if v is None:
+                v = variable
             weight_regularization_losses.append(variable.regularizer(v))
         return weight_regularization_losses
 

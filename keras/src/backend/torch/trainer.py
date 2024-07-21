@@ -344,7 +344,7 @@ class TorchTrainer(base_trainer.Trainer):
                 steps_per_execution=self.steps_per_execution,
             )
 
-        self._symbolic_build(iterator=epoch_iterator)
+        self._symbolic_build(iterator=epoch_iterator, training=False)
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -483,7 +483,7 @@ class TorchTrainer(base_trainer.Trainer):
         data = (x, y, sample_weight)
 
         # Maybe build model
-        self._symbolic_build(data_batch=data)
+        self._symbolic_build(data_batch=data, training=False)
         self.make_test_function()
 
         logs = self.test_function([data])
