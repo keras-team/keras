@@ -1255,7 +1255,9 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         combination = combinations(range(3), 2)
         for axis in list(combination):
             result = keras.ops.nn.softmax(input, axis=axis)
-            normalized_sum_by_axis = np.sum(np.asarray(result), axis=axis)
+            normalized_sum_by_axis = np.sum(
+                ops.convert_to_numpy(result), axis=axis
+            )
             self.assertAllClose(normalized_sum_by_axis, 1.0)
 
     def test_log_softmax(self):
