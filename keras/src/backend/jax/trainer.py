@@ -14,7 +14,6 @@ from keras.src.distribution import distribution_lib
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
-from keras.src.trainers.data_adapters.tf_dataset_adapter import TFDatasetAdapter
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
 
@@ -969,12 +968,16 @@ class JAXTrainer(base_trainer.Trainer):
 
 
 def _distribute_data(data, layouts=None):
-    if layouts is not None:
+    distribution = distribution_lib.distribution()
+    if distribution is not None:
 
-        def distribute_single_value(d, layout):
+        def distribute_single_value(d, layouts=None):
+            if layouts is None:
+                layout = distribution.get_data_layout(d.shape)
             return jax_distribution_lib.distribute_data_input(d, layout)
 
         return tree.map_structure(distribute_single_value, data, layouts)
+
     else:
         return tree.map_structure(jax.device_put, data)
 
@@ -983,12 +986,12 @@ class JAXEpochIterator(EpochIterator):
     def _get_iterator(self):
         layouts = None
         distribution = distribution_lib.distribution()
-        if isinstance(self.data_adapter, TFDatasetAdapter):
+        if distribution is not None:
             # Lazily computes input layouts and re-uses them to reduce the host
             # to device transfer latency. The prefetching logic is disabled
             # since TF Data handles eager prefetching.
             for data in self.data_adapter.get_jax_iterator():
-                if layouts is None and distribution is not None:
+                if layouts is None:
                     layouts = tree.map_structure(
                         lambda d: jax_distribution_lib._to_jax_layout(
                             distribution.get_data_layout(d.shape)
