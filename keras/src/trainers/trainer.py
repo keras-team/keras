@@ -328,9 +328,10 @@ class Trainer:
             loss = self._compile_loss(y, y_pred, sample_weight)
             if loss is not None:
                 losses.append(loss)
+
+        # If in symbolic scope, skip `self.losses` to ensure we don't access
+        # any variables. Otherwise, it might break.
         if not in_symbolic_scope():
-            # If in symbolic scope, skip `self.losses` to ensure we don't access
-            # any variables.
             for loss in self.losses:
                 losses.append(ops.sum(ops.cast(loss, dtype=backend.floatx())))
         if backend.backend() != "jax" and len(losses) == 0:
@@ -1042,7 +1043,7 @@ class Trainer:
 
             # Build all model state with `backend.compute_output_spec`.
             try:
-                y_pred = backend.compute_output_spec(self, x, training=False)
+                y_pred = backend.compute_output_spec(self, x)
             except Exception as e:
                 raise RuntimeError(
                     "Unable to automatically build the model. "
@@ -1072,7 +1073,6 @@ class Trainer:
                     y,
                     y_pred,
                     sample_weight=sample_weight,
-                    training=False,
                 )
             if backend.backend() == "torch":
                 if original_training:

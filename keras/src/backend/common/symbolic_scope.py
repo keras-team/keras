@@ -4,6 +4,8 @@ from keras.src.backend.common import global_state
 
 @keras_export("keras.SymbolicScope")
 class SymbolicScope:
+    """Scope to indicate the symbolic stage."""
+
     def __enter__(self):
         self.original_scope = get_symbolic_scope()
         global_state.set_global_attribute("symbolic_scope", self)

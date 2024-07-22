@@ -445,16 +445,10 @@ class CompileLoss(losses_module.Loss):
 
     @property
     def metrics(self):
-        if not self.built:
-            return []
         return self._metrics
 
     @property
     def variables(self):
-        # Avoiding relying on implicit tracking since
-        # CompileLoss may be instantiated or built in a no tracking scope.
-        if not self.built:
-            return []
         vars = []
         for m in self.metrics:
             vars.extend(m.variables)
@@ -639,12 +633,9 @@ class CompileLoss(losses_module.Loss):
                 sample_weight = [sample_weight[0] for _ in range(len(y_true))]
         else:
             sample_weight = [None for _ in y_true]
-        if len(self.metrics) == 0:
-            # This means that the model has a single output. We need to add a
-            # dummy `None` for the following `zip` to function correctly.
-            metrics = [None]
-        else:
-            metrics = self.metrics
+
+        # We need to add a dummy `None` if the model has only a single output.
+        metrics = [None] if len(self.metrics) == 0 else self.metrics
 
         # Iterate all losses in flat form.
         loss_values = []
