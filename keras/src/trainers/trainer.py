@@ -7,7 +7,6 @@ from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import tree
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.src.saving import serialization_lib
 from keras.src.trainers.compile_utils import CompileLoss
@@ -328,12 +327,8 @@ class Trainer:
             loss = self._compile_loss(y, y_pred, sample_weight)
             if loss is not None:
                 losses.append(loss)
-
-        # If in symbolic scope, skip `self.losses` to ensure we don't access
-        # any variables. Otherwise, it might break.
-        if not in_symbolic_scope():
-            for loss in self.losses:
-                losses.append(ops.sum(ops.cast(loss, dtype=backend.floatx())))
+        for loss in self.losses:
+            losses.append(ops.sum(ops.cast(loss, dtype=backend.floatx())))
         if backend.backend() != "jax" and len(losses) == 0:
             raise ValueError(
                 "No loss to compute. Provide a `loss` argument in `compile()`."
