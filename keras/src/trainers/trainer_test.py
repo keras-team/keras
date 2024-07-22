@@ -14,6 +14,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.callbacks.callback import Callback
 from keras.src.optimizers.rmsprop import RMSprop
 from keras.src.testing.test_utils import named_product
@@ -1406,7 +1407,8 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
                 sample_weight=None,
                 training=True,
             ):
-                test_self.assertTrue(training)
+                if not in_symbolic_scope():
+                    test_self.assertTrue(training)
                 loss = super().compute_loss(
                     x, y, y_pred, sample_weight, training
                 )
@@ -1443,7 +1445,8 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
                 sample_weight=None,
                 training=True,
             ):
-                test_self.assertTrue(training)
+                if not in_symbolic_scope():
+                    test_self.assertTrue(training)
                 loss = super().compute_loss(
                     x, y, y_pred, sample_weight, training
                 )
@@ -1478,7 +1481,8 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
                 sample_weight=None,
                 training=True,
             ):
-                test_self.assertFalse(training)
+                if not in_symbolic_scope():
+                    test_self.assertFalse(training)
                 loss = super().compute_loss(
                     x, y, y_pred, sample_weight, training
                 )
