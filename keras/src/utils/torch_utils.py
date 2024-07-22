@@ -112,7 +112,11 @@ class TorchModuleWrapper(Layer):
             self._track_variable(variable)
         self.built = True
 
-    def call(self, *args, **kwargs):
+    def call(self, *args, training=None, **kwargs):
+        if training is False:
+            self.eval()
+        else:
+            self.train()
         return self.module(*args, **kwargs)
 
     def save_own_variables(self, store):
