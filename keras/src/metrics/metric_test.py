@@ -39,7 +39,7 @@ class ExampleMetric(Metric):
         return _sum / (_total + _epsilon)
 
     def reset_state(self):
-        self.sum.assign(0.0)
+        self.sum.assign(0)
         self.total.assign(0)
 
 
