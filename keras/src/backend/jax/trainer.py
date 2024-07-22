@@ -970,16 +970,16 @@ class JAXTrainer(base_trainer.Trainer):
 def _distribute_data(data, layouts=None):
     distribution = distribution_lib.distribution()
     if distribution is not None:
+        if layouts is None:
+            layouts = tree.map_structure(
+                lambda d: distribution.get_data_layout(d.shape),
+                data,
+            )
+        return tree.map_structure(
+            jax_distribution_lib.distribute_data_input, data, layouts
+        )
 
-        def distribute_single_value(d, layouts=None):
-            if layouts is None:
-                layout = distribution.get_data_layout(d.shape)
-            return jax_distribution_lib.distribute_data_input(d, layout)
-
-        return tree.map_structure(distribute_single_value, data, layouts)
-
-    else:
-        return tree.map_structure(jax.device_put, data)
+    return tree.map_structure(jax.device_put, data)
 
 
 class JAXEpochIterator(EpochIterator):
