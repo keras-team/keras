@@ -1,3 +1,5 @@
+from itertools import combinations
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -1247,6 +1249,16 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 [0.09003057, 0.24472848, 0.66524094],
             ],
         )
+
+    def test_softmax_correctness_with_axis_tuple(self):
+        input = np.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]])
+        combination = combinations(range(3), 2)
+        for axis in list(combination):
+            result = keras.ops.nn.softmax(input, axis=axis)
+            normalized_sum_by_axis = np.sum(
+                ops.convert_to_numpy(result), axis=axis
+            )
+            self.assertAllClose(normalized_sum_by_axis, 1.0)
 
     def test_log_softmax(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
