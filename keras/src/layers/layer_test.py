@@ -144,7 +144,6 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         ("call", "call", None),
         ("compute_output_shape", "compute_output_shape", None),
-        ("add_metric", "add_metric", None),
         (
             "quantized_build",
             "quantized_build",

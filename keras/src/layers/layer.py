@@ -1324,7 +1324,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     def add_metric(self, *args, **kwargs):
         # Permanently disabled
-        raise self._not_implemented_error(self.add_metric)
+        raise NotImplementedError(
+            "Layer `add_metric()` method is deprecated"
+            " add your metric in `Model.compile(metrics=[...]).`"
+        )
 
     def count_params(self):
         """Count the total number of scalars composing the weights.
