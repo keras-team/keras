@@ -2,6 +2,7 @@ import pickle
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import dtype_policies
@@ -13,7 +14,7 @@ from keras.src import testing
 from keras.src.backend.common import global_state
 
 
-class LayerTest(testing.TestCase):
+class LayerTest(testing.TestCase, parameterized.TestCase):
 
     def test_compute_output_spec(self):
         # Test that implementing compute_output_shape
@@ -139,6 +140,32 @@ class LayerTest(testing.TestCase):
 
         # This works
         SomeLayer()(x, bool_arg=True)
+
+    @parameterized.named_parameters(
+        ("call", "call", None),
+        ("compute_output_shape", "compute_output_shape", None),
+        ("add_metric", "add_metric", None),
+        (
+            "quantized_build",
+            "quantized_build",
+            {"input_shape": None, "mode": None},
+        ),
+        ("quantize", "quantize", {"mode": "int8"}),
+        ("_int8_call", "_int8_call", None),
+        ("_float8_call", "_float8_call", None),
+    )
+    def test_not_implemented_error(self, method, args):
+        layer = layers.Layer()
+        layer.built = True
+
+        with self.assertRaisesRegex(
+            NotImplementedError,
+            f"does not have a `{method}` method implemented.",
+        ):
+            if isinstance(args, dict):
+                getattr(layer, method)(**args)
+            else:
+                getattr(layer, method)(args)
 
     def test_rng_seed_tracking(self):
         class RNGLayer(layers.Layer):
