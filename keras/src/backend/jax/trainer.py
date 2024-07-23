@@ -984,25 +984,26 @@ def _distribute_data(data, layouts=None):
 
 class JAXEpochIterator(EpochIterator):
     def _get_iterator(self):
-        layouts = None
         distribution = distribution_lib.distribution()
         if distribution is not None:
-            # Lazily computes input layouts and re-uses them to reduce the host
-            # to device transfer latency. The prefetching logic is disabled
-            # since TF Data handles eager prefetching.
-            for data in self.data_adapter.get_jax_iterator():
-                if layouts is None:
-                    layouts = tree.map_structure(
-                        lambda d: jax_distribution_lib._to_jax_layout(
-                            distribution.get_data_layout(d.shape)
-                        ),
-                        data,
-                    )
-                yield _distribute_data(data, layouts)
+            return self._get_distributed_iterator(distribution)
 
         return self._prefetch_numpy_iterator(
             self.data_adapter.get_jax_iterator()
         )
+
+    def _get_distributed_iterator(self, distribution):
+        """Lazily compute layouts to reduce host to device transfer latency."""
+        layouts = None
+        for data in self.data_adapter.get_jax_iterator():
+            if layouts is None:
+                layouts = tree.map_structure(
+                    lambda d: jax_distribution_lib._to_jax_layout(
+                        distribution.get_data_layout(d.shape)
+                    ),
+                    data,
+                )
+            yield _distribute_data(data, layouts)
 
     def _prefetch_numpy_iterator(self, numpy_iterator):
         """Shard and prefetch batches on device.
