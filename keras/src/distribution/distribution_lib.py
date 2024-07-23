@@ -628,63 +628,49 @@ class ModelParallel(Distribution):
                 "the input dataset, e.g via `dataset.batch(batch_size)`"
             )
 
-        # We need to compute the the per-worker batch size.
-        # Imagine we have 4 workers, and each worker has 2 devices. The device
-        # ID will be w{worker_id}_{device_id} from global perspective, eg
-        # 'w0_0', 'w0_1', 'w1_0', etc.
-        # For a mesh with global shape {'batch': 4, 'model': 2}, we would like
-        # the mesh to be like below:
-        #         batch ->
-        #         --------------------------
-        # model   | w0_0, w0_1, w1_0, w1_1 |
-        #   v     | w0_2, w0_3, w1_2, w1_3 |
-        #         --------------------------
-        # In this case, the batch dim will be split across 2 workers.
-        #
-        # In the case that global batch dim is smaller than the worker size, eg
-        # {'batch': 1, 'model': 8}, then the mesh will be like below:
-        #         batch ->
-        #         --------
-        # model   | w0_0 |
-        #         | w0_1 |
-        #         | w1_0 |
-        #         | w1_1 |
-        #         | w2_0 |
-        #         | w2_1 |
-        #         | w3_0 |
-        #         | w3_1 |
-        #         --------
-        # And the data batch will be fully replicated for each of the worker.
+        # We need to compute the per-worker/process/host batch size.
+        # This will depend on how many model replicas we have on each worker.
+        # Note that this might be smaller than one if model replicas are sharded
+        # across multiple workers.
         mesh_batch_dim_index = self.device_mesh.axis_names.index(
             self._batch_dim_name
         )
-        mesh_batch_dim_size = self.device_mesh.shape[mesh_batch_dim_index]
-        # TODO(scottzhu): local device count can be a field of the mesh.
-        local_device_count = (
-            np.prod(self.device_mesh.shape) // self._num_process
-        )
-        if mesh_batch_dim_size < local_device_count:
-            # No sharding is needed in this case. The worker will have the
+        num_model_replicas = self.device_mesh.shape[mesh_batch_dim_index]
+        if num_model_replicas == 1:
+            # No sharding is needed in this case. Each worker will have the
             # global batch size, and data from the iterator will need to be
-            # replicated for model dimension.
+            # replicated across all workers.
             return dataset.prefetch(tf.data.AUTOTUNE)
-        else:
-            if mesh_batch_dim_size % local_device_count != 0:
-                raise ValueError(
-                    "The Batch dimension of the mesh is not compatible "
-                    "with the local worker device count. Mesh batch "
-                    f"dim = {mesh_batch_dim_size} and local device "
-                    f"count = {local_device_count}"
-                )
-            num_shards = mesh_batch_dim_size // local_device_count
-            per_worker_batch_size = global_batch_size // num_shards
-
+        num_model_replicas_per_process = num_model_replicas / self._num_process
+        if num_model_replicas_per_process >= 1:
+            # Each worker will have one or more full model replicas. Data will
+            # be sharded across all workers without replication.
+            assert (
+                global_batch_size % self._num_process == 0
+            ), "Global batch size must be divisible by number of processes."
+            per_worker_batch_size = global_batch_size // self._num_process
             distributed_dataset = dataset.rebatch(per_worker_batch_size)
-            distributed_dataset = tf_data_distribute._AutoShardDataset(
-                distributed_dataset,
-                num_workers=num_shards,
-                index=self._process_id % num_shards,
-                num_replicas=num_shards,
+            distributed_dataset = distributed_dataset.shard(
+                num_shards=self._num_process,
+                index=self._process_id,
+            )
+            return distributed_dataset.prefetch(tf.data.AUTOTUNE)
+        else:
+            # Model replicas are sharded across multiple workers. Data will be
+            # sharded across model replicas, and replicated across workers
+            # within the same model replica.
+            assert (
+                global_batch_size % num_model_replicas == 0
+            ), "Global batch size must be divisible by number of replicas."
+            per_worker_batch_size = global_batch_size // num_model_replicas
+            distributed_dataset = dataset.rebatch(per_worker_batch_size)
+            workers_per_replica = self._num_process // num_model_replicas
+            # TODO: Figure out what the convention is for data sharding id.
+            # data_shard_id = self._process_id // workers_per_replica
+            data_shard_id = self._process_id % workers_per_replica
+            distributed_dataset = distributed_dataset.shard(
+                num_shards=num_model_replicas,
+                index=data_shard_id,
             )
             return distributed_dataset.prefetch(tf.data.AUTOTUNE)
 

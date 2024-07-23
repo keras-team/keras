@@ -106,7 +106,7 @@ def distribute_tensor(tensor, layout):
         return global_value
 
 
-def distribute_data_input(inputs, layout):
+def distribute_data_input(per_process_batch, layout):
     """Distribute the input data with the corresponding layout.
 
     Note that the inputs here is a local worker batch. Within the local worker,
@@ -122,68 +122,52 @@ def distribute_data_input(inputs, layout):
     """
     if not isinstance(layout, jax.sharding.Sharding):
         layout = _to_jax_layout(layout)
-    if layout.is_fully_addressable:
-        return jax.device_put(inputs, layout)
 
-    # We need the jax mesh information to determine how to place the data
-    # on to each of the worker.
-    jax_mesh = layout.mesh
-    mesh_rank = len(jax_mesh.shape)
-    per_process_batch_size = inputs.shape[0]
-    if mesh_rank == 1:
-        # This is data parallel mesh only. We will split the full data
-        # across the batch dim.
-        num_split = jax.local_device_count()
-        per_replica_batch_size = per_process_batch_size // num_split
-        if per_process_batch_size % per_replica_batch_size != 0:
-            raise ValueError(
-                f"The local batch size {per_process_batch_size} is not"
-                "divisible by the number of local replicas "
-                f"{num_split}"
-            )
-        global_batch_size = per_process_batch_size * jax.process_count()
-        per_replica_batches = np.split(inputs, num_split, axis=0)
-    elif mesh_rank == 2:
-        # Data+Model parallel
-        # In this case, we need to check if the mesh batch dim shape is large
-        # than number of local devices, so that we can decide whether a split
-        # is needed for the data, or a repeat/copy of the data is needed for
-        # each of the device.
-        # TODO(scottzhu): The mesh batch dim name is not available here, since
-        # we only have jax Mesh. We assume the first dim is for batch, and
-        # second dim is for model for now.
-        mesh_batch_dim_size = list(jax_mesh.shape.values())[0]
-        local_device_count = jax.local_device_count()
-        if mesh_batch_dim_size < local_device_count:
-            # No split needed, we only need to repeat here.
-            global_batch_size = per_process_batch_size
-            per_replica_batches = [inputs for _ in range(local_device_count)]
-        else:
-            # Note that global batch size is not simply per_process_batch_size *
-            # num_process. It actually depends on the model dim size.
-            global_batch_size = per_process_batch_size * (
-                mesh_batch_dim_size // local_device_count
-            )
-            per_replica_batches = jax.numpy.split(
-                inputs, local_device_count, axis=0
-            )
-    else:
-        raise ValueError(
-            "Only 1D or 2D mesh is supported at the moment. "
-            f"Received mesh shape = {jax_mesh.shape}"
-        )
+    print(f"num_processes: {num_processes()}")
 
-    global_shape = (global_batch_size,) + inputs.shape[1:]
-    global_batch_array = jax.make_array_from_single_device_arrays(
-        global_shape,
-        layout,
-        arrays=[
-            jax.device_put(batch, device)
-            for batch, device in zip(
-                per_replica_batches, layout.addressable_devices
-            )
-        ],
+    mesh = layout.mesh
+    num_model_replicas_total = mesh.shape["batch"]  # mesh_batch_dim_size
+    num_model_replicas_per_process = num_model_replicas_total // num_processes()
+    print(f"num_model_replicas_total: {num_model_replicas_total}")
+    print(f"num_model_replicas_per_process: {num_model_replicas_per_process}")
+    assert (
+        num_model_replicas_total % num_processes() == 0
+    ), "Padding is not supported for now."
+
+    per_process_batch_size = per_process_batch.shape[0]
+    per_replica_batch_size = (
+        per_process_batch_size // num_model_replicas_per_process
     )
+    print(f"per_process_batch_size: {per_process_batch_size}")
+    print(f"per_replica_batch_size: {per_replica_batch_size}")
+    assert (
+        per_process_batch_size % per_replica_batch_size == 0
+    ), "Padding is not supported for now."
+    per_replica_batches = np.split(
+        per_process_batch, num_model_replicas_per_process
+    )
+
+    sharding = jax.sharding.NamedSharding(
+        mesh, jax.sharding.PartitionSpec("batch")
+    )
+
+    global_batch_size = per_replica_batch_size * num_model_replicas_total
+    global_batch_shape = (global_batch_size,) + per_process_batch.shape[1:]
+    print(f"global_batch_size: {global_batch_size}")
+    print(f"global_batch_shape: {global_batch_shape}")
+
+    index_to_batch = {}
+
+    def callback(index):
+        index_key = tuple((slice_.start, slice_.stop) for slice_ in index)
+        if index_key not in index_to_batch:
+            index_to_batch[index_key] = per_replica_batches[len(index_to_batch)]
+        return index_to_batch[index_key]
+
+    global_batch_array = jax.make_array_from_callback(
+        global_batch_shape, sharding, callback
+    )
+
     return global_batch_array
 
 
