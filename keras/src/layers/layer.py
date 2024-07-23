@@ -1280,9 +1280,12 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             self._tracker.lock()
         self._post_untrack_variable(variable)
 
-    def add_metric(self):
+    def add_metric(self, *args, **kwargs):
         # Permanently disabled
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Layer `add_metric()` method is deprecated"
+            " add your metric in `compile(metrics=[...])`"
+        )
 
     def count_params(self):
         """Count the total number of scalars composing the weights.
