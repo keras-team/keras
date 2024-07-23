@@ -632,6 +632,14 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             kmath.in_top_k(targets, predictions, k=3), [True, True, True]
         )
 
+        # Test `nan` in predictions
+        # https://github.com/keras-team/keras/issues/19995
+        targets = np.array([1, 0])
+        predictions = np.array([[0.1, np.nan, 0.5], [0.3, 0.2, 0.5]])
+        self.assertAllEqual(
+            kmath.in_top_k(targets, predictions, k=2), [False, True]
+        )
+
     def test_logsumexp(self):
         x = np.random.rand(5, 5)
         outputs = kmath.logsumexp(x)

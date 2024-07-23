@@ -53,26 +53,17 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
 
 
 def top_k(x, k, sorted=False):
-    sorted_indices = np.argsort(x, axis=-1)[..., ::-1]
-    sorted_values = np.sort(x, axis=-1)[..., ::-1]
-
     if sorted:
         # Take the k largest values.
+        sorted_indices = np.argsort(x, axis=-1)[..., ::-1]
+        sorted_values = np.take_along_axis(x, sorted_indices, axis=-1)
         top_k_values = sorted_values[..., :k]
         top_k_indices = sorted_indices[..., :k]
     else:
         # Partition the array such that all values larger than the k-th
         # largest value are to the right of it.
-        top_k_values = np.partition(x, -k, axis=-1)[..., -k:]
         top_k_indices = np.argpartition(x, -k, axis=-1)[..., -k:]
-
-        # Get the indices in sorted order.
-        idx = np.argsort(-top_k_values, axis=-1)
-
-        # Get the top k values and their indices.
-        top_k_values = np.take_along_axis(top_k_values, idx, axis=-1)
-        top_k_indices = np.take_along_axis(top_k_indices, idx, axis=-1)
-
+        top_k_values = np.take_along_axis(x, top_k_indices, axis=-1)
     return top_k_values, top_k_indices
 
 
