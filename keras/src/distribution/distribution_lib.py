@@ -385,9 +385,11 @@ class DataParallel(Distribution):
     Args:
         device_mesh: Optional `DeviceMesh` instance.
         devices: Optional list of devices.
+        auto_shard_dataset: Automatically shard the dataset amongst processes.
+            Defaults to true.
     """
 
-    def __init__(self, device_mesh=None, devices=None):
+    def __init__(self, device_mesh=None, devices=None, auto_shard_dataset=True):
         if device_mesh:
             self._initialize_with_device_mesh(device_mesh)
         elif devices:
@@ -400,6 +402,7 @@ class DataParallel(Distribution):
         self._num_process = distribution_lib.num_processes()
         self._process_id = distribution_lib.process_id()
         self._is_multi_process = self._num_process > 1
+        self._auto_shard_dataset = auto_shard_dataset
 
     def _initialize_with_device_mesh(self, device_mesh):
         if not isinstance(device_mesh, DeviceMesh):
@@ -459,7 +462,7 @@ class DataParallel(Distribution):
                 "Only `tf.data.Dataset` is supported for "
                 f"sharding, got {type(dataset)}"
             )
-        if not self._is_multi_process:
+        if not self._is_multi_process or not self._auto_shard_dataset:
             return dataset
 
         batch_size = tf_data_distribute.compute_batch_size(dataset)

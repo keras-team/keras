@@ -967,24 +967,43 @@ class JAXTrainer(base_trainer.Trainer):
         return tuple(state)
 
 
-def _distribute_data(data):
+def _distribute_data(data, layouts=None):
     distribution = distribution_lib.distribution()
     if distribution is not None:
+        if layouts is None:
+            layouts = tree.map_structure(
+                lambda d: distribution.get_data_layout(d.shape),
+                data,
+            )
+        return tree.map_structure(
+            jax_distribution_lib.distribute_data_input, data, layouts
+        )
 
-        def distribute_single_value(d):
-            layout = distribution.get_data_layout(d.shape)
-            return jax_distribution_lib.distribute_data_input(d, layout)
-
-        return tree.map_structure(distribute_single_value, data)
-    else:
-        return tree.map_structure(jax.device_put, data)
+    return tree.map_structure(jax.device_put, data)
 
 
 class JAXEpochIterator(EpochIterator):
     def _get_iterator(self):
+        distribution = distribution_lib.distribution()
+        if distribution is not None:
+            return self._get_distributed_iterator(distribution)
+
         return self._prefetch_numpy_iterator(
             self.data_adapter.get_jax_iterator()
         )
+
+    def _get_distributed_iterator(self, distribution):
+        """Lazily compute layouts to reduce host to device transfer latency."""
+        layouts = None
+        for data in self.data_adapter.get_jax_iterator():
+            if layouts is None:
+                layouts = tree.map_structure(
+                    lambda d: jax_distribution_lib._to_jax_layout(
+                        distribution.get_data_layout(d.shape)
+                    ),
+                    data,
+                )
+            yield _distribute_data(data, layouts)
 
     def _prefetch_numpy_iterator(self, numpy_iterator):
         """Shard and prefetch batches on device.
