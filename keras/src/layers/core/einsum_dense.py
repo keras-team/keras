@@ -360,13 +360,6 @@ class EinsumDense(Layer):
 
     # Quantization-related (int8 and float8) methods
 
-    def _quantization_mode_error(self, mode):
-        return NotImplementedError(
-            "Invalid quantization mode. Expected one of "
-            f"{dtype_policies.QUANTIZATION_MODES}. "
-            f"Received: quantization_mode={mode}"
-        )
-
     def quantized_build(self, input_shape, mode):
         if mode == "int8":
             shape_data = _analyze_einsum_string(
@@ -477,15 +470,7 @@ class EinsumDense(Layer):
         self.outputs_grad_amax_history.overwrite_with_gradient = True
         self._is_quantized = True
 
-    def quantized_call(self, inputs, training=None):
-        if self.quantization_mode == "int8":
-            return self._int8_call(inputs)
-        elif self.quantization_mode == "float8":
-            return self._float8_call(inputs, training=training)
-        else:
-            raise self._quantization_mode_error(self.quantization_mode)
-
-    def _int8_call(self, inputs):
+    def _int8_call(self, inputs, training=None):
         @ops.custom_gradient
         def einsum_with_inputs_gradient(inputs, kernel, kernel_scale):
             def grad_fn(*args, upstream=None):
@@ -641,14 +626,10 @@ class EinsumDense(Layer):
         return x
 
     def quantize(self, mode, type_check=True):
-        import gc
-
         # Prevent quantization of the subclasses
         if type_check and (type(self) is not EinsumDense):
-            raise self._quantize_not_implemented_error()
-        self._check_quantize_args(mode, self.compute_dtype)
+            raise self._not_implemented_error(self.quantize)
 
-        self._tracker.unlock()
         if mode == "int8":
             (
                 self._input_reduced_axes,
@@ -664,7 +645,7 @@ class EinsumDense(Layer):
             ) = _analyze_quantization_info(self.equation, self.input_spec.ndim)
             # Quantize `self._kernel` to int8 and compute corresponding scale
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                self._kernel, axis=self._kernel_reduced_axes
+                self._kernel, axis=self._kernel_reduced_axes, to_numpy=True
             )
             kernel_scale = ops.transpose(
                 kernel_scale, self._kernel_transpose_axes
@@ -677,8 +658,7 @@ class EinsumDense(Layer):
                 kernel_scale = ops.squeeze(
                     kernel_scale, axis=self._kernel_squeeze_axes
                 )
-            self._untrack_variable(self._kernel)
-            kernel_shape = self._kernel.shape
+            kernel_shape = tuple(self._kernel.shape)
             del self._kernel
             # Utilize a lambda expression as an initializer to prevent adding a
             # large constant to the computation graph.
@@ -691,15 +671,11 @@ class EinsumDense(Layer):
             self._float8_build()
         else:
             raise self._quantization_mode_error(mode)
-        self._tracker.lock()
 
         # Set new dtype policy
         if self.dtype_policy.quantization_mode is None:
             policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
             self.dtype_policy = policy
-
-        # Release memory manually because sometimes the backend doesn't
-        gc.collect()
 
     def _get_kernel_with_merged_lora(self):
         if self.dtype_policy.quantization_mode is not None:
@@ -732,7 +708,7 @@ class EinsumDense(Layer):
                     ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
                 )
                 kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                    kernel_value, axis=self._kernel_reduced_axes
+                    kernel_value, axis=self._kernel_reduced_axes, to_numpy=True
                 )
                 kernel_scale = ops.transpose(
                     kernel_scale, self._kernel_transpose_axes

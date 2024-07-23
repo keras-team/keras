@@ -613,23 +613,19 @@ def log_softmax(x, axis=-1):
     if any_symbolic_tensors((x,)):
         return LogSoftmax(axis).symbolic_call(x)
     if isinstance(axis, tuple):
-        original_shape = x.shape
-        new_shape = []
-        skip_dims = set(axis)
-        i = 0
-        while i < len(original_shape):
-            if i in skip_dims:
-                size = 1
-                while i in skip_dims:
-                    size *= original_shape[i]
-                    i += 1
-                new_shape.append(size)
-            else:
-                new_shape.append(original_shape[i])
-                i += 1
-        x = backend.numpy.reshape(x, new_shape)
-        x = backend.nn.log_softmax(x, axis=-1)
-        x = backend.numpy.reshape(x, original_shape)
+        axis_to_keep = [v for v in range(len(x.shape)) if v not in axis]
+
+        x_transposed = backend.numpy.transpose(x, axes=(*axis_to_keep, *axis))
+        x_reshaped = backend.numpy.reshape(
+            x_transposed, (*[x.shape[v] for v in axis_to_keep], -1)
+        )
+
+        x = backend.nn.log_softmax(x_reshaped, axis=-1)
+
+        x = backend.numpy.reshape(x, x_transposed.shape)
+        x = backend.numpy.transpose(
+            x, axes=list(backend.numpy.argsort([*axis_to_keep, *axis]))
+        )
         return x
     else:
         return backend.nn.log_softmax(x, axis=axis)
