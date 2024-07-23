@@ -708,6 +708,24 @@ class EinsumDense(Layer):
             if self.lora_enabled:
                 # Dequantize & quantize to merge lora weights into int8 kernel
                 # Note that this is a lossy compression
+                if self._kernel_squeeze_axes:
+                    kernel_scale = ops.expand_dims(
+                        kernel_scale, axis=self._kernel_squeeze_axes
+                    )
+                if self._kernel_expand_axes:
+                    kernel_scale = ops.squeeze(
+                        kernel_scale, axis=self._kernel_expand_axes
+                    )
+                if self._kernel_transpose_axes:
+
+                    def _argsort(seq):
+                        # Ref: https://stackoverflow.com/a/3382369
+                        return sorted(range(len(seq)), key=seq.__getitem__)
+
+                    reverse_transpose = _argsort(self._kernel_transpose_axes)
+                    kernel_scale = ops.transpose(
+                        kernel_scale, axes=reverse_transpose
+                    )
                 kernel_value = ops.divide(kernel_value, kernel_scale)
                 kernel_value = ops.add(
                     kernel_value,

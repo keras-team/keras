@@ -625,15 +625,19 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             supports_masking=False,
         )
 
+    @parameterized.named_parameters(
+        ("ab,bcd->acd", "ab,bcd->acd", (64, 3), (64, 8, 32)),
+        ("btd,ndh->btnh", "btd,ndh->btnh", (1, 4, 32), (1, 4, 8, 16)),
+    )
     @pytest.mark.requires_trainable_backend
-    def test_quantize_int8_when_lora_enabled(self):
+    def test_quantize_int8_when_lora_enabled(
+        self, equation, input_shape, output_shape
+    ):
         config = dict(
-            equation="ab,bcd->acd",
-            output_shape=(8, 32),
-            bias_axes=None,
+            equation=equation, output_shape=output_shape[1:], bias_axes=None
         )
         layer = layers.EinsumDense(**config)
-        layer.build((None, 3))
+        layer.build(input_shape)
         layer.enable_lora(2)
         layer.quantize("int8")
         self.assertLen(layer.trainable_weights, 2)
@@ -644,8 +648,8 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         # Try calling fit()
         init_lora_a_kernel_value = layer.lora_kernel_a.numpy()
         init_lora_b_kernel_value = layer.lora_kernel_b.numpy()
-        x = np.random.random((64, 3))
-        y = np.random.random((64, 8, 32))
+        x = np.random.random(input_shape)
+        y = np.random.random(output_shape)
         model = models.Sequential([layer])
         model.compile(optimizer="sgd", loss="mse")
         model.fit(x, y, epochs=2)
@@ -676,7 +680,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         )
         model.save_weights(temp_filepath)
         new_model = models.Sequential([layers.EinsumDense(**config)])
-        new_model.build((None, 3))
+        new_model.build(input_shape)
         new_model.quantize("int8")
         new_model.load_weights(temp_filepath)
         self.assertFalse(new_model.layers[0].lora_enabled)
@@ -692,7 +696,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             import tensorflow as tf
 
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-            ref_input = tf.random.normal((32, 3))
+            ref_input = tf.random.normal(input_shape)
             ref_output = model(ref_input)
             export_lib.export_model(model, temp_filepath)
             reloaded_layer = export_lib.TFSMLayer(temp_filepath)
