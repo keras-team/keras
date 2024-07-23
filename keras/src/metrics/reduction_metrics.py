@@ -87,7 +87,7 @@ class Sum(Metric):
         self.total.assign_add(ops.sum(values))
 
     def reset_state(self):
-        self.total.assign(0.0)
+        self.total.assign(0)
 
     def result(self):
         return ops.cast(self.total, self.dtype)
@@ -150,7 +150,7 @@ class Mean(Metric):
         self.count.assign_add(ops.cast(num_samples, dtype=self.dtype))
 
     def reset_state(self):
-        self.total.assign(0.0)
+        self.total.assign(0)
         self.count.assign(0)
 
     def result(self):

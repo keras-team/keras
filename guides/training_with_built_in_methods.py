@@ -338,7 +338,7 @@ class CategoricalTruePositives(keras.metrics.Metric):
 
     def reset_state(self):
         # The state of the metric will be reset at the start of each epoch.
-        self.true_positives.assign(0.0)
+        self.true_positives.assign(0)
 
 
 model = get_uncompiled_model()
