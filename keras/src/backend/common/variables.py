@@ -237,12 +237,13 @@ class KerasVariable:
             scope.add_update((self, value))
         else:
             self._direct_assign(value)
+        return value
 
     def assign_add(self, value):
-        self.assign(self + value)
+        return self.assign(self + value)
 
     def assign_sub(self, value):
-        self.assign(self - value)
+        return self.assign(self - value)
 
     @property
     def dtype(self):
