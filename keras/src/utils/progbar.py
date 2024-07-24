@@ -1,5 +1,6 @@
 import math
 import os
+import shutil
 import sys
 import time
 
@@ -108,6 +109,7 @@ class Progbar:
         if self.verbose == 1:
             if now - self._last_update < self.interval and not finalize:
                 return
+            used_width = 0
 
             if self._dynamic_display:
                 message += "\b" * self._prev_total_width
@@ -131,6 +133,7 @@ class Progbar:
 
             else:
                 bar = "%7d/Unknown" % current
+            used_width += len(bar) - special_char_len
             message += bar
 
             # Add ETA if applicable
@@ -151,6 +154,7 @@ class Progbar:
                 # Time elapsed since start, in seconds
                 info = f" \x1b[1m{now - self._start:.0f}s\x1b[0m"
             special_char_len += 8
+            used_width -= 8
 
             # Add time/step
             info += self._format_time(time_per_unit, self.unit_name)
@@ -171,6 +175,11 @@ class Progbar:
                         info += f" {avg:.4e}"
                 else:
                     info += f" {self._values[k]}"
+            # Ensure the output msg doesn't exceed the terminal's column size.
+            # However, we don't truncate the output msg if `finalize=True`.
+            if not finalize:
+                available_width = shutil.get_terminal_size().columns
+                info = info[: available_width - used_width]
             message += info
 
             total_width = len(bar) + len(info) - special_char_len
