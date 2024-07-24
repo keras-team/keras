@@ -12,6 +12,7 @@ from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.common.symbolic_scope import SymbolicScope
 
 SUPPORTS_SPARSE_TENSORS = False
 
@@ -88,7 +89,7 @@ def vectorized_map(function, elements):
 
 # Shape / dtype inference util
 def compute_output_spec(fn, *args, **kwargs):
-    with StatelessScope():
+    with StatelessScope(), SymbolicScope():
 
         def has_none_shape(x):
             if isinstance(x, KerasTensor):

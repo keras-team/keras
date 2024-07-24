@@ -17,6 +17,7 @@ from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
+from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.config import floatx
 
 SUPPORTS_SPARSE_TENSORS = False
@@ -335,7 +336,7 @@ def compute_output_spec(fn, *args, **kwargs):
                 )
                 return fn(*eager_args, **eager_kwargs)
 
-    with StatelessScope(), torch.no_grad():
+    with StatelessScope(), SymbolicScope(), torch.no_grad():
         outputs = symbolic_call(fn, args, kwargs, fill_value=83)
 
         none_in_shape = any(

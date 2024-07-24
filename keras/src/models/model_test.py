@@ -239,14 +239,13 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         # Fit the model to make sure compile_metrics are built
         hist = model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
         hist_keys = sorted(hist.history.keys())
-        # TODO `tf.keras` also outputs individual losses for outputs
         ref_keys = sorted(
             [
                 "loss",
-                # "output_a_loss",
+                "output_a_loss",
                 "output_a_mean_squared_error",
                 "output_b_accuracy",
-                # "output_b_loss",
+                "output_b_loss",
                 "output_b_mean_squared_error",
             ]
         )
@@ -270,16 +269,15 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         # Fit the model to make sure compile_metrics are built
         hist = model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
         hist_keys = sorted(hist.history.keys())
-        # TODO `tf.keras` also outputs individual losses for outputs
         ref_keys = sorted(
             [
                 "loss",
-                # "output_a_loss",
+                "output_a_loss",
                 "output_a_bce",
                 "output_a_mae",
                 "output_a_mse",
                 "output_b_acc",
-                # "output_b_loss",
+                "output_b_loss",
                 "output_b_mse",
             ]
         )
@@ -303,14 +301,13 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         # Fit the model to make sure compile_metrics are built
         hist = model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
         hist_keys = sorted(hist.history.keys())
-        # TODO `tf.keras` also outputs individual losses for outputs
         ref_keys = sorted(
             [
                 "loss",
-                # "output_a_loss",
+                "output_a_loss",
                 "output_a_mean_squared_error",
                 "output_b_accuracy",
-                # "output_b_loss",
+                "output_b_loss",
                 "output_b_mean_squared_error",
             ]
         )
@@ -351,15 +348,14 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
             verbose=0,
         )
         hist_keys = sorted(hist.history.keys())
-        # TODO `tf.keras` also outputs individual losses for outputs
         ref_keys = sorted(
             [
                 "loss",
-                # "output_a_loss",
+                "output_a_loss",
                 "output_a_mean_squared_error",
                 "output_a_weighted_mean_squared_error",
                 "output_b_accuracy",
-                # "output_b_loss",
+                "output_b_loss",
                 "output_b_mean_squared_error",
                 "output_b_weighted_accuracy",
                 "output_b_weighted_mean_squared_error",
@@ -396,15 +392,14 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         # Fit the model to make sure compile_metrics are built
         hist = model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
         hist_keys = sorted(hist.history.keys())
-        # TODO `tf.keras` also outputs individual losses for outputs
         ref_keys = sorted(
             [
                 "loss",
-                # "output_a_loss",
+                "output_a_loss",
                 "output_a_mean_squared_error",
                 "output_a_weighted_mean_squared_error",
                 "output_b_accuracy",
-                # "output_b_loss",
+                "output_b_loss",
                 "output_b_mean_squared_error",
                 "output_b_weighted_accuracy",
                 "output_b_weighted_mean_squared_error",
@@ -436,18 +431,17 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         # Fit the model to make sure compile_metrics are built
         hist = model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
         hist_keys = sorted(hist.history.keys())
-        # TODO `tf.keras` also outputs individual losses for outputs
         # `output_b_accuracy` doesn't have `weighted_` in metric name.
         # When a metric is only in weighted metrics, it skips `weighted_`
         # prefix. This behavior matches`tf.keras`.
         ref_keys = sorted(
             [
                 "loss",
-                # "output_a_loss",
+                "output_a_loss",
                 "output_a_mean_squared_error",
                 "output_a_weighted_mean_squared_error",
                 "output_b_accuracy",
-                # "output_b_loss",
+                "output_b_loss",
                 "output_b_mean_squared_error",
             ]
         )
@@ -472,13 +466,12 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         # Fit the model to make sure compile_metrics are built
         hist = model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
         hist_keys = sorted(hist.history.keys())
-        # TODO `tf.keras` also outputs individual losses for outputs
         ref_keys = sorted(
             [
                 "loss",
-                # "output_a_loss",
+                "output_a_loss",
                 "output_b_accuracy",
-                # "output_b_loss",
+                "output_b_loss",
                 "output_b_mean_squared_error",
             ]
         )
@@ -500,7 +493,10 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
                 "output_b": "binary_crossentropy",
             },
         )
-        model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
+        hist = model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
+        hist_keys = sorted(hist.history.keys())
+        ref_keys = sorted(["loss", "output_a_loss", "output_b_loss"])
+        self.assertListEqual(hist_keys, ref_keys)
 
     def test_functional_list_outputs_with_custom_compute_loss(self):
         model = _get_model_with_custom_compute_loss()
@@ -514,7 +510,12 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         model.compile(
             optimizer="sgd", loss=["mean_squared_error", "binary_crossentropy"]
         )
-        model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
+        hist = model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
+        hist_keys = sorted(hist.history.keys())
+        ref_keys = sorted(
+            ["binary_crossentropy_loss", "loss", "mean_squared_error_loss"]
+        )
+        self.assertListEqual(hist_keys, ref_keys)
 
     def test_functional_list_outputs_dict_losses_invalid_keys(self):
         model = _get_model_multi_outputs_list()

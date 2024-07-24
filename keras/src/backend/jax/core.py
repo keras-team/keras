@@ -10,6 +10,7 @@ from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
 
 SUPPORTS_SPARSE_TENSORS = True
@@ -101,7 +102,7 @@ def cast(x, dtype):
 
 # Shape / dtype / sparseness inference util
 def compute_output_spec(fn, *args, **kwargs):
-    with StatelessScope():
+    with StatelessScope(), SymbolicScope():
         built_in_types = (type(None), int, float, str, bool, complex, bytes)
 
         # First, separate symbolic args from other args

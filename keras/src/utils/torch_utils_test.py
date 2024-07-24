@@ -29,9 +29,9 @@ class Classifier(models.Model):
             self.torch_wrappers.append(TorchModuleWrapper(torch_model))
         self.fc = layers.Dense(1)
 
-    def call(self, x):
+    def call(self, x, training=None):
         for wrapper in self.torch_wrappers:
-            x = wrapper(x)
+            x = wrapper(x, training=training)
         return self.fc(x)
 
     def get_config(self):
@@ -49,7 +49,7 @@ class ClassifierWithNoSpecialCasing(models.Model):
         self.fc2 = torch.nn.Linear(4, 4)
         self.fc3 = layers.Dense(2)
 
-    def call(self, x):
+    def call(self, x, training=None):
         return self.fc3(self.fc2(self.bn1(self.fc1(x))))
 
 
@@ -81,6 +81,50 @@ class TorchUtilsTest(testing.TestCase, parameterized.TestCase):
         )
         model.compile(optimizer="sgd", loss="mse")
         model.fit(np.random.random((3, 2)), np.random.random((3, 1)))
+
+    @parameterized.named_parameters(
+        (
+            "explicit_torch_wrapper",
+            Classifier,
+            {"use_batch_norm": True, "num_torch_layers": 1},
+        ),
+        ("implicit_torch_wrapper", ClassifierWithNoSpecialCasing, {}),
+    )
+    def test_training_args(self, cls, kwargs):
+        model = cls(**kwargs)
+        model(np.random.random((3, 2)), training=False)  # Eager call to build
+        ref_weights = model.get_weights()
+        ref_running_mean = backend.convert_to_numpy(
+            model.torch_wrappers[0].module[-1].running_mean
+            if cls is Classifier
+            else model.bn1.module.running_mean
+        )
+
+        # Test training=False doesn't affect model weights
+        model(np.random.random((3, 2)), training=False)
+        weights = model.get_weights()
+        for w, ref_w in zip(weights, ref_weights):
+            self.assertAllClose(w, ref_w)
+
+        # Test training=None affects BN's stats
+        model.set_weights(ref_weights)  # Restore previous weights
+        model(np.random.random((3, 2)))
+        running_mean = backend.convert_to_numpy(
+            model.torch_wrappers[0].module[-1].running_mean
+            if cls is Classifier
+            else model.bn1.module.running_mean
+        )
+        self.assertNotAllClose(running_mean, ref_running_mean)
+
+        # Test training=True affects BN's stats
+        model.set_weights(ref_weights)  # Restore previous weights
+        model(np.random.random((3, 2)), training=True)
+        running_mean = backend.convert_to_numpy(
+            model.torch_wrappers[0].module[-1].running_mean
+            if cls is Classifier
+            else model.bn1.module.running_mean
+        )
+        self.assertNotAllClose(running_mean, ref_running_mean)
 
     def test_module_autowrapping(self):
         model = ClassifierWithNoSpecialCasing()

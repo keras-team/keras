@@ -32,6 +32,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend.common import global_state
 from keras.src.backend.common.name_scope import current_path
+from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
@@ -1148,7 +1149,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         for variable in self.trainable_weights:
             if variable.regularizer is None:
                 continue
-            if backend.in_stateless_scope():
+            if backend.in_stateless_scope() and not in_symbolic_scope():
+                # If in symbolic scope, we might get `None` from
+                # `get_current_value` in `backend.compute_output_spec`. So we
+                # assign `variable` instead.
                 v = backend.get_stateless_scope().get_current_value(variable)
             else:
                 v = variable

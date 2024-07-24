@@ -3,6 +3,7 @@ from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import tree
 from keras.src.utils.naming import get_object_name
+from keras.src.utils.tracking import Tracker
 
 
 class MetricsList(metrics_module.Metric):
@@ -431,6 +432,28 @@ class CompileLoss(losses_module.Loss):
         # Inferred by `y_pred` and `output_names`
         self.inferred_output_names = None
 
+        # Use `Tracker` to track metrcis for individual losses.
+        self._metrics = []
+        self._tracker = Tracker(
+            {
+                "metrics": (
+                    lambda x: isinstance(x, metrics_module.Metric),
+                    self._metrics,
+                )
+            }
+        )
+
+    @property
+    def metrics(self):
+        return self._metrics
+
+    @property
+    def variables(self):
+        vars = []
+        for m in self.metrics:
+            vars.extend(m.variables)
+        return vars
+
     def build(self, y_true, y_pred):
         loss = self._user_loss
         loss_weights = self._user_loss_weights
@@ -527,6 +550,21 @@ class CompileLoss(losses_module.Loss):
             for identifier, _y_true, _y_pred in zip(flat_losses, y_true, y_pred)
         ]
 
+        # Add `Mean` metric to the tracker for each loss.
+        if len(flat_losses) > 1:
+            for i, _loss in enumerate(flat_losses):
+                if _loss is not None:
+                    if inferred_output_names is not None and len(
+                        inferred_output_names
+                    ) == len(flat_losses):
+                        name = inferred_output_names[i]
+                    else:
+                        name = _loss.name
+                    name += "_loss"
+                    self._tracker.add_to_store(
+                        "metrics", metrics_module.Mean(name=name)
+                    )
+
         self.flat_losses = flat_losses
         self.flat_loss_weights = flat_loss_weights
         self.filtered_y_true_keys = filtered_y_true_keys
@@ -596,22 +634,31 @@ class CompileLoss(losses_module.Loss):
         else:
             sample_weight = [None for _ in y_true]
 
+        # We need to add a dummy `None` if the model has only a single output.
+        metrics = [None] if len(self.metrics) == 0 else self.metrics
+
         # Iterate all losses in flat form.
         loss_values = []
-        for loss, y_t, y_p, loss_weight, sample_weight in zip(
+        for loss_fn, y_t, y_p, loss_weight, sample_weight, metric in zip(
             self.flat_losses,
             y_true,
             y_pred,
             self.flat_loss_weights,
             sample_weight,
+            metrics,
         ):
-            if loss:
+            if loss_fn:
                 value = ops.cast(
-                    loss(y_t, y_p, sample_weight), dtype=self.dtype
+                    loss_fn(y_t, y_p, sample_weight), dtype=self.dtype
                 )
                 if loss_weight is not None:
                     value = ops.multiply(value, loss_weight)
                 loss_values.append(value)
+                # Record individual losses.
+                if metric:
+                    metric.update_state(
+                        value, sample_weight=tree.flatten(y_p)[0].shape[0]
+                    )
         if loss_values:
             total_loss = sum(loss_values)
             return total_loss

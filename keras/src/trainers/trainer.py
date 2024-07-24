@@ -250,6 +250,8 @@ class Trainer:
         metrics.extend(super().metrics)
         if self.compiled and self._compile_metrics is not None:
             metrics += [self._compile_metrics]
+        if self.compiled and self._compile_loss is not None:
+            metrics.extend(self._compile_loss.metrics)
         return metrics
 
     @property
@@ -1004,10 +1006,13 @@ class Trainer:
             self._compile_metrics is not None
             and not self._compile_metrics.built
         )
+        compile_loss_unbuilt = (
+            self._compile_loss is not None and not self._compile_loss.built
+        )
         optimizer_unbuilt = (
             self.optimizer is not None and not self.optimizer.built
         )
-        if model_unbuilt or compile_metrics_unbuilt:
+        if model_unbuilt or compile_metrics_unbuilt or compile_loss_unbuilt:
             # Create symbolic tensors matching an input batch.
 
             def to_symbolic_input(v):
@@ -1030,7 +1035,7 @@ class Trainer:
 
             # Build all model state with `backend.compute_output_spec`.
             try:
-                y_pred = backend.compute_output_spec(self, x)
+                y_pred = backend.compute_output_spec(self, x, training=False)
             except Exception as e:
                 raise RuntimeError(
                     "Unable to automatically build the model. "
@@ -1051,6 +1056,16 @@ class Trainer:
                     y,
                     y_pred,
                     sample_weight=sample_weight,
+                )
+            if compile_loss_unbuilt:
+                # Build `CompileLoss` state with `backend.compute_output_spec`.
+                backend.compute_output_spec(
+                    self._compute_loss,
+                    x,
+                    y,
+                    y_pred,
+                    sample_weight=sample_weight,
+                    training=False,
                 )
         if optimizer_unbuilt:
             # Build optimizer
