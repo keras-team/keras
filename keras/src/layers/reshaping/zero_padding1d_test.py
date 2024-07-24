@@ -13,7 +13,9 @@ class ZeroPadding1DTest(testing.TestCase, parameterized.TestCase):
     )
     def test_zero_padding_1d(self, data_format):
         inputs = np.random.rand(1, 2, 3)
-        outputs = layers.ZeroPadding1D(padding=(1, 2), data_format=data_format)(inputs)
+        outputs = layers.ZeroPadding1D(padding=(1, 2), data_format=data_format)(
+            inputs
+        )
         if data_format == "channels_last":
             for index in [0, -1, -2]:
                 self.assertAllClose(outputs[:, index, :], 0.0)
