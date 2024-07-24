@@ -28,7 +28,9 @@ class ZeroPadding1DTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(("one_tuple", (2, 2)), ("one_int", 2))
     def test_zero_padding_1d_with_same_padding(self, padding):
         inputs = np.random.rand(1, 2, 3)
-        outputs = layers.ZeroPadding1D(padding=padding)(inputs)
+        outputs = layers.ZeroPadding1D(
+            padding=padding, data_format="channels_last"
+        )(inputs)
 
         for index in [0, 1, -1, -2]:
             self.assertAllClose(outputs[:, index, :], 0.0)
@@ -36,11 +38,15 @@ class ZeroPadding1DTest(testing.TestCase, parameterized.TestCase):
 
     def test_zero_padding_1d_with_dynamic_spatial_dim(self):
         input_layer = layers.Input(batch_shape=(1, None, 3))
-        padded = layers.ZeroPadding1D((1, 2))(input_layer)
+        padded = layers.ZeroPadding1D((1, 2), data_format="channels_last")(
+            input_layer
+        )
         self.assertEqual(padded.shape, (1, None, 3))
 
         input_layer = layers.Input(batch_shape=(1, 2, 3))
-        padded = layers.ZeroPadding1D((1, 2))(input_layer)
+        padded = layers.ZeroPadding1D((1, 2), data_format="channels_last")(
+            input_layer
+        )
         self.assertEqual(padded.shape, (1, 5, 3))
 
     @parameterized.parameters(
