@@ -240,7 +240,7 @@ def convert_to_numpy(x):
             if x.requires_grad:
                 x = x.detach()
             # Tensor has to be moved to CPU before converting to numpy.
-            if x.is_cuda or x.is_mps:
+            if x.device != torch.device('cpu'):
                 x = x.cpu()
             if x.dtype == torch.bfloat16:
                 # Attempting to call .numpy() on a bfloat16 torch tensor leads
