@@ -1291,6 +1291,16 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             ],
         )
 
+    def test_log_softmax_correctness_with_axis_tuple(self):
+        input = np.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]])
+        combination = combinations(range(3), 2)
+        for axis in list(combination):
+            result = keras.ops.nn.log_softmax(input, axis=axis)
+            normalized_sum_by_axis = np.sum(
+                np.exp(ops.convert_to_numpy(result)), axis=axis
+            )
+            self.assertAllClose(normalized_sum_by_axis, 1.0)
+
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
         # Test 1D max pooling.

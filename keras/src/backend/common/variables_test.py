@@ -297,17 +297,35 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
         v.assign(np.array([4, 5, 6]))
         self.assertAllClose(v.value, np.array([4, 5, 6]))
 
+    def test_variable_assign_return(self):
+        """Test assigning a new value and returning."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        r = v.assign(np.array([4, 5, 6]))
+        self.assertAllClose(r, np.array([4, 5, 6]))
+
     def test_variable_assign_add(self):
         """Test the assign_add method on a variable."""
         v = backend.Variable(initializer=np.array([1, 2, 3]))
         v.assign_add(np.array([1, 1, 1]))
         self.assertAllClose(v.value, np.array([2, 3, 4]))
 
+    def test_variable_assign_add_return(self):
+        """Test assign_add a new value and returning."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        r = v.assign_add(np.array([1, 1, 1]))
+        self.assertAllClose(r, np.array([2, 3, 4]))
+
     def test_variable_assign_sub(self):
         """Test the assign_sub method on a variable."""
         v = backend.Variable(initializer=np.array([2, 3, 4]))
         v.assign_sub(np.array([1, 1, 1]))
         self.assertAllClose(v.value, np.array([1, 2, 3]))
+
+    def test_variable_assign_sub_return(self):
+        """Test assign_sub a new value and returning."""
+        v = backend.Variable(initializer=np.array([2, 3, 4]))
+        r = v.assign_sub(np.array([1, 1, 1]))
+        self.assertAllClose(r, np.array([1, 2, 3]))
 
     def test_deferred_initialize_within_stateless_scope(self):
         """Test deferred init within a stateless scope."""

@@ -31,6 +31,7 @@ from keras.api._tf_keras.keras import metrics
 from keras.api._tf_keras.keras import preprocessing
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.exports import Variable
 from keras.src.backend.exports import device
 from keras.src.backend.exports import name_scope

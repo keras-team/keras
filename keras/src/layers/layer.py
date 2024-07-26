@@ -32,6 +32,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend.common import global_state
 from keras.src.backend.common.name_scope import current_path
+from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
@@ -212,10 +213,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     """
 
     def __new__(cls, *args, **kwargs):
-        # Wrap the user-provided build method in the build_decorator
-        # to add name scope support and serialization support.
         obj = super().__new__(cls, *args, **kwargs)
 
+        # Wrap the user-provided `build` method in the `build_wrapper`
+        # to add name scope support and serialization support.
         original_build_method = obj.build
 
         @wraps(original_build_method)
@@ -232,6 +233,24 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             obj._lock_state()
 
         obj.build = build_wrapper
+
+        # Wrap the user-provided `quantize` method in the `quantize_wrapper`
+        # to add tracker support.
+        original_quantize_method = obj.quantize
+
+        @wraps(original_quantize_method)
+        def quantize_wrapper(mode, **kwargs):
+            obj._check_quantize_args(mode, obj.compute_dtype)
+            obj._tracker.unlock()
+            try:
+                original_quantize_method(mode, **kwargs)
+            except Exception:
+                raise
+            finally:
+                obj._tracker.lock()
+
+        obj.quantize = quantize_wrapper
+
         return obj
 
     def __init__(
@@ -925,16 +944,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         return outputs
 
     def call(self, *args, **kwargs):
-        raise NotImplementedError(
-            f"Layer {self.__class__.__name__} does not have a `call()` "
-            "method implemented."
-        )
-
-    def quantized_call(self, *args, **kwargs):
-        raise NotImplementedError(
-            f"Layer {self.__class__.__name__} does not have a "
-            "`quantized_call()` method implemented."
-        )
+        raise self._not_implemented_error(self.call)
 
     @traceback_utils.filter_traceback
     def stateless_call(
@@ -1088,9 +1098,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     @utils.default
     def compute_output_shape(self, *args, **kwargs):
-        raise NotImplementedError(
-            f"Layer {self.__class__.__name__} should implement "
-            "`def compute_output_shape(self, input_shape)`."
+        raise self._not_implemented_error(
+            self.compute_output_shape,
+            "Should implement `def compute_output_shape(self, input_shape)`.",
         )
 
     def add_loss(self, loss):
@@ -1139,7 +1149,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         for variable in self.trainable_weights:
             if variable.regularizer is None:
                 continue
-            if backend.in_stateless_scope():
+            if backend.in_stateless_scope() and not in_symbolic_scope():
+                # If in symbolic scope, we might get `None` from
+                # `get_current_value` in `backend.compute_output_spec`. So we
+                # assign `variable` instead.
                 v = backend.get_stateless_scope().get_current_value(variable)
             else:
                 v = variable
@@ -1170,14 +1183,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         for layer in self._layers:
             layer._clear_losses()
 
-    def quantize(self, mode):
-        raise self._quantize_not_implemented_error()
+    # Quantization-related (int8 and float8) methods
 
-    def _quantize_not_implemented_error(self):
-        return NotImplementedError(
-            f"Layer {self.__class__.__name__} does not have a `quantize()` "
-            "method implemented."
-        )
+    def quantized_build(self, input_shape, mode):
+        raise self._not_implemented_error(self.quantized_build)
+
+    def quantize(self, mode, type_check=True):
+        raise self._not_implemented_error(self.quantize)
 
     def _check_quantize_args(self, mode, compute_dtype):
         if not self.built:
@@ -1205,6 +1217,40 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 "another dtype policy such as 'mixed_bfloat16' or "
                 "'mixed_float16' before calling `quantize()`."
             )
+
+    def quantized_call(self, *args, **kwargs):
+        if self.quantization_mode == "int8":
+            return self._int8_call(*args, **kwargs)
+        elif self.quantization_mode == "float8":
+            return self._float8_call(*args, **kwargs)
+        else:
+            raise self._quantization_mode_error(self.quantization_mode)
+
+    def _int8_call(self, *args, **kwargs):
+        raise self._not_implemented_error(self._int8_call)
+
+    def _float8_call(self, *args, **kwargs):
+        raise self._not_implemented_error(self._float8_call)
+
+    def _not_implemented_error(self, attr, msg=None):
+        if callable(attr):
+            attr_name = attr.__name__
+            attr_type = "method"
+        else:
+            attr_name = str(attr)
+            attr_type = "attribute"
+        msg = " " + msg if msg is not None else ""
+        return NotImplementedError(
+            f"Layer {self.__class__.__name__} does not have a `{attr_name}` "
+            f"{attr_type} implemented.{msg}"
+        )
+
+    def _quantization_mode_error(self, mode):
+        return NotImplementedError(
+            "Invalid quantization mode. Expected one of "
+            f"{dtype_policies.QUANTIZATION_MODES}. "
+            f"Received: quantization_mode={mode}"
+        )
 
     def save_own_variables(self, store):
         """Saves the state of the layer.
@@ -1280,9 +1326,12 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             self._tracker.lock()
         self._post_untrack_variable(variable)
 
-    def add_metric(self):
+    def add_metric(self, *args, **kwargs):
         # Permanently disabled
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Layer `add_metric()` method is deprecated"
+            " add your metric in `Model.compile(metrics=[...]).`"
+        )
 
     def count_params(self):
         """Count the total number of scalars composing the weights.
@@ -1394,6 +1443,20 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 self._initialize_tracker()
             value = self._tracker.track(value)
         return super().__setattr__(name, value)
+
+    def __delattr__(self, name):
+        obj = getattr(self, name)
+        if isinstance(obj, backend.Variable):
+            import gc
+
+            # It will take a short amount of time for the corresponding buffer
+            # to be actually removed from the device.
+            # https://stackoverflow.com/a/74631949
+            self._untrack_variable(obj)
+            super().__delattr__(name)
+            gc.collect()
+        else:
+            super().__delattr__(name)
 
     def _check_super_called(self):
         if getattr(self, "_lock", True):
