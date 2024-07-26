@@ -125,20 +125,31 @@ def distribute_data_input(per_process_batch, layout):
 
     mesh = layout.mesh
     num_model_replicas_total = mesh.shape["batch"]  # mesh_batch_dim_size
-    num_model_replicas_per_process = num_model_replicas_total // num_processes()
-    if num_model_replicas_total % num_processes() != 0:
-        raise ValueError("Padding is not supported for now.")
-
+    num_model_replicas_per_process = num_model_replicas_total / num_processes()
     per_process_batch_size = per_process_batch.shape[0]
-    per_replica_batch_size = (
-        per_process_batch_size // num_model_replicas_per_process
-    )
-    if per_process_batch_size % per_replica_batch_size != 0:
-        raise ValueError("Padding is not supported for now.")
 
-    per_replica_batches = np.split(
-        per_process_batch, num_model_replicas_per_process
-    )
+    if num_model_replicas_per_process >= 1:
+        # If there are more than one model replicas per process, we need to
+        # further shard the data to each of the model replicas.
+        per_replica_batch_size = int(
+            per_process_batch_size // num_model_replicas_per_process
+        )
+        if per_process_batch_size % per_replica_batch_size != 0:
+            raise ValueError(
+                "`per_process_batch_size` should be divisible by `"
+                "per_replica_batch_size`. "
+                f"per_process_batch_size={per_process_batch_size} and "
+                f"per_replica_batch_size = {per_replica_batch_size}"
+            )
+        per_replica_batches = np.split(
+            per_process_batch, num_model_replicas_per_process
+        )
+    else:
+        # If there are less than one model replicas per process, we need to
+        # replicate the data to each of the model replicas. No further data
+        # sharding is needed.
+        per_replica_batch_size = per_process_batch_size
+        per_replica_batches = [per_process_batch]
 
     sharding = jax.sharding.NamedSharding(
         mesh, jax.sharding.PartitionSpec("batch")
