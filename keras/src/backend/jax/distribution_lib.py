@@ -123,26 +123,19 @@ def distribute_data_input(per_process_batch, layout):
     if not isinstance(layout, jax.sharding.Sharding):
         layout = _to_jax_layout(layout)
 
-    print(f"num_processes: {num_processes()}")
-
     mesh = layout.mesh
     num_model_replicas_total = mesh.shape["batch"]  # mesh_batch_dim_size
     num_model_replicas_per_process = num_model_replicas_total // num_processes()
-    print(f"num_model_replicas_total: {num_model_replicas_total}")
-    print(f"num_model_replicas_per_process: {num_model_replicas_per_process}")
-    assert (
-        num_model_replicas_total % num_processes() == 0
-    ), "Padding is not supported for now."
+    if num_model_replicas_total % num_processes() != 0:
+        raise ValueError("Padding is not supported for now.")
 
     per_process_batch_size = per_process_batch.shape[0]
     per_replica_batch_size = (
         per_process_batch_size // num_model_replicas_per_process
     )
-    print(f"per_process_batch_size: {per_process_batch_size}")
-    print(f"per_replica_batch_size: {per_replica_batch_size}")
-    assert (
-        per_process_batch_size % per_replica_batch_size == 0
-    ), "Padding is not supported for now."
+    if per_process_batch_size % per_replica_batch_size != 0:
+        raise ValueError("Padding is not supported for now.")
+
     per_replica_batches = np.split(
         per_process_batch, num_model_replicas_per_process
     )
@@ -153,13 +146,11 @@ def distribute_data_input(per_process_batch, layout):
 
     global_batch_size = per_replica_batch_size * num_model_replicas_total
     global_batch_shape = (global_batch_size,) + per_process_batch.shape[1:]
-    print(f"global_batch_size: {global_batch_size}")
-    print(f"global_batch_shape: {global_batch_shape}")
 
     index_to_batch = {}
 
     def callback(index):
-        index_key = tuple((slice_.start, slice_.stop) for slice_ in index)
+        index_key = tuple((slice.start, slice.stop) for slice in index)
         if index_key not in index_to_batch:
             index_to_batch[index_key] = per_replica_batches[len(index_to_batch)]
         return index_to_batch[index_key]
