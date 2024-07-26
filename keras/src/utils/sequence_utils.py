@@ -101,7 +101,7 @@ def pad_sequences(
         maxlen = np.max(lengths)
 
     is_dtype_str = np.issubdtype(dtype, np.str_) or np.issubdtype(
-        dtype, np.unicode_
+        dtype, np.str_
     )
     if isinstance(value, str) and dtype != object and not is_dtype_str:
         raise ValueError(
