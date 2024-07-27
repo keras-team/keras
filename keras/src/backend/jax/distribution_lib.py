@@ -144,30 +144,31 @@ def distribute_data_input(per_process_batch, layout):
         per_replica_batches = np.split(
             per_process_batch, num_model_replicas_per_process
         )
+        batches_on_devices = [
+            jax.device_put(batch, device)
+            for batch, device in zip(
+                per_replica_batches, layout.addressable_devices
+            )
+        ]
     else:
         # If there are less than one model replicas per process, we need to
         # replicate the data to each of the model replicas. No further data
         # sharding is needed.
         per_replica_batch_size = per_process_batch_size
-        per_replica_batches = [per_process_batch]
-
-    sharding = jax.sharding.NamedSharding(
-        mesh, jax.sharding.PartitionSpec("batch")
-    )
+        batches_on_devices = [
+            jax.device_put(per_process_batch, device)
+            for device in layout.addressable_devices
+        ]
 
     global_batch_size = per_replica_batch_size * num_model_replicas_total
     global_batch_shape = (global_batch_size,) + per_process_batch.shape[1:]
-
-    index_to_batch = {}
-
-    def callback(index):
-        index_key = tuple((slice.start, slice.stop) for slice in index)
-        if index_key not in index_to_batch:
-            index_to_batch[index_key] = per_replica_batches[len(index_to_batch)]
-        return index_to_batch[index_key]
-
-    global_batch_array = jax.make_array_from_callback(
-        global_batch_shape, sharding, callback
+    sharding = jax.sharding.NamedSharding(
+        mesh, jax.sharding.PartitionSpec("batch")
+    )
+    global_batch_array = jax.make_array_from_single_device_arrays(
+        shape=global_batch_shape,
+        sharding=sharding,
+        arrays=batches_on_devices,
     )
 
     return global_batch_array
