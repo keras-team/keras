@@ -291,7 +291,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             steps_per_execution=self.steps_per_execution,
         )
 
-        self._symbolic_build(iterator=epoch_iterator)
+        self._maybe_symbolic_build(iterator=epoch_iterator)
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -408,7 +408,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 steps_per_execution=self.steps_per_execution,
             )
 
-        self._symbolic_build(iterator=epoch_iterator)
+        self._maybe_symbolic_build(iterator=epoch_iterator)
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -542,7 +542,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             )
 
         # Maybe build model
-        self._symbolic_build(data_batch=(x, y, sample_weight))
+        self._maybe_symbolic_build(data_batch=(x, y, sample_weight))
         self.make_train_function()
 
         def data():
@@ -567,7 +567,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             yield (x, y, sample_weight)
 
         # Maybe build model
-        self._symbolic_build(data_batch=(x, y, sample_weight))
+        self._maybe_symbolic_build(data_batch=(x, y, sample_weight))
         self.make_test_function()
 
         logs = self.test_function(data())
@@ -631,7 +631,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
             x=None, y=y, y_pred=y_pred, sample_weight=sample_weight
         )
 
-    def _symbolic_build(self, iterator=None, data_batch=None):
+    def _maybe_symbolic_build(self, iterator=None, data_batch=None):
+        # Only symbolic build when distribute strategy is created in tf trainer
         if self._distribute_strategy is None:
             # When no distribution strategy is set, defer building
             # to when the train/test/predict function gets traced.
@@ -656,7 +657,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 else:
                     data_batch = maybe_distributed_data_batch
                 break
-        super()._symbolic_build(data_batch=data_batch)
+        with self.distribute_strategy.scope():
+            self._symbolic_build(data_batch=data_batch)
 
 
 class TFEpochIterator(EpochIterator):
