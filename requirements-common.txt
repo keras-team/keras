@@ -20,3 +20,6 @@ pytest-cov
 packaging
 # for tree_test.py
 dm_tree
+# for model_visualization_test.py
+pydot
+pydot-ng
