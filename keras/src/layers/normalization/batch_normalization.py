@@ -205,6 +205,7 @@ class BatchNormalization(Layer):
         self.input_spec = InputSpec(
             ndim=len(input_shape), axes={self.axis: input_shape[self.axis]}
         )
+
         reduction_axes = list(range(len(input_shape)))
         del reduction_axes[self.axis]
         self._reduction_axes = reduction_axes
