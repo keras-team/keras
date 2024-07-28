@@ -427,6 +427,7 @@ class TorchTrainer(base_trainer.Trainer):
             # should refactored to not require _compile_metrics and optimizer
             # is defined.
             self._compile_metrics = None
+            self._compile_loss = None
             self.optimizer = None
             self._symbolic_build(iterator=epoch_iterator)
 

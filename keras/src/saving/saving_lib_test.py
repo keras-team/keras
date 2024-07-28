@@ -554,7 +554,9 @@ class SavingTest(testing.TestCase, parameterized.TestCase):
             ]
         )
         new_layer_kernel_value = np.array(new_model.layers[1].kernel)
-        with self.assertRaisesRegex(ValueError, "must match"):
+        with self.assertRaisesRegex(
+            ValueError, "A total of 1 objects could not be loaded"
+        ):
             # Doesn't work by default
             new_model.load_weights(temp_filepath)
         # Now it works

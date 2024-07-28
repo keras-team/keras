@@ -1,4 +1,3 @@
-import warnings
 from typing import Iterator
 from typing import Tuple
 
@@ -25,11 +24,6 @@ class TorchLayer(torch.nn.Module):
         1. Populate all sublayers torch params by calling _track_torch_params()
         2. Create a single torch.nn.ParameterList() parameter with trainable,
            non trainable and seed generator states belongs to the current layer.
-      Since keras also allows untrack / track object post build, eg.
-    Dense.enable_lora(), Dense.quantization(); _untrack_torch_params() is added
-    that allows refresh the parameters expose to torch module. A re-populate
-    will trigger every time when Layer._track_variable() and
-    Layer._untrack_variable() is called.
 
     Few additional points that user should be aware of:
     1. When torch backend is enabled KerasVariable.value is torch.nn.Parameter,
@@ -56,6 +50,11 @@ class TorchLayer(torch.nn.Module):
        corresponding parameter in torch_params from a keras variable:
        parameters = [(pname, p) for pname, p in layer.named_parameters() \
                       if id(p) == id(variable.value)]
+    7. For non trainable varialbes like mean and var in BatchNormalization, this
+       is registered as part of torch_params as parameters instead of buffers.
+       This is not really torch best practices but it is not really possible in
+       keras to track since keras doesn't distinguish a variable that is a stats
+       or just have gradient skipped.
     """
 
     def _track_torch_params(self):
