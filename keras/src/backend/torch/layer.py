@@ -88,7 +88,7 @@ class TorchLayer(torch.nn.Module):
 
     def named_modules(
         self,
-        memo: torch.Set[torch.nn.Module] | None = None,
+        memo=None,
         prefix: str = "",
         remove_duplicate: bool = True,
     ):
