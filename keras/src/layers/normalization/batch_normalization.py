@@ -166,12 +166,6 @@ class BatchNormalization(Layer):
         self.gamma_constraint = constraints.get(gamma_constraint)
         self.supports_masking = True
 
-        self.gamma = None
-        self.beta = None
-        self.moving_mean = None
-        self.moving_variance = None
-        self._reduction_axes = None
-
     def build(self, input_shape):
         shape = (input_shape[self.axis],)
         if self.scale:
@@ -236,12 +230,10 @@ class BatchNormalization(Layer):
             # out BN for mixed precision.
             inputs = ops.cast(inputs, "float32")
 
-        moving_mean = ops.cast(self.moving_mean, inputs.dtype)
-        moving_variance = ops.cast(self.moving_variance, inputs.dtype)
-
         if training and self.trainable:
             mean, variance = self._moments(inputs, mask)
-
+            moving_mean = ops.cast(self.moving_mean, inputs.dtype)
+            moving_variance = ops.cast(self.moving_variance, inputs.dtype)
             self.moving_mean.assign(
                 moving_mean * self.momentum + mean * (1.0 - self.momentum)
             )
@@ -250,6 +242,8 @@ class BatchNormalization(Layer):
                 + variance * (1.0 - self.momentum)
             )
         else:
+            moving_mean = ops.cast(self.moving_mean, inputs.dtype)
+            moving_variance = ops.cast(self.moving_variance, inputs.dtype)
             mean = moving_mean
             variance = moving_variance
 
