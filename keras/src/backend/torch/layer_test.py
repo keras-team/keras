@@ -268,4 +268,4 @@ class LayerTest(testing.TestCase):
         with self.assertRaisesRegex(
             RuntimeError, "Did you forget to call model once?"
         ):
-            layer.named_parameters()
+            list(layer.named_parameters())

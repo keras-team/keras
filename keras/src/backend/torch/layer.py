@@ -1,6 +1,3 @@
-from typing import Iterator
-from typing import Tuple
-
 import torch
 
 from keras.src.ops.operation import Operation
@@ -89,15 +86,16 @@ class TorchLayer(torch.nn.Module):
         if not self._torch_params_tracked():
             self._track_torch_params()
 
-    def named_parameters(
+    def named_modules(
         self,
+        memo: torch.Set[torch.nn.Module] | None = None,
         prefix: str = "",
-        recurse: bool = True,
         remove_duplicate: bool = True,
-    ) -> Iterator[Tuple[str, torch.nn.Parameter]]:
+    ):
+        # named_modules is the root of all torch parameters/module calls.
         self._populate_torch_params()
-        return torch.nn.Module.named_parameters(
-            self, prefix, recurse, remove_duplicate
+        return torch.nn.Module.named_modules(
+            self, memo, prefix, remove_duplicate
         )
 
     def state_dict(self, *args, destination=None, prefix="", keep_vars=False):
