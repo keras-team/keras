@@ -775,6 +775,9 @@ def _cudnn_gru(
     if not return_sequences:
         outputs = tf.expand_dims(last_output, axis=0 if time_major else 1)
 
+    # Match keras RNN return format
+    state = [state]
+
     return (
         last_output,
         outputs,
