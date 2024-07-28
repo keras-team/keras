@@ -5,6 +5,7 @@ from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.backend import standardize_dtype
+from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 
 
@@ -206,6 +207,9 @@ class BatchNormalization(Layer):
             initializer=self.moving_variance_initializer,
             trainable=False,
             autocast=False,
+        )
+        self.input_spec = InputSpec(
+            ndim=len(input_shape), axes={self.axis: input_shape[self.axis]}
         )
 
         reduction_axes = list(range(len(input_shape)))
