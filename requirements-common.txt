@@ -22,4 +22,3 @@ packaging
 dm_tree
 # for model_visualization_test.py
 pydot
-pydot-ng
