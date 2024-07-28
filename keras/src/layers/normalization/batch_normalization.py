@@ -208,6 +208,7 @@ class BatchNormalization(Layer):
             trainable=False,
             autocast=False,
         )
+
         self.input_spec = InputSpec(
             ndim=len(input_shape), axes={self.axis: input_shape[self.axis]}
         )
