@@ -1048,7 +1048,7 @@ class Trainer:
                     "Exception encountered:\n"
                     f"'{e}'"
                 )
-            if compile_metrics_unbuilt:
+            if compile_metrics_unbuilt and y is not None:
                 # Build all metric state with `backend.compute_output_spec`.
                 backend.compute_output_spec(
                     self.compute_metrics,
@@ -1057,7 +1057,7 @@ class Trainer:
                     y_pred,
                     sample_weight=sample_weight,
                 )
-            if compile_loss_unbuilt:
+            if compile_loss_unbuilt and y is not None:
                 # Build `CompileLoss` state with `backend.compute_output_spec`.
                 backend.compute_output_spec(
                     self._compute_loss,
