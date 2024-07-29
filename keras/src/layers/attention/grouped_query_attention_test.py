@@ -26,7 +26,6 @@ class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
             supports_masking=True,
             run_training_check=False,
         )
-        return
 
         self.run_layer_test(
             layers.GroupedQueryAttention,
