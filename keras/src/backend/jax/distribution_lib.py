@@ -118,13 +118,15 @@ def distribute_data_input(per_process_batch, layout):
             `jax.sharding.Sharding` instance.
 
     Returns:
-        Distributed inputs thats been properly put to local devices.
+        Distributed inputs that's been properly put to local devices.
     """
     if not isinstance(layout, jax.sharding.Sharding):
         layout = _to_jax_layout(layout)
 
-    mesh = layout.mesh
-    num_model_replicas_total = mesh.shape["batch"]  # mesh_batch_dim_size
+    mesh_shape = list(layout.mesh.shape.values())
+    mesh_batch_dim_size = mesh_shape[0]
+    num_model_replicas_total = mesh_batch_dim_size
+    mesh_model_dim_size = mesh_shape[1] if len(mesh_shape) > 1 else 1
     num_model_replicas_per_process = num_model_replicas_total / num_processes()
     per_process_batch_size = per_process_batch.shape[0]
 
@@ -144,10 +146,16 @@ def distribute_data_input(per_process_batch, layout):
         per_replica_batches = np.split(
             per_process_batch, num_model_replicas_per_process
         )
+        # Replicate data along the model_dim.
+        per_device_batches = [
+            per_replica_batch
+            for per_replica_batch in per_replica_batches
+            for _ in range(mesh_model_dim_size)
+        ]
         batches_on_devices = [
             jax.device_put(batch, device)
             for batch, device in zip(
-                per_replica_batches, layout.addressable_devices
+                per_device_batches, layout.addressable_devices
             )
         ]
     else:
@@ -162,12 +170,9 @@ def distribute_data_input(per_process_batch, layout):
 
     global_batch_size = per_replica_batch_size * num_model_replicas_total
     global_batch_shape = (global_batch_size,) + per_process_batch.shape[1:]
-    sharding = jax.sharding.NamedSharding(
-        mesh, jax.sharding.PartitionSpec("batch")
-    )
     global_batch_array = jax.make_array_from_single_device_arrays(
         shape=global_batch_shape,
-        sharding=sharding,
+        sharding=layout,
         arrays=batches_on_devices,
     )
 
