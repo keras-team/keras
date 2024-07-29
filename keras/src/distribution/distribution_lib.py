@@ -628,39 +628,39 @@ class ModelParallel(Distribution):
                 "the input dataset, e.g via `dataset.batch(batch_size)`"
             )
 
-        # We need to compute the per-worker/process/host batch size.
-        # This will depend on how many model replicas we have on each worker.
+        # We need to compute the per-process/worker/host batch size.
+        # This will depend on how many model replicas we have on each process.
         # Note that this might be smaller than one if model replicas are sharded
-        # across multiple workers.
+        # across multiple processes.
         mesh_batch_dim_index = self.device_mesh.axis_names.index(
             self._batch_dim_name
         )
         num_model_replicas = self.device_mesh.shape[mesh_batch_dim_index]
         if num_model_replicas == 1:
-            # No sharding is needed in this case. Each worker will have the
+            # No sharding is needed in this case. Each process will have the
             # global batch size, and data from the iterator will need to be
-            # replicated across all workers.
+            # replicated across all processes.
             return dataset.prefetch(tf.data.AUTOTUNE)
         num_model_replicas_per_process = num_model_replicas / self._num_process
         if num_model_replicas_per_process >= 1:
-            # Each worker will have one or more full model replicas. Data will
-            # be sharded across all workers without replication.
+            # Each process will have one or more full model replicas. Data will
+            # be sharded across all processes without replication.
             if global_batch_size % self._num_process != 0:
                 raise ValueError(
                     "Global batch size must be divisible by the number of "
                     f"processes. `global_batch_size`={global_batch_size} and "
                     f"`num_process`={self._num_process}"
                 )
-            per_worker_batch_size = global_batch_size // self._num_process
-            distributed_dataset = dataset.rebatch(per_worker_batch_size)
+            per_process_batch_size = global_batch_size // self._num_process
+            distributed_dataset = dataset.rebatch(per_process_batch_size)
             distributed_dataset = distributed_dataset.shard(
                 num_shards=self._num_process,
                 index=self._process_id,
             )
             return distributed_dataset.prefetch(tf.data.AUTOTUNE)
         else:
-            # Model replicas are sharded across multiple workers. Data will be
-            # sharded across model replicas, and replicated across workers
+            # Model replicas are sharded across multiple processes. Data will be
+            # sharded across model replicas, and replicated across processes
             # within the same model replica.
             if global_batch_size % num_model_replicas != 0:
                 raise ValueError(
@@ -668,12 +668,11 @@ class ModelParallel(Distribution):
                     f"replicas. `global_batch_size`={global_batch_size} and "
                     f"`num_model_replicas`={num_model_replicas}"
                 )
-            per_worker_batch_size = global_batch_size // num_model_replicas
-            distributed_dataset = dataset.rebatch(per_worker_batch_size)
-            workers_per_replica = self._num_process // num_model_replicas
+            per_process_batch_size = global_batch_size // num_model_replicas
+            distributed_dataset = dataset.rebatch(per_process_batch_size)
+            processes_per_replica = self._num_process // num_model_replicas
             # TODO: Figure out what the convention is for data sharding id.
-            # data_shard_id = self._process_id // workers_per_replica
-            data_shard_id = self._process_id % workers_per_replica
+            data_shard_id = self._process_id % processes_per_replica
             distributed_dataset = distributed_dataset.shard(
                 num_shards=num_model_replicas,
                 index=data_shard_id,
