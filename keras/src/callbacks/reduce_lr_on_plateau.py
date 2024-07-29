@@ -138,7 +138,7 @@ class ReduceLROnPlateau(Callback):
                         self.model.optimizer.learning_rate = new_lr
                         if self.verbose > 0:
                             io_utils.print_msg(
-                                f"\nEpoch {epoch +1}: "
+                                f"\nEpoch {epoch + 1}: "
                                 "ReduceLROnPlateau reducing "
                                 f"learning rate to {new_lr}."
                             )
