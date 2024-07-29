@@ -645,9 +645,12 @@ class ModelParallel(Distribution):
         if num_model_replicas_per_process >= 1:
             # Each worker will have one or more full model replicas. Data will
             # be sharded across all workers without replication.
-            assert (
-                global_batch_size % self._num_process == 0
-            ), "Global batch size must be divisible by number of processes."
+            if global_batch_size % self._num_process != 0:
+                raise ValueError(
+                    "Global batch size must be divisible by the number of "
+                    f"processes. `global_batch_size`={global_batch_size} and "
+                    f"`num_process`={self._num_process}"
+                )
             per_worker_batch_size = global_batch_size // self._num_process
             distributed_dataset = dataset.rebatch(per_worker_batch_size)
             distributed_dataset = distributed_dataset.shard(
@@ -659,9 +662,12 @@ class ModelParallel(Distribution):
             # Model replicas are sharded across multiple workers. Data will be
             # sharded across model replicas, and replicated across workers
             # within the same model replica.
-            assert (
-                global_batch_size % num_model_replicas == 0
-            ), "Global batch size must be divisible by number of replicas."
+            if global_batch_size % num_model_replicas != 0:
+                raise ValueError(
+                    "Global batch size must be divisible by the number of "
+                    f"replicas. `global_batch_size`={global_batch_size} and "
+                    f"`num_model_replicas`={num_model_replicas}"
+                )
             per_worker_batch_size = global_batch_size // num_model_replicas
             distributed_dataset = dataset.rebatch(per_worker_batch_size)
             workers_per_replica = self._num_process // num_model_replicas
