@@ -37,6 +37,14 @@ class Variable(
             value, dtype=self._dtype, trainable=self.trainable, name=self.name
         )
 
+    def _initialize_with_initializer(self, initializer):
+        self._value = tf.Variable(
+            lambda: initializer(self._shape, dtype=self._dtype),
+            dtype=self._dtype,
+            trainable=self.trainable,
+            name=self.name,
+        )
+
     def _deferred_initialize(self):
         if self._value is not None:
             raise ValueError(f"Variable {self.path} is already initialized.")
@@ -49,8 +57,8 @@ class Variable(
                 "before you start using your layer/model objects."
             )
         with tf.init_scope():
-            value = self._initializer(self._shape, dtype=self._dtype)
-            self._initialize(value)
+            self._initialize_with_initializer(self._initializer)
+            self._initializer = None
 
     def _direct_assign(self, value):
         self._value.assign(tf.cast(value, self._value.dtype))
