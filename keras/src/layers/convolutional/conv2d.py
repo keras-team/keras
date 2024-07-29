@@ -7,7 +7,7 @@ class Conv2D(BaseConv):
     """2D convolution layer.
 
     This layer creates a convolution kernel that is convolved with the layer
-    input over a single spatial (or temporal) dimension to produce a tensor of
+    input over a 2D spatial (or temporal) dimension(height and width) to produce a tensor of
     outputs. If `use_bias` is True, a bias vector is created and added to the
     outputs. Finally, if `activation` is not `None`, it is applied to the
     outputs as well.
