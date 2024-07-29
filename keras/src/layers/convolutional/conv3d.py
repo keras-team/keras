@@ -7,7 +7,7 @@ class Conv3D(BaseConv):
     """3D convolution layer.
 
     This layer creates a convolution kernel that is convolved with the layer
-    input over a 3D spatial (or temporal) dimension(width,height and depth) to 
+    input over a 3D spatial (or temporal) dimension (width,height and depth) to 
     produce a tensor of outputs. If `use_bias` is True, a bias vector is created 
     and added to the outputs. Finally, if `activation` is not `None`, it is 
     applied to the outputs as well.
