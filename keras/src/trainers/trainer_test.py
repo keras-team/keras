@@ -1712,15 +1712,13 @@ class TrainerDistributeTest(testing.TestCase):
                 loss="sparse_categorical_crossentropy",
                 metrics=["sparse_categorical_accuracy"],
             )
-            x = (np.arange(512) / 128).reshape((256, 2))
-            y = (np.arange(256) % 2).reshape((256, 1))
-            out_fit = model.fit(x, y)
-            self.assertLess(
-                out_fit.history["sparse_categorical_accuracy"][0], 0.6
-            )
-            out_eval = model.evaluate(x, y)
-            self.assertLess(out_eval[1], 0.6)
-            out_predict = model.predict(x)
-            self.assertEqual(out_predict.shape, (256, 2))
+        x = (np.arange(512) / 128).reshape((256, 2))
+        y = (np.arange(256) % 2).reshape((256, 1))
+        out_fit = model.fit(x, y)
+        self.assertLess(out_fit.history["sparse_categorical_accuracy"][0], 0.6)
+        out_eval = model.evaluate(x, y)
+        self.assertLess(out_eval[1], 0.6)
+        out_predict = model.predict(x)
+        self.assertEqual(out_predict.shape, (256, 2))
 
         context._reset_context()
