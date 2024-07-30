@@ -237,9 +237,14 @@ def map(f, xs):
     def get_fn_output_signature(x):
         out = f(x)
         return tree.map_structure(tf.TensorSpec.from_tensor, out)
-
-    fn_output_signature = get_fn_output_signature(xs[0])
-    return tf.map_fn(f, xs, fn_output_signature=fn_output_signature)
+    
+    if isinstance(xs,dict) or isinstance(xs,list) or isinstance(xs,tuple):
+        input= tree.pack_sequence_as(xs,[x[0] for x in tree.flatten(xs)])
+        fn_output_signature = get_fn_output_signature(input)
+        return tf.map_fn(f, xs, fn_output_signature=fn_output_signature)
+    else:
+        fn_output_signature = get_fn_output_signature(xs[0])
+        return tf.map_fn(f, xs, fn_output_signature=fn_output_signature)
 
 
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
