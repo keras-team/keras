@@ -159,12 +159,11 @@ class KerasVariable:
                 )
         else:
             if callable(initializer):
-                shape = self._validate_shape(shape)
-                value = initializer(shape, dtype=dtype)
+                self._shape = self._validate_shape(shape)
+                self._initialize_with_initializer(initializer)
             else:
-                value = initializer
-            self._initialize(value)
-            self._shape = tuple(self._value.shape)
+                self._initialize(initializer)
+                self._shape = tuple(self._value.shape)
         self._ndim = len(self._shape)
 
     def _deferred_initialize(self):
@@ -178,8 +177,8 @@ class KerasVariable:
                 "Make sure that all variables are initialized "
                 "before you start using your layer/model objects."
             )
-        value = self._initializer(self._shape, dtype=self._dtype)
-        self._initialize(value)
+        self._initialize_with_initializer(self._initializer)
+        self._initializer = None
 
     def _validate_shape(self, shape):
         shape = standardize_shape(shape)
@@ -334,6 +333,10 @@ class KerasVariable:
 
     def _initialize(self, value):
         raise NotImplementedError
+
+    def _initialize_with_initializer(self, initializer):
+        value = initializer(self._shape, dtype=self._dtype)
+        self._initialize(value)
 
     def _convert_to_tensor(self, value, dtype=None):
         raise NotImplementedError
