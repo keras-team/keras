@@ -27,7 +27,7 @@ def floatx():
 
     Example:
 
-    >>> keras.config.floatx()
+    >>> keras.backend.floatx()
     'float32'
 
     """
@@ -48,15 +48,15 @@ def set_floatx(value):
         value: String; `'bfloat16'`, `'float16'`, `'float32'`, or `'float64'`.
 
     Examples:
-    >>> keras.config.floatx()
+    >>> keras.backend.floatx()
     'float32'
 
-    >>> keras.config.set_floatx('float64')
-    >>> keras.config.floatx()
+    >>> keras.backend.set_floatx('float64')
+    >>> keras.backend.floatx()
     'float64'
 
     >>> # Set it back to float32
-    >>> keras.config.set_floatx('float32')
+    >>> keras.backend.set_floatx('float32')
 
     Raises:
         ValueError: In case of invalid value.
@@ -80,7 +80,7 @@ def epsilon():
 
     Example:
 
-    >>> keras.config.epsilon()
+    >>> keras.backend.epsilon()
     1e-07
 
     """
@@ -95,15 +95,15 @@ def set_epsilon(value):
         value: float. New value of epsilon.
 
     Examples:
-    >>> keras.config.epsilon()
+    >>> keras.backend.epsilon()
     1e-07
 
-    >>> keras.config.set_epsilon(1e-5)
-    >>> keras.config.epsilon()
+    >>> keras.backend.set_epsilon(1e-5)
+    >>> keras.backend.epsilon()
     1e-05
 
     >>> # Set it back to the default value.
-    >>> keras.config.set_epsilon(1e-7)
+    >>> keras.backend.set_epsilon(1e-7)
 
     """
     global _EPSILON
@@ -124,7 +124,7 @@ def image_data_format():
 
     Example:
 
-    >>> keras.config.image_data_format()
+    >>> keras.backend.image_data_format()
     'channels_last'
 
     """
@@ -145,15 +145,15 @@ def set_image_data_format(data_format):
 
     Examples:
 
-    >>> keras.config.image_data_format()
+    >>> keras.backend.image_data_format()
     'channels_last'
 
-    >>> keras.config.set_image_data_format('channels_first')
-    >>> keras.config.image_data_format()
+    >>> keras.backend.set_image_data_format('channels_first')
+    >>> keras.backend.image_data_format()
     'channels_first'
 
     >>> # Set it back to `'channels_last'`
-    >>> keras.config.set_image_data_format('channels_last')
+    >>> keras.backend.set_image_data_format('channels_last')
 
     """
     global _IMAGE_DATA_FORMAT
@@ -269,7 +269,7 @@ def backend():
 
     Example:
 
-    >>> keras.config.backend()
+    >>> keras.backend.backend()
     'tensorflow'
 
     """
