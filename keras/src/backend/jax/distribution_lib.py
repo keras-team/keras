@@ -118,7 +118,7 @@ def distribute_data_input(per_process_batch, layout):
             `jax.sharding.Sharding` instance.
 
     Returns:
-        Distributed inputs that's been properly put to local devices.
+        A global batch distributed according to `layout`.
     """
     if not isinstance(layout, jax.sharding.Sharding):
         layout = _to_jax_layout(layout)
