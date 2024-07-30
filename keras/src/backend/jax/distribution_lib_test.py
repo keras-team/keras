@@ -323,6 +323,37 @@ class JaxDistributionLibTest(testing.TestCase):
             )
         )
 
+    def test_distribute_data_input(self):
+        per_process_batch = jax.numpy.arange(24).reshape(
+            6, 4
+        )  # Example input array
+        devices = jax.devices()[:4]  # Simulate 4 devices
+        batch_dim_size, model_dim_size = 2, 2
+        mesh = jax.sharding.Mesh(
+            np.array(devices).reshape(batch_dim_size, model_dim_size),
+            axis_names=["batch", "model"],
+        )
+        layout = jax.sharding.NamedSharding(
+            mesh, jax.sharding.PartitionSpec("batch", None)
+        )
+
+        result = backend_dlib.distribute_data_input(per_process_batch, layout)
+
+        # Check the shape of the global batch array
+        self.assertEqual(
+            result.shape, (6, 4)
+        )  # (per_replica_batch_size * num_model_replicas_total, 4)
+
+        # Check the sharding of the global batch array
+        self.assertEqual(len(result.addressable_shards), len(devices))
+        # Since batch_dim_size=2, there are 2 model replicas so there is one
+        # replication of data for model replica #1 and another replication of
+        # data for model replica #2. Within each model replica, the data is
+        # sharded to two shards. Therefore, each shard has 1/2 of
+        # per_process_batch.
+        for shard in result.addressable_shards:
+            self.assertEqual(shard.data.shape, (3, 4))
+
 
 class ShardingCaptureLayer(layers.Layer):
     def __init__(self, **kwargs):
