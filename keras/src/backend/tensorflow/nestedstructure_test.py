@@ -1,28 +1,18 @@
-import os
-
-import numpy as np
-from absl.testing import parameterized
-
-os.environ["KERAS_BACKEND"] = "tensorflow"
 import numpy as np
 import tensorflow as tf
 
 import keras
-from keras.src import backend
 from keras.src import testing
-from keras.src.utils import backend_utils
 
 
 def dict_input_fn(inputs):
-    outputs = dict(inputs)
-    outputs["x"] = inputs["x"][:, 0]
-    outputs["y"] = inputs["y"] + 1
-    return outputs
+    x = inputs["x"][:, 0]
+    y = inputs["y"] + 1
+    return {"x": x, "y": y}
 
 
 def list_input_fn(inputs):
-    outputs = [x**2 for x in inputs]
-    return outputs
+    return [x**2 for x in inputs]
 
 
 class NestedTest(testing.TestCase):
