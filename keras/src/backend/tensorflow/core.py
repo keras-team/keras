@@ -237,9 +237,9 @@ def map(f, xs):
     def get_fn_output_signature(x):
         out = f(x)
         return tree.map_structure(tf.TensorSpec.from_tensor, out)
-    
+
     if tree.is_nested(xs):
-        input= tree.pack_sequence_as(xs,[x[0] for x in tree.flatten(xs)])
+        input = tree.pack_sequence_as(xs, [x[0] for x in tree.flatten(xs)])
         fn_output_signature = get_fn_output_signature(input)
         return tf.map_fn(f, xs, fn_output_signature=fn_output_signature)
     else:
