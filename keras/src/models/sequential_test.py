@@ -5,6 +5,7 @@ import pytest
 
 from keras.src import backend
 from keras.src import layers
+from keras.src import saving
 from keras.src import testing
 from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
@@ -303,6 +304,21 @@ class SequentialTest(testing.TestCase):
             model, custom_objects={"DictLayer": DictLayer}
         )
         self.assertLen(revived.layers, 1)
+
+    def test_serialization_with_lambda_layer(self):
+        # https://github.com/keras-team/keras/issues/20074
+        inputs = np.random.random(size=(1, 10, 4)).astype("float32")
+        CONV_WIDTH = 3
+        model = Sequential([layers.Lambda(lambda x: x[:, -CONV_WIDTH:, :])])
+        outputs = model(inputs)
+
+        temp = self.get_temp_dir()
+        save_path = f"{temp}/model.keras"
+        model.save(save_path)
+        revived = saving.load_model(save_path, safe_mode=False)
+        revived_outputs = revived(inputs)
+        self.assertLen(revived.layers, 1)
+        self.assertAllClose(revived_outputs, outputs)
 
     def test_functional_properties(self):
         model = Sequential(name="seq")
