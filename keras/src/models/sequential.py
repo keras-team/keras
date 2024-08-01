@@ -5,6 +5,7 @@ import typing
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.backend.common import standardize_shape
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.legacy.saving import saving_utils
@@ -152,13 +153,9 @@ class Sequential(Model):
         return "Sequential"
 
     def build(self, input_shape=None):
-        if not isinstance(input_shape, (tuple, list)):
-            # Do not attempt to build if the model does not have a single
-            # input tensor.
-            return
-        if input_shape and not (
-            isinstance(input_shape[0], int) or input_shape[0] is None
-        ):
+        try:
+            input_shape = standardize_shape(input_shape)
+        except:
             # Do not attempt to build if the model does not have a single
             # input tensor.
             return
