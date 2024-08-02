@@ -124,8 +124,7 @@ def distribute_data_input(per_process_batch, layout):
         layout = _to_jax_layout(layout)
 
     mesh_shape = list(layout.mesh.shape.values())
-    mesh_batch_dim_size = mesh_shape[0]
-    num_model_replicas_total = mesh_batch_dim_size
+    num_model_replicas_total = mesh_shape[0]  # batch dimension of the mesh
     mesh_model_dim_size = mesh_shape[1] if len(mesh_shape) > 1 else 1
     num_model_replicas_per_process = num_model_replicas_total / num_processes()
     per_process_batch_size = per_process_batch.shape[0]
@@ -133,6 +132,15 @@ def distribute_data_input(per_process_batch, layout):
     if num_model_replicas_per_process >= 1:
         # If there are more than one model replicas per process, we need to
         # further shard the data to each of the model replicas.
+        if num_model_replicas_total % num_processes() != 0:
+            raise ValueError(
+                "If there is more than one replicas per process, batch "
+                "dimension of the mesh should be divisible "
+                "by the number of processes. "
+                f"Batch dimension size is {num_model_replicas_total} and "
+                f"number of processes is {num_processes()}."
+            )
+
         per_replica_batch_size = int(
             per_process_batch_size // num_model_replicas_per_process
         )
