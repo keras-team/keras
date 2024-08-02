@@ -130,15 +130,15 @@ def distribute_data_input(per_process_batch, layout):
     per_process_batch_size = per_process_batch.shape[0]
 
     if num_model_replicas_per_process >= 1:
-        # If there are more than one model replicas per process, we need to
+        # If there is more than one model replica per process, we need to
         # further shard the data to each of the model replicas.
         if num_model_replicas_total % num_processes() != 0:
             raise ValueError(
-                "If there is more than one replicas per process, batch "
+                "If there is more than one replica per process, the batch "
                 "dimension of the mesh should be divisible "
-                "by the number of processes. "
-                f"Batch dimension size is {num_model_replicas_total} and "
-                f"number of processes is {num_processes()}."
+                "by the number of processes. Here, "
+                f"batch dimension = {num_model_replicas_total}, while "
+                f"number of processes = {num_processes()}"
             )
 
         per_replica_batch_size = int(
