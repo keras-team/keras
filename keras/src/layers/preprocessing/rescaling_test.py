@@ -85,6 +85,7 @@ class RescalingTest(testing.TestCase):
         layer(x)
         backend.set_image_data_format(config)
 
+    @pytest.mark.requires_trainable_backend
     def test_numpy_args(self):
         # https://github.com/keras-team/keras/issues/20072
         self.run_layer_test(
