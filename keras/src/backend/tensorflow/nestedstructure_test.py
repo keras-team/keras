@@ -38,6 +38,7 @@ class NestedTest(testing.TestCase):
                 np.random.randint(0, 10, size=(4, 1)), dtype=tf.int32
             ),
         ]
+
         ys = keras.ops.map(list_input_fn, xs)
         for x, y in zip(xs, ys):
             self.assertTrue((y == x**2).numpy().all())
