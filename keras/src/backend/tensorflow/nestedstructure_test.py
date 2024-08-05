@@ -2,12 +2,14 @@ import os
 
 import numpy as np
 import tensorflow as tf
-
-import keras
+import pytest
 from keras.src import testing
+from keras.src import backend
 
-os.environ["JAX_TRACEBACK_FILTERING"] = "off"
-
+@pytest.mark.skipif(
+    backend.backend() != "tensorflow",
+    reason="The nestedstructure test can only run with TF backend.",
+)
 
 def dict_input_fn(inputs):
     x = inputs["x"][:, 0]
