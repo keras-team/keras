@@ -5,7 +5,7 @@ import tensorflow as tf
 import pytest
 from keras.src import testing
 from keras.src import backend
-
+import keras
 @pytest.mark.skipif(
     backend.backend() != "tensorflow",
     reason="The nestedstructure test can only run with TF backend.",
