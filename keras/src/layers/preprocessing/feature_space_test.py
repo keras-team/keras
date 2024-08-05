@@ -454,42 +454,76 @@ class FeatureSpaceTest(testing.TestCase):
     def test_no_adapt(self):
         data = {
             "int_1": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-            "text_1": ["This is", "not just", "an example", "of random words.",
-                       "these are", "some words", "in", "a random", "example.", "Bye!"],
-            "float_1": [-1.2, 0., 2.4, 1.2, 15., -100., 23.1, 3.12, 0.1, -0.01]
+            "text_1": [
+                "This is",
+                "not just",
+                "an example",
+                "of random words.",
+                "these are",
+                "some words",
+                "in",
+                "a random",
+                "example.",
+                "Bye!",
+            ],
+            "float_1": [
+                -1.2,
+                0.0,
+                2.4,
+                1.2,
+                15.0,
+                -100.0,
+                23.1,
+                3.12,
+                0.1,
+                -0.01,
+            ],
         }
         cls = feature_space.FeatureSpace
         # Pre-defined vocabulary. No need to adapt.
-        tv_vocab = ["this", "is", "just", "an", "example", "with", "some", "words"]
+        tv_vocab = [
+            "this",
+            "is",
+            "just",
+            "an",
+            "example",
+            "with",
+            "some",
+            "words",
+        ]
         tv_with_vocab = layers.TextVectorization(
-            vocabulary=tv_vocab,
-            output_mode="int",
-            output_sequence_length=3
+            vocabulary=tv_vocab, output_mode="int", output_sequence_length=3
         )
 
         # Pre-defined mean and variance. No need to adapt.
-        mean, variance = 12., 5.
-        norm_with_mean_var = layers.Normalization(mean=mean, variance=variance)
+        mean, variance = 12.0, 5.0
+        normalization = layers.Normalization(mean=mean, variance=variance)
+
         fs = feature_space.FeatureSpace(
             {
                 "int_1": "integer_hashed",
                 "text_1": cls.feature(
-                    preprocessor=tv_with_vocab, dtype="string", output_mode="int"
+                    dtype="string",
+                    preprocessor=tv_with_vocab,
+                    output_mode="int",
                 ),
                 "float_1": cls.feature(
-                    dtype="float32", preprocessor=norm_with_mean_var,  output_mode="float"
+                    dtype="float32",
+                    preprocessor=normalization,
+                    output_mode="float",
                 ),
             },
             output_mode="dict",
         )
 
         out = fs(data)
-        float_out = ops.expand_dims(
-            (ops.convert_to_tensor(data["float_1"]) - mean) / ops.sqrt(variance), axis=-1)
+        float_out = ops.divide(
+            ops.convert_to_tensor(data["float_1"]) - mean, ops.sqrt(variance)
+        )
+        float_out = ops.reshape(float_out, (10, -1))
 
         self.assertEqual(tuple(out["int_1"].shape), (10, 32))
         self.assertEqual(tuple(out["text_1"].shape), (10, 3))
-        self.assertEqual(tuple(out["float_1"].shape), (10, 1))
         self.assertAllEqual(out["float_1"], float_out)
 
     @pytest.mark.skipif(
