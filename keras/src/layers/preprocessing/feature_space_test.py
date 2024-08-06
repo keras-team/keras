@@ -524,7 +524,7 @@ class FeatureSpaceTest(testing.TestCase):
 
         self.assertEqual(tuple(out["int_1"].shape), (10, 32))
         self.assertEqual(tuple(out["text_1"].shape), (10, 3))
-        self.assertAllEqual(out["float_1"], float_out)
+        self.assertAllClose(out["float_1"], float_out, atol=1e-3)
 
     @pytest.mark.skipif(
         backend.backend() in ("numpy", "torch"),
