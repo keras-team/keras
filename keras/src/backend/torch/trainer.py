@@ -247,6 +247,8 @@ class TorchTrainer(base_trainer.Trainer):
             # do training behavior in case the user did not use `self.training`
             # when implementing a custom layer with torch layers.
             self.train()
+
+            logs = {}
             for step, data in epoch_iterator.enumerate_epoch():
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
