@@ -50,6 +50,12 @@ class Softmax(Layer):
 
     def call(self, inputs, mask=None):
         if mask is not None:
+            if mask.shape != inputs.shape:
+                raise ValueError(
+                    "`mask` and `inputs` must have same shape. "
+                    f"Got inputs shape: {inputs.shape} and "
+                    f"mask shape: {mask.shape}"
+                )
             adder = (
                 1.0 - backend.cast(mask, inputs.dtype)
             ) * _large_negative_number(inputs.dtype)
