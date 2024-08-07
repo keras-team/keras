@@ -53,6 +53,12 @@ class Relu6(Operation):
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
 
+class Flash_attention(Operation):
+    def call(self, x):
+        return backend.nn.flash_attention(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
 
 @keras_export(["keras.ops.relu6", "keras.ops.nn.relu6"])
 def relu6(x):
@@ -76,6 +82,44 @@ def relu6(x):
         return Relu6().symbolic_call(x)
     return backend.nn.relu6(x)
 
+@keras_export(["keras.ops.flash_attention", "keras.ops.nn.flash_attention"])
+def flash_attention(
+        q,
+        k,
+        v,
+        mask):
+    """Flash attention implementation(for now only in jax)
+
+    Args:
+        q: Input tensor,
+        k: Input tensor,
+        v: Input tensor,
+        mask: Input tensor mask
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> q = keras.ops.convert_to_tensor([-3.0, -2.0, 0.1, 0.2, 6.0, 8.0])
+    >>> k = keras.ops.convert_to_tensor([-3.0, -2.0, 0.1, 0.2, 6.0, 8.0])
+    >>> v = keras.ops.convert_to_tensor([-3.0, -2.0, 0.1, 0.2, 6.0, 8.0])
+    >>> mask = keras.ops.convert_to_tensor([-3.0, -2.0, 0.1, 0.2, 6.0, 8.0])
+    >>> keras.ops.flash_attention(q,k,v,mask)
+    array([0.0, 0.0, 0.1, 0.2, 6.0, 6.0], dtype=float32)
+    """
+    if any_symbolic_tensors((   q,
+        k,
+        v,
+        mask,)):
+        return Flash_attention().symbolic_call(   q,
+        k,
+        v,
+        mask)
+    return backend.nn.flash_attention(   q,
+        k,
+        v,
+        mask)
 
 class Sigmoid(Operation):
     def call(self, x):

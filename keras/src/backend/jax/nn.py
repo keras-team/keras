@@ -13,6 +13,7 @@ from keras.src.backend.common.backend_utils import (
 )
 from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import convert_to_tensor
+from keras.src.backend.jax.flash_attention import _flash_attention
 
 
 def relu(x):
@@ -111,6 +112,17 @@ def _convert_to_spatial_operand(
         x = (1,) + (1,) + x
     return x
 
+
+def flash_attention(
+        q,
+        k,
+        v,
+        mask
+):
+
+    out = _flash_attention(q, k, v, mask)
+
+    return out
 
 def _pool(
     inputs,

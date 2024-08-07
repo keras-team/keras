@@ -29,6 +29,7 @@ from keras.src.ops.nn import one_hot
 from keras.src.ops.nn import psnr
 from keras.src.ops.nn import relu
 from keras.src.ops.nn import relu6
+from keras.src.ops.nn import flash_attention
 from keras.src.ops.nn import selu
 from keras.src.ops.nn import separable_conv
 from keras.src.ops.nn import sigmoid
