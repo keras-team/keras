@@ -10,8 +10,8 @@ class ELU(Layer):
     Formula:
 
     ```
-    f(x) = alpha * (exp(x) - 1.) for x < 0
-    f(x) = x for x >= 0
+    f(x) = alpha * (exp(x) - 1.) for x <= 0
+    f(x) = x for x > 0
     ```
 
     Args:
