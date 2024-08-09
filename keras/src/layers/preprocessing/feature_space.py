@@ -490,6 +490,10 @@ class FeatureSpace(Layer):
             if isinstance(preprocessor, layers.Normalization):
                 if preprocessor.input_mean is not None:
                     continue
+            # Special case: a TextVectorization layer with provided vocabulary.
+            elif isinstance(preprocessor, layers.TextVectorization):
+                if preprocessor._has_input_vocabulary:
+                    continue
             if hasattr(preprocessor, "adapt"):
                 adaptable_preprocessors.append(name)
         return adaptable_preprocessors

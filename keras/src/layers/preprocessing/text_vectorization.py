@@ -330,7 +330,7 @@ class TextVectorization(Layer):
         self._encoding = encoding
 
         # We save this hidden option to persist the fact
-        # that we have have a non-adaptable layer with a
+        # that we have a non-adaptable layer with a
         # manually set vocab.
         self._has_input_vocabulary = kwargs.pop(
             "has_input_vocabulary", (vocabulary is not None)
