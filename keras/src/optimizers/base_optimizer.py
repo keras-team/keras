@@ -673,7 +673,7 @@ class BaseOptimizer(KerasSaveable):
                 missing_grad_vars.append(v.name)
 
         if not filtered_grads:
-            raise ValueError("No gradients provided for any variable.")
+            raise ValueError("No gradients provided for integer and string variable.")
         if missing_grad_vars:
             warnings.warn(
                 "Gradients do not exist for variables "
