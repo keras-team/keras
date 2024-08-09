@@ -653,7 +653,7 @@ class ConvBasicTest(testing.TestCase, parameterized.TestCase):
         self.assertLen(layer.trainable_weights, 3)
         self.assertLen(layer.non_trainable_weights, 1)
         if backend.backend() == "torch":
-            self.assertLen(layer.torch_params, 4)
+            self.assertLen(list(layer.parameters()), 4)
         # Try eager call
         x = np.random.random((64,) + input_shape[1:])
         y = np.random.random((64,) + output_shape[1:])
