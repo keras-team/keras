@@ -90,7 +90,20 @@ def deserialize(config, custom_objects=None):
 
 @keras_export("keras.activations.get")
 def get(identifier):
-    """Retrieve a Keras activation function via an identifier."""
+    """Retrieve a Keras activation function via an identifier.
+      Example code:
+      tf.keras.activations.get('relu')
+     <function relu at 0x7cc6859cbd00>
+     tf.keras.activations.get(tf.keras.activations.relu)
+     <function relu at 0x7cc6859cbd00>
+     tf.keras.activations.get(None)
+     <function linear at 0x7cc685382b00>
+     tf.keras.activations.get(abs)
+     <built-in function abs>
+     tf.keras.activations.get('abcd')
+     Traceback (most recent call last):
+     ValueError: Could not interpret activation function identifier: abcd
+    """
     if identifier is None:
         return linear
     if isinstance(identifier, dict):
