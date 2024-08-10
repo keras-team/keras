@@ -436,6 +436,7 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         ("int8", "int8_from_float32", 3),
         ("float8", "float8_from_float32", 8),
     )
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables
     ):
