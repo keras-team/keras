@@ -276,7 +276,7 @@ class NumpyTrainer(base_trainer.Trainer):
         self.make_test_function()
         self.stop_evaluating = False
         callbacks.on_test_begin()
-        logs = None
+        logs = {}
         self.reset_metrics()
         for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_test_batch_begin(step)
