@@ -309,7 +309,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self.make_train_function()
         callbacks.on_train_begin()
         training_logs = None
-        logs = None
+        logs = {}
         initial_epoch = self._initial_epoch or initial_epoch
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
@@ -425,7 +425,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self.make_test_function()
         self.stop_evaluating = False
         callbacks.on_test_begin()
-        logs = None
+        logs = {}
         self.reset_metrics()
         with epoch_iterator.catch_stop_iteration():
             for step, iterator in epoch_iterator.enumerate_epoch():
