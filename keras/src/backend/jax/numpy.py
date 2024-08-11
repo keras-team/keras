@@ -1062,7 +1062,8 @@ def divide(x1, x2):
 def divide_no_nan(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return jnp.where(x2 == 0, 0, jnp.divide(x1, x2))
+    safe_x2 = jnp.where(x2 == 0, 1, x2)
+    return jnp.where(x2 == 0, 0, jnp.divide(x1, safe_x2))
 
 
 def true_divide(x1, x2):
