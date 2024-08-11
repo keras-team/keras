@@ -60,36 +60,38 @@ class DynamicBackend:
         self._backend = backend or backend_module.backend()
 
     def set_backend(self, backend):
+        if backend not in ("tensorflow", "jax", "torch", "numpy"):
+            raise ValueError(
+                "Available backends are ('tensorflow', 'jax', 'torch' and "
+                f"'numpy'). Received: backend={backend}"
+            )
         self._backend = backend
 
     def reset(self):
         self._backend = backend_module.backend()
 
+    @property
+    def name(self):
+        return self._backend
+
     def __getattr__(self, name):
         if self._backend == "tensorflow":
-            from keras.src.backend import tensorflow as tf_backend
-
-            return getattr(tf_backend, name)
+            module = importlib.import_module("keras.src.backend.tensorflow")
+            return getattr(module, name)
         if self._backend == "jax":
-            from keras.src.backend import jax as jax_backend
-
-            return getattr(jax_backend, name)
+            module = importlib.import_module("keras.src.backend.jax")
+            return getattr(module, name)
         if self._backend == "torch":
-            from keras.src.backend import torch as torch_backend
-
-            return getattr(torch_backend, name)
-        if self._backend == "mlx":
-            from keras.src.backend import mlx as mlx_backend
-
-            return getattr(mlx_backend, name)
+            module = importlib.import_module("keras.src.backend.torch")
+            return getattr(module, name)
         if self._backend == "numpy":
-            # TODO (ariG23498):
-            # The import `from keras.src.backend import numpy as numpy_backend`
-            # is not working. This is a temporary fix.
-            # The import is redirected to `keras.backend.numpy.numpy.py`
-            from keras.src import backend as numpy_backend
-
-            return getattr(numpy_backend, name)
+            if backend_module.backend() == "numpy":
+                return getattr(backend_module, name)
+            else:
+                raise NotImplementedError(
+                    "Currently, we cannot dynamically import the numpy backend "
+                    "because it would disrupt the namespace of the import."
+                )
 
 
 @keras_export("keras.config.set_backend")

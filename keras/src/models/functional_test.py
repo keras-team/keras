@@ -1,15 +1,19 @@
+import os
 import warnings
 
 import numpy as np
 import pytest
 
+from keras.src import applications
 from keras.src import backend
 from keras.src import layers
+from keras.src import saving
 from keras.src import testing
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
 from keras.src.models import Functional
 from keras.src.models import Model
+from keras.src.models import Sequential
 
 
 class FunctionalTest(testing.TestCase):
@@ -93,9 +97,14 @@ class FunctionalTest(testing.TestCase):
         outputs = layers.Dense(4)(x)
 
         with self.assertRaisesRegex(
-            ValueError, "all values in the dict must be KerasTensors"
+            ValueError, "All `inputs` values must be KerasTensors"
         ):
-            model = Functional({"aa": [input_a], "bb": input_b}, outputs)
+            model = Functional({"a": "input_a", "b": input_b}, outputs)
+
+        with self.assertRaisesRegex(
+            ValueError, "All `outputs` values must be KerasTensors"
+        ):
+            model = Functional({"a": input_a, "b": input_b}, "outputs")
 
         model = Functional({"a": input_a, "b": input_b}, outputs)
 
@@ -110,6 +119,20 @@ class FunctionalTest(testing.TestCase):
         in_val = {"a": input_a_2, "b": input_b_2}
         out_val = model(in_val)
         self.assertEqual(out_val.shape, (2, 4))
+
+    def test_basic_flow_as_a_submodel(self):
+        # Build submodel
+        submodel_inputs = Input([4])
+        submodel_outputs = layers.Flatten()(submodel_inputs)
+        submodel = Model(submodel_inputs, submodel_outputs)
+
+        inputs = Input((None, 4))
+        outputs = layers.TimeDistributed(submodel)(inputs)
+        model = Model(inputs=inputs, outputs=outputs)
+
+        x = np.random.random((2, 3, 4))
+        y = model(x)
+        self.assertEqual(y.shape, (2, 3, 4))
 
     @pytest.mark.requires_trainable_backend
     def test_named_input_dict_io(self):
@@ -297,7 +320,7 @@ class FunctionalTest(testing.TestCase):
             ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
         ):
             model(np.zeros((2, 3)))
-        with self.assertRaisesRegex(ValueError, "expected 1 input"):
+        with self.assertRaisesRegex(ValueError, "expects 1 input"):
             model([np.zeros((2, 4)), np.zeros((2, 4))])
 
         # List input
@@ -306,7 +329,7 @@ class FunctionalTest(testing.TestCase):
         x = input_a + input_b
         outputs = layers.Dense(2)(x)
         model = Functional([input_a, input_b], outputs)
-        with self.assertRaisesRegex(ValueError, "expected 2 input"):
+        with self.assertRaisesRegex(ValueError, "expects 2 input"):
             model(np.zeros((2, 3)))
         with self.assertRaisesRegex(
             ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
@@ -315,7 +338,7 @@ class FunctionalTest(testing.TestCase):
 
         # Dict input
         model = Functional({"a": input_a, "b": input_b}, outputs)
-        with self.assertRaisesRegex(ValueError, "expected 2 input"):
+        with self.assertRaisesRegex(ValueError, "expects 2 input"):
             model(np.zeros((2, 3)))
         with self.assertRaisesRegex(
             ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
@@ -371,6 +394,96 @@ class FunctionalTest(testing.TestCase):
         self.assertIsInstance(partial_model_4.layers[0], layers.InputLayer)
         self.assertEqual(partial_model_4.layers[1].name, "dense1")
         self.assertEqual(partial_model_4.layers[2].name, "dense2")
+
+    def test_deeply_nested_model(self):
+        i1, i2, i3 = Input((1,)), Input((2,)), Input((3,))
+        o1, o2, o3 = (
+            layers.Dense(1)(i1),
+            layers.Dense(2)(i2),
+            layers.Dense(3)(i3),
+        )
+        model = Model(
+            {"1": i1, "others": {"2": i2, "3": i3}},
+            {"1": o1, "others": {"2": o2, "3": o3}},
+        )
+        out_eager = model(
+            {
+                "1": np.ones((2, 1)),
+                "others": {"2": np.ones((2, 2)), "3": np.ones((2, 3))},
+            }
+        )
+        out_symbolic = model(
+            {
+                "1": Input((1,), batch_size=2),
+                "others": {
+                    "2": Input((2,), batch_size=2),
+                    "3": Input((3,), batch_size=2),
+                },
+            }
+        )
+        for out in [out_eager, out_symbolic]:
+            self.assertIsInstance(out, dict)
+            self.assertEqual(set(out.keys()), {"1", "others"})
+            self.assertEqual(out["1"].shape, (2, 1))
+            self.assertIsInstance(out["others"], dict)
+            self.assertEqual(set(out["others"].keys()), {"2", "3"})
+            self.assertEqual(out["others"]["2"].shape, (2, 2))
+            self.assertEqual(out["others"]["3"].shape, (2, 3))
+
+        # Test serialization boundaries
+        temp_filepath = os.path.join(self.get_temp_dir(), "deeply_nested.keras")
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+        new_out_eager = loaded_model(
+            {
+                "1": np.ones((2, 1)),
+                "others": {"2": np.ones((2, 2)), "3": np.ones((2, 3))},
+            }
+        )
+        self.assertAllClose(out_eager["1"], new_out_eager["1"])
+        self.assertAllClose(
+            out_eager["others"]["2"], new_out_eager["others"]["2"]
+        )
+        self.assertAllClose(
+            out_eager["others"]["3"], new_out_eager["others"]["3"]
+        )
+
+    def test_optional_inputs(self):
+        class OptionalInputLayer(layers.Layer):
+            def call(self, x, y=None):
+                if y is not None:
+                    return x + y
+                return x
+
+            def compute_output_shape(self, x_shape):
+                return x_shape
+
+        i1 = Input((2,))
+        i2 = Input((2,), optional=True)
+        outputs = OptionalInputLayer()(i1, i2)
+        model = Model([i1, i2], outputs)
+
+        # Eager test
+        out = model([np.ones((2, 2)), None])
+        self.assertAllClose(out, np.ones((2, 2)))
+        # Note: it's not intended to work in symbolic mode (yet).
+
+    def test_for_functional_in_sequential(self):
+        # Test for a v3.4.1 regression.
+        if backend.image_data_format() == "channels_first":
+            image_size = (3, 100, 100)
+        else:
+            image_size = (100, 100, 3)
+        base_model = applications.mobilenet.MobileNet(
+            include_top=False, weights=None
+        )
+        model = Sequential()
+        model.add(layers.Input(shape=image_size))
+        model.add(base_model)
+        model.add(layers.GlobalAveragePooling2D())
+        model.add(layers.Dense(7, activation="softmax"))
+        config = model.get_config()
+        model = Sequential.from_config(config)
 
     def test_add_loss(self):
         # TODO

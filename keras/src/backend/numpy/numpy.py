@@ -65,6 +65,8 @@ def matmul(x1, x2):
         dtype = "int32"
     else:
         dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.matmul(x1, x2).astype(dtype)
 
 
@@ -505,8 +507,8 @@ def imag(x):
     return np.imag(x)
 
 
-def isclose(x1, x2):
-    return np.isclose(x1, x2)
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    return np.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 def isfinite(x):
@@ -785,6 +787,20 @@ def reshape(x, newshape):
 
 def roll(x, shift, axis=None):
     return np.roll(x, shift, axis=axis)
+
+
+def searchsorted(sorted_sequence, values, side="left"):
+    if ndim(sorted_sequence) != 1:
+        raise ValueError(
+            "`searchsorted` only supports 1-D sorted sequences. "
+            "You can use `keras.ops.vectorized_map` "
+            "to extend it to N-D sequences. Received: "
+            f"sorted_sequence.shape={sorted_sequence.shape}"
+        )
+    out_type = (
+        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+    )
+    return np.searchsorted(sorted_sequence, values, side=side).astype(out_type)
 
 
 def sign(x):

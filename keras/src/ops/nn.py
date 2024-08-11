@@ -552,23 +552,19 @@ def softmax(x, axis=-1):
     if any_symbolic_tensors((x,)):
         return Softmax(axis).symbolic_call(x)
     if isinstance(axis, tuple):
-        original_shape = x.shape
-        new_shape = []
-        skip_dims = set(axis)
-        i = 0
-        while i < len(original_shape):
-            if i in skip_dims:
-                size = 1
-                while i in skip_dims:
-                    size *= original_shape[i]
-                    i += 1
-                new_shape.append(size)
-            else:
-                new_shape.append(original_shape[i])
-                i += 1
-        x = backend.numpy.reshape(x, new_shape)
-        x = backend.nn.softmax(x, axis=-1)
-        x = backend.numpy.reshape(x, original_shape)
+        axis_to_keep = [v for v in range(len(x.shape)) if v not in axis]
+
+        x_transposed = backend.numpy.transpose(x, axes=(*axis_to_keep, *axis))
+        x_reshaped = backend.numpy.reshape(
+            x_transposed, (*[x.shape[v] for v in axis_to_keep], -1)
+        )
+
+        x = backend.nn.softmax(x_reshaped, axis=-1)
+
+        x = backend.numpy.reshape(x, x_transposed.shape)
+        x = backend.numpy.transpose(
+            x, axes=list(backend.numpy.argsort([*axis_to_keep, *axis]))
+        )
         return x
     else:
         return backend.nn.softmax(x, axis=axis)
@@ -617,23 +613,19 @@ def log_softmax(x, axis=-1):
     if any_symbolic_tensors((x,)):
         return LogSoftmax(axis).symbolic_call(x)
     if isinstance(axis, tuple):
-        original_shape = x.shape
-        new_shape = []
-        skip_dims = set(axis)
-        i = 0
-        while i < len(original_shape):
-            if i in skip_dims:
-                size = 1
-                while i in skip_dims:
-                    size *= original_shape[i]
-                    i += 1
-                new_shape.append(size)
-            else:
-                new_shape.append(original_shape[i])
-                i += 1
-        x = backend.numpy.reshape(x, new_shape)
-        x = backend.nn.log_softmax(x, axis=-1)
-        x = backend.numpy.reshape(x, original_shape)
+        axis_to_keep = [v for v in range(len(x.shape)) if v not in axis]
+
+        x_transposed = backend.numpy.transpose(x, axes=(*axis_to_keep, *axis))
+        x_reshaped = backend.numpy.reshape(
+            x_transposed, (*[x.shape[v] for v in axis_to_keep], -1)
+        )
+
+        x = backend.nn.log_softmax(x_reshaped, axis=-1)
+
+        x = backend.numpy.reshape(x, x_transposed.shape)
+        x = backend.numpy.transpose(
+            x, axes=list(backend.numpy.argsort([*axis_to_keep, *axis]))
+        )
         return x
     else:
         return backend.nn.log_softmax(x, axis=axis)
@@ -1298,8 +1290,8 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
         x: Integer tensor to be encoded. The shape can be
             arbitrary, but the dtype should be integer.
         num_classes: Number of classes for the one-hot encoding.
-        axis: Axis along which the encoding is performed. Defaults to
-            `-1`, which represents the last axis.
+        axis: Axis along which the encoding is performed.
+            `-1` represents the last axis. Defaults to `-1`.
         dtype: (Optional) Data type of the output tensor. If not
             provided, it defaults to the default data type of the backend.
         sparse: Whether to return a sparse tensor; for backends that support
@@ -1377,7 +1369,7 @@ def binary_crossentropy(target, output, from_logits=False):
             probabilities.
             Set it to `True` if `output` represents logits; otherwise,
             set it to `False` if `output` represents probabilities.
-            Defaults to`False`.
+            Defaults to `False`.
 
     Returns:
         Integer tensor: The computed binary cross-entropy loss between
@@ -1452,7 +1444,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
             probabilities.
             Set it to `True` if `output` represents logits; otherwise,
             set it to `False` if `output` represents probabilities.
-            Defaults to`False`.
+            Defaults to `False`.
         axis: (optional) The axis along which the categorical cross-entropy
             is computed.
             Defaults to `-1`, which corresponds to the last dimension of
@@ -1540,7 +1532,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             or probabilities.
             Set it to `True` if `output` represents logits; otherwise,
             set it to `False` if `output` represents probabilities.
-            Defaults to`False`.
+            Defaults to `False`.
         axis: (optional) The axis along which the sparse categorical
             cross-entropy is computed.
             Defaults to `-1`, which corresponds to the last dimension

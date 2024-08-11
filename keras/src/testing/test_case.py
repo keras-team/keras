@@ -586,7 +586,11 @@ def jax_uses_gpu():
 
 
 def torch_uses_gpu():
-    return backend.backend() == "torch" and uses_gpu()
+    if backend.backend() != "torch":
+        return False
+    from keras.src.backend.torch.core import get_device
+
+    return get_device() == "cuda"
 
 
 def uses_gpu():

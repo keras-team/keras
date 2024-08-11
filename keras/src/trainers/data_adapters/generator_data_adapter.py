@@ -26,31 +26,33 @@ class GeneratorDataAdapter(DataAdapter):
         return data_adapter_utils.get_numpy_iterator(self.generator)
 
     def get_jax_iterator(self):
-        from keras.src.backend.jax.core import convert_to_tensor
-
-        def convert_to_jax(x):
-            if data_adapter_utils.is_scipy_sparse(x):
-                return data_adapter_utils.scipy_sparse_to_jax_sparse(x)
-            elif data_adapter_utils.is_tensorflow_sparse(x):
-                return data_adapter_utils.tf_sparse_to_jax_sparse(x)
-            return convert_to_tensor(x)
-
-        for batch in self.generator:
-            yield tree.map_structure(convert_to_jax, batch)
+        return data_adapter_utils.get_jax_iterator(self.generator)
 
     def get_tf_dataset(self):
         from keras.src.utils.module_utils import tensorflow as tf
 
-        def convert_to_tf(x):
+        def convert_to_tf(x, spec):
             if data_adapter_utils.is_scipy_sparse(x):
                 x = data_adapter_utils.scipy_sparse_to_tf_sparse(x)
             elif data_adapter_utils.is_jax_sparse(x):
                 x = data_adapter_utils.jax_sparse_to_tf_sparse(x)
+            if not spec.shape.is_compatible_with(x.shape):
+                raise TypeError(
+                    f"Generator yielded an element of shape {x.shape} where "
+                    f"an element of shape {spec.shape} was expected. Your "
+                    "generator provides tensors with variable input "
+                    "dimensions other than the batch size. Make sure that the "
+                    "generator's first two batches do not have the same "
+                    "dimension value wherever there is a variable input "
+                    "dimension."
+                )
             return x
 
         def get_tf_iterator():
             for batch in self.generator:
-                batch = tree.map_structure(convert_to_tf, batch)
+                batch = tree.map_structure(
+                    convert_to_tf, batch, self._output_signature
+                )
                 yield batch
 
         if self._output_signature is None:

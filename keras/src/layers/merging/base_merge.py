@@ -20,6 +20,43 @@ class Merge(Layer):
     def _merge_function(self, inputs):
         raise NotImplementedError
 
+    def _apply_merge_op_and_or_mask(self, op_fn, inputs):
+        """Merge a set of inputs by applying `op_fn` and ORing the masks.
+
+        We use this for `Minimum` and `Maximum` as it handles the fact that
+        there is no identity element. If applicable, the mask obtained by ORing
+        all masks is set on the output.
+
+        Args:
+            op_fn: binary operation to apply to tensor pair.
+            inputs: array of tensors to apply operation on.
+        """
+        output = None
+        output_mask = None
+
+        for x in inputs:
+            mask = getattr(x, "_keras_mask", None)
+            if mask is not None:
+                mask = ops.broadcast_to(ops.expand_dims(mask, -1), ops.shape(x))
+            if output is None:
+                output = x
+                output_mask = mask
+                continue
+            if mask is not None:
+                x = ops.where(mask, x, output)
+            if output_mask is not None:
+                output = ops.where(output_mask, output, x)
+            if mask is not None and output_mask is not None:
+                output_mask = ops.logical_or(output_mask, mask)
+            else:
+                output_mask = None
+            output = op_fn(output, x)
+
+        if output_mask is not None:
+            output_mask = ops.any(output_mask, axis=-1, keepdims=False)
+            output._keras_mask = output_mask
+        return output
+
     def _compute_elemwise_op_output_shape(self, shape1, shape2):
         """Computes the shape of the resultant of an elementwise operation.
 
@@ -231,10 +268,14 @@ class Merge(Layer):
                 f"Received: inputs={inputs} of length {len(inputs)}, and "
                 f"mask={mask} of length {len(mask)}"
             )
-        if all(m is None for m in mask):
+        # Default implementation does an OR between the masks, which works
+        # for `Add`, `Subtract`, `Average`, `Maximum`, `Minimum`, `Multiply`.
+        if any(m is None for m in mask):
             return None
-        masks = [ops.expand_dims(m, axis=0) for m in mask if m is not None]
-        return ops.all(ops.concatenate(masks, axis=0), axis=0, keepdims=False)
+        output_mask = mask[0]
+        for m in mask[1:]:
+            output_mask = ops.logical_or(output_mask, m)
+        return output_mask
 
     def get_config(self):
         return super().get_config()

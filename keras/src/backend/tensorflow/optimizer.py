@@ -116,18 +116,18 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
             v.value if isinstance(v, backend.Variable) else v
             for v in trainable_variables
         ]
+        grads_and_vars = list(zip(grads, trainable_variables))
+        grads_and_vars = self._all_reduce_sum_gradients(grads_and_vars)
         tf.__internal__.distribute.interim.maybe_merge_call(
             self._distributed_tf_update_step,
             self._distribution_strategy,
-            list(zip(grads, trainable_variables)),
+            grads_and_vars,
             learning_rate,
         )
 
     def _distributed_tf_update_step(
         self, distribution, grads_and_vars, learning_rate
     ):
-        grads_and_vars = self._all_reduce_sum_gradients(grads_and_vars)
-
         def apply_grad_to_update_var(var, grad, learning_rate):
             return self.update_step(grad, var, learning_rate)
 

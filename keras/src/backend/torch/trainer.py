@@ -49,8 +49,8 @@ class TorchTrainer(base_trainer.Trainer):
         # for the weights from the previous train step.
         self.zero_grad()
 
-        loss = self.compute_loss(
-            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        loss = self._compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=True
         )
         self._loss_tracker.update_state(
             loss, sample_weight=tree.flatten(x)[0].shape[0]
@@ -85,8 +85,8 @@ class TorchTrainer(base_trainer.Trainer):
             y_pred = self(x, training=False)
         else:
             y_pred = self(x)
-        loss = self.compute_loss(
-            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        loss = self._compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
         self._loss_tracker.update_state(
             loss, sample_weight=tree.flatten(x)[0].shape[0]
@@ -247,6 +247,8 @@ class TorchTrainer(base_trainer.Trainer):
             # do training behavior in case the user did not use `self.training`
             # when implementing a custom layer with torch layers.
             self.train()
+
+            logs = {}
             for step, data in epoch_iterator.enumerate_epoch():
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
@@ -364,7 +366,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_test_function()
         self.stop_evaluating = False
         callbacks.on_test_begin()
-        logs = None
+        logs = {}
         self.reset_metrics()
         for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_test_batch_begin(step)

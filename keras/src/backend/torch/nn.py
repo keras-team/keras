@@ -308,35 +308,21 @@ def average_pool(
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
-    padding_value = 0
     if padding == "same":
-        spatial_shape = inputs.shape[2:]
-        num_spatial_dims = len(spatial_shape)
-        padding_value = []
-        uneven_padding = []
-
-        for i in range(num_spatial_dims):
-            padding_size = _compute_padding_length(
-                spatial_shape[i], pool_size[i], strides[i]
-            )
-            # Torch only supports even padding on each dim, to replicate the
-            # behavior of "same" padding of `tf.keras` as much as possible,
-            # we need to pad evenly using the shorter padding.
-            padding_value.append(padding_size[0])
-            if padding_size[0] != padding_size[1]:
-                # Handle unequal padding.
-                # `torch.nn.pad` sets padding value in the reverse order.
-                uneven_padding = [0, 1] + uneven_padding
-        # Only call tnn.pad when needed.
-        if len(uneven_padding) > 0:
-            inputs = tnn.pad(inputs, uneven_padding)
+        # Torch does not natively support `"same"` padding, we need to manually
+        # apply the right amount of padding to `inputs`.
+        inputs, padding = _apply_same_padding(
+            inputs, pool_size, strides, operation_type="pooling"
+        )
+    else:
+        padding = 0
 
     if num_spatial_dims == 1:
         outputs = tnn.avg_pool1d(
             inputs,
             kernel_size=pool_size,
             stride=strides,
-            padding=padding_value,
+            padding=padding,
             count_include_pad=False,
         )
     elif num_spatial_dims == 2:
@@ -344,7 +330,7 @@ def average_pool(
             inputs,
             kernel_size=pool_size,
             stride=strides,
-            padding=padding_value,
+            padding=padding,
             count_include_pad=False,
         )
     elif num_spatial_dims == 3:
@@ -352,7 +338,7 @@ def average_pool(
             inputs,
             kernel_size=pool_size,
             stride=strides,
-            padding=padding_value,
+            padding=padding,
             count_include_pad=False,
         )
     else:
@@ -562,13 +548,14 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     # Axis is the output axis. By default, PyTorch, outputs to last axis.
     # If axis is not last, change output to axis and shift remaining elements.
     x = convert_to_tensor(x, dtype=torch.long)
+    zero = convert_to_tensor(0, dtype=torch.long)
 
     # Torch one_hot does not natively handle negative values, so we add some
     # manual handling for negatives in the input to one_hot by using max(x, 0).
     # The output will have some invalid results, so we set them back to 0 using
     # `where` afterwards.
     output = tnn.one_hot(maximum(x, 0), num_classes)
-    output = where(expand_dims(x, axis=-1) >= 0, output, 0)
+    output = where(expand_dims(x, axis=-1) >= 0, output, zero)
     output = convert_to_tensor(output, dtype=dtype)
     dims = output.dim()
     if axis != -1 and axis != dims:

@@ -381,7 +381,8 @@ def ceil(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return cast(jnp.ceil(x), dtype)
+    x = cast(x, dtype)
+    return jnp.ceil(x)
 
 
 def clip(x, x_min, x_max):
@@ -558,7 +559,10 @@ def flip(x, axis=None):
 def floor(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
     return jnp.floor(x)
 
 
@@ -598,10 +602,10 @@ def imag(x):
     return jnp.imag(x)
 
 
-def isclose(x1, x2):
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return jnp.isclose(x1, x2)
+    return jnp.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 @sparse.densifying_unary
@@ -874,6 +878,17 @@ def roll(x, shift, axis=None):
     return jnp.roll(x, shift, axis=axis)
 
 
+def searchsorted(sorted_sequence, values, side="left"):
+    if ndim(sorted_sequence) != 1:
+        raise ValueError(
+            "`searchsorted` only supports 1-D sorted sequences. "
+            "You can use `keras.ops.vectorized_map` "
+            "to extend it to N-D sequences. Received: "
+            f"sorted_sequence.shape={sorted_sequence.shape}"
+        )
+    return jnp.searchsorted(sorted_sequence, values, side=side)
+
+
 @sparse.elementwise_unary(linear=False)
 def sign(x):
     x = convert_to_tensor(x)
@@ -993,7 +1008,11 @@ def tile(x, repeats):
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     dtype = None
-    if standardize_dtype(x.dtype) == "bool":
+    # TODO: Remove the condition of uint8 and uint16 once we have jax>=0.4.27
+    # for both CPU & GPU environments.
+    # uint8 and uint16 will be casted to uint32 when jax>=0.4.27 but to int32
+    # otherwise.
+    if standardize_dtype(x.dtype) in ("bool", "uint8", "uint16"):
         dtype = "int32"
     return jnp.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 

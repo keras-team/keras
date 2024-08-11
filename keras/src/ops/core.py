@@ -1,4 +1,5 @@
 """
+scan
 scatter
 scatter_update
 slice
@@ -15,14 +16,283 @@ custom_gradient
 """
 
 import numpy as np
+import optree
 
 from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.ops.operation import Operation
 from keras.src.utils import traceback_utils
+
+
+class Map(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, f, xs):
+        return backend.core.map(f, xs)
+
+    def compute_output_spec(self, f, xs):
+        x = xs[0]
+        n = xs.shape[0]
+        y = backend.compute_output_spec(f, x)
+
+        def append_batch_axis(x):
+            return KerasTensor(
+                shape=(n,) + x.shape, dtype=x.dtype, sparse=x.sparse
+            )
+
+        y = tree.map_structure(append_batch_axis, y)
+        return y
+
+
+@keras_export("keras.ops.map")
+def map(f, xs):
+    """Map a function over leading array axes.
+
+    Like Python’s builtin map, except inputs and outputs are in the form of
+    stacked arrays. Consider using the `vectorized_map()` transform instead,
+    unless you need to apply a function element by element for reduced memory
+    usage or heterogeneous computation with other control flow primitives.
+
+    When `xs` is an array type, the semantics of `map()` are given by this
+    Python implementation:
+
+    ```python
+    def map(f, xs):
+        return np.stack([f(x) for x in xs])
+    ```
+
+    Args:
+        f: Callable defines the function to apply element-wise over the first
+            axis or axes of `xs`.
+        xs: Values over which to map along the leading axis.
+
+    Returns:
+        Mapped values.
+
+    Examples:
+
+    >>> f = lambda x: x**2
+    >>> xs = keras.ops.arange(10)
+    >>> ys = keras.ops.map(f, xs)
+    >>> ys
+    [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+
+    >>> f = lambda x: {"y1": x**2, "y2": x * 10}  # Can have nested outputs
+    >>> ys = keras.ops.map(f, xs)
+    >>> ys["y1"]
+    [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+    >>> ys["y2"]
+    [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+    """
+    if any_symbolic_tensors((xs,)):
+        return Map().symbolic_call(f, xs)
+    return backend.core.map(f, xs)
+
+
+class Scan(Operation):
+    def __init__(self, reverse=False, unroll=1):
+        super().__init__()
+        self.reverse = reverse
+        self.unroll = unroll
+
+    def call(self, f, init, xs, length):
+        return backend.core.scan(
+            f, init, xs, length, reverse=self.reverse, unroll=self.unroll
+        )
+
+    def compute_output_spec(self, f, init, xs, length):
+        if xs is None:
+            n = int(length)
+            x = None
+        else:
+            n = (
+                int(length)
+                if length is not None
+                else tree.flatten(xs)[0].shape[0]
+            )
+            x = xs[0]
+
+        carry, y = backend.compute_output_spec(f, init, x)
+        y = KerasTensor(shape=(n,) + y.shape, dtype=y.dtype, sparse=y.sparse)
+        return carry, y
+
+
+@keras_export("keras.ops.scan")
+def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
+    """Scan a function over leading array axes while carrying along state.
+
+    When the type of `xs` is an array type or `None`, and the type of `ys` is an
+    array type, the semantics of `scan()` are given roughly by this Python
+    implementation:
+
+    ```python
+    def scan(f, init, xs, length=None):
+        if xs is None:
+            xs = [None] * length
+        carry = init
+        ys = []
+        for x in xs:
+            carry, y = f(carry, x)
+            ys.append(y)
+        return carry, np.stack(ys)
+    ```
+
+    The loop-carried value `carry` (`init`) must hold a fixed shape and dtype
+    across all iterations.
+
+    In TensorFlow, `y` must match `carry` in shape and dtype. This is not
+    required in other backends.
+
+    Args:
+        f: Callable defines the logic for each loop iteration. This accepts two
+            arguments where the first is a value of the loop carry and the
+            second is a slice of `xs` along its leading axis.
+            This callable returns a pair where the first represents a new value
+            for the loop carry and the second represents a slice of the output.
+        init: The initial loop carry value. This can be a scalar, tensor, or any
+            nested structure. It must match the structure of the first element
+            returned by `f`.
+        xs: Optional value to scan along its leading axis. This can be a tensor
+            or any nested structure. If `xs` is not provided, you must specify
+            `length` to define the number of loop iterations.
+            Defaults to `None`.
+        length: Optional integer specifying the number of loop iterations.
+            If `length` is not provided, it defaults to the sizes of leading
+            axis of the arrays in `xs`. Defaults to `None`.
+        reverse: Optional boolean specifying whether to run the scan iteration
+            forward or in reverse, equivalent to reversing the leading axes of
+            the arrays in both `xs` and in `ys`.
+        unroll: Optional positive integer or boolean specifying how many scan
+            iterations to unroll within a single iteration of a loop. If an
+            integer is provided, it determines how many unrolled loop iterations
+            to run within a single rolled iteration of the loop. If a boolean is
+            provided, it will determine if the loop is completely unrolled
+            (`unroll=True`) or left completely unrolled (`unroll=False`).
+            Note that unrolling is only supported by JAX and TensorFlow
+            backends.
+
+    Returns:
+        A pair where the first element represents the final loop carry value and
+        the second element represents the stacked outputs of `f` when scanned
+        over the leading axis of the inputs.
+
+    Examples:
+
+    >>> sum_fn = lambda c, x: (c + x, c + x)
+    >>> init = keras.ops.array(0)
+    >>> xs = keras.ops.array([1, 2, 3, 4, 5])
+    >>> carry, result = keras.ops.scan(sum_fn, init, xs)
+    >>> carry
+    15
+    >>> result
+    [1, 3, 6, 10, 15]
+    """
+    if any_symbolic_tensors((init, xs)):
+        return Scan(reverse=reverse, unroll=unroll).symbolic_call(
+            f, init, xs, length
+        )
+    return backend.core.scan(
+        f, init, xs, length, reverse=reverse, unroll=unroll
+    )
+
+
+class AssociativeScan(Operation):
+    def __init__(self, reverse=False):
+        super().__init__()
+        self.reverse = reverse
+
+    def call(self, f, elems, axis=0):
+        return backend.core.associative_scan(
+            f, elems, reverse=self.reverse, axis=axis
+        )
+
+    def compute_output_spec(self, f, elems, axis):
+        elems_flat, tree_ = optree.tree_flatten(elems)
+        lens = [elem.shape[axis] for elem in elems_flat]
+        if len(set(lens)) != 1:
+            raise ValueError(
+                "Array inputs to associative_scan must have the same "
+                "first dimension. (saw: {})".format(
+                    [elem.shape for elem in elems_flat]
+                )
+            )
+
+        x = optree.tree_unflatten(
+            tree_, [slice_along_axis(x, 0, 1, axis=axis) for x in elems_flat]
+        )
+        y_spec = backend.compute_output_spec(f, x, x)
+
+        def _restore_shape(x):
+            return KerasTensor(
+                shape=elems_flat[0].shape, dtype=x.dtype, sparse=x.sparse
+            )
+
+        y_spec = tree.map_structure(_restore_shape, y_spec)
+        return y_spec
+
+
+@keras_export("keras.ops.associative_scan")
+def associative_scan(f, elems, reverse=False, axis=0):
+    """Performs a scan with an associative binary operation, in parallel.
+
+    This operation his similar to `scan`, with the key difference that
+    `associative_scan` is a parallel implementation with
+    potentially significant performance benefits, especially when jit compiled.
+    The catch is that it can only be used when `f` is a binary associative
+    operation (i.e. it must verify `f(a, f(b, c)) == f(f(a, b), c)`).
+
+    For an introduction to associative scans, refer to this paper:
+    Blelloch, Guy E. 1990.
+    [Prefix Sums and Their Applications](
+        https://www.cs.cmu.edu/~guyb/papers/Ble93.pdf).
+
+    Args:
+        f: A Python callable implementing an associative binary operation with
+            signature `r = f(a, b)`. Function `f` must be associative, i.e.,
+            it must satisfy the equation
+            `f(a, f(b, c)) == f(f(a, b), c)`.
+            The inputs and result are (possibly nested Python tree structures
+            of) array(s) matching `elems`. Each array has a dimension in place
+            of the `axis` dimension. `f` should be applied elementwise over
+            the `axis` dimension.
+            The result `r` has the same shape (and structure) as the
+            two inputs `a` and `b`.
+        elems: A (possibly nested Python tree structure of) array(s), each with
+            an `axis` dimension of size `num_elems`.
+        reverse: A boolean stating if the scan should be reversed with respect
+            to the `axis` dimension.
+        axis: an integer identifying the axis over which the scan should occur.
+
+    Returns:
+        A (possibly nested Python tree structure of) array(s) of the same shape
+        and structure as `elems`, in which the `k`'th element of `axis` is
+        the result of recursively applying `f` to combine the first `k`
+        elements of `elems` along `axis`. For example, given
+        `elems = [a, b, c, ...]`, the result would be
+        `[a, f(a, b), f(f(a, b), c), ...]`.
+
+    Examples:
+
+    >>> sum_fn = lambda x, y: x + y
+    >>> xs = keras.ops.arange(5)
+    >>> ys = keras.ops.associative_scan(sum_fn, xs, axis=0)
+    >>> ys
+    [0, 1, 3, 6, 10]
+
+    >>> sum_fn = lambda x, y: [x[0] + y[0], x[1] + y[1], x[2] + y[2]]
+    >>> xs = [keras.ops.array([[1, 2]]) for _ in range(3)]
+    >>> ys = keras.ops.associative_scan(sum_fn, xs, axis=0)
+    >>> ys
+    [[1, 3], [1, 3], [1, 3]]
+    """
+    if any_symbolic_tensors((elems,)):
+        return AssociativeScan(reverse=reverse).symbolic_call(f, elems, axis)
+    return backend.core.associative_scan(f, elems, reverse=reverse, axis=axis)
 
 
 class Scatter(Operation):
@@ -146,7 +416,7 @@ def slice(inputs, start_indices, shape):
     inputs = np.zeros((5, 5))
     start_indices = np.array([3, 3])
     shape = np.array([2, 2])
-    inputs = keras.ops.slice(inputs, start_indices, updates)
+    inputs = keras.ops.slice(inputs, start_indices, shape)
     ```
 
     Args:
@@ -205,6 +475,57 @@ def slice_update(inputs, start_indices, updates):
     if any_symbolic_tensors((inputs, start_indices, updates)):
         return SliceUpdate().symbolic_call(inputs, start_indices, updates)
     return backend.core.slice_update(inputs, start_indices, updates)
+
+
+class Switch(Operation):
+    def call(self, index, branches, *operands):
+        return backend.core.switch(index, branches, *operands)
+
+    def compute_output_spec(self, index, branches, *operands):
+        # We use first branch for output_spec
+        spec = backend.compute_output_spec(branches[0], *operands)
+        return spec
+
+
+@keras_export("keras.ops.switch")
+def switch(index, branches, *operands):
+    """Apply exactly one of the `branches` given by `index`.
+
+    If `index` is out of bounds, it is clamped to within bounds.
+
+    The semantics of `switch` are given roughly by this Python implementation:
+
+    ```python
+    def switch(index, branches, *operands):
+        index = clamp(0, index, len(branches) - 1)
+        return branches[index](*operands)
+    ```
+
+    Args:
+        index: An integer scalar indicating which branch function to apply.
+        branches: A sequence of functions to be applied based on `index`.
+        operands: Inputs to whichever branch is applied.
+
+    Returns:
+        The outputs of `branch(*operands)` for the branch that was selected
+        based on `index`.
+
+    Examples:
+
+    >>> add_fn = lambda x, y: x + y
+    >>> substract_fn = lambda x, y: x - y
+    >>> x = keras.ops.array(2.0)
+    >>> y = keras.ops.array(0.5)
+    >>> branches = [add_fn, substract_fn]
+    >>> keras.ops.switch(0, branches, x, y)
+    2.5
+
+    >>> keras.ops.switch(1, branches, x, y)
+    1.5
+    """
+    if any_symbolic_tensors(operands):
+        return Switch().symbolic_call(index, branches, *operands)
+    return backend.core.switch(index, branches, *operands)
 
 
 class WhileLoop(Operation):
@@ -429,13 +750,37 @@ def shape(x):
 
     Example:
 
-    >>> x = keras.zeros((8, 12))
+    >>> x = keras.ops.zeros((8, 12))
     >>> keras.ops.shape(x)
     (8, 12)
     """
     if any_symbolic_tensors((x,)):
         return x.shape
     return backend.core.shape(x)
+
+
+@keras_export("keras.ops.dtype")
+def dtype(x):
+    """Return the dtype of the tensor input as a standardized string.
+
+    Note that due to the standardization, the dtype will not compare equal
+    to the backend-specific version of the dtype.
+
+    Args:
+        x: A tensor. This function will try to access the `dtype` attribute of
+            the input tensor.
+
+    Returns:
+        A string indicating the dtype of the input tensor, e.g. `"float32"`.
+
+    Example:
+
+    >>> x = keras.ops.zeros((8, 12))
+    >>> keras.ops.dtype(x)
+    'float32'
+
+    """
+    return backend.standardize_dtype(x.dtype)
 
 
 class Cast(Operation):

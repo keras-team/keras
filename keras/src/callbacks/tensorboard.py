@@ -466,7 +466,9 @@ class TensorBoard(Callback):
     def on_epoch_begin(self, epoch, logs=None):
         # Keeps track of epoch for profiling.
         if self.write_steps_per_second:
-            self._previous_epoch_iterations = self.model.optimizer.iterations
+            self._previous_epoch_iterations = ops.convert_to_tensor(
+                self.model.optimizer.iterations, "float32"
+            )
             self._epoch_start_time = time.time()
 
     def on_epoch_end(self, epoch, logs=None):
@@ -505,9 +507,6 @@ class TensorBoard(Callback):
         current_iteration = self.model.optimizer.iterations
         time_since_epoch_begin = time.time() - self._epoch_start_time
         current_iteration = ops.convert_to_tensor(current_iteration, "float32")
-        self._previous_epoch_iterations = ops.convert_to_tensor(
-            self._previous_epoch_iterations, "float32"
-        )
         time_since_epoch_begin = ops.convert_to_tensor(
             time_since_epoch_begin, "float32"
         )

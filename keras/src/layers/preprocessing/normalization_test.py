@@ -144,3 +144,23 @@ class NormalizationTest(testing.TestCase, parameterized.TestCase):
         new_shape_data = np.random.random((10, 3))
         with self.assertRaisesRegex(ValueError, "an incompatible shape"):
             layer.adapt(new_shape_data)
+
+    def test_tf_data_compatibility(self):
+        x = np.random.random((32, 3))
+        ds = tf_data.Dataset.from_tensor_slices(x).batch(1)
+
+        # With built-in values
+        layer = layers.Normalization(
+            mean=[0.1, 0.2, 0.3], variance=[0.1, 0.2, 0.3], axis=-1
+        )
+        layer.build((None, 3))
+        for output in ds.map(layer).take(1):
+            output.numpy()
+
+        # With adapt flow
+        layer = layers.Normalization(axis=-1)
+        layer.adapt(
+            np.random.random((32, 3)),
+        )
+        for output in ds.map(layer).take(1):
+            output.numpy()

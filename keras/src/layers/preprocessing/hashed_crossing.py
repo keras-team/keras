@@ -3,6 +3,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.utils import argument_validation
 from keras.src.utils import backend_utils
+from keras.src.utils import numerical_utils
 from keras.src.utils import tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -13,7 +14,7 @@ class HashedCrossing(Layer):
 
     This layer performs crosses of categorical features using the "hashing
     trick". Conceptually, the transformation can be thought of as:
-    `hash(concatenate(features)) % num_bins.
+    `hash(concatenate(features)) % num_bins`.
 
     This layer currently only performs crosses of scalar inputs and batches of
     scalar inputs. Valid input shapes are `(batch_size, 1)`, `(batch_size,)` and
@@ -135,6 +136,8 @@ class HashedCrossing(Layer):
         return tuple(input_shape[0])[:-1] + (self.num_bins,)
 
     def call(self, inputs):
+        from keras.src.backend import tensorflow as tf_backend
+
         self._check_at_least_two_inputs(inputs)
         inputs = [tf_utils.ensure_tensor(x) for x in inputs]
         self._check_input_shape_and_type(inputs)
@@ -142,9 +145,9 @@ class HashedCrossing(Layer):
         # Uprank to rank 2 for the cross_hashed op.
         rank = len(inputs[0].shape)
         if rank < 2:
-            inputs = [tf_utils.expand_dims(x, -1) for x in inputs]
+            inputs = [tf_backend.numpy.expand_dims(x, -1) for x in inputs]
         if rank < 1:
-            inputs = [tf_utils.expand_dims(x, -1) for x in inputs]
+            inputs = [tf_backend.numpy.expand_dims(x, -1) for x in inputs]
 
         # Perform the cross and convert to dense
         outputs = tf.sparse.cross_hashed(inputs, self.num_bins)
@@ -162,12 +165,13 @@ class HashedCrossing(Layer):
             outputs = tf.reshape(outputs, [])
 
         # Encode outputs.
-        outputs = tf_utils.encode_categorical_inputs(
+        outputs = numerical_utils.encode_categorical_inputs(
             outputs,
             output_mode=self.output_mode,
             depth=self.num_bins,
             sparse=self.sparse,
             dtype=self.compute_dtype,
+            backend_module=tf_backend,
         )
         return backend_utils.convert_tf_tensor(outputs, dtype=self.dtype)
 

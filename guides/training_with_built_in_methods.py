@@ -338,7 +338,7 @@ class CategoricalTruePositives(keras.metrics.Metric):
 
     def reset_state(self):
         # The state of the metric will be reset at the start of each epoch.
-        self.true_positives.assign(0.0)
+        self.true_positives.assign(0)
 
 
 model = get_uncompiled_model()
@@ -592,6 +592,7 @@ A `PyDataset` must implement two methods:
 
 The method `__getitem__` should return a complete batch.
 If you want to modify your dataset between epochs, you may implement `on_epoch_end`.
+You may also implement `on_epoch_begin` to be called at the start of each epoch.
 
 Here's a quick example:
 """

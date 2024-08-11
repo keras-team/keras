@@ -1,5 +1,7 @@
 # Tensorflow.
-tensorflow-cpu~=2.16.1  # Pin to TF 2.16
+tensorflow-cpu~=2.17.0;sys_platform != 'darwin'  # Pin to TF 2.16
+tensorflow~=2.17.0;sys_platform == 'darwin'
+tf_keras
 
 # Torch.
 # TODO: Pin to < 2.3.0 (GitHub issue #19602)

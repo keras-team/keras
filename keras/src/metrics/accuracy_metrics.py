@@ -9,10 +9,7 @@ def accuracy(y_true, y_pred):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
-    return ops.mean(
-        ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx()),
-        axis=-1,
-    )
+    return ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx())
 
 
 @keras_export("keras.metrics.Accuracy")
@@ -64,15 +61,12 @@ class Accuracy(reduction_metrics.MeanMetricWrapper):
 
 @keras_export("keras.metrics.binary_accuracy")
 def binary_accuracy(y_true, y_pred, threshold=0.5):
-    y_true = ops.convert_to_tensor(y_true)
     y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     threshold = ops.cast(threshold, y_pred.dtype)
     y_pred = ops.cast(y_pred > threshold, y_true.dtype)
-    return ops.mean(
-        ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx()),
-        axis=-1,
-    )
+    return ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx())
 
 
 @keras_export("keras.metrics.BinaryAccuracy")
@@ -116,12 +110,6 @@ class BinaryAccuracy(reduction_metrics.MeanMetricWrapper):
     """
 
     def __init__(self, name="binary_accuracy", dtype=None, threshold=0.5):
-        if threshold is not None and (threshold <= 0 or threshold >= 1):
-            raise ValueError(
-                "Invalid value for argument `threshold`. "
-                "Expected a value in interval (0, 1). "
-                f"Received: threshold={threshold}"
-            )
         super().__init__(
             fn=binary_accuracy, name=name, dtype=dtype, threshold=threshold
         )
@@ -143,7 +131,7 @@ def categorical_accuracy(y_true, y_pred):
 
     reshape_matches = False
     y_pred = ops.convert_to_tensor(y_pred)
-    y_true = ops.convert_to_tensor(y_true, dtype=y_true.dtype)
+    y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
 
     y_true_org_shape = ops.shape(y_true)
     y_pred_rank = len(y_pred.shape)
@@ -229,7 +217,7 @@ class CategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
 def sparse_categorical_accuracy(y_true, y_pred):
     reshape_matches = False
     y_pred = ops.convert_to_tensor(y_pred)
-    y_true = ops.convert_to_tensor(y_true, dtype=y_true.dtype)
+    y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true_org_shape = ops.shape(y_true)
     y_pred_rank = len(y_pred.shape)
     y_true_rank = len(y_true.shape)
@@ -316,7 +304,7 @@ class SparseCategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
 def top_k_categorical_accuracy(y_true, y_pred, k=5):
     reshape_matches = False
     y_pred = ops.convert_to_tensor(y_pred)
-    y_true = ops.convert_to_tensor(y_true, dtype=y_true.dtype)
+    y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true = ops.argmax(y_true, axis=-1)
     y_true_rank = len(y_true.shape)
     y_pred_rank = len(y_pred.shape)
@@ -395,7 +383,7 @@ class TopKCategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
 def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
     reshape_matches = False
     y_pred = ops.convert_to_tensor(y_pred)
-    y_true = ops.convert_to_tensor(y_true, dtype=y_true.dtype)
+    y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true_rank = len(y_true.shape)
     y_pred_rank = len(y_pred.shape)
     y_true_org_shape = ops.shape(y_true)

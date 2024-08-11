@@ -365,9 +365,7 @@ class FeatureSpaceTest(testing.TestCase):
         ds = self._get_train_data_dict(as_dataset=True)
         model.predict(ds.batch(4))
 
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="TODO: debug it"
-    )
+    @pytest.mark.requires_trainable_backend
     def test_tf_data_async_processing(self):
         fs = feature_space.FeatureSpace(
             features={
@@ -433,9 +431,6 @@ class FeatureSpaceTest(testing.TestCase):
         out = fs(data)
         self.assertEqual(out.shape, (148,))
 
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="TODO: debug it"
-    )
     def test_manual_kpl(self):
         data = {
             "text": ["1st string", "2nd string", "3rd string"],
@@ -454,27 +449,91 @@ class FeatureSpaceTest(testing.TestCase):
         )
         fs.adapt(tf_data.Dataset.from_tensor_slices(data))
         out = fs(data)
-        self.assertEqual(out.shape, [3, 5])
+        self.assertEqual(list(out.shape), [3, 5])
 
     def test_no_adapt(self):
         data = {
             "int_1": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            "text_1": [
+                "This is",
+                "not just",
+                "an example",
+                "of random words.",
+                "these are",
+                "some words",
+                "in",
+                "a random",
+                "example.",
+                "Bye!",
+            ],
+            "float_1": [
+                -1.2,
+                0.0,
+                2.4,
+                1.2,
+                15.0,
+                -100.0,
+                23.1,
+                3.12,
+                0.1,
+                -0.01,
+            ],
         }
+        cls = feature_space.FeatureSpace
+        # Pre-defined vocabulary. No need to adapt.
+        tv_vocab = [
+            "this",
+            "is",
+            "just",
+            "an",
+            "example",
+            "with",
+            "some",
+            "words",
+        ]
+        tv_with_vocab = layers.TextVectorization(
+            vocabulary=tv_vocab, output_mode="int", output_sequence_length=3
+        )
+
+        # Pre-defined mean and variance. No need to adapt.
+        mean, variance = 12.0, 5.0
+        normalization = layers.Normalization(mean=mean, variance=variance)
+
         fs = feature_space.FeatureSpace(
             {
                 "int_1": "integer_hashed",
+                "text_1": cls.feature(
+                    dtype="string",
+                    preprocessor=tv_with_vocab,
+                    output_mode="int",
+                ),
+                "float_1": cls.feature(
+                    dtype="float32",
+                    preprocessor=normalization,
+                    output_mode="float",
+                ),
             },
-            output_mode="concat",
+            output_mode="dict",
         )
+
         out = fs(data)
-        self.assertEqual(tuple(out.shape), (10, 32))
+        float_out = ops.divide(
+            ops.convert_to_tensor(data["float_1"]) - mean, ops.sqrt(variance)
+        )
+        float_out = ops.reshape(float_out, (10, -1))
+
+        self.assertEqual(tuple(out["int_1"].shape), (10, 32))
+        self.assertEqual(tuple(out["text_1"].shape), (10, 3))
+        self.assertAllClose(out["float_1"], float_out, atol=1e-3)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="TODO: debug it"
+        backend.backend() in ("numpy", "torch"),
+        reason=(
+            "TODO: When using FeatureSpace as a Model in torch and numpy, "
+            "the error is large."
+        ),
     )
     def test_saving(self):
-        # Torch GPU: `model.predict(ds.batch(4))` fails on device placement
-        # JAX GPU: out[0] and ref_out don't match. May be concat feature order?
         cls = feature_space.FeatureSpace
         fs = feature_space.FeatureSpace(
             features={

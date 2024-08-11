@@ -13,7 +13,7 @@ class StringLookup(IndexLookup):
 
     This layer translates a set of arbitrary strings into integer output via a
     table-based vocabulary lookup. This layer will perform no splitting or
-    transformation of input strings. For a layer than can split and tokenize
+    transformation of input strings. For a layer that can split and tokenize
     natural language, see the `keras.layers.TextVectorization` layer.
 
     The vocabulary for the layer must be either supplied on construction or
@@ -192,7 +192,7 @@ class StringLookup(IndexLookup):
            [0., 0., 1., 0., 0.],
            [0., 0., 0., 1., 0.],
            [0., 0., 0., 0., 1.],
-           [1., 0., 0., 0., 0.]], dtype=float32)
+           [1., 0., 0., 0., 0.]], dtype=int64)
 
     **Multi-hot output**
 
@@ -204,7 +204,7 @@ class StringLookup(IndexLookup):
     >>> layer = StringLookup(vocabulary=vocab, output_mode='multi_hot')
     >>> layer(data)
     array([[0., 1., 0., 1., 1.],
-           [1., 0., 1., 0., 1.]], dtype=float32)
+           [1., 0., 1., 0., 1.]], dtype=int64)
 
     **Token count output**
 
@@ -216,7 +216,7 @@ class StringLookup(IndexLookup):
     >>> layer = StringLookup(vocabulary=vocab, output_mode='count')
     >>> layer(data)
     array([[0., 1., 0., 1., 2.],
-           [2., 0., 1., 0., 1.]], dtype=float32)
+           [2., 0., 1., 0., 1.]], dtype=int64)
 
     **TF-IDF output**
 
@@ -316,6 +316,7 @@ class StringLookup(IndexLookup):
             raise ValueError(
                 "`sparse=True` can only be used with the " "TensorFlow backend."
             )
+        self.encoding = encoding
         super().__init__(
             max_tokens=max_tokens,
             num_oov_indices=num_oov_indices,
@@ -331,7 +332,6 @@ class StringLookup(IndexLookup):
             vocabulary_dtype="string",
             **kwargs,
         )
-        self.encoding = encoding
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
         self.supports_jit = False
@@ -382,7 +382,7 @@ class StringLookup(IndexLookup):
         return {**base_config, **config}
 
     def call(self, inputs):
-        if isinstance(inputs, (tf.Tensor, tf.RaggedTensor)):
+        if isinstance(inputs, (tf.Tensor, tf.RaggedTensor, tf.SparseTensor)):
             tf_inputs = True
         else:
             tf_inputs = False

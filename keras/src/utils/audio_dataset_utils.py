@@ -82,8 +82,9 @@ def audio_dataset_from_directory(
             length of the longest sequence in the batch.
         ragged: Whether to return a Ragged dataset (where each sequence has its
             own length). Defaults to `False`.
-        shuffle: Whether to shuffle the data. Defaults to `True`.
+        shuffle: Whether to shuffle the data.
             If set to `False`, sorts the data in alphanumeric order.
+            Defaults to `True`.
         seed: Optional random seed for shuffling and transformations.
         validation_split: Optional float between 0 and 1, fraction of data to
             reserve for validation.

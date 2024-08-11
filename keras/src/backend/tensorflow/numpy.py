@@ -8,6 +8,7 @@ import warnings
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
+from tensorflow.python.ops.math_ops import is_nan
 
 from keras.src import tree
 from keras.src.backend import config
@@ -1250,16 +1251,17 @@ def imag(x):
     return tf.math.imag(x)
 
 
-def isclose(x1, x2):
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     if "float" in dtype:
-        # atol defaults to 1e-08
-        # rtol defaults to 1e-05
-        return tf.abs(x1 - x2) <= (1e-08 + 1e-05 * tf.abs(x2))
+        result = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        if equal_nan:
+            result = result | (is_nan(x1) & is_nan(x2))
+        return result
     else:
         return tf.equal(x1, x2)
 
@@ -1310,6 +1312,10 @@ def less_equal(x1, x2):
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
+    if num < 0:
+        raise ValueError(
+            f"`num` must be a non-negative integer. Received: num={num}"
+        )
     if dtype is None:
         dtypes_to_resolve = [
             getattr(start, "dtype", type(start)),
@@ -1321,19 +1327,15 @@ def linspace(
         dtype = standardize_dtype(dtype)
     start = convert_to_tensor(start, dtype=dtype)
     stop = convert_to_tensor(stop, dtype=dtype)
-    if num < 0:
-        raise ValueError(
-            f"`num` must be a non-negative integer. Received: num={num}"
-        )
-    step = tf.convert_to_tensor(np.nan)
+    step = convert_to_tensor(np.nan)
     if endpoint:
         result = tf.linspace(start, stop, num, axis=axis)
         if num > 1:
-            step = (stop - start) / (num - 1)
+            step = (stop - start) / (tf.cast(num, dtype) - 1)
     else:
         # tf.linspace doesn't support endpoint=False, so we manually handle it
         if num > 0:
-            step = (stop - start) / num
+            step = (stop - start) / tf.cast(num, dtype)
         if num > 1:
             new_stop = tf.cast(stop, step.dtype) - step
             start = tf.cast(start, new_stop.dtype)
@@ -1798,6 +1800,22 @@ def roll(x, shift, axis=None):
     return tf.reshape(x, original_shape)
 
 
+def searchsorted(sorted_sequence, values, side="left"):
+    if ndim(sorted_sequence) != 1:
+        raise ValueError(
+            "`searchsorted` only supports 1-D sorted sequences. "
+            "You can use `keras.ops.vectorized_map` "
+            "to extend it to N-D sequences. Received: "
+            f"sorted_sequence.shape={sorted_sequence.shape}"
+        )
+    out_type = (
+        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+    )
+    return tf.searchsorted(
+        sorted_sequence, values, side=side, out_type=out_type
+    )
+
+
 @sparse.elementwise_unary
 def sign(x):
     x = convert_to_tensor(x)
@@ -1950,6 +1968,10 @@ def take(x, indices, axis=None):
 
 
 def take_along_axis(x, indices, axis=None):
+    from keras.src.ops.operation_utils import (
+        compute_take_along_axis_output_shape,
+    )
+
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices, "int64")
     if axis is None:
@@ -1959,7 +1981,13 @@ def take_along_axis(x, indices, axis=None):
                 f"Received: indices.shape={indices.shape}"
             )
         return take_along_axis(tf.reshape(x, [-1]), indices, 0)
-    rank = tf.rank(x)
+
+    # Compute the static output shape as later on, all shapes manipulations
+    # use dynamic shapes.
+    static_output_shape = compute_take_along_axis_output_shape(
+        x.shape, indices.shape, axis
+    )
+    rank = x.ndim
     static_axis = axis
     axis = axis + rank if axis < 0 else axis
 
@@ -1981,9 +2009,6 @@ def take_along_axis(x, indices, axis=None):
     x = tf.broadcast_to(x, x_shape)
     indices = tf.broadcast_to(indices, indices_shape)
 
-    # Save indices shape so we can restore it later.
-    possible_result_shape = indices.shape
-
     # Correct the indices using "fill" mode which is the same as in jax
     indices = tf.where(indices < 0, indices + x_shape[static_axis], indices)
 
@@ -1998,7 +2023,7 @@ def take_along_axis(x, indices, axis=None):
     result = tf.gather(x, indices, batch_dims=1)
     result = tf.reshape(result, indices_shape)
     result = swapaxes(result, static_axis, -1)
-    result.set_shape(possible_result_shape)
+    result.set_shape(static_output_shape)
     return result
 
 
@@ -2117,33 +2142,31 @@ def tri(N, M=None, k=0, dtype=None):
 def tril(x, k=0):
     x = convert_to_tensor(x)
 
-    if k >= 0:
-        return tf.linalg.band_part(x, -1, k)
+    def _negative_k_branch():
+        shape = tf.shape(x)
+        rows, cols = shape[-2], shape[-1]
+        i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
+        mask = i >= j - k
+        return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
-    shape = tf.shape(x)
-    rows, cols = shape[-2], shape[-1]
-
-    i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
-
-    mask = i >= j - k
-
-    return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
+    return tf.cond(
+        k >= 0, lambda: tf.linalg.band_part(x, -1, k), _negative_k_branch
+    )
 
 
 def triu(x, k=0):
     x = convert_to_tensor(x)
 
-    if k <= 0:
-        return tf.linalg.band_part(x, -k, -1)
+    def _positive_k_branch():
+        shape = tf.shape(x)
+        rows, cols = shape[-2], shape[-1]
+        i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
+        mask = i <= j - k
+        return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
-    shape = tf.shape(x)
-    rows, cols = shape[-2], shape[-1]
-
-    i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
-
-    mask = i <= j - k
-
-    return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
+    return tf.cond(
+        k <= 0, lambda: tf.linalg.band_part(x, -k, -1), _positive_k_branch
+    )
 
 
 def vdot(x1, x2):

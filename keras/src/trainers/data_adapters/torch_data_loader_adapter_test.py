@@ -1,6 +1,5 @@
 import math
 
-import jax
 import numpy as np
 import tensorflow as tf
 import torch
@@ -35,7 +34,7 @@ class TestTorchDataLoaderAdapter(testing.TestCase, parameterized.TestCase):
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
-            expected_class = jax.Array
+            expected_class = np.ndarray
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
@@ -104,7 +103,7 @@ class TestTorchDataLoaderAdapter(testing.TestCase, parameterized.TestCase):
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
-            expected_class = jax.Array
+            expected_class = np.ndarray
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor

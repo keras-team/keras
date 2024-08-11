@@ -32,12 +32,14 @@ class MaxPooling1D(BasePooling):
             If you never set it, then it will be `"channels_last"`.
 
     Input shape:
+
     - If `data_format="channels_last"`:
         3D tensor with shape `(batch_size, steps, features)`.
     - If `data_format="channels_first"`:
         3D tensor with shape `(batch_size, features, steps)`.
 
     Output shape:
+
     - If `data_format="channels_last"`:
         3D tensor with shape `(batch_size, downsampled_steps, features)`.
     - If `data_format="channels_first"`:

@@ -92,7 +92,7 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
             if array_type in ("tf_sparse", "jax_sparse", "scipy_sparse"):
                 expected_class = jax_sparse.JAXSparse
             else:
-                expected_class = jax.Array
+                expected_class = np.ndarray
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor

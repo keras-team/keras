@@ -1,8 +1,10 @@
 import ml_dtypes
+import numpy as np
 
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
 
 """Int8-related classes and methods"""
 
@@ -64,11 +66,30 @@ def abs_max_quantize(
     value_range=(-127, 127),
     dtype="int8",
     epsilon=backend.epsilon(),
+    to_numpy=False,
 ):
+    if to_numpy:
+        # Save memory on the device using numpy
+        original_dtype = backend.standardize_dtype(inputs.dtype)
+        inputs = ops.convert_to_numpy(inputs)
+        axis = standardize_axis_for_numpy(axis)
+        scale = np.divide(
+            value_range[1],
+            np.add(np.max(np.abs(inputs), axis=axis, keepdims=True), epsilon),
+        )
+        outputs = np.multiply(inputs, scale)
+        outputs = np.clip(np.round(outputs), value_range[0], value_range[1])
+        outputs = outputs.astype(dtype)
+        return ops.convert_to_tensor(outputs), ops.convert_to_tensor(
+            scale, dtype=original_dtype
+        )
+
+    inputs = ops.convert_to_tensor(inputs)
     scale = ops.divide(
         value_range[1],
         ops.add(ops.max(ops.abs(inputs), axis=axis, keepdims=True), epsilon),
     )
+    scale = ops.cast(scale, backend.standardize_dtype(inputs.dtype))
     outputs = ops.multiply(inputs, scale)
     outputs = ops.clip(ops.round(outputs), value_range[0], value_range[1])
     outputs = ops.cast(outputs, dtype)

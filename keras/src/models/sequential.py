@@ -5,6 +5,7 @@ import typing
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.backend.common import standardize_shape
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.legacy.saving import saving_utils
@@ -137,6 +138,12 @@ class Sequential(Model):
         if isinstance(self._layers[0], InputLayer) and len(self._layers) > 1:
             input_shape = self._layers[0].batch_shape
             self.build(input_shape)
+        elif hasattr(self._layers[0], "input_shape") and len(self._layers) > 1:
+            # We can build the Sequential model if the first layer has the
+            # `input_shape` property. This is most commonly found in Functional
+            # model.
+            input_shape = self._layers[0].input_shape
+            self.build(input_shape)
 
     def _lock_state(self):
         # Unlike other layers, Sequential is mutable after build.
@@ -146,13 +153,9 @@ class Sequential(Model):
         return "Sequential"
 
     def build(self, input_shape=None):
-        if not isinstance(input_shape, (tuple, list)):
-            # Do not attempt to build if the model does not have a single
-            # input tensor.
-            return
-        if input_shape and not (
-            isinstance(input_shape[0], int) or input_shape[0] is None
-        ):
+        try:
+            input_shape = standardize_shape(input_shape)
+        except:
             # Do not attempt to build if the model does not have a single
             # input tensor.
             return
@@ -251,6 +254,15 @@ class Sequential(Model):
             )  # Ignore mask
             inputs = outputs
         return outputs
+
+    def compute_output_shape(self, input_shape):
+        if self._functional:
+            return self._functional.compute_output_shape(input_shape)
+        # Direct application
+        for layer in self.layers:
+            output_shape = layer.compute_output_shape(input_shape)
+            input_shape = output_shape
+        return output_shape
 
     @property
     def input_shape(self):

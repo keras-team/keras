@@ -98,7 +98,7 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
         ```python
         os.environ[
             "KERAS_DISTRIBUTION_JOB_ADDRESSES"] = "10.0.0.1:1234,10.0.0.2:2345"
-        os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"] = "2
+        os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"] = "2"
         os.environ["KERAS_DISTRIBUTION_PROCESS_ID"] = "0"
         keras.distribute.initialize()
         ```
@@ -107,7 +107,7 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
         ```python
         os.environ[
             "KERAS_DISTRIBUTION_JOB_ADDRESSES"] = "10.0.0.1:1234,10.0.0.2:2345"
-        os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"] = "2
+        os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"] = "2"
         os.environ["KERAS_DISTRIBUTION_PROCESS_ID"] = "1"
         keras.distribute.initialize()
         ```
@@ -385,9 +385,11 @@ class DataParallel(Distribution):
     Args:
         device_mesh: Optional `DeviceMesh` instance.
         devices: Optional list of devices.
+        auto_shard_dataset: Automatically shard the dataset amongst processes.
+            Defaults to true.
     """
 
-    def __init__(self, device_mesh=None, devices=None):
+    def __init__(self, device_mesh=None, devices=None, auto_shard_dataset=True):
         if device_mesh:
             self._initialize_with_device_mesh(device_mesh)
         elif devices:
@@ -400,6 +402,7 @@ class DataParallel(Distribution):
         self._num_process = distribution_lib.num_processes()
         self._process_id = distribution_lib.process_id()
         self._is_multi_process = self._num_process > 1
+        self._auto_shard_dataset = auto_shard_dataset
 
     def _initialize_with_device_mesh(self, device_mesh):
         if not isinstance(device_mesh, DeviceMesh):
@@ -459,7 +462,7 @@ class DataParallel(Distribution):
                 "Only `tf.data.Dataset` is supported for "
                 f"sharding, got {type(dataset)}"
             )
-        if not self._is_multi_process:
+        if not self._is_multi_process or not self._auto_shard_dataset:
             return dataset
 
         batch_size = tf_data_distribute.compute_batch_size(dataset)
@@ -520,9 +523,11 @@ class ModelParallel(Distribution):
     layout_map['conv2d.*kernel'] = (None, None, None, 'model')
     layout_map['conv2d.*bias'] = ('model',)
 
-    distribution = ModelParallel(device_mesh=device_mesh,
-                                 layout_map=layout_map,
-                                 batch_dim_name='batch')
+    distribution = ModelParallel(
+        layout_map=layout_map,
+        batch_dim_name='batch',
+    )
+
     # Set the global distribution, or via `with distribution.scope():`
     set_distribution(distribution)
 
@@ -533,12 +538,16 @@ class ModelParallel(Distribution):
 
     You can quickly update the device mesh shape to change the sharding factor
     of the variables. E.g.
-    ```
+
+    ```python
     # With only the shape change for the device mesh, the variables will be
     # sharded across 8 devices instead of 4, which further reduces the memory
     # footprint of variables on each of the device.
-    device_mesh = DeviceMesh(shape=(1, 8), axis_names=('batch', 'model'),
-                             devices=devices)
+    device_mesh = DeviceMesh(
+        shape=(1, 8),
+        axis_names=('batch', 'model'),
+        devices=devices,
+    )
     ```
 
     To figure out a proper layout mapping rule for all the model variables, you
@@ -546,25 +555,32 @@ class ModelParallel(Distribution):
     key to map the variables to `TensorLayout`.
 
     e.g.
-    ```
+
+    ```python
     model = create_model()
     for v in model.variables:
         print(v.path)
     ```
 
     Args:
-        device_mesh: `DeviceMesh` instance for physical device and its
-            logical mapping.
         layout_map: `LayoutMap` instance which map the variable path to the
-            corresponding `TensorLayout`. The axis names of the
-            `TensorLayout`s should match to the axis names in the
-            device_mesh, or exception will be raised.
-        batch_dim_name: optional string, the axis name in the `device_mesh`
+            corresponding tensor layout.
+        batch_dim_name: Optional string, the axis name in the device mesh
+            (of the `layout_map` object)
             that will be used to distribute data. If unspecified, the
-            first axis from the `device_mesh` will be used.
+            first axis from the device mesh will be used.
     """
 
-    def __init__(self, device_mesh, layout_map, batch_dim_name=None):
+    def __init__(self, *, layout_map=None, batch_dim_name=None, **kwargs):
+        kwargs.pop("device_mesh", None)
+        if layout_map is None:
+            raise ValueError("You must specify a layout_map argument.")
+        if not isinstance(layout_map, LayoutMap):
+            raise ValueError(
+                "Argument `layout_map` must be a `LayoutMap` instance. "
+                f"Received: layout_map={layout_map}"
+            )
+        device_mesh = layout_map.device_mesh
         super().__init__(device_mesh)
         self._layout_map = layout_map
         self._batch_dim_name = batch_dim_name or self.device_mesh.axis_names[0]
@@ -612,63 +628,54 @@ class ModelParallel(Distribution):
                 "the input dataset, e.g via `dataset.batch(batch_size)`"
             )
 
-        # We need to compute the the per-worker batch size.
-        # Imagine we have 4 workers, and each worker has 2 devices. The device
-        # ID will be w{worker_id}_{device_id} from global perspective, eg
-        # 'w0_0', 'w0_1', 'w1_0', etc.
-        # For a mesh with global shape {'batch': 4, 'model': 2}, we would like
-        # the mesh to be like below:
-        #         batch ->
-        #         --------------------------
-        # model   | w0_0, w0_1, w1_0, w1_1 |
-        #   v     | w0_2, w0_3, w1_2, w1_3 |
-        #         --------------------------
-        # In this case, the batch dim will be split across 2 workers.
-        #
-        # In the case that global batch dim is smaller than the worker size, eg
-        # {'batch': 1, 'model': 8}, then the mesh will be like below:
-        #         batch ->
-        #         --------
-        # model   | w0_0 |
-        #         | w0_1 |
-        #         | w1_0 |
-        #         | w1_1 |
-        #         | w2_0 |
-        #         | w2_1 |
-        #         | w3_0 |
-        #         | w3_1 |
-        #         --------
-        # And the data batch will be fully replicated for each of the worker.
+        # We need to compute the per-process/worker/host batch size.
+        # This will depend on how many model replicas we have on each process.
+        # Note that this might be smaller than one if model replicas are sharded
+        # across multiple processes.
         mesh_batch_dim_index = self.device_mesh.axis_names.index(
             self._batch_dim_name
         )
-        mesh_batch_dim_size = self.device_mesh.shape[mesh_batch_dim_index]
-        # TODO(scottzhu): local device count can be a field of the mesh.
-        local_device_count = (
-            np.prod(self.device_mesh.shape) // self._num_process
-        )
-        if mesh_batch_dim_size < local_device_count:
-            # No sharding is needed in this case. The worker will have the
+        num_model_replicas = self.device_mesh.shape[mesh_batch_dim_index]
+        if num_model_replicas == 1:
+            # No sharding is needed in this case. Each process will have the
             # global batch size, and data from the iterator will need to be
-            # replicated for model dimension.
+            # replicated across all processes.
             return dataset.prefetch(tf.data.AUTOTUNE)
-        else:
-            if mesh_batch_dim_size % local_device_count != 0:
+        num_model_replicas_per_process = num_model_replicas / self._num_process
+        if num_model_replicas_per_process >= 1:
+            # Each process will have one or more full model replicas. Data will
+            # be sharded across all processes without replication.
+            if global_batch_size % self._num_process != 0:
                 raise ValueError(
-                    "The Batch dimension of the mesh is not compatible "
-                    "with the local worker device count. Mesh batch "
-                    f"dim = {mesh_batch_dim_size} and local device "
-                    f"count = {local_device_count}"
+                    "Global batch size must be divisible by the number of "
+                    f"processes. `global_batch_size`={global_batch_size} and "
+                    f"`num_process`={self._num_process}"
                 )
-            num_shards = mesh_batch_dim_size // local_device_count
-            per_worker_batch_size = global_batch_size // num_shards
-
-            distributed_dataset = dataset.rebatch(per_worker_batch_size)
-            distributed_dataset = tf_data_distribute._AutoShardDataset(
-                distributed_dataset,
-                num_workers=num_shards,
-                index=self._process_id % num_shards,
-                num_replicas=num_shards,
+            per_process_batch_size = global_batch_size // self._num_process
+            distributed_dataset = dataset.rebatch(per_process_batch_size)
+            distributed_dataset = distributed_dataset.shard(
+                num_shards=self._num_process,
+                index=self._process_id,
+            )
+            return distributed_dataset.prefetch(tf.data.AUTOTUNE)
+        else:
+            # Model replicas are sharded across multiple processes. Data will be
+            # sharded across model replicas, and replicated across processes
+            # within the same model replica.
+            if global_batch_size % num_model_replicas != 0:
+                raise ValueError(
+                    "Global batch size must be divisible by the number of "
+                    f"replicas. `global_batch_size`={global_batch_size} and "
+                    f"`num_model_replicas`={num_model_replicas}"
+                )
+            per_process_batch_size = global_batch_size // num_model_replicas
+            distributed_dataset = dataset.rebatch(per_process_batch_size)
+            processes_per_replica = self._num_process // num_model_replicas
+            # TODO: Figure out what the convention is for data sharding id.
+            data_shard_id = self._process_id % processes_per_replica
+            distributed_dataset = distributed_dataset.shard(
+                num_shards=num_model_replicas,
+                index=data_shard_id,
             )
             return distributed_dataset.prefetch(tf.data.AUTOTUNE)
 
@@ -693,11 +700,11 @@ class LayoutMap(collections.abc.MutableMapping):
     as value, and will be converted to `TensorLayout`.
 
     ```python
-    layout_map = LayoutMap(device_mesh=None)
-    layout_map['dense.*kernel'] = (None, 'model')         # layout_2d
-    layout_map['dense.*bias'] = ('model',)                # layout_1d
-    layout_map['conv2d.*kernel'] = TensorLayout((None, None, None, 'model'))
-    layout_map['conv2d.*bias'] = TensorLayout(('model',))  # layout_1d
+    layout_map = LayoutMap(device_mesh)
+    layout_map['dense.*kernel'] = (None, 'model')
+    layout_map['dense.*bias'] = ('model',)
+    layout_map['conv2d.*kernel'] = (None, None, None, 'model')
+    layout_map['conv2d.*bias'] = ('model',)
 
     layout_1 = layout_map['dense_1.kernel']             # layout_1 == layout_2d
     layout_2 = layout_map['dense_1.bias']               # layout_2 == layout_1d
@@ -710,11 +717,10 @@ class LayoutMap(collections.abc.MutableMapping):
     ```
 
     Args:
-        device_mesh: An optional `DeviceMesh` that can be used to populate the
-            `TensorLayout.device_mesh` if `TensorLayout.device_mesh` is not set.
+        device_mesh: `keras.distribution.DeviceMesh` instance.
     """
 
-    def __init__(self, device_mesh=None):
+    def __init__(self, device_mesh):
         self._layout_map = collections.OrderedDict()
         self._device_mesh = device_mesh
 

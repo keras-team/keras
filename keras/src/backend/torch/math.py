@@ -11,9 +11,7 @@ from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.numpy import pad
 
 
-def segment_sum(data, segment_ids, num_segments=None, **kwargs):
-    data = convert_to_tensor(data)
-    segment_ids = convert_to_tensor(segment_ids)
+def _segment_reduction_fn(data, segment_ids, reduction_method, num_segments):
     num_repeats = torch.prod(
         torch.tensor(data.shape[1:], device=get_device())
     ).long()
@@ -39,52 +37,31 @@ def segment_sum(data, segment_ids, num_segments=None, **kwargs):
     # Add one more dimension to the result shape with the "+1".
     shape = (num_segments + 1,) + tuple(data.shape[1:])
 
-    result = torch.zeros(*shape, device=get_device()).scatter_add(
-        0, segment_ids, data.float()
+    if reduction_method == "amax":
+        result = torch.ones(*shape, device=get_device()) * -float("Inf")
+    else:
+        result = torch.zeros(*shape, device=get_device())
+
+    result = result.scatter_reduce(
+        0, segment_ids, data.float(), reduction_method
     )
 
     # Removing the extra dimension.
     result = result[:-1, ...]
 
     return result.type(data.dtype)
+
+
+def segment_sum(data, segment_ids, num_segments=None, **kwargs):
+    data = convert_to_tensor(data)
+    segment_ids = convert_to_tensor(segment_ids)
+    return _segment_reduction_fn(data, segment_ids, "sum", num_segments)
 
 
 def segment_max(data, segment_ids, num_segments=None, **kwargs):
     data = convert_to_tensor(data)
     segment_ids = convert_to_tensor(segment_ids)
-    num_repeats = torch.prod(
-        torch.tensor(data.shape[1:], device=get_device())
-    ).long()
-    # To use `scatter_reduce` in torch, we need to replicate `segment_ids` into
-    # the shape of `data`.
-    segment_ids = (
-        segment_ids.repeat_interleave(num_repeats)
-        .view(*data.shape)
-        .type(torch.int64)
-    )
-    num_segments = num_segments or len(torch.unique(segment_ids))
-
-    # .scatter_reduce does not support -1 in the indices.
-    # Add all out-of-bound indices value to an extra dimension after
-    # num_segments, which is removed before returning the result.
-
-    # Replacing the out-of-bound indices.
-    segment_ids = torch.where(segment_ids >= 0, segment_ids, num_segments)
-    segment_ids = torch.where(
-        segment_ids < num_segments, segment_ids, num_segments
-    )
-
-    # Add one more dimension to the result shape with the "+1".
-    shape = (num_segments + 1,) + tuple(data.shape[1:])
-
-    result = torch.zeros(*shape, device=get_device()).scatter_reduce(
-        0, segment_ids, data.float(), "amax"
-    )
-
-    # Removing the extra dimension.
-    result = result[:-1, ...]
-
-    return result.type(data.dtype)
+    return _segment_reduction_fn(data, segment_ids, "amax", num_segments)
 
 
 def top_k(x, k, sorted=True):

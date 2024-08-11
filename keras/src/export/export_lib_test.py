@@ -93,7 +93,149 @@ class ExportArchiveTest(testing.TestCase, parameterized.TestCase):
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertEqual(ref_output.shape, revived_model.serve(ref_input).shape)
         # Test with a different batch size
+        input = tf.random.normal((6, 10))
+        output1 = revived_model.serve(input)
+        output2 = revived_model.serve(input)
+        # Verify RNG seeding works and produces random outputs
+        self.assertNotAllClose(output1, output2)
+
+    @parameterized.named_parameters(
+        named_product(model_type=["sequential", "functional", "subclass"])
+    )
+    def test_model_with_non_trainable_state_export(self, model_type):
+
+        class StateLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.counter = self.add_variable(
+                    (), "zeros", "int32", trainable=False
+                )
+
+            def call(self, inputs):
+                self.counter.assign_add(1)
+                return ops.array(inputs), ops.array(self.counter.value)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model(model_type, layer_list=[StateLayer()])
+        model(tf.random.normal((3, 10)))
+
+        export_lib.export_model(model, temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+
+        # The non-trainable counter is expected to increment
+        input = tf.random.normal((6, 10))
+        output1, counter1 = revived_model.serve(input)
+        self.assertAllClose(output1, input)
+        self.assertAllClose(counter1, 2)
+        output2, counter2 = revived_model.serve(input)
+        self.assertAllClose(output2, input)
+        self.assertAllClose(counter2, 3)
+
+    @parameterized.named_parameters(
+        named_product(model_type=["sequential", "functional", "subclass"])
+    )
+    def test_model_with_tf_data_layer(self, model_type):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model(model_type, layer_list=[layers.Rescaling(scale=2.0)])
+        ref_input = tf.random.normal((3, 10))
+        ref_output = model(ref_input)
+
+        export_lib.export_model(model, temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        # Test with a different batch size
         revived_model.serve(tf.random.normal((6, 10)))
+
+    @parameterized.named_parameters(
+        named_product(struct_type=["tuple", "array", "dict"])
+    )
+    def test_model_with_input_structure(self, struct_type):
+
+        class TupleModel(models.Model):
+
+            def call(self, inputs):
+                x, y = inputs
+                return ops.add(x, y)
+
+        class ArrayModel(models.Model):
+
+            def call(self, inputs):
+                x = inputs[0]
+                y = inputs[1]
+                return ops.add(x, y)
+
+        class DictModel(models.Model):
+
+            def call(self, inputs):
+                x = inputs["x"]
+                y = inputs["y"]
+                return ops.add(x, y)
+
+        if struct_type == "tuple":
+            model = TupleModel()
+            ref_input = (tf.random.normal((3, 10)), tf.random.normal((3, 10)))
+        elif struct_type == "array":
+            model = ArrayModel()
+            ref_input = [tf.random.normal((3, 10)), tf.random.normal((3, 10))]
+        elif struct_type == "dict":
+            model = DictModel()
+            ref_input = {
+                "x": tf.random.normal((3, 10)),
+                "y": tf.random.normal((3, 10)),
+            }
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        ref_output = model(tree.map_structure(ops.convert_to_tensor, ref_input))
+
+        export_lib.export_model(model, temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        # Test with a different batch size
+        bigger_input = tree.map_structure(
+            lambda x: tf.concat([x, x], axis=0), ref_input
+        )
+        revived_model.serve(bigger_input)
+
+        # Test with keras.saving_lib
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "exported_model.keras"
+        )
+        saving_lib.save_model(model, temp_filepath)
+        revived_model = saving_lib.load_model(
+            temp_filepath,
+            {
+                "TupleModel": TupleModel,
+                "ArrayModel": ArrayModel,
+                "DictModel": DictModel,
+            },
+        )
+        self.assertAllClose(ref_output, revived_model(ref_input))
+        export_lib.export_model(revived_model, self.get_temp_dir())
+
+    def test_model_with_multiple_inputs(self):
+
+        class TwoInputsModel(models.Model):
+            def call(self, x, y):
+                return x + y
+
+            def build(self, y_shape, x_shape):
+                self.built = True
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = TwoInputsModel()
+        ref_input_x = tf.random.normal((3, 10))
+        ref_input_y = tf.random.normal((3, 10))
+        ref_output = model(ref_input_x, ref_input_y)
+
+        export_lib.export_model(model, temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(
+            ref_output, revived_model.serve(ref_input_x, ref_input_y)
+        )
+        # Test with a different batch size
+        revived_model.serve(
+            tf.random.normal((6, 10)), tf.random.normal((6, 10))
+        )
 
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])

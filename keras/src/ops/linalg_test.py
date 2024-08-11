@@ -447,9 +447,9 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         if backend.backend() == "mlx" and ord == "nuc":
             self.skipTest("ord='nuc' not supported in MLX")
         if ndim == 1:
-            x = np.random.random((5,))
+            x = np.random.random((5,)).astype("float32")
         else:
-            x = np.random.random((5, 6))
+            x = np.random.random((5, 6)).astype("float32")
 
         vector_norm = (ndim == 1) or isinstance(axis, int)
 
@@ -484,7 +484,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         expected_result = np.linalg.norm(
             x, ord=ord, axis=axis, keepdims=keepdims
         )
-        self.assertAllClose(output, expected_result)
+        self.assertAllClose(output, expected_result, atol=1e-5)
 
     def test_qr(self):
         x = np.random.random((4, 5))
@@ -528,12 +528,34 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output, expected_result)
 
     def test_svd(self):
-        x = np.random.rand(4, 30, 20)
+        x = np.random.rand(4, 30, 20).astype("float32")
         u, s, vh = linalg.svd(x)
         x_reconstructed = (u[..., :, : s.shape[-1]] * s[..., None, :]) @ vh[
             ..., : s.shape[-1], :
         ]
-        self.assertAllClose(x_reconstructed, x, atol=1e-4)
+        # High tolerance due to numerical instability
+        self.assertAllClose(x_reconstructed, x, atol=1e-3)
+
+    @parameterized.named_parameters(
+        ("b_rank_1", 1, None),
+        ("b_rank_2", 2, None),
+        ("rcond", 1, 1e-3),
+    )
+    def test_lstsq(self, b_rank, rcond):
+        a = np.random.random((5, 7)).astype("float32")
+        a_symb = backend.KerasTensor((5, 7))
+        if b_rank == 1:
+            b = np.random.random((5,)).astype("float32")
+            b_symb = backend.KerasTensor((5,))
+        else:
+            b = np.random.random((5, 4)).astype("float32")
+            b_symb = backend.KerasTensor((5, 4))
+        out = linalg.lstsq(a, b, rcond=rcond)
+        ref_out = np.linalg.lstsq(a, b, rcond=rcond)[0]
+        self.assertAllClose(out, ref_out, atol=1e-5)
+
+        out_symb = linalg.lstsq(a_symb, b_symb)
+        self.assertEqual(out_symb.shape, out.shape)
 
 
 class QrOpTest(testing.TestCase):

@@ -32,7 +32,9 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend.common import global_state
 from keras.src.backend.common.name_scope import current_path
+from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.distribution import distribution_lib
+from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
 from keras.src.ops.operation import Operation
@@ -213,15 +215,16 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     """
 
     def __new__(cls, *args, **kwargs):
-        # Wrap the user-provided build method in the build_decorator
-        # to add name scope support and serialization support.
         obj = super().__new__(cls, *args, **kwargs)
 
+        # Wrap the user-provided `build` method in the `build_wrapper`
+        # to add name scope support and serialization support.
         original_build_method = obj.build
 
         @wraps(original_build_method)
         def build_wrapper(*args, **kwargs):
             with obj._open_name_scope():
+                obj._path = current_path()
                 original_build_method(*args, **kwargs)
             # Record build config.
             signature = inspect.signature(original_build_method)
@@ -232,6 +235,24 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             obj._lock_state()
 
         obj.build = build_wrapper
+
+        # Wrap the user-provided `quantize` method in the `quantize_wrapper`
+        # to add tracker support.
+        original_quantize_method = obj.quantize
+
+        @wraps(original_quantize_method)
+        def quantize_wrapper(mode, **kwargs):
+            obj._check_quantize_args(mode, obj.compute_dtype)
+            obj._tracker.unlock()
+            try:
+                original_quantize_method(mode, **kwargs)
+            except Exception:
+                raise
+            finally:
+                obj._tracker.lock()
+
+        obj.quantize = quantize_wrapper
+
         return obj
 
     def __init__(
@@ -268,6 +289,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 f"passed to {self.__class__.__name__}: {kwargs}"
             )
 
+        self._path = None  # Will be determined in `build_wrapper`
         self.built = False
         self.autocast = autocast
         self._input_spec = None
@@ -347,6 +369,14 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         if backend.backend() == "tensorflow":
             # Reset attribute tracking (TF-specific)
             self._self_setattr_tracking = _self_setattr_tracking
+
+    @property
+    def path(self):
+        """The path of the layer.
+
+        If the layer has not been built yet, it will be `None`.
+        """
+        return self._path
 
     @property
     def input_spec(self):
@@ -509,7 +539,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             else:
                 initializer = "zeros"
         initializer = initializers.get(initializer)
-        with self._open_name_scope():
+        with backend.name_scope(self.name, caller=self):
             variable = backend.Variable(
                 initializer=initializer,
                 shape=shape,
@@ -685,10 +715,16 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     @dtype_policy.setter
     def dtype_policy(self, value):
-        self._dtype_policy = dtype_policies.get(value)
-        if isinstance(self._dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            if self.built:
-                self.quantize(self._dtype_policy.quantization_mode)
+        policy = dtype_policies.get(value)
+        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
+            if self.path in self._dtype_policy:
+                del self._dtype_policy[self.path]
+            self._dtype_policy[self.path] = policy
+        else:
+            self._dtype_policy = policy
+        if policy.quantization_mode is not None:
+            if self.built and not getattr(self, "_is_quantized", False):
+                self.quantize(policy.quantization_mode)
 
     @property
     def dtype(self):
@@ -698,17 +734,34 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     @property
     def compute_dtype(self):
         """The dtype of the computations performed by the layer."""
-        return self.dtype_policy.compute_dtype
+        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
+            policy = self._dtype_policy[self.path]
+        else:
+            policy = self._dtype_policy
+        return policy.compute_dtype
 
     @property
     def variable_dtype(self):
         """The dtype of the state (weights) of the layer."""
-        return self.dtype_policy.variable_dtype
+        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
+            policy = self._dtype_policy[self.path]
+        else:
+            policy = self._dtype_policy
+        return policy.variable_dtype
+
+    @property
+    def quantization_mode(self):
+        """The quantization mode of this layer, `None` if not quantized."""
+        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
+            policy = self._dtype_policy[self.path]
+        else:
+            policy = self._dtype_policy
+        return policy.quantization_mode
 
     @property
     def input_dtype(self):
         """The dtype layer inputs should be converted to."""
-        return self.dtype_policy.compute_dtype
+        return self.compute_dtype
 
     @property
     def supports_masking(self):
@@ -749,8 +802,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # 2. Enforce that only tensors can be passed positionally.
         if not self._allow_non_tensor_positional_args:
             for arg in tree.flatten(args):
-                if not isinstance(arg, KerasTensor) and not backend.is_tensor(
-                    arg
+                if (
+                    not isinstance(arg, KerasTensor)
+                    and not backend.is_tensor(arg)
+                    and arg is not None
                 ):
                     raise ValueError(
                         "Only input tensors may be passed as "
@@ -870,12 +925,14 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             # Set masks on outputs,
             # provided only the first positional input arg and its mask.
             # TODO: consider extending this to all args and kwargs.
-            previous_mask = getattr(call_spec.first_arg, "_keras_mask", None)
+            previous_mask = tree.map_structure(
+                lambda x: getattr(x, "_keras_mask", None), call_spec.first_arg
+            )
             if self.supports_masking:
                 self._set_mask_metadata(
                     call_spec.first_arg, outputs, previous_mask
                 )
-            elif previous_mask is not None:
+            elif any(m is not None for m in tree.flatten(previous_mask)):
                 warnings.warn(
                     f"Layer '{self.name}' (of type {self.__class__.__name__}) "
                     "was passed an input with a mask attached to it. "
@@ -889,16 +946,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         return outputs
 
     def call(self, *args, **kwargs):
-        raise NotImplementedError(
-            f"Layer {self.__class__.__name__} does not have a `call()` "
-            "method implemented."
-        )
-
-    def quantized_call(self, *args, **kwargs):
-        raise NotImplementedError(
-            f"Layer {self.__class__.__name__} does not have a "
-            "`quantized_call()` method implemented."
-        )
+        raise self._not_implemented_error(self.call)
 
     @traceback_utils.filter_traceback
     def stateless_call(
@@ -989,9 +1037,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         with backend.StatelessScope(
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
-            if isinstance(
-                self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-            ):
+            if self.dtype_policy.quantization_mode is not None:
                 outputs = self.quantized_call(*args, **kwargs)
             else:
                 outputs = self.call(*args, **kwargs)
@@ -1054,9 +1100,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     @utils.default
     def compute_output_shape(self, *args, **kwargs):
-        raise NotImplementedError(
-            f"Layer {self.__class__.__name__} should implement "
-            "`def compute_output_shape(self, input_shape)`."
+        raise self._not_implemented_error(
+            self.compute_output_shape,
+            "Should implement `def compute_output_shape(self, input_shape)`.",
         )
 
     def add_loss(self, loss):
@@ -1105,7 +1151,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         for variable in self.trainable_weights:
             if variable.regularizer is None:
                 continue
-            if backend.in_stateless_scope():
+            if backend.in_stateless_scope() and not in_symbolic_scope():
+                # If in symbolic scope, we might get `None` from
+                # `get_current_value` in `backend.compute_output_spec`. So we
+                # assign `variable` instead.
                 v = backend.get_stateless_scope().get_current_value(variable)
             else:
                 v = variable
@@ -1136,11 +1185,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         for layer in self._layers:
             layer._clear_losses()
 
-    def quantize(self, mode):
-        raise NotImplementedError(
-            f"Layer {self.__class__.__name__} does not have a `quantize()` "
-            "method implemented."
-        )
+    # Quantization-related (int8 and float8) methods
+
+    def quantized_build(self, input_shape, mode):
+        raise self._not_implemented_error(self.quantized_build)
+
+    def quantize(self, mode, type_check=True):
+        raise self._not_implemented_error(self.quantize)
 
     def _check_quantize_args(self, mode, compute_dtype):
         if not self.built:
@@ -1168,6 +1219,40 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 "another dtype policy such as 'mixed_bfloat16' or "
                 "'mixed_float16' before calling `quantize()`."
             )
+
+    def quantized_call(self, *args, **kwargs):
+        if self.quantization_mode == "int8":
+            return self._int8_call(*args, **kwargs)
+        elif self.quantization_mode == "float8":
+            return self._float8_call(*args, **kwargs)
+        else:
+            raise self._quantization_mode_error(self.quantization_mode)
+
+    def _int8_call(self, *args, **kwargs):
+        raise self._not_implemented_error(self._int8_call)
+
+    def _float8_call(self, *args, **kwargs):
+        raise self._not_implemented_error(self._float8_call)
+
+    def _not_implemented_error(self, attr, msg=None):
+        if callable(attr):
+            attr_name = attr.__name__
+            attr_type = "method"
+        else:
+            attr_name = str(attr)
+            attr_type = "attribute"
+        msg = " " + msg if msg is not None else ""
+        return NotImplementedError(
+            f"Layer {self.__class__.__name__} does not have a `{attr_name}` "
+            f"{attr_type} implemented.{msg}"
+        )
+
+    def _quantization_mode_error(self, mode):
+        return NotImplementedError(
+            "Invalid quantization mode. Expected one of "
+            f"{dtype_policies.QUANTIZATION_MODES}. "
+            f"Received: quantization_mode={mode}"
+        )
 
     def save_own_variables(self, store):
         """Saves the state of the layer.
@@ -1243,9 +1328,12 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             self._tracker.lock()
         self._post_untrack_variable(variable)
 
-    def add_metric(self):
+    def add_metric(self, *args, **kwargs):
         # Permanently disabled
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Layer `add_metric()` method is deprecated"
+            " add your metric in `Model.compile(metrics=[...]).`"
+        )
 
     def count_params(self):
         """Count the total number of scalars composing the weights.
@@ -1352,11 +1440,25 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     def __setattr__(self, name, value):
         # Track Variables, Layers, Metrics, SeedGenerators.
         name, value = self._setattr_hook(name, value)
-        if hasattr(self, "_tracker"):
+        if name != "_tracker":
+            if not hasattr(self, "_tracker"):
+                self._initialize_tracker()
             value = self._tracker.track(value)
-        elif name != "_tracker":
-            self._initialize_tracker()
         return super().__setattr__(name, value)
+
+    def __delattr__(self, name):
+        obj = getattr(self, name)
+        if isinstance(obj, backend.Variable):
+            import gc
+
+            # It will take a short amount of time for the corresponding buffer
+            # to be actually removed from the device.
+            # https://stackoverflow.com/a/74631949
+            self._untrack_variable(obj)
+            super().__delattr__(name)
+            gc.collect()
+        else:
+            super().__delattr__(name)
 
     def _check_super_called(self):
         if getattr(self, "_lock", True):
@@ -1440,8 +1542,12 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         base_config = super().get_config()
         config = {
             "trainable": self.trainable,
-            "dtype": self.dtype_policy.name,
+            "dtype": dtype_policies.serialize(self.dtype_policy),
         }
+        if self.activity_regularizer is not None:
+            config["activity_regularizer"] = regularizers.serialize(
+                self.activity_regularizer
+            )
         return {**base_config, **config}
 
     def _open_name_scope(self):
@@ -1450,7 +1556,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         return backend.name_scope(self.name, caller=self)
 
 
-def is_backend_tensor_or_symbolic(x):
+def is_backend_tensor_or_symbolic(x, allow_none=False):
+    if allow_none and x is None:
+        return True
     return backend.is_tensor(x) or isinstance(x, backend.KerasTensor)
 
 
@@ -1485,7 +1593,10 @@ class CallSpec:
                 tensor_arg_dict[name] = value
             elif tree.is_nested(value) and len(value) > 0:
                 flat_values = tree.flatten(value)
-                if all(is_backend_tensor_or_symbolic(x) for x in flat_values):
+                if all(
+                    is_backend_tensor_or_symbolic(x, allow_none=True)
+                    for x in flat_values
+                ):
                     tensor_args.append(value)
                     tensor_arg_names.append(name)
                     tensor_arg_dict[name] = value

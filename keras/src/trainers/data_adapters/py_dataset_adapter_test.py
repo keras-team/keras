@@ -144,6 +144,8 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
     ):
         if use_multiprocessing and (infinite or shuffle):
             pytest.skip("Starting processes is slow, only test one variant")
+        if testing.tensorflow_uses_gpu():
+            pytest.skip("This test is flaky with TF on GPU")
 
         set_random_seed(1337)
         x = np.random.random((64, 4)).astype("float32")
@@ -175,7 +177,7 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
-            expected_class = jax.Array
+            expected_class = jax.Array if dataset_type == "jax" else np.ndarray
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor

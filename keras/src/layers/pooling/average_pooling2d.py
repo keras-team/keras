@@ -40,12 +40,14 @@ class AveragePooling2D(BasePooling):
             `"channels_last"`.
 
     Input shape:
+
     - If `data_format="channels_last"`:
         4D tensor with shape `(batch_size, height, width, channels)`.
     - If `data_format="channels_first"`:
         4D tensor with shape `(batch_size, channels, height, width)`.
 
     Output shape:
+
     - If `data_format="channels_last"`:
         4D tensor with shape
         `(batch_size, pooled_height, pooled_width, channels)`.

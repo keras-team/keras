@@ -14,6 +14,8 @@ from keras.src.backend.common.name_scope import name_scope
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
+from keras.src.backend.common.symbolic_scope import SymbolicScope
+from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.common.variables import AutocastScope
 from keras.src.backend.common.variables import get_autocast_scope
 from keras.src.backend.common.variables import is_float_dtype

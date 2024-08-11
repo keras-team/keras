@@ -102,13 +102,7 @@ class Functional(Function, Model):
     def __init__(self, inputs, outputs, name=None, **kwargs):
         if isinstance(inputs, dict):
             for k, v in inputs.items():
-                if not isinstance(v, backend.KerasTensor):
-                    raise ValueError(
-                        "When providing `inputs` as a dict, all values in the "
-                        f"dict must be KerasTensors. Received: inputs={inputs} "
-                        f"including invalid value {v} of type {type(v)}"
-                    )
-                if k != v.name:
+                if isinstance(v, backend.KerasTensor) and k != v.name:
                     warnings.warn(
                         "When providing `inputs` as a dict, all keys in the "
                         "dict must match the names of the corresponding "
@@ -116,47 +110,26 @@ class Functional(Function, Model):
                         f"which has name '{v.name}'. Change the tensor name to "
                         f"'{k}' (via `Input(..., name='{k}')`)"
                     )
-        elif isinstance(inputs, (list, tuple)):
-            for x in inputs:
-                if not isinstance(x, backend.KerasTensor):
-                    raise ValueError(
-                        "When providing `inputs` as a list/tuple, all values "
-                        f"in the list/tuple must be KerasTensors. Received: "
-                        f"inputs={inputs} including invalid value {x} of type "
-                        f"{type(x)}"
-                    )
-        elif not isinstance(inputs, backend.KerasTensor):
-            raise ValueError(
-                f"Unrecognized type for `inputs`: {inputs} "
-                f"(of type {type(inputs)})"
-            )
-        if isinstance(outputs, dict):
-            for k, v in outputs.items():
-                if not isinstance(v, backend.KerasTensor):
-                    raise ValueError(
-                        "When providing `outputs` as a dict, all values in the "
-                        f"dict must be KerasTensors. Received: "
-                        f"outputs={outputs} including invalid value {v} of "
-                        f"type {type(v)}"
-                    )
-        elif isinstance(outputs, (list, tuple)):
-            for x in outputs:
-                if not isinstance(x, backend.KerasTensor):
-                    raise ValueError(
-                        "When providing `outputs` as a list/tuple, all values "
-                        f"in the list/tuple must be KerasTensors. Received: "
-                        f"outputs={outputs} including invalid value {x} of "
-                        f"type {type(x)}"
-                    )
-        elif not isinstance(outputs, backend.KerasTensor):
-            raise ValueError(
-                f"Unrecognized type for `outputs`: {outputs} "
-                f"(of type {type(outputs)})"
-            )
 
         trainable = kwargs.pop("trainable", None)
+        flat_inputs = tree.flatten(inputs)
+        flat_outputs = tree.flatten(outputs)
+        for x in flat_inputs:
+            if not isinstance(x, backend.KerasTensor):
+                raise ValueError(
+                    "All `inputs` values must be KerasTensors. Received: "
+                    f"inputs={inputs} including invalid value {x} of "
+                    f"type {type(x)}"
+                )
+        for x in flat_outputs:
+            if not isinstance(x, backend.KerasTensor):
+                raise ValueError(
+                    "All `outputs` values must be KerasTensors. Received: "
+                    f"outputs={outputs} including invalid value {x} of "
+                    f"type {type(x)}"
+                )
 
-        if not all([is_input_keras_tensor(t) for t in tree.flatten(inputs)]):
+        if not all(is_input_keras_tensor(t) for t in flat_inputs):
             inputs, outputs = clone_graph_nodes(inputs, outputs)
 
         Function.__init__(self, inputs, outputs, name=name, **kwargs)
@@ -208,6 +181,10 @@ class Functional(Function, Model):
         # From Function
         return super().compute_output_spec(inputs)
 
+    def compute_output_shape(self, input_shape):
+        # From Function
+        return super().compute_output_shape(input_shape)
+
     def build(self, input_shape):
         self.built = True
 
@@ -228,50 +205,29 @@ class Functional(Function, Model):
     def _assert_input_compatibility(self, *args):
         return super(Model, self)._assert_input_compatibility(*args)
 
-    def _flatten_to_reference_inputs(self, inputs, allow_extra_keys=True):
-        if isinstance(inputs, dict):
-            ref_inputs = self._inputs_struct
-            if not tree.is_nested(ref_inputs):
-                ref_inputs = [self._inputs_struct]
-            if isinstance(ref_inputs, dict):
-                # In the case that the graph is constructed with dict input
-                # tensors, We will use the original dict key to map with the
-                # keys in the input data. Note that the model.inputs is using
-                # tree.flatten to process the input tensors, which means the
-                # dict input tensors are ordered by their keys.
-                ref_input_names = sorted(ref_inputs.keys())
-            else:
-                ref_input_names = [
-                    inp._keras_history.operation.name for inp in ref_inputs
-                ]
-            # Raise an warning if there are more input data comparing to input
-            # tensor
-            if not allow_extra_keys and len(inputs) > len(ref_input_names):
-                warnings.warn(
-                    "Input dict contained keys {} which did not match any "
-                    "model input. They will be ignored by the model.".format(
-                        [n for n in inputs.keys() if n not in ref_input_names]
-                    ),
-                    stacklevel=2,
-                )
-            # Flatten in the order `Input`s were passed during Model
-            # construction.
-            return [inputs[n] for n in ref_input_names]
-        # Otherwise both ref inputs and inputs will already be in same order.
+    def _flatten_to_reference_inputs(self, inputs):
         return tree.flatten(inputs)
 
     def _convert_inputs_to_tensors(self, flat_inputs):
         converted = []
         for x, input in zip(flat_inputs, self._inputs):
-            converted.append(
-                ops.convert_to_tensor(x, dtype=input.dtype, sparse=input.sparse)
-            )
+            if x is None:  # TODO: check if optional
+                converted.append(x)
+            else:
+                converted.append(
+                    ops.convert_to_tensor(
+                        x, dtype=input.dtype, sparse=input.sparse
+                    )
+                )
         return converted
 
     def _adjust_input_rank(self, flat_inputs):
         flat_ref_shapes = [x.shape for x in self._inputs]
         adjusted = []
         for x, ref_shape in zip(flat_inputs, flat_ref_shapes):
+            if x is None:
+                adjusted.append(x)
+                continue
             x_rank = len(x.shape)
             ref_rank = len(ref_shape)
             if x_rank == ref_rank:
@@ -328,30 +284,37 @@ class Functional(Function, Model):
                 x[0] = None
             return tuple(x)
 
+        def make_spec_for_tensor(x):
+            optional = False
+            if isinstance(x._keras_history[0], InputLayer):
+                if x._keras_history[0].optional:
+                    optional = True
+            return InputSpec(
+                shape=shape_with_no_batch_size(x.shape),
+                allow_last_axis_squeeze=True,
+                name=x._keras_history[0].name,
+                optional=optional,
+            )
+
         if isinstance(self._inputs_struct, dict):
-            # Case where `_nested_inputs` is a plain dict of Inputs.
-            names = sorted(self._inputs_struct.keys())
-            return [
-                InputSpec(
-                    shape=shape_with_no_batch_size(
-                        self._inputs_struct[name].shape
-                    ),
-                    allow_last_axis_squeeze=True,
-                    name=name,
-                )
-                for name in names
-            ]
-        else:
-            # Single input, or list/tuple of inputs.
-            # The data may be passed as a dict keyed by input name.
-            return [
-                InputSpec(
-                    shape=shape_with_no_batch_size(x.shape),
-                    allow_last_axis_squeeze=True,
-                    name=x._keras_history[0].name,
-                )
-                for x in self._inputs
-            ]
+            if all(
+                isinstance(x, backend.KerasTensor)
+                for x in self._inputs_struct.values()
+            ):
+                # Case where `_nested_inputs` is a plain dict of Inputs.
+                names = sorted(self._inputs_struct.keys())
+                return [
+                    InputSpec(
+                        shape=shape_with_no_batch_size(
+                            self._inputs_struct[name].shape
+                        ),
+                        allow_last_axis_squeeze=True,
+                        name=name,
+                    )
+                    for name in names
+                ]
+            return None  # Deeply nested dict: skip checks.
+        return [make_spec_for_tensor(x) for x in self.inputs]
 
     @input_spec.setter
     def input_spec(self, value):
@@ -424,12 +387,9 @@ class Functional(Function, Model):
             return [operation.name, new_node_index, tensor_index]
 
         def map_tensors(tensors):
-            if isinstance(tensors, dict):
-                return {k: get_tensor_config(v) for k, v in tensors.items()}
-            if isinstance(tensors, (list, tuple)):
-                return [get_tensor_config(v) for v in tensors]
-            else:
+            if isinstance(tensors, backend.KerasTensor):
                 return [get_tensor_config(tensors)]
+            return tree.map_structure(get_tensor_config, tensors)
 
         config["input_layers"] = map_tensors(self._inputs_struct)
         config["output_layers"] = map_tensors(self._outputs_struct)
@@ -563,16 +523,24 @@ def functional_from_config(cls, config, custom_objects=None):
         return layer_output_tensors[tensor_index]
 
     def map_tensors(tensors):
+        if (
+            isinstance(tensors, list)
+            and len(tensors) == 3
+            and isinstance(tensors[0], str)
+        ):
+            # Leaf
+            return get_tensor(*tensors)
         if isinstance(tensors, dict):
-            return {k: get_tensor(*v) for k, v in tensors.items()}
-        else:
-            tensor_list = [get_tensor(*v) for v in tensors]
-            if len(tensor_list) == 1:
-                return tensor_list[0]
-            return tensor_list
+            return {k: map_tensors(v) for k, v in tensors.items()}
+        return [map_tensors(v) for v in tensors]
 
     input_tensors = map_tensors(config["input_layers"])
     output_tensors = map_tensors(config["output_layers"])
+    if isinstance(input_tensors, list) and len(input_tensors) == 1:
+        input_tensors = input_tensors[0]
+    if isinstance(output_tensors, list) and len(output_tensors) == 1:
+        output_tensors = output_tensors[0]
+
     return cls(
         inputs=input_tensors,
         outputs=output_tensors,

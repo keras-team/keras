@@ -940,7 +940,7 @@ def argsort(x, axis=-1):
 
     Args:
         x: Input tensor.
-        axis: Axis along which to sort. Defaults to`-1` (the last axis). If
+        axis: Axis along which to sort. Defaults to `-1` (the last axis). If
             `None`, the flattened tensor is used.
 
     Returns:
@@ -2801,10 +2801,12 @@ def imag(x):
 
 
 class Isclose(Operation):
-    def call(self, x1, x2):
-        return backend.numpy.isclose(x1, x2)
+    def call(self, x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+        return backend.numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
-    def compute_output_spec(self, x1, x2):
+    def compute_output_spec(
+        self, x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False
+    ):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
@@ -2812,19 +2814,22 @@ class Isclose(Operation):
 
 
 @keras_export(["keras.ops.isclose", "keras.ops.numpy.isclose"])
-def isclose(x1, x2):
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     """Return whether two tensors are element-wise almost equal.
 
     Args:
         x1: First input tensor.
         x2: Second input tensor.
+        rtol: Relative tolerance.
+        atol: Absolute tolerance.
+        equal_nan: If `True`, element-wise NaNs are considered equal.
 
     Returns:
         Output boolean tensor.
     """
     if any_symbolic_tensors((x1, x2)):
-        return Isclose().symbolic_call(x1, x2)
-    return backend.numpy.isclose(x1, x2)
+        return Isclose().symbolic_call(x1, x2, rtol, atol, equal_nan)
+    return backend.numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 class Isfinite(Operation):
@@ -3881,7 +3886,9 @@ class Nonzero(Operation):
         return backend.numpy.nonzero(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor([None] * len(x.shape), dtype="int32")
+        return tuple(
+            [KerasTensor((None,), dtype="int32") for _ in range(len(x.shape))]
+        )
 
 
 @keras_export(["keras.ops.nonzero", "keras.ops.numpy.nonzero"])
@@ -4098,7 +4105,7 @@ def pad(x, pad_width, mode="constant", constant_values=None):
         mode: One of `"constant"`, `"edge"`, `"linear_ramp"`,
             `"maximum"`, `"mean"`, `"median"`, `"minimum"`,
             `"reflect"`, `"symmetric"`, `"wrap"`, `"empty"`,
-            `"circular"`. Defaults to`"constant"`.
+            `"circular"`. Defaults to `"constant"`.
         constant_values: value to pad with if `mode == "constant"`.
             Defaults to `0`. A `ValueError` is raised if not None and
             `mode != "constant"`.
@@ -4340,26 +4347,44 @@ class Repeat(Operation):
 
     def compute_output_spec(self, x):
         x_shape = list(x.shape)
+        repeats = self.repeats
+        if isinstance(repeats, int):
+            repeats = [repeats]
+        repeats_size = len(repeats)
+        broadcast = repeats_size == 1
+
         if self.axis is None:
             if None in x_shape:
                 return KerasTensor([None], dtype=x.dtype)
 
             x_flatten_size = int(np.prod(x_shape))
-            if isinstance(self.repeats, int):
-                output_shape = [x_flatten_size * self.repeats]
+            if broadcast:
+                output_shape = [x_flatten_size * repeats[0]]
+            elif repeats_size != x_flatten_size:
+                raise ValueError(
+                    "Size of `repeats` and "
+                    "dimensions of `x` after flattening should be compatible. "
+                    f"Received: {repeats_size} and {x_flatten_size}"
+                )
             else:
-                output_shape = [int(np.sum(self.repeats))]
+                output_shape = [int(np.sum(repeats))]
             return KerasTensor(output_shape, dtype=x.dtype)
 
         size_on_ax = x_shape[self.axis]
+        if size_on_ax is None:
+            return KerasTensor(x_shape, dtype=x.dtype)
+
         output_shape = x_shape
-        if isinstance(self.repeats, int):
-            if size_on_ax is None:
-                output_shape[self.axis] = None
-            else:
-                output_shape[self.axis] = size_on_ax * self.repeats
+        if broadcast:
+            output_shape[self.axis] = size_on_ax * repeats[0]
+        elif size_on_ax != repeats_size:
+            raise ValueError(
+                "Size of `repeats` and "
+                f"dimensions of `axis {self.axis} of x` should be compatible. "
+                f"Received: {repeats_size} and {x_shape}"
+            )
         else:
-            output_shape[self.axis] = int(np.sum(self.repeats))
+            output_shape[self.axis] = int(np.sum(repeats))
         return KerasTensor(output_shape, dtype=x.dtype)
 
 
@@ -4476,6 +4501,49 @@ def round(x, decimals=0):
     if any_symbolic_tensors((x,)):
         return Round(decimals).symbolic_call(x)
     return backend.numpy.round(x, decimals)
+
+
+class SearchSorted(Operation):
+    def call(self, sorted_sequence, values, side="left"):
+        sorted_sequence = backend.convert_to_tensor(sorted_sequence)
+        values = backend.convert_to_tensor(values)
+        return backend.numpy.searchsorted(sorted_sequence, values, side=side)
+
+    def compute_output_spec(self, sorted_sequence, values, side="left"):
+        if len(sorted_sequence.shape) != 1:
+            raise ValueError(
+                "searchsorted only supports 1-D sorted sequences. Use"
+                "keras.ops.vectorized_map to extend to N-D sequences."
+            )
+        out_type = (
+            "int32"
+            if sorted_sequence.shape[0] <= np.iinfo(np.int32).max
+            else "int64"
+        )
+        return KerasTensor(values.shape, dtype=out_type)
+
+
+@keras_export(["keras.ops.searchsorted"])
+def searchsorted(sorted_sequence, values, side="left"):
+    """Perform a binary search, returning indices for insertion of `values`
+    into `sorted_sequence` that maintain the sorting order.
+
+    Args:
+        sorted_sequence: 1-D input tensor, sorted along the innermost
+            dimension.
+        values: N-D tensor of query insertion values.
+        side: 'left' or 'right', specifying the direction in which to insert
+            for the equality case (tie-breaker).
+
+    Returns:
+        Tensor of insertion indices of same shape as `values`.
+    """
+    if any_symbolic_tensors((sorted_sequence, values)):
+        return SearchSorted().symbolic_call(sorted_sequence, values, side=side)
+
+    sorted_sequence = backend.convert_to_tensor(sorted_sequence)
+    values = backend.convert_to_tensor(values)
+    return backend.numpy.searchsorted(sorted_sequence, values, side=side)
 
 
 class Sign(Operation):
@@ -4859,28 +4927,9 @@ class TakeAlongAxis(Operation):
         return backend.numpy.take_along_axis(x, indices, axis=self.axis)
 
     def compute_output_spec(self, x, indices):
-        x_shape = list(x.shape)
-        indices_shape = list(indices.shape)
-        if self.axis is None:
-            x_shape = [None] if None in x_shape else [int(np.prod(x_shape))]
-
-        if len(x_shape) != len(indices_shape):
-            raise ValueError(
-                "`x` and `indices` must have the same number of dimensions, "
-                f"but receive shape {x_shape} and {indices_shape}."
-            )
-
-        del x_shape[self.axis]
-        del indices_shape[self.axis]
-        output_shape = broadcast_shapes(x_shape, indices_shape)
-        size_on_axis = indices.shape[self.axis]
-        if self.axis == -1:
-            output_shape = output_shape + [size_on_axis]
-        elif self.axis >= 0:
-            output_shape.insert(self.axis, size_on_axis)
-        else:
-            output_shape.insert(self.axis + 1, size_on_axis)
-
+        output_shape = operation_utils.compute_take_along_axis_output_shape(
+            x.shape, indices.shape, self.axis
+        )
         return KerasTensor(output_shape, dtype=x.dtype)
 
 
@@ -5043,6 +5092,8 @@ class Tile(Operation):
     def compute_output_spec(self, x):
         x_shape = list(x.shape)
         repeats = self.repeats
+        if isinstance(repeats, int):
+            repeats = [repeats]
         if len(x_shape) > len(repeats):
             repeats = [1] * (len(x_shape) - len(repeats)) + repeats
         else:
@@ -5281,7 +5332,7 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
     def myfunc(a, b):
         return a + b
 
-    vfunc = np.vectorize(myfunc)
+    vfunc = keras.ops.vectorize(myfunc)
     y = vfunc([1, 2, 3, 4], 2)  # Returns Tensor([3, 4, 5, 6])
     ```
 
@@ -6144,12 +6195,16 @@ def select(condlist, choicelist, default=0):
     # Returns: tensor([0,  1,  2, 42, 16, 25])
     ```
     """
-    if not isinstance(condlist, list) or not isinstance(choicelist, list):
+    if not isinstance(condlist, (list, tuple)) or not isinstance(
+        choicelist, (list, tuple)
+    ):
         raise ValueError(
             "condlist and choicelist must be lists. Received: "
             f"type(condlist) = {type(condlist)}, "
             f"type(choicelist) = {type(choicelist)}"
         )
+    condlist = list(condlist)
+    choicelist = list(choicelist)
     if not condlist or not choicelist:
         raise ValueError(
             "condlist and choicelist must not be empty. Received: "

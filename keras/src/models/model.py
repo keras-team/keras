@@ -23,8 +23,6 @@ elif backend.backend() == "torch":
     from keras.src.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
-elif backend.backend() == "mlx":
-    from keras.src.backend.mlx.trainer import MLXTrainer as Trainer
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement the Trainer class."
@@ -41,7 +39,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
     You start from `Input`,
     you chain layer calls to specify the model's forward pass,
-    and finally you create your model from inputs and outputs:
+    and finally, you create your model from inputs and outputs:
 
     ```python
     inputs = keras.Input(shape=(37,))
@@ -140,9 +138,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
     def __new__(cls, *args, **kwargs):
         # Signature detection for usage of `Model` as a `Functional`
         if functional_init_arguments(args, kwargs) and cls == Model:
-            from keras.src.models import functional
+            from keras.src.models.functional import Functional
 
-            return functional.Functional(*args, **kwargs)
+            return Functional.__new__(Functional, *args, **kwargs)
         return typing.cast(Model, super().__new__(cls))
 
     def __init__(self, *args, **kwargs):
@@ -247,10 +245,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 which is the starting layer name and ending layer name
                 (both inclusive) indicating the range of layers to be printed
                 in summary. It also accepts regex patterns instead of exact
-                name. In such case, start predicate will be the first element
-                it matches to `layer_range[0]` and the end predicate will be
-                the last element it matches to `layer_range[1]`.
-                By default `None` which considers all layers of model.
+                names. In this case, the start predicate will be
+                the first element that matches `layer_range[0]`
+                and the end predicate will be the last element
+                that matches `layer_range[1]`.
+                By default `None` considers all layers of the model.
 
         Raises:
             ValueError: if `summary()` is called before the model is built.
@@ -266,18 +265,21 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         )
 
     @traceback_utils.filter_traceback
-    def save(self, filepath, overwrite=True, **kwargs):
+    def save(self, filepath, overwrite=True, zipped=None, **kwargs):
         """Saves a model as a `.keras` file.
 
         Args:
-            filepath: `str` or `pathlib.Path` object. Path where to save
-                the model. Must end in `.keras`.
+            filepath: `str` or `pathlib.Path` object.
+                The path where to save the model. Must end in `.keras`
+                (unless saving the model as an unzipped directory
+                via `zipped=False`).
             overwrite: Whether we should overwrite any existing model at
                 the target location, or instead ask the user via
                 an interactive prompt.
-            save_format: The `save_format` argument is deprecated in Keras 3.
-                Format to use, as a string. Only the `"keras"` format is
-                supported at this time.
+            zipped: Whether to save the model as a zipped `.keras`
+                archive (default when saving locally), or as an
+                unzipped directory (default when saving on the
+                Hugging Face Hub).
 
         Example:
 
@@ -304,7 +306,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         Thus models can be reinstantiated in the exact same state.
         """
-        return saving_api.save_model(self, filepath, overwrite, **kwargs)
+        return saving_api.save_model(
+            self, filepath, overwrite=overwrite, zipped=zipped, **kwargs
+        )
 
     @traceback_utils.filter_traceback
     def save_weights(self, filepath, overwrite=True):
@@ -350,7 +354,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self, filepath, skip_mismatch=skip_mismatch, **kwargs
         )
 
-    def quantize(self, mode):
+    def quantize(self, mode, **kwargs):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
@@ -363,9 +367,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         """
         from keras.src.dtype_policies import QUANTIZATION_MODES
 
-        if not self.built:
+        type_check = kwargs.pop("type_check", True)
+        if kwargs:
             raise ValueError(
-                "The model must be built first before calling `quantize()`."
+                "Unrecognized keyword arguments "
+                f"passed to {self.__class__.__name__}: {kwargs}"
             )
         if mode not in QUANTIZATION_MODES:
             raise ValueError(
@@ -377,7 +383,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             list_of_sublayers = list(layer._flatten_layers())
             if len(list_of_sublayers) == 1:  # leaves of the model
                 try:
-                    layer.quantize(mode)
+                    layer.quantize(mode, type_check=type_check)
                     mode_changed = True
                 except NotImplementedError as e:
                     warnings.warn(str(e))
@@ -476,7 +482,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         # Create the artifact
         model.export("path/to/location")
 
-        # Later, in a different process / environment...
+        # Later, in a different process/environment...
         reloaded_artifact = tf.saved_model.load("path/to/location")
         predictions = reloaded_artifact.serve(input_data)
         ```
