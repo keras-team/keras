@@ -482,6 +482,7 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         ("float8", "float8_from_mixed_bfloat16", 8, 0),
     )
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_quantize_dtype_argument(
         self, dtype, num_trainable_weights, num_non_trainable_weights
     ):
@@ -498,6 +499,7 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_quantize_int8_when_lora_enabled(self):
         # Note that saving and loading with lora_enabled and quantized are
         # lossy, so we use a weak correctness test for model outputs (atol=0.5).
@@ -579,6 +581,7 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             )
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_quantize_float8(self):
         import ml_dtypes
 
