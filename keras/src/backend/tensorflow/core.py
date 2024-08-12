@@ -1,7 +1,6 @@
 import builtins
 
 import numpy as np
-import optree
 import tensorflow as tf
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 
@@ -373,16 +372,16 @@ def associative_scan(f, elems, reverse=False, axis=0):
     # with additional checks to ensure similar behavior with jax
     if not callable(f):
         raise TypeError(f"`f` should be a callable. Received: f={f}")
-    elems_flat, treespec = optree.tree_flatten(elems)
+    elems_flat = tree.flatten(elems)
     elems_flat = [tf.convert_to_tensor(elem) for elem in elems_flat]
     if reverse:
         elems_flat = [tf.reverse(elem, [axis]) for elem in elems_flat]
 
     def _combine(a_flat, b_flat):
-        a = optree.tree_unflatten(treespec, a_flat)
-        b = optree.tree_unflatten(treespec, b_flat)
+        a = tree.pack_sequence_as(elems, a_flat)
+        b = tree.pack_sequence_as(elems, b_flat)
         c = f(a, b)
-        c_flat, _ = optree.tree_flatten(c)
+        c_flat = tree.flatten(c)
         return c_flat
 
     def _get_dim(x):
@@ -544,7 +543,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
     if reverse:
         scans = [tf.reverse(scanned, [axis]) for scanned in scans]
 
-    return optree.tree_unflatten(treespec, scans)
+    return tree.pack_sequence_as(elems, scans)
 
 
 def scatter(indices, values, shape):

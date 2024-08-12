@@ -1,22 +1,4 @@
-"""
-scan
-scatter
-scatter_update
-slice
-slice_update
-while_loop
-stop_gradient
-shape
-cast
-convert_to_tensor
-convert_to_numpy
-cond
-is_tensor
-custom_gradient
-"""
-
 import numpy as np
-import optree
 
 from keras.src import backend
 from keras.src import tree
@@ -212,7 +194,7 @@ class AssociativeScan(Operation):
         )
 
     def compute_output_spec(self, f, elems, axis):
-        elems_flat, tree_ = optree.tree_flatten(elems)
+        elems_flat = tree.flatten(elems)
         lens = [elem.shape[axis] for elem in elems_flat]
         if len(set(lens)) != 1:
             raise ValueError(
@@ -222,8 +204,8 @@ class AssociativeScan(Operation):
                 )
             )
 
-        x = optree.tree_unflatten(
-            tree_, [slice_along_axis(x, 0, 1, axis=axis) for x in elems_flat]
+        x = tree.pack_sequence_as(
+            elems, [slice_along_axis(x, 0, 1, axis=axis) for x in elems_flat]
         )
         y_spec = backend.compute_output_spec(f, x, x)
 

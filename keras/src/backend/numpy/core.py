@@ -3,7 +3,6 @@ import functools
 import warnings
 
 import numpy as np
-import optree
 
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
@@ -210,16 +209,16 @@ def associative_scan(f, elems, reverse=False, axis=0):
     # Ref: jax.lax.associative_scan
     if not callable(f):
         raise TypeError(f"`f` should be a callable. Received: f={f}")
-    elems_flat, tree = optree.tree_flatten(elems)
+    elems_flat = tree.flatten(elems)
     elems_flat = [convert_to_tensor(elem) for elem in elems_flat]
     if reverse:
         elems_flat = [np.flip(elem, (axis,)) for elem in elems_flat]
 
     def _combine(a_flat, b_flat):
-        a = optree.tree_unflatten(tree, a_flat)
-        b = optree.tree_unflatten(tree, b_flat)
+        a = tree.pack_sequence_as(elems, a_flat)
+        b = tree.pack_sequence_as(elems, b_flat)
         c = f(a, b)
-        c_flat, _ = optree.tree_flatten(c)
+        c_flat = tree.flatten(c)
         return c_flat
 
     num_elems = int(elems_flat[0].shape[axis])
@@ -313,7 +312,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
     if reverse:
         scans = [np.flip(scanned, (axis,)) for scanned in scans]
 
-    return optree.tree_unflatten(tree, scans)
+    return tree.pack_sequence_as(elems, scans)
 
 
 def scatter(indices, values, shape):
