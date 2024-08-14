@@ -703,6 +703,19 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 lambda: ops.zeros((4,)),
             )
 
+    def test_cond_raw_bool_compile(self):
+        class ExampleLayer(layers.Layer):
+            def call(self, x, training=False):
+                return ops.cond(training, lambda: x, lambda: x * 2.0)
+
+        model = models.Sequential([ExampleLayer()])
+        model.compile(
+            optimizer=optimizers.SGD(), loss=losses.MeanSquaredError()
+        )
+        x = np.ones((2, 4), dtype=np.float32)
+        y = np.zeros((2, 4), dtype=np.float32)
+        model.evaluate(x, y, batch_size=2)
+
     def test_unstack(self):
         rng = np.random.default_rng(0)
         x = rng.uniform(size=(2, 3, 4))

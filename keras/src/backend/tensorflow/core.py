@@ -223,7 +223,11 @@ def compute_output_spec(fn, *args, **kwargs):
 
 
 def cond(pred, true_fn, false_fn):
-    return tf.cond(pred, true_fn=true_fn, false_fn=false_fn)
+    if isinstance(pred, tf.Variable):
+        return tf.cond(pred, true_fn=true_fn, false_fn=false_fn)
+    return tf.__internal__.smart_cond.smart_cond(
+        pred, true_fn=true_fn, false_fn=false_fn
+    )
 
 
 def vectorized_map(function, elements):
