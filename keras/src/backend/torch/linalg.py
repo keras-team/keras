@@ -68,9 +68,7 @@ def solve_triangular(a, b, lower=False):
 
 def svd(x, full_matrices=True, compute_uv=True):
     if not compute_uv:
-        raise NotImplementedError(
-            "`compute_uv=False` is not supported for torch backend."
-        )
+        return torch.linalg.svdvals(x)
     return torch.linalg.svd(x, full_matrices=full_matrices)
 
 
