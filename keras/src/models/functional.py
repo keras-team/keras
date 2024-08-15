@@ -532,6 +532,8 @@ def functional_from_config(cls, config, custom_objects=None):
             return get_tensor(*tensors)
         if isinstance(tensors, dict):
             return {k: map_tensors(v) for k, v in tensors.items()}
+        if isinstance(tensors, tuple):
+            return tuple([map_tensors(v) for v in tensors])
         return [map_tensors(v) for v in tensors]
 
     input_tensors = map_tensors(config["input_layers"])
