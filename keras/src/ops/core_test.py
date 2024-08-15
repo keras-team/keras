@@ -590,7 +590,7 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         d = ops.stop_gradient(b) + c
         model = models.Model(inputs=a, outputs=d)
         output = model(ops.convert_to_tensor([[1.0, 2.0]]))
-        self.assertAllClose(output.numpy(), 15.0)
+        self.assertAllClose(ops.convert_to_numpy(output), 15.0)
 
     def test_shape(self):
         x = ops.ones((2, 3, 7, 1))
