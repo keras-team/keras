@@ -3,6 +3,7 @@ import warnings
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras.src import applications
 from keras.src import backend
@@ -16,7 +17,7 @@ from keras.src.models import Model
 from keras.src.models import Sequential
 
 
-class FunctionalTest(testing.TestCase):
+class FunctionalTest(testing.TestCase, parameterized.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_basic_flow_multi_input(self):
         input_a = Input(shape=(3,), batch_size=2, name="input_a")
@@ -179,6 +180,32 @@ class FunctionalTest(testing.TestCase):
             in_val = {"a": input_a_2, "b": input_b_2}
             out_val = model(in_val)
             self.assertEqual(out_val.shape, (2, 3))
+
+    @parameterized.named_parameters(
+        ("list", list),
+        ("tuple", tuple),
+        ("dict", dict),
+    )
+    def test_restored_multi_output_type(self, out_type):
+        inputs = Input(shape=(3,), batch_size=2, name="input")
+        x = layers.Dense(5)(inputs)
+        output_a = layers.Dense(4)(x)
+        output_b = layers.Dense(5)(x)
+        if dict == out_type:
+            outputs = {"a": output_a, "b": output_b}
+        else:
+            outputs = out_type([output_a, output_b])
+        model = Functional(inputs, outputs)
+        model_restored = Functional.from_config(model.get_config())
+
+        # Eager call
+        in_val = np.random.random((2, 3))
+        out_val = model_restored(in_val)
+        self.assertIsInstance(out_val, out_type)
+
+        # Symbolic call
+        out_val = model_restored(Input(shape=(3,), batch_size=2))
+        self.assertIsInstance(out_val, out_type)
 
     @pytest.mark.requires_trainable_backend
     def test_layer_getters(self):
