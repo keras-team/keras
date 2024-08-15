@@ -609,6 +609,8 @@ def stop_gradient(variable):
     ... )
     >>> var = keras.ops.stop_gradient(var)
     """
+    if any_symbolic_tensors((variable,)):
+        return StopGradient().symbolic_call(variable)
     return backend.core.stop_gradient(variable)
 
 
