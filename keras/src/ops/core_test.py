@@ -583,6 +583,15 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         y = ops.stop_gradient(x)
         self.assertAllClose(x, y)
 
+    def test_stop_gradient_functional(self):
+        a = layers.Input(shape=(2,))
+        b = layers.Dense(4, kernel_initializer="ones", use_bias=False)(a)
+        c = layers.Dense(4, kernel_initializer="ones", use_bias=False)(b)
+        d = ops.stop_gradient(b) + c
+        model = models.Model(inputs=a, outputs=d)
+        output = model(ops.convert_to_tensor([[1.0, 2.0]]))
+        self.assertAllClose(ops.convert_to_numpy(output), 15.0)
+
     def test_shape(self):
         x = ops.ones((2, 3, 7, 1))
         self.assertEqual(core.shape(x).__class__, tuple)
