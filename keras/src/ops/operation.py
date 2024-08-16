@@ -17,14 +17,15 @@ class Operation:
     def __init__(self, dtype=None, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
-        if not isinstance(name, str) or "/" in name:
+        temp_name=name.replace("/","_")
+        if not isinstance(temp_name, str) or "/" in temp_name:
             raise ValueError(
                 "Argument `name` must be a string and "
                 "cannot contain character `/`. "
-                f"Received: name={name} (of type {type(name)})"
+                f"Received: name={temp_name} (of type {type(temp_name)})"
             )
         self._dtype_policy = dtype_policies.get(dtype)
-        self.name = name
+        self.name = temp_name
         self._inbound_nodes = []
         self._outbound_nodes = []
 
