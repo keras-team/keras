@@ -377,7 +377,7 @@ def bitwise_and(x, y):
 
 def bitwise_invert(x):
     x = convert_to_tensor(x)
-    return jnp.bitwise_invert(x)
+    return jnp.invert(x)
 
 
 def bitwise_not(x):
@@ -399,7 +399,7 @@ def bitwise_xor(x, y):
 def bitwise_left_shift(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
-    return jnp.bitwise_left_shift(x, y)
+    return jnp.left_shift(x, y)
 
 
 def left_shift(x, y):
@@ -409,7 +409,7 @@ def left_shift(x, y):
 def bitwise_right_shift(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
-    return jnp.bitwise_right_shift(x, y)
+    return jnp.right_shift(x, y)
 
 
 def right_shift(x, y):
