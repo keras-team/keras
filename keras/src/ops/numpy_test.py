@@ -5910,7 +5910,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
 
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.bitwise_invert(x_jax).dtype)
+        expected_dtype = standardize_dtype(jnp.invert(x_jax).dtype)
 
         self.assertDType(knp.bitwise_invert(x), expected_dtype)
         self.assertDType(knp.BitwiseInvert().symbolic_call(x), expected_dtype)
@@ -5962,9 +5962,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x2 = knp.ones((1,), dtype=dtype2)
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2)
-        expected_dtype = standardize_dtype(
-            jnp.bitwise_left_shift(x1_jax, x2_jax).dtype
-        )
+        expected_dtype = standardize_dtype(jnp.left_shift(x1_jax, x2_jax).dtype)
 
         self.assertDType(knp.bitwise_left_shift(x1, x2), expected_dtype)
         self.assertDType(
@@ -5985,7 +5983,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2)
         expected_dtype = standardize_dtype(
-            jnp.bitwise_right_shift(x1_jax, x2_jax).dtype
+            jnp.right_shift(x1_jax, x2_jax).dtype
         )
 
         self.assertDType(knp.bitwise_right_shift(x1, x2), expected_dtype)
