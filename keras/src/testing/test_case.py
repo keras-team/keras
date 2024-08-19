@@ -657,8 +657,8 @@ def create_eager_tensors(input_shape, dtype, sparse):
             "uint16",
             "int32",
             "uint32",
-            "uint64",
             "int64",
+            "uint64",
         ]
     ):
         raise ValueError(
