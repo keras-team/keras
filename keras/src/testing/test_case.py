@@ -647,7 +647,19 @@ def create_eager_tensors(input_shape, dtype, sparse):
     from keras.src.backend import random
 
     if set(tree.flatten(dtype)).difference(
-        ["float16", "float32", "float64", "int16", "int32", "int64"]
+        [
+            "float16",
+            "float32",
+            "float64",
+            "int8",
+            "uint8",
+            "int16",
+            "uint16",
+            "int32",
+            "uint32",
+            "int64",
+            "uint64",
+        ]
     ):
         raise ValueError(
             "dtype must be a standard float or int dtype. "
