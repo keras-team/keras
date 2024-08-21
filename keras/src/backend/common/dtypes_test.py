@@ -91,6 +91,9 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
             dtypes._resolve_weak_type("bfloat16", precision="64"), "float64"
         )
 
+    def test_respect_weak_type_for_complex(self):
+        self.assertAllEqual(dtypes._respect_weak_type("complex64", True), "int")
+
     def test_invalid_dtype_for_keras_promotion(self):
         with self.assertRaisesRegex(
             ValueError, "is not a valid dtype for Keras type promotion."
