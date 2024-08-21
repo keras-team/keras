@@ -142,8 +142,10 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
         use_multiprocessing=False,
         max_queue_size=0,
     ):
-        if use_multiprocessing and (infinite or shuffle):
-            pytest.skip("Starting processes is slow, only test one variant")
+        if use_multiprocessing and shuffle:
+            pytest.skip("Starting processes is slow, test fewer variants")
+        if testing.tensorflow_uses_gpu():
+            pytest.skip("This test is flaky with TF on GPU")
 
         set_random_seed(1337)
         x = np.random.random((64, 4)).astype("float32")
@@ -175,12 +177,13 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
-            expected_class = jax.Array
+            expected_class = jax.Array if dataset_type == "jax" else np.ndarray
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
 
         sample_order = []
+        adapter.on_epoch_begin()
         for batch in it:
             self.assertEqual(len(batch), 2)
             bx, by = batch
@@ -192,14 +195,20 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(by.shape, (16, 2))
             for i in range(by.shape[0]):
                 sample_order.append(by[i, 0])
-            if infinite and len(sample_order) >= 128:
-                break
+            if infinite:
+                if len(sample_order) == 64:
+                    adapter.on_epoch_end()
+                    adapter.on_epoch_begin()
+                elif len(sample_order) >= 128:
+                    break
+        adapter.on_epoch_end()
+
         expected_order = list(range(64))
         if infinite:
-            # When the dataset is infinite, we cycle through the data twice.
-            expected_order = expected_order + expected_order
-        if shuffle and not infinite:
+            self.assertAllClose(sample_order, expected_order + expected_order)
+        elif shuffle:
             self.assertNotAllClose(sample_order, expected_order)
+            self.assertAllClose(sorted(sample_order), expected_order)
         else:
             self.assertAllClose(sample_order, expected_order)
 

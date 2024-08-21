@@ -293,6 +293,53 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     return np.bincount(x, weights, minlength).astype(dtype)
 
 
+def bitwise_and(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.bitwise_and(x, y)
+
+
+def bitwise_invert(x):
+    x = convert_to_tensor(x)
+    return np.bitwise_not(x)
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.bitwise_or(x, y)
+
+
+def bitwise_xor(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.bitwise_xor(x, y)
+
+
+def bitwise_left_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.left_shift(x, y)
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.right_shift(x, y)
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
+
+
 def broadcast_to(x, shape):
     return np.broadcast_to(x, shape)
 
@@ -787,6 +834,20 @@ def reshape(x, newshape):
 
 def roll(x, shift, axis=None):
     return np.roll(x, shift, axis=axis)
+
+
+def searchsorted(sorted_sequence, values, side="left"):
+    if ndim(sorted_sequence) != 1:
+        raise ValueError(
+            "`searchsorted` only supports 1-D sorted sequences. "
+            "You can use `keras.ops.vectorized_map` "
+            "to extend it to N-D sequences. Received: "
+            f"sorted_sequence.shape={sorted_sequence.shape}"
+        )
+    out_type = (
+        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+    )
+    return np.searchsorted(sorted_sequence, values, side=side).astype(out_type)
 
 
 def sign(x):

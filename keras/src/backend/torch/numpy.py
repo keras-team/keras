@@ -1,6 +1,7 @@
 import builtins
 import math
 
+import numpy as np
 import torch
 
 from keras.src.backend import KerasTensor
@@ -408,6 +409,53 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 
         return cast(torch.stack(bincounts), dtype)
     return cast(torch.bincount(x, weights, minlength), dtype)
+
+
+def bitwise_and(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_and(x, y)
+
+
+def bitwise_invert(x):
+    x = convert_to_tensor(x)
+    return torch.bitwise_not(x)
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_or(x, y)
+
+
+def bitwise_xor(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_xor(x, y)
+
+
+def bitwise_left_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_left_shift(x, y)
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_right_shift(x, y)
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
 
 
 def broadcast_to(x, shape):
@@ -1194,6 +1242,20 @@ def roll(x, shift, axis=None):
     return torch.roll(x, shift, dims=axis)
 
 
+def searchsorted(sorted_sequence, values, side="left"):
+    if ndim(sorted_sequence) != 1:
+        raise ValueError(
+            "`searchsorted` only supports 1-D sorted sequences. "
+            "You can use `keras.ops.vectorized_map` "
+            "to extend it to N-D sequences. Received: "
+            f"sorted_sequence.shape={sorted_sequence.shape}"
+        )
+    out_int32 = len(sorted_sequence) <= np.iinfo(np.int32).max
+    return torch.searchsorted(
+        sorted_sequence, values, side=side, out_int32=out_int32
+    )
+
+
 def sign(x):
     x = convert_to_tensor(x)
     return torch.sign(x)
@@ -1359,6 +1421,8 @@ def round(x, decimals=0):
 def tile(x, repeats):
     if is_tensor(repeats):
         repeats = tuple(repeats.int().numpy())
+    if isinstance(repeats, int):
+        repeats = (repeats,)
     x = convert_to_tensor(x)
     return torch.tile(x, dims=repeats)
 

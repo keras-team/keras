@@ -1,3 +1,6 @@
+from typing import Iterator
+from typing import Tuple
+
 import torch
 
 from keras.src.backend.common.stateless_scope import in_stateless_scope
@@ -13,15 +16,23 @@ class TorchLayer(torch.nn.Module):
         self._track_variables()
 
     def _track_variables(self):
-        # Index given to ParameterDict must be a string
+        # set torch_params attribute will have module automatically track
+        # parameters.
         self.torch_params = torch.nn.ParameterDict(
-            {str(id(variable)): variable.value for variable in self.variables}
+            {variable.path: variable.value for variable in self.variables}
         )
 
-    def parameters(self, recurse=True):
+    def named_parameters(
+        self,
+        prefix: str = "",
+        recurse: bool = True,
+        remove_duplicate: bool = True,
+    ) -> Iterator[Tuple[str, torch.nn.Parameter]]:
         if not hasattr(self, "torch_params"):
             self._track_variables()
-        return torch.nn.Module.parameters(self, recurse=recurse)
+        return torch.nn.Module.named_parameters(
+            self, prefix, recurse, remove_duplicate
+        )
 
     def forward(self, *args, **kwargs):
         return Operation.__call__(self, *args, **kwargs)
@@ -42,13 +53,10 @@ class TorchLayer(torch.nn.Module):
 
     def _post_track_variable(self, variable):
         if hasattr(self, "torch_params"):
-            # Index given to ParameterDict must be a string
-            key = str(id(variable))
-            if key not in self.torch_params:
-                self.torch_params[key] = variable.value
+            if variable.path not in self.torch_params:
+                self.torch_params[variable.path] = variable.value
 
     def _post_untrack_variable(self, variable):
         if hasattr(self, "torch_params"):
-            # Index given to ParameterDict must be a string
-            key = str(id(variable))
-            self.torch_params.pop(key)
+            if variable.path in self.torch_params:
+                self.torch_params.pop(variable.path)

@@ -16,11 +16,13 @@ class QuantizersTest(testing.TestCase):
             quantizers.get("typo")
 
     def test_abs_max_quantizer(self):
-        values = random.uniform([3, 4, 5], minval=-1, maxval=1)
+        values = random.uniform([3, 4, 5], minval=-1, maxval=1, dtype="float32")
         quantizer = quantizers.AbsMaxQuantizer(axis=-1)
 
         # Test quantizing
         quantized_values, scale = quantizer(values)
+        self.assertDType(quantized_values, "int8")
+        self.assertDType(scale, "float32")
         self.assertEqual(tuple(quantized_values.shape), (3, 4, 5))
         self.assertEqual(tuple(scale.shape), (3, 4, 1))
         self.assertLessEqual(ops.max(quantized_values), 127)
@@ -35,6 +37,29 @@ class QuantizersTest(testing.TestCase):
 
         # Test serialization
         self.run_class_serialization_test(quantizer)
+
+        # Test bfloat16 & float16 dtype
+        values = random.uniform(
+            [3, 4, 5], minval=-1, maxval=1, dtype="bfloat16"
+        )
+        quantized_values, scale = quantizer(values)
+        self.assertDType(quantized_values, "int8")
+        self.assertDType(scale, "bfloat16")
+        values = random.uniform([3, 4, 5], minval=-1, maxval=1, dtype="float16")
+        quantized_values, scale = quantizer(values)
+        self.assertDType(quantized_values, "int8")
+        self.assertDType(scale, "float16")
+
+    def test_abs_max_quantizer_to_numpy(self):
+        values = random.uniform([3, 4, 5], minval=-1, maxval=1, dtype="float32")
+        quantized_values, scale = quantizers.abs_max_quantize(
+            values, axis=-1, to_numpy=True
+        )
+        ref_quantized_values, ref_scale = quantizers.abs_max_quantize(
+            values, axis=-1
+        )
+        self.assertAllClose(quantized_values, ref_quantized_values)
+        self.assertAllClose(scale, ref_scale)
 
     def test_compute_float8_scale(self):
         amax = 3.0

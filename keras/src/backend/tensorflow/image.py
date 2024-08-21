@@ -151,13 +151,13 @@ def resize(
             tf.cast(width * target_height, "float32") / target_width,
             "int32",
         )
-        crop_height = tf.minimum(height, crop_height)
+        crop_height = tf.maximum(tf.minimum(height, crop_height), 1)
         crop_height = tf.cast(crop_height, "int32")
         crop_width = tf.cast(
             tf.cast(height * target_width, "float32") / target_height,
             "int32",
         )
-        crop_width = tf.minimum(width, crop_width)
+        crop_width = tf.maximum(tf.minimum(width, crop_width), 1)
         crop_width = tf.cast(crop_width, "int32")
 
         crop_box_hstart = tf.cast(

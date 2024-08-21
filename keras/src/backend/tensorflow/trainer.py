@@ -291,6 +291,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
             steps_per_execution=self.steps_per_execution,
         )
 
+        self._maybe_symbolic_build(iterator=epoch_iterator)
+
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
@@ -307,7 +309,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self.make_train_function()
         callbacks.on_train_begin()
         training_logs = None
-        logs = None
+        logs = {}
         initial_epoch = self._initial_epoch or initial_epoch
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
@@ -406,6 +408,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 steps_per_execution=self.steps_per_execution,
             )
 
+        self._maybe_symbolic_build(iterator=epoch_iterator)
+
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
@@ -421,7 +425,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self.make_test_function()
         self.stop_evaluating = False
         callbacks.on_test_begin()
-        logs = None
+        logs = {}
         self.reset_metrics()
         with epoch_iterator.catch_stop_iteration():
             for step, iterator in epoch_iterator.enumerate_epoch():
@@ -525,7 +529,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return_dict=False,
     ):
         self._assert_compile_called("train_on_batch")
-        self.make_train_function()
         if class_weight is not None:
             if sample_weight is not None:
                 raise ValueError(
@@ -537,6 +540,10 @@ class TensorFlowTrainer(base_trainer.Trainer):
             sample_weight = data_adapter_utils.class_weight_to_sample_weights(
                 y, class_weight
             )
+
+        # Maybe build model
+        self._maybe_symbolic_build(data_batch=(x, y, sample_weight))
+        self.make_train_function()
 
         def data():
             yield (x, y, sample_weight)
@@ -555,10 +562,13 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return_dict=False,
     ):
         self._assert_compile_called("test_on_batch")
-        self.make_test_function()
 
         def data():
             yield (x, y, sample_weight)
+
+        # Maybe build model
+        self._maybe_symbolic_build(data_batch=(x, y, sample_weight))
+        self.make_test_function()
 
         logs = self.test_function(data())
         logs = tree.map_structure(lambda x: np.array(x), logs)
@@ -621,6 +631,35 @@ class TensorFlowTrainer(base_trainer.Trainer):
             x=None, y=y, y_pred=y_pred, sample_weight=sample_weight
         )
 
+    def _maybe_symbolic_build(self, iterator=None, data_batch=None):
+        # Only symbolic build when distribute strategy is created in tf trainer
+        if self._distribute_strategy is None:
+            # When no distribution strategy is set, defer building
+            # to when the train/test/predict function gets traced.
+            # This maximizes backwards compatibility.
+            return
+
+        # Unlike jax/torch iterator, tf iterator returns an iterator instead
+        # of data batch in `iterator.enumerate_epoch()`.
+        if iterator is not None:
+            for _, it in iterator.enumerate_epoch():
+                maybe_distributed_data_batch = next(it)
+                has_distributed_values = tree.map_structure(
+                    lambda x: isinstance(x, tf.distribute.DistributedValues),
+                    maybe_distributed_data_batch,
+                )
+                if all(tree.flatten(has_distributed_values)):
+                    data_batch = self.distribute_strategy.reduce(
+                        "MEAN",
+                        maybe_distributed_data_batch,
+                        axis=None,
+                    )
+                else:
+                    data_batch = maybe_distributed_data_batch
+                break
+        with self.distribute_strategy.scope():
+            self._symbolic_build(data_batch=data_batch)
+
 
 class TFEpochIterator(EpochIterator):
     def __init__(self, distribute_strategy=None, *args, **kwargs):
@@ -638,6 +677,7 @@ class TFEpochIterator(EpochIterator):
         return self.data_adapter.get_tf_dataset()
 
     def enumerate_epoch(self):
+        self.data_adapter.on_epoch_begin()
         if self.steps_per_epoch:
             if not self._current_iterator:
                 self._current_iterator = iter(self._distributed_dataset)

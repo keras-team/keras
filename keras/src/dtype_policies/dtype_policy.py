@@ -1,4 +1,5 @@
 from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
@@ -62,7 +63,7 @@ class DTypePolicy:
             name = dtype_policy().name
         self._name = name
         self._compute_dtype, self._variable_dtype = self._parse_name(name)
-        self._is_quantized = False
+        self._quantization_mode = None
 
     def _parse_name(self, name):
         """Parses a `DTypePolicy` name into a compute and variable dtype.
@@ -88,7 +89,7 @@ class DTypePolicy:
         except ValueError:
             raise ValueError(
                 f"Cannot convert '{name}' to a mixed precision "
-                "FloatDTypePolicy. Valid policies include 'mixed_float16', "
+                "DTypePolicy. Valid policies include 'mixed_float16', "
                 "'mixed_bfloat16', and the name of any float dtype such as "
                 "'float32'."
             )
@@ -137,9 +138,14 @@ class DTypePolicy:
         return self._name
 
     @property
-    def is_quantized(self):
-        """Whether a quantized dtype policy."""
-        return self._is_quantized
+    def quantization_mode(self):
+        """The quantization mode of this policy.
+
+        Returns:
+            The quantization mode of this policy, as a string. If this policy is
+            not quantized, it will return `None`.
+        """
+        return self._quantization_mode
 
     def convert_input(self, x, autocast, dtype):
         """Converts the input dtype based on `autocast` and `dtype`.
@@ -156,10 +162,13 @@ class DTypePolicy:
             return x
         elif backend.is_keras_tensor(x):
             if self._should_cast(x, autocast, dtype):
-                x.dtype = dtype
+                x = ops.cast(x, dtype=dtype)
             return x
         elif hasattr(x, "__array__"):
-            x = backend.convert_to_tensor(x)
+            try:
+                x = backend.convert_to_tensor(x)
+            except TypeError:
+                x = backend.convert_to_tensor(x, dtype=dtype)
             if self._should_cast(x, autocast, dtype):
                 x = backend.cast(x, dtype=dtype)
             return x
@@ -173,7 +182,19 @@ class DTypePolicy:
         return cls(**config)
 
     def __repr__(self):
-        return f'<FloatDTypePolicy "{self._name}">'
+        class_name = self.__class__.__name__
+        if class_name == "FloatDTypePolicy":
+            class_name = "DTypePolicy"
+        return f'<{class_name} "{self._name}">'
+
+    def __eq__(self, other):
+        if self.__class__ in (DTypePolicy, FloatDTypePolicy):
+            if type(other) not in (DTypePolicy, FloatDTypePolicy):
+                return False
+        else:
+            if type(other) is not self.__class__:
+                return False
+        return self._name == other._name
 
     def _should_cast(self, x, autocast, dtype):
         x_dtype = backend.standardize_dtype(x.dtype)
@@ -206,19 +227,14 @@ class QuantizedDTypePolicy(DTypePolicy):
         self._name = name
         self._source_name = source_name
         self._quantization_mode = mode
-        self._is_quantized = True
 
-    @property
-    def quantization_mode(self):
-        """The quantization mode of this policy.
-
-        Returns:
-            The quantization mode of this policy, as a string.
-        """
-        return self._quantization_mode
-
-    def __repr__(self):
-        return f'<QuantizedDTypePolicy "{self._name}">'
+    def __eq__(self, other):
+        if super().__eq__(other) is False:
+            return False
+        return (
+            self._quantization_mode == other._quantization_mode
+            and self._source_name == other._source_name
+        )
 
     def get_config(self):
         return {
@@ -261,8 +277,10 @@ class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
         """
         return self._amax_history_length
 
-    def __repr__(self):
-        return f'<QuantizedFloat8DTypePolicy "{self._name}">'
+    def __eq__(self, other):
+        if super().__eq__(other) is False:
+            return False
+        return self._amax_history_length == other._amax_history_length
 
     def get_config(self):
         config = super().get_config()
@@ -289,7 +307,7 @@ def set_dtype_policy(policy):
             if policy.startswith(QUANTIZATION_MODES):
                 policy = _get_quantized_dtype_policy_by_str(policy)
             else:
-                policy = FloatDTypePolicy(policy)
+                policy = DTypePolicy(policy)
         else:
             raise ValueError(
                 "Invalid `policy` argument. "
@@ -312,7 +330,7 @@ def dtype_policy():
     """Returns the current default dtype policy object."""
     policy = global_state.get_global_attribute("dtype_policy", None)
     if policy is None:
-        policy = FloatDTypePolicy(backend.floatx())
+        policy = DTypePolicy(backend.floatx())
         set_dtype_policy(policy)
     return policy
 

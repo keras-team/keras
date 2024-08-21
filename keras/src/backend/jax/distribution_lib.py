@@ -106,7 +106,7 @@ def distribute_tensor(tensor, layout):
         return global_value
 
 
-def distribute_data_input(inputs, layout):
+def distribute_data_input(per_process_batch, layout):
     """Distribute the input data with the corresponding layout.
 
     Note that the inputs here is a local worker batch. Within the local worker,
@@ -118,72 +118,72 @@ def distribute_data_input(inputs, layout):
             `jax.sharding.Sharding` instance.
 
     Returns:
-        Distributed inputs thats been properly put to local devices.
+        A global batch distributed according to `layout`.
     """
     if not isinstance(layout, jax.sharding.Sharding):
         layout = _to_jax_layout(layout)
-    if layout.is_fully_addressable:
-        return jax.device_put(inputs, layout)
 
-    # We need the jax mesh information to determine how to place the data
-    # on to each of the worker.
-    jax_mesh = layout.mesh
-    mesh_rank = len(jax_mesh.shape)
-    per_process_batch_size = inputs.shape[0]
-    if mesh_rank == 1:
-        # This is data parallel mesh only. We will split the full data
-        # across the batch dim.
-        num_split = jax.local_device_count()
-        per_replica_batch_size = per_process_batch_size // num_split
+    mesh_shape = list(layout.mesh.shape.values())
+    num_model_replicas_total = mesh_shape[0]  # batch dimension of the mesh
+    mesh_model_dim_size = mesh_shape[1] if len(mesh_shape) > 1 else 1
+    num_model_replicas_per_process = num_model_replicas_total / num_processes()
+    per_process_batch_size = per_process_batch.shape[0]
+
+    if num_model_replicas_per_process >= 1:
+        # If there is more than one model replica per process, we need to
+        # further shard the data to each of the model replicas.
+        if num_model_replicas_total % num_processes() != 0:
+            raise ValueError(
+                "If there is more than one replica per process, the batch "
+                "dimension of the mesh should be divisible "
+                "by the number of processes. Here, "
+                f"batch dimension = {num_model_replicas_total}, while "
+                f"number of processes = {num_processes()}"
+            )
+
+        per_replica_batch_size = int(
+            per_process_batch_size // num_model_replicas_per_process
+        )
         if per_process_batch_size % per_replica_batch_size != 0:
             raise ValueError(
-                f"The local batch size {per_process_batch_size} is not"
-                "divisible by the number of local replicas "
-                f"{num_split}"
+                "`per_process_batch_size` should be divisible by `"
+                "per_replica_batch_size`. "
+                f"per_process_batch_size={per_process_batch_size} and "
+                f"per_replica_batch_size = {per_replica_batch_size}"
             )
-        global_batch_size = per_process_batch_size * jax.process_count()
-        per_replica_batches = jax.numpy.split(inputs, num_split, axis=0)
-    elif mesh_rank == 2:
-        # Data+Model parallel
-        # In this case, we need to check if the mesh batch dim shape is large
-        # than number of local devices, so that we can decide whether a split
-        # is needed for the data, or a repeat/copy of the data is needed for
-        # each of the device.
-        # TODO(scottzhu): The mesh batch dim name is not available here, since
-        # we only have jax Mesh. We assume the first dim is for batch, and
-        # second dim is for model for now.
-        mesh_batch_dim_size = list(jax_mesh.shape.values())[0]
-        local_device_count = jax.local_device_count()
-        if mesh_batch_dim_size < local_device_count:
-            # No split needed, we only need to repeat here.
-            global_batch_size = per_process_batch_size
-            per_replica_batches = [inputs for _ in range(local_device_count)]
-        else:
-            # Note that global batch size is not simply per_process_batch_size *
-            # num_process. It actually depends on the model dim size.
-            global_batch_size = per_process_batch_size * (
-                mesh_batch_dim_size // local_device_count
-            )
-            per_replica_batches = jax.numpy.split(
-                inputs, local_device_count, axis=0
-            )
-    else:
-        raise ValueError(
-            "Only 1D or 2D mesh is supported at the moment. "
-            f"Received mesh shape = {jax_mesh.shape}"
+        per_replica_batches = np.split(
+            per_process_batch, num_model_replicas_per_process
         )
-
-    global_shape = (global_batch_size,) + inputs.shape[1:]
-    global_batch_array = jax.make_array_from_single_device_arrays(
-        global_shape,
-        layout,
-        arrays=[
+        # Replicate data along the model_dim.
+        per_device_batches = [
+            per_replica_batch
+            for per_replica_batch in per_replica_batches
+            for _ in range(mesh_model_dim_size)
+        ]
+        batches_on_devices = [
             jax.device_put(batch, device)
             for batch, device in zip(
-                per_replica_batches, layout.addressable_devices
+                per_device_batches, layout.addressable_devices
             )
-        ],
+        ]
+    else:
+        # If there are less than one model replicas per process, we need to
+        # replicate the data to each of the model replicas. No further data
+        # sharding is needed.
+        per_replica_batch_size = per_process_batch_size
+        batches_on_devices = [
+            jax.device_put(per_process_batch, device)
+            for device in layout.addressable_devices
+        ]
+
+    global_batch_size = per_replica_batch_size * num_model_replicas_total
+    global_batch_shape = (global_batch_size,) + per_process_batch.shape[1:]
+    global_batch_array = jax.make_array_from_single_device_arrays(
+        shape=global_batch_shape,
+        sharding=layout,
+        arrays=batches_on_devices,
     )
+
     return global_batch_array
 
 
@@ -221,15 +221,16 @@ def process_id():
     return jax.process_index()
 
 
-def _to_jax_device(device_id):
-    if isinstance(device_id, jax.Device):
-        return device_id
-    device_type, index = device_id.split(":")
-    index = int(index)
+def _to_jax_device(device_name):
+    if isinstance(device_name, jax.Device):
+        return device_name
+    device_type, device_id = device_name.split(":")
+
     devices = jax.devices(backend=device_type)
-    if index >= len(devices):
-        raise ValueError(f"Unknown device: {device_id}")
-    return devices[index]
+    for device in devices:
+        if device.platform == device_type and device.id == int(device_id):
+            return device
+    raise ValueError(f"Device not found: {device_name}")
 
 
 def _to_jax_mesh(device_mesh):

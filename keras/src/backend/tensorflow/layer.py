@@ -94,26 +94,18 @@ class TFLayer(KerasAutoTrackable):
             inputs = self.input
 
         if inputs is not None:
-            input_signature = [
+            input_signature = (
                 tree.map_structure(
-                    lambda x: tf.TensorSpec(x.shape, self.compute_dtype),
-                    inputs,
-                )
-            ]
+                    lambda x: tf.TensorSpec(x.shape, x.dtype), inputs
+                ),
+            )
         else:
-            shapes_dict = self._build_shapes_dict
-            if len(shapes_dict) == 1:
-                input_shape = tuple(shapes_dict.values())[0]
-                input_signature = [
-                    tf.TensorSpec(input_shape, self.compute_dtype)
-                ]
-            else:
-                input_signature = [
-                    tree.map_structure(
-                        lambda x: tf.TensorSpec(x.shape, self.compute_dtype),
-                        shapes_dict,
-                    )
-                ]
+            input_signature = tuple(
+                tree.map_shape_structure(
+                    lambda s: tf.TensorSpec(s, self.input_dtype), value
+                )
+                for value in self._build_shapes_dict.values()
+            )
 
         @tf.function(input_signature=input_signature)
         def serving_default(inputs):

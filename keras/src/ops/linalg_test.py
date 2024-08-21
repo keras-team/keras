@@ -534,6 +534,10 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         # High tolerance due to numerical instability
         self.assertAllClose(x_reconstructed, x, atol=1e-3)
 
+        # Test `compute_uv=False`
+        s_no_uv = linalg.svd(x, compute_uv=False)
+        self.assertAllClose(s_no_uv, s)
+
     @parameterized.named_parameters(
         ("b_rank_1", 1, None),
         ("b_rank_2", 2, None),

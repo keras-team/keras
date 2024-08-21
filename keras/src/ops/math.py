@@ -8,18 +8,44 @@ from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
 
 
-class SegmentSum(Operation):
+def _segment_reduce_validation(data, segment_ids):
+    data_shape = data.shape
+    segment_ids_shape = segment_ids.shape
+    if len(segment_ids_shape) > 1:
+        raise ValueError(
+            "Argument `segment_ids` should be an 1-D vector, got shape: "
+            f"{len(segment_ids_shape)}. Consider either flatten input with "
+            "segment_ids.reshape((-1)) and "
+            "data.reshape((-1, ) + data.shape[len(segment_ids.shape):]) or "
+            "vectorize with vmap."
+        )
+    if (
+        segment_ids_shape[0] is not None
+        and data_shape[0] is not None
+        and segment_ids_shape[0] != data_shape[0]
+    ):
+        raise ValueError(
+            "Argument `segment_ids` and `data` should have same leading "
+            f"dimension. Got {segment_ids_shape} v.s. "
+            f"{data_shape}."
+        )
+
+
+class SegmentReduction(Operation):
     def __init__(self, num_segments=None, sorted=False):
         super().__init__()
         self.num_segments = num_segments
         self.sorted = sorted
 
-    def compute_output_spec(self, data, segment_ids):
-        num_segments = self.num_segments
-        output_shape = (num_segments,) + tuple(data.shape[1:])
+    def compute_output_spec(self, data, _):
+        output_shape = (self.num_segments,) + tuple(data.shape[1:])
         return KerasTensor(shape=output_shape, dtype=data.dtype)
 
+
+class SegmentSum(SegmentReduction):
+
     def call(self, data, segment_ids):
+        _segment_reduce_validation(data, segment_ids)
         return backend.math.segment_sum(
             data,
             segment_ids,
@@ -34,13 +60,14 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
 
     Args:
         data: Input tensor.
-        segment_ids: A 1-D tensor containing segment indices for each
-            element in `data`.
+        segment_ids: A N-D tensor containing segment indices for each
+            element in `data`. Num dims for segment ids should be strictly
+            smaller or equal to number of dims in data.
         num_segments: An integer representing the total number of
             segments. If not specified, it is inferred from the maximum
             value in `segment_ids`.
         sorted: A boolean indicating whether `segment_ids` is sorted.
-            Defaults to`False`.
+            Defaults to `False`.
 
     Returns:
         A tensor containing the sum of segments, where each element
@@ -54,6 +81,7 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     >>> keras.ops.segment_sum(data, segment_ids,num_segments)
     array([3, 30, 300], dtype=int32)
     """
+    _segment_reduce_validation(data, segment_ids)
     if any_symbolic_tensors((data,)):
         return SegmentSum(num_segments, sorted).symbolic_call(data, segment_ids)
     return backend.math.segment_sum(
@@ -61,18 +89,10 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
-class SegmentMax(Operation):
-    def __init__(self, num_segments=None, sorted=False):
-        super().__init__()
-        self.num_segments = num_segments
-        self.sorted = sorted
-
-    def compute_output_spec(self, data, segment_ids):
-        num_segments = self.num_segments
-        output_shape = (num_segments,) + tuple(data.shape[1:])
-        return KerasTensor(shape=output_shape, dtype=data.dtype)
+class SegmentMax(SegmentReduction):
 
     def call(self, data, segment_ids):
+        _segment_reduce_validation(data, segment_ids)
         return backend.math.segment_max(
             data,
             segment_ids,
@@ -87,13 +107,13 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
 
     Args:
         data: Input tensor.
-        segment_ids: A 1-D tensor containing segment indices for each
-            element in `data`.
+        segment_ids: A N-D tensor containing segment indices for each
+            element in `data`. data.shape[:len(segment_ids.shape)] should match.
         num_segments: An integer representing the total number of
             segments. If not specified, it is inferred from the maximum
             value in `segment_ids`.
         sorted: A boolean indicating whether `segment_ids` is sorted.
-            Defaults to`False`.
+            Defaults to `False`.
 
     Returns:
         A tensor containing the max of segments, where each element
@@ -107,6 +127,7 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     >>> keras.ops.segment_max(data, segment_ids, num_segments)
     array([2, 20, 200], dtype=int32)
     """
+    _segment_reduce_validation(data, segment_ids)
     if any_symbolic_tensors((data,)):
         return SegmentMax(num_segments, sorted).symbolic_call(data, segment_ids)
     return backend.math.segment_max(
@@ -141,7 +162,7 @@ def top_k(x, k, sorted=True):
         x: Input tensor.
         k: An integer representing the number of top elements to retrieve.
         sorted: A boolean indicating whether to sort the output in
-        descending order. Defaults to`True`.
+        descending order. Defaults to `True`.
 
     Returns:
         A tuple containing two tensors. The first tensor contains the
@@ -225,9 +246,9 @@ def logsumexp(x, axis=None, keepdims=False):
         x: Input tensor.
         axis: An integer or a tuple of integers specifying the axis/axes
             along which to compute the sum. If `None`, the sum is computed
-            over all elements. Defaults to`None`.
+            over all elements. Defaults to `None`.
         keepdims: A boolean indicating whether to keep the dimensions of
-            the input tensor when computing the sum. Defaults to`False`.
+            the input tensor when computing the sum. Defaults to `False`.
 
     Returns:
         A tensor containing the logarithm of the sum of exponentials of

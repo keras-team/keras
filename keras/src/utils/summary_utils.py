@@ -1,3 +1,4 @@
+import functools
 import math
 import re
 import shutil
@@ -21,6 +22,14 @@ def count_params(weights):
     return int(sum(math.prod(p) for p in shapes))
 
 
+@functools.lru_cache(512)
+def _compute_memory_size(shape, dtype):
+    weight_counts = math.prod(shape)
+    dtype = backend.standardize_dtype(dtype)
+    per_param_size = dtype_utils.dtype_size(dtype)
+    return weight_counts * per_param_size
+
+
 def weight_memory_size(weights):
     """Compute the memory footprint for weights based on their dtypes.
 
@@ -33,10 +42,7 @@ def weight_memory_size(weights):
     unique_weights = {id(w): w for w in weights}.values()
     total_memory_size = 0
     for w in unique_weights:
-        weight_shape = math.prod(w.shape)
-        dtype = backend.standardize_dtype(w.dtype)
-        per_param_size = dtype_utils.dtype_size(dtype)
-        total_memory_size += weight_shape * per_param_size
+        total_memory_size += _compute_memory_size(w.shape, w.dtype)
     return total_memory_size / 8
 
 
@@ -96,12 +102,15 @@ def format_layer_shape(layer):
             )
     else:
         try:
-            outputs = layer.compute_output_shape(**layer._build_shapes_dict)
+            if hasattr(layer, "output_shape"):
+                output_shapes = layer.output_shape
+            else:
+                outputs = layer.compute_output_shape(**layer._build_shapes_dict)
+                output_shapes = tree.map_shape_structure(
+                    lambda x: format_shape(x), outputs
+                )
         except NotImplementedError:
             return "?"
-        output_shapes = tree.map_shape_structure(
-            lambda x: format_shape(x), outputs
-        )
     if len(output_shapes) == 1:
         return output_shapes[0]
     out = str(output_shapes)
@@ -275,7 +284,7 @@ def print_summary(
         if not sequential_like:
             fields.append(get_connections(layer))
         if show_trainable:
-            if layer.weights:
+            if hasattr(layer, "weights") and len(layer.weights) > 0:
                 fields.append(
                     bold_text("Y", color=34)
                     if layer.trainable

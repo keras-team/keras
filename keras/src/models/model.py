@@ -265,7 +265,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         )
 
     @traceback_utils.filter_traceback
-    def save(self, filepath, overwrite=True, zipped=True, **kwargs):
+    def save(self, filepath, overwrite=True, zipped=None, **kwargs):
         """Saves a model as a `.keras` file.
 
         Args:
@@ -277,7 +277,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 the target location, or instead ask the user via
                 an interactive prompt.
             zipped: Whether to save the model as a zipped `.keras`
-                archive (default), or as an unzipped directory.
+                archive (default when saving locally), or as an
+                unzipped directory (default when saving on the
+                Hugging Face Hub).
 
         Example:
 
@@ -352,7 +354,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self, filepath, skip_mismatch=skip_mismatch, **kwargs
         )
 
-    def quantize(self, mode):
+    def quantize(self, mode, **kwargs):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
@@ -365,9 +367,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         """
         from keras.src.dtype_policies import QUANTIZATION_MODES
 
-        if not self.built:
+        type_check = kwargs.pop("type_check", True)
+        if kwargs:
             raise ValueError(
-                "The model must be built first before calling `quantize()`."
+                "Unrecognized keyword arguments "
+                f"passed to {self.__class__.__name__}: {kwargs}"
             )
         if mode not in QUANTIZATION_MODES:
             raise ValueError(
@@ -379,7 +383,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             list_of_sublayers = list(layer._flatten_layers())
             if len(list_of_sublayers) == 1:  # leaves of the model
                 try:
-                    layer.quantize(mode)
+                    layer.quantize(mode, type_check=type_check)
                     mode_changed = True
                 except NotImplementedError as e:
                     warnings.warn(str(e))

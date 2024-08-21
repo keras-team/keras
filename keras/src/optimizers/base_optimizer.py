@@ -110,7 +110,7 @@ class BaseOptimizer(KerasSaveable):
                 aggregation="only_first_replica",
             )
         self._track_variable(iterations)
-        self.iterations = iterations
+        self._iterations = iterations
 
         # Create learning rate (schedule or variable)
         if isinstance(
@@ -138,6 +138,15 @@ class BaseOptimizer(KerasSaveable):
                 )
             self._track_variable(learning_rate)
             self._learning_rate = learning_rate
+
+    @property
+    def iterations(self):
+        if self.gradient_accumulation_steps:
+            return ops.floor_divide(
+                self._iterations, self.gradient_accumulation_steps
+            )
+
+        return self._iterations
 
     def _track_variable(self, variable):
         self._tracker.add_to_store("variables", variable)
@@ -281,7 +290,7 @@ class BaseOptimizer(KerasSaveable):
         grads, trainable_variables = zip(*grads_and_vars)
         self.apply(grads, trainable_variables)
         # Return iterations for compat with tf.keras.
-        return self.iterations
+        return self._iterations
 
     def apply(self, grads, trainable_variables=None):
         """Update traininable variables according to provided gradient values.
@@ -343,10 +352,6 @@ class BaseOptimizer(KerasSaveable):
             if scale is not None:
                 grads = [g if g is None else g / scale for g in grads]
 
-            # Apply clipping and weight decay.
-            grads = self._clip_gradients(grads)
-            self._apply_weight_decay(trainable_variables)
-
             # Apply gradient updates.
             self._backend_apply_gradients(grads, trainable_variables)
             # Apply variable constraints after applying gradients.
@@ -372,7 +377,7 @@ class BaseOptimizer(KerasSaveable):
         """
         if self.gradient_accumulation_steps:
             is_update_step = (
-                self.iterations + 1
+                self._iterations + 1
             ) % self.gradient_accumulation_steps == 0
             # `trainable_variables` might have been filtered in previous
             # processing steps, so we need to ensure the correct mapping between
@@ -388,6 +393,11 @@ class BaseOptimizer(KerasSaveable):
                 grads = [
                     (g + acc_g) / steps for g, acc_g in zip(grads, acc_grads)
                 ]
+
+                # Apply clipping and weight decay.
+                grads = self._clip_gradients(grads)
+                self._apply_weight_decay(trainable_variables)
+
                 self._backend_update_step(
                     grads, trainable_variables, self.learning_rate
                 )
@@ -401,6 +411,10 @@ class BaseOptimizer(KerasSaveable):
                 ),
             )
         else:
+            # Apply clipping and weight decay.
+            grads = self._clip_gradients(grads)
+            self._apply_weight_decay(trainable_variables)
+
             # Run udpate step.
             self._backend_update_step(
                 grads, trainable_variables, self.learning_rate
@@ -424,7 +438,7 @@ class BaseOptimizer(KerasSaveable):
                     lambda: None,
                 )
         # Update iteration counter.
-        self.iterations.assign_add(1)
+        self._iterations.assign_add(1)
 
     def _backend_update_step(self, grads, trainable_variables, learning_rate):
         """Collective update_step that can be overridden by the backend.
@@ -586,7 +600,7 @@ class BaseOptimizer(KerasSaveable):
         if isinstance(
             self._learning_rate, learning_rate_schedule.LearningRateSchedule
         ):
-            return self._learning_rate(self.iterations)
+            return self._learning_rate(self._iterations)
         elif callable(self._learning_rate):
             return self._learning_rate()
         return self._learning_rate
@@ -619,7 +633,7 @@ class BaseOptimizer(KerasSaveable):
                 if self.gradient_accumulation_steps:
                     # Utilize a stateless manner for JAX compatibility
                     steps = self.gradient_accumulation_steps
-                    is_update_step = (self.iterations + 1) % steps == 0
+                    is_update_step = (self._iterations + 1) % steps == 0
                     acc_g = self._accumulated_gradients[
                         self._get_variable_index(v)
                     ]
@@ -964,7 +978,10 @@ base_optimizer_keyword_args = """name: String. The name to use
             value of the gradients since the last update. This is known as
             "gradient accumulation". This can be useful
             when your batch size is very small, in order to reduce gradient
-            noise at each update step.
+            noise at each update step. EMA frequency will look at "accumulated"
+            iterations value (optimizer steps // gradient_accumulation_steps).
+            Learning rate schedules will look at "real" iterations value
+            (optimizer steps).
 """
 
 

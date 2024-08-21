@@ -1,20 +1,3 @@
-"""
-scan
-scatter
-scatter_update
-slice
-slice_update
-while_loop
-stop_gradient
-shape
-cast
-convert_to_tensor
-convert_to_numpy
-cond
-is_tensor
-custom_gradient
-"""
-
 import numpy as np
 
 from keras.src import backend
@@ -22,8 +5,75 @@ from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.ops.operation import Operation
 from keras.src.utils import traceback_utils
+
+
+class Map(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, f, xs):
+        return backend.core.map(f, xs)
+
+    def compute_output_spec(self, f, xs):
+        x = xs[0]
+        n = xs.shape[0]
+        y = backend.compute_output_spec(f, x)
+
+        def append_batch_axis(x):
+            return KerasTensor(
+                shape=(n,) + x.shape, dtype=x.dtype, sparse=x.sparse
+            )
+
+        y = tree.map_structure(append_batch_axis, y)
+        return y
+
+
+@keras_export("keras.ops.map")
+def map(f, xs):
+    """Map a function over leading array axes.
+
+    Like Python’s builtin map, except inputs and outputs are in the form of
+    stacked arrays. Consider using the `vectorized_map()` transform instead,
+    unless you need to apply a function element by element for reduced memory
+    usage or heterogeneous computation with other control flow primitives.
+
+    When `xs` is an array type, the semantics of `map()` are given by this
+    Python implementation:
+
+    ```python
+    def map(f, xs):
+        return np.stack([f(x) for x in xs])
+    ```
+
+    Args:
+        f: Callable defines the function to apply element-wise over the first
+            axis or axes of `xs`.
+        xs: Values over which to map along the leading axis.
+
+    Returns:
+        Mapped values.
+
+    Examples:
+
+    >>> f = lambda x: x**2
+    >>> xs = keras.ops.arange(10)
+    >>> ys = keras.ops.map(f, xs)
+    >>> ys
+    [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+
+    >>> f = lambda x: {"y1": x**2, "y2": x * 10}  # Can have nested outputs
+    >>> ys = keras.ops.map(f, xs)
+    >>> ys["y1"]
+    [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+    >>> ys["y2"]
+    [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+    """
+    if any_symbolic_tensors((xs,)):
+        return Map().symbolic_call(f, xs)
+    return backend.core.map(f, xs)
 
 
 class Scan(Operation):
@@ -49,9 +99,9 @@ class Scan(Operation):
             )
             x = xs[0]
 
-        carry_spec, y_spec = backend.compute_output_spec(f, init, x)
-        y_spec.shape = (n,) + y_spec.shape
-        return carry_spec, y_spec
+        carry, y = backend.compute_output_spec(f, init, x)
+        y = KerasTensor(shape=(n,) + y.shape, dtype=y.dtype, sparse=y.sparse)
+        return carry, y
 
 
 @keras_export("keras.ops.scan")
@@ -131,6 +181,100 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     return backend.core.scan(
         f, init, xs, length, reverse=reverse, unroll=unroll
     )
+
+
+class AssociativeScan(Operation):
+    def __init__(self, reverse=False):
+        super().__init__()
+        self.reverse = reverse
+
+    def call(self, f, elems, axis=0):
+        return backend.core.associative_scan(
+            f, elems, reverse=self.reverse, axis=axis
+        )
+
+    def compute_output_spec(self, f, elems, axis):
+        elems_flat = tree.flatten(elems)
+        lens = [elem.shape[axis] for elem in elems_flat]
+        if len(set(lens)) != 1:
+            raise ValueError(
+                "Array inputs to associative_scan must have the same "
+                "first dimension. (saw: {})".format(
+                    [elem.shape for elem in elems_flat]
+                )
+            )
+
+        x = tree.pack_sequence_as(
+            elems, [slice_along_axis(x, 0, 1, axis=axis) for x in elems_flat]
+        )
+        y_spec = backend.compute_output_spec(f, x, x)
+
+        def _restore_shape(x):
+            return KerasTensor(
+                shape=elems_flat[0].shape, dtype=x.dtype, sparse=x.sparse
+            )
+
+        y_spec = tree.map_structure(_restore_shape, y_spec)
+        return y_spec
+
+
+@keras_export("keras.ops.associative_scan")
+def associative_scan(f, elems, reverse=False, axis=0):
+    """Performs a scan with an associative binary operation, in parallel.
+
+    This operation his similar to `scan`, with the key difference that
+    `associative_scan` is a parallel implementation with
+    potentially significant performance benefits, especially when jit compiled.
+    The catch is that it can only be used when `f` is a binary associative
+    operation (i.e. it must verify `f(a, f(b, c)) == f(f(a, b), c)`).
+
+    For an introduction to associative scans, refer to this paper:
+    Blelloch, Guy E. 1990.
+    [Prefix Sums and Their Applications](
+        https://www.cs.cmu.edu/~guyb/papers/Ble93.pdf).
+
+    Args:
+        f: A Python callable implementing an associative binary operation with
+            signature `r = f(a, b)`. Function `f` must be associative, i.e.,
+            it must satisfy the equation
+            `f(a, f(b, c)) == f(f(a, b), c)`.
+            The inputs and result are (possibly nested Python tree structures
+            of) array(s) matching `elems`. Each array has a dimension in place
+            of the `axis` dimension. `f` should be applied elementwise over
+            the `axis` dimension.
+            The result `r` has the same shape (and structure) as the
+            two inputs `a` and `b`.
+        elems: A (possibly nested Python tree structure of) array(s), each with
+            an `axis` dimension of size `num_elems`.
+        reverse: A boolean stating if the scan should be reversed with respect
+            to the `axis` dimension.
+        axis: an integer identifying the axis over which the scan should occur.
+
+    Returns:
+        A (possibly nested Python tree structure of) array(s) of the same shape
+        and structure as `elems`, in which the `k`'th element of `axis` is
+        the result of recursively applying `f` to combine the first `k`
+        elements of `elems` along `axis`. For example, given
+        `elems = [a, b, c, ...]`, the result would be
+        `[a, f(a, b), f(f(a, b), c), ...]`.
+
+    Examples:
+
+    >>> sum_fn = lambda x, y: x + y
+    >>> xs = keras.ops.arange(5)
+    >>> ys = keras.ops.associative_scan(sum_fn, xs, axis=0)
+    >>> ys
+    [0, 1, 3, 6, 10]
+
+    >>> sum_fn = lambda x, y: [x[0] + y[0], x[1] + y[1], x[2] + y[2]]
+    >>> xs = [keras.ops.array([[1, 2]]) for _ in range(3)]
+    >>> ys = keras.ops.associative_scan(sum_fn, xs, axis=0)
+    >>> ys
+    [[1, 3], [1, 3], [1, 3]]
+    """
+    if any_symbolic_tensors((elems,)):
+        return AssociativeScan(reverse=reverse).symbolic_call(f, elems, axis)
+    return backend.core.associative_scan(f, elems, reverse=reverse, axis=axis)
 
 
 class Scatter(Operation):
@@ -465,6 +609,8 @@ def stop_gradient(variable):
     ... )
     >>> var = keras.ops.stop_gradient(var)
     """
+    if any_symbolic_tensors((variable,)):
+        return StopGradient().symbolic_call(variable)
     return backend.core.stop_gradient(variable)
 
 
@@ -588,13 +734,37 @@ def shape(x):
 
     Example:
 
-    >>> x = keras.zeros((8, 12))
+    >>> x = keras.ops.zeros((8, 12))
     >>> keras.ops.shape(x)
     (8, 12)
     """
     if any_symbolic_tensors((x,)):
         return x.shape
     return backend.core.shape(x)
+
+
+@keras_export("keras.ops.dtype")
+def dtype(x):
+    """Return the dtype of the tensor input as a standardized string.
+
+    Note that due to the standardization, the dtype will not compare equal
+    to the backend-specific version of the dtype.
+
+    Args:
+        x: A tensor. This function will try to access the `dtype` attribute of
+            the input tensor.
+
+    Returns:
+        A string indicating the dtype of the input tensor, e.g. `"float32"`.
+
+    Example:
+
+    >>> x = keras.ops.zeros((8, 12))
+    >>> keras.ops.dtype(x)
+    'float32'
+
+    """
+    return backend.standardize_dtype(x.dtype)
 
 
 class Cast(Operation):

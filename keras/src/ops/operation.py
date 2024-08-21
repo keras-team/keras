@@ -35,9 +35,7 @@ class Operation:
             if any_symbolic_tensors(args, kwargs):
                 call_fn = self.symbolic_call
             else:
-                if isinstance(
-                    self._dtype_policy, dtype_policies.QuantizedDTypePolicy
-                ):
+                if getattr(self, "quantization_mode", None) is not None:
                     call_fn = self.quantized_call
                 else:
                     call_fn = self.call
@@ -50,7 +48,7 @@ class Operation:
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
             return self.symbolic_call(*args, **kwargs)
-        if isinstance(self._dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if getattr(self, "quantization_mode", None) is not None:
             return self.quantized_call(*args, **kwargs)
         else:
             return self.call(*args, **kwargs)
@@ -108,8 +106,8 @@ class Operation:
         dtype = kwargs.get("dtype", None)
         if dtype is not None and isinstance(dtype, dtype_policies.DTypePolicy):
             # For backward compatibility, we use a str (`name`) for
-            # `FloatDTypePolicy`
-            if not dtype.is_quantized:
+            # `DTypePolicy`
+            if dtype.quantization_mode is None:
                 kwargs["dtype"] = dtype.name
             # Otherwise, use `dtype_policies.serialize`
             else:
@@ -223,7 +221,15 @@ class Operation:
         # directly interact with the instance of `DTypePolicy`.
         if "dtype" in config and isinstance(config["dtype"], dict):
             config = config.copy()
-            config["dtype"] = dtype_policies.deserialize(config["dtype"])
+            policy = dtype_policies.deserialize(config["dtype"])
+            if (
+                not isinstance(policy, dtype_policies.DTypePolicyMap)
+                and policy.quantization_mode is None
+            ):
+                # For backward compatibility, we use a str (`name`) for
+                # `DTypePolicy`
+                policy = policy.name
+            config["dtype"] = policy
         try:
             return cls(**config)
         except Exception as e:

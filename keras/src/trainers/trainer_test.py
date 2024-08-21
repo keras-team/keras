@@ -14,6 +14,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.callbacks.callback import Callback
 from keras.src.optimizers.rmsprop import RMSprop
 from keras.src.testing.test_utils import named_product
@@ -1406,7 +1407,8 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
                 sample_weight=None,
                 training=True,
             ):
-                test_self.assertTrue(training)
+                if not in_symbolic_scope():
+                    test_self.assertTrue(training)
                 loss = super().compute_loss(
                     x, y, y_pred, sample_weight, training
                 )
@@ -1443,7 +1445,8 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
                 sample_weight=None,
                 training=True,
             ):
-                test_self.assertTrue(training)
+                if not in_symbolic_scope():
+                    test_self.assertTrue(training)
                 loss = super().compute_loss(
                     x, y, y_pred, sample_weight, training
                 )
@@ -1478,7 +1481,8 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
                 sample_weight=None,
                 training=True,
             ):
-                test_self.assertFalse(training)
+                if not in_symbolic_scope():
+                    test_self.assertFalse(training)
                 loss = super().compute_loss(
                     x, y, y_pred, sample_weight, training
                 )
@@ -1613,6 +1617,65 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             atol=1e-3,
         )
 
+    def test_symbolic_build(self):
+        class ExampleModelWithTrainingArgs(Trainer, layers.Layer):
+            def __init__(self, units):
+                layers.Layer.__init__(self)
+                Trainer.__init__(self)
+                self.dense = layers.Dense(units)
+                self.bn = layers.BatchNormalization(axis=-1)
+
+            def build(self, input_shape):
+                self.dense.build(input_shape)
+                input_shape = self.dense.compute_output_shape(input_shape)
+                self.bn.build(input_shape)
+
+            def call(self, x, training=None):
+                outputs = self.bn(self.dense(x), training=training)
+                return [outputs, outputs]
+
+        model = ExampleModelWithTrainingArgs(units=3)
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=[losses.MeanSquaredError(), losses.MeanSquaredError()],
+            metrics=[metrics.MeanSquaredError(), metrics.MeanSquaredError()],
+        )
+        x = np.ones((4, 4))
+        y = np.zeros((4, 3))
+        model(x)  # Eager call to build model weights
+        ref_weights = model.get_weights()
+
+        # Before `_symbolic_build`
+        self.assertTrue(model.built)
+        self.assertFalse(model._compile_metrics.built)
+        self.assertFalse(model._compile_loss.built)
+        self.assertLen(model._compile_loss.metrics, 0)
+        self.assertLen(model.metrics, 2)
+
+        model._symbolic_build(data_batch=(x, (y, y)))
+        weights = model.get_weights()
+
+        # Ensure weights are intact
+        self.assertEqual(len(weights), len(ref_weights))
+        for w, ref_w in zip(weights, ref_weights):
+            self.assertAllClose(w, ref_w)
+
+        # Ensure `built`
+        self.assertTrue(model.built)
+        self.assertTrue(model._compile_metrics.built)
+        self.assertTrue(model._compile_loss.built)
+
+        # Ensure the len of metrics (original metrics + loss trackers)
+        self.assertLen(model._compile_metrics.metrics, 2)
+        self.assertLen(model._compile_loss.metrics, 2)
+        self.assertLen(model.metrics, 4)
+
+        # Ensure no values in metrics
+        for v in model._compile_metrics.variables:
+            self.assertAllClose(v, 0.0)
+        for v in model._compile_loss.variables:
+            self.assertAllClose(v, 0.0)
+
 
 class TrainerDistributeTest(testing.TestCase):
     @pytest.mark.skipif(
@@ -1649,15 +1712,13 @@ class TrainerDistributeTest(testing.TestCase):
                 loss="sparse_categorical_crossentropy",
                 metrics=["sparse_categorical_accuracy"],
             )
-            x = (np.arange(512) / 128).reshape((256, 2))
-            y = (np.arange(256) % 2).reshape((256, 1))
-            out_fit = model.fit(x, y)
-            self.assertLess(
-                out_fit.history["sparse_categorical_accuracy"][0], 0.6
-            )
-            out_eval = model.evaluate(x, y)
-            self.assertLess(out_eval[1], 0.6)
-            out_predict = model.predict(x)
-            self.assertEqual(out_predict.shape, (256, 2))
+        x = (np.arange(512) / 128).reshape((256, 2))
+        y = (np.arange(256) % 2).reshape((256, 1))
+        out_fit = model.fit(x, y)
+        self.assertLess(out_fit.history["sparse_categorical_accuracy"][0], 0.6)
+        out_eval = model.evaluate(x, y)
+        self.assertLess(out_eval[1], 0.6)
+        out_predict = model.predict(x)
+        self.assertEqual(out_predict.shape, (256, 2))
 
         context._reset_context()

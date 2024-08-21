@@ -31,7 +31,7 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
             )
         # Broadcast sample_weight. It doesn't change the multiplication below
         # but changes the sample_weight reduction applied later.
-        sample_weight = ops.broadcast_to(sample_weight, values.shape)
+        sample_weight = ops.broadcast_to(sample_weight, ops.shape(values))
         values = values * sample_weight
         if weight_ndim > 1:
             sample_weight = reduce_fn(
@@ -87,7 +87,7 @@ class Sum(Metric):
         self.total.assign_add(ops.sum(values))
 
     def reset_state(self):
-        self.total.assign(0.0)
+        self.total.assign(0)
 
     def result(self):
         return ops.cast(self.total, self.dtype)
@@ -150,7 +150,7 @@ class Mean(Metric):
         self.count.assign_add(ops.cast(num_samples, dtype=self.dtype))
 
     def reset_state(self):
-        self.total.assign(0.0)
+        self.total.assign(0)
         self.count.assign(0)
 
     def result(self):

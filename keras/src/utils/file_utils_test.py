@@ -721,6 +721,9 @@ class IsRemotePathTest(test_case.TestCase):
     def test_cfs_remote_path(self):
         self.assertTrue(file_utils.is_remote_path("/cfs/some/path"))
 
+    def test_readahead_remote_path(self):
+        self.assertTrue(file_utils.is_remote_path("/readahead/some/path"))
+
     def test_non_remote_paths(self):
         self.assertFalse(file_utils.is_remote_path("/local/path/to/file.txt"))
         self.assertFalse(

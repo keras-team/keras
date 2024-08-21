@@ -1,4 +1,5 @@
 from keras.src import backend
+from keras.src import dtype_policies
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
@@ -9,6 +10,17 @@ from keras.src.utils.naming import auto_name
 @keras_export(["keras.Loss", "keras.losses.Loss"])
 class Loss(KerasSaveable):
     """Loss base class.
+
+    Args:
+        reduction: Type of reduction to apply to the loss. In almost all cases
+            this should be `"sum_over_batch_size"`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+        name: Optional name for the loss instance.
+        dtype: The dtype of the loss's computations. Defaults to `None`, which
+            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            `"float32"` unless set to different value
+            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            provided, then the `compute_dtype` will be utilized.
 
     To be implemented by subclasses:
 
@@ -27,7 +39,12 @@ class Loss(KerasSaveable):
     def __init__(self, name=None, reduction="sum_over_batch_size", dtype=None):
         self.name = name or auto_name(self.__class__.__name__)
         self.reduction = standardize_reduction(reduction)
-        self.dtype = dtype or backend.floatx()
+        self._dtype_policy = dtype_policies.get(dtype or backend.floatx())
+        self._dtype = self._dtype_policy.compute_dtype
+
+    @property
+    def dtype(self):
+        return self._dtype
 
     def __call__(self, y_true, y_pred, sample_weight=None):
         in_mask = getattr(y_pred, "_keras_mask", None)

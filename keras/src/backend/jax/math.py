@@ -43,6 +43,10 @@ def in_top_k(targets, predictions, k):
     preds_at_label = jnp.take_along_axis(
         predictions, jnp.expand_dims(targets, axis=-1), axis=-1
     )
+    # `nan` shouldn't be considered as large probability.
+    preds_at_label = jnp.where(
+        jnp.isnan(preds_at_label), -jnp.inf, preds_at_label
+    )
     rank = 1 + jnp.sum(jnp.greater(predictions, preds_at_label), axis=-1)
     return jnp.less_equal(rank, k)
 

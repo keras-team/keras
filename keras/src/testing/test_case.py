@@ -271,6 +271,33 @@ class TestCase(unittest.TestCase):
                 lambda _: "float32", input_shape
             )
 
+        # Estimate actual number of weights, variables, seed generators if
+        # expected ones not set. When using layers uses composition it should
+        # build each sublayer manually.
+        if input_data is not None or input_shape is not None:
+            if input_data is None:
+                input_data = create_eager_tensors(
+                    input_shape, input_dtype, input_sparse
+                )
+            layer = layer_cls(**init_kwargs)
+            if isinstance(input_data, dict):
+                layer(**input_data, **call_kwargs)
+            else:
+                layer(input_data, **call_kwargs)
+
+            if expected_num_trainable_weights is None:
+                expected_num_trainable_weights = len(layer.trainable_weights)
+            if expected_num_non_trainable_weights is None:
+                expected_num_non_trainable_weights = len(
+                    layer.non_trainable_weights
+                )
+            if expected_num_non_trainable_variables is None:
+                expected_num_non_trainable_variables = len(
+                    layer.non_trainable_variables
+                )
+            if expected_num_seed_generators is None:
+                expected_num_seed_generators = len(get_seed_generators(layer))
+
         # Serialization test.
         layer = layer_cls(**init_kwargs)
         self.run_class_serialization_test(layer, custom_objects)
@@ -586,7 +613,11 @@ def jax_uses_gpu():
 
 
 def torch_uses_gpu():
-    return backend.backend() == "torch" and uses_gpu()
+    if backend.backend() != "torch":
+        return False
+    from keras.src.backend.torch.core import get_device
+
+    return get_device() == "cuda"
 
 
 def uses_gpu():
@@ -616,7 +647,19 @@ def create_eager_tensors(input_shape, dtype, sparse):
     from keras.src.backend import random
 
     if set(tree.flatten(dtype)).difference(
-        ["float16", "float32", "float64", "int16", "int32", "int64"]
+        [
+            "float16",
+            "float32",
+            "float64",
+            "int8",
+            "uint8",
+            "int16",
+            "uint16",
+            "int32",
+            "uint32",
+            "int64",
+            "uint64",
+        ]
     ):
         raise ValueError(
             "dtype must be a standard float or int dtype. "

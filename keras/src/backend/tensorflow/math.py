@@ -9,6 +9,12 @@ from keras.src.backend.tensorflow.core import convert_to_tensor
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     if sorted:
+        if num_segments is not None:
+            raise ValueError(
+                "Argument `num_segments` cannot be set when sorted is True "
+                "when using the tensorflow backend."
+                f"Received: num_segments={num_segments}, sorted={sorted}."
+            )
         return tf.math.segment_sum(data, segment_ids)
     else:
         if num_segments is None:
@@ -19,6 +25,12 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
     if sorted:
+        if num_segments is not None:
+            raise ValueError(
+                "Argument `num_segments` cannot be set when sorted is True "
+                "when using the tensorflow backend."
+                f"Received: num_segments={num_segments}, sorted={sorted}."
+            )
         return tf.math.segment_max(data, segment_ids)
     else:
         if num_segments is None:

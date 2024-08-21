@@ -2,6 +2,7 @@ import pickle
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import dtype_policies
@@ -10,9 +11,10 @@ from keras.src import metrics
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import global_state
 
 
-class LayerTest(testing.TestCase):
+class LayerTest(testing.TestCase, parameterized.TestCase):
 
     def test_compute_output_spec(self):
         # Test that implementing compute_output_shape
@@ -138,6 +140,31 @@ class LayerTest(testing.TestCase):
 
         # This works
         SomeLayer()(x, bool_arg=True)
+
+    @parameterized.named_parameters(
+        ("call", "call", None),
+        ("compute_output_shape", "compute_output_shape", None),
+        (
+            "quantized_build",
+            "quantized_build",
+            {"input_shape": None, "mode": None},
+        ),
+        ("quantize", "quantize", {"mode": "int8"}),
+        ("_int8_call", "_int8_call", None),
+        ("_float8_call", "_float8_call", None),
+    )
+    def test_not_implemented_error(self, method, args):
+        layer = layers.Layer()
+        layer.built = True
+
+        with self.assertRaisesRegex(
+            NotImplementedError,
+            f"does not have a `{method}` method implemented.",
+        ):
+            if isinstance(args, dict):
+                getattr(layer, method)(**args)
+            else:
+                getattr(layer, method)(args)
 
     def test_rng_seed_tracking(self):
         class RNGLayer(layers.Layer):
@@ -970,16 +997,66 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.dtype_policy.name, "mixed_bfloat16")
         self.assertEqual(layer.dtype_policy.compute_dtype, "bfloat16")
         self.assertEqual(layer.dtype_policy.variable_dtype, "float32")
-        # Set by FloatDTypePolicy
-        layer.dtype_policy = dtype_policies.FloatDTypePolicy("mixed_float16")
+        # Set by DTypePolicy
+        layer.dtype_policy = dtype_policies.DTypePolicy("mixed_float16")
         self.assertEqual(layer.dtype_policy.name, "mixed_float16")
         self.assertEqual(layer.dtype_policy.compute_dtype, "float16")
         self.assertEqual(layer.dtype_policy.variable_dtype, "float32")
+        # Set with DTypePolicyMap
+        dtype_policy_map = dtype_policies.DTypePolicyMap()
+        layer = layers.Dense(2, dtype=dtype_policy_map)
+        layer.build([None, 1])
+        layer.dtype_policy = "mixed_bfloat16"
+        self.assertIsInstance(
+            layer._dtype_policy, dtype_policies.DTypePolicyMap
+        )
+        self.assertEqual(
+            layer._dtype_policy[layer.path],
+            dtype_policies.DTypePolicy("mixed_bfloat16"),
+        )
 
     def test_pickle_layer(self):
         layer = layers.Dense(2)
         reloaded = pickle.loads(pickle.dumps(layer))
         self.assertEqual(layer.get_config(), reloaded.get_config())
+
+    def test_serialize_dtype(self):
+        assertIsNone = self.assertIsNone
+        assertIsNotNone = self.assertIsNotNone
+
+        class AssertionDense(layers.Dense):
+            def __init__(self, *args, **kwargs):
+                dtype = kwargs["dtype"]
+                if isinstance(dtype, str):
+                    # `dtype` is a plain string, it should be the `name` from a
+                    # `DTypePolicy`
+                    dtype = dtype_policies.get(dtype)
+                    assertIsNone(dtype.quantization_mode)
+                else:
+                    # `dtype` is a DTypePolicy instance, it should be an
+                    # instance of `QuantizedDTypePolicy`
+                    assertIsNotNone(dtype.quantization_mode)
+                super().__init__(*args, **kwargs)
+
+        # Test floating dtype serialization
+        layer = layers.Dense(2, dtype="bfloat16")
+        config = layer.get_config()
+        self.assertIn("dtype", config)
+        self.assertEqual(
+            config["dtype"],
+            dtype_policies.serialize(dtype_policies.DTypePolicy("bfloat16")),
+        )
+        AssertionDense.from_config(config)  # Assertion inside
+
+        # Test quantized dtype serialization
+        layer = layers.Dense(2, dtype="int8_from_bfloat16")
+        config = layer.get_config()
+        self.assertIn("dtype", config)
+        self.assertEqual(
+            config["dtype"],
+            dtype_policies.serialize(dtype_policies.get("int8_from_bfloat16")),
+        )
+        AssertionDense.from_config(config)  # Assertion inside
 
     def test_serialize_activity_regularizer(self):
         layer = layers.Dense(2, activity_regularizer="l2")
@@ -1023,6 +1100,12 @@ class LayerTest(testing.TestCase):
         variable_paths = set(v.path for v in layer.variables)
         self.assertTrue("inner_layer/inner" in variable_paths)
         self.assertTrue("inner_inner_layer/inner" in variable_paths)
+        if backend.backend() == "torch":
+            parameter_names = set(
+                param_name.replace("torch_params.", "")
+                for param_name, _ in layer.named_parameters()
+            )
+            self.assertSetEqual(variable_paths, parameter_names)
 
     def test_custom_layer_add_weight_in_build_name(self):
         class TrainingLayer(layers.Layer):
@@ -1074,3 +1157,152 @@ class LayerTest(testing.TestCase):
             "training_layer/inner_layer/inner_inner_layer/inner"
             in variable_paths
         )
+        if backend.backend() == "torch":
+            parameter_names = set(
+                param_name.replace("torch_params.", "")
+                for param_name, _ in layer.named_parameters()
+            )
+            self.assertSetEqual(variable_paths, parameter_names)
+
+    def test_layer_variable_tracking_correct(self):
+        class TrainingLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.post_build_modify_layer = PostBuildModifyLayer()
+
+            def call(self, input):
+                return self.post_build_modify_layer(input)
+
+        class PostBuildModifyLayer(layers.Layer):
+
+            def call(self, input):
+                return self.var + input
+
+            def build(self, _):
+                self.var = self.add_weight(
+                    shape=(2,),
+                    name="var",
+                )
+
+            def post_build_add(self):
+                self._tracker.unlock()
+                self.additional_var = self.add_weight(
+                    shape=(2,),
+                    name="var2",
+                )
+                self._tracker.lock()
+
+            def post_build_remove(self):
+                self._tracker.unlock()
+                self._untrack_variable(self.var)
+                del self.var
+                self._tracker.lock()
+
+        layer = TrainingLayer()
+        output = layer(backend.KerasTensor((4, 2)))
+
+        self.assertEqual(output.shape, (4, 2))
+        self.assertEqual(len(layer.variables), 1)
+        self.assertEqual(
+            layer.variables[0].path,
+            "training_layer/post_build_modify_layer/var",
+        )
+        if backend.backend() == "torch":
+            parameter_names = [pname for pname, _ in layer.named_parameters()]
+            self.assertEqual(len(parameter_names), 1)
+            self.assertEqual(
+                parameter_names[0],
+                "torch_params.training_layer/post_build_modify_layer/var",
+            )
+
+        layer.post_build_modify_layer.post_build_add()
+        self.assertEqual(len(layer.variables), 2)
+        self.assertEqual(
+            layer.variables[0].path,
+            "training_layer/post_build_modify_layer/var",
+        )
+        self.assertEqual(
+            layer.variables[1].path,
+            "training_layer/post_build_modify_layer/var2",
+        )
+        if backend.backend() == "torch":
+            # TODO (haohuanw, fchollet): Needs further discussion on how to
+            # properly manage torch params. Post build modification cannot
+            # propagate to parent torch params.
+            parameter_names = [pname for pname, _ in layer.named_parameters()]
+            # Below check should have 2 parameters instead of 1.
+            self.assertEqual(len(parameter_names), 1)
+            self.assertEqual(
+                parameter_names[0],
+                "torch_params.training_layer/post_build_modify_layer/var",
+            )
+
+            parameter_names = [
+                pname
+                for pname, _ in layer.post_build_modify_layer.named_parameters()
+            ]
+            self.assertEqual(len(parameter_names), 2)
+            self.assertEqual(
+                parameter_names[0],
+                "torch_params.training_layer/post_build_modify_layer/var",
+            )
+            self.assertEqual(
+                parameter_names[1],
+                "torch_params.training_layer/post_build_modify_layer/var2",
+            )
+
+        layer.post_build_modify_layer.post_build_remove()
+        self.assertEqual(len(layer.variables), 1)
+        self.assertEqual(
+            layer.variables[0].path,
+            "training_layer/post_build_modify_layer/var2",
+        )
+        if backend.backend() == "torch":
+            # TODO (haohuanw, fchollet): Needs further discussion on how to
+            # properly manage torch params. Post build modification cannot
+            # propagate to parent torch params.
+            parameter_names = [pname for pname, _ in layer.named_parameters()]
+            # Below check should have 1 parameters instead of 2, torch_params
+            # in parent layer is wrong.
+            self.assertEqual(len(parameter_names), 2)
+            self.assertEqual(
+                parameter_names[0],
+                "post_build_modify_layer.torch_params.training_layer/"
+                "post_build_modify_layer/var2",
+            )
+            self.assertEqual(
+                parameter_names[1],
+                "torch_params.training_layer/post_build_modify_layer/var",
+            )
+
+            parameter_names = [
+                pname
+                for pname, _ in layer.post_build_modify_layer.named_parameters()
+            ]
+            self.assertEqual(len(parameter_names), 1)
+            self.assertEqual(
+                parameter_names[0],
+                "torch_params.training_layer/post_build_modify_layer/var2",
+            )
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    def test_torch_params_create_deterministic(self):
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w1 = self.add_weight()
+                self.w2 = self.add_weight(dtype="int32", trainable=False)
+                self.w3 = self.add_weight(dtype="bool", trainable=False)
+                self.w4 = self.add_weight(
+                    dtype="int32", shape=(2, 2), trainable=False
+                )
+                self.w5 = self.add_weight(initializer="ones", shape=(2, 2))
+
+        layer1 = MyLayer()
+        layer1.build(None)
+        layer1_names = list(pname for pname, _ in layer1.named_parameters())
+        global_state.clear_session()
+        layer2 = MyLayer()
+        layer2.build(None)
+        layer2_names = list(pname for pname, _ in layer2.named_parameters())
+        self.assertListEqual(layer1_names, layer2_names)

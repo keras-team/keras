@@ -3,7 +3,9 @@ import warnings
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
+from keras.src import applications
 from keras.src import backend
 from keras.src import layers
 from keras.src import saving
@@ -12,9 +14,10 @@ from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
 from keras.src.models import Functional
 from keras.src.models import Model
+from keras.src.models import Sequential
 
 
-class FunctionalTest(testing.TestCase):
+class FunctionalTest(testing.TestCase, parameterized.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_basic_flow_multi_input(self):
         input_a = Input(shape=(3,), batch_size=2, name="input_a")
@@ -177,6 +180,32 @@ class FunctionalTest(testing.TestCase):
             in_val = {"a": input_a_2, "b": input_b_2}
             out_val = model(in_val)
             self.assertEqual(out_val.shape, (2, 3))
+
+    @parameterized.named_parameters(
+        ("list", list),
+        ("tuple", tuple),
+        ("dict", dict),
+    )
+    def test_restored_multi_output_type(self, out_type):
+        inputs = Input(shape=(3,), batch_size=2, name="input")
+        x = layers.Dense(5)(inputs)
+        output_a = layers.Dense(4)(x)
+        output_b = layers.Dense(5)(x)
+        if dict == out_type:
+            outputs = {"a": output_a, "b": output_b}
+        else:
+            outputs = out_type([output_a, output_b])
+        model = Functional(inputs, outputs)
+        model_restored = Functional.from_config(model.get_config())
+
+        # Eager call
+        in_val = np.random.random((2, 3))
+        out_val = model_restored(in_val)
+        self.assertIsInstance(out_val, out_type)
+
+        # Symbolic call
+        out_val = model_restored(Input(shape=(3,), batch_size=2))
+        self.assertIsInstance(out_val, out_type)
 
     @pytest.mark.requires_trainable_backend
     def test_layer_getters(self):
@@ -465,6 +494,23 @@ class FunctionalTest(testing.TestCase):
         out = model([np.ones((2, 2)), None])
         self.assertAllClose(out, np.ones((2, 2)))
         # Note: it's not intended to work in symbolic mode (yet).
+
+    def test_for_functional_in_sequential(self):
+        # Test for a v3.4.1 regression.
+        if backend.image_data_format() == "channels_first":
+            image_size = (3, 100, 100)
+        else:
+            image_size = (100, 100, 3)
+        base_model = applications.mobilenet.MobileNet(
+            include_top=False, weights=None
+        )
+        model = Sequential()
+        model.add(layers.Input(shape=image_size))
+        model.add(base_model)
+        model.add(layers.GlobalAveragePooling2D())
+        model.add(layers.Dense(7, activation="softmax"))
+        config = model.get_config()
+        model = Sequential.from_config(config)
 
     def test_add_loss(self):
         # TODO

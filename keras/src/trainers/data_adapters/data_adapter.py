@@ -30,7 +30,8 @@ class DataAdapter:
         raise NotImplementedError
 
     def get_jax_iterator(self):
-        """Get a Python iterable for the `DataAdapter`, that yields JAX arrays.
+        """Get a Python iterable for the `DataAdapter`, that yields arrays that
+        that can be fed to JAX. NumPy arrays are preferred for performance.
 
         Returns:
             A Python iterator.
@@ -86,6 +87,10 @@ class DataAdapter:
         Will return None if has_partial_batch is False or batch_size is None.
         """
         raise NotImplementedError
+
+    def on_epoch_begin(self):
+        """A hook called before each epoch."""
+        pass
 
     def on_epoch_end(self):
         """A hook called after each epoch."""

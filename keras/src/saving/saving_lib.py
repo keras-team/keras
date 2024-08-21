@@ -22,13 +22,26 @@ from keras.src.saving.serialization_lib import deserialize_keras_object
 from keras.src.saving.serialization_lib import serialize_keras_object
 from keras.src.trainers.compile_utils import CompileMetrics
 from keras.src.utils import file_utils
+from keras.src.utils import io_utils
 from keras.src.utils import naming
+from keras.src.utils import plot_model
+from keras.src.utils.model_visualization import check_pydot
+from keras.src.utils.summary_utils import weight_memory_size
 from keras.src.version import __version__ as keras_version
 
 try:
     import h5py
 except ImportError:
     h5py = None
+try:
+    import psutil
+except ImportError:
+    psutil = None
+try:
+    import huggingface_hub
+except ImportError:
+    huggingface_hub = None
+
 
 _CONFIG_FILENAME = "config.json"
 _METADATA_FILENAME = "metadata.json"
@@ -36,6 +49,24 @@ _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
 _VARS_FNAME_H5 = _VARS_FNAME + ".h5"
 _VARS_FNAME_NPZ = _VARS_FNAME + ".npz"
 _ASSETS_DIRNAME = "assets"
+_MEMORY_UPPER_BOUND = 0.5  # 50%
+
+
+_MODEL_CARD_TEMPLATE = """
+---
+library_name: keras
+---
+
+This model has been uploaded using the Keras library and can be used with JAX,
+TensorFlow, and PyTorch backends.
+
+This model card has been generated automatically and should be completed by the
+model author.
+See [Model Cards documentation](https://huggingface.co/docs/hub/model-cards) for
+more information.
+
+For more details about the model architecture, check out
+[config.json](./config.json)."""
 
 
 def save_model(model, filepath, weights_format="h5", zipped=True):
@@ -79,6 +110,7 @@ def save_model(model, filepath, weights_format="h5", zipped=True):
         return
 
     filepath = str(filepath)
+    is_hf = filepath.startswith("hf://")
     if zipped and not filepath.endswith(".keras"):
         raise ValueError(
             "Invalid `filepath` argument: expected a `.keras` extension. "
@@ -89,7 +121,14 @@ def save_model(model, filepath, weights_format="h5", zipped=True):
             "When using `zipped=False`, the `filepath` argument should not "
             f"end in `.keras`. Received: filepath={filepath}"
         )
-    if not zipped:
+    if zipped and is_hf:
+        raise ValueError(
+            "When saving to the Hugging Face Hub, you should not save the "
+            f"model as zipped. Received: filepath={filepath}, zipped={zipped}"
+        )
+    if is_hf:
+        _upload_model_to_hf(model, filepath, weights_format)
+    elif not zipped:
         _save_model_to_dir(model, filepath, weights_format)
     else:
         if file_utils.is_remote_path(filepath):
@@ -160,17 +199,33 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
             f.write(config_json.encode())
 
         weights_file_path = None
+        weights_store = None
+        asset_store = None
+        write_zf = False
         try:
             if weights_format == "h5":
-                if isinstance(fileobj, io.BufferedWriter):
-                    # First, open the .h5 file, then write it to `zf` at the end
-                    # of the function call.
-                    working_dir = pathlib.Path(fileobj.name).parent
-                    weights_file_path = working_dir / _VARS_FNAME_H5
-                    weights_store = H5IOStore(weights_file_path, mode="w")
-                else:
-                    # Fall back when `fileobj` is an `io.BytesIO`. Typically,
-                    # this usage is for pickling.
+                try:
+                    if is_memory_sufficient(model):
+                        # Load the model weights into memory before writing
+                        # .keras if the system memory is sufficient.
+                        weights_store = H5IOStore(
+                            _VARS_FNAME_H5, archive=zf, mode="w"
+                        )
+                    else:
+                        # Try opening the .h5 file, then writing it to `zf` at
+                        # the end of the function call. This is more memory
+                        # efficient than writing the weights into memory first.
+                        working_dir = pathlib.Path(fileobj.name).parent
+                        weights_file_path = tempfile.NamedTemporaryFile(
+                            dir=working_dir
+                        )
+                        weights_store = H5IOStore(
+                            weights_file_path.name, mode="w"
+                        )
+                        write_zf = True
+                except:
+                    # If we can't use the local disk for any reason, write the
+                    # weights into memory first, which consumes more memory.
                     weights_store = H5IOStore(
                         _VARS_FNAME_H5, archive=zf, mode="w"
                     )
@@ -196,13 +251,78 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
             )
         except:
             # Skip the final `zf.write` if any exception is raised
-            weights_file_path = None
+            write_zf = False
+            if weights_store:
+                weights_store.archive = None
             raise
         finally:
-            weights_store.close()
-            asset_store.close()
+            if weights_store:
+                weights_store.close()
+            if asset_store:
+                asset_store.close()
+            if write_zf and weights_file_path:
+                zf.write(weights_file_path.name, _VARS_FNAME_H5)
             if weights_file_path:
-                zf.write(weights_file_path, weights_file_path.name)
+                weights_file_path.close()
+
+
+def _upload_model_to_hf(model, hf_path, weights_format):
+    if huggingface_hub is None:
+        raise ImportError(
+            "To save models to the Hugging Face Hub, "
+            "you must install the `huggingface_hub` package."
+        )
+
+    original_hf_path = hf_path
+    if hf_path.startswith("hf://"):
+        hf_path = hf_path[5:]
+    if hf_path.count("/") > 1:
+        raise ValueError(
+            "Invalid `hf_path` argument: expected `namespace/model_name`"
+            f" format. Received: hf_path={original_hf_path}"
+        )
+
+    api = huggingface_hub.HfApi(
+        library_name="keras", library_version=keras_version
+    )
+    repo_url = api.create_repo(hf_path, exist_ok=True)
+    repo_id = repo_url.repo_id
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        _save_model_to_dir(model, tmp_dir, weights_format)
+
+        model_card = _MODEL_CARD_TEMPLATE
+
+        if check_pydot():
+            plot_path = file_utils.join(tmp_dir, "assets", "summary_plot.png")
+            plot_model(
+                model,
+                to_file=plot_path,
+                show_layer_names=True,
+                show_shapes=True,
+                show_dtype=True,
+            )
+            if len(model.layers) <= 10:
+                model_card += "\n\n![](./assets/summary_plot.png)"
+            else:
+                model_card += (
+                    "A plot of the model can be found "
+                    "[here](./assets/summary_plot.png)."
+                )
+
+        with open(file_utils.join(tmp_dir, "README.md"), "w") as f:
+            f.write(model_card)
+
+        api.upload_folder(
+            repo_id=repo_id,
+            folder_path=tmp_dir,
+            commit_message="Save model using Keras.",
+        )
+        io_utils.print_msg(
+            f"Model saved to the Hugging Face Hub: {repo_url}\n"
+            "To load back the model, use "
+            f"`keras.saving.load_model('hf://{repo_id}')`"
+        )
 
 
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
@@ -210,6 +330,22 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     if isinstance(filepath, io.IOBase):
         return _load_model_from_fileobj(
             filepath, custom_objects, compile, safe_mode
+        )
+    elif str(filepath).startswith("hf://"):
+        if huggingface_hub is None:
+            raise ImportError(
+                "To load models from the Hugging Face Hub, "
+                "you must install the `huggingface_hub` package."
+            )
+
+        repo_id = filepath[5:]
+        folder_path = huggingface_hub.snapshot_download(
+            repo_id=repo_id,
+            library_name="keras",
+            library_version=keras_version,
+        )
+        return _load_model_from_dir(
+            folder_path, custom_objects, compile, safe_mode
         )
     else:
         filepath = str(filepath)
@@ -308,19 +444,35 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
         )
 
         all_filenames = zf.namelist()
-        weights_file_path = None
+        extract_dir = None
+        weights_store = None
+        asset_store = None
         try:
             if _VARS_FNAME_H5 in all_filenames:
-                if isinstance(fileobj, io.BufferedReader):
-                    # First, extract the model.weights.h5 file, then load it
-                    # using h5py.
-                    working_dir = pathlib.Path(fileobj.name).parent
-                    zf.extract(_VARS_FNAME_H5, working_dir)
-                    weights_file_path = working_dir / _VARS_FNAME_H5
-                    weights_store = H5IOStore(weights_file_path, mode="r")
-                else:
-                    # Fall back when `fileobj` is an `io.BytesIO`. Typically,
-                    # this usage is for pickling.
+                try:
+                    if is_memory_sufficient(model):
+                        # Load the entire file into memory if the system memory
+                        # is sufficient.
+                        io_file = io.BytesIO(
+                            zf.open(_VARS_FNAME_H5, "r").read()
+                        )
+                        weights_store = H5IOStore(io_file, mode="r")
+                    else:
+                        # Try extracting the model.weights.h5 file, and then
+                        # loading it using using h5py. This is significantly
+                        # faster than reading from the zip archive on the fly.
+                        extract_dir = tempfile.TemporaryDirectory(
+                            dir=pathlib.Path(fileobj.name).parent
+                        )
+                        zf.extract(_VARS_FNAME_H5, extract_dir.name)
+                        weights_store = H5IOStore(
+                            pathlib.Path(extract_dir.name, _VARS_FNAME_H5),
+                            mode="r",
+                        )
+                except:
+                    # If we can't use the local disk for any reason, read the
+                    # weights from the zip archive on the fly, which is less
+                    # efficient.
                     weights_store = H5IOStore(_VARS_FNAME_H5, zf, mode="r")
             elif _VARS_FNAME_NPZ in all_filenames:
                 weights_store = NpzIOStore(_VARS_FNAME_NPZ, zf, mode="r")
@@ -331,8 +483,6 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
 
             if len(all_filenames) > 3:
                 asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="r")
-            else:
-                asset_store = None
 
             failed_saveables = set()
             error_msgs = {}
@@ -346,11 +496,12 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
                 error_msgs=error_msgs,
             )
         finally:
-            weights_store.close()
+            if weights_store:
+                weights_store.close()
             if asset_store:
                 asset_store.close()
-            if weights_file_path:
-                weights_file_path.unlink()
+            if extract_dir:
+                extract_dir.cleanup()
 
         if failed_saveables:
             _raise_loading_failure(error_msgs)
@@ -952,3 +1103,20 @@ def get_attr_skiplist(obj_type):
         f"saving_attr_skiplist_{obj_type}", skiplist
     )
     return skiplist
+
+
+def is_memory_sufficient(model):
+    """Check if there is sufficient memory to load the model into memory.
+
+    If psutil is installed, we can use it to determine whether the memory is
+    sufficient. Otherwise, we use a predefined value of 1 GB for available
+    memory.
+    """
+    if psutil is None:
+        available_memory = 1024 * 1024 * 1024  # 1 GB in bytes
+    else:
+        available_memory = psutil.virtual_memory().available  # In bytes
+    return (
+        weight_memory_size(model.variables)
+        < available_memory * _MEMORY_UPPER_BOUND
+    )

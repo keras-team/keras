@@ -308,8 +308,11 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
             pass
 
         layer = MyEmbedding(10, 16)
+        layer.build()
         with self.assertRaises(NotImplementedError):
             layer.quantize("int8")
+
+        layer.quantize("int8", type_check=False)  # No error
 
     def test_quantize_when_already_quantized(self):
         layer = layers.Embedding(10, 16)
@@ -320,7 +323,6 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
         ):
             layer.quantize("int8")
 
-    def test_quantize_when_already_quantized_using_dtype_argument(self):
         layer = layers.Embedding(10, 16, dtype="int8_from_float32")
         layer.build()
         with self.assertRaisesRegex(
@@ -367,7 +369,7 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
             NotImplementedError, "Invalid quantization mode."
         ):
             # Explicitly set quantization_mode
-            layer._dtype_policy.quantization_mode = mode
+            layer._dtype_policy._quantization_mode = mode
             layer.quantized_call(x)
         self.assertEqual(layer.dtype_policy, original_dtype_policy)
 
