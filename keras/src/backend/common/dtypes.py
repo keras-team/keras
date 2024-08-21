@@ -17,6 +17,7 @@ INT_TYPES = (
 )
 FLOAT_TYPES = ("bfloat16", "float16", "float32", "float64")
 WEAK_TYPES = ("int", "float")
+COMPLEX_TYPES = ("complex64", "complex128")
 # We need to separate float8 from float because there are no implicit
 # conversions from float8 dtypes to other dtypes.
 # Ref: https://github.com/google/jax/issues/16705
@@ -41,7 +42,7 @@ ALLOWED_DTYPES = (
     "float8_e4m3fn",
     "float8_e5m2",
     "complex64",
-    "complex128"
+    "complex128",
 )
 PYTHON_DTYPES_MAP = {
     bool: "bool",
@@ -50,6 +51,7 @@ PYTHON_DTYPES_MAP = {
     str: "string",
     # special case for string value
     "int": "int64" if config.backend() == "tensorflow" else "int32",
+    complex: "complex64",
 }
 
 # We adapted the type promotion lattice from JAX. Ref:
@@ -65,13 +67,14 @@ def _type_promotion_lattice():
     (u1, u2, u4, u8, i1, i2, i4, i8) = INT_TYPES
     bf, f2, f4, f8 = FLOAT_TYPES
     i_, f_ = WEAK_TYPES
+    c64, c128 = COMPLEX_TYPES
     out = {
         b1: [i_],
         u1: [i2, u2],
         u2: [i4, u4],
         u4: [i8, u8],
         u8: [f_],
-        i_: [u1, i1],
+        i_: [u1, i1, c64],
         i1: [i2],
         i2: [i4],
         i4: [i8],
@@ -81,6 +84,8 @@ def _type_promotion_lattice():
         f2: [f4],
         f4: [f8],
         f8: [],
+        c64: [f_],
+        c128: [c64],
     }
     return out
 
@@ -297,6 +302,11 @@ def result_type(*dtypes):
     >>> y = keras.ops.ones((1,), dtype="float32")
     >>> keras.backend.result_type(x.dtype, y.dtype)
     "float32"
+
+    >>> z= keras.ops.ones((1,),dtype='complex64')
+    >>> keras.backend.result_type(z.dtype, int)
+    "float64"
+
     """
     if len(dtypes) == 0:
         # If no dtypes provided, default to floatx, this matches
