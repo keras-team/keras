@@ -141,7 +141,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             from keras.src.models.functional import Functional
 
             return Functional.__new__(Functional, *args, **kwargs)
-        return typing.cast(Model, super().__new__(cls))
+        return typing.cast(cls, super().__new__(cls))
 
     def __init__(self, *args, **kwargs):
         Trainer.__init__(self)

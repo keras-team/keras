@@ -96,7 +96,7 @@ class Functional(Function, Model):
     """
 
     def __new__(cls, *args, **kwargs):
-        return typing.cast(Functional, super().__new__(cls))
+        return typing.cast(cls, super().__new__(cls))
 
     @tracking.no_automatic_dependency_tracking
     def __init__(self, inputs, outputs, name=None, **kwargs):
