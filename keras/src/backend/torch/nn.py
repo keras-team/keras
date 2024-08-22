@@ -883,6 +883,9 @@ def flash_attention(
     flash_attn_backend = [torch.nn.attention.SDPBackend.FLASH_ATTENTION]
     mask = None
     if is_causal:
+        # We manually create the causal mask here instead of setting
+        # `is_causal=True` in the PyTorch function
+        # because it will not accept attention mask if we did that.
         mask = make_causal_mask(query.shape[-2], query.dtype, query.device)
 
     if attn_mask is not None and mask is not None:
