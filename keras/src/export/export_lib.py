@@ -44,11 +44,11 @@ class ExportArchive:
         fn=model.call,
         input_signature=[tf.TensorSpec(shape=(None, 3), dtype=tf.float32)],
     )
-    export_archive.write_out(os.path.join("path", "to", "artifact"))
+    export_archive.write_out(os.path.join("path", "to", "location"))
 
     # Elsewhere, we can reload the artifact and serve it.
     # The endpoint we added is available as a method:
-    serving_model = tf.saved_model.load(os.path.join("path", "to", "artifact"))
+    serving_model = tf.saved_model.load(os.path.join("path", "to", "location"))
     outputs = serving_model.serve(inputs)
     ```
 
@@ -68,7 +68,7 @@ class ExportArchive:
         fn=lambda x: model.call(x, training=True),
         input_signature=[tf.TensorSpec(shape=(None, 3), dtype=tf.float32)],
     )
-    export_archive.write_out(os.path.join("path", "to", "artifact"))
+    export_archive.write_out(os.path.join("path", "to", "location"))
     ```
 
     **Note on resource tracking:**
@@ -438,10 +438,10 @@ class ExportArchive:
         # Save a variable collection
         export_archive.add_variable_collection(
             name="optimizer_variables", variables=model.optimizer.variables)
-        export_archive.write_out(os.path.join("path", "to", "artifact"))
+        export_archive.write_out(os.path.join("path", "to", "location"))
 
         # Reload the object
-        revived_object = tf.saved_model.load(os.path.join("path", "to", "artifact"))
+        revived_object = tf.saved_model.load(os.path.join("path", "to", "location"))
         # Retrieve the variables
         optimizer_variables = revived_object.optimizer_variables
         ```
