@@ -480,10 +480,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         ```python
         # Create the artifact
-        model.export("path/to/location")
+        model.export(os.path.join("path", "to", "location"))
 
         # Later, in a different process/environment...
-        reloaded_artifact = tf.saved_model.load("path/to/location")
+        reloaded_artifact = tf.saved_model.load(os.path.join("path", "to", "location"))
         predictions = reloaded_artifact.serve(input_data)
         ```
 
