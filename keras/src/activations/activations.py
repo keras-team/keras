@@ -152,7 +152,7 @@ def softmax(x, axis=-1):
     The input values in are the log-odds of the resulting probability.
 
     Args:
-        x: Input tensor.
+        x: Input tensor.Must be one of the following types: half, bfloat16, float, double.
         axis: Integer, axis along which the softmax is applied.
     """
     output = ops.softmax(x, axis=axis)
@@ -329,7 +329,7 @@ def sigmoid(x):
     0 and 1.
 
     Args:
-        x: Input tensor.
+        x: Input tensor. Must be one of the following types: bfloat16, half, float, double, complex64, complex128.
     """
     output = ops.sigmoid(x)
     # Cache the logits to use for crossentropy loss.
