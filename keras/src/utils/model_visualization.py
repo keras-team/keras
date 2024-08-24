@@ -92,9 +92,9 @@ def make_layer_label(layer, **kwargs):
             "</font></td></tr>"
         )
     if (
-            show_layer_activations
-            and hasattr(layer, "activation")
-            and layer.activation is not None
+        show_layer_activations
+        and hasattr(layer, "activation")
+        and layer.activation is not None
     ):
         table += (
             f'<tr><td bgcolor="white" colspan="{colspan}">'
@@ -192,17 +192,17 @@ def make_node(layer, **kwargs):
 
 @keras_export("keras.utils.model_to_dot")
 def model_to_dot(
-        model,
-        show_shapes=False,
-        show_dtype=False,
-        show_layer_names=True,
-        rankdir="TB",
-        expand_nested=False,
-        dpi=200,
-        subgraph=False,
-        show_layer_activations=False,
-        show_trainable=False,
-        **kwargs,
+    model,
+    show_shapes=False,
+    show_dtype=False,
+    show_layer_names=True,
+    rankdir="TB",
+    expand_nested=False,
+    dpi=200,
+    subgraph=False,
+    show_layer_activations=False,
+    show_trainable=False,
+    **kwargs,
 ):
     """Convert a Keras model to dot format.
 
@@ -363,17 +363,17 @@ def model_to_dot(
 
 @keras_export("keras.utils.plot_model")
 def plot_model(
-        model,
-        to_file="model.png",
-        show_shapes=False,
-        show_dtype=False,
-        show_layer_names=False,
-        rankdir="TB",
-        expand_nested=False,
-        dpi=200,
-        show_layer_activations=False,
-        show_trainable=False,
-        **kwargs,
+    model,
+    to_file="model.png",
+    show_shapes=False,
+    show_dtype=False,
+    show_layer_names=False,
+    rankdir="TB",
+    expand_nested=False,
+    dpi=200,
+    show_layer_activations=False,
+    show_trainable=False,
+    **kwargs,
 ):
     """Converts a Keras model to dot format and save to a file.
 
