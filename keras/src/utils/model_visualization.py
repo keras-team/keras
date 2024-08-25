@@ -36,7 +36,7 @@ def check_graphviz():
         # to check the pydot/graphviz installation.
         pydot.Dot.create(pydot.Dot())
         return True
-    except (OSError, pydot.InvocationException):
+    except (OSError, pydot.PydotException):
         return False
 
 
