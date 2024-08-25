@@ -58,7 +58,7 @@ class IsPathInDirTest(test_case.TestCase):
 
 class IsLinkInDirTest(test_case.TestCase):
     def setUp(self):
-        self._cleanup("test_path/to/base_dir")
+        self._cleanup(os.path.join("test_path", "to", "base_dir"))
         self._cleanup("./base_dir")
 
     def _cleanup(self, base_dir):
@@ -66,7 +66,7 @@ class IsLinkInDirTest(test_case.TestCase):
             shutil.rmtree(base_dir)
 
     def test_is_link_in_dir_with_absolute_paths(self):
-        base_dir = "test_path/to/base_dir"
+        base_dir = os.path.join("test_path", "to", "base_dir")
         link_path = os.path.join(base_dir, "symlink")
         target_path = os.path.join(base_dir, "file.txt")
 
@@ -120,7 +120,7 @@ class IsLinkInDirTest(test_case.TestCase):
         self.assertTrue(file_utils.is_link_in_dir(info, base_dir))
 
     def tearDown(self):
-        self._cleanup("test_path/to/base_dir")
+        self._cleanup(os.path.join("test_path", "to", "base_dir"))
         self._cleanup("./base_dir")
 
 
