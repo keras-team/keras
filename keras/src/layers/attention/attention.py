@@ -71,6 +71,8 @@ class Attention(Layer):
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self.concat_score_weight = None
+        self.scale = None
         self.use_scale = use_scale
         self.score_mode = score_mode
         self.dropout = dropout
@@ -83,6 +85,9 @@ class Attention(Layer):
                 "Expected one of {'dot', 'concat'}. "
                 f"Received: score_mode={score_mode}"
             )
+
+    def build(self, input_shape):
+        self._validate_inputs(input_shape)
 
         if self.use_scale:
             self.scale = self.add_weight(
@@ -104,8 +109,6 @@ class Attention(Layer):
                 trainable=True,
             )
 
-    def build(self, input_shape):
-        self._validate_inputs(input_shape)
         self.built = True
 
     def _calculate_scores(self, query, key):
