@@ -905,6 +905,8 @@ def _is_tpu_strategy_class(clz):
 def convert_to_np_if_not_ragged(x):
     if isinstance(x, tf.RaggedTensor):
         return x
+    elif isinstance(x, tf.SparseTensor):
+        return x
     return x.numpy()
 
 
