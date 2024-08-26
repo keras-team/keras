@@ -397,7 +397,7 @@ def load_weights_from_hdf5_group(f, model):
             )
         if hasattr(model, "load_own_variables"):
             variable_names = map(str, list(range(len(weight_values))))
-            layer.load_own_variables(dict(zip(variable_names, weight_values)))
+            model.load_own_variables(dict(zip(variable_names, weight_values)))
         else:
             for ref_v, val in zip(symbolic_weights, weight_values):
                 ref_v.assign(val)
