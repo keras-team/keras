@@ -371,12 +371,10 @@ def load_weights_from_hdf5_group(f, model):
                 f"Layer expects {len(symbolic_weights)} weight(s). Received "
                 f"{len(weight_values)} saved weight(s)"
             )
-        if hasattr(layer, "load_own_variables"):
-            variable_names = map(str, list(range(len(weight_values))))
-            layer.load_own_variables(dict(zip(variable_names, weight_values)))
-        else:
-            for ref_v, val in zip(symbolic_weights, weight_values):
-                ref_v.assign(val)
+        _set_weights(layer,
+                     symbolic_weights,
+                     weight_values,
+                     name=f"layer #{k} (named {layer.name})")
 
     if "top_level_model_weights" in f:
         symbolic_weights = list(
@@ -395,12 +393,49 @@ def load_weights_from_hdf5_group(f, model):
                 f"Model expects {len(symbolic_weights)} top-level weight(s). "
                 f"Received {len(weight_values)} saved top-level weight(s)"
             )
-        if hasattr(model, "load_own_variables"):
-            variable_names = map(str, list(range(len(weight_values))))
-            model.load_own_variables(dict(zip(variable_names, weight_values)))
-        else:
-            for ref_v, val in zip(symbolic_weights, weight_values):
-                ref_v.assign(val)
+        _set_weights(model,
+                     symbolic_weights,
+                     weight_values,
+                     name="top-level model")
+
+
+def _set_weights(group, symbolic_weights, weight_values, name, skip_mismatch=False):
+    """Safely set weights into a model or a layer, calling load_own_variables if implemented.
+
+    Args:
+        group: Model or layer instance,
+        symbolic_weights: symbolic tensors representing the weights of the variables to load,
+        weight_values: values of the weights to load,
+        skip_mismatch: Boolean, whether to skip loading of weights
+            where there is a mismatch in the shape of the weights,
+        name: name used to identify the group.
+    Raises:
+        ValueError: in case of mismatch between provided model/layer and weights.
+    """
+    if hasattr(group, "load_own_variables"):
+        variable_names = map(str, list(range(len(weight_values))))
+        group.load_own_variables(dict(zip(variable_names, weight_values)))
+    else:
+        for i, weight_value in enumerate(weight_values):
+            expected_shape = symbolic_weights[i].shape
+            received_shape = weight_value.shape
+            if expected_shape != received_shape:
+                if skip_mismatch:
+                    warnings.warn(f"Skipping loading weights for {name}"
+                                  f"due to mismatch in shape for "
+                                  f"weight {symbolic_weights[i].path}. "
+                                  f"Weight expects shape {expected_shape}. "
+                                  "Received saved weight "
+                                  f"with shape {received_shape}", stacklevel=2)
+                    continue
+                raise ValueError(
+                    f"Shape mismatch in {name}"
+                    f"for weight {symbolic_weights[i].path}. "
+                    f"Weight expects shape {expected_shape}. "
+                    "Received saved weight "
+                    f"with shape {received_shape}"
+                )
+            symbolic_weights[i].assign(weight_value)
 
 
 def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
@@ -462,36 +497,11 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
                     f"Layer expects {len(symbolic_weights)} weight(s). "
                     f"Received {len(weight_values)} saved weight(s)"
                 )
-            # Set values.
-            if hasattr(layer, "load_own_variables"):
-                variable_names = map(str, list(range(len(weight_values))))
-                layer.load_own_variables(dict(zip(variable_names, weight_values)))
-            else:
-                for i in range(len(weight_values)):
-                    expected_shape = symbolic_weights[i].shape
-                    received_shape = weight_values[i].shape
-                    if expected_shape != received_shape:
-                        if skip_mismatch:
-                            warnings.warn(
-                                f"Skipping loading weights for layer #{k} (named "
-                                f"{layer.name}) due to mismatch in shape for "
-                                f"weight {symbolic_weights[i].path}. "
-                                f"Weight expects shape {expected_shape}. "
-                                "Received saved weight "
-                                f"with shape {received_shape}",
-                                stacklevel=2,
-                            )
-                            continue
-                        raise ValueError(
-                            f"Shape mismatch in layer #{k} (named {layer.name}) "
-                            f"for weight {symbolic_weights[i].path}. "
-                            f"Weight expects shape {expected_shape}. "
-                            "Received saved weight "
-                            f"with shape {received_shape}"
-                        )
-                    else:
-                        symbolic_weights[i].assign(weight_values[i])
-
+            _set_weights(layer,
+                         symbolic_weights,
+                         weight_values,
+                         skip_mismatch=True,
+                         name=f"layer #{k} (named {layer.name})")
     if "top_level_model_weights" in f:
         symbolic_weights = model.trainable_weights + model.non_trainable_weights
         weight_values = load_subset_weights_from_hdf5_group(
@@ -515,35 +525,11 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
                     "top-level weight(s). "
                     f"Received {len(weight_values)} saved top-level weight(s)"
                 )
-        else:
-            if hasattr(model, "load_own_variables"):
-                variable_names = map(str, list(range(len(weight_values))))
-                model.load_own_variables(dict(zip(variable_names, weight_values)))
-            else:
-                for i in range(len(weight_values)):
-                    expected_shape = symbolic_weights[i].shape
-                    received_shape = weight_values[i].shape
-                    if expected_shape != received_shape:
-                        if skip_mismatch:
-                            warnings.warn(
-                                "Skipping loading top-level weight for model due "
-                                "to mismatch in shape for "
-                                f"weight {symbolic_weights[i].path}. "
-                                f"Weight expects shape {expected_shape}. "
-                                "Received saved weight "
-                                f"with shape {received_shape}",
-                                stacklevel=2,
-                            )
-                        else:
-                            raise ValueError(
-                                "Shape mismatch in model for top-level weight "
-                                f"{symbolic_weights[i].path}. "
-                                f"Weight expects shape {expected_shape}. "
-                                "Received saved weight "
-                                f"with shape {received_shape}"
-                            )
-                    else:
-                        symbolic_weights[i].assign(weight_values[i])
+        _set_weights(layer,
+                     symbolic_weights,
+                     weight_values,
+                     skip_mismatch=True,
+                     name="top-level model")
 
 
 def load_subset_weights_from_hdf5_group(f):
