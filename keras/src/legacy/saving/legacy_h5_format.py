@@ -19,7 +19,6 @@ try:
 except ImportError:
     h5py = None
 
-
 HDF5_OBJECT_HEADER_LIMIT = 64512
 
 
@@ -364,45 +363,45 @@ def load_weights_from_hdf5_group(f, model):
         g = f[name]
         layer = filtered_layers[k]
         symbolic_weights = _legacy_weights(layer)
-        weight_values = load_subset_weights_from_hdf5_group(g)       
+        weight_values = load_subset_weights_from_hdf5_group(g)
         if hasattr(layer, "load_own_variables"):
             variable_names = map(str, list(range(len(weight_values))))
             layer.load_own_variables(dict(zip(variable_names, weight_values)))
         else:
             if len(weight_values) != len(symbolic_weights):
                 raise ValueError(
-                  f"Weight count mismatch for layer #{k} (named {layer.name} in "
-                  f"the current model, {name} in the save file). "
-                  f"Layer expects {len(symbolic_weights)} weight(s). Received "
-                  f"{len(weight_values)} saved weight(s)"
+                    f"Weight count mismatch for layer #{k} (named {layer.name} in "
+                    f"the current model, {name} in the save file). "
+                    f"Layer expects {len(symbolic_weights)} weight(s). Received "
+                    f"{len(weight_values)} saved weight(s)"
                 )
             for ref_v, val in zip(symbolic_weights, weight_values):
-                  ref_v.assign(val)
+                ref_v.assign(val)
 
     if "top_level_model_weights" in f:
         weight_values = load_subset_weights_from_hdf5_group(
             f["top_level_model_weights"]
         )
-              
+
         if hasattr(model, "load_own_variables"):
             variable_names = map(str, list(range(len(weight_values))))
             layer.load_own_variables(dict(zip(variable_names, weight_values)))
         else:
             symbolic_weights = list(
-              # model.weights
-              v
-              for v in model._trainable_variables + model._non_trainable_variables
-              if v in model.weights
+                # model.weights
+                v
+                for v in model._trainable_variables + model._non_trainable_variables
+                if v in model.weights
             )
             if len(weight_values) != len(symbolic_weights):
-              raise ValueError(
-                  "Weight count mismatch for top-level weights when loading "
-                  "weights from file. "
-                  f"Model expects {len(symbolic_weights)} top-level weight(s). "
-                  f"Received {len(weight_values)} saved top-level weight(s)"
-              )
+                raise ValueError(
+                    "Weight count mismatch for top-level weights when loading "
+                    "weights from file. "
+                    f"Model expects {len(symbolic_weights)} top-level weight(s). "
+                    f"Received {len(weight_values)} saved top-level weight(s)"
+                )
             for ref_v, val in zip(symbolic_weights, weight_values):
-              ref_v.assign(val)
+                ref_v.assign(val)
 
 
 def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
