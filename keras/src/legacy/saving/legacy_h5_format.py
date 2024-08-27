@@ -445,10 +445,8 @@ def _set_weights(
             )
         symbolic_weights[i].assign(weight_value)
 
-    if hasattr(instance, "load_own_variables"):
-        vars = instance._trainable_variables + instance._non_trainable_variables
-        names = map(str, list(range(len(vars))))
-        instance.load_own_variables(dict(zip(names, vars)))
+    if hasattr(instance, "finalize_state") and symbolic_weights:
+        instance.finalize_state()
 
 
 def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
