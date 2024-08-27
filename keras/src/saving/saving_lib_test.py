@@ -964,9 +964,7 @@ class SavingBattleTest(testing.TestCase):
 
         inputs = keras.Input((32,))
         normalization = keras.layers.Normalization()
-        x = normalization(inputs)
-        x = MyDense(2)(x)
-        outputs = CustomModelX()(x)
+        outputs = normalization(inputs)
 
         model = keras.Model(inputs, outputs)
 
