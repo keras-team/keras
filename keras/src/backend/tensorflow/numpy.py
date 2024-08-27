@@ -769,7 +769,7 @@ def argmax(x, axis=None, keepdims=False):
     _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
-    y = tf.cast(tf.argmax(x, axis=axis), dtype="int32")
+    y = tf.argmax(x, axis=axis, output_type="int32")
     if keepdims:
         y = _keepdims(_x, y, axis)
     return y
@@ -779,7 +779,7 @@ def argmin(x, axis=None, keepdims=False):
     _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
-    y = tf.cast(tf.argmin(x, axis=axis), dtype="int32")
+    y = tf.argmin(x, axis=axis, output_type="int32")
     if keepdims:
         y = _keepdims(_x, y, axis)
     return y
