@@ -1266,14 +1266,14 @@ def floor(x):
 def full(shape, fill_value, dtype=None):
     dtype = dtype or config.floatx()
     fill_value = convert_to_tensor(fill_value, dtype)
-    return tf.broadcast_to(fill_value, shape)
+    return tf.fill(shape, fill_value)
 
 
 def full_like(x, fill_value, dtype=None):
     x = convert_to_tensor(x)
     dtype = dtypes.result_type(dtype or x.dtype)
     fill_value = convert_to_tensor(fill_value, dtype)
-    return tf.broadcast_to(fill_value, tf.shape(x))
+    return tf.fill(tf.shape(x), fill_value)
 
 
 def greater(x1, x2):
