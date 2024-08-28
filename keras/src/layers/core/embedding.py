@@ -13,11 +13,11 @@ from keras.src.layers.layer import Layer
 
 @keras_export("keras.layers.Embedding")
 class Embedding(Layer):
-    """Turns positive integers (indexes) into dense vectors of fixed size.
+    """Turns nonnegative integers (indexes) into dense vectors of fixed size.
 
     e.g. `[[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]`
 
-    This layer can only be used on positive integer inputs of a fixed range.
+    This layer can only be used on nonnegative integer inputs of a fixed range.
 
     Example:
 
