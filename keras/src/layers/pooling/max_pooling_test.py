@@ -163,6 +163,7 @@ class MaxPoolingBasicTest(testing.TestCase, parameterized.TestCase):
             expected_num_non_trainable_weights=0,
             expected_num_losses=0,
             supports_masking=False,
+            assert_built_after_instantiation=True,
         )
 
     @parameterized.parameters(
@@ -193,6 +194,7 @@ class MaxPoolingBasicTest(testing.TestCase, parameterized.TestCase):
             expected_num_non_trainable_weights=0,
             expected_num_losses=0,
             supports_masking=False,
+            assert_built_after_instantiation=True,
         )
 
     @parameterized.parameters(
@@ -232,6 +234,7 @@ class MaxPoolingBasicTest(testing.TestCase, parameterized.TestCase):
             supports_masking=False,
             # Incomplete op support on tensorflow.
             run_mixed_precision_check=False,
+            assert_built_after_instantiation=True,
         )
 
 

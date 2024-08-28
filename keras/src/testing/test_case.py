@@ -174,6 +174,7 @@ class TestCase(unittest.TestCase):
         custom_objects=None,
         run_training_check=True,
         run_mixed_precision_check=True,
+        assert_built_after_instantiation=False,
     ):
         """Run basic checks on a layer.
 
@@ -216,6 +217,8 @@ class TestCase(unittest.TestCase):
                 (if an input shape or input data was provided).
             run_mixed_precision_check: Whether to test the layer with a mixed
                 precision dtype policy.
+            assert_built_after_instantiation: Whether to assert `built=True`
+                after the layer's instantiation.
         """
         if input_shape is not None and input_data is not None:
             raise ValueError(
@@ -550,6 +553,17 @@ class TestCase(unittest.TestCase):
             if expected_mask_shape is not None:
                 output_mask = layer.compute_mask(keras_tensor_inputs)
                 self.assertEqual(expected_mask_shape, output_mask.shape)
+
+            # The stateless layers should be built after instantiation.
+            if assert_built_after_instantiation:
+                layer = layer_cls(**init_kwargs)
+                self.assertTrue(
+                    layer.built,
+                    msg=(
+                        f"{type(layer)} is stateless, so it should be built "
+                        "after instantiation."
+                    ),
+                )
 
         # Eager call test and compiled training test.
         if input_data is not None or input_shape is not None:
