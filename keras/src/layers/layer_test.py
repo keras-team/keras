@@ -1102,7 +1102,7 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
         self.assertTrue("inner_inner_layer/inner" in variable_paths)
         if backend.backend() == "torch":
             parameter_names = set(
-                param_name.replace("torch_params.", "")
+                param_name.replace("_torch_params.", "")
                 for param_name, _ in layer.named_parameters()
             )
             self.assertSetEqual(variable_paths, parameter_names)
@@ -1159,7 +1159,7 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
         )
         if backend.backend() == "torch":
             parameter_names = set(
-                param_name.replace("torch_params.", "")
+                param_name.replace("_torch_params.", "")
                 for param_name, _ in layer.named_parameters()
             )
             self.assertSetEqual(variable_paths, parameter_names)
@@ -1212,7 +1212,7 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "torch_params.training_layer/post_build_modify_layer/var",
+                "_torch_params.training_layer/post_build_modify_layer/var",
             )
 
         layer.post_build_modify_layer.post_build_add()
@@ -1234,7 +1234,7 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "torch_params.training_layer/post_build_modify_layer/var",
+                "_torch_params.training_layer/post_build_modify_layer/var",
             )
 
             parameter_names = [
@@ -1244,11 +1244,11 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(len(parameter_names), 2)
             self.assertEqual(
                 parameter_names[0],
-                "torch_params.training_layer/post_build_modify_layer/var",
+                "_torch_params.training_layer/post_build_modify_layer/var",
             )
             self.assertEqual(
                 parameter_names[1],
-                "torch_params.training_layer/post_build_modify_layer/var2",
+                "_torch_params.training_layer/post_build_modify_layer/var2",
             )
 
         layer.post_build_modify_layer.post_build_remove()
@@ -1267,12 +1267,12 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(len(parameter_names), 2)
             self.assertEqual(
                 parameter_names[0],
-                "post_build_modify_layer.torch_params.training_layer/"
+                "post_build_modify_layer._torch_params.training_layer/"
                 "post_build_modify_layer/var2",
             )
             self.assertEqual(
                 parameter_names[1],
-                "torch_params.training_layer/post_build_modify_layer/var",
+                "_torch_params.training_layer/post_build_modify_layer/var",
             )
 
             parameter_names = [
@@ -1282,7 +1282,7 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "torch_params.training_layer/post_build_modify_layer/var2",
+                "_torch_params.training_layer/post_build_modify_layer/var2",
             )
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
