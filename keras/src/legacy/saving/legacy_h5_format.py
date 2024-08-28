@@ -407,8 +407,8 @@ def load_weights_from_hdf5_group(f, model):
 def _set_weights(
     instance, symbolic_weights, weight_values, name, skip_mismatch=False
 ):
-    """Safely set weights into a model or a layer,
-       calling load_own_variables if implemented.
+    """Safely set weights into a model or a layer.
+
     Args:
         instance: Model or layer instance,
         symbolic_weights: symbolic tensors representing
@@ -417,6 +417,7 @@ def _set_weights(
         skip_mismatch: Boolean, whether to skip loading of weights
             where there is a mismatch in the shape of the weights,
         name: name used to identify the group.
+
     Raises:
         ValueError: in case of mismatch between provided
             model/layer and weights.
