@@ -116,7 +116,8 @@ class Sequential(Model):
                 f"add a different Input layer to it."
             )
 
-        self._layers.append(layer)
+        # append will not trigger __setattr__ for tracking purpose.
+        self._layers = self._layers + [layer]
         if rebuild:
             self._maybe_rebuild()
         else:

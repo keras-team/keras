@@ -422,6 +422,20 @@ class TorchTrainer(base_trainer.Trainer):
                 )
             return outputs
 
+        if self.jit_compile:
+            # torch.compile() requires torch_param being registered. Thus,
+            # as symbolic build is needed to make sure all layers variables are
+            # initialized before invoke torch.compile(). _symbolic_build()
+            # should refactored to not require _compile_metrics and optimizer
+            # is defined.
+            if not hasattr(self, "_compile_metrics"):
+                self._compile_metrics = None
+            if not hasattr(self, "_compile_loss"):
+                self._compile_loss = None
+            if not hasattr(self, "optimizer"):
+                self.optimizer = None
+            self._symbolic_build(iterator=epoch_iterator)
+
         # Switch the torch Module back to testing mode.
         self.eval()
 
@@ -495,6 +509,19 @@ class TorchTrainer(base_trainer.Trainer):
         return self._flatten_metrics_in_order(logs)
 
     def predict_on_batch(self, x):
+        if self.jit_compile:
+            # torch.compile() requires torch_param being registered. Thus,
+            # as symbolic build is needed to make sure all layers variables are
+            # initialized before invoke torch.compile(). _symbolic_build()
+            # should refactored to not require _compile_metrics and optimizer
+            # is defined.
+            if not hasattr(self, "_compile_metrics"):
+                self._compile_metrics = None
+            if not hasattr(self, "_compile_loss"):
+                self._compile_loss = None
+            if not hasattr(self, "optimizer"):
+                self.optimizer = None
+            self._symbolic_build(data_batch=(x,))
         self.make_predict_function()
         batch_outputs = self.predict_function([(x,)])
         batch_outputs = tree.map_structure(

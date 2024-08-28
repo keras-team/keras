@@ -336,19 +336,6 @@ class TestCase(unittest.TestCase):
                     expected_num_seed_generators,
                     msg="Unexpected number of seed_generators",
                 )
-            if (
-                backend.backend() == "torch"
-                and expected_num_trainable_weights is not None
-                and expected_num_non_trainable_weights is not None
-                and expected_num_seed_generators is not None
-            ):
-                self.assertLen(
-                    layer.torch_params,
-                    expected_num_trainable_weights
-                    + expected_num_non_trainable_weights
-                    + expected_num_seed_generators,
-                    msg="Unexpected number of torch_params",
-                )
 
         def run_output_asserts(layer, output, eager=False):
             if expected_output_shape is not None:
@@ -471,6 +458,19 @@ class TestCase(unittest.TestCase):
                         )
                 if expected_num_losses is not None:
                     self.assertLen(layer.losses, expected_num_losses)
+            if (
+                backend.backend() == "torch"
+                and expected_num_trainable_weights is not None
+                and expected_num_non_trainable_weights is not None
+                and expected_num_seed_generators is not None
+            ):
+                self.assertLen(
+                    list(layer.parameters()),
+                    expected_num_trainable_weights
+                    + expected_num_non_trainable_weights
+                    + expected_num_seed_generators,
+                    msg="Unexpected number of layer.parameters()",
+                )
 
         def run_training_step(layer, input_data, output_data):
             class TestModel(Model):
