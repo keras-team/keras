@@ -190,6 +190,14 @@ def make_node(layer, **kwargs):
     return node
 
 
+def remove_unused_edges(dot):
+    nodes = [v.get_name() for v in dot.get_nodes()]
+    for edge in dot.get_edges():
+        if edge.get_destination() not in nodes:
+            dot.del_edge(edge.get_source(), edge.get_destination())
+    return dot
+
+
 @keras_export("keras.utils.model_to_dot")
 def model_to_dot(
     model,
@@ -460,6 +468,7 @@ def plot_model(
     to_file = str(to_file)
     if dot is None:
         return
+    dot = remove_unused_edges(dot)
     _, extension = os.path.splitext(to_file)
     if not extension:
         extension = "png"
