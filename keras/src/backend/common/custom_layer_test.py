@@ -19,7 +19,8 @@ class MyDenseLayer(keras.layers.Layer):
         kernel = tf.cast(self.kernel, tf.complex64)
         return tf.matmul(inputs, kernel)
 
-#Custom layer test with complex input
+
+# Custom layer test with complex input
 class TestDenseLayer(test_case.TestCase, parameterized.TestCase):
     def test_layer_output_shape(self):
         input = tf.zeros([10, 5], dtype=tf.complex64)

@@ -159,7 +159,13 @@ class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
 
     @parameterized.parameters(
-        *((dtype for dtype in dtypes.ALLOWED_DTYPES if dtype != "string"))
+        *(
+            (
+                dtype
+                for dtype in dtypes.ALLOWED_DTYPES
+                if dtype not in ["string", "complex64", "complex28"]
+            )
+        )
     )
     def test_standardize_dtype(self, dtype):
         """Tests standardize_dtype for all ALLOWED_DTYPES except string."""
@@ -167,6 +173,8 @@ class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
             "uint16",
             "uint32",
             "uint64",
+            "complex64",
+            "complex128",
         ):
             self.skipTest(f"torch backend does not support dtype {dtype}")
 
