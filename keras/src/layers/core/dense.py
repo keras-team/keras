@@ -31,6 +31,15 @@ class Dense(Layer):
     of the `input`, on every sub-tensor of shape `(1, 1, d1)` (there are
     `batch_size * d0` such sub-tensors). The output in this case will have
     shape `(batch_size, d0, units)`.
+    
+    >>> import tensorflow as tf
+    >>> model = tf.keras.Sequential([
+    ...     tf.keras.layers.Dense(128, activation='relu', input_shape=(784,)),  # Input layer (e.g., flattened 28x28 images)
+    ...     tf.keras.layers.Dense(64, activation='relu'),                      # Hidden layer
+    ...     tf.keras.layers.Dense(10, activation='softmax')                    # Output layer (10 classes for classification)
+    ... ])
+    >>> model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    >>> model.summary()
 
     Args:
         units: Positive integer, dimensionality of the output space.
