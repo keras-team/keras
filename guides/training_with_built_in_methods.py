@@ -650,7 +650,7 @@ that handle the parallel processing configuration:
     `True` if your dataset can be safely pickled.
 - `max_queue_size`: Maximum number of batches to keep in the queue
     when iterating over the dataset in a multithreaded or
-    multipricessed setting.
+    multiprocessed setting.
     You can reduce this value to reduce the CPU memory consumption of
     your dataset. It defaults to 10.
 

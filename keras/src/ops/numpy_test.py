@@ -2088,7 +2088,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             knp.argpartition(x, (1, 3))
 
 
-class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
+class NumpyTwoInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_add(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])

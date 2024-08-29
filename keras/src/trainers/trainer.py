@@ -942,7 +942,7 @@ class Trainer:
     def _get_metrics_result_or_logs(self, logs):
         """Returns model metrics as a dict if the keys match with input logs.
 
-        When the training / evalution is performed with an asynchronous steps,
+        When the training / evaluation is performed with an asynchronous steps,
         the last scheduled `train / test_step` may not give the latest metrics
         because it is not guaranteed to be executed the last. This method gets
         metrics from the model directly instead of relying on the return from

@@ -38,7 +38,7 @@ from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
 from keras.src.ops.operation import Operation
-from keras.src.saving.keras_saveable import KerasSaveable
+from keras.src.saving.keras_savable import KerasSaveable
 from keras.src.utils import python_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils

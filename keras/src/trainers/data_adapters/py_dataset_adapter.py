@@ -560,7 +560,7 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
         self.shuffle = shuffle
         if self.py_dataset.num_batches is None:
             # For infinite datasets, `self.indices` is created here once for all
-            # so that subsquent runs resume from where they stopped.
+            # so that subsequent runs resume from where they stopped.
             self.indices = itertools.count()
 
     def _get_executor_init(self, workers):

@@ -2131,7 +2131,7 @@ def round(x, decimals=0):
         # int
         if decimals > 0:
             return x
-        # temporarilaly convert to floats
+        # temporarily convert to floats
         factor = tf.cast(math.pow(10, decimals), config.floatx())
         x = tf.cast(x, config.floatx())
     else:

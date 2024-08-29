@@ -75,16 +75,16 @@ def save_model(model, filepath, weights_format="h5", zipped=True):
     The zip-based archive contains the following structure:
 
     - JSON-based configuration file (config.json): Records of model, layer, and
-        other saveables' configuration.
-    - H5-based saveable state files, found in respective directories, such as
+        other savables' configuration.
+    - H5-based savable state files, found in respective directories, such as
         model/states.npz, model/dense_layer/states.npz, etc.
     - Metadata file.
 
-    The states of Keras saveables (layers, optimizers, loss, and metrics) are
+    The states of Keras savables (layers, optimizers, loss, and metrics) are
     automatically saved as long as they can be discovered through the attributes
     returned by `dir(Model)`. Typically, the state includes the variables
-    associated with the saveable, but some specially purposed layers may
-    contain more such as the vocabularies stored in the hashmaps. The saveables
+    associated with the savable, but some specially purposed layers may
+    contain more such as the vocabularies stored in the hashmaps. The savables
     define how their states are saved by exposing `save_state()` and
     `load_state()` APIs.
 
@@ -182,7 +182,7 @@ def _save_model_to_dir(model, dirpath, weights_format):
             weights_store=weights_store,
             assets_store=asset_store,
             inner_path="",
-            visited_saveables=set(),
+            visited_savables=set(),
         )
     finally:
         weights_store.close()
@@ -247,7 +247,7 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
                 weights_store=weights_store,
                 assets_store=asset_store,
                 inner_path="",
-                visited_saveables=set(),
+                visited_savables=set(),
             )
         except:
             # Skip the final `zf.write` if any exception is raised
@@ -397,15 +397,15 @@ def _load_model_from_dir(dirpath, custom_objects, compile, safe_mode):
         else:
             asset_store = None
 
-        failed_saveables = set()
+        failed_savables = set()
         error_msgs = {}
         _load_state(
             model,
             weights_store=weights_store,
             assets_store=asset_store,
             inner_path="",
-            visited_saveables=set(),
-            failed_saveables=failed_saveables,
+            visited_savables=set(),
+            failed_savables=failed_savables,
             error_msgs=error_msgs,
         )
 
@@ -414,7 +414,7 @@ def _load_model_from_dir(dirpath, custom_objects, compile, safe_mode):
         if asset_store:
             asset_store.close()
 
-    if failed_saveables:
+    if failed_savables:
         _raise_loading_failure(error_msgs)
     return model
 
@@ -484,15 +484,15 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
             if len(all_filenames) > 3:
                 asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="r")
 
-            failed_saveables = set()
+            failed_savables = set()
             error_msgs = {}
             _load_state(
                 model,
                 weights_store=weights_store,
                 assets_store=asset_store,
                 inner_path="",
-                visited_saveables=set(),
-                failed_saveables=failed_saveables,
+                visited_savables=set(),
+                failed_savables=failed_savables,
                 error_msgs=error_msgs,
             )
         finally:
@@ -503,7 +503,7 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
             if extract_dir:
                 extract_dir.cleanup()
 
-        if failed_saveables:
+        if failed_savables:
             _raise_loading_failure(error_msgs)
     return model
 
@@ -523,15 +523,15 @@ def save_weights_only(model, filepath, objects_to_skip=None):
         )
     weights_store = H5IOStore(filepath, mode="w")
     if objects_to_skip is not None:
-        visited_saveables = set(id(o) for o in objects_to_skip)
+        visited_savables = set(id(o) for o in objects_to_skip)
     else:
-        visited_saveables = set()
+        visited_savables = set()
     _save_state(
         model,
         weights_store=weights_store,
         assets_store=None,
         inner_path="",
-        visited_saveables=visited_saveables,
+        visited_savables=visited_savables,
     )
     weights_store.close()
 
@@ -552,11 +552,11 @@ def load_weights_only(
         archive = zipfile.ZipFile(filepath, "r")
         weights_store = H5IOStore(_VARS_FNAME_H5, archive=archive, mode="r")
 
-    failed_saveables = set()
+    failed_savables = set()
     if objects_to_skip is not None:
-        visited_saveables = set(id(o) for o in objects_to_skip)
+        visited_savables = set(id(o) for o in objects_to_skip)
     else:
-        visited_saveables = set()
+        visited_savables = set()
     error_msgs = {}
     _load_state(
         model,
@@ -564,25 +564,25 @@ def load_weights_only(
         assets_store=None,
         inner_path="",
         skip_mismatch=skip_mismatch,
-        visited_saveables=visited_saveables,
-        failed_saveables=failed_saveables,
+        visited_savables=visited_savables,
+        failed_savables=failed_savables,
         error_msgs=error_msgs,
     )
     weights_store.close()
     if archive:
         archive.close()
 
-    if failed_saveables:
+    if failed_savables:
         _raise_loading_failure(error_msgs, warn_only=skip_mismatch)
 
 
 def _raise_loading_failure(error_msgs, warn_only=False):
     first_key = list(error_msgs.keys())[0]
-    ex_saveable, ex_error = error_msgs[first_key]
+    ex_savable, ex_error = error_msgs[first_key]
     msg = (
         f"A total of {len(error_msgs)} objects could not "
         "be loaded. Example error message for "
-        f"object {ex_saveable}:\n\n"
+        f"object {ex_savable}:\n\n"
         f"{ex_error}\n\n"
         "List of objects that could not be loaded:\n"
         f"{[x[0] for x in error_msgs.values()]}"
@@ -616,30 +616,30 @@ def _name_key(name):
     return name
 
 
-def _walk_saveable(saveable):
-    from keras.src.saving.keras_saveable import KerasSaveable
+def _walk_savable(savable):
+    from keras.src.saving.keras_savable import KerasSaveable
 
-    if not isinstance(saveable, KerasSaveable):
+    if not isinstance(savable, KerasSaveable):
         raise ValueError(
             "Expected object to be an "
             "instance of `KerasSaveable`, but "
-            f"got {saveable} of type {type(saveable)}"
+            f"got {savable} of type {type(savable)}"
         )
 
-    obj_type = saveable._obj_type()
+    obj_type = savable._obj_type()
     attr_skiplist = get_attr_skiplist(obj_type)
 
     # Save all layers directly tracked by Sequential and Functional first.
     # This helps avoid ordering concerns for subclassed Sequential or Functional
     # models with extra attributes--the internal Keras state take precedence.
     if obj_type in ("Sequential", "Functional"):
-        yield "layers", saveable.layers
+        yield "layers", savable.layers
 
-    for child_attr in sorted(dir(saveable), key=lambda x: _name_key(x)):
+    for child_attr in sorted(dir(savable), key=lambda x: _name_key(x)):
         if child_attr.startswith("__") or child_attr in attr_skiplist:
             continue
         try:
-            child_obj = getattr(saveable, child_attr)
+            child_obj = getattr(savable, child_attr)
         except Exception:
             # Avoid raising the exception when visiting the attributes.
             continue
@@ -647,27 +647,27 @@ def _walk_saveable(saveable):
 
 
 def _save_state(
-    saveable,
+    savable,
     weights_store,
     assets_store,
     inner_path,
-    visited_saveables,
+    visited_savables,
 ):
-    from keras.src.saving.keras_saveable import KerasSaveable
+    from keras.src.saving.keras_savable import KerasSaveable
 
-    # If the saveable has already been saved, skip it.
-    if id(saveable) in visited_saveables:
+    # If the savable has already been saved, skip it.
+    if id(savable) in visited_savables:
         return
 
-    if hasattr(saveable, "save_own_variables") and weights_store:
-        saveable.save_own_variables(weights_store.make(inner_path))
-    if hasattr(saveable, "save_assets") and assets_store:
-        saveable.save_assets(assets_store.make(inner_path))
+    if hasattr(savable, "save_own_variables") and weights_store:
+        savable.save_own_variables(weights_store.make(inner_path))
+    if hasattr(savable, "save_assets") and assets_store:
+        savable.save_assets(assets_store.make(inner_path))
 
-    visited_saveables.add(id(saveable))
+    visited_savables.add(id(savable))
 
-    # Recursively save state of children saveables (layers, optimizers, etc.)
-    for child_attr, child_obj in _walk_saveable(saveable):
+    # Recursively save state of children savables (layers, optimizers, etc.)
+    for child_attr, child_obj in _walk_savable(savable):
         if isinstance(child_obj, KerasSaveable):
             _save_state(
                 child_obj,
@@ -676,7 +676,7 @@ def _save_state(
                 inner_path=file_utils.join(inner_path, child_attr).replace(
                     "\\", "/"
                 ),
-                visited_saveables=visited_saveables,
+                visited_savables=visited_savables,
             )
         elif isinstance(child_obj, (list, dict, tuple, set)):
             _save_container_state(
@@ -686,56 +686,56 @@ def _save_state(
                 inner_path=file_utils.join(inner_path, child_attr).replace(
                     "\\", "/"
                 ),
-                visited_saveables=visited_saveables,
+                visited_savables=visited_savables,
             )
 
 
 def _load_state(
-    saveable,
+    savable,
     weights_store,
     assets_store,
     inner_path,
     skip_mismatch=False,
-    visited_saveables=None,
-    failed_saveables=None,
+    visited_savables=None,
+    failed_savables=None,
     error_msgs=None,
 ):
-    from keras.src.saving.keras_saveable import KerasSaveable
+    from keras.src.saving.keras_savable import KerasSaveable
 
-    if visited_saveables and id(saveable) in visited_saveables:
+    if visited_savables and id(savable) in visited_savables:
         return
 
     failure = False
 
-    if hasattr(saveable, "load_own_variables") and weights_store:
-        if skip_mismatch or failed_saveables is not None:
+    if hasattr(savable, "load_own_variables") and weights_store:
+        if skip_mismatch or failed_savables is not None:
             try:
-                saveable.load_own_variables(weights_store.get(inner_path))
+                savable.load_own_variables(weights_store.get(inner_path))
             except Exception as e:
-                failed_saveables.add(id(saveable))
-                error_msgs[id(saveable)] = saveable, e
+                failed_savables.add(id(savable))
+                error_msgs[id(savable)] = savable, e
                 failure = True
         else:
-            saveable.load_own_variables(weights_store.get(inner_path))
+            savable.load_own_variables(weights_store.get(inner_path))
 
-    if hasattr(saveable, "load_assets") and assets_store:
-        if skip_mismatch or failed_saveables is not None:
+    if hasattr(savable, "load_assets") and assets_store:
+        if skip_mismatch or failed_savables is not None:
             try:
-                saveable.load_assets(assets_store.get(inner_path))
+                savable.load_assets(assets_store.get(inner_path))
             except Exception as e:
-                failed_saveables.add(id(saveable))
-                error_msgs[id(saveable)] = saveable, e
+                failed_savables.add(id(savable))
+                error_msgs[id(savable)] = savable, e
                 failure = True
         else:
-            saveable.load_assets(assets_store.get(inner_path))
+            savable.load_assets(assets_store.get(inner_path))
 
-    if failed_saveables is not None:
-        currently_failed = len(failed_saveables)
+    if failed_savables is not None:
+        currently_failed = len(failed_savables)
     else:
         currently_failed = 0
 
-    # Recursively load states for Keras saveables such as layers/optimizers.
-    for child_attr, child_obj in _walk_saveable(saveable):
+    # Recursively load states for Keras savables such as layers/optimizers.
+    for child_attr, child_obj in _walk_savable(savable):
         if isinstance(child_obj, KerasSaveable):
             _load_state(
                 child_obj,
@@ -745,8 +745,8 @@ def _load_state(
                     "\\", "/"
                 ),
                 skip_mismatch=skip_mismatch,
-                visited_saveables=visited_saveables,
-                failed_saveables=failed_saveables,
+                visited_savables=visited_savables,
+                failed_savables=failed_savables,
                 error_msgs=error_msgs,
             )
         elif isinstance(child_obj, (list, dict, tuple, set)):
@@ -758,50 +758,50 @@ def _load_state(
                     "\\", "/"
                 ),
                 skip_mismatch=skip_mismatch,
-                visited_saveables=visited_saveables,
-                failed_saveables=failed_saveables,
+                visited_savables=visited_savables,
+                failed_savables=failed_savables,
                 error_msgs=error_msgs,
             )
 
-    if failed_saveables is not None:
-        newly_failed = len(failed_saveables) - currently_failed
+    if failed_savables is not None:
+        newly_failed = len(failed_savables) - currently_failed
     else:
         newly_failed = 0
 
     if not failure:
-        if visited_saveables is not None and newly_failed <= 0:
-            visited_saveables.add(id(saveable))
-        if id(saveable) in failed_saveables:
-            failed_saveables.remove(id(saveable))
-            error_msgs.pop(id(saveable))
+        if visited_savables is not None and newly_failed <= 0:
+            visited_savables.add(id(savable))
+        if id(savable) in failed_savables:
+            failed_savables.remove(id(savable))
+            error_msgs.pop(id(savable))
 
 
 def _save_container_state(
-    container, weights_store, assets_store, inner_path, visited_saveables
+    container, weights_store, assets_store, inner_path, visited_savables
 ):
-    from keras.src.saving.keras_saveable import KerasSaveable
+    from keras.src.saving.keras_savable import KerasSaveable
 
     used_names = {}
     if isinstance(container, dict):
         container = list(container.values())
 
-    for saveable in container:
-        if isinstance(saveable, KerasSaveable):
-            # Do NOT address the saveable via `saveable.name`, since
+    for savable in container:
+        if isinstance(savable, KerasSaveable):
+            # Do NOT address the savable via `savable.name`, since
             # names are usually autogenerated and thus not reproducible
             # (i.e. they may vary across two instances of the same model).
-            name = naming.to_snake_case(saveable.__class__.__name__)
+            name = naming.to_snake_case(savable.__class__.__name__)
             if name in used_names:
                 used_names[name] += 1
                 name = f"{name}_{used_names[name]}"
             else:
                 used_names[name] = 0
             _save_state(
-                saveable,
+                savable,
                 weights_store,
                 assets_store,
                 inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
-                visited_saveables=visited_saveables,
+                visited_savables=visited_savables,
             )
 
 
@@ -811,32 +811,32 @@ def _load_container_state(
     assets_store,
     inner_path,
     skip_mismatch,
-    visited_saveables,
-    failed_saveables,
+    visited_savables,
+    failed_savables,
     error_msgs,
 ):
-    from keras.src.saving.keras_saveable import KerasSaveable
+    from keras.src.saving.keras_savable import KerasSaveable
 
     used_names = {}
     if isinstance(container, dict):
         container = list(container.values())
 
-    for saveable in container:
-        if isinstance(saveable, KerasSaveable):
-            name = naming.to_snake_case(saveable.__class__.__name__)
+    for savable in container:
+        if isinstance(savable, KerasSaveable):
+            name = naming.to_snake_case(savable.__class__.__name__)
             if name in used_names:
                 used_names[name] += 1
                 name = f"{name}_{used_names[name]}"
             else:
                 used_names[name] = 0
             _load_state(
-                saveable,
+                savable,
                 weights_store,
                 assets_store,
                 inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
                 skip_mismatch=skip_mismatch,
-                visited_saveables=visited_saveables,
-                failed_saveables=failed_saveables,
+                visited_savables=visited_savables,
+                failed_savables=failed_savables,
                 error_msgs=error_msgs,
             )
 
