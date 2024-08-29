@@ -68,8 +68,8 @@ def load_data(label_mode="fine"):
             "85cd44d02ba6437773c5bbd22e183051d648de2e7d6b014e1ef29b855ba677a7"
         ),
     )
-    
-    path = os.path.join(path, 'cifar-100-python')
+
+    path = os.path.join(path, "cifar-100-python")
     fpath = os.path.join(path, "train")
     x_train, y_train = load_batch(fpath, label_key=label_mode + "_labels")
 
