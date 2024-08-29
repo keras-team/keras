@@ -663,7 +663,7 @@ def index_subdirectory(directory, class_indices, follow_links, formats):
 
 
 def get_training_or_validation_split(samples, labels, validation_split, subset):
-    """Potentially restict samples & labels to a training or validation split.
+    """Potentially restrict samples & labels to a training or validation split.
 
     Args:
         samples: List of elements.

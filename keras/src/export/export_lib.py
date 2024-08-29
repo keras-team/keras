@@ -617,7 +617,7 @@ class ExportArchive:
                 "the TF runtime in the same environment will not work. "
                 "To use JAX-native serialization for high-performance export "
                 "and serving, please install `tensorflow-gpu` and ensure "
-                "CUDA version compatiblity between your JAX and TF "
+                "CUDA version compatibility between your JAX and TF "
                 "installations."
             )
             return False

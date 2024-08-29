@@ -3,13 +3,13 @@ from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.saving.keras_savable import KerasSaveable
+from keras.src.saving.keras_savable import KerasSavable
 from keras.src.utils.naming import auto_name
 from keras.src.utils.tracking import Tracker
 
 
 @keras_export(["keras.Metric", "keras.metrics.Metric"])
-class Metric(KerasSaveable):
+class Metric(KerasSavable):
     """Encapsulates metric logic and state.
 
     Args:
