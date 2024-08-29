@@ -51,7 +51,7 @@ PYTHON_DTYPES_MAP = {
     str: "string",
     # special case for string value
     "int": "int64" if config.backend() == "tensorflow" else "int32",
-    complex: "complex64",
+    complex: "complex128" if config.backend() == "tensorflow" else "complex64",
 }
 
 # We adapted the type promotion lattice from JAX. Ref:
@@ -82,10 +82,10 @@ def _type_promotion_lattice():
         f_: [bf, f2],
         bf: [f4],
         f2: [f4],
-        f4: [f8],
-        f8: [],
-        c64: [f_],
-        c128: [c64],
+        f4: [f8, c64],
+        f8: [c128],
+        c64: [c128],
+        c128: [],
     }
     return out
 
@@ -193,6 +193,8 @@ def _respect_weak_type(dtype, weak_type):
             return "float"
         elif "int" in dtype:
             return "int"
+        elif "complex" in dtype:
+            return "complex"
         else:
             raise ValueError(
                 "Invalid value for argument `dtype`. Expected one of "
