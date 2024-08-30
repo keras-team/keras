@@ -2,25 +2,25 @@ from keras.src.layers.layer import Layer
 from keras.src.metrics.metric import Metric
 from keras.src.optimizers.optimizer import Optimizer
 from keras.src.saving import saving_lib
-from keras.src.saving.keras_savable import KerasSavable
+from keras.src.saving.keras_saveable import KerasSavable
 
 
-def map_savable_variables(savable, store, visited_savables):
-    # If the savable has already been seen, skip it.
-    if id(savable) in visited_savables:
+def map_saveable_variables(saveable, store, visited_saveables):
+    # If the saveable has already been seen, skip it.
+    if id(saveable) in visited_saveables:
         return
 
-    visited_savables.add(id(savable))
+    visited_saveables.add(id(saveable))
 
     variables = []
-    if isinstance(savable, Layer):
+    if isinstance(saveable, Layer):
         variables = (
-            savable._trainable_variables + savable._non_trainable_variables
+            saveable._trainable_variables + saveable._non_trainable_variables
         )
-    elif isinstance(savable, Optimizer):
-        variables = savable._variables
-    elif isinstance(savable, Metric):
-        variables = savable._variables
+    elif isinstance(saveable, Optimizer):
+        variables = saveable._variables
+    elif isinstance(saveable, Metric):
+        variables = saveable._variables
     for v in variables:
         if v.path in store:
             raise ValueError(
@@ -32,30 +32,30 @@ def map_savable_variables(savable, store, visited_savables):
             )
         store[v.path] = v
 
-    # Recursively save state of children savables (layers, optimizers, etc.)
-    for child_attr, child_obj in saving_lib._walk_savable(savable):
+    # Recursively save state of children saveables (layers, optimizers, etc.)
+    for child_attr, child_obj in saving_lib._walk_saveable(saveable):
         if isinstance(child_obj, KerasSavable):
-            map_savable_variables(
+            map_saveable_variables(
                 child_obj,
                 store,
-                visited_savables=visited_savables,
+                visited_saveables=visited_saveables,
             )
         elif isinstance(child_obj, (list, dict, tuple, set)):
             map_container_variables(
                 child_obj,
                 store,
-                visited_savables=visited_savables,
+                visited_saveables=visited_saveables,
             )
 
 
-def map_container_variables(container, store, visited_savables):
+def map_container_variables(container, store, visited_saveables):
     if isinstance(container, dict):
         container = list(container.values())
 
-    for savable in container:
-        if isinstance(savable, KerasSavable):
-            map_savable_variables(
-                savable,
+    for saveable in container:
+        if isinstance(saveable, KerasSavable):
+            map_saveable_variables(
+                saveable,
                 store,
-                visited_savables=visited_savables,
+                visited_saveables=visited_saveables,
             )

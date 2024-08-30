@@ -3,7 +3,7 @@ from keras.src import dtype_policies
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
-from keras.src.saving.keras_savable import KerasSavable
+from keras.src.saving.keras_saveable import KerasSavable
 from keras.src.utils.naming import auto_name
 
 
