@@ -1,7 +1,7 @@
 import io
 
 
-class KerasSavable:
+class KerasSaveable:
     # Note: renaming this function will cause old pickles to be broken.
     # This is probably not a huge deal, as pickle should not be a recommended
     # saving format -- it should only be supported for use with distributed
@@ -9,7 +9,7 @@ class KerasSavable:
 
     def _obj_type(self):
         raise NotImplementedError(
-            "KerasSavable subclases must provide an "
+            "KerasSaveable subclases must provide an "
             "implementation for `obj_type()`"
         )
 

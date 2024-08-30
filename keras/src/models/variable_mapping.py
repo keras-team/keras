@@ -2,7 +2,7 @@ from keras.src.layers.layer import Layer
 from keras.src.metrics.metric import Metric
 from keras.src.optimizers.optimizer import Optimizer
 from keras.src.saving import saving_lib
-from keras.src.saving.keras_saveable import KerasSavable
+from keras.src.saving.keras_saveable import KerasSaveable
 
 
 def map_saveable_variables(saveable, store, visited_saveables):
@@ -34,7 +34,7 @@ def map_saveable_variables(saveable, store, visited_saveables):
 
     # Recursively save state of children saveables (layers, optimizers, etc.)
     for child_attr, child_obj in saving_lib._walk_saveable(saveable):
-        if isinstance(child_obj, KerasSavable):
+        if isinstance(child_obj, KerasSaveable):
             map_saveable_variables(
                 child_obj,
                 store,
@@ -53,7 +53,7 @@ def map_container_variables(container, store, visited_saveables):
         container = list(container.values())
 
     for saveable in container:
-        if isinstance(saveable, KerasSavable):
+        if isinstance(saveable, KerasSaveable):
             map_saveable_variables(
                 saveable,
                 store,
