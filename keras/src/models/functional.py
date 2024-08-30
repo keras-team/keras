@@ -163,7 +163,7 @@ class Functional(Function, Model):
         return layers
 
     def call(self, inputs, training=None, mask=None):
-        # Add support for traning, masking
+        # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
             masks = [None] * len(inputs)
@@ -523,7 +523,7 @@ def functional_from_config(cls, config, custom_objects=None):
                 else:
                     del unprocessed_nodes[layer]
 
-    # Create lits of input and output tensors and return new class
+    # Create list of input and output tensors and return new class
     name = config.get("name")
     trainable = config.get("trainable")
 

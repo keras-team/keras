@@ -90,7 +90,7 @@ class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
         adapter = tf_dataset_adapter.TFDatasetAdapter(dataset)
         self.assertEqual(adapter.num_batches, 42)
 
-        # Test for Infiniate Cardinality
+        # Test for Infinite Cardinality
         dataset = tf.data.Dataset.range(42)
         dataset = dataset.repeat()
         cardinality = int(dataset.cardinality())

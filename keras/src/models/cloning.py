@@ -228,7 +228,7 @@ def _wrap_clone_function(
             return cache[id(layer)]
         if recursive:
             if isinstance(layer, Sequential):
-                # Note: Sequential doens't support call_function.
+                # Note: Sequential doesn't support call_function.
                 clone = clone_model(
                     layer,
                     clone_function=clone_function,

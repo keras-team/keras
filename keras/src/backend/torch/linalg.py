@@ -29,7 +29,7 @@ def inv(x):
 
 def lu_factor(x):
     LU, pivots = torch.linalg.lu_factor(x)
-    # torch retuns pivots with 1-based indexing
+    # torch returns pivots with 1-based indexing
     return LU, pivots - 1
 
 

@@ -1,7 +1,7 @@
 class DataAdapter:
     """Base class for input data adapters.
 
-    The purpose of a DataAdapter is to provide a unfied interface to
+    The purpose of a DataAdapter is to provide a unified interface to
     iterate over input data provided in a variety of formats -- such as
     NumPy arrays, tf.Tensors, tf.data.Datasets, Keras PyDatasets, etc.
     """

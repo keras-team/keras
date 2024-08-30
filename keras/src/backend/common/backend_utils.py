@@ -4,7 +4,7 @@ import re
 import warnings
 
 
-def _convert_conv_tranpose_padding_args_from_keras_to_jax(
+def _convert_conv_transpose_padding_args_from_keras_to_jax(
     kernel_size, stride, dilation_rate, padding, output_padding
 ):
     """Convert the padding arguments from Keras to the ones used by JAX.
@@ -45,7 +45,7 @@ def _convert_conv_tranpose_padding_args_from_keras_to_jax(
     return left_pad, right_pad
 
 
-def _convert_conv_tranpose_padding_args_from_keras_to_torch(
+def _convert_conv_transpose_padding_args_from_keras_to_torch(
     kernel_size, stride, dilation_rate, padding, output_padding
 ):
     """Convert the padding arguments from Keras to the ones used by Torch.
@@ -134,7 +134,7 @@ def compute_conv_transpose_padding_args_for_jax(
         (
             pad_left,
             pad_right,
-        ) = _convert_conv_tranpose_padding_args_from_keras_to_jax(
+        ) = _convert_conv_transpose_padding_args_from_keras_to_jax(
             kernel_size=kernel_spatial_shape[i],
             stride=strides_i,
             dilation_rate=dilation_rate_i,
@@ -174,7 +174,7 @@ def compute_conv_transpose_padding_args_for_torch(
         (
             torch_padding,
             torch_output_padding,
-        ) = _convert_conv_tranpose_padding_args_from_keras_to_torch(
+        ) = _convert_conv_transpose_padding_args_from_keras_to_torch(
             kernel_size=kernel_spatial_shape[i],
             stride=strides_i,
             dilation_rate=dilation_rate_i,

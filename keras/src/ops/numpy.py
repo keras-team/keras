@@ -2901,7 +2901,7 @@ class GetItem(Operation):
             if not remaining_shape:
                 raise ValueError(
                     f"Array has shape {x.shape} but slice "
-                    f"has to many indices. Recieved: `{key}`"
+                    f"has to many indices. Received: `{key}`"
                 )
             length = remaining_shape.pop(0)
             if isinstance(subkey, int):
@@ -2921,7 +2921,7 @@ class GetItem(Operation):
                     new_shape.append(length)
             else:
                 raise ValueError(
-                    f"Unsupported key type for array slice. Recieved: `{key}`"
+                    f"Unsupported key type for array slice. Received: `{key}`"
                 )
         return KerasTensor(tuple(new_shape), dtype=x.dtype)
 
