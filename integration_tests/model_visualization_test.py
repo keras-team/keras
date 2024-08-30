@@ -51,7 +51,7 @@ def test_plot_sequential_model():
         show_layer_activations=True,
     )
     assert_file_exists(
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations.png"
+        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations.png"  # noqa: E501
     )
 
     plot_model(
@@ -64,7 +64,7 @@ def test_plot_sequential_model():
         show_trainable=True,
     )
     assert_file_exists(
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png"
+        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png"  # noqa: E501
     )
 
     plot_model(
@@ -78,7 +78,7 @@ def test_plot_sequential_model():
         rankdir="LR",
     )
     assert_file_exists(
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png"
+        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png"  # noqa: E501
     )
 
     plot_model(
