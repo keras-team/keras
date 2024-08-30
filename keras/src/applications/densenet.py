@@ -470,7 +470,7 @@ Args:
             be applied.
     classes: optional number of classes to classify images
         into, only to be specified if `include_top` is `True`, and
-        if no `weights` argument is specified.Default to 1000
+        if no `weights` argument is specified. Defaults to 1000.
     classifier_activation: A `str` or callable.
         The activation function to use
         on the "top" layer. Ignored unless `include_top=True`. Set
