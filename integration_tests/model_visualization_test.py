@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import keras
@@ -7,7 +6,6 @@ from keras.src.utils import plot_model
 
 def assert_file_exists(path):
     assert Path(path).is_file(), "File does not exist"
-    os.remove(path)
 
 
 def test_plot_sequential_model():
