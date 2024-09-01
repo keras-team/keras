@@ -16,58 +16,60 @@ def test_plot_sequential_model():
             keras.layers.Dense(1, activation="sigmoid"),
         ]
     )
+    file_name = "sequential.png"
+    plot_model(model, file_name)
+    assert_file_exists(file_name)
 
-    plot_model(model, "sequential.png")
-    assert_file_exists("sequential.png")
+    file_name = "sequential-show_shapes.png"
+    plot_model(model, file_name, show_shapes=True)
+    assert_file_exists(file_name)
 
-    plot_model(model, "sequential-show_shapes.png", show_shapes=True)
-    assert_file_exists("sequential-show_shapes.png")
-
+    file_name = "sequential-show_shapes-show_dtype.png"
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype.png",
+        file_name,
         show_shapes=True,
         show_dtype=True,
     )
-    assert_file_exists("sequential-show_shapes-show_dtype.png")
+    assert_file_exists(file_name)
 
+    file_name = "sequential-show_shapes-show_dtype-show_layer_names.png"
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype-show_layer_names.png",
+        file_name,
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
     )
-    assert_file_exists("sequential-show_shapes-show_dtype-show_layer_names.png")
+    assert_file_exists(file_name)
 
+    file_name = "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations.png"  # noqa: E501
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations.png",  # noqa: E501
+        file_name,
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
         show_layer_activations=True,
     )
-    assert_file_exists(
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations.png"  # noqa: E501
-    )
+    assert_file_exists(file_name)
 
+    file_name = "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png"  # noqa: E501
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png",  # noqa: E501
+        file_name,
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
         show_layer_activations=True,
         show_trainable=True,
     )
-    assert_file_exists(
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png"  # noqa: E501
-    )
+    assert_file_exists(file_name)
 
+    file_name = "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png"  # noqa: E501
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png",  # noqa: E501
+        file_name,
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -75,17 +77,16 @@ def test_plot_sequential_model():
         show_trainable=True,
         rankdir="LR",
     )
-    assert_file_exists(
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png"  # noqa: E501
-    )
+    assert_file_exists(file_name)
 
+    file_name = "sequential-show_layer_activations-show_trainable.png"
     plot_model(
         model,
-        "sequential-show_layer_activations-show_trainable.png",
+        file_name,
         show_layer_activations=True,
         show_trainable=True,
     )
-    assert_file_exists("sequential-show_layer_activations-show_trainable.png")
+    assert_file_exists(file_name)
 
 
 def plot_functional_model():
@@ -307,7 +308,7 @@ def plot_nested_functional_model():
     )
     plot_model(
         model,
-        "nested-functional-show_layer_activations-show_trainable.png",
+        "nested-functional-show_layer_activations-show_trainable.png",  # noqa: E501
         show_layer_activations=True,
         show_trainable=True,
         expand_nested=True,
