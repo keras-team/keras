@@ -308,7 +308,7 @@ def plot_nested_functional_model():
     )
     plot_model(
         model,
-        "nested-functional-show_layer_activations-show_trainable.png",  # noqa: E501
+        "nested-functional-show_layer_activations-show_trainable.png",
         show_layer_activations=True,
         show_trainable=True,
         expand_nested=True,
