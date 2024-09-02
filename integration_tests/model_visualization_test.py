@@ -1,8 +1,14 @@
+from pathlib import Path
+
 import keras
 from keras.src.utils import plot_model
 
 
-def plot_sequential_model():
+def assert_file_exists(path):
+    assert Path(path).is_file(), "File does not exist"
+
+
+def test_plot_sequential_model():
     model = keras.Sequential(
         [
             keras.Input((3,)),
@@ -10,41 +16,60 @@ def plot_sequential_model():
             keras.layers.Dense(1, activation="sigmoid"),
         ]
     )
-    plot_model(model, "sequential.png")
-    plot_model(model, "sequential-show_shapes.png", show_shapes=True)
+    file_name = "sequential.png"
+    plot_model(model, file_name)
+    assert_file_exists(file_name)
+
+    file_name = "sequential-show_shapes.png"
+    plot_model(model, file_name, show_shapes=True)
+    assert_file_exists(file_name)
+
+    file_name = "sequential-show_shapes-show_dtype.png"
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype.png",
+        file_name,
         show_shapes=True,
         show_dtype=True,
     )
+    assert_file_exists(file_name)
+
+    file_name = "sequential-show_shapes-show_dtype-show_layer_names.png"
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype-show_layer_names.png",
+        file_name,
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
     )
+    assert_file_exists(file_name)
+
+    file_name = "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations.png"  # noqa: E501
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations.png",  # noqa: E501
+        file_name,
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
         show_layer_activations=True,
     )
+    assert_file_exists(file_name)
+
+    file_name = "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png"  # noqa: E501
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png",  # noqa: E501
+        file_name,
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
         show_layer_activations=True,
         show_trainable=True,
     )
+    assert_file_exists(file_name)
+
+    file_name = "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png"  # noqa: E501
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png",  # noqa: E501
+        file_name,
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -52,12 +77,16 @@ def plot_sequential_model():
         show_trainable=True,
         rankdir="LR",
     )
+    assert_file_exists(file_name)
+
+    file_name = "sequential-show_layer_activations-show_trainable.png"
     plot_model(
         model,
-        "sequential-show_layer_activations-show_trainable.png",
+        file_name,
         show_layer_activations=True,
         show_trainable=True,
     )
+    assert_file_exists(file_name)
 
 
 def plot_functional_model():
@@ -329,7 +358,7 @@ def plot_functional_model_with_splits_and_merges():
 
 
 if __name__ == "__main__":
-    plot_sequential_model()
+    test_plot_sequential_model()
     plot_functional_model()
     plot_subclassed_model()
     plot_nested_functional_model()
