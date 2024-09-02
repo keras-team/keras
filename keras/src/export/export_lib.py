@@ -508,7 +508,9 @@ class ExportArchive:
 
         # Print out available endpoints
         endpoints = "\n\n".join(
-            _print_signature(getattr(self._tf_trackable, name), name, verbose=verbose)
+            _print_signature(
+                getattr(self._tf_trackable, name), name, verbose=verbose
+            )
             for name in self._endpoint_names
         )
         io_utils.print_msg(
