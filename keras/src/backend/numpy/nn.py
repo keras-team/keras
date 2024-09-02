@@ -966,6 +966,12 @@ def ctc_decode(
         )
 
 
+def l2_normalize(x, axis=None, epsilon=1e-12):
+    square_sum = np.sum(np.square(x), axis=axis, keepdims=True)
+    x_norm = np.sqrt(np.maximum(square_sum, epsilon))
+    return x / x_norm
+
+
 def psnr(x1, x2, max_val):
     if x1.shape != x2.shape:
         raise ValueError(

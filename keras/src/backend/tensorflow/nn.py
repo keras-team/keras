@@ -898,6 +898,10 @@ def ctc_decode(
     return decoded_dense, scores
 
 
+def l2_normalize(x, axis=None, epsilon=1e-12):
+    return tf.nn.l2_normalize(x, axis=axis, epsilon=epsilon)
+
+
 def psnr(x1, x2, max_val):
     from keras.src.backend.tensorflow.numpy import log10
 

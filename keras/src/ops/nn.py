@@ -2036,6 +2036,53 @@ def _normalize(x, axis=-1, order=2):
     return backend.numpy.divide(x, denom)
 
 
+class L2Normalize(Operation):
+    def __init__(self, axis=None, epsilon=1e-12):
+        super().__init__()
+        self.axis = axis
+        self.epsilon = epsilon
+
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape)
+
+    def call(self, x):
+        return backend.nn.l2_normalize(x, axis=self.axis, epsilon=self.epsilon)
+
+
+@keras_export(
+    [
+        "keras.ops.l2_normalize",
+        "keras.ops.nn.l2_normalize",
+    ]
+)
+def l2_normalize(x, axis=None, epsilon=1e-12):
+    """Normalizes along dimension `axis` using an L2 norm.
+
+    It is defined as: `l2_normalize(x) = x / sqrt(max(sum(x**2), epsilon))`.
+
+    Args:
+        x: Input tensor.
+        axis: The axis or axes along which to perform normalization.
+            Default to -1.
+        epsilon: A lower bound value for the norm. Will use `sqrt(epsilon)`
+            as the divisor if `norm < sqrt(epsilon)`. Defaults to 1e-12.
+
+    Returns:
+        The normalized array.
+
+    Example:
+
+    >>> x = keras.ops.convert_to_tensor([[1, 2, 3], [4, 5, 6]])
+    >>> x_norm = keras.ops.nn.l2_normalize(x)
+    >>> print(x_norm)
+    array([[0.10482848, 0.20965695, 0.31448543],
+           [0.4193139 , 0.5241424 , 0.62897086]], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return L2Normalize(axis=axis, epsilon=epsilon).symbolic_call(x)
+    return backend.nn.l2_normalize(x, axis=axis, epsilon=epsilon)
+
+
 class PSNR(Operation):
     def __init__(
         self,

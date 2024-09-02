@@ -666,6 +666,10 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.normalize(x).shape, (None, 2, 3))
 
+    def test_l2_normalize(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.l2_normalize(x).shape, (None, 2, 3))
+
     def test_psnr(self):
         x1 = KerasTensor([None, 2, 3])
         x2 = KerasTensor([None, 5, 6])
@@ -1131,6 +1135,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
     def test_normalize(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.normalize(x).shape, (1, 2, 3))
+
+    def test_l2_normalize(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.l2_normalize(x).shape, (1, 2, 3))
 
     def test_psnr(self):
         x1 = KerasTensor([1, 2, 3])
@@ -2107,6 +2115,37 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             [
                 [0.30285344, 0.6057069, 0.9085603],
                 [0.30285344, 0.6057069, 0.9085603],
+            ],
+        )
+
+    def test_l2_normalize(self):
+        x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
+        self.assertAllClose(
+            knn.l2_normalize(x, axis=None),
+            [
+                [0.18898225, 0.3779645, 0.56694674],
+                [0.18898225, 0.3779645, 0.56694674],
+            ],
+        )
+        self.assertAllClose(
+            knn.l2_normalize(x, axis=0),
+            [
+                [0.70710677, 0.70710677, 0.7071068],
+                [0.70710677, 0.70710677, 0.7071068],
+            ],
+        )
+        self.assertAllClose(
+            knn.l2_normalize(x, axis=-1),
+            [
+                [0.26726124, 0.5345225, 0.8017837],
+                [0.26726124, 0.5345225, 0.8017837],
+            ],
+        )
+        self.assertAllClose(
+            knn.l2_normalize(x, epsilon=1e-6),
+            [
+                [0.18898225, 0.3779645, 0.56694674],
+                [0.18898225, 0.3779645, 0.56694674],
             ],
         )
 
