@@ -358,6 +358,7 @@ def plot_functional_model_with_splits_and_merges():
 
 
 if __name__ == "__main__":
+    test_plot_sequential_model()
     plot_functional_model()
     plot_subclassed_model()
     plot_nested_functional_model()
