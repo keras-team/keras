@@ -508,7 +508,7 @@ class ExportArchive:
 
         # Print out available endpoints
         endpoints = "\n\n".join(
-            _print_signature(getattr(self._tf_trackable, name), name, verbose)
+            _print_signature(getattr(self._tf_trackable, name), name, verbose=verbose)
             for name in self._endpoint_names
         )
         io_utils.print_msg(
@@ -643,7 +643,7 @@ def export_model(model, filepath, verbose=True):
                 "It must be called at least once before export."
             )
         export_archive.add_endpoint("serve", model.__call__, input_signature)
-    export_archive.write_out(filepath, verbose)
+    export_archive.write_out(filepath, verbose=verbose)
 
 
 def _get_input_signature(model):
