@@ -899,6 +899,7 @@ def ctc_decode(
 
 
 def l2_normalize(x, axis=None, epsilon=1e-12):
+    x = convert_to_tensor(x)
     return tf.nn.l2_normalize(x, axis=axis, epsilon=epsilon)
 
 

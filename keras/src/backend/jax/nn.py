@@ -932,6 +932,7 @@ def ctc_decode(
 
 
 def l2_normalize(x, axis=None, epsilon=1e-12):
+    x = convert_to_tensor(x)
     square_sum = jnp.sum(jnp.square(x), axis=axis, keepdims=True)
     x_inv_norm = lax.rsqrt(jnp.maximum(square_sum, epsilon))
     return x * x_inv_norm

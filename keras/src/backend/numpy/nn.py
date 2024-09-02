@@ -6,6 +6,7 @@ from keras.src import backend
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
+from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
 from keras.src.backend.numpy.core import cast
 from keras.src.backend.numpy.core import convert_to_tensor
 from keras.src.backend.numpy.core import is_tensor
@@ -967,6 +968,8 @@ def ctc_decode(
 
 
 def l2_normalize(x, axis=None, epsilon=1e-12):
+    x = convert_to_tensor(x)
+    axis = standardize_axis_for_numpy(axis)
     square_sum = np.sum(np.square(x), axis=axis, keepdims=True)
     x_norm = np.sqrt(np.maximum(square_sum, epsilon))
     return x / x_norm
