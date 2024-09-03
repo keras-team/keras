@@ -22,6 +22,7 @@ class AlphaDropoutTest(testing.TestCase):
             expected_num_seed_generators=1,
             expected_num_losses=0,
             supports_masking=True,
+            assert_built_after_instantiation=True,
         )
 
     def test_alpha_dropout_correctness(self):

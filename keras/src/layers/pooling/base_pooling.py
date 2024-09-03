@@ -34,6 +34,7 @@ class BasePooling(Layer):
         self.data_format = backend.standardize_data_format(data_format)
 
         self.input_spec = InputSpec(ndim=pool_dimensions + 2)
+        self.built = True
 
     def call(self, inputs):
         if self.pool_mode == "max":

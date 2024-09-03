@@ -495,10 +495,10 @@ def switch(index, branches, *operands):
     Examples:
 
     >>> add_fn = lambda x, y: x + y
-    >>> substract_fn = lambda x, y: x - y
+    >>> subtract_fn = lambda x, y: x - y
     >>> x = keras.ops.array(2.0)
     >>> y = keras.ops.array(0.5)
-    >>> branches = [add_fn, substract_fn]
+    >>> branches = [add_fn, subtract_fn]
     >>> keras.ops.switch(0, branches, x, y)
     2.5
 

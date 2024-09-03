@@ -324,17 +324,18 @@ def EfficientNet(
     x = img_input
     x = layers.Rescaling(1.0 / 255.0)(x)
     x = layers.Normalization(axis=bn_axis)(x)
-    # if weights == "imagenet":
-    #     # Note that the normaliztion layer uses square value of STDDEV as the
-    #     # variance for the layer: result = (input - mean) / sqrt(var)
-    #     # However, the original implemenetation uses (input - mean) / var to
-    #     # normalize the input, we need to divide another sqrt(var) to match the
-    #     # original implementation.
-    #     # See https://github.com/tensorflow/tensorflow/issues/49930 for more
-    #     # details
-    #     x = layers.Rescaling(
-    #         [1.0 / math.sqrt(stddev) for stddev in IMAGENET_STDDEV_RGB]
-    #     )(x)
+
+    if weights == "imagenet":
+        # Note that the normalization layer uses square value of STDDEV as the
+        # variance for the layer: result = (input - mean) / sqrt(var)
+        # However, the original implementation uses (input - mean) / var to
+        # normalize the input, we need to divide another sqrt(var) to match the
+        # original implementation.
+        # See https://github.com/tensorflow/tensorflow/issues/49930 for more
+        # details
+        x = layers.Rescaling(
+            [1.0 / math.sqrt(stddev) for stddev in IMAGENET_STDDEV_RGB]
+        )(x)
 
     x = layers.ZeroPadding2D(
         padding=imagenet_utils.correct_pad(x, 3), name="stem_conv_pad"

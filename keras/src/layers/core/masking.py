@@ -45,8 +45,9 @@ class Masking(Layer):
 
     def __init__(self, mask_value=0.0, **kwargs):
         super().__init__(**kwargs)
-        self.supports_masking = True
         self.mask_value = mask_value
+        self.supports_masking = True
+        self.built = True
 
     def compute_mask(self, inputs, mask=None):
         return ops.any(ops.not_equal(inputs, self.mask_value), axis=-1)

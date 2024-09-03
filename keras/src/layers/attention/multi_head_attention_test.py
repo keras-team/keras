@@ -94,7 +94,7 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         ("without_key_same_proj", (4, 8), (2, 8), None, None),
         ("with_key_same_proj", (4, 8), (2, 8), (2, 3), None),
-        ("wihtout_key_different_proj", (4, 8), (2, 8), None, (3, 4)),
+        ("without_key_different_proj", (4, 8), (2, 8), None, (3, 4)),
         ("with_key_different_proj", (4, 8), (2, 8), (2, 3), (1, 5)),
         ("high_dim_same_proj", (4, 2, 3, 8), (1, 1, 5, 8), (1, 1, 5, 2), None),
         (

@@ -25,7 +25,7 @@ TEST_PARAMETERS = [
         "np_op": np.add,
     },
     {
-        "testcase_name": "substract",
+        "testcase_name": "subtract",
         "layer_class": layers.Subtract,
         "np_op": np.subtract,
     },

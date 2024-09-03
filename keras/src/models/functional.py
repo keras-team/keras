@@ -163,12 +163,12 @@ class Functional(Function, Model):
         return layers
 
     def call(self, inputs, training=None, mask=None):
-        # Add support for traning, masking
+        # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
             masks = [None] * len(inputs)
         else:
-            masks = self._flatten_to_reference_inputs(mask)
+            masks = tree.flatten(mask)
             for x, mask in zip(inputs, masks):
                 if mask is not None:
                     x._keras_mask = mask
@@ -205,8 +205,21 @@ class Functional(Function, Model):
     def _assert_input_compatibility(self, *args):
         return super(Model, self)._assert_input_compatibility(*args)
 
-    def _flatten_to_reference_inputs(self, inputs):
-        return tree.flatten(inputs)
+    def _maybe_warn_inputs_struct_mismatch(self, inputs):
+        try:
+            tree.assert_same_structure(
+                inputs, self._inputs_struct, check_types=False
+            )
+        except:
+            model_inputs_struct = tree.map_structure(
+                lambda x: x.name, self._inputs_struct
+            )
+            inputs_struct = tree.map_structure(lambda x: "*", inputs)
+            warnings.warn(
+                "The structure of `inputs` doesn't match the expected "
+                f"structure: {model_inputs_struct}. "
+                f"Received: the structure of inputs={inputs_struct}"
+            )
 
     def _convert_inputs_to_tensors(self, flat_inputs):
         converted = []
@@ -254,7 +267,8 @@ class Functional(Function, Model):
         return adjusted
 
     def _standardize_inputs(self, inputs):
-        flat_inputs = self._flatten_to_reference_inputs(inputs)
+        self._maybe_warn_inputs_struct_mismatch(inputs)
+        flat_inputs = tree.flatten(inputs)
         flat_inputs = self._convert_inputs_to_tensors(flat_inputs)
         return self._adjust_input_rank(flat_inputs)
 
@@ -509,7 +523,7 @@ def functional_from_config(cls, config, custom_objects=None):
                 else:
                     del unprocessed_nodes[layer]
 
-    # Create lits of input and output tensors and return new class
+    # Create list of input and output tensors and return new class
     name = config.get("name")
     trainable = config.get("trainable")
 
