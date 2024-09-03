@@ -58,6 +58,10 @@ def subtract(x1, x2):
     return torch.subtract(x1, x2)
 
 
+def squared_difference(x1, x2):
+    return square(subtract(x1, x2))
+
+
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

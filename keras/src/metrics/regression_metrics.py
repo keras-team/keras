@@ -244,7 +244,7 @@ class RootMeanSquaredError(reduction_metrics.Mean):
         y_true = ops.convert_to_tensor(y_true, self._dtype)
         y_pred = ops.convert_to_tensor(y_pred, self._dtype)
         y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
-        error_sq = ops.square(y_pred - y_true)
+        error_sq = ops.squared_difference(y_pred, y_true)
         return super().update_state(error_sq, sample_weight=sample_weight)
 
     def result(self):
@@ -523,7 +523,8 @@ class R2Score(reduction_metrics.Metric):
         self.total_mse.assign(
             self.total_mse
             + ops.sum(
-                (y_true - y_pred) ** 2 * ops.cast(sample_weight, y_true.dtype),
+                ops.squared_difference(y_true, y_pred)
+                * ops.cast(sample_weight, y_true.dtype),
                 axis=0,
             )
         )

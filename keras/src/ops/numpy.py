@@ -5768,6 +5768,42 @@ def subtract(x1, x2):
     return backend.numpy.subtract(x1, x2)
 
 
+class SquaredDifference(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.squared_difference(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
+        output_sparse = x1_sparse and x2_sparse
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        return KerasTensor(output_shape, dtype=dtype, sparse=output_sparse)
+
+
+@keras_export(
+    ["keras.ops.squared_difference", "keras.ops.numpy.squared_difference"]
+)
+def squared_difference(x1, x2):
+    """Return the element-wise square of arguments difference.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor.
+
+    Returns:
+        Output tensor, element-wise squared difference of `x1` and `x2`.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return SquaredDifference().symbolic_call(x1, x2)
+    return backend.numpy.squared_difference(x1, x2)
+
+
 class Multiply(Operation):
     def call(self, x1, x2):
         return backend.numpy.multiply(x1, x2)

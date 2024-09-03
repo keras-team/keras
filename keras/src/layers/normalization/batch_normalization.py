@@ -332,8 +332,7 @@ class BatchNormalization(Layer):
         )
         mean = weighted_input_sum / (sum_of_weights + backend.config.epsilon())
 
-        difference = weighted_inputs - mean
-        squared_difference = ops.square(difference)
+        squared_difference = ops.squared_difference(weighted_inputs, mean)
         weighted_distsq = ops.sum(
             mask_weights_broadcasted * squared_difference,
             self._reduction_axes,

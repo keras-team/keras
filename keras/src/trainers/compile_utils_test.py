@@ -218,7 +218,7 @@ class TestCompileMetrics(testing.TestCase):
 
     def test_custom_metric_function(self):
         def my_custom_metric(y_true, y_pred):
-            return ops.mean(ops.square(y_true - y_pred), axis=-1)
+            return ops.mean(ops.squared_difference(y_true, y_pred), axis=-1)
 
         compile_metrics = CompileMetrics(
             metrics=[my_custom_metric],

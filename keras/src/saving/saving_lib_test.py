@@ -158,7 +158,7 @@ class SubclassFunctional(keras.Model):
 @keras.saving.register_keras_serializable(package="my_custom_package")
 def my_mean_squared_error(y_true, y_pred):
     """Identical to built-in `mean_squared_error`, but as a custom fn."""
-    return ops.mean(ops.square(y_pred - y_true), axis=-1)
+    return ops.mean(ops.squared_difference(y_pred, y_true), axis=-1)
 
 
 def _get_subclassed_model(compile=True):

@@ -30,6 +30,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.subtract(x, y).shape, (2, 3))
 
+    def test_squared_difference(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.squared_difference(x, y).shape, (2, 3))
+
     def test_multiply(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -439,6 +444,19 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.subtract(x, y)
+
+    def test_squared_difference(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.squared_difference(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.squared_difference(x, 2).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
+            knp.squared_difference(x, y)
 
     def test_multiply(self):
         x = KerasTensor((2, 3))
@@ -2108,6 +2126,24 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         self.assertAllClose(knp.Subtract()(x, y), np.subtract(x, y))
         self.assertAllClose(knp.Subtract()(x, z), np.subtract(x, z))
+
+    def test_squared_difference(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        z = np.array([[[1, 2, 3], [3, 2, 1]]])
+        self.assertAllClose(
+            knp.squared_difference(x, y), np.subtract(x, y) ** 2
+        )
+        self.assertAllClose(
+            knp.squared_difference(x, z), np.subtract(x, z) ** 2
+        )
+
+        self.assertAllClose(
+            knp.SquaredDifference()(x, y), np.subtract(x, y) ** 2
+        )
+        self.assertAllClose(
+            knp.SquaredDifference()(x, z), np.subtract(x, z) ** 2
+        )
 
     def test_multiply(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -5339,6 +5375,76 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             )
             self.assertEqual(
                 knp.Subtract().symbolic_call(x, 1.0).dtype, expected_dtype
+            )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_squared_difference(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        if dtype1 == "bool" and dtype2 == "bool":
+            self.skipTest("subtract does not support bool")
+
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.subtract(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.squared_difference(x1, x2).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            knp.SquaredDifference().symbolic_call(x1, x2).dtype, expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_squared_difference_python_types(self, dtype):
+        import jax.experimental
+        import jax.numpy as jnp
+
+        # We have to disable x64 for jax since jnp.subtract doesn't respect
+        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
+        # the expected dtype from 64 bit to 32 bit when using jax backend.
+        with jax.experimental.disable_x64():
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
+
+            # python int
+            expected_dtype = standardize_dtype(jnp.subtract(x_jax, 1).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            elif dtype == "int64":
+                expected_dtype = "int64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.squared_difference(x, 1).dtype),
+                expected_dtype,
+            )
+            self.assertEqual(
+                knp.SquaredDifference().symbolic_call(x, 1).dtype,
+                expected_dtype,
+            )
+
+            # python float
+            expected_dtype = standardize_dtype(jnp.subtract(x_jax, 1.0).dtype)
+            if dtype == "float64":
+                expected_dtype = "float64"
+            if backend.backend() == "jax":
+                expected_dtype = expected_dtype.replace("64", "32")
+
+            self.assertEqual(
+                standardize_dtype(knp.squared_difference(x, 1.0).dtype),
+                expected_dtype,
+            )
+            self.assertEqual(
+                knp.SquaredDifference().symbolic_call(x, 1.0).dtype,
+                expected_dtype,
             )
 
     @parameterized.named_parameters(

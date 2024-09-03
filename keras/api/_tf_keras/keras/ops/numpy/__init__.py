@@ -132,6 +132,7 @@ from keras.src.ops.numpy import sort
 from keras.src.ops.numpy import split
 from keras.src.ops.numpy import sqrt
 from keras.src.ops.numpy import square
+from keras.src.ops.numpy import squared_difference
 from keras.src.ops.numpy import squeeze
 from keras.src.ops.numpy import stack
 from keras.src.ops.numpy import std

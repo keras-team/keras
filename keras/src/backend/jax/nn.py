@@ -932,6 +932,8 @@ def ctc_decode(
 
 
 def psnr(x1, x2, max_val):
+    from keras.src.backend.jax.numpy import squared_difference
+
     if x1.shape != x2.shape:
         raise ValueError(
             f"Input shapes {x1.shape} and {x2.shape} must "
@@ -939,6 +941,6 @@ def psnr(x1, x2, max_val):
         )
 
     max_val = convert_to_tensor(max_val, dtype=x2.dtype)
-    mse = jnp.mean(jnp.square(x1 - x2))
+    mse = jnp.mean(squared_difference(x1, x2))
     psnr = 20 * jnp.log10(max_val) - 10 * jnp.log10(mse)
     return psnr

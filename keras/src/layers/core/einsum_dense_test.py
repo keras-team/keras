@@ -402,7 +402,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
 
         # Try eager call and verify output correctness
         y_quantized = layer(x)
-        mse = ops.mean(ops.square(y_float - y_quantized))
+        mse = ops.mean(ops.squared_difference(y_float, y_quantized))
         self.assertLess(mse, 1e-3)  # A weak correctness test
 
         # Try saving and reloading the model
@@ -480,7 +480,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
 
         layer.quantize("int8")
         y_quantized = layer(x)
-        mse = ops.mean(ops.square(y_float - y_quantized))
+        mse = ops.mean(ops.squared_difference(y_float, y_quantized))
         self.assertLess(mse, 1e-3)  # A weak correctness test
 
     @parameterized.named_parameters(

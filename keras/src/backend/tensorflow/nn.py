@@ -900,6 +900,7 @@ def ctc_decode(
 
 def psnr(x1, x2, max_val):
     from keras.src.backend.tensorflow.numpy import log10
+    from keras.src.backend.tensorflow.numpy import squared_difference
 
     if x1.shape != x2.shape:
         raise ValueError(
@@ -908,6 +909,6 @@ def psnr(x1, x2, max_val):
         )
 
     max_val = convert_to_tensor(max_val, dtype=x2.dtype)
-    mse = tf.reduce_mean(tf.square(x1 - x2))
+    mse = tf.reduce_mean(squared_difference(x1, x2))
     psnr = 20 * log10(max_val) - 10 * log10(mse)
     return psnr

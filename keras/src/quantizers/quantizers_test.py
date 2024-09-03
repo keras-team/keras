@@ -31,7 +31,7 @@ class QuantizersTest(testing.TestCase):
         # Test dequantizing
         dequantized_values = ops.divide(quantized_values, scale)
         rmse = ops.sqrt(
-            ops.mean(ops.square(ops.subtract(values, dequantized_values)))
+            ops.mean(ops.squared_difference(values, dequantized_values))
         )
         self.assertLess(rmse, 1e-1)  # loose assertion
 

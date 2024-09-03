@@ -839,6 +839,8 @@ def ctc_decode(
 
 
 def psnr(x1, x2, max_val):
+    from keras.src.backend.torch.numpy import squared_difference
+
     if x1.shape != x2.shape:
         raise ValueError(
             f"Input shapes {x1.shape} and {x2.shape} must "
@@ -850,6 +852,6 @@ def psnr(x1, x2, max_val):
         convert_to_tensor(x2),
     )
     max_val = convert_to_tensor(max_val, dtype=x1.dtype)
-    mse = torch.mean((x1 - x2) ** 2)
+    mse = torch.mean(squared_difference(x1, x2))
     psnr = 20 * torch.log10(max_val) - 10 * torch.log10(mse)
     return psnr

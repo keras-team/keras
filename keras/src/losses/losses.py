@@ -1300,7 +1300,7 @@ def mean_squared_error(y_true, y_pred):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
-    return ops.mean(ops.square(y_true - y_pred), axis=-1)
+    return ops.mean(ops.squared_difference(y_true, y_pred), axis=-1)
 
 
 @keras_export(
@@ -1430,7 +1430,7 @@ def mean_squared_logarithmic_error(y_true, y_pred):
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     first_log = ops.log(ops.maximum(y_pred, epsilon) + 1.0)
     second_log = ops.log(ops.maximum(y_true, epsilon) + 1.0)
-    return ops.mean(ops.square(first_log - second_log), axis=-1)
+    return ops.mean(ops.squared_difference(first_log, second_log), axis=-1)
 
 
 @keras_export("keras.losses.cosine_similarity")

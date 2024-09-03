@@ -346,6 +346,23 @@ def subtract(x1, x2):
     return tf.subtract(x1, x2)
 
 
+@sparse.elementwise_binary_union(sparse.sparse_subtract)
+def squared_difference(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
+    if dtype in {"bfloat16", "float16", "float32", "float64", "int32", "int64"}:
+        return tf.math.squared_difference(x1, x2)
+    return square(subtract(x1, x2))
+
+
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

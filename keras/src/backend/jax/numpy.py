@@ -90,6 +90,11 @@ def subtract(x1, x2):
     return jnp.subtract(x1, x2)
 
 
+@sparse.elementwise_binary_union(linear=True, use_sparsify=True)
+def squared_difference(x1, x2):
+    return square(subtract(x1, x2))
+
+
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
