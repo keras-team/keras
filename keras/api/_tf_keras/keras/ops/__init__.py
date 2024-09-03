@@ -172,6 +172,7 @@ from keras.src.ops.numpy import log1p
 from keras.src.ops.numpy import log2
 from keras.src.ops.numpy import log10
 from keras.src.ops.numpy import logaddexp
+from keras.src.ops.numpy import logdet
 from keras.src.ops.numpy import logical_and
 from keras.src.ops.numpy import logical_not
 from keras.src.ops.numpy import logical_or

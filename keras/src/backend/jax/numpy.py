@@ -1236,5 +1236,12 @@ def slogdet(x):
     return tuple(jnp.linalg.slogdet(x))
 
 
+def logdet(x):
+    # In JAX (like in NumPy) slogdet is more stable than
+    # `np.log(np.linalg.det(x))`. See
+    # https://numpy.org/doc/stable/reference/generated/numpy.linalg.slogdet.html
+    return slogdet(x)[1]
+
+
 def argpartition(x, kth, axis=-1):
     return jnp.argpartition(x, kth, axis)

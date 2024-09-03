@@ -1679,6 +1679,11 @@ def slogdet(x):
     return tuple(torch.linalg.slogdet(x))
 
 
+def logdet(x):
+    x = convert_to_tensor(x)
+    return torch.logdet(x)
+
+
 def argpartition(x, kth, axis=-1):
     x = convert_to_tensor(x, "int32")
     x = torch.transpose(x, axis, -1)

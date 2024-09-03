@@ -1167,5 +1167,11 @@ def slogdet(x):
     return tuple(np.linalg.slogdet(x))
 
 
+def logdet(x):
+    # In NumPy slogdet is more stable than `np.log(np.linalg.det(x))`. See
+    # https://numpy.org/doc/stable/reference/generated/numpy.linalg.slogdet.html
+    return slogdet(x)[1]
+
+
 def argpartition(x, kth, axis=-1):
     return np.argpartition(x, kth, axis).astype("int32")
