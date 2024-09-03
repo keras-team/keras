@@ -802,6 +802,67 @@ def cast(x, dtype):
     return backend.core.cast(x, dtype)
 
 
+class SaturateCast(Operation):
+    def __init__(self, dtype):
+        super().__init__()
+        self.dtype = backend.standardize_dtype(dtype)
+
+    def call(self, x):
+        return _saturate_cast(x, self.dtype)
+
+    def compute_output_spec(self, x):
+        return backend.KerasTensor(shape=x.shape, dtype=self.dtype)
+
+
+@keras_export("keras.ops.saturate_cast")
+def saturate_cast(x, dtype):
+    """Performs a safe saturating cast to the desired dtype.
+
+    Args:
+        x: A tensor or variable.
+        dtype: The target type.
+
+    Returns:
+        A safely casted tensor of the specified `dtype`.
+
+    Example:
+
+    >>> x = keras.ops.arange(-258, 259)
+    >>> x = keras.ops.saturate_cast(x, dtype="uint8")
+    """
+    dtype = backend.standardize_dtype(dtype)
+
+    if any_symbolic_tensors((x,)):
+        return SaturateCast(dtype=dtype)(x)
+    return _saturate_cast(x, dtype)
+
+
+def _saturate_cast(x, dtype):
+    dtype = backend.standardize_dtype(dtype)
+    in_dtype = backend.standardize_dtype(x.dtype)
+    in_info = np.iinfo(in_dtype) if "int" in in_dtype else np.finfo(in_dtype)
+    out_info = np.iinfo(dtype) if "int" in dtype else np.finfo(dtype)
+
+    # The output min/max may not actually be representable in the
+    # in_dtype (e.g. casting float32 to uint32).  This can lead to undefined
+    # behavior when trying to cast a value outside the valid range of the
+    # target type. We work around this by nudging the min/max to fall within
+    # the valid output range. The catch is that we may actually saturate
+    # to a value less than the true saturation limit, but this is the best we
+    # can do in order to avoid UB without backend op.
+    min_limit = np.maximum(in_info.min, out_info.min).astype(in_dtype)
+    if min_limit < out_info.min:
+        min_limit = np.nextafter(min_limit, 0, dtype=in_dtype)
+    max_limit = np.minimum(in_info.max, out_info.max).astype(in_dtype)
+    if max_limit > out_info.max:
+        max_limit = np.nextafter(max_limit, 0, dtype=in_dtype)
+
+    # Unconditionally apply `clip` to fix `inf` behavior.
+    x = backend.numpy.clip(x, min_limit, max_limit)
+
+    return cast(x, dtype)
+
+
 @keras_export("keras.ops.convert_to_tensor")
 def convert_to_tensor(x, dtype=None, sparse=None):
     """Convert a NumPy array to a tensor.
