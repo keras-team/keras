@@ -227,6 +227,12 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(type(y), list)
         model.summary()
 
+    def test_nested_sequential(self):
+        # https://github.com/keras-team/keras/issues/20203
+        model = Sequential()
+        model.add(Input(shape=(16,)))
+        Sequential([model])
+
     def test_errors(self):
         # Trying to pass 2 Inputs
         model = Sequential()
