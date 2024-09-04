@@ -30,6 +30,11 @@ class Trainer:
             "training" in inspect.signature(self.compute_loss).parameters
         )
 
+        # Placeholders used in `compile`
+        self._compile_loss = None
+        self._compile_metrics = None
+        self._loss_tracker = None
+
     @traceback_utils.filter_traceback
     @tracking.no_automatic_dependency_tracking
     def compile(
@@ -155,14 +160,10 @@ class Trainer:
                 loss, loss_weights, output_names=output_names
             )
             self.loss = loss
-        else:
-            self._compile_loss = None
         if metrics is not None or weighted_metrics is not None:
             self._compile_metrics = CompileMetrics(
                 metrics, weighted_metrics, output_names=output_names
             )
-        else:
-            self._compile_metrics = None
         if jit_compile == "auto":
             if run_eagerly:
                 jit_compile = False
@@ -258,7 +259,7 @@ class Trainer:
             if self._compile_loss is not None:
                 metrics.extend(self._compile_loss.metrics)
         metrics.extend(self._metrics)
-        for layer in self._layers:
+        for layer in self._flatten_layers(include_self=False):
             if isinstance(layer, Trainer):
                 # All Trainer-related metrics in sublayers should be ignored
                 # because a new Trainer has been instantiated.
@@ -276,17 +277,13 @@ class Trainer:
 
     def _get_own_metrics(self):
         metrics = []
-        if hasattr(self, "_loss_tracker"):
+        if self._loss_tracker is not None:
             metrics.append(self._loss_tracker)
-        if (
-            hasattr(self, "_compile_metrics")
-            and self._compile_metrics is not None
-        ):
+        if self._compile_metrics is not None:
             metrics.append(self._compile_metrics)
-        if hasattr(self, "_compile_loss") and self._compile_loss is not None:
+        if self._compile_loss is not None:
             metrics.extend(self._compile_loss.metrics)
-        if hasattr(self, "_metrics"):
-            metrics.extend(self._metrics)
+        metrics.extend(self._metrics)
         return metrics
 
     def _clear_previous_trainer_metrics(self):
@@ -300,8 +297,9 @@ class Trainer:
                 layer._tracker.untrack(m)
             layer._loss_tracker = None
             layer._compile_metrics = None
-            layer._compile_loss._metrics = []
-            layer._metrics = []
+            if layer._compile_loss is not None:
+                layer._compile_loss._metrics.clear()
+            layer._metrics.clear()
 
     def compute_loss(
         self,

@@ -227,7 +227,6 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(len(model_weighted.metrics), 3)
 
-    @pytest.mark.requires_trainable_backend
     def test_nested_trainer_metrics(self):
         # https://github.com/keras-team/keras/issues/20188
         model = ExampleModel(units=3)
@@ -239,6 +238,23 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertLen(model.metrics, 2)
         self.assertEqual(model.metrics[0], model._loss_tracker)
         self.assertEqual(model.metrics[1], model._compile_metrics)
+
+        inputs = keras.Input((4,))
+        outputs = model(inputs)
+        outputs = layers.Dense(8)(outputs)
+        new_model = models.Model(inputs, outputs)
+        new_model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+        )
+        self.assertLen(new_model.metrics, 2)
+        self.assertEqual(new_model.metrics[0], new_model._loss_tracker)
+        self.assertEqual(new_model.metrics[1], new_model._compile_metrics)
+
+    def test_nested_trainer_metrics_without_compile(self):
+        model = ExampleModel(units=3)
+        self.assertLen(model.metrics, 0)
 
         inputs = keras.Input((4,))
         outputs = model(inputs)
