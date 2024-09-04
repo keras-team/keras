@@ -2040,8 +2040,14 @@ def _normalize(x, axis=-1, order=2, epsilon=None):
     if epsilon is None:
         epsilon = backend.epsilon()
     if 2 == order:
-        # A special case with `x * rsqrt(...)` instead of `x / sqrt(...)`
-        return backend.nn.l2_normalize(x, axis=axis, epsilon=epsilon)
+        # A special case: L2 normalization with `x * rsqrt(...)`
+        # instead of `x / sqrt(...)`
+        square_sum = backend.numpy.sum(
+            backend.numpy.square(x), axis=axis, keepdims=True
+        )
+        inv_norm = backend.math.rsqrt(square_sum)
+        inv_norm = backend.numpy.maximum(inv_norm, epsilon)
+        return x * inv_norm
     norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
     denom = backend.numpy.maximum(norm, epsilon)
     return backend.numpy.divide(x, denom)

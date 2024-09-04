@@ -838,11 +838,6 @@ def ctc_decode(
         )
 
 
-def l2_normalize(x, axis=None, epsilon=1e-12):
-    x = convert_to_tensor(x)
-    return tnn.normalize(x, p=2.0, dim=axis, eps=epsilon)
-
-
 def psnr(x1, x2, max_val):
     if x1.shape != x2.shape:
         raise ValueError(
