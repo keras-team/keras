@@ -359,3 +359,16 @@ class SequentialTest(testing.TestCase):
         layer = Sequential([layers.Dense(4), layers.Dense(8)])
         output_shape = layer.compute_output_shape((1, 2))
         self.assertEqual(output_shape, (1, 8))
+
+    def test_hasattr(self):
+        model = Sequential()
+        self.assertFalse(hasattr(model, "input_shape"))
+        self.assertFalse(hasattr(model, "output_shape"))
+        self.assertFalse(hasattr(model, "inputs"))
+        self.assertFalse(hasattr(model, "outputs"))
+
+        model = Sequential([layers.Input((4,)), layers.Dense(8)])
+        self.assertTrue(hasattr(model, "input_shape"))
+        self.assertTrue(hasattr(model, "output_shape"))
+        self.assertTrue(hasattr(model, "inputs"))
+        self.assertTrue(hasattr(model, "outputs"))
