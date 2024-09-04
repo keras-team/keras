@@ -178,6 +178,12 @@ class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
         ):
             self.skipTest(f"torch backend does not support dtype {dtype}")
 
+        if backend.backend() == "jax" and dtype in (
+            "complex64",
+            "complex128",
+        ):
+            self.skipTest(f"JAX backend does not support dtype {dtype}")
+
         if backend.backend() == "jax":
             import jax
 
@@ -185,13 +191,10 @@ class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
                 self.skipTest(
                     f"jax backend does not support {dtype} without x64 enabled"
                 )
-        
+
         x = backend.convert_to_tensor(np.zeros(()), dtype)
         actual = standardize_dtype(x.dtype)
-        if dtype in ['complex64','complex128']:
-            self.assertAllEqual(actual,'complex128')
-        else:
-            self.assertEqual(actual, dtype)
+        self.assertEqual(actual, dtype)
 
     def test_standardize_dtype_with_torch_dtype(self):
         """Tests dtype standardization with PyTorch dtypes."""
