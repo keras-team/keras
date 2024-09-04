@@ -2531,11 +2531,6 @@ def slogdet(x):
     return tuple(tf.linalg.slogdet(x))
 
 
-def logdet(x):
-    x = convert_to_tensor(x)
-    return tf.linalg.logdet(x)
-
-
 def argpartition(x, kth, axis=-1):
     x = convert_to_tensor(x, tf.int32)
 

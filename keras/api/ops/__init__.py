@@ -6,6 +6,7 @@ since your modifications would be overwritten.
 
 from keras.api.ops import image
 from keras.api.ops import linalg
+from keras.api.ops import math
 from keras.api.ops import nn
 from keras.api.ops import numpy
 from keras.src.ops.core import associative_scan
@@ -49,6 +50,7 @@ from keras.src.ops.math import fft2
 from keras.src.ops.math import in_top_k
 from keras.src.ops.math import irfft
 from keras.src.ops.math import istft
+from keras.src.ops.math import logdet
 from keras.src.ops.math import logsumexp
 from keras.src.ops.math import rfft
 from keras.src.ops.math import rsqrt
@@ -172,7 +174,6 @@ from keras.src.ops.numpy import log1p
 from keras.src.ops.numpy import log2
 from keras.src.ops.numpy import log10
 from keras.src.ops.numpy import logaddexp
-from keras.src.ops.numpy import logdet
 from keras.src.ops.numpy import logical_and
 from keras.src.ops.numpy import logical_not
 from keras.src.ops.numpy import logical_or

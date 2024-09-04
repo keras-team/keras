@@ -308,3 +308,11 @@ def norm(x, ord=None, axis=None, keepdims=False):
     return np.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims).astype(
         dtype
     )
+
+
+def logdet(x):
+    from keras.src.backend.numpy.numpy import slogdet
+
+    # In NumPy slogdet is more stable than `np.log(np.linalg.det(x))`. See
+    # https://numpy.org/doc/stable/reference/generated/numpy.linalg.slogdet.html
+    return slogdet(x)[1]

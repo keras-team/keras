@@ -6536,32 +6536,6 @@ def slogdet(x):
     return backend.numpy.slogdet(x)
 
 
-class Logdet(Operation):
-    def __init__(self):
-        super().__init__()
-
-    def call(self, x):
-        return backend.numpy.logdet(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape[:-2], dtype=x.dtype)
-
-
-@keras_export(["keras.ops.logdet", "keras.ops.numpy.logdet"])
-def logdet(x):
-    """Computes log of the determinant of a hermitian positive definite matrix.
-
-    Args:
-        x: Input matrix. It must 2D and square.
-
-    Returns:
-        The natural log of the determinant of matrix.
-    """
-    if any_symbolic_tensors((x,)):
-        return Logdet().symbolic_call(x)
-    return backend.numpy.logdet(x)
-
-
 class Argpartition(Operation):
     def __init__(self, kth, axis=-1):
         super().__init__()
