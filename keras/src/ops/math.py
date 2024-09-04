@@ -958,7 +958,7 @@ class Logdet(Operation):
         return KerasTensor(x.shape[:-2], dtype=x.dtype)
 
 
-@keras_export(["keras.ops.logdet", "keras.ops.math.logdet"])
+@keras_export(["keras.ops.logdet"])
 def logdet(x):
     """Computes log of the determinant of a hermitian positive definite matrix.
 

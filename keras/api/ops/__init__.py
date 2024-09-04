@@ -6,7 +6,6 @@ since your modifications would be overwritten.
 
 from keras.api.ops import image
 from keras.api.ops import linalg
-from keras.api.ops import math
 from keras.api.ops import nn
 from keras.api.ops import numpy
 from keras.src.ops.core import associative_scan
