@@ -549,7 +549,7 @@ class BinaryCrossentropy(LossFunctionWrapper):
     >>> y_pred = np.array([-18.6, 0.51, 2.94, -12.8])
     >>> bce = keras.losses.BinaryCrossentropy(from_logits=True)
     >>> bce(y_true, y_pred)
-    <tf.Tensor: shape=(), dtype=float32, numpy=0.8654580116271973>
+    0.8654
 
     >>> # Example 2: (batch_size = 2, number of samples = 4)
     >>> y_true = np.array([[0, 1], [0, 0]])
@@ -557,7 +557,7 @@ class BinaryCrossentropy(LossFunctionWrapper):
     >>> # Using default 'auto'/'sum_over_batch_size' reduction type.
     >>> bce = keras.losses.BinaryCrossentropy(from_logits=True)
     >>> bce(y_true, y_pred)
-    <tf.Tensor: shape=(), dtype=float32, numpy=0.8654580116271973>
+    0.8654
     >>> # Using 'sample_weight' attribute
     >>> bce(y_true, y_pred, sample_weight=[0.8, 0.2])
     0.243
