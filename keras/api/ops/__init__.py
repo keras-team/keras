@@ -49,6 +49,7 @@ from keras.src.ops.math import fft2
 from keras.src.ops.math import in_top_k
 from keras.src.ops.math import irfft
 from keras.src.ops.math import istft
+from keras.src.ops.math import logdet
 from keras.src.ops.math import logsumexp
 from keras.src.ops.math import rfft
 from keras.src.ops.math import rsqrt

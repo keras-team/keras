@@ -6513,7 +6513,7 @@ class Slogdet(Operation):
 
     def compute_output_spec(self, x):
         sign = KerasTensor((), dtype=x.dtype)
-        logabsdet = KerasTensor((), dtype=x.dtype)
+        logabsdet = KerasTensor(x.shape[:-2], dtype=x.dtype)
         return (sign, logabsdet)
 
 

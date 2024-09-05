@@ -4476,6 +4476,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(out[0].shape, ())
         self.assertEqual(out[1].shape, ())
 
+        x = backend.KerasTensor((2, 4, 3, 3))
+        out = knp.slogdet(x)
+        self.assertEqual(out[0].shape, ())
+        self.assertEqual(out[1].shape, (2, 4))
+
     def test_nan_to_num(self):
         x = knp.array([1.0, np.nan, np.inf, -np.inf])
         self.assertAllClose(
