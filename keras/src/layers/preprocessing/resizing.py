@@ -95,7 +95,7 @@ class Resizing(TFDataLayer):
         )
         if resized.dtype == inputs.dtype:
             return resized
-        if backend.is_int_dtype(inputs.dtype):
+        if inputs.dtype.is_integer:
             resized = self.backend.numpy.round(resized)
         resized = self.backend.numpy.clip(
             resized, inputs.dtype.min, inputs.dtype.max
