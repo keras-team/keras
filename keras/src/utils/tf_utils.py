@@ -38,3 +38,7 @@ def ensure_tensor(inputs, dtype=None):
     if dtype is not None and inputs.dtype != dtype:
         inputs = tf.cast(inputs, dtype)
     return inputs
+
+
+def is_ragged_tensor(x):
+    return "ragged_tensor.RaggedTensor" in str(type(x))

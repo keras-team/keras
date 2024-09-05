@@ -1,12 +1,12 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import BaseImagePreprocessingLayer
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.utils import image_utils
 
 
 @keras_export("keras.layers.RandomCrop")
-class RandomCrop(TFDataLayer):
+class RandomCrop(BaseImagePreprocessingLayer):
     """A preprocessing layer which randomly crops images during training.
 
     During training, this layer will randomly choose a location to crop images
@@ -66,29 +66,32 @@ class RandomCrop(TFDataLayer):
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
 
-    def call(self, inputs, training=True):
-        inputs = self.backend.cast(inputs, self.compute_dtype)
-        input_shape = self.backend.shape(inputs)
-        is_batched = len(input_shape) > 3
-        if not is_batched:
-            inputs = self.backend.numpy.expand_dims(inputs, axis=0)
+    def get_random_transformation(self, data, training=True, seed=None):
+        if seed is None:
+            seed = self._get_seed_generator(self.backend._backend)
 
-        h_diff = input_shape[self.height_axis] - self.height
-        w_diff = input_shape[self.width_axis] - self.width
+        if isinstance(data, dict):
+            input_shape = self.backend.shape(data["images"])
+        else:
+            input_shape = self.backend.shape(data)
 
-        def random_crop():
-            input_height, input_width = (
-                input_shape[self.height_axis],
-                input_shape[self.width_axis],
+        input_height, input_width = (
+            input_shape[self.height_axis],
+            input_shape[self.width_axis],
+        )
+        if input_height is None or input_width is None:
+            raise ValueError(
+                "RandomCrop requires the input to have a fully defined "
+                f"height and width. Received: images.shape={input_shape}"
             )
 
-            seed_generator = self._get_seed_generator(self.backend._backend)
+        if training and input_height > self.height and input_width > self.width:
             h_start = self.backend.cast(
                 self.backend.random.uniform(
                     (),
                     0,
                     maxval=float(input_height - self.height + 1),
-                    seed=seed_generator,
+                    seed=seed,
                 ),
                 "int32",
             )
@@ -97,62 +100,91 @@ class RandomCrop(TFDataLayer):
                     (),
                     0,
                     maxval=float(input_width - self.width + 1),
-                    seed=seed_generator,
+                    seed=seed,
                 ),
                 "int32",
             )
-            if self.data_format == "channels_last":
-                return self.backend.core.slice(
-                    inputs,
-                    self.backend.numpy.stack([0, h_start, w_start, 0]),
-                    [
-                        self.backend.shape(inputs)[0],
-                        self.height,
-                        self.width,
-                        self.backend.shape(inputs)[3],
-                    ],
-                )
-            else:
-                return self.backend.core.slice(
-                    inputs,
-                    self.backend.numpy.stack([0, 0, h_start, w_start]),
-                    [
-                        self.backend.shape(inputs)[0],
-                        self.backend.shape(inputs)[1],
-                        self.height,
-                        self.width,
-                    ],
-                )
-
-        def resize():
-            outputs = image_utils.smart_resize(
-                inputs,
-                [self.height, self.width],
-                data_format=self.data_format,
-                backend_module=self.backend,
-            )
-            # smart_resize will always output float32, so we need to re-cast.
-            return self.backend.cast(outputs, self.compute_dtype)
-
-        if isinstance(h_diff, int) and isinstance(w_diff, int):
-            if training and h_diff >= 0 and w_diff >= 0:
-                outputs = random_crop()
-            else:
-                outputs = resize()
         else:
-            predicate = self.backend.numpy.logical_and(
-                training,
-                self.backend.numpy.logical_and(h_diff >= 0, w_diff >= 0),
-            )
-            outputs = self.backend.cond(
-                predicate,
-                random_crop,
-                resize,
-            )
+            crop_height = int(float(input_width * self.height) / self.width)
+            crop_height = max(min(input_height, crop_height), 1)
+            crop_width = int(float(input_height * self.width) / self.height)
+            crop_width = max(min(input_width, crop_width), 1)
+            h_start = int(float(input_height - crop_height) / 2)
+            w_start = int(float(input_width - crop_width) / 2)
 
-        if not is_batched:
-            outputs = self.backend.numpy.squeeze(outputs, axis=0)
-        return outputs
+        return h_start, w_start
+
+    def augment_images(self, images, transformation, training=True):
+        inputs = self.backend.cast(images, self.compute_dtype)
+        h_start, w_start = transformation
+        if self.data_format == "channels_last":
+            return self.backend.core.slice(
+                inputs,
+                self.backend.numpy.stack([0, h_start, w_start, 0]),
+                [
+                    self.backend.shape(inputs)[0],
+                    self.height,
+                    self.width,
+                    self.backend.shape(inputs)[3],
+                ],
+            )
+        return self.backend.core.slice(
+            inputs,
+            self.backend.numpy.stack([0, 0, h_start, w_start]),
+            [
+                self.backend.shape(inputs)[0],
+                self.backend.shape(inputs)[1],
+                self.height,
+                self.width,
+            ],
+        )
+
+    def augment_labels(self, labels, transformation, training=True):
+        return labels
+
+    def augment_bounding_boxes(self, bounding_boxes, transformation, training=True):
+        """
+        bounding_boxes = {
+            "boxes": (batch, num_boxes, 4),  # left-top-right-bottom
+            "labels": (batch, num_boxes, num_classes),
+        }
+        or
+        bounding_boxes = {
+            "boxes": (num_boxes, 4),
+            "labels": (num_boxes, num_classes),
+        }
+        """
+        boxes = bounding_boxes["boxes"]
+        h_start, w_start = transformation
+        # TODO: validate box format
+        # TODO: convert and pad ragged, list inputs
+        if len(self.backend.shape(boxes)) == 3:
+            boxes = self.backend.stack(
+                [
+                    self.backend.maximum(boxes[:, :, 0] - h_start, 0),
+                    self.backend.maximum(boxes[:, :, 1] - w_start, 0),
+                    self.backend.maximum(boxes[:, :, 2] - h_start, 0),
+                    self.backend.maximum(boxes[:, :, 3] - w_start, 0),
+                ],
+                axis=-1
+            )
+        else:
+            boxes = self.backend.stack(
+                [
+                    self.backend.maximum(boxes[:, 0] - h_start, 0),
+                    self.backend.maximum(boxes[:, 1] - w_start, 0),
+                    self.backend.maximum(boxes[:, 2] - h_start, 0),
+                    self.backend.maximum(boxes[:, 3] - w_start, 0),
+                ],
+                axis=-1
+            )
+        return {
+            "boxes": boxes,
+            "labels": bounding_boxes["labels"],
+        }
+
+    def augment_segmentation_masks(self, segmentation_masks, transformation, training=True):
+        return self.augment_images(segmentation_masks, transformation)
 
     def compute_output_shape(self, input_shape, *args, **kwargs):
         input_shape = list(input_shape)
