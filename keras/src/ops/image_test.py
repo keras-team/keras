@@ -642,7 +642,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             antialias=False,
         )
         self.assertEqual(tuple(out.shape), tuple(expected.shape))
-        self.assertEqual(out.dtype, expected.dtype)
+        self.assertEqual(backend.standardize_dtype(out.dtype), "uint8")
         self.assertAllClose(out, expected, atol=1e-4)
 
     def test_resize_uint8_round_saturate(self):
@@ -685,7 +685,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             antialias=False,
         )
         self.assertEqual(tuple(out.shape), tuple(expected.shape))
-        self.assertEqual(out.dtype, expected.dtype)
+        self.assertEqual(backend.standardize_dtype(out.dtype), "uint8")
         self.assertAllClose(out, expected, atol=1e-4)
 
     def test_resize_with_crop(self):
