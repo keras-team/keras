@@ -2,6 +2,7 @@ import json
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 
@@ -112,6 +113,10 @@ class TestCase(unittest.TestCase):
         )
         msg = msg or default_msg
         self.assertEqual(x_dtype, standardized_dtype, msg=msg)
+
+    def assertFileExists(self, path):
+        if not Path(path).is_file():
+            raise AssertionError(f"File {path} does not exist")
 
     def run_class_serialization_test(self, instance, custom_objects=None):
         from keras.src.saving import custom_object_scope
