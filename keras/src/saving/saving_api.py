@@ -164,12 +164,14 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     is_keras_dir = file_utils.isdir(filepath) and file_utils.exists(
         file_utils.join(filepath, "config.json")
     )
+    is_hf = str(filepath).startswith("hf://")
 
     # Support for remote zip files
     if (
         file_utils.is_remote_path(filepath)
         and not file_utils.isdir(filepath)
         and not is_keras_zip
+        and not is_hf
     ):
         local_path = file_utils.join(
             saving_lib.get_temp_dir(), os.path.basename(filepath)
@@ -183,7 +185,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             filepath = local_path
             is_keras_zip = True
 
-    if is_keras_zip or is_keras_dir:
+    if is_keras_zip or is_keras_dir or is_hf:
         return saving_lib.load_model(
             filepath,
             custom_objects=custom_objects,
