@@ -1,8 +1,12 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import BaseImagePreprocessingLayer
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (
+    BaseImagePreprocessingLayer,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validation import (
+    densify_bounding_boxes,
+)
 from keras.src.random.seed_generator import SeedGenerator
-from keras.src.utils import image_utils
 
 
 @keras_export("keras.layers.RandomCrop")
@@ -115,34 +119,62 @@ class RandomCrop(BaseImagePreprocessingLayer):
         return h_start, w_start
 
     def augment_images(self, images, transformation, training=True):
-        inputs = self.backend.cast(images, self.compute_dtype)
-        h_start, w_start = transformation
+        images = self.backend.cast(images, self.compute_dtype)
+        crop_box_hstart, crop_box_wstart = transformation
+        crop_height = self.height
+        crop_width = self.width
+
         if self.data_format == "channels_last":
-            return self.backend.core.slice(
-                inputs,
-                self.backend.numpy.stack([0, h_start, w_start, 0]),
-                [
-                    self.backend.shape(inputs)[0],
-                    self.height,
-                    self.width,
-                    self.backend.shape(inputs)[3],
-                ],
+            if len(images.shape) == 4:
+                images = images[
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                    :,
+                ]
+            else:
+                images = images[
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                    :,
+                ]
+        else:
+            if len(images.shape) == 4:
+                images = images[
+                    :,
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                ]
+            else:
+                images = images[
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                ]
+
+        shape = self.backend.shape(images)
+        new_height = shape[self.height_axis]
+        new_width = shape[self.width_axis]
+        if (
+            not isinstance(new_height, int)
+            or not isinstance(new_width, int)
+            or new_height != self.height
+            or new_width != self.width
+        ):
+            images = self.backend.image.resize(
+                images,
+                size=(self.height, self.width),
+                data_format=self.data_format,
             )
-        return self.backend.core.slice(
-            inputs,
-            self.backend.numpy.stack([0, 0, h_start, w_start]),
-            [
-                self.backend.shape(inputs)[0],
-                self.backend.shape(inputs)[1],
-                self.height,
-                self.width,
-            ],
-        )
+        return images
 
     def augment_labels(self, labels, transformation, training=True):
         return labels
 
-    def augment_bounding_boxes(self, bounding_boxes, transformation, training=True):
+    def augment_bounding_boxes(
+        self, bounding_boxes, transformation, training=True
+    ):
         """
         bounding_boxes = {
             "boxes": (batch, num_boxes, 4),  # left-top-right-bottom
@@ -154,36 +186,41 @@ class RandomCrop(BaseImagePreprocessingLayer):
             "labels": (num_boxes, num_classes),
         }
         """
-        boxes = bounding_boxes["boxes"]
         h_start, w_start = transformation
-        # TODO: validate box format
-        # TODO: convert and pad ragged, list inputs
+        if not self.backend.is_tensor(bounding_boxes["boxes"]):
+            bounding_boxes = densify_bounding_boxes(
+                bounding_boxes, backend=self.backend
+            )
+        boxes = bounding_boxes["boxes"]
+
         if len(self.backend.shape(boxes)) == 3:
-            boxes = self.backend.stack(
+            boxes = self.backend.numpy.stack(
                 [
-                    self.backend.maximum(boxes[:, :, 0] - h_start, 0),
-                    self.backend.maximum(boxes[:, :, 1] - w_start, 0),
-                    self.backend.maximum(boxes[:, :, 2] - h_start, 0),
-                    self.backend.maximum(boxes[:, :, 3] - w_start, 0),
+                    self.backend.numpy.maximum(boxes[:, :, 0] - h_start, 0),
+                    self.backend.numpy.maximum(boxes[:, :, 1] - w_start, 0),
+                    self.backend.numpy.maximum(boxes[:, :, 2] - h_start, 0),
+                    self.backend.numpy.maximum(boxes[:, :, 3] - w_start, 0),
                 ],
-                axis=-1
+                axis=-1,
             )
         else:
-            boxes = self.backend.stack(
+            boxes = self.backend.numpy.stack(
                 [
-                    self.backend.maximum(boxes[:, 0] - h_start, 0),
-                    self.backend.maximum(boxes[:, 1] - w_start, 0),
-                    self.backend.maximum(boxes[:, 2] - h_start, 0),
-                    self.backend.maximum(boxes[:, 3] - w_start, 0),
+                    self.backend.numpy.maximum(boxes[:, 0] - h_start, 0),
+                    self.backend.numpy.maximum(boxes[:, 1] - w_start, 0),
+                    self.backend.numpy.maximum(boxes[:, 2] - h_start, 0),
+                    self.backend.numpy.maximum(boxes[:, 3] - w_start, 0),
                 ],
-                axis=-1
+                axis=-1,
             )
         return {
             "boxes": boxes,
             "labels": bounding_boxes["labels"],
         }
 
-    def augment_segmentation_masks(self, segmentation_masks, transformation, training=True):
+    def augment_segmentation_masks(
+        self, segmentation_masks, transformation, training=True
+    ):
         return self.augment_images(segmentation_masks, transformation)
 
     def compute_output_shape(self, input_shape, *args, **kwargs):

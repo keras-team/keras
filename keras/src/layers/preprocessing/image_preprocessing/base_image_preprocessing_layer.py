@@ -1,9 +1,16 @@
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validation import (
+    densify_bounding_boxes,
+)
 from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
 
 
 class BaseImagePreprocessingLayer(TFDataLayer):
 
     _FACTOR_BOUNDS = (-1, 1)
+
+    def __init__(self, bounding_box_format=None, **kwargs):
+        super().__init__(**kwargs)
+        self.bounding_box_format = bounding_box_format
 
     def _set_factor(self, factor):
         error_msg = (
@@ -113,15 +120,18 @@ class BaseImagePreprocessingLayer(TFDataLayer):
                     training=training,
                 )
             if "bounding_boxes" in data:
+                bounding_boxes = densify_bounding_boxes(
+                    data["bounding_boxes"], backend=self.backend
+                )
                 if is_batched:
                     data["bounding_boxes"] = self.augment_bounding_boxes(
-                        data["bounding_boxes"],
+                        bounding_boxes,
                         transformation=transformation,
                         training=training,
                     )
                 else:
                     data["bounding_boxes"] = self.augment_single_bounding_box(
-                        data["bounding_boxes"],
+                        bounding_boxes,
                         transformation=transformation,
                         training=training,
                     )
@@ -160,8 +170,12 @@ class BaseImagePreprocessingLayer(TFDataLayer):
         # `data` is just images.
         if self._is_batched(data):
             return self.augment_images(
-                self.backend.convert_to_tensor(data), transformation=transformation, training=training
+                self.backend.convert_to_tensor(data),
+                transformation=transformation,
+                training=training,
             )
         return self.augment_single_image(
-            self.backend.convert_to_tensor(data), transformation=transformation, training=training
+            self.backend.convert_to_tensor(data),
+            transformation=transformation,
+            training=training,
         )

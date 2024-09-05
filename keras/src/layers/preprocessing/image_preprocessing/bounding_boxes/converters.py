@@ -1,6 +1,5 @@
 """Converter functions for working with bounding box formats."""
 
-
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.utils import tf_utils
@@ -510,4 +509,3 @@ def _image_shape(images, image_shape, boxes):
     else:
         height, width = image_shape[0], image_shape[1]
     return ops.cast(height, boxes.dtype), ops.cast(width, boxes.dtype)
-
