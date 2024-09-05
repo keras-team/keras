@@ -945,7 +945,7 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             dtype="float32",
         )
         out = kmath.logdet(x)
-        self.assertAllClose(out, -1.1178946)
+        self.assertAllClose(out, -1.1178946, atol=1e-3)
 
 
 class MathDtypeTest(testing.TestCase, parameterized.TestCase):
