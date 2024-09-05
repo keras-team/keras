@@ -297,7 +297,7 @@ def resize(
             resized = tf.transpose(resized, (0, 3, 1, 2))
         elif len(images.shape) == 3:
             resized = tf.transpose(resized, (2, 0, 1))
-    return tf.cast(resized, images.dtype)
+    return resized
 
 
 AFFINE_TRANSFORM_INTERPOLATIONS = (

@@ -607,6 +607,87 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )(x)
         self.assertAllClose(ref_out, out, atol=1e-4)
 
+    def test_resize_uint8_round(self):
+        x = np.array([0, 1, 254, 255], dtype="uint8").reshape(1, 2, 2, 1)
+        expected = np.array(
+            # OpenCV as gold standard.
+            # [
+            #     [0, 0, 1, 1],
+            #     [64, 64, 64, 65],
+            #     [191, 191, 191, 192],
+            #     [254, 254, 255, 255],
+            # ]
+            #
+            # Resize without `round` - differences in 8 points
+            # [
+            #     [0, 0, 0, 1],
+            #     [63, 63, 64, 64],
+            #     [190, 190, 191, 191],
+            #     [254, 254, 254, 255],
+            # ]
+            #
+            # Resize with `round` - differences in 2 points
+            [
+                [0, 0, 1, 1],
+                [64, 64, 64, 64],
+                [190, 191, 191, 192],
+                [254, 254, 255, 255],
+            ],
+            dtype="uint8",
+        ).reshape(1, 4, 4, 1)
+        out = kimage.resize(
+            x,
+            size=(4, 4),
+            interpolation="bilinear",
+            antialias=False,
+        )
+        self.assertEqual(tuple(out.shape), tuple(expected.shape))
+        self.assertEqual(out.dtype, expected.dtype)
+        self.assertAllClose(out, expected, atol=1e-4)
+
+    def test_resize_uint8_round_saturate(self):
+        x = np.array([0, 1, 254, 255], dtype="uint8").reshape(1, 2, 2, 1)
+        expected = np.array(
+            # OpenCV as gold standard. Same for `torch` backend.
+            (
+                [
+                    [0, 0, 0, 0],
+                    [57, 58, 58, 59],
+                    [196, 197, 197, 198],
+                    [255, 255, 255, 255],
+                ]
+                if "torch" == backend.backend()
+                else
+                # Resize without `round` and `saturate_cast` - differences in
+                # 16 points
+                # [
+                #     [234, 234, 235, 235],
+                #     [-5, -6, -5, -6],
+                #     [5, 4, 5, 4],
+                #     [-235, -235, -234, -234],
+                # ]
+                #
+                # Resize with `round` and `saturate_cast` - differences in
+                # 8 points
+                [
+                    [0, 0, 0, 0],
+                    [53, 53, 53, 54],
+                    [201, 202, 202, 202],
+                    [255, 255, 255, 255],
+                ]
+            ),
+            dtype="uint8",
+        ).reshape(1, 4, 4, 1)
+        out = kimage.resize(
+            x,
+            size=(4, 4),
+            interpolation="bicubic",
+            antialias=False,
+        )
+        self.assertEqual(tuple(out.shape), tuple(expected.shape))
+        self.assertEqual(out.dtype, expected.dtype)
+        self.assertAllClose(out, expected, atol=1e-4)
+
     def test_resize_with_crop(self):
         # Test channels_last
         x = np.random.random((60, 50, 3)).astype("float32") * 255
