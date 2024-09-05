@@ -802,6 +802,98 @@ def cast(x, dtype):
     return backend.core.cast(x, dtype)
 
 
+class SaturateCast(Operation):
+    def __init__(self, dtype):
+        super().__init__()
+        self.dtype = backend.standardize_dtype(dtype)
+
+    def call(self, x):
+        return _saturate_cast(x, self.dtype)
+
+    def compute_output_spec(self, x):
+        return backend.KerasTensor(shape=x.shape, dtype=self.dtype)
+
+
+@keras_export("keras.ops.saturate_cast")
+def saturate_cast(x, dtype):
+    """Performs a safe saturating cast to the desired dtype.
+
+    Saturating cast prevents data type overflow when casting to `dtype` with
+    smaller values range. E.g.
+    `ops.cast(ops.cast([-1, 256], "float32"), "uint8")` returns `[255, 0]`,
+    but `ops.saturate_cast(ops.cast([-1, 256], "float32"), "uint8")` returns
+    `[0, 255]`.
+
+    Args:
+        x: A tensor or variable.
+        dtype: The target type.
+
+    Returns:
+        A safely casted tensor of the specified `dtype`.
+
+    Example:
+
+    Image resizing with bicubic interpolation may produce values outside
+    original range.
+    >>> image2x2 = np.array([0, 1, 254, 255], dtype="uint8").reshape(1, 2, 2, 1)
+    >>> image4x4 = tf.image.resize(image2x2, (4, 4), method="bicubic")
+    >>> print(image4x4.numpy().squeeze())
+    >>> # [[-22.500004 -22.204624 -21.618908 -21.32353 ]
+    >>> #  [ 52.526054  52.82143   53.407146  53.70253 ]
+    >>> #  [201.29752  201.59288  202.17859  202.47395 ]
+    >>> #  [276.32355  276.61893  277.20465  277.50006 ]]
+
+    Casting this resized image back to `uint8` will cause overflow.
+    >>> image4x4_casted = ops.cast(image4x4, "uint8")
+    >>> print(image4x4_casted.numpy().squeeze())
+    >>> # [[234 234 235 235]
+    >>> #  [ 52  52  53  53]
+    >>> #  [201 201 202 202]
+    >>> #  [ 20  20  21  21]]
+
+    Saturate casting to `uint8` will clip values to `uint8` range before
+    casting and will not cause overflow.
+    >>> image4x4_saturate_casted = ops.saturate_cast(image4x4, "uint8")
+    >>> print(image4x4_saturate_casted.numpy().squeeze())
+    >>> # [[  0   0   0   0]
+    >>> #  [ 52  52  53  53]
+    >>> #  [201 201 202 202]
+    >>> #  [255 255 255 255]]
+
+    """
+    dtype = backend.standardize_dtype(dtype)
+
+    if any_symbolic_tensors((x,)):
+        return SaturateCast(dtype=dtype)(x)
+    return _saturate_cast(x, dtype)
+
+
+def _saturate_cast(x, dtype):
+    dtype = backend.standardize_dtype(dtype)
+    in_dtype = backend.standardize_dtype(x.dtype)
+    in_info = np.iinfo(in_dtype) if "int" in in_dtype else np.finfo(in_dtype)
+    out_info = np.iinfo(dtype) if "int" in dtype else np.finfo(dtype)
+
+    # The output min/max may not actually be representable in the
+    # in_dtype (e.g. casting float32 to uint32).  This can lead to undefined
+    # behavior when trying to cast a value outside the valid range of the
+    # target type. We work around this by nudging the min/max to fall within
+    # the valid output range. The catch is that we may actually saturate
+    # to a value less than the true saturation limit, but this is the best we
+    # can do in order to avoid UB without backend op.
+    min_limit = np.maximum(in_info.min, out_info.min).astype(in_dtype)
+    if min_limit < out_info.min:
+        min_limit = np.nextafter(min_limit, 0, dtype=in_dtype)
+    max_limit = np.minimum(in_info.max, out_info.max).astype(in_dtype)
+    if max_limit > out_info.max:
+        max_limit = np.nextafter(max_limit, 0, dtype=in_dtype)
+
+    # Unconditionally apply `clip` to fix `inf` behavior.
+    x = backend.numpy.clip(x, min_limit, max_limit)
+
+    return cast(x, dtype)
+
+
 @keras_export("keras.ops.convert_to_tensor")
 def convert_to_tensor(x, dtype=None, sparse=None):
     """Convert a NumPy array to a tensor.

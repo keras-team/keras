@@ -18,6 +18,7 @@ from keras.src.ops.core import dtype
 from keras.src.ops.core import fori_loop
 from keras.src.ops.core import is_tensor
 from keras.src.ops.core import map
+from keras.src.ops.core import saturate_cast
 from keras.src.ops.core import scan
 from keras.src.ops.core import scatter
 from keras.src.ops.core import scatter_update
