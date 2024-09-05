@@ -83,7 +83,7 @@ class Resizing(TFDataLayer):
 
     def call(self, inputs):
         size = (self.height, self.width)
-        return self.backend.image.resize(
+        resized = self.backend.image.resize(
             inputs,
             size=size,
             interpolation=self.interpolation,
@@ -93,6 +93,14 @@ class Resizing(TFDataLayer):
             fill_mode=self.fill_mode,
             fill_value=self.fill_value,
         )
+        if resized.dtype == inputs.dtype:
+            return resized
+        if backend.is_int_dtype(inputs.dtype):
+            resized = self.backend.numpy.round(resized)
+        resized = self.backend.numpy.clip(
+            resized, inputs.dtype.min, inputs.dtype.max
+        )
+        return self.backend.cast(resized, inputs.dtype)
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
