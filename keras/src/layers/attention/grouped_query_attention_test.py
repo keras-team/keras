@@ -188,7 +188,7 @@ class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
         # Set layer weights.
         kernel = np.identity(key_dim)
         # To get an identity kernel we need to add a head dim and repeat on it.
-        kernel = np.repeat(kernel[:, np.newaxis, :], num_heads, axis=1)
+        kernel = np.repeat(kernel[np.newaxis, :, :], num_heads, axis=0)
         # Zeros for all biases.
         bias = np.zeros((2, 2))
         output_bias = np.zeros((2,))
