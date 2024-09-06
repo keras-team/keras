@@ -2045,8 +2045,8 @@ def _normalize(x, axis=-1, order=2, epsilon=None):
         square_sum = backend.numpy.sum(
             backend.numpy.square(x), axis=axis, keepdims=True
         )
+        square_sum = backend.numpy.maximum(square_sum, epsilon**2)
         inv_norm = backend.math.rsqrt(square_sum)
-        inv_norm = backend.numpy.maximum(inv_norm, epsilon)
         return x * inv_norm
     norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
     denom = backend.numpy.maximum(norm, epsilon)

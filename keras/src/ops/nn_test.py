@@ -2110,6 +2110,13 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             ],
         )
 
+        # linalg.norm(x, ...) < epsilon
+        x = np.array([[1e-6, 1e-8]], dtype=np.float32)
+        self.assertAllClose(
+            knn.normalize(x, axis=-1, order=2, epsilon=1e-5),
+            [[1e-1, 1e-3]],
+        )
+
     def test_psnr(self):
         x1 = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
         x2 = np.array([[0.2, 0.2, 0.3], [0.4, 0.6, 0.6]])
