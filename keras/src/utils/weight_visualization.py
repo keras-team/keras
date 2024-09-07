@@ -1,5 +1,9 @@
-import matplotlib.pyplot as plt
 import numpy as np
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
 
 
 def find_factors_closest_to_sqrt(num):
