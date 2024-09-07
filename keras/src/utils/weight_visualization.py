@@ -59,8 +59,6 @@ def downscale_arr(arr, downscale_threshold):
 
 
 def make_dim_to_2d(w_value):
-    w_value = weight.value
-
     num_filters = w_value.shape[0]
     width, height = find_factors_closest_to_sqrt(num_filters)
     ret = w_value.numpy().reshape(width, height)
