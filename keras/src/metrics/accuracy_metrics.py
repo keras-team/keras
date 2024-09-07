@@ -110,12 +110,6 @@ class BinaryAccuracy(reduction_metrics.MeanMetricWrapper):
     """
 
     def __init__(self, name="binary_accuracy", dtype=None, threshold=0.5):
-        if threshold is not None and (threshold <= 0 or threshold >= 1):
-            raise ValueError(
-                "Invalid value for argument `threshold`. "
-                "Expected a value in interval (0, 1). "
-                f"Received: threshold={threshold}"
-            )
         super().__init__(
             fn=binary_accuracy, name=name, dtype=dtype, threshold=threshold
         )

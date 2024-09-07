@@ -68,7 +68,7 @@ def det(x):
         x: Input tensor of shape `(..., M, M)`.
 
     Returns:
-        A tensor of shape `(...,)` represeting the determinant of `x`.
+        A tensor of shape `(...,)` representing the determinant of `x`.
 
     """
     if any_symbolic_tensors((x,)):

@@ -4,6 +4,7 @@ from absl.testing import parameterized
 
 from keras.src import layers
 from keras.src import models
+from keras.src import ops
 from keras.src import testing
 from keras.src.utils import summary_utils
 
@@ -73,4 +74,27 @@ class SummaryUtilsTest(testing.TestCase, parameterized.TestCase):
         self.assertIn("?", summary_content)  # unbuilt_dense
         self.assertIn("Total params: 22", summary_content)
         self.assertIn("Trainable params: 22", summary_content)
+        self.assertIn("Non-trainable params: 0", summary_content)
+
+    def test_print_model_summary_op_as_layer(self):
+        inputs = layers.Input((2,))
+        x = layers.Dense(4)(inputs)
+        outputs = ops.mean(x)
+        model = models.Model(inputs, outputs)
+
+        summary_content = []
+
+        def print_to_variable(text, line_break=False):
+            summary_content.append(text)
+
+        summary_utils.print_summary(
+            model, print_fn=print_to_variable, show_trainable=True
+        )
+        summary_content = "\n".join(summary_content)
+        self.assertIn("(None, 4)", summary_content)  # dense
+        self.assertIn("Y", summary_content)  # dense
+        self.assertIn("()", summary_content)  # mean
+        self.assertIn("-", summary_content)  # mean
+        self.assertIn("Total params: 12", summary_content)
+        self.assertIn("Trainable params: 12", summary_content)
         self.assertIn("Non-trainable params: 0", summary_content)

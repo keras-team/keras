@@ -47,9 +47,9 @@ class JaxDistributionLibTest(testing.TestCase):
             self.assertEqual(jax_d, converted_jax_device)
 
     @mock.patch.object(jax.distributed, "initialize", return_value=None)
-    def test_initialize_with_all_job_addresses(self, mock_jax_initialze):
+    def test_initialize_with_all_job_addresses(self, mock_jax_initialize):
         backend_dlib.initialize("10.0.0.1:1234,10.0.0.2:2345", 2, 0)
-        mock_jax_initialze.assert_called_once_with(
+        mock_jax_initialize.assert_called_once_with(
             coordinator_address="10.0.0.1:1234", num_processes=2, process_id=0
         )
 
@@ -60,9 +60,9 @@ class JaxDistributionLibTest(testing.TestCase):
             backend_dlib.initialize("10.0.0.1:1234,10.0.0.2:2345", 3, 0)
 
     @mock.patch.object(jax.distributed, "initialize", return_value=None)
-    def test_initialize_with_coordinater_address(self, mock_jax_initialze):
+    def test_initialize_with_coordinator_address(self, mock_jax_initialize):
         backend_dlib.initialize("10.0.0.1:1234", 2, 0)
-        mock_jax_initialze.assert_called_once_with(
+        mock_jax_initialize.assert_called_once_with(
             coordinator_address="10.0.0.1:1234", num_processes=2, process_id=0
         )
 

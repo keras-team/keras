@@ -275,6 +275,11 @@ class MathOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         x = KerasTensor([None, 3])
         self.assertEqual(kmath.rsqrt(x).shape, (None, 3))
 
+    def test_logdet(self):
+        x = KerasTensor((None, 3, 3))
+        out = kmath.logdet(x)
+        self.assertEqual(out.shape, (None,))
+
 
 class MathOpsStaticShapeTest(testing.TestCase, parameterized.TestCase):
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
@@ -401,6 +406,15 @@ class MathOpsStaticShapeTest(testing.TestCase, parameterized.TestCase):
             fft_length,
         )
         self.assertEqual(output.shape, ref.shape)
+
+    def test_logdet(self):
+        x = KerasTensor((3, 3))
+        out = kmath.logdet(x)
+        self.assertEqual(out.shape, ())
+
+        x = KerasTensor((2, 4, 3, 3))
+        out = kmath.logdet(x)
+        self.assertEqual(out.shape, (2, 4))
 
 
 class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -919,6 +933,19 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             expected_output, output_from_edge_erfinv_op, atol=1e-4
         )
+
+    def test_logdet(self):
+        x = np.array(
+            [
+                [4.42, -1.18, 0.06, 0.74],
+                [-1.18, 1.77, -0.84, -1.16],
+                [0.06, -0.84, 5.84, 0.55],
+                [0.74, -1.16, 0.55, 0.77],
+            ],
+            dtype="float32",
+        )
+        out = kmath.logdet(x)
+        self.assertAllClose(out, -1.1178946, atol=1e-3)
 
 
 class MathDtypeTest(testing.TestCase, parameterized.TestCase):

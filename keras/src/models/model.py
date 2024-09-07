@@ -141,7 +141,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             from keras.src.models.functional import Functional
 
             return Functional.__new__(Functional, *args, **kwargs)
-        return typing.cast(Model, super().__new__(cls))
+        return typing.cast(cls, super().__new__(cls))
 
     def __init__(self, *args, **kwargs):
         Trainer.__init__(self)
@@ -457,7 +457,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         model_config = serialization_lib.serialize_keras_object(self)
         return json.dumps(model_config, **kwargs)
 
-    def export(self, filepath, format="tf_saved_model"):
+    def export(self, filepath, format="tf_saved_model", verbose=True):
         """Create a TF SavedModel artifact for inference.
 
         **Note:** This can currently only be used with
@@ -475,6 +475,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         Args:
             filepath: `str` or `pathlib.Path` object. Path where to save
                 the artifact.
+            verbose: whether to print all the variables of the exported model.
 
         Example:
 
@@ -493,7 +494,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         """
         from keras.src.export import export_lib
 
-        export_lib.export_model(self, filepath)
+        export_lib.export_model(self, filepath, verbose)
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
