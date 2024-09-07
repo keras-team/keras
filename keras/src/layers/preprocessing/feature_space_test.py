@@ -282,7 +282,7 @@ class FeatureSpaceTest(testing.TestCase):
         self.assertEqual(out["string_2_X_int_2"].shape, (10, 32))
 
         # Test batched call on tensors
-        if backend.backend == "tensorflow":
+        if backend.backend() == "tensorflow":
             out = fs(self._get_train_data_dict(as_tensors=True))
             self.assertIsInstance(out, dict)
             self.assertLen(out, 10)
