@@ -1068,9 +1068,11 @@ def get_attr_skipset(obj_type):
     if skipset is not None:
         return skipset
 
-    skipset = set([
-        "_self_unconditional_dependency_names",
-    ])
+    skipset = set(
+        [
+            "_self_unconditional_dependency_names",
+        ]
+    )
     if obj_type == "Layer":
         ref_obj = Layer()
         skipset.update(dir(ref_obj))
