@@ -2,6 +2,7 @@ import json
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 
@@ -113,6 +114,10 @@ class TestCase(unittest.TestCase):
         msg = msg or default_msg
         self.assertEqual(x_dtype, standardized_dtype, msg=msg)
 
+    def assertFileExists(self, path):
+        if not Path(path).is_file():
+            raise AssertionError(f"File {path} does not exist")
+
     def run_class_serialization_test(self, instance, custom_objects=None):
         from keras.src.saving import custom_object_scope
         from keras.src.saving import deserialize_keras_object
@@ -174,6 +179,7 @@ class TestCase(unittest.TestCase):
         custom_objects=None,
         run_training_check=True,
         run_mixed_precision_check=True,
+        assert_built_after_instantiation=False,
     ):
         """Run basic checks on a layer.
 
@@ -216,6 +222,8 @@ class TestCase(unittest.TestCase):
                 (if an input shape or input data was provided).
             run_mixed_precision_check: Whether to test the layer with a mixed
                 precision dtype policy.
+            assert_built_after_instantiation: Whether to assert `built=True`
+                after the layer's instantiation.
         """
         if input_shape is not None and input_data is not None:
             raise ValueError(
@@ -270,6 +278,33 @@ class TestCase(unittest.TestCase):
             input_dtype = tree.map_shape_structure(
                 lambda _: "float32", input_shape
             )
+
+        # Estimate actual number of weights, variables, seed generators if
+        # expected ones not set. When using layers uses composition it should
+        # build each sublayer manually.
+        if input_data is not None or input_shape is not None:
+            if input_data is None:
+                input_data = create_eager_tensors(
+                    input_shape, input_dtype, input_sparse
+                )
+            layer = layer_cls(**init_kwargs)
+            if isinstance(input_data, dict):
+                layer(**input_data, **call_kwargs)
+            else:
+                layer(input_data, **call_kwargs)
+
+            if expected_num_trainable_weights is None:
+                expected_num_trainable_weights = len(layer.trainable_weights)
+            if expected_num_non_trainable_weights is None:
+                expected_num_non_trainable_weights = len(
+                    layer.non_trainable_weights
+                )
+            if expected_num_non_trainable_variables is None:
+                expected_num_non_trainable_variables = len(
+                    layer.non_trainable_variables
+                )
+            if expected_num_seed_generators is None:
+                expected_num_seed_generators = len(get_seed_generators(layer))
 
         # Serialization test.
         layer = layer_cls(**init_kwargs)
@@ -524,6 +559,17 @@ class TestCase(unittest.TestCase):
                 output_mask = layer.compute_mask(keras_tensor_inputs)
                 self.assertEqual(expected_mask_shape, output_mask.shape)
 
+            # The stateless layers should be built after instantiation.
+            if assert_built_after_instantiation:
+                layer = layer_cls(**init_kwargs)
+                self.assertTrue(
+                    layer.built,
+                    msg=(
+                        f"{type(layer)} is stateless, so it should be built "
+                        "after instantiation."
+                    ),
+                )
+
         # Eager call test and compiled training test.
         if input_data is not None or input_shape is not None:
             if input_data is None:
@@ -620,7 +666,19 @@ def create_eager_tensors(input_shape, dtype, sparse):
     from keras.src.backend import random
 
     if set(tree.flatten(dtype)).difference(
-        ["float16", "float32", "float64", "int16", "int32", "int64"]
+        [
+            "float16",
+            "float32",
+            "float64",
+            "int8",
+            "uint8",
+            "int16",
+            "uint16",
+            "int32",
+            "uint32",
+            "int64",
+            "uint64",
+        ]
     ):
         raise ValueError(
             "dtype must be a standard float or int dtype. "

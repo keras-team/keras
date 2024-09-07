@@ -63,7 +63,7 @@ class Sequential(Model):
     """
 
     def __new__(cls, *args, **kwargs):
-        return typing.cast(Sequential, super().__new__(cls))
+        return typing.cast(cls, super().__new__(cls))
 
     def __init__(self, layers=None, trainable=True, name=None):
         super().__init__(trainable=trainable, name=name)
@@ -268,7 +268,7 @@ class Sequential(Model):
     def input_shape(self):
         if self._functional:
             return self._functional.input_shape
-        raise ValueError(
+        raise AttributeError(
             f"Sequential model '{self.name}' has no defined input shape yet."
         )
 
@@ -276,7 +276,7 @@ class Sequential(Model):
     def output_shape(self):
         if self._functional:
             return self._functional.output_shape
-        raise ValueError(
+        raise AttributeError(
             f"Sequential model '{self.name}' has no defined output shape yet."
         )
 
@@ -284,7 +284,7 @@ class Sequential(Model):
     def inputs(self):
         if self._functional:
             return self._functional.inputs
-        raise ValueError(
+        raise AttributeError(
             f"Sequential model '{self.name}' has no defined inputs yet."
         )
 
@@ -292,7 +292,7 @@ class Sequential(Model):
     def outputs(self):
         if self._functional:
             return self._functional.outputs
-        raise ValueError(
+        raise AttributeError(
             f"Sequential model '{self.name}' has no defined outputs yet."
         )
 

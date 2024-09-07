@@ -554,7 +554,7 @@ class JAXTrainer(base_trainer.Trainer):
         self.make_test_function()
         self.stop_evaluating = False
         callbacks.on_test_begin()
-        logs = None
+        logs = {}
         self.reset_metrics()
 
         self._jax_state_synced = True

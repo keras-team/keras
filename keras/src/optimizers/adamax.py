@@ -23,7 +23,7 @@ class Adamax(optimizer.Optimizer):
     ```
 
     The update rule for parameter `w` with gradient `g` is described at the end
-    of section 7.1 of the paper (see the referenece section):
+    of section 7.1 of the paper (see the reference section):
 
     ```python
     t += 1

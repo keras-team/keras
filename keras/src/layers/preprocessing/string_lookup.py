@@ -13,7 +13,7 @@ class StringLookup(IndexLookup):
 
     This layer translates a set of arbitrary strings into integer output via a
     table-based vocabulary lookup. This layer will perform no splitting or
-    transformation of input strings. For a layer than can split and tokenize
+    transformation of input strings. For a layer that can split and tokenize
     natural language, see the `keras.layers.TextVectorization` layer.
 
     The vocabulary for the layer must be either supplied on construction or

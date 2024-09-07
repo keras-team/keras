@@ -126,7 +126,7 @@ def register_keras_serializable(package="Custom", name=None):
 
     Args:
         package: The package that this class belongs to. This is used for the
-            `key` (which is `"package>name"`) to idenfify the class. Note that
+            `key` (which is `"package>name"`) to identify the class. Note that
             this is the first argument passed into the decorator.
         name: The name to serialize this class under in this package. If not
             provided or `None`, the class' name will be used (note that this is

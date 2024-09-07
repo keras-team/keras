@@ -20,6 +20,7 @@ class ActivationTest(testing.TestCase):
             expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=True,
+            assert_built_after_instantiation=True,
         )
         self.run_layer_test(
             layers.Activation,
@@ -33,4 +34,5 @@ class ActivationTest(testing.TestCase):
             expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=True,
+            assert_built_after_instantiation=True,
         )

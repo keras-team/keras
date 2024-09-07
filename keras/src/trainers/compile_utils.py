@@ -432,7 +432,7 @@ class CompileLoss(losses_module.Loss):
         # Inferred by `y_pred` and `output_names`
         self.inferred_output_names = None
 
-        # Use `Tracker` to track metrcis for individual losses.
+        # Use `Tracker` to track metrics for individual losses.
         self._metrics = []
         self._tracker = Tracker(
             {
@@ -530,7 +530,7 @@ class CompileLoss(losses_module.Loss):
                     "When providing the `loss_weights` argument, it should "
                     "have equal length of `loss` argument. "
                     f"Received: loss_weights length={len(flat_loss_weights)}, "
-                    f"loss legnth={len(flat_losses)}"
+                    f"loss length={len(flat_losses)}"
                 )
 
         y_true = tree.flatten(y_true)
@@ -613,15 +613,15 @@ class CompileLoss(losses_module.Loss):
     def call(self, y_true, y_pred, sample_weight=None):
         if not self.built:
             self.build(y_true, y_pred)
-
-        # Filter unused inputs.
-        y_true, y_pred = self._filter_unused_inputs(
-            y_true,
-            y_pred,
-            self.filtered_y_true_keys,
-            self.filtered_y_pred_keys,
-            self.inferred_output_names,
-        )
+        else:
+            # Filter unused inputs.
+            y_true, y_pred = self._filter_unused_inputs(
+                y_true,
+                y_pred,
+                self.filtered_y_true_keys,
+                self.filtered_y_pred_keys,
+                self.inferred_output_names,
+            )
 
         # Flatten the inputs.
         y_true = tree.flatten(y_true)

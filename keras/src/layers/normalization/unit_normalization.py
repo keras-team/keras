@@ -37,8 +37,6 @@ class UnitNormalization(Layer):
                 f"Received: axis={axis}"
             )
         self.supports_masking = True
-
-    def build(self, input_shape):
         self.built = True
 
     def call(self, inputs):

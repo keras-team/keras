@@ -284,7 +284,7 @@ def print_summary(
         if not sequential_like:
             fields.append(get_connections(layer))
         if show_trainable:
-            if layer.weights:
+            if hasattr(layer, "weights") and len(layer.weights) > 0:
                 fields.append(
                     bold_text("Y", color=34)
                     if layer.trainable

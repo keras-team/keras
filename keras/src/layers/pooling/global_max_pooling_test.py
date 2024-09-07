@@ -32,6 +32,7 @@ class GlobalMaxPoolingBasicTest(testing.TestCase, parameterized.TestCase):
             expected_num_non_trainable_weights=0,
             expected_num_losses=0,
             supports_masking=False,
+            assert_built_after_instantiation=True,
         )
 
     @parameterized.parameters(
@@ -58,6 +59,7 @@ class GlobalMaxPoolingBasicTest(testing.TestCase, parameterized.TestCase):
             expected_num_non_trainable_weights=0,
             expected_num_losses=0,
             supports_masking=False,
+            assert_built_after_instantiation=True,
         )
 
     @parameterized.parameters(
@@ -84,6 +86,7 @@ class GlobalMaxPoolingBasicTest(testing.TestCase, parameterized.TestCase):
             expected_num_non_trainable_weights=0,
             expected_num_losses=0,
             supports_masking=False,
+            assert_built_after_instantiation=True,
         )
 
 
