@@ -694,7 +694,7 @@ class LayoutMap(collections.abc.MutableMapping):
     `TensorLayout` instance.
 
     In the normal case, the key to query is usually the `variable.path`, which
-    is the idenifier of the variable.
+    is the identifier of the variable.
 
     As shortcut, tuple or list of axis names are also allowed when inserting
     as value, and will be converted to `TensorLayout`.

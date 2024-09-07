@@ -7,7 +7,7 @@ class TFDatasetAdapter(DataAdapter):
     """Adapter that handles `tf.data.Dataset`."""
 
     def __init__(self, dataset, class_weight=None, distribution=None):
-        """Iniitialize the TFDatasetAdapter.
+        """Initialize the TFDatasetAdapter.
 
         Args:
             dataset: The input `tf.data.Dataset` instance.

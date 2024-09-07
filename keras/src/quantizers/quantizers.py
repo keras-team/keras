@@ -41,7 +41,7 @@ class Quantizer:
     def get_config(self):
         """Returns the config of the quantizer.
 
-        An quantizer config is a Python dictionary (serializable)
+        A quantizer config is a Python dictionary (serializable)
         containing all configuration parameters of the quantizer.
         The same quantizer can be reinstantiated later
         (without any saved state) from this configuration.

@@ -29,7 +29,7 @@ def inv(x):
 
 def lu_factor(x):
     LU, pivots = torch.linalg.lu_factor(x)
-    # torch retuns pivots with 1-based indexing
+    # torch returns pivots with 1-based indexing
     return LU, pivots - 1
 
 
@@ -68,9 +68,7 @@ def solve_triangular(a, b, lower=False):
 
 def svd(x, full_matrices=True, compute_uv=True):
     if not compute_uv:
-        raise NotImplementedError(
-            "`compute_uv=False` is not supported for torch backend."
-        )
+        return torch.linalg.svdvals(x)
     return torch.linalg.svd(x, full_matrices=full_matrices)
 
 

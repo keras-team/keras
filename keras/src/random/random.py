@@ -45,7 +45,7 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
 
     Args:
         logits: 2-D Tensor with shape (batch_size, num_classes). Each row
-            should define a categorical distibution with the unnormalized
+            should define a categorical distribution with the unnormalized
             log-probabilities for all classes.
         num_samples: Int, the number of independent samples to draw for each
             row of the input. This will be the second dimension of the output

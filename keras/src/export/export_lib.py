@@ -465,7 +465,7 @@ class ExportArchive:
             variables = tree.flatten(tree.map_structure(tf.Variable, variables))
         setattr(self._tf_trackable, name, list(variables))
 
-    def write_out(self, filepath, options=None):
+    def write_out(self, filepath, options=None, verbose=True):
         """Write the corresponding SavedModel to disk.
 
         Arguments:
@@ -473,6 +473,8 @@ class ExportArchive:
                 Path where to save the artifact.
             options: `tf.saved_model.SaveOptions` object that specifies
                 SavedModel saving options.
+            verbose: whether to print all the variables of an
+                exported SavedModel.
 
         **Note on TF-Serving**: all endpoints registered via `add_endpoint()`
         are made visible for TF-Serving in the SavedModel artifact. In addition,
@@ -506,7 +508,9 @@ class ExportArchive:
 
         # Print out available endpoints
         endpoints = "\n\n".join(
-            _print_signature(getattr(self._tf_trackable, name), name)
+            _print_signature(
+                getattr(self._tf_trackable, name), name, verbose=verbose
+            )
             for name in self._endpoint_names
         )
         io_utils.print_msg(
@@ -617,7 +621,7 @@ class ExportArchive:
                 "the TF runtime in the same environment will not work. "
                 "To use JAX-native serialization for high-performance export "
                 "and serving, please install `tensorflow-gpu` and ensure "
-                "CUDA version compatiblity between your JAX and TF "
+                "CUDA version compatibility between your JAX and TF "
                 "installations."
             )
             return False
@@ -625,7 +629,7 @@ class ExportArchive:
             return True
 
 
-def export_model(model, filepath):
+def export_model(model, filepath, verbose=True):
     export_archive = ExportArchive()
     export_archive.track(model)
     if isinstance(model, (Functional, Sequential)):
@@ -641,7 +645,7 @@ def export_model(model, filepath):
                 "It must be called at least once before export."
             )
         export_archive.add_endpoint("serve", model.__call__, input_signature)
-    export_archive.write_out(filepath)
+    export_archive.write_out(filepath, verbose=verbose)
 
 
 def _get_input_signature(model):
@@ -813,9 +817,9 @@ def _make_tensor_spec(x):
     return tf.TensorSpec(shape, dtype=x.dtype, name=x.name)
 
 
-def _print_signature(fn, name):
+def _print_signature(fn, name, verbose=True):
     concrete_fn = fn._list_all_concrete_functions()[0]
-    pprinted_signature = concrete_fn.pretty_printed_signature(verbose=True)
+    pprinted_signature = concrete_fn.pretty_printed_signature(verbose=verbose)
     lines = pprinted_signature.split("\n")
     lines = [f"* Endpoint '{name}'"] + lines[1:]
     endpoint = "\n".join(lines)

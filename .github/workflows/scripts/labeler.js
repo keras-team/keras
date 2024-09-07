@@ -23,16 +23,16 @@ You may obtain a copy of the License at
 
 module.exports = async ({ github, context }) => {
     const issue_title = context.payload.issue ?  context.payload.issue.title : context.payload.pull_request.title
-    const issue_discription = context.payload.issue ? context.payload.issue.body : context.payload.pull_request.body
+    const issue_description = context.payload.issue ? context.payload.issue.body : context.payload.pull_request.body
     const issue_number = context.payload.issue ? context.payload.issue.number : context.payload.pull_request.number
     const keyword_label =  {
          gemma:'Gemma'
     }
     const labelsToAdd = []
-    console.log(issue_title,issue_discription,issue_number)
+    console.log(issue_title,issue_description,issue_number)
     
     for(const [keyword, label] of Object.entries(keyword_label)){
-     if(issue_title.toLowerCase().indexOf(keyword) !=-1 || issue_discription.toLowerCase().indexOf(keyword) !=-1 ){
+     if(issue_title.toLowerCase().indexOf(keyword) !=-1 || issue_description.toLowerCase().indexOf(keyword) !=-1 ){
         console.log(`'${keyword}'keyword is present inside the title or description. Pushing label '${label}' to row.`)
         labelsToAdd.push(label)
     }

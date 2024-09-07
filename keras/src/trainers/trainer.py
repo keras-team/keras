@@ -30,6 +30,11 @@ class Trainer:
             "training" in inspect.signature(self.compute_loss).parameters
         )
 
+        # Placeholders used in `compile`
+        self._compile_loss = None
+        self._compile_metrics = None
+        self._loss_tracker = None
+
     @traceback_utils.filter_traceback
     @tracking.no_automatic_dependency_tracking
     def compile(
@@ -134,6 +139,7 @@ class Trainer:
                 wrapped in a `LossScaleOptimizer`, which will dynamically
                 scale the loss to prevent underflow.
         """
+        self._clear_previous_trainer_metrics()
         optimizer = optimizers.get(optimizer)
         self.optimizer = optimizer
         if (
@@ -154,14 +160,10 @@ class Trainer:
                 loss, loss_weights, output_names=output_names
             )
             self.loss = loss
-        else:
-            self._compile_loss = None
         if metrics is not None or weighted_metrics is not None:
             self._compile_metrics = CompileMetrics(
                 metrics, weighted_metrics, output_names=output_names
             )
-        else:
-            self._compile_metrics = None
         if jit_compile == "auto":
             if run_eagerly:
                 jit_compile = False
@@ -246,12 +248,23 @@ class Trainer:
 
     @property
     def metrics(self):
-        metrics = [self._loss_tracker] if self.compiled else []
-        metrics.extend(super().metrics)
-        if self.compiled and self._compile_metrics is not None:
-            metrics += [self._compile_metrics]
-        if self.compiled and self._compile_loss is not None:
-            metrics.extend(self._compile_loss.metrics)
+        # Order: loss tracker, individual loss trackers, compiled metrics,
+        # custom metrcis, sublayer metrics.
+        metrics = []
+        if self.compiled:
+            if self._loss_tracker is not None:
+                metrics.append(self._loss_tracker)
+            if self._compile_metrics is not None:
+                metrics.append(self._compile_metrics)
+            if self._compile_loss is not None:
+                metrics.extend(self._compile_loss.metrics)
+        metrics.extend(self._metrics)
+        for layer in self._flatten_layers(include_self=False):
+            if isinstance(layer, Trainer):
+                # All Trainer-related metrics in sublayers should be ignored
+                # because a new Trainer has been instantiated.
+                continue
+            metrics.extend(layer.metrics)
         return metrics
 
     @property
@@ -261,6 +274,32 @@ class Trainer:
     def reset_metrics(self):
         for m in self.metrics:
             m.reset_state()
+
+    def _get_own_metrics(self):
+        metrics = []
+        if self._loss_tracker is not None:
+            metrics.append(self._loss_tracker)
+        if self._compile_metrics is not None:
+            metrics.append(self._compile_metrics)
+        if self._compile_loss is not None:
+            metrics.extend(self._compile_loss.metrics)
+        metrics.extend(self._metrics)
+        return metrics
+
+    def _clear_previous_trainer_metrics(self):
+        for layer in self._flatten_layers(include_self=False):
+            if not isinstance(layer, Trainer):
+                continue
+            # A sublayer might be a Trainer. In that case, we need to clear
+            # the Trainer-related metrics, as they are not usable when a
+            # new Trainer is instantiated.
+            for m in self._get_own_metrics():
+                layer._tracker.untrack(m)
+            layer._loss_tracker = None
+            layer._compile_metrics = None
+            if layer._compile_loss is not None:
+                layer._compile_loss._metrics.clear()
+            layer._metrics.clear()
 
     def compute_loss(
         self,
@@ -942,7 +981,7 @@ class Trainer:
     def _get_metrics_result_or_logs(self, logs):
         """Returns model metrics as a dict if the keys match with input logs.
 
-        When the training / evalution is performed with an asynchronous steps,
+        When the training / evaluation is performed with an asynchronous steps,
         the last scheduled `train / test_step` may not give the latest metrics
         because it is not guaranteed to be executed the last. This method gets
         metrics from the model directly instead of relying on the return from

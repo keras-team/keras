@@ -397,7 +397,7 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
         self.assertAllClose(v.__array__(), np.array([1, 2, 3]))
 
 
-class VariableOpsCorrentnessTest(test_case.TestCase):
+class VariableOpsCorrectnessTest(test_case.TestCase):
     """Tests for operations on KerasVariable."""
 
     def test_int(self):

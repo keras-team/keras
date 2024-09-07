@@ -27,6 +27,7 @@ class ActivityRegularization(Layer):
         self.supports_masking = True
         self.l1 = l1
         self.l2 = l2
+        self.built = True
 
     def call(self, inputs):
         return inputs

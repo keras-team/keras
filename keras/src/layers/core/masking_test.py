@@ -19,6 +19,7 @@ class MaskingTest(testing.TestCase):
             expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=True,
+            assert_built_after_instantiation=True,
         )
 
     @pytest.mark.requires_trainable_backend

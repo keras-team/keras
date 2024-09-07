@@ -1945,7 +1945,7 @@ def ctc_decode(
         A tuple containing:
         - The tensor representing the list of decoded sequences. If
             `strategy="greedy"`, the shape is `(1, batch_size, max_length)`. If
-            `strategy="beam_seatch"`, the shape is
+            `strategy="beam_search"`, the shape is
             `(top_paths, batch_size, max_length)`. Note that: `-1` indicates the
             blank label.
         - If `strategy="greedy"`, a tensor of shape `(batch_size, 1)`

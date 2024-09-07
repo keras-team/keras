@@ -285,3 +285,12 @@ def norm(x, ord=None, axis=None, keepdims=False):
         dtype = dtypes.result_type(x.dtype, float)
     x = cast(x, dtype)
     return jnp.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
+
+
+def logdet(x):
+    from keras.src.backend.jax.numpy import slogdet
+
+    # In JAX (like in NumPy) slogdet is more stable than
+    # `np.log(np.linalg.det(x))`. See
+    # https://numpy.org/doc/stable/reference/generated/numpy.linalg.slogdet.html
+    return slogdet(x)[1]

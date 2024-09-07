@@ -57,10 +57,11 @@ class ReLU(Layer):
                 f"value. Received: threshold={threshold}"
             )
 
-        self.supports_masking = True
         self.max_value = max_value
         self.negative_slope = negative_slope
         self.threshold = threshold
+        self.supports_masking = True
+        self.built = True
 
     def call(self, inputs):
         return activations.relu(

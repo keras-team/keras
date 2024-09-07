@@ -185,6 +185,8 @@ def solve_triangular(a, b, lower=False):
 
 
 def svd(x, full_matrices=True, compute_uv=True):
+    if compute_uv is False:
+        return tf.linalg.svd(x, full_matrices=full_matrices, compute_uv=False)
     s, u, v = tf.linalg.svd(
         x, full_matrices=full_matrices, compute_uv=compute_uv
     )
