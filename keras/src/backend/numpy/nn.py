@@ -123,7 +123,12 @@ def log_softmax(x, axis=None):
     logsumexp = np.log(np.exp(x - max_x).sum(axis=axis, keepdims=True))
     return x - max_x - logsumexp
 
-
+def crelu(x, axis=None):
+    pos = np.maximum(0, x)
+    neg = np.maximum(0, -x)
+    result = np.concatenate([pos, neg], axis=axis)
+    return np.abs(result)
+    
 def _convert_to_spatial_operand(
     x,
     num_spatial_dims,

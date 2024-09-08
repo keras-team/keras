@@ -18,6 +18,7 @@ from keras.src.activations.activations import softmax
 from keras.src.activations.activations import softplus
 from keras.src.activations.activations import softsign
 from keras.src.activations.activations import tanh
+from keras.src.activations.activations import crelu
 from keras.src.api_export import keras_export
 from keras.src.saving import object_registration
 from keras.src.saving import serialization_lib
@@ -41,6 +42,7 @@ ALL_OBJECTS = {
     linear,
     mish,
     log_softmax,
+    crelu,
 }
 
 ALL_OBJECTS_DICT = {fn.__name__: fn for fn in ALL_OBJECTS}

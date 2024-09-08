@@ -94,6 +94,12 @@ def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return jnn.log_softmax(x, axis=axis)
 
+def crelu(x, axis=-1):
+    x = convert_to_tensor(x)
+    pos = jnn.relu(x)
+    neg = jnn.relu(-x)    
+    result = jnp.concatenate([pos, neg], axis=axis)
+    return jnp.abs(result)
 
 def _convert_to_spatial_operand(
     x,

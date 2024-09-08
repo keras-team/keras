@@ -27,3 +27,4 @@ from keras.src.activations.activations import softmax
 from keras.src.activations.activations import softplus
 from keras.src.activations.activations import softsign
 from keras.src.activations.activations import tanh
+from keras.src.activations.activations import crelu

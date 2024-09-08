@@ -127,6 +127,11 @@ def log_softmax(x, axis=-1):
         output = tnn.log_softmax(x, dim=axis)
     return cast(output, dtype)
 
+def crelu(x, axis=-1):
+    pos = tnn.relu(x)
+    neg = tnn.relu(-x)
+    result = torch.cat([pos, neg], dim=axis)
+    return torch.abs(result)
 
 def _compute_padding_length(
     input_length, kernel_length, stride, dilation_rate=1

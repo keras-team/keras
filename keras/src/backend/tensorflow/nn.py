@@ -99,7 +99,10 @@ def log_softmax(x, axis=-1):
         return tf.reshape(output, tf.shape(x))
     return tf.nn.log_softmax(x, axis=axis)
 
-
+def crelu(x, axis=-1):
+    x = convert_to_tensor(x)
+    return tf.nn.crelu(x, axis=axis)
+    
 def _transpose_spatial_inputs(inputs):
     num_spatial_dims = len(inputs.shape) - 2
     # Tensorflow pooling does not support `channels_first` format, so

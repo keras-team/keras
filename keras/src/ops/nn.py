@@ -630,6 +630,43 @@ def log_softmax(x, axis=-1):
     else:
         return backend.nn.log_softmax(x, axis=axis)
 
+class CRelu(Operation):
+    def call(self, x):
+        return backend.nn.crelu(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.crelu", "keras.ops.nn.crelu"])
+def crelu(x):
+    """Concatenated Rectified Linear Unit (CReLU) activation function.
+
+    The CReLU function is a variant of the ReLU activation function.
+    It applies ReLU to the input tensor `x` and `-x`, 
+    concatenating the results along the specified axis. It is defined as:
+    
+    `f(x) = [max(0, x), max(0, -x)]`
+
+    Args:
+        x: Input tensor. The tensor can have any shape.
+
+    Returns:
+        A tensor with the same shape as `x` but with concatenated 
+        positive and negative ReLU results.
+
+    Example:
+
+    >>> x1 = keras.ops.convert_to_tensor([[-1.0, 0.0, 1.0], [2.0, -3.0, -4.0]])
+    >>> keras.ops.crelu(x1)
+    array([[0.0, 0.0, 1.0, 0.0, 1.0, 4.0],
+           [2.0, 0.0, 0.0, 0.0, 3.0, 4.0]], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return CRelu().symbolic_call(x)
+    return backend.nn.crelu(x)
+
+
 
 class MaxPool(Operation):
     def __init__(
