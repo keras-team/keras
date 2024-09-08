@@ -1081,7 +1081,8 @@ def triu(x, k=0):
 
 def trunc(x):
     x = convert_to_tensor(x)
-    return jnp.trunc(x)
+    dtype = x.dtype
+    return jnp.trunc(x).astype(dtype)
 
 
 def vdot(x1, x2):

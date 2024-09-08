@@ -8175,11 +8175,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_trunc(self, dtype):
-        import jax.numpy as jnp
-
         x = knp.ones((1, 1), dtype=dtype)
-        x_jax = jnp.ones((1, 1), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.trunc(x_jax).dtype)
+        # TODO: jax <= 0.30.0 doesn't preserve the original dtype.
+        expected_dtype = dtype or backend.floatx()
 
         self.assertEqual(standardize_dtype(knp.trunc(x).dtype), expected_dtype)
         self.assertEqual(
