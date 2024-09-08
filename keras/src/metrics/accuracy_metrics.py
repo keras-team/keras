@@ -149,7 +149,7 @@ def categorical_accuracy(y_true, y_pred):
 
     # If the predicted output and actual output types don't match, force cast
     # them to match.
-    if y_pred.dtype != y_true.dtype:
+    if y_pred.dtype is not y_true.dtype:
         y_pred = ops.cast(y_pred, dtype=y_true.dtype)
     matches = ops.cast(ops.equal(y_true, y_pred), backend.floatx())
     if reshape_matches:
@@ -235,7 +235,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
 
     # If the predicted output and actual output types don't match, force cast
     # them to match.
-    if y_pred.dtype != y_true.dtype:
+    if y_pred.dtype is not y_true.dtype:
         y_pred = ops.cast(y_pred, y_true.dtype)
     matches = ops.cast(ops.equal(y_true, y_pred), backend.floatx())
     if reshape_matches:
