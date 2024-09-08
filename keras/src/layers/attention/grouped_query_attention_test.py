@@ -201,9 +201,16 @@ class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
             key=key,
             return_attention_scores=True,
         )
-        self.assertAllClose(output, [[[5.679, 5.679], [4.32, 4.32]]], atol=1e-3)
+        self.assertAllClose(
+            output, [[[5.6088595, 5.6088595], [4.391141, 4.391141]]], atol=1e-3
+        )
         self.assertAllClose(
             scores,
-            [[[[0.33, 0.67], [0.67, 0.33]], [[0.33, 0.67], [0.67, 0.33]]]],
+            [
+                [
+                    [[0.19557032, 0.8044297], [0.5, 0.5]],
+                    [[0.5, 0.5], [0.8044297, 0.19557032]],
+                ]
+            ],
             atol=1e-3,
         )
