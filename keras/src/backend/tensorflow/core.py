@@ -1,7 +1,6 @@
 import builtins
 
 import numpy as np
-import optree
 import tensorflow as tf
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 
@@ -224,7 +223,11 @@ def compute_output_spec(fn, *args, **kwargs):
 
 
 def cond(pred, true_fn, false_fn):
-    return tf.cond(pred, true_fn=true_fn, false_fn=false_fn)
+    if isinstance(pred, tf.Variable):
+        return tf.cond(pred, true_fn=true_fn, false_fn=false_fn)
+    return tf.__internal__.smart_cond.smart_cond(
+        pred, true_fn=true_fn, false_fn=false_fn
+    )
 
 
 def vectorized_map(function, elements):
@@ -238,8 +241,13 @@ def map(f, xs):
         out = f(x)
         return tree.map_structure(tf.TensorSpec.from_tensor, out)
 
-    fn_output_signature = get_fn_output_signature(xs[0])
-    return tf.map_fn(f, xs, fn_output_signature=fn_output_signature)
+    if tree.is_nested(xs):
+        input = tree.pack_sequence_as(xs, [x[0] for x in tree.flatten(xs)])
+        fn_output_signature = get_fn_output_signature(input)
+        return tf.map_fn(f, xs, fn_output_signature=fn_output_signature)
+    else:
+        fn_output_signature = get_fn_output_signature(xs[0])
+        return tf.map_fn(f, xs, fn_output_signature=fn_output_signature)
 
 
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
@@ -368,16 +376,16 @@ def associative_scan(f, elems, reverse=False, axis=0):
     # with additional checks to ensure similar behavior with jax
     if not callable(f):
         raise TypeError(f"`f` should be a callable. Received: f={f}")
-    elems_flat, treespec = optree.tree_flatten(elems)
+    elems_flat = tree.flatten(elems)
     elems_flat = [tf.convert_to_tensor(elem) for elem in elems_flat]
     if reverse:
         elems_flat = [tf.reverse(elem, [axis]) for elem in elems_flat]
 
     def _combine(a_flat, b_flat):
-        a = optree.tree_unflatten(treespec, a_flat)
-        b = optree.tree_unflatten(treespec, b_flat)
+        a = tree.pack_sequence_as(elems, a_flat)
+        b = tree.pack_sequence_as(elems, b_flat)
         c = f(a, b)
-        c_flat, _ = optree.tree_flatten(c)
+        c_flat = tree.flatten(c)
         return c_flat
 
     def _get_dim(x):
@@ -539,7 +547,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
     if reverse:
         scans = [tf.reverse(scanned, [axis]) for scanned in scans]
 
-    return optree.tree_unflatten(treespec, scans)
+    return tree.pack_sequence_as(elems, scans)
 
 
 def scatter(indices, values, shape):

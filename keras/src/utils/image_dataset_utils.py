@@ -197,6 +197,14 @@ def image_dataset_from_directory(
             f"Received: color_mode={color_mode}"
         )
 
+    if isinstance(image_size, int):
+        image_size = (image_size, image_size)
+    elif not isinstance(image_size, (list, tuple)) or not len(image_size) == 2:
+        raise ValueError(
+            "Invalid `image_size` value. Expected a tuple of 2 integers. "
+            f"Received: image_size={image_size}"
+        )
+
     interpolation = interpolation.lower()
     supported_interpolations = (
         "bilinear",

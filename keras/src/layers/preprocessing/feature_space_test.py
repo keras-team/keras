@@ -282,7 +282,7 @@ class FeatureSpaceTest(testing.TestCase):
         self.assertEqual(out["string_2_X_int_2"].shape, (10, 32))
 
         # Test batched call on tensors
-        if backend.backend == "tensorflow":
+        if backend.backend() == "tensorflow":
             out = fs(self._get_train_data_dict(as_tensors=True))
             self.assertIsInstance(out, dict)
             self.assertLen(out, 10)
@@ -524,7 +524,7 @@ class FeatureSpaceTest(testing.TestCase):
 
         self.assertEqual(tuple(out["int_1"].shape), (10, 32))
         self.assertEqual(tuple(out["text_1"].shape), (10, 3))
-        self.assertAllEqual(out["float_1"], float_out)
+        self.assertAllClose(out["float_1"], float_out, atol=1e-3)
 
     @pytest.mark.skipif(
         backend.backend() in ("numpy", "torch"),

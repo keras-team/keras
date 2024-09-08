@@ -14,6 +14,7 @@ class SpatialDropoutTest(test_case.TestCase):
             init_kwargs={"rate": 0.5},
             call_kwargs={"training": True},
             input_shape=(2, 3, 4),
+            assert_built_after_instantiation=True,
         )
 
         self.run_layer_test(
@@ -21,6 +22,7 @@ class SpatialDropoutTest(test_case.TestCase):
             init_kwargs={"rate": 0.5},
             call_kwargs={"training": False},
             input_shape=(2, 3, 4),
+            assert_built_after_instantiation=True,
         )
 
     @pytest.mark.requires_trainable_backend
@@ -30,6 +32,7 @@ class SpatialDropoutTest(test_case.TestCase):
             init_kwargs={"rate": 0.5},
             call_kwargs={"training": True},
             input_shape=(2, 3, 4, 5),
+            assert_built_after_instantiation=True,
         )
 
         self.run_layer_test(
@@ -37,6 +40,7 @@ class SpatialDropoutTest(test_case.TestCase):
             init_kwargs={"rate": 0.5, "data_format": "channels_first"},
             call_kwargs={"training": True},
             input_shape=(2, 3, 4, 5),
+            assert_built_after_instantiation=True,
         )
 
     @pytest.mark.requires_trainable_backend
@@ -46,6 +50,7 @@ class SpatialDropoutTest(test_case.TestCase):
             init_kwargs={"rate": 0.5},
             call_kwargs={"training": True},
             input_shape=(2, 3, 4, 4, 5),
+            assert_built_after_instantiation=True,
         )
 
         self.run_layer_test(
@@ -53,6 +58,7 @@ class SpatialDropoutTest(test_case.TestCase):
             init_kwargs={"rate": 0.5, "data_format": "channels_first"},
             call_kwargs={"training": True},
             input_shape=(2, 3, 4, 4, 5),
+            assert_built_after_instantiation=True,
         )
 
     def test_spatial_dropout_1D_dynamic(self):

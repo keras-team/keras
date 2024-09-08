@@ -341,7 +341,7 @@ class ModelCheckpoint(Callback):
         later time of modification (for instance, when epoch/batch is used as
         formatting option), but not necessarily (when accuracy or loss is used).
         The tie-breaker is put in the logic as best effort to return the most
-        recent, and to avoid undeterministic result.
+        recent, and to avoid nondeterministic result.
 
         Modified time of a file is obtained with `os.path.getmtime()`.
 

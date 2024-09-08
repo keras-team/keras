@@ -30,4 +30,5 @@ class IdentityTest(testing.TestCase, parameterized.TestCase):
             expected_num_losses=0,
             run_training_check=not sparse,
             supports_masking=True,
+            assert_built_after_instantiation=True,
         )

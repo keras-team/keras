@@ -31,7 +31,7 @@ class TestNumericalUtils(testing.TestCase, parameterized.TestCase):
             np.all(np.argmax(one_hot, -1).reshape(label.shape) == label)
         )
 
-    def test_to_categorial_without_num_classes(self):
+    def test_to_categorical_without_num_classes(self):
         label = [0, 2, 5]
         one_hot = numerical_utils.to_categorical(label)
         self.assertEqual(one_hot.shape, (3, 5 + 1))

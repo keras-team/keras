@@ -199,8 +199,8 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         # my_metric.
         self.assertEqual(len(model.metrics), 3)
         self.assertEqual(model.metrics[0], model._loss_tracker)
-        self.assertEqual(model.metrics[1], model.my_metric)
-        self.assertEqual(model.metrics[2], model._compile_metrics)
+        self.assertEqual(model.metrics[1], model._compile_metrics)
+        self.assertEqual(model.metrics[2], model.my_metric)
 
         # All metrics should have their weights created
         self.assertEqual(len(model._loss_tracker.variables), 2)
@@ -226,6 +226,48 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             sample_weight=np.ones(2),
         )
         self.assertEqual(len(model_weighted.metrics), 3)
+
+    def test_nested_trainer_metrics(self):
+        # https://github.com/keras-team/keras/issues/20188
+        model = ExampleModel(units=3)
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+        )
+        self.assertLen(model.metrics, 2)
+        self.assertEqual(model.metrics[0], model._loss_tracker)
+        self.assertEqual(model.metrics[1], model._compile_metrics)
+
+        inputs = keras.Input((4,))
+        outputs = model(inputs)
+        outputs = layers.Dense(8)(outputs)
+        new_model = models.Model(inputs, outputs)
+        new_model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+        )
+        self.assertLen(new_model.metrics, 2)
+        self.assertEqual(new_model.metrics[0], new_model._loss_tracker)
+        self.assertEqual(new_model.metrics[1], new_model._compile_metrics)
+
+    def test_nested_trainer_metrics_without_compile(self):
+        model = ExampleModel(units=3)
+        self.assertLen(model.metrics, 0)
+
+        inputs = keras.Input((4,))
+        outputs = model(inputs)
+        outputs = layers.Dense(8)(outputs)
+        new_model = models.Model(inputs, outputs)
+        new_model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+        )
+        self.assertLen(new_model.metrics, 2)
+        self.assertEqual(new_model.metrics[0], new_model._loss_tracker)
+        self.assertEqual(new_model.metrics[1], new_model._compile_metrics)
 
     @pytest.mark.skipif(
         backend.backend() != "torch",

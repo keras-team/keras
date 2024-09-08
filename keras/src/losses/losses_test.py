@@ -89,7 +89,7 @@ class MeanSquaredErrorTest(testing.TestCase):
 class MeanAbsoluteErrorTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(
-            losses.MeanAbsoluteError(name="mymae")
+            losses.MeanAbsoluteError(name="myname")
         )
 
     def test_all_correct_unweighted(self):
