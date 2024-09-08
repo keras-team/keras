@@ -631,15 +631,19 @@ def log_softmax(x, axis=-1):
         return backend.nn.log_softmax(x, axis=axis)
 
 class CRelu(Operation):
+    def __init__(self, axis=-1):
+        super().__init__()
+        self.axis = axis
+
     def call(self, x):
-        return backend.nn.crelu(x)
+        return backend.nn.crelu(x, axis=self.axis)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
 @keras_export(["keras.ops.crelu", "keras.ops.nn.crelu"])
-def crelu(x):
+def crelu(x, axis=-1):
     """Concatenated Rectified Linear Unit (CReLU) activation function.
 
     The CReLU function is a variant of the ReLU activation function.
@@ -663,8 +667,8 @@ def crelu(x):
            [2.0, 0.0, 0.0, 0.0, 3.0, 4.0]], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return CRelu().symbolic_call(x)
-    return backend.nn.crelu(x)
+        return CRelu(axis).symbolic_call(x)
+    return backend.nn.crelu(x, axis=axis)
 
 
 
