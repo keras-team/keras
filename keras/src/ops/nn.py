@@ -1975,16 +1975,19 @@ def ctc_decode(
 
 
 class Normalize(Operation):
-    def __init__(self, axis=-1, order=2):
+    def __init__(self, axis=-1, order=2, epsilon=None):
         super().__init__()
         self.axis = axis
         self.order = order
+        self.epsilon = epsilon
 
     def compute_output_spec(self, x):
         return KerasTensor(shape=x.shape)
 
     def call(self, x):
-        return _normalize(x, axis=self.axis, order=self.order)
+        return _normalize(
+            x, axis=self.axis, order=self.order, epsilon=self.epsilon
+        )
 
 
 @keras_export(
@@ -1993,7 +1996,7 @@ class Normalize(Operation):
         "keras.ops.nn.normalize",
     ]
 )
-def normalize(x, axis=-1, order=2):
+def normalize(x, axis=-1, order=2, epsilon=None):
     """Normalizes `x` over the specified axis.
 
     It is defined as: `normalize(x) = x / max(norm(x), epsilon)`.
@@ -2004,6 +2007,8 @@ def normalize(x, axis=-1, order=2):
             Default to -1.
         order: The exponent value in the norm formulation.
             Defaults to 2.
+        epsilon: A lower bound value for the norm.
+            Defaults to `backend.epsilon()`.
 
     Returns:
         The normalized array.
@@ -2018,11 +2023,13 @@ def normalize(x, axis=-1, order=2):
 
     """
     if any_symbolic_tensors((x,)):
-        return Normalize(axis=axis, order=order).symbolic_call(x)
-    return _normalize(x, axis=axis, order=order)
+        return Normalize(axis=axis, order=order, epsilon=epsilon).symbolic_call(
+            x
+        )
+    return _normalize(x, axis=axis, order=order, epsilon=epsilon)
 
 
-def _normalize(x, axis=-1, order=2):
+def _normalize(x, axis=-1, order=2, epsilon=None):
     if not isinstance(order, int) or not order >= 1:
         raise ValueError(
             f"Argument `order` must be an int >= 1. Received: order={order}"
@@ -2030,7 +2037,17 @@ def _normalize(x, axis=-1, order=2):
     x = backend.convert_to_tensor(x)
     if len(x.shape) == 0:
         x = backend.numpy.expand_dims(x, axis=0)
-    epsilon = backend.epsilon()
+    if epsilon is None:
+        epsilon = backend.epsilon()
+    if 2 == order:
+        # A special case: L2 normalization with `x * rsqrt(...)`
+        # instead of `x / sqrt(...)`
+        square_sum = backend.numpy.sum(
+            backend.numpy.square(x), axis=axis, keepdims=True
+        )
+        inv_norm = backend.math.rsqrt(square_sum)
+        inv_norm = backend.numpy.minimum(inv_norm, 1.0 / epsilon)
+        return x * inv_norm
     norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
     denom = backend.numpy.maximum(norm, epsilon)
     return backend.numpy.divide(x, denom)

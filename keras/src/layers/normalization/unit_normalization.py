@@ -40,11 +40,7 @@ class UnitNormalization(Layer):
         self.built = True
 
     def call(self, inputs):
-        x = ops.cast(inputs, self.compute_dtype)
-
-        square_sum = ops.sum(ops.square(x), axis=self.axis, keepdims=True)
-        x_inv_norm = ops.rsqrt(ops.maximum(square_sum, 1e-12))
-        return ops.multiply(x, x_inv_norm)
+        return ops.normalize(inputs, axis=self.axis, order=2, epsilon=1e-12)
 
     def compute_output_shape(self, input_shape):
         return input_shape
