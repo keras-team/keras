@@ -5576,6 +5576,41 @@ def triu(x, k=0):
     return backend.numpy.triu(x, k=k)
 
 
+class Trunc(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.numpy.trunc(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.trunc", "keras.ops.numpy.trunc"])
+def trunc(x):
+    """Return the truncated value of the input, element-wise.
+
+    The truncated value of the scalar `x` is the nearest integer `i` which is
+    closer to zero than `x` is. In short, the fractional part of the signed
+    number `x` is discarded.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        The truncated value of each element in `x`.
+
+    Example:
+    >>> x = ops.array([-1.7, -1.5, -0.2, 0.2, 1.5, 1.7, 2.0])
+    >>> ops.trunc(x)
+    array([-1.0, -1.0, -0.0, 0.0, 1.0, 1.0, 2.0])
+    """
+    if any_symbolic_tensors((x,)):
+        return Trunc().symbolic_call(x)
+    return backend.numpy.trunc(x)
+
+
 class Vdot(Operation):
     def call(self, x1, x2):
         return backend.numpy.vdot(x1, x2)

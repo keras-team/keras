@@ -150,6 +150,7 @@ from keras.src.ops.numpy import tri
 from keras.src.ops.numpy import tril
 from keras.src.ops.numpy import triu
 from keras.src.ops.numpy import true_divide
+from keras.src.ops.numpy import trunc
 from keras.src.ops.numpy import var
 from keras.src.ops.numpy import vdot
 from keras.src.ops.numpy import vectorize

@@ -2231,6 +2231,14 @@ def triu(x, k=0):
     )
 
 
+def trunc(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "bool" or "int" in dtype:
+        return x
+    return tf.where(x < 0, tf.math.ceil(x), tf.math.floor(x))
+
+
 def vdot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
