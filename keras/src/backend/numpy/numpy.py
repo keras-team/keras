@@ -981,6 +981,12 @@ def triu(x, k=0):
     return np.triu(x, k=k)
 
 
+def trunc(x):
+    x = convert_to_tensor(x)
+    dtype = x.dtype
+    return np.trunc(x).astype(dtype)
+
+
 def vdot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

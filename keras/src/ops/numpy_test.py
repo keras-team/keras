@@ -1543,6 +1543,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.triu(x, k=1).shape, (None, 3, None, 5))
         self.assertEqual(knp.triu(x, k=-1).shape, (None, 3, None, 5))
 
+    def test_trunc(self):
+        x = KerasTensor((None, 3, None, 5))
+        self.assertEqual(knp.trunc(x).shape, (None, 3, None, 5))
+
     def test_vstack(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((None, 3))
@@ -2073,6 +2077,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.triu(x).shape, (2, 3, 4, 5))
         self.assertEqual(knp.triu(x, k=1).shape, (2, 3, 4, 5))
         self.assertEqual(knp.triu(x, k=-1).shape, (2, 3, 4, 5))
+
+    def test_trunc(self):
+        x = KerasTensor((2, 3, 4, 5))
+        self.assertEqual(knp.trunc(x).shape, (2, 3, 4, 5))
 
     def test_vstack(self):
         x = KerasTensor((2, 3))
@@ -4379,6 +4387,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             return knp.triu(x, k=k)
 
         self.assertAllClose(fn(x, k), np.triu(x_np, k_np))
+
+    def test_trunc(self):
+        x = np.array([-1.7, -2.5, -0.2, 0.2, 1.5, 1.7, 2.0])
+        self.assertAllClose(knp.trunc(x), np.trunc(x))
+        self.assertAllClose(knp.Trunc()(x), np.trunc(x))
+
+        x = np.array([-1, -2, -0, 0, 1, 1, 2], dtype="int32")
+        self.assertAllClose(knp.trunc(x), np.trunc(x))
+        self.assertAllClose(knp.Trunc()(x), np.trunc(x))
 
     def test_vstack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -8155,6 +8172,20 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(
                 knp.TrueDivide().symbolic_call(x1, x2).dtype, expected_dtype
             )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_trunc(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1, 1), dtype=dtype)
+        x_jax = jnp.ones((1, 1), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.trunc(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.trunc(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Trunc().symbolic_call(x).dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_var(self, dtype):
