@@ -868,7 +868,8 @@ def saturate_cast(x, dtype):
     return _saturate_cast(x, dtype)
 
 
-def _saturate_cast(x, dtype):
+def _saturate_cast(x, dtype, backend_module=None):
+    backend_module = backend_module or backend
     dtype = backend.standardize_dtype(dtype)
     in_dtype = backend.standardize_dtype(x.dtype)
     in_info = np.iinfo(in_dtype) if "int" in in_dtype else np.finfo(in_dtype)
@@ -889,9 +890,9 @@ def _saturate_cast(x, dtype):
         max_limit = np.nextafter(max_limit, 0, dtype=in_dtype)
 
     # Unconditionally apply `clip` to fix `inf` behavior.
-    x = backend.numpy.clip(x, min_limit, max_limit)
+    x = backend_module.numpy.clip(x, min_limit, max_limit)
 
-    return cast(x, dtype)
+    return backend_module.cast(x, dtype)
 
 
 @keras_export("keras.ops.convert_to_tensor")
