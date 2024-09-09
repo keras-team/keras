@@ -25,7 +25,8 @@ class KerasFileEditor:
             pass
         else:
             raise ValueError(
-                "Invalid filename: expected a `.keras` `.weights.h5` extension. "
+                "Invalid filename: "
+                "expected a `.keras` `.weights.h5` extension. "
                 f"Received: filepath={filepath}"
             )
 
