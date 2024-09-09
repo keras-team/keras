@@ -745,7 +745,6 @@ def _build_proj_equation(free_dims, bound_dims, output_dims):
         char = _index_to_einsum_variable(i + letter_offset)
         input_str += char
         kernel_str += char
-
     equation = f"{input_str},{kernel_str}->{output_str}"
 
     return equation, bias_axes, len(output_str)
