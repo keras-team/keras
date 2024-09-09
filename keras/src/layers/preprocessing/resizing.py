@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.ops.core import _saturate_cast
 
 
 @keras_export("keras.layers.Resizing")
@@ -97,10 +98,7 @@ class Resizing(TFDataLayer):
             return resized
         if backend.is_int_dtype(inputs.dtype):
             resized = self.backend.numpy.round(resized)
-        resized = self.backend.numpy.clip(
-            resized, inputs.dtype.min, inputs.dtype.max
-        )
-        return self.backend.cast(resized, inputs.dtype)
+        return _saturate_cast(resized, inputs.dtype, self.backend)
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
