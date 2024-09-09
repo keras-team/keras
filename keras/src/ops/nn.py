@@ -799,14 +799,11 @@ def average_pool(
     data_format = standardize_data_format(data_format)
     padding = padding.lower()
     if any_symbolic_tensors((inputs,)):
-        return AveragePool(
-            pool_size,
-            strides,
-            padding,
-            data_format,
-        ).symbolic_call(inputs)
-    return operation_utils.compute_pooling_output_shape(
-        inputs.shape, pool_size, strides, padding, data_format
+        return operation_utils.compute_pooling_output_shape(
+            inputs.shape, pool_size, strides, padding, data_format
+        )
+    return backend.nn.average_pool(
+        inputs, pool_size, strides, padding, data_format
     )
 
 
