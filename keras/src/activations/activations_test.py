@@ -55,6 +55,8 @@ def _ref_sigmoid(x):
 def _ref_softsign(x):
     return np.divide(x, np.ones_like(x) + np.absolute(x))
 
+def _ref_crelu(x):
+    return np.absolute(np.concatenate([np.maximum(0, x), np.maximum(0, -x)], axis=-1))
 
 class ActivationsTest(testing.TestCase):
     def test_softmax(self):
@@ -758,6 +760,31 @@ class ActivationsTest(testing.TestCase):
         # Test with int32 data type
         x_int32 = np.random.randint(-10, 10, (10, 5)).astype(np.int32)
         self.assertAllClose(x_int32, activations.linear(x_int32))
+
+    def test_crelu(self):
+        # Test positive values
+        positive_values = np.random.uniform(0, 5, (2, 5))
+        result = activations.crelu(positive_values[np.newaxis, :])[0]
+        expected = _ref_crelu(positive_values)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+        # Test negative values
+        negative_values = np.random.uniform(-5, 0, (2, 5))
+        result = activations.crelu(negative_values[np.newaxis, :])[0]
+        expected = _ref_crelu(negative_values)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+        # Test mixed positive and negative values
+        mixed_values = np.random.uniform(-5, 5, (2, 5))
+        result = activations.crelu(mixed_values[np.newaxis, :])[0]
+        expected = _ref_crelu(mixed_values)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+        # Test zero values
+        zero_values = np.zeros((2, 5))
+        result = activations.crelu(zero_values[np.newaxis, :])[0]
+        expected = _ref_crelu(zero_values)
+        self.assertAllClose(result, expected, rtol=1e-05)
 
     def test_get_method(self):
         obj = activations.get("relu")

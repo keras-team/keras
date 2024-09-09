@@ -116,6 +116,10 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.log_softmax(x, axis=1).shape, (None, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=-1).shape, (None, 2, 3))
 
+    def test_crelu(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.crelu(x).shape, (None, 2, 3))
+
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
@@ -738,6 +742,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.log_softmax(x, axis=1).shape, (1, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=-1).shape, (1, 2, 3))
 
+    def test_crelu(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.crelu(x).shape, (1, 2, 3))
+
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
@@ -1289,7 +1297,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 [-2.407606, -1.407606, -0.407606],
                 [-2.407606, -1.407606, -0.407606],
             ],
-        )
+        ) 
 
     def test_log_softmax_correctness_with_axis_tuple(self):
         input = np.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]])
@@ -1300,6 +1308,10 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 np.exp(ops.convert_to_numpy(result)), axis=axis
             )
             self.assertAllClose(normalized_sum_by_axis, 1.0)
+
+    def test_crelu(self):
+        x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(knn.crelu(x), [0., 0., 1., 2., 3., 1., 0., 0., 0., 0.])
 
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
