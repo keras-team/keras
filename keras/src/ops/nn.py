@@ -805,8 +805,8 @@ def average_pool(
             padding,
             data_format,
         ).symbolic_call(inputs)
-    return backend.nn.average_pool(
-        inputs, pool_size, strides, padding, data_format
+    return operation_utils.compute_pooling_output_shape(
+        inputs.shape, pool_size, strides, padding, data_format
     )
 
 
