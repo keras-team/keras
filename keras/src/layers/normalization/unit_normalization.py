@@ -49,9 +49,9 @@ class UnitNormalization(Layer):
         Parameters
         ----------
         input_shape
-            Shape tuple (tuple of integers) or list of shape tuples (one per
-            output tensor of the layer). Shape tuples can include None for free
-            dimensions, instead of an integer.
+            Shape tuple (tuple of integers) or list of shape tuples
+            (one per output tensor of the layer). Shape tuples can
+            include None for free dimensions, instead of an integer.
 
         Returns
         -------
@@ -74,12 +74,19 @@ class UnitNormalization(Layer):
                 f"Received: {type(input_shape)}"
             )
 
-        for axis in self.axis:
+        # Ensure axis is always treated as a list
+        if isinstance(self.axis, int):
+            axes = [self.axis]
+        else:
+            axes = self.axis
+
+        for axis in axes:
             if axis >= len(input_shape) or axis < -len(input_shape):
                 raise ValueError(
                     f"Axis {axis} is out of bounds for "
-                    "input shape {input_shape}. "
-                    "Ensure axis is within the range of input dimensions."
+                    f"input shape {input_shape}. "
+                    "Ensure axis is within the range of input"
+                    " dimensions."
                 )
 
         return input_shape
