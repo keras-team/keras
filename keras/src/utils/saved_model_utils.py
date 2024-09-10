@@ -20,9 +20,16 @@ class KerasFileEditor:
         self.config = None
 
         if filepath.endswith(".keras"):
-            self.init_for_keras(custom_objects, filepath, reference_model)
+            self._init_for_keras_format(
+                custom_objects, filepath, reference_model
+            )
+            weights_store = H5IOStore(
+                _VARS_FNAME + ".h5",
+                archive=zipfile.ZipFile(filepath, "r"),
+                mode="r",
+            )
         elif filepath.endswith(".weights.h5"):
-            pass
+            weights_store = H5IOStore(filepath, mode="r")
         else:
             raise ValueError(
                 "Invalid filename: "
@@ -30,25 +37,21 @@ class KerasFileEditor:
                 f"Received: filepath={filepath}"
             )
 
-        def recursive_search(data):
+        def _extract_values(data):
             result = {}
             for key in data.keys():
                 value = data[key]
                 if isinstance(value, h5py.Group) and len(value) == 0:
                     continue
                 if hasattr(value, "keys"):
-                    result[key] = recursive_search(value)
+                    result[key] = _extract_values(value)
                 else:
                     result[key] = value
             return result
 
-        archive = zipfile.ZipFile(filepath, "r")
-        weights_store = H5IOStore(
-            _VARS_FNAME + ".h5", archive=archive, mode="r"
-        )
-        self.nested_dict = recursive_search(weights_store.h5_file)
+        self.nested_dict = _extract_values(weights_store.h5_file)
 
-    def init_for_keras(self, custom_objects, filepath, reference_model):
+    def _init_for_keras_format(self, custom_objects, filepath, reference_model):
         with zipfile.ZipFile(filepath, "r") as zf:
             with zf.open(_CONFIG_FILENAME, "r") as f:
                 self.config = json.loads(f.read())
