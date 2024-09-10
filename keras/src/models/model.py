@@ -563,6 +563,26 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         optimizer_variables=False,
         metrics_variables=False,
     ):
+        """Retrieves tree-like structure of specified variables of the model.
+
+        This method allows selective retrieval of different variables
+        (trainable, non-trainable, optimizer, and metrics) associated with the
+        model. The variables are returned in a nested dictionary format,
+        where the keys correspond to the variable names and the values are the
+        nested representations of the variables.
+
+        Args:
+            trainable_variables: Whether to include trainable variables.
+            non_trainable_variables: Whether to include non-trainable variables.
+            optimizer_variables: Whether to include optimizer variables.
+            metrics_variables: Whether to include metrics variables.
+
+        Returns:
+            dict: A dictionary containing the nested representations of the
+                requested variables. The keys are the variable names, and the
+                values are the corresponding nested dictionaries. If no variable
+                types are requested, an empty dictionary is returned.
+        """
         variables = {}
         if trainable_variables:
             variables["trainable_variables"] = self._create_nested_dict(
@@ -601,6 +621,20 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         return nested_dict
 
     def set_nested_variables(self, variables):
+        """Assigns values to variables of the model.
+
+        This method takes a dictionary of nested variable values and assigns
+        them to the corresponding variables of the model. The dictionary keys
+        represent the variable names (e.g., 'trainable_variables',
+        'optimizer_variables'), and the values are nested dictionaries
+        containing the variable paths and their corresponding values.
+
+        Args:
+            variables:  A dictionary containing nested variable values. The keys
+                        are the variable names, and the values are nested
+                        dictionaries representing the variable paths and their
+                        values.
+        """
         for k, v in variables.items():
             path_value_dict = self._flatten_nested_dict(v)
             if k == "trainable_variables":
