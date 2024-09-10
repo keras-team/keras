@@ -556,6 +556,91 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         map_saveable_variables(self, store=store, visited_saveables=set())
         return store
 
+    def get_nested_variables(
+        self,
+        trainable_variables=False,
+        non_trainable_variables=False,
+        optimizer_variables=False,
+        metrics_variables=False,
+    ):
+        variables = {}
+        if trainable_variables:
+            variables["trainable_variables"] = self._create_nested_dict(
+                self.trainable_variables
+            )
+        if non_trainable_variables:
+            variables["non_trainable_variables"] = self._create_nested_dict(
+                self.non_trainable_variables
+            )
+        if optimizer_variables:
+            variables["optimizer_variables"] = self._create_nested_dict(
+                self.optimizer.variables
+            )
+        if metrics_variables:
+            variables["metrics_variables"] = self._create_nested_dict(
+                self.metrics_variables
+            )
+
+        return variables
+
+    def _create_nested_dict(self, variables):
+        flat_dict = {}
+        for v in variables:
+            flat_dict[v.path] = v.value
+
+        nested_dict = {}
+        for path, value in flat_dict.items():
+            parts = path.split("/")
+            current_dict = nested_dict
+            for part in parts[:-1]:
+                if part not in current_dict:
+                    current_dict[part] = {}
+                current_dict = current_dict[part]
+            current_dict[parts[-1]] = value
+
+        return nested_dict
+
+    def set_nested_variables(self, variables):
+        for k, v in variables.items():
+            path_value_dict = self._flatten_nested_dict(v)
+            if k == "trainable_variables":
+                self._assign_variable_values(
+                    self.trainable_variables, path_value_dict
+                )
+            elif k == "non_trainable_variables":
+                self._assign_variable_values(
+                    self.non_trainable_variables, path_value_dict
+                )
+            elif k == "optimizer_variables":
+                self._assign_variable_values(
+                    self.optimizer.variables, path_value_dict
+                )
+            elif k == "metrics_variables":
+                self._assign_variable_values(
+                    self.metrics_variables, path_value_dict
+                )
+            else:
+                raise ValueError(f"Unknown variable name: {k}")
+
+    def _assign_variable_values(self, varibales, path_value_dict):
+        for path, value in path_value_dict.items():
+            for variable in varibales:
+                if variable.path == path:
+                    variable.assign(value)
+
+    def _flatten_nested_dict(self, nested_dict):
+        flat_dict = {}
+
+        def _flatten(current_dict, prefix=""):
+            for key, value in current_dict.items():
+                if isinstance(value, dict):
+                    _flatten(value, prefix + key + "/")
+                else:
+                    flat_dict[prefix + key] = value
+
+        _flatten(nested_dict)
+        return flat_dict
+
 
 @keras_export("keras.models.model_from_json")
 def model_from_json(json_string, custom_objects=None):
