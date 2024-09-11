@@ -219,6 +219,18 @@ class BatchNormalization(Layer):
         self.built = True
 
     def compute_output_shape(self, input_shape):
+        if isinstance(self.axis, int):
+            axes = [self.axis]
+        else:
+            axes = self.axis
+
+        for axis in axes:
+            if axis >= len(input_shape) or axis < -len(input_shape):
+                raise ValueError(
+                    f"Axis {axis} is out of bounds for "
+                    f"input shape {input_shape}. "
+                    f"Received: axis={self.axis}"
+                )
         return input_shape
 
     def call(self, inputs, training=None, mask=None):
