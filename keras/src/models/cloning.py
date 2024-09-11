@@ -98,7 +98,7 @@ def clone_model(
             config["seed"] = 1337
         return layer.__class__.from_config(config)
 
-    new_model = clone_model(model)
+    new_model = clone_model(model, clone_function=clone_function)
     ```
 
     Using a `call_function` to add a `Dropout` layer after each `Dense` layer
