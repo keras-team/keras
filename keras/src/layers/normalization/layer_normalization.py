@@ -235,35 +235,6 @@ class LayerNormalization(Layer):
         return ops.cast(outputs, input_dtype)
 
     def compute_output_shape(self, input_shape):
-        """
-        Compute the output shape of the layer.
-        Parameters
-        ----------
-        input_shape
-            Shape tuple (tuple of integers) or list of shape tuples
-            (one per output tensor of the layer). Shape tuples can
-            include None for free dimensions, instead of an integer.
-        Returns
-        -------
-        output_shape
-            Shape of the output of Layer Normalization Layer for
-            an input of given shape.
-        Raises
-        ------
-        ValueError
-            If an axis is out of bounds for the input shape.
-        TypeError
-            If the input shape is not a tuple or a list of tuples.
-        """
-        if isinstance(input_shape, (tuple, list)):
-            input_shape = input_shape
-        else:
-            raise TypeError(
-                "Invalid input shape type: expected tuple or list. "
-                f"Received: {type(input_shape)}"
-            )
-
-        # Ensure axis is always treated as a list
         if isinstance(self.axis, int):
             axes = [self.axis]
         else:
@@ -274,10 +245,8 @@ class LayerNormalization(Layer):
                 raise ValueError(
                     f"Axis {axis} is out of bounds for "
                     f"input shape {input_shape}. "
-                    "Ensure axis is within the range of input"
-                    " dimensions."
+                    f"Received: axis={self.axis}"
                 )
-
         return input_shape
 
     def get_config(self):
