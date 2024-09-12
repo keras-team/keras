@@ -780,44 +780,39 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
     def test_get_state_tree(self):
         model = _get_model_single_output()
         model.compile(loss="mse", optimizer="adam")
-        nested_variables = model.get_state_tree(
-            trainable_variables=True,
-            non_trainable_variables=True,
-            optimizer_variables=True,
-            metrics_variables=True,
-        )
+        state_tree = model.get_state_tree()
         self.assertAllClose(
-            nested_variables["trainable_variables"]["output_a"]["kernel"],
+            state_tree["trainable_variables"]["output_a"]["kernel"],
             _get_variable_value_by_path(
                 model.trainable_variables, "output_a/kernel"
             ),
         )
         self.assertAllClose(
-            nested_variables["trainable_variables"]["output_a"]["bias"],
+            state_tree["trainable_variables"]["output_a"]["bias"],
             _get_variable_value_by_path(
                 model.trainable_variables, "output_a/bias"
             ),
         )
         self.assertEqual(
-            nested_variables["non_trainable_variables"],
+            state_tree["non_trainable_variables"],
             {},
         )
         self.assertEqual(
-            nested_variables["metrics_variables"]["loss"]["count"],
+            state_tree["metrics_variables"]["loss"]["count"],
             _get_variable_value_by_path(model.metrics_variables, "loss/count"),
         )
         self.assertEqual(
-            nested_variables["metrics_variables"]["loss"]["total"],
+            state_tree["metrics_variables"]["loss"]["total"],
             _get_variable_value_by_path(model.metrics_variables, "loss/total"),
         )
         self.assertEqual(
-            nested_variables["optimizer_variables"]["adam"]["iteration"],
+            state_tree["optimizer_variables"]["adam"]["iteration"],
             _get_variable_value_by_path(
                 model.optimizer.variables, "adam/iteration"
             ),
         )
         self.assertEqual(
-            nested_variables["optimizer_variables"]["adam"]["learning_rate"],
+            state_tree["optimizer_variables"]["adam"]["learning_rate"],
             _get_variable_value_by_path(
                 model.optimizer.variables, "adam/learning_rate"
             ),
@@ -874,7 +869,4 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
             ValueError,
             "The following variable path is found twice in the model",
         ):
-            model.get_state_tree(
-                trainable_variables=True,
-                non_trainable_variables=True,
-            )
+            model.get_state_tree()

@@ -556,51 +556,32 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         map_saveable_variables(self, store=store, visited_saveables=set())
         return store
 
-    def get_state_tree(
-        self,
-        trainable_variables=False,
-        non_trainable_variables=False,
-        optimizer_variables=False,
-        metrics_variables=False,
-    ):
-        """Retrieves tree-like structure of specified variables of the model.
+    def get_state_tree(self):
+        """Retrieves tree-like structure of model variables.
 
-        This method allows selective retrieval of different variables
-        (trainable, non-trainable, optimizer, and metrics) associated with the
-        model. The variables are returned in a nested dictionary format,
-        where the keys correspond to the variable names and the values are the
-        nested representations of the variables.
-
-        Args:
-            trainable_variables: Whether to include trainable variables.
-            non_trainable_variables: Whether to include non-trainable variables.
-            optimizer_variables: Whether to include optimizer variables.
-            metrics_variables: Whether to include metrics variables.
+        This method allows retrieval of different model variables (trainable,
+        non-trainable, optimizer, and metrics). The variables are returned in a
+        nested dictionary format, where the keys correspond to the variable
+        names and the values are the nested representations of the variables.
 
         Returns:
             dict: A dictionary containing the nested representations of the
-                requested variables. The keys are the variable names, and the
-                values are the corresponding nested dictionaries. If no variable
-                types are requested, an empty dictionary is returned.
+            requested variables. The keys are the variable names, and the values
+            are the corresponding nested dictionaries.
         """
         variables = {}
-        if trainable_variables:
-            variables["trainable_variables"] = self._create_nested_dict(
-                self.trainable_variables
-            )
-        if non_trainable_variables:
-            variables["non_trainable_variables"] = self._create_nested_dict(
-                self.non_trainable_variables
-            )
-        if optimizer_variables:
-            variables["optimizer_variables"] = self._create_nested_dict(
-                self.optimizer.variables
-            )
-        if metrics_variables:
-            variables["metrics_variables"] = self._create_nested_dict(
-                self.metrics_variables
-            )
-
+        variables["trainable_variables"] = self._create_nested_dict(
+            self.trainable_variables
+        )
+        variables["non_trainable_variables"] = self._create_nested_dict(
+            self.non_trainable_variables
+        )
+        variables["optimizer_variables"] = self._create_nested_dict(
+            self.optimizer.variables
+        )
+        variables["metrics_variables"] = self._create_nested_dict(
+            self.metrics_variables
+        )
         return variables
 
     def _create_nested_dict(self, variables):
@@ -609,7 +590,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             if v.path in flat_dict:
                 raise ValueError(
                     "The following variable path is found twice in the model: "
-                    f"'{v.path}'. The state tree can only be constructed when "
+                    f"'{v.path}'. `get_state_tree()` can only be called when "
                     "all variable paths are unique. Make sure to give unique "
                     "names to your layers (and other objects)."
                 )
@@ -632,15 +613,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         This method takes a dictionary of nested variable values and assigns
         them to the corresponding variables of the model. The dictionary keys
-        represent the variable names (e.g., 'trainable_variables',
-        'optimizer_variables'), and the values are nested dictionaries
+        represent the variable names (e.g., `'trainable_variables'`,
+        `'optimizer_variables'`), and the values are nested dictionaries
         containing the variable paths and their corresponding values.
 
         Args:
-            variables:  A dictionary containing nested variable values. The keys
-                        are the variable names, and the values are nested
-                        dictionaries representing the variable paths and their
-                        values.
+            variables: A dictionary containing nested variable values. The keys
+            are the variable names, and the values are nested dictionaries
+            representing the variable paths and their values.
         """
         for k, v in variables.items():
             path_value_dict = self._flatten_nested_dict(v)
@@ -663,9 +643,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             else:
                 raise ValueError(f"Unknown variable name: {k}")
 
-    def _assign_variable_values(self, varibales, path_value_dict):
+    def _assign_variable_values(self, variables, path_value_dict):
         for path, value in path_value_dict.items():
-            for variable in varibales:
+            for variable in variables:
                 if variable.path == path:
                     variable.assign(value)
 
