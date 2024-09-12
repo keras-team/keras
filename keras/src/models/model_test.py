@@ -93,6 +93,32 @@ def _get_model_with_custom_compute_loss():
     return model
 
 
+def _get_model_with_duplicate_variable_path():
+    class MyModel(Model):
+        def __init__(self):
+            super().__init__()
+            self.dense1 = layers.Dense(4, activation="relu", name="layer1")
+            self.dense2 = layers.Dense(4, activation="relu", name="layer1")
+            self.dense3 = layers.Dense(2)
+
+        def call(self, x):
+            x = self.dense1(x)
+            x = self.dense2(x)
+            return self.dense3(x)
+
+    model = MyModel()
+    x = np.random.random((1, 16))
+    model(x)
+    return model
+
+
+def _get_variable_value_by_path(variables, path):
+    for v in variables:
+        if v.path == path:
+            return v.value
+    raise ValueError(f"No variable was find with path = {path}")
+
+
 @pytest.mark.requires_trainable_backend
 class ModelTest(testing.TestCase, parameterized.TestCase):
     def test_functional_rerouting(self):
@@ -750,3 +776,97 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         if mode == "float8":
             # kernel + bias + scale * 3 + amax_history * 3 == 8
             self.assertEqual(len(model.weights), 3 * 8)
+
+    def test_get_state_tree(self):
+        model = _get_model_single_output()
+        model.compile(loss="mse", optimizer="adam")
+        state_tree = model.get_state_tree()
+        self.assertAllClose(
+            state_tree["trainable_variables"]["output_a"]["kernel"],
+            _get_variable_value_by_path(
+                model.trainable_variables, "output_a/kernel"
+            ),
+        )
+        self.assertAllClose(
+            state_tree["trainable_variables"]["output_a"]["bias"],
+            _get_variable_value_by_path(
+                model.trainable_variables, "output_a/bias"
+            ),
+        )
+        self.assertEqual(
+            state_tree["non_trainable_variables"],
+            {},
+        )
+        self.assertEqual(
+            state_tree["metrics_variables"]["loss"]["count"],
+            _get_variable_value_by_path(model.metrics_variables, "loss/count"),
+        )
+        self.assertEqual(
+            state_tree["metrics_variables"]["loss"]["total"],
+            _get_variable_value_by_path(model.metrics_variables, "loss/total"),
+        )
+        self.assertEqual(
+            state_tree["optimizer_variables"]["adam"]["iteration"],
+            _get_variable_value_by_path(
+                model.optimizer.variables, "adam/iteration"
+            ),
+        )
+        self.assertEqual(
+            state_tree["optimizer_variables"]["adam"]["learning_rate"],
+            _get_variable_value_by_path(
+                model.optimizer.variables, "adam/learning_rate"
+            ),
+        )
+
+    def test_set_state_tree(self):
+        variables = {
+            "optimizer_variables": {
+                "adam": {
+                    "iteration": 0,
+                    "learning_rate": 0.00001,
+                }
+            },
+            "trainable_variables": {
+                "output_a": {
+                    "bias": [0.5],
+                    "kernel": [[0.6], [0.7], [1.8]],
+                }
+            },
+        }
+
+        model = _get_model_single_output()
+        model.compile(optimizer="adam")
+        model.set_state_tree(variables)
+
+        self.assertEqual(
+            variables["optimizer_variables"]["adam"]["iteration"],
+            _get_variable_value_by_path(
+                model.optimizer.variables, "adam/iteration"
+            ),
+        )
+        self.assertEqual(
+            variables["optimizer_variables"]["adam"]["learning_rate"],
+            _get_variable_value_by_path(
+                model.optimizer.variables, "adam/learning_rate"
+            ),
+        )
+        self.assertAllClose(
+            variables["trainable_variables"]["output_a"]["bias"],
+            _get_variable_value_by_path(
+                model.trainable_variables, "output_a/bias"
+            ),
+        )
+        self.assertAllClose(
+            variables["trainable_variables"]["output_a"]["kernel"],
+            _get_variable_value_by_path(
+                model.trainable_variables, "output_a/kernel"
+            ),
+        )
+
+    def test_get_state_tree_with_duplicate_path(self):
+        model = _get_model_with_duplicate_variable_path()
+        with self.assertRaisesRegex(
+            ValueError,
+            "The following variable path is found twice in the model",
+        ):
+            model.get_state_tree()

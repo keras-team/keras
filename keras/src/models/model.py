@@ -556,6 +556,154 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         map_saveable_variables(self, store=store, visited_saveables=set())
         return store
 
+    def get_state_tree(self):
+        """Retrieves tree-like structure of model variables.
+
+        This method allows retrieval of different model variables (trainable,
+        non-trainable, optimizer, and metrics). The variables are returned in a
+        nested dictionary format, where the keys correspond to the variable
+        names and the values are the nested representations of the variables.
+
+        Returns:
+            dict: A dictionary containing the nested representations of the
+                requested variables. The keys are the variable names, and the
+                values are the corresponding nested dictionaries.
+
+        Example:
+        ```python
+        model = Sequential([
+            Input(shape=(1,), name="my_input"),
+            layers.Dense(1, activation="sigmoid", name="my_dense"),
+        ], name="my_sequential")
+        model.compile(optimizer="adam", loss="mse", metrics=["mae"])
+        model.fit(np.array([[1.0]]), np.array([[1.0]]))
+        state_tree = model.get_state_tree()
+        ```
+        `state_tree` is a dictionary like this:
+        ```
+        state_tree = {
+            'trainable_variables': {
+                'my_sequential': {
+                    'my_dense': {
+                        'bias': Array([0.00099997], dtype=float32),
+                        'kernel': Array([[0.6412131]], dtype=float32),
+                    }
+                }
+            },
+            'non_trainable_variables': {},
+            'optimizer_variables': {
+                'adam': {
+                    'iteration': Array(1, dtype=int32),
+                    'learning_rate': Array(0.001, dtype=float32),
+                }
+            },
+            'metrics_variables': {
+                'loss': {
+                    'count': Array(1.0, dtype=float32),
+                    'total': Array(0.11916193, dtype=float32),
+                },
+                'mean_absolute_error': {
+                    'count': Array(1.0, dtype=float32),
+                    'total': Array(0.3451984, dtype=float32),
+                },
+            },
+        }
+        ```
+        """
+        variables = {}
+        variables["trainable_variables"] = self._create_nested_dict(
+            self.trainable_variables
+        )
+        variables["non_trainable_variables"] = self._create_nested_dict(
+            self.non_trainable_variables
+        )
+        variables["optimizer_variables"] = self._create_nested_dict(
+            self.optimizer.variables
+        )
+        variables["metrics_variables"] = self._create_nested_dict(
+            self.metrics_variables
+        )
+        return variables
+
+    def _create_nested_dict(self, variables):
+        flat_dict = {}
+        for v in variables:
+            if v.path in flat_dict:
+                raise ValueError(
+                    "The following variable path is found twice in the model: "
+                    f"'{v.path}'. `get_state_tree()` can only be called when "
+                    "all variable paths are unique. Make sure to give unique "
+                    "names to your layers (and other objects)."
+                )
+            flat_dict[v.path] = v.value
+
+        nested_dict = {}
+        for path, value in flat_dict.items():
+            parts = path.split("/")
+            current_dict = nested_dict
+            for part in parts[:-1]:
+                if part not in current_dict:
+                    current_dict[part] = {}
+                current_dict = current_dict[part]
+            current_dict[parts[-1]] = value
+
+        return nested_dict
+
+    def set_state_tree(self, state_tree):
+        """Assigns values to variables of the model.
+
+        This method takes a dictionary of nested variable values, which
+        represents the state tree of the model, and assigns them to the
+        corresponding variables of the model. The dictionary keys represent the
+        variable names (e.g., `'trainable_variables'`, `'optimizer_variables'`),
+        and the values are nested dictionaries containing the variable
+        paths and their corresponding values.
+
+        Args:
+            state_tree: A dictionary representing the state tree of the model.
+                The keys are the variable names, and the values are nested
+                dictionaries representing the variable paths and their values.
+        """
+        for k, v in state_tree.items():
+            path_value_dict = self._flatten_nested_dict(v)
+            if k == "trainable_variables":
+                self._assign_variable_values(
+                    self.trainable_variables, path_value_dict
+                )
+            elif k == "non_trainable_variables":
+                self._assign_variable_values(
+                    self.non_trainable_variables, path_value_dict
+                )
+            elif k == "optimizer_variables":
+                self._assign_variable_values(
+                    self.optimizer.variables, path_value_dict
+                )
+            elif k == "metrics_variables":
+                self._assign_variable_values(
+                    self.metrics_variables, path_value_dict
+                )
+            else:
+                raise ValueError(f"Unknown variable name: {k}")
+
+    def _assign_variable_values(self, variables, path_value_dict):
+        for path, value in path_value_dict.items():
+            for variable in variables:
+                if variable.path == path:
+                    variable.assign(value)
+
+    def _flatten_nested_dict(self, nested_dict):
+        flat_dict = {}
+
+        def _flatten(current_dict, prefix=""):
+            for key, value in current_dict.items():
+                if isinstance(value, dict):
+                    _flatten(value, prefix + key + "/")
+                else:
+                    flat_dict[prefix + key] = value
+
+        _flatten(nested_dict)
+        return flat_dict
+
 
 @keras_export("keras.models.model_from_json")
 def model_from_json(json_string, custom_objects=None):
