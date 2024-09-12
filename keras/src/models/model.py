@@ -556,7 +556,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         map_saveable_variables(self, store=store, visited_saveables=set())
         return store
 
-    def get_nested_variables(
+    def get_state_tree(
         self,
         trainable_variables=False,
         non_trainable_variables=False,
@@ -606,6 +606,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
     def _create_nested_dict(self, variables):
         flat_dict = {}
         for v in variables:
+            if v.path in flat_dict:
+                raise ValueError(
+                    "The following variable path is found twice in the model: "
+                    f"'{v.path}'. The state tree can only be constructed when "
+                    "all variable paths are unique. Make sure to give unique "
+                    "names to your layers (and other objects)."
+                )
             flat_dict[v.path] = v.value
 
         nested_dict = {}
@@ -620,7 +627,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         return nested_dict
 
-    def set_nested_variables(self, variables):
+    def set_state_tree(self, variables):
         """Assigns values to variables of the model.
 
         This method takes a dictionary of nested variable values and assigns

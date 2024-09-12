@@ -93,6 +93,25 @@ def _get_model_with_custom_compute_loss():
     return model
 
 
+def _get_model_with_duplicate_variable_path():
+    class MyModel(Model):
+        def __init__(self):
+            super().__init__()
+            self.dense1 = layers.Dense(4, activation="relu", name="layer1")
+            self.dense2 = layers.Dense(4, activation="relu", name="layer1")
+            self.dense3 = layers.Dense(2)
+
+        def call(self, x):
+            x = self.dense1(x)
+            x = self.dense2(x)
+            return self.dense3(x)
+
+    model = MyModel()
+    x = np.random.random((1, 16))
+    model(x)
+    return model
+
+
 def _get_variable_value_by_path(variables, path):
     for v in variables:
         if v.path == path:
@@ -758,10 +777,10 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
             # kernel + bias + scale * 3 + amax_history * 3 == 8
             self.assertEqual(len(model.weights), 3 * 8)
 
-    def test_get_nested_variables(self):
+    def test_get_state_tree(self):
         model = _get_model_single_output()
         model.compile(loss="mse", optimizer="adam")
-        nested_variables = model.get_nested_variables(
+        nested_variables = model.get_state_tree(
             trainable_variables=True,
             non_trainable_variables=True,
             optimizer_variables=True,
@@ -804,7 +823,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
             ),
         )
 
-    def test_set_nested_variables(self):
+    def test_set_state_tree(self):
         variables = {
             "optimizer_variables": {
                 "adam": {
@@ -822,7 +841,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
         model = _get_model_single_output()
         model.compile(optimizer="adam")
-        model.set_nested_variables(variables)
+        model.set_state_tree(variables)
 
         self.assertEqual(
             variables["optimizer_variables"]["adam"]["iteration"],
@@ -848,3 +867,14 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
                 model.trainable_variables, "output_a/kernel"
             ),
         )
+
+    def test_get_state_tree_with_duplicate_path(self):
+        model = _get_model_with_duplicate_variable_path()
+        with self.assertRaisesRegex(
+            ValueError,
+            "The following variable path is found twice in the model",
+        ):
+            model.get_state_tree(
+                trainable_variables=True,
+                non_trainable_variables=True,
+            )
