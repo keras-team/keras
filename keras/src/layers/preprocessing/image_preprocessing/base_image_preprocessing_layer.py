@@ -1,3 +1,4 @@
+from keras.src.backend import config
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validation import (
     densify_bounding_boxes,
 )
@@ -8,9 +9,13 @@ class BaseImagePreprocessingLayer(TFDataLayer):
 
     _FACTOR_BOUNDS = (-1, 1)
 
-    def __init__(self, bounding_box_format=None, **kwargs):
+    def __init__(
+        self, factor=0.0, bounding_box_format=None, data_format=None, **kwargs
+    ):
         super().__init__(**kwargs)
         self.bounding_box_format = bounding_box_format
+        self.data_format = data_format or config.image_data_format()
+        self._set_factor(factor)
 
     def _set_factor(self, factor):
         error_msg = (
@@ -36,8 +41,7 @@ class BaseImagePreprocessingLayer(TFDataLayer):
             lower, upper = [max(-factor, self._FACTOR_BOUNDS[0]), factor]
         else:
             raise ValueError(error_msg)
-        self.factor_lower = lower
-        self.factor_upper = upper
+        self.factor = lower, upper
 
     def get_random_transformation(self, data, seed=None):
         raise NotImplementedError()
@@ -120,6 +124,14 @@ class BaseImagePreprocessingLayer(TFDataLayer):
                     training=training,
                 )
             if "bounding_boxes" in data:
+                if not self.bounding_box_format:
+                    raise ValueError(
+                        "You passed an input with a 'bounding_boxes' key, "
+                        "but you didn't specify a bounding box format. "
+                        "Pass a `bounding_box_format` argument to your "
+                        f"{self.__class__.__name__} layer, e.g. "
+                        "`bounding_box_format='xyxy'`."
+                    )
                 bounding_boxes = densify_bounding_boxes(
                     data["bounding_boxes"], backend=self.backend
                 )
@@ -179,3 +191,13 @@ class BaseImagePreprocessingLayer(TFDataLayer):
             transformation=transformation,
             training=training,
         )
+
+    def get_config(self):
+        config = super().get_config()
+        if self.bounding_box_format is not None:
+            config.update(
+                {
+                    "bounding_box_format": self.bounding_box_format,
+                }
+            )
+        return config

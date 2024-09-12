@@ -141,7 +141,9 @@ class RandomCropTest(testing.TestCase):
         self.assertEqual(tuple(output.shape), output_shape)
 
     def test_dict_input(self):
-        layer = layers.RandomCrop(3, 3, data_format="channels_last")
+        layer = layers.RandomCrop(
+            3, 3, data_format="channels_last", bounding_box_format="xyxy"
+        )
         data = {
             "images": np.random.random((2, 4, 5, 3)),
             "labels": np.random.random((2, 7)),
@@ -156,6 +158,9 @@ class RandomCropTest(testing.TestCase):
             data["images"].shape[:-1],
             transformed_data["segmentation_masks"].shape[:-1],
         )
-        self.assertAllEqual(data["labels"], transformed_data["labels"])
+        self.assertAllClose(data["labels"], transformed_data["labels"])
         self.assertEqual(data["bounding_boxes"]["boxes"].shape, (1, 4))
-        self.assertEqual(data["bounding_boxes"]["labels"].shape, (1,))
+        self.assertAllClose(
+            data["bounding_boxes"]["labels"],
+            transformed_data["bounding_boxes"]["labels"],
+        )

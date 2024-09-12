@@ -1,10 +1,13 @@
 from keras.src.api_export import keras_export
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (
+    BaseImagePreprocessingLayer,
+)
 from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras.src.random.seed_generator import SeedGenerator
 
 
 @keras_export("keras.layers.RandomContrast")
-class RandomContrast(TFDataLayer):
+class RandomContrast(BaseImagePreprocessingLayer):
     """A preprocessing layer which randomly adjusts contrast during training.
 
     This layer will randomly adjust the contrast of an image or images
@@ -41,47 +44,85 @@ class RandomContrast(TFDataLayer):
         seed: Integer. Used to create a random seed.
     """
 
+    _FACTOR_BOUNDS = (0, 1)
+
     def __init__(self, factor, seed=None, **kwargs):
         super().__init__(**kwargs)
-        self.factor = factor
-        if isinstance(factor, (tuple, list)):
-            self.lower = factor[0]
-            self.upper = factor[1]
-        else:
-            self.lower = self.upper = factor
-        if self.lower < 0.0 or self.upper < 0.0 or self.lower > 1.0:
-            raise ValueError(
-                "`factor` argument cannot have negative values or values "
-                "greater than 1."
-                f"Received: factor={factor}"
-            )
+        self._set_factor(factor)
         self.seed = seed
         self.generator = SeedGenerator(seed)
 
-    def call(self, inputs, training=True):
-        inputs = self.backend.cast(inputs, self.compute_dtype)
-        if training:
-            seed_generator = self._get_seed_generator(self.backend._backend)
-            factor = self.backend.random.uniform(
-                shape=(),
-                minval=1.0 - self.lower,
-                maxval=1.0 + self.upper,
-                seed=seed_generator,
-                dtype=self.compute_dtype,
+    def get_random_transformation(self, data, training=True, seed=None):
+        if isinstance(data, dict):
+            images = data["images"]
+        else:
+            images = data
+        images_shape = self.backend.shape(images)
+        rank = len(images_shape)
+        if rank == 3:
+            factor_shape = (1, 1, 1)
+        elif rank == 4:
+            # Keep only the batch dim. This will ensure to have same adjustment
+            # with in one image, but different across the images.
+            factor_shape = [images_shape[0], 1, 1, 1]
+        else:
+            raise ValueError(
+                "Expected the input image to be rank 3 or 4. Received "
+                f"inputs.shape={images_shape}"
             )
 
-            outputs = self._adjust_constrast(inputs, factor)
+        if not training:
+            return {"contrast_factor": self.backend.numpy.zeros(factor_shape)}
+
+        if seed is None:
+            seed = self._get_seed_generator(self.backend._backend)
+
+        factor = self.backend.random.uniform(
+            shape=factor_shape,
+            minval=1.0 - self.factor[0],
+            maxval=1.0 + self.factor[1],
+            seed=seed,
+            dtype=self.compute_dtype,
+        )
+        return {"contrast_factor": factor}
+
+    def augment_images(self, images, transformation, training=True):
+        if training:
+            constrast_factor = transformation["contrast_factor"]
+            outputs = self._adjust_constrast(images, constrast_factor)
             outputs = self.backend.numpy.clip(outputs, 0, 255)
-            self.backend.numpy.reshape(outputs, self.backend.shape(inputs))
+            self.backend.numpy.reshape(outputs, self.backend.shape(images))
             return outputs
-        else:
-            return inputs
+        return images
+
+    def augment_labels(self, labels, transformation, training=True):
+        return labels
+
+    def augment_bounding_boxes(
+        self, bounding_boxes, transformation, training=True
+    ):
+        return bounding_boxes
+
+    def augment_segmentation_masks(
+        self, segmentation_masks, transformation, training=True
+    ):
+        return segmentation_masks
 
     def _adjust_constrast(self, inputs, contrast_factor):
+        if self.data_format == "channels_first":
+            height_axis = -2
+            width_axis = -1
+        else:
+            height_axis = -3
+            width_axis = -2
         # reduce mean on height
-        inp_mean = self.backend.numpy.mean(inputs, axis=-3, keepdims=True)
+        inp_mean = self.backend.numpy.mean(
+            inputs, axis=height_axis, keepdims=True
+        )
         # reduce mean on width
-        inp_mean = self.backend.numpy.mean(inp_mean, axis=-2, keepdims=True)
+        inp_mean = self.backend.numpy.mean(
+            inp_mean, axis=width_axis, keepdims=True
+        )
 
         outputs = (inputs - inp_mean) * contrast_factor + inp_mean
         return outputs
