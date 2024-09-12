@@ -99,7 +99,7 @@ class MeanAbsoluteError(LossFunctionWrapper):
 
     def __init__(
         self,
-        reduction="sum_over_batch_size",
+        reduction="mean_absolute_error",
         name="mean_absolute_error",
         dtype=None,
     ):
