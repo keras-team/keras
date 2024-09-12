@@ -1,4 +1,4 @@
-import concurrent
+import concurrent.futures
 import inspect
 import platform
 import warnings
