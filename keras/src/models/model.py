@@ -556,7 +556,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         map_saveable_variables(self, store=store, visited_saveables=set())
         return store
 
-    def get_state_tree(self):
+    def get_state_tree(self, value_format="backend_tensor"):
         """Retrieves tree-like structure of model variables.
 
         This method allows retrieval of different model variables (trainable,
@@ -568,64 +568,75 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             dict: A dictionary containing the nested representations of the
                 requested variables. The keys are the variable names, and the
                 values are the corresponding nested dictionaries.
+            value_format: One of `"backend_tensor"`, `"numpy_array"`.
+                The kind of array to return as the leaves of the nested
+                    state tree.
 
         Example:
+
         ```python
-        model = Sequential([
-            Input(shape=(1,), name="my_input"),
-            layers.Dense(1, activation="sigmoid", name="my_dense"),
+        model = keras.Sequential([
+            keras.Input(shape=(1,), name="my_input"),
+            keras.layers.Dense(1, activation="sigmoid", name="my_dense"),
         ], name="my_sequential")
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
         model.fit(np.array([[1.0]]), np.array([[1.0]]))
         state_tree = model.get_state_tree()
         ```
-        `state_tree` is a dictionary like this:
+
+        The `state_tree` dictionary returned looks like:
+
         ```
-        state_tree = {
+        {
+            'metrics_variables': {
+                'loss': {
+                    'count': ...,
+                    'total': ...,
+                },
+                'mean_absolute_error': {
+                    'count': ...,
+                    'total': ...,
+                }
+            },
             'trainable_variables': {
                 'my_sequential': {
                     'my_dense': {
-                        'bias': Array([0.00099997], dtype=float32),
-                        'kernel': Array([[0.6412131]], dtype=float32),
+                        'bias': ...,
+                        'kernel': ...,
                     }
                 }
             },
             'non_trainable_variables': {},
             'optimizer_variables': {
                 'adam': {
-                    'iteration': Array(1, dtype=int32),
-                    'learning_rate': Array(0.001, dtype=float32),
+                        'iteration': ...,
+                        'learning_rate': ...,
+                        'my_sequential_my_dense_bias_momentum': ...,
+                        'my_sequential_my_dense_bias_velocity': ...,
+                        'my_sequential_my_dense_kernel_momentum': ...,
+                        'my_sequential_my_dense_kernel_velocity': ...,
+                    }
                 }
-            },
-            'metrics_variables': {
-                'loss': {
-                    'count': Array(1.0, dtype=float32),
-                    'total': Array(0.11916193, dtype=float32),
-                },
-                'mean_absolute_error': {
-                    'count': Array(1.0, dtype=float32),
-                    'total': Array(0.3451984, dtype=float32),
-                },
-            },
+            }
         }
         ```
         """
         variables = {}
         variables["trainable_variables"] = self._create_nested_dict(
-            self.trainable_variables
+            self.trainable_variables, value_format
         )
         variables["non_trainable_variables"] = self._create_nested_dict(
-            self.non_trainable_variables
+            self.non_trainable_variables, value_format
         )
         variables["optimizer_variables"] = self._create_nested_dict(
-            self.optimizer.variables
+            self.optimizer.variables, value_format
         )
         variables["metrics_variables"] = self._create_nested_dict(
-            self.metrics_variables
+            self.metrics_variables, value_format
         )
         return variables
 
-    def _create_nested_dict(self, variables):
+    def _create_nested_dict(self, variables, value_format):
         flat_dict = {}
         for v in variables:
             if v.path in flat_dict:
@@ -635,7 +646,16 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     "all variable paths are unique. Make sure to give unique "
                     "names to your layers (and other objects)."
                 )
-            flat_dict[v.path] = v.value
+            if value_format == "backend_tensor":
+                flat_dict[v.path] = v.value
+            elif value_format == "numpy_array":
+                flat_dict[v.path] = v.numpy()
+            else:
+                raise ValueError(
+                    "Invalid `value_format` argument. Expected one of "
+                    "{'numpy_array', 'backend_tensor'}. Received: "
+                    f"value_format={value_format}"
+                )
 
         nested_dict = {}
         for path, value in flat_dict.items():

@@ -818,6 +818,12 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
             ),
         )
 
+        # Test with numpy
+        state_tree = model.get_state_tree(value_format="numpy_array")
+        self.assertIsInstance(
+            state_tree["trainable_variables"]["output_a"]["kernel"], np.ndarray
+        )
+
     def test_set_state_tree(self):
         variables = {
             "optimizer_variables": {
