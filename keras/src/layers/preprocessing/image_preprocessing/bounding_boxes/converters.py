@@ -1,7 +1,6 @@
 """Converter functions for working with bounding box formats."""
 
 from keras.src import ops
-from keras.src.api_export import keras_export
 from keras.src.utils import tf_utils
 
 
@@ -190,7 +189,6 @@ FROM_XYXY_CONVERTERS = {
 }
 
 
-@keras_export("keras.utils.bounding_boxes.convert_format")
 def convert_format(
     boxes, source, target, images=None, image_shape=None, dtype="float32"
 ):
