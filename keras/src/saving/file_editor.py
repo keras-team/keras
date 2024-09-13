@@ -4,8 +4,16 @@ import json
 import zipfile
 
 import h5py
-from IPython.core.display import HTML
-from IPython.core.display import display
+
+try:
+    from IPython.core.display import HTML
+    from IPython.core.display import display
+except ImportError:
+    "You must install ipython (`pip install ipython`) for"
+    "KerasFileEditor to work."
+    HTML = None
+    display = None
+
 from matplotlib import pyplot as plt
 
 from keras.src.saving import deserialize_keras_object
