@@ -616,7 +616,11 @@ class TestCase(unittest.TestCase):
                     tree.flatten(output_data), tree.flatten(output_spec)
                 ):
                     dtype = standardize_dtype(tensor.dtype)
-                    self.assertEqual(dtype, spec.dtype)
+                    self.assertEqual(
+                        dtype,
+                        spec.dtype,
+                        f"expected output dtype {spec.dtype}, got {dtype}",
+                    )
                 for weight in layer.weights:
                     dtype = standardize_dtype(weight.dtype)
                     if is_float_dtype(dtype):

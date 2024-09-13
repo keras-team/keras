@@ -162,11 +162,16 @@ class RandomCrop(BaseImagePreprocessingLayer):
             or new_height != self.height
             or new_width != self.width
         ):
+            # Resize images if size mismatch or
+            # if size mismatch cannot be determined
+            # (in the case of a TF dynamic shape).
             images = self.backend.image.resize(
                 images,
                 size=(self.height, self.width),
                 data_format=self.data_format,
             )
+            # Resize may have upcasted the outputs
+            images = self.backend.cast(images, self.compute_dtype)
         return images
 
     def augment_labels(self, labels, transformation, training=True):
