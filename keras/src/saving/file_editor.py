@@ -6,15 +6,18 @@ import zipfile
 import h5py
 
 try:
-    from IPython.core.display import HTML
-    from IPython.core.display import display
+    import IPython as ipython
 except ImportError:
     "You must install ipython (`pip install ipython`) for"
     "KerasFileEditor to work."
-    HTML = None
-    display = None
+    ipython = None
 
-from matplotlib import pyplot as plt
+try:
+    import matplotlib as mpl
+except ImportError:
+    "You must install ipython (`pip install matplotlib`) for"
+    "KerasFileEditor to work."
+    mpl = None
 
 from keras.src.saving import deserialize_keras_object
 from keras.src.saving.saving_lib import H5IOStore
@@ -87,7 +90,7 @@ class KerasFileEditor:
         print_suffix = "</details>"
 
         def _create_color_grid(weights):
-            fig, ax = plt.subplots(figsize=(5, 5))
+            fig, ax = mpl.pyplot.subplots(figsize=(5, 5))
             if weights.ndim > 2:
                 weights = weights.reshape(-1, weights.shape[-1])
 
@@ -116,8 +119,10 @@ class KerasFileEditor:
             ax.set_yticks([])
 
             buf = io.BytesIO()
-            plt.savefig(buf, format="png", bbox_inches="tight", pad_inches=1)
-            plt.close(fig)
+            mpl.pyplot.savefig(
+                buf, format="png", bbox_inches="tight", pad_inches=1
+            )
+            mpl.pyplot.close(fig)
             buf.seek(0)
             image_base64 = base64.b64encode(buf.read()).decode("utf-8")
             return (
@@ -177,4 +182,4 @@ class KerasFileEditor:
         layer_output += _generate_html_weight(self.nested_dict["layers"])
         output += layer_output
 
-        display(HTML(output))
+        ipython.core.display.display(ipython.core.display.HTML(output))
