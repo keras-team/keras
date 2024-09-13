@@ -2,6 +2,7 @@ import json
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 
@@ -42,7 +43,7 @@ class TestCase(unittest.TestCase):
             x1 = backend.convert_to_numpy(x1)
         if not isinstance(x2, np.ndarray):
             x2 = backend.convert_to_numpy(x2)
-        np.testing.assert_allclose(x1, x2, atol=atol, rtol=rtol)
+        np.testing.assert_allclose(x1, x2, atol=atol, rtol=rtol, err_msg=msg)
 
     def assertNotAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
         try:
@@ -61,7 +62,7 @@ class TestCase(unittest.TestCase):
             x1 = backend.convert_to_numpy(x1)
         if not isinstance(x2, np.ndarray):
             x2 = backend.convert_to_numpy(x2)
-        np.testing.assert_almost_equal(x1, x2, decimal=decimal)
+        np.testing.assert_almost_equal(x1, x2, decimal=decimal, err_msg=msg)
 
     def assertAllEqual(self, x1, x2, msg=None):
         self.assertEqual(len(x1), len(x2), msg=msg)
@@ -112,6 +113,10 @@ class TestCase(unittest.TestCase):
         )
         msg = msg or default_msg
         self.assertEqual(x_dtype, standardized_dtype, msg=msg)
+
+    def assertFileExists(self, path):
+        if not Path(path).is_file():
+            raise AssertionError(f"File {path} does not exist")
 
     def run_class_serialization_test(self, instance, custom_objects=None):
         from keras.src.saving import custom_object_scope

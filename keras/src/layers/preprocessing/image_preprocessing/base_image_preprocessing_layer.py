@@ -1,5 +1,5 @@
 from keras.src.backend import config
-from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validation import (
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validation import (  # noqa: E501
     densify_bounding_boxes,
 )
 from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer

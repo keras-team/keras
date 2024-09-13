@@ -1456,6 +1456,13 @@ def triu(x, k=0):
     return torch.triu(x, diagonal=k)
 
 
+def trunc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "bool":
+        return x
+    return torch.trunc(x)
+
+
 def vdot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

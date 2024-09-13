@@ -7,13 +7,33 @@ from keras.src.initializers.initializer import Initializer
 from keras.src.saving import serialization_lib
 
 
+class RandomInitializer(Initializer):
+    def __init__(self, seed=None):
+        self._init_seed = seed
+        if seed is None:
+            seed = random.make_default_seed()
+        elif isinstance(seed, dict):
+            seed = serialization_lib.deserialize_keras_object(seed)
+        elif not isinstance(seed, (int, random.SeedGenerator)):
+            raise ValueError(
+                "`seed` argument should be an instance of "
+                "`keras.random.SeedGenerator()` or an integer. "
+                f"Received: seed={seed}"
+            )
+        self.seed = seed
+
+    def get_config(self):
+        seed_config = serialization_lib.serialize_keras_object(self._init_seed)
+        return {"seed": seed_config}
+
+
 @keras_export(
     [
         "keras.initializers.RandomNormal",
         "keras.initializers.random_normal",
     ]
 )
-class RandomNormal(Initializer):
+class RandomNormal(RandomInitializer):
     """Random normal initializer.
 
     Draws samples from a normal distribution for given parameters.
@@ -46,9 +66,7 @@ class RandomNormal(Initializer):
     def __init__(self, mean=0.0, stddev=0.05, seed=None):
         self.mean = mean
         self.stddev = stddev
-        self._init_seed = seed
-        self.seed = seed if seed is not None else random.make_default_seed()
-        super().__init__()
+        super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None):
         return random.normal(
@@ -60,8 +78,9 @@ class RandomNormal(Initializer):
         )
 
     def get_config(self):
-        seed_config = serialization_lib.serialize_keras_object(self._init_seed)
-        return {"mean": self.mean, "stddev": self.stddev, "seed": seed_config}
+        base_config = super().get_config()
+        config = {"mean": self.mean, "stddev": self.stddev}
+        return {**base_config, **config}
 
 
 @keras_export(
@@ -70,7 +89,7 @@ class RandomNormal(Initializer):
         "keras.initializers.truncated_normal",
     ]
 )
-class TruncatedNormal(Initializer):
+class TruncatedNormal(RandomInitializer):
     """Initializer that generates a truncated normal distribution.
 
     The values generated are similar to values from a
@@ -106,9 +125,7 @@ class TruncatedNormal(Initializer):
     def __init__(self, mean=0.0, stddev=0.05, seed=None):
         self.mean = mean
         self.stddev = stddev
-        self._init_seed = seed
-        self.seed = seed if seed is not None else random.make_default_seed()
-        super().__init__()
+        super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None):
         return random.truncated_normal(
@@ -120,8 +137,9 @@ class TruncatedNormal(Initializer):
         )
 
     def get_config(self):
-        seed_config = serialization_lib.serialize_keras_object(self._init_seed)
-        return {"mean": self.mean, "stddev": self.stddev, "seed": seed_config}
+        base_config = super().get_config()
+        config = {"mean": self.mean, "stddev": self.stddev}
+        return {**base_config, **config}
 
 
 @keras_export(
@@ -130,7 +148,7 @@ class TruncatedNormal(Initializer):
         "keras.initializers.random_uniform",
     ]
 )
-class RandomUniform(Initializer):
+class RandomUniform(RandomInitializer):
     """Random uniform initializer.
 
     Draws samples from a uniform distribution for given parameters.
@@ -163,9 +181,7 @@ class RandomUniform(Initializer):
     def __init__(self, minval=-0.05, maxval=0.05, seed=None):
         self.minval = minval
         self.maxval = maxval
-        self._init_seed = seed
-        self.seed = seed if seed is not None else random.make_default_seed()
-        super().__init__()
+        super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None):
         return random.uniform(
@@ -177,12 +193,9 @@ class RandomUniform(Initializer):
         )
 
     def get_config(self):
-        seed_config = serialization_lib.serialize_keras_object(self._init_seed)
-        return {
-            "minval": self.minval,
-            "maxval": self.maxval,
-            "seed": seed_config,
-        }
+        base_config = super().get_config()
+        config = {"minval": self.minval, "maxval": self.maxval}
+        return {**base_config, **config}
 
 
 @keras_export(
@@ -191,7 +204,7 @@ class RandomUniform(Initializer):
         "keras.initializers.variance_scaling",
     ]
 )
-class VarianceScaling(Initializer):
+class VarianceScaling(RandomInitializer):
     """Initializer that adapts its scale to the shape of its input tensors.
 
     With `distribution="truncated_normal" or "untruncated_normal"`, samples are
@@ -267,8 +280,7 @@ class VarianceScaling(Initializer):
         self.scale = scale
         self.mode = mode
         self.distribution = distribution
-        self._init_seed = seed
-        self.seed = seed if seed is not None else random.make_default_seed()
+        super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None):
         scale = self.scale
@@ -296,13 +308,13 @@ class VarianceScaling(Initializer):
             )
 
     def get_config(self):
-        seed_config = serialization_lib.serialize_keras_object(self._init_seed)
-        return {
+        base_config = super().get_config()
+        config = {
             "scale": self.scale,
             "mode": self.mode,
             "distribution": self.distribution,
-            "seed": seed_config,
         }
+        return {**base_config, **config}
 
 
 @keras_export(
@@ -632,7 +644,7 @@ def compute_fans(shape):
         "keras.initializers.orthogonal",
     ]
 )
-class OrthogonalInitializer(Initializer):
+class OrthogonalInitializer(RandomInitializer):
     """Initializer that generates an orthogonal matrix.
 
     If the shape of the tensor to initialize is two-dimensional, it is
@@ -668,8 +680,7 @@ class OrthogonalInitializer(Initializer):
 
     def __init__(self, gain=1.0, seed=None):
         self.gain = gain
-        self._init_seed = seed
-        self.seed = seed if seed is not None else random.make_default_seed()
+        super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None):
         if len(shape) < 2:
@@ -699,5 +710,6 @@ class OrthogonalInitializer(Initializer):
         return self.gain * ops.reshape(q, shape)
 
     def get_config(self):
-        seed_config = serialization_lib.serialize_keras_object(self._init_seed)
-        return {"gain": self.gain, "seed": seed_config}
+        base_config = super().get_config()
+        config = {"gain": self.gain}
+        return {**base_config, **config}

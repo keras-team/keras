@@ -1,3 +1,4 @@
+import concurrent.futures
 import inspect
 import platform
 import warnings
@@ -29,6 +30,11 @@ class Trainer:
         self._compute_loss_has_training_arg = (
             "training" in inspect.signature(self.compute_loss).parameters
         )
+
+        # Placeholders used in `compile`
+        self._compile_loss = None
+        self._compile_metrics = None
+        self._loss_tracker = None
 
     @traceback_utils.filter_traceback
     @tracking.no_automatic_dependency_tracking
@@ -155,14 +161,10 @@ class Trainer:
                 loss, loss_weights, output_names=output_names
             )
             self.loss = loss
-        else:
-            self._compile_loss = None
         if metrics is not None or weighted_metrics is not None:
             self._compile_metrics = CompileMetrics(
                 metrics, weighted_metrics, output_names=output_names
             )
-        else:
-            self._compile_metrics = None
         if jit_compile == "auto":
             if run_eagerly:
                 jit_compile = False
@@ -258,7 +260,7 @@ class Trainer:
             if self._compile_loss is not None:
                 metrics.extend(self._compile_loss.metrics)
         metrics.extend(self._metrics)
-        for layer in self._layers:
+        for layer in self._flatten_layers(include_self=False):
             if isinstance(layer, Trainer):
                 # All Trainer-related metrics in sublayers should be ignored
                 # because a new Trainer has been instantiated.
@@ -276,17 +278,13 @@ class Trainer:
 
     def _get_own_metrics(self):
         metrics = []
-        if hasattr(self, "_loss_tracker"):
+        if self._loss_tracker is not None:
             metrics.append(self._loss_tracker)
-        if (
-            hasattr(self, "_compile_metrics")
-            and self._compile_metrics is not None
-        ):
+        if self._compile_metrics is not None:
             metrics.append(self._compile_metrics)
-        if hasattr(self, "_compile_loss") and self._compile_loss is not None:
+        if self._compile_loss is not None:
             metrics.extend(self._compile_loss.metrics)
-        if hasattr(self, "_metrics"):
-            metrics.extend(self._metrics)
+        metrics.extend(self._metrics)
         return metrics
 
     def _clear_previous_trainer_metrics(self):
@@ -300,8 +298,9 @@ class Trainer:
                 layer._tracker.untrack(m)
             layer._loss_tracker = None
             layer._compile_metrics = None
-            layer._compile_loss._metrics = []
-            layer._metrics = []
+            if layer._compile_loss is not None:
+                layer._compile_loss._metrics.clear()
+            layer._metrics.clear()
 
     def compute_loss(
         self,
@@ -969,15 +968,15 @@ class Trainer:
 
     def _pythonify_logs(self, logs):
         result = {}
-        for key, value in sorted(logs.items()):
-            if isinstance(value, dict):
-                result.update(self._pythonify_logs(value))
-            else:
-                try:
-                    value = float(value)
-                except:
-                    pass
-                result[key] = value
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for key, value in sorted(logs.items()):
+                if isinstance(value, dict):
+                    result.update(self._pythonify_logs(value))
+                else:
+                    future_value = executor.submit(_async_float_cast, value)
+                result[key] = future_value
+        for key, future_value in result.items():
+            result[key] = future_value.result()
         return result
 
     def _get_metrics_result_or_logs(self, logs):
@@ -1126,3 +1125,11 @@ def model_supports_jit(model):
     if all(x.supports_jit for x in model._flatten_layers()):
         return True
     return False
+
+
+def _async_float_cast(value):
+    try:
+        value = float(value)
+    except:
+        pass
+    return value
