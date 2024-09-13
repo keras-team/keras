@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
@@ -179,7 +180,6 @@ class LayerNormalization(Layer):
         self.built = True
 
     def call(self, inputs):
-        inputs = ops.cast(inputs, self.compute_dtype)
         # Compute the axes along which to reduce the mean / variance
         input_shape = inputs.shape
         ndims = len(input_shape)
@@ -199,11 +199,10 @@ class LayerNormalization(Layer):
                 return ops.reshape(v, broadcast_shape)
             return v
 
-        input_dtype = inputs.dtype
-        if input_dtype in ("float16", "bfloat16") and self.dtype == "float32":
-            # If mixed precision is used, cast inputs to float32 so that
-            # this is at least as numerically stable as the fused version.
-            inputs = ops.cast(inputs, "float32")
+        compute_dtype = backend.result_type(inputs.dtype, "float32")
+        # LN is prone to overflow with float16/bfloat16 inputs, so we upcast to
+        # float32 for the subsequent computations.
+        inputs = ops.cast(inputs, compute_dtype)
 
         if self.rms_scaling:
             # Calculate outputs with only variance and gamma if rms scaling
@@ -231,8 +230,7 @@ class LayerNormalization(Layer):
                 res = res + beta
 
             outputs = inputs * inv + res
-
-        return ops.cast(outputs, input_dtype)
+        return ops.cast(outputs, self.compute_dtype)
 
     def compute_output_shape(self, input_shape):
         if isinstance(self.axis, int):
