@@ -5,6 +5,7 @@ import zipfile
 
 import h5py
 from IPython.core.display import HTML
+from IPython.core.display import display
 from matplotlib import pyplot as plt
 
 from keras.src.saving import deserialize_keras_object
@@ -71,7 +72,8 @@ class KerasFileEditor:
         margin_left = 20
         font_size = 20
         print_prefix = (
-            f'<details style="margin-left: {margin_left}px;"><summary style="font-size: {font_size}px;">'
+            f'<details style="margin-left: {margin_left}px;">'
+            + f'<summary style="font-size: {font_size}px;">'
             + "{key}</summary>"
         )
         print_suffix = "</details>"
@@ -110,11 +112,15 @@ class KerasFileEditor:
             plt.close(fig)
             buf.seek(0)
             image_base64 = base64.b64encode(buf.read()).decode("utf-8")
-            return f'<img src="data:image/png;base64,{image_base64}" style="display:block;margin:auto;" />'
+            return (
+                f'<img src="data:image/png;base64,{image_base64}" '
+                + 'style="display:block;margin:auto;" />'
+            )
 
         def _generate_html_config(config):
             html_output = [
-                f"<p>Model: {config['class_name']} name='{config['config']['name']}'</p>"
+                f"<p>Model: {config['class_name']} "
+                + f"'name='{config['config']['name']}'</p>"
             ]
             return "".join(html_output)
 
@@ -134,7 +140,9 @@ class KerasFileEditor:
                         for weights_key, weights in value["vars"].items():
                             html_output.append(
                                 print_prefix.format(
-                                    key=f"{weights_key} : shape={weights.shape}, dtype={weights.dtype}"
+                                    key=f"{weights_key} : "
+                                    + f"shape={weights.shape}, "
+                                    + f"dtype={weights.dtype}"
                                 )
                             )
 
