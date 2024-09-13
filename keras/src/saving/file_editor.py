@@ -15,7 +15,7 @@ except ImportError:
 try:
     import matplotlib as mpl
 except ImportError:
-    "You must install ipython (`pip install matplotlib`) for"
+    "You must install matplotlib (`pip install matplotlib`) for"
     "KerasFileEditor to work."
     mpl = None
 
