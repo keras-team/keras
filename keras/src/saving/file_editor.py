@@ -70,9 +70,11 @@ class KerasFileEditor:
     def list_layers(self):
         margin_left = 20
         font_size = 20
-        print_prefix = (f'<details style="margin-left: {margin_left}px;"><summary style="font-size: {font_size}px;">' +
-                        '{key}</summary>')
-        print_suffix = '</details>'
+        print_prefix = (
+            f'<details style="margin-left: {margin_left}px;"><summary style="font-size: {font_size}px;">'
+            + "{key}</summary>"
+        )
+        print_suffix = "</details>"
 
         def _create_color_grid(weights):
             fig, ax = plt.subplots(figsize=(5, 5))
@@ -80,47 +82,61 @@ class KerasFileEditor:
                 weights = weights.reshape(-1, weights.shape[-1])
 
             if weights.ndim == 1:
-                cax = ax.imshow(weights.reshape(1, -1), aspect='auto', cmap='viridis')
+                cax = ax.imshow(
+                    weights.reshape(1, -1), aspect="auto", cmap="viridis"
+                )
             else:
-                cax = ax.matshow(weights, interpolation='nearest', cmap='viridis')
-                if weights.shape[0] / weights.shape[1] > 10 or weights.shape[1] / weights.shape[0] > 10:
-                    ax.set_aspect('auto', 'datalim')
+                cax = ax.matshow(
+                    weights, interpolation="nearest", cmap="viridis"
+                )
+                if (
+                    weights.shape[0] / weights.shape[1] > 10
+                    or weights.shape[1] / weights.shape[0] > 10
+                ):
+                    ax.set_aspect("auto", "datalim")
                 if weights.shape[0] == 1:
                     ax.set_yticks([])
                 if weights.shape[1] == 1:
                     ax.set_xticks([])
 
             fig.colorbar(cax)
-            ax.xaxis.set_label_position('top')
+            ax.xaxis.set_label_position("top")
             ax.xaxis.tick_top()
             ax.set_xticks([])
             ax.set_yticks([])
 
             buf = io.BytesIO()
-            plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=1)
+            plt.savefig(buf, format="png", bbox_inches="tight", pad_inches=1)
             plt.close(fig)
             buf.seek(0)
-            image_base64 = base64.b64encode(buf.read()).decode('utf-8')
+            image_base64 = base64.b64encode(buf.read()).decode("utf-8")
             return f'<img src="data:image/png;base64,{image_base64}" style="display:block;margin:auto;" />'
 
         def _generate_html_config(config):
-            html_output = [f"<p>Model: {config['class_name']} name='{config['config']['name']}'</p>"]
-            return ''.join(html_output)
+            html_output = [
+                f"<p>Model: {config['class_name']} name='{config['config']['name']}'</p>"
+            ]
+            return "".join(html_output)
 
         def _generate_html_metadata(metadata):
-            html_output = [f"<p>Saved with Keras {metadata['keras_version']}</p>",
-                           f"<p>Date saved: {metadata['date_saved']}</p>"]
-            return ''.join(html_output)
+            html_output = [
+                f"<p>Saved with Keras {metadata['keras_version']}</p>",
+                f"<p>Date saved: {metadata['date_saved']}</p>",
+            ]
+            return "".join(html_output)
 
         def _generate_html_weight(weight_dict):
             html_output = []
-            for (key, value) in weight_dict.items():
+            for key, value in weight_dict.items():
                 html_output.append(print_prefix.format(key=key))
                 if isinstance(value, dict):
-                    if 'vars' in value.keys():
-                        for weights_key, weights in value['vars'].items():
-                            html_output.append(print_prefix.format(
-                                key=f'{weights_key} : shape={weights.shape}, dtype={weights.dtype}'))
+                    if "vars" in value.keys():
+                        for weights_key, weights in value["vars"].items():
+                            html_output.append(
+                                print_prefix.format(
+                                    key=f"{weights_key} : shape={weights.shape}, dtype={weights.dtype}"
+                                )
+                            )
 
                             html_output.append(_create_color_grid(weights[()]))
 
@@ -129,7 +145,7 @@ class KerasFileEditor:
                         html_output.append(_generate_html_weight(value))
                 html_output.append(print_suffix)
 
-            return ''.join(html_output)
+            return "".join(html_output)
 
         output = f"<h2>Keras model file '{self.filepath}'</h2>"
 
@@ -142,7 +158,7 @@ class KerasFileEditor:
             output += metadata_output
 
         layer_output = "<h3>Weights file:</h3>"
-        layer_output += _generate_html_weight(self.nested_dict['layers'])
+        layer_output += _generate_html_weight(self.nested_dict["layers"])
         output += layer_output
 
         display(HTML(output))
