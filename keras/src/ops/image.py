@@ -614,7 +614,7 @@ def extract_patches(
 
     Args:
         images: Input image or batch of images. Must be 3D or 4D.
-        size: Patch size int or tuple (patch_height, patch_widht)
+        size: Patch size int or tuple (patch_height, patch_width)
         strides: strides along height and width. If not specified, or
             if `None`, it defaults to the same value as `size`.
         dilation_rate: This is the input stride, specifying how far two
