@@ -51,7 +51,7 @@ setup(
     python_requires=">=3.9",
     classifiers=[
         "Development Status :: 4 - Beta",
-        # Below line of code is irrelavent as i'ts already present.
+        # Below line of code is irrelavent as it's already present.
         # ----------------------------------------
         #"Programming Language :: Python :: 3",
         # ----------------------------------------
