@@ -76,7 +76,7 @@ class AutoContrast(BaseImagePreprocessingLayer):
         )
         # don't process NaN channels
         results = self.backend.numpy.where(
-            self.backend.numpy.is_nan(results), original_images, results
+            self.backend.numpy.isnan(results), original_images, results
         )
         if results.dtype == images.dtype:
             return results

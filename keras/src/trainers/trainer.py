@@ -967,16 +967,21 @@ class Trainer:
             )
 
     def _pythonify_logs(self, logs):
-        result = {}
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            for key, value in sorted(logs.items()):
-                if isinstance(value, dict):
-                    result.update(self._pythonify_logs(value))
-                else:
-                    future_value = executor.submit(_async_float_cast, value)
-                result[key] = future_value
-        for key, future_value in result.items():
-            result[key] = future_value.result()
+            result = self._pythonify_logs_inner(logs, executor)
+            for key, future_value in result.items():
+                result[key] = future_value.result()
+        return result
+
+    def _pythonify_logs_inner(self, logs, executor):
+        result = {}
+        for key, value in sorted(logs.items()):
+            if isinstance(value, dict):
+                result.update(
+                    self._pythonify_logs_inner(value, executor=executor)
+                )
+            else:
+                result[key] = executor.submit(_async_float_cast, value)
         return result
 
     def _get_metrics_result_or_logs(self, logs):
