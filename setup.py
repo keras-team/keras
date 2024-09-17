@@ -44,18 +44,25 @@ setup(
         "optree",
         "ml-dtypes",
         "packaging",
+        "torch",
+        "tensorflow"
     ],
     # Supported Python versions
     python_requires=">=3.9",
     classifiers=[
         "Development Status :: 4 - Beta",
-        "Programming Language :: Python :: 3",
+        # Below line of code is irrelavent as i'ts already present.
+        # ----------------------------------------
+        #"Programming Language :: Python :: 3",
+        # ----------------------------------------
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3 :: Only",
         "Operating System :: Unix",
         "Operating System :: MacOS",
+        "Operating System :: Microsoft :: Windows",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering",
         "Topic :: Software Development",
