@@ -13,6 +13,7 @@ RESIZE_INTERPOLATIONS = (
     "lanczos3",
     "lanczos5",
     "bicubic",
+    "area",
 )
 
 
