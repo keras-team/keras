@@ -82,6 +82,9 @@ from keras.src.layers.preprocessing.category_encoding import CategoryEncoding
 from keras.src.layers.preprocessing.discretization import Discretization
 from keras.src.layers.preprocessing.hashed_crossing import HashedCrossing
 from keras.src.layers.preprocessing.hashing import Hashing
+from keras.src.layers.preprocessing.image_preprocessing.auto_contrast import (
+    AutoContrast,
+)
 from keras.src.layers.preprocessing.image_preprocessing.center_crop import (
     CenterCrop,
 )
@@ -107,6 +110,9 @@ from keras.src.layers.preprocessing.image_preprocessing.random_zoom import (
     RandomZoom,
 )
 from keras.src.layers.preprocessing.image_preprocessing.resizing import Resizing
+from keras.src.layers.preprocessing.image_preprocessing.solarization import (
+    Solarization,
+)
 from keras.src.layers.preprocessing.index_lookup import IndexLookup
 from keras.src.layers.preprocessing.integer_lookup import IntegerLookup
 from keras.src.layers.preprocessing.mel_spectrogram import MelSpectrogram

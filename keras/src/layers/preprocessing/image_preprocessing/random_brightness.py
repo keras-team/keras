@@ -119,7 +119,7 @@ class RandomBrightness(BaseImagePreprocessingLayer):
         rgb_delta = rgb_delta * (self.value_range[1] - self.value_range[0])
         return {"rgb_delta": rgb_delta}
 
-    def augment_images(self, images, transformation, training=True):
+    def transform_images(self, images, transformation, training=True):
         if training:
             rgb_delta = transformation["rgb_delta"]
             rgb_delta = self.backend.cast(rgb_delta, images.dtype)
@@ -129,15 +129,15 @@ class RandomBrightness(BaseImagePreprocessingLayer):
             )
         return images
 
-    def augment_labels(self, labels, transformation, training=True):
+    def transform_labels(self, labels, transformation, training=True):
         return labels
 
-    def augment_bounding_boxes(
+    def transform_bounding_boxes(
         self, bounding_boxes, transformation, training=True
     ):
         return bounding_boxes
 
-    def augment_segmentation_masks(
+    def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
         return segmentation_masks

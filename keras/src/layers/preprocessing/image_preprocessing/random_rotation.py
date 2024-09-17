@@ -1,13 +1,14 @@
 import numpy as np
 
-from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    BaseImagePreprocessingLayer,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
 @keras_export("keras.layers.RandomRotation")
-class RandomRotation(TFDataLayer):
+class RandomRotation(BaseImagePreprocessingLayer):
     """A preprocessing layer which randomly rotates images during training.
 
     This layer will apply random rotations to each image, filling empty space
@@ -67,10 +68,6 @@ class RandomRotation(TFDataLayer):
             the boundaries when `fill_mode="constant"`.
     """
 
-    _FACTOR_VALIDATION_ERROR = (
-        "The `factor` argument should be a number (or a list of two numbers) "
-        "in the range [-1.0, 1.0]. "
-    )
     _VALUE_RANGE_VALIDATION_ERROR = (
         "The `value_range` argument should be a list of two numbers. "
     )
@@ -89,16 +86,13 @@ class RandomRotation(TFDataLayer):
         data_format=None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(factor=factor, data_format=data_format, **kwargs)
         self.seed = seed
         self.generator = SeedGenerator(seed)
-        self._set_factor(factor)
         self._set_value_range(value_range)
-        self.data_format = backend.standardize_data_format(data_format)
         self.fill_mode = fill_mode
         self.interpolation = interpolation
         self.fill_value = fill_value
-
         self.supports_jit = False
 
         if self.fill_mode not in self._SUPPORTED_FILL_MODE:
@@ -125,30 +119,33 @@ class RandomRotation(TFDataLayer):
             )
         self.value_range = sorted(value_range)
 
-    def _set_factor(self, factor):
-        if isinstance(factor, (tuple, list)):
-            if len(factor) != 2:
-                raise ValueError(
-                    self._FACTOR_VALIDATION_ERROR + f"Received: factor={factor}"
-                )
-            self._check_factor_range(factor[0])
-            self._check_factor_range(factor[1])
-            self._factor = sorted(factor)
-        elif isinstance(factor, (int, float)):
-            self._check_factor_range(factor)
-            factor = abs(factor)
-            self._factor = [-factor, factor]
-        else:
-            raise ValueError(
-                self._FACTOR_VALIDATION_ERROR + f"Received: factor={factor}"
+    def transform_images(self, images, transformation, training=True):
+        images = self.backend.cast(images, self.compute_dtype)
+        if training:
+            return self.backend.image.affine_transform(
+                images=images,
+                transform=transformation["rotation_matrix"],
+                interpolation=self.interpolation,
+                fill_mode=self.fill_mode,
+                fill_value=self.fill_value,
+                data_format=self.data_format,
             )
+        return images
 
-    def _check_factor_range(self, input_number):
-        if input_number > 1.0 or input_number < -1.0:
-            raise ValueError(
-                self._FACTOR_VALIDATION_ERROR
-                + f"Received: input_number={input_number}"
-            )
+    def transform_labels(self, labels, transformation, training=True):
+        return labels
+
+    def transform_bounding_boxes(
+        self, bounding_boxes, transformation, training=True
+    ):
+        raise NotImplementedError
+
+    def transform_segmentation_masks(
+        self, segmentation_masks, transformation, training=True
+    ):
+        return self.transform_images(
+            segmentation_masks, transformation, training=training
+        )
 
     """
     Assume an angle ø, then rotation matrix is defined by
@@ -159,8 +156,14 @@ class RandomRotation(TFDataLayer):
     This function is returning the 8 elements barring the final 1 as a 1D array
     """
 
-    def _get_rotation_matrix(self, inputs):
-        shape = self.backend.core.shape(inputs)
+    def get_random_transformation(self, data, training=True, seed=None):
+        if not training:
+            return None
+        if isinstance(data, dict):
+            images = data["images"]
+        else:
+            images = data
+        shape = self.backend.core.shape(images)
         if len(shape) == 4:
             if self.data_format == "channels_last":
                 batch_size = shape[0]
@@ -179,15 +182,16 @@ class RandomRotation(TFDataLayer):
                 image_height = shape[1]
                 image_width = shape[2]
 
-        lower = self._factor[0] * 2.0 * self.backend.convert_to_tensor(np.pi)
-        upper = self._factor[1] * 2.0 * self.backend.convert_to_tensor(np.pi)
+        lower = self.factor[0] * 2.0 * self.backend.convert_to_tensor(np.pi)
+        upper = self.factor[1] * 2.0 * self.backend.convert_to_tensor(np.pi)
 
-        seed_generator = self._get_seed_generator(self.backend._backend)
+        if seed is None:
+            seed = self._get_seed_generator(self.backend._backend)
         angle = self.backend.random.uniform(
             shape=(batch_size,),
             minval=lower,
             maxval=upper,
-            seed=seed_generator,
+            seed=seed,
         )
 
         cos_theta = self.backend.numpy.cos(angle)
@@ -205,7 +209,7 @@ class RandomRotation(TFDataLayer):
             - (sin_theta * (image_width - 1) + cos_theta * (image_height - 1))
         ) / 2.0
 
-        outputs = self.backend.numpy.concatenate(
+        rotation_matrix = self.backend.numpy.concatenate(
             [
                 self.backend.numpy.cos(angle)[:, None],
                 -self.backend.numpy.sin(angle)[:, None],
@@ -218,31 +222,17 @@ class RandomRotation(TFDataLayer):
             axis=1,
         )
         if len(shape) == 3:
-            outputs = self.backend.numpy.squeeze(outputs, axis=0)
-        return outputs
-
-    def call(self, inputs, training=True):
-        inputs = self.backend.cast(inputs, self.compute_dtype)
-        if training:
-            rotation_matrix = self._get_rotation_matrix(inputs)
-            transformed_image = self.backend.image.affine_transform(
-                images=inputs,
-                transform=rotation_matrix,
-                interpolation=self.interpolation,
-                fill_mode=self.fill_mode,
-                fill_value=self.fill_value,
-                data_format=self.data_format,
+            rotation_matrix = self.backend.numpy.squeeze(
+                rotation_matrix, axis=0
             )
-            return transformed_image
-        else:
-            return inputs
+        return {"rotation_matrix": rotation_matrix}
 
     def compute_output_shape(self, input_shape):
         return input_shape
 
     def get_config(self):
         config = {
-            "factor": self._factor,
+            "factor": self.factor,
             "value_range": self.value_range,
             "data_format": self.data_format,
             "fill_mode": self.fill_mode,

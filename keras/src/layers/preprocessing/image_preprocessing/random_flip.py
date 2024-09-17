@@ -1,5 +1,7 @@
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    BaseImagePreprocessingLayer,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 HORIZONTAL = "horizontal"
@@ -8,7 +10,7 @@ HORIZONTAL_AND_VERTICAL = "horizontal_and_vertical"
 
 
 @keras_export("keras.layers.RandomFlip")
-class RandomFlip(TFDataLayer):
+class RandomFlip(BaseImagePreprocessingLayer):
     """A preprocessing layer which randomly flips images during training.
 
     This layer will flip the images horizontally and or vertically based on the
@@ -39,40 +41,93 @@ class RandomFlip(TFDataLayer):
             `name` and `dtype`.
     """
 
-    def __init__(self, mode=HORIZONTAL_AND_VERTICAL, seed=None, **kwargs):
-        super().__init__(**kwargs)
+    _USE_BASE_FACTOR = False
+
+    def __init__(
+        self,
+        mode=HORIZONTAL_AND_VERTICAL,
+        seed=None,
+        data_format=None,
+        **kwargs
+    ):
+        super().__init__(data_format=data_format, **kwargs)
         self.seed = seed
         self.generator = SeedGenerator(seed)
         self.mode = mode
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
 
-    def _randomly_flip_inputs(self, inputs):
+    def get_random_transformation(self, data, training=True, seed=None):
+        if not training:
+            return None
+
+        if isinstance(data, dict):
+            images = data["images"]
+        else:
+            images = data
+        shape = self.backend.core.shape(images)
+        if len(shape) == 3:
+            flips_shape = (1, 1, 1)
+        else:
+            flips_shape = (shape[0], 1, 1, 1)
+
+        if seed is None:
+            seed = self._get_seed_generator(self.backend._backend)
+
+        flips = self.backend.numpy.less_equal(
+            self.backend.random.uniform(shape=flips_shape, seed=seed), 0.5
+        )
+        return {"flips": flips}
+
+    def transform_images(self, images, transformation, training=True):
+        images = self.backend.cast(images, self.compute_dtype)
+        if training:
+            return self._flip_inputs(images, transformation)
+        return images
+
+    def transform_labels(self, labels, transformation, training=True):
+        return labels
+
+    def transform_bounding_boxes(
+        self, bounding_boxes, transformation, training=True
+    ):
+        raise NotImplementedError
+
+    def transform_segmentation_masks(
+        self, segmentation_masks, transformation, training=True
+    ):
+        return self.transform_images(
+            segmentation_masks, transformation, training=training
+        )
+
+    def _flip_inputs(self, inputs, transformation):
+        if transformation is None:
+            return inputs
+
+        flips = transformation["flips"]
         inputs_shape = self.backend.shape(inputs)
         unbatched = len(inputs_shape) == 3
         if unbatched:
             inputs = self.backend.numpy.expand_dims(inputs, axis=0)
-            inputs_shape = self.backend.shape(inputs)
 
-        batch_size = inputs_shape[0]
         flipped_outputs = inputs
-        seed_generator = self._get_seed_generator(self.backend._backend)
+        if self.data_format == "channels_last":
+            horizontal_axis = -2
+            vertical_axis = -3
+        else:
+            horizontal_axis = -1
+            vertical_axis = -2
+
         if self.mode == HORIZONTAL or self.mode == HORIZONTAL_AND_VERTICAL:
             flipped_outputs = self.backend.numpy.where(
-                self.backend.random.uniform(
-                    shape=(batch_size, 1, 1, 1), seed=seed_generator
-                )
-                <= 0.5,
-                self.backend.numpy.flip(flipped_outputs, axis=-2),
+                flips,
+                self.backend.numpy.flip(flipped_outputs, axis=horizontal_axis),
                 flipped_outputs,
             )
         if self.mode == VERTICAL or self.mode == HORIZONTAL_AND_VERTICAL:
             flipped_outputs = self.backend.numpy.where(
-                self.backend.random.uniform(
-                    shape=(batch_size, 1, 1, 1), seed=seed_generator
-                )
-                <= 0.5,
-                self.backend.numpy.flip(flipped_outputs, axis=-3),
+                flips,
+                self.backend.numpy.flip(flipped_outputs, axis=vertical_axis),
                 flipped_outputs,
             )
         if unbatched:
@@ -81,17 +136,16 @@ class RandomFlip(TFDataLayer):
             )
         return flipped_outputs
 
-    def call(self, inputs, training=True):
-        inputs = self.backend.cast(inputs, self.compute_dtype)
-        if training:
-            return self._randomly_flip_inputs(inputs)
-        else:
-            return inputs
-
     def compute_output_shape(self, input_shape):
         return input_shape
 
     def get_config(self):
         config = super().get_config()
-        config.update({"seed": self.seed, "mode": self.mode})
+        config.update(
+            {
+                "seed": self.seed,
+                "mode": self.mode,
+                "data_format": self.data_format,
+            }
+        )
         return config

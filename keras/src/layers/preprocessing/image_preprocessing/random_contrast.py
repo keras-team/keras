@@ -85,7 +85,7 @@ class RandomContrast(BaseImagePreprocessingLayer):
         )
         return {"contrast_factor": factor}
 
-    def augment_images(self, images, transformation, training=True):
+    def transform_images(self, images, transformation, training=True):
         if training:
             constrast_factor = transformation["contrast_factor"]
             outputs = self._adjust_constrast(images, constrast_factor)
@@ -94,15 +94,15 @@ class RandomContrast(BaseImagePreprocessingLayer):
             return outputs
         return images
 
-    def augment_labels(self, labels, transformation, training=True):
+    def transform_labels(self, labels, transformation, training=True):
         return labels
 
-    def augment_bounding_boxes(
+    def transform_bounding_boxes(
         self, bounding_boxes, transformation, training=True
     ):
         return bounding_boxes
 
-    def augment_segmentation_masks(
+    def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
         return segmentation_masks

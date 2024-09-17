@@ -118,7 +118,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
 
         return h_start, w_start
 
-    def augment_images(self, images, transformation, training=True):
+    def transform_images(self, images, transformation, training=True):
         images = self.backend.cast(images, self.compute_dtype)
         crop_box_hstart, crop_box_wstart = transformation
         crop_height = self.height
@@ -174,10 +174,10 @@ class RandomCrop(BaseImagePreprocessingLayer):
             images = self.backend.cast(images, self.compute_dtype)
         return images
 
-    def augment_labels(self, labels, transformation, training=True):
+    def transform_labels(self, labels, transformation, training=True):
         return labels
 
-    def augment_bounding_boxes(
+    def transform_bounding_boxes(
         self, bounding_boxes, transformation, training=True
     ):
         """
@@ -223,10 +223,10 @@ class RandomCrop(BaseImagePreprocessingLayer):
             "labels": bounding_boxes["labels"],
         }
 
-    def augment_segmentation_masks(
+    def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.augment_images(segmentation_masks, transformation)
+        return self.transform_images(segmentation_masks, transformation)
 
     def compute_output_shape(self, input_shape, *args, **kwargs):
         input_shape = list(input_shape)
