@@ -974,9 +974,10 @@ class Trainer:
                     result.update(self._pythonify_logs(value))
                 else:
                     future_value = executor.submit(_async_float_cast, value)
-                result[key] = future_value
-        for key, future_value in result.items():
-            result[key] = future_value.result()
+                    result[key] = future_value
+            for key, future_value in result.items():
+                if isinstance(future_value, concurrent.futures.Future):
+                    result[key] = future_value.result()
         return result
 
     def _get_metrics_result_or_logs(self, logs):
