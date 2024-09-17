@@ -53,6 +53,7 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
             MockedRandomFlip,
             init_kwargs={
                 "mode": "horizontal",
+                "data_format": "channels_last",
                 "seed": 42,
             },
             input_data=np.asarray([[[2, 3, 4], [5, 6, 7]]]),
@@ -65,6 +66,7 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
             MockedRandomFlip,
             init_kwargs={
                 "mode": "horizontal",
+                "data_format": "channels_last",
                 "seed": 42,
             },
             input_data=np.asarray(
@@ -91,6 +93,7 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
             MockedRandomFlip,
             init_kwargs={
                 "mode": "vertical",
+                "data_format": "channels_last",
                 "seed": 42,
             },
             input_data=np.asarray([[[2, 3, 4]], [[5, 6, 7]]]),
@@ -131,7 +134,9 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
 
     def test_tf_data_compatibility(self):
         # Test 3D input: shape (2, 1, 3)
-        layer = layers.RandomFlip("vertical", seed=42)
+        layer = layers.RandomFlip(
+            "vertical", data_format="channels_last", seed=42
+        )
         input_data = np.array([[[2, 3, 4]], [[5, 6, 7]]])
         expected_output = np.array([[[5, 6, 7]], [[2, 3, 4]]])
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
