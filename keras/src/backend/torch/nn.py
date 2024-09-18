@@ -247,7 +247,7 @@ def _apply_same_padding(
                 spatial_shape[i], kernel_size[i], strides[i], dilation_rate[i]
             )
             mode = "constant"
-        padding = (padding_size,) + padding
+        padding = padding + (padding_size,)
 
     if all([left == right for left, right in padding]):
         return inputs, [left for left, _ in padding]
