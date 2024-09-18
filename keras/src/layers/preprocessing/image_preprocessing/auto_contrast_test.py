@@ -90,6 +90,6 @@ class AutoContrastTest(testing.TestCase, parameterized.TestCase):
 
         layer = layers.AutoContrast(value_range=(0, 1))
         ys = layer(img)
-
-        self.assertTrue(np.any(ops.convert_to_numpy(ys[0]) == 0.0))
-        self.assertTrue(np.any(ops.convert_to_numpy(ys[0]) == 1.0))
+        self.assertAllClose(
+            ops.convert_to_numpy(ys[0]), np.array([[[0.0]], [[1]]])
+        )
