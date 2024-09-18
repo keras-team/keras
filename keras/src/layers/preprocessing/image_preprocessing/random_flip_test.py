@@ -108,6 +108,7 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
             MockedRandomFlip,
             init_kwargs={
                 "mode": "vertical",
+                "data_format": "channels_last",
                 "seed": 42,
             },
             input_data=np.asarray(
@@ -144,7 +145,9 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
             output = output.numpy()
         self.assertAllClose(output, expected_output)
         # Test 4D input: shape (2, 2, 1, 3)
-        layer = layers.RandomFlip("vertical", seed=42)
+        layer = layers.RandomFlip(
+            "vertical", data_format="channels_last", seed=42
+        )
         input_data = np.array(
             [
                 [
