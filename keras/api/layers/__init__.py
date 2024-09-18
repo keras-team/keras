@@ -173,6 +173,7 @@ from keras.src.layers.preprocessing.image_preprocessing.solarization import (
 from keras.src.layers.preprocessing.integer_lookup import IntegerLookup
 from keras.src.layers.preprocessing.mel_spectrogram import MelSpectrogram
 from keras.src.layers.preprocessing.normalization import Normalization
+from keras.src.layers.preprocessing.pipeline import Pipeline
 from keras.src.layers.preprocessing.rescaling import Rescaling
 from keras.src.layers.preprocessing.string_lookup import StringLookup
 from keras.src.layers.preprocessing.text_vectorization import TextVectorization
