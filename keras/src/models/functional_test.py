@@ -16,7 +16,7 @@ from keras.src.models import Model
 from keras.src.models import Sequential
 
 
-class FunctionalTest(testing.TestCase, parameterized.TestCase):
+class FunctionalTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_basic_flow_multi_input(self):
         input_a = Input(shape=(3,), batch_size=2, name="input_a")

@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 import numpy as np
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import distribution
@@ -19,7 +20,7 @@ from keras.src.models import Model
 from keras.src.utils import traceback_utils
 
 
-class TestCase(unittest.TestCase):
+class TestCase(parameterized.TestCase, unittest.TestCase):
     maxDiff = None
 
     def __init__(self, *args, **kwargs):

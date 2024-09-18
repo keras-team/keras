@@ -35,7 +35,7 @@ from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product
 
 
-class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
+class NNOpsDynamicShapeTest(testing.TestCase):
     def test_relu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.relu(x).shape, (None, 2, 3))
@@ -1139,7 +1139,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, ())
 
 
-class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class NNOpsCorrectnessTest(testing.TestCase):
     def test_relu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(knn.relu(x), [0, 0, 1, 2, 3])
@@ -2137,7 +2137,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAlmostEqual(psnr_2, expected_psnr_2)
 
 
-class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
+class NNOpsDtypeTest(testing.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     FLOAT_DTYPES = dtypes.FLOAT_TYPES
@@ -2499,7 +2499,7 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(standardize_dtype(scores.dtype), expected_dtype)
 
 
-class NNOpsBehaviorTest(testing.TestCase, parameterized.TestCase):
+class NNOpsBehaviorTest(testing.TestCase):
     def test_logit_recovery_binary_crossentropy(self):
         layer = layers.Dense(
             4, activation="sigmoid", use_bias=False, kernel_initializer="ones"

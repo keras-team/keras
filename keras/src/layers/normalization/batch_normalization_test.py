@@ -10,7 +10,7 @@ from keras.src.losses import MeanSquaredError
 from keras.src.models import Model
 
 
-class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
+class BatchNormalizationTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_bn_basics(self):
         # vector case

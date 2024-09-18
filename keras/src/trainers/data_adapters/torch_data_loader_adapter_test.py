@@ -13,7 +13,7 @@ from keras.src.trainers.data_adapters.torch_data_loader_adapter import (
 )
 
 
-class TestTorchDataLoaderAdapter(testing.TestCase, parameterized.TestCase):
+class TestTorchDataLoaderAdapter(testing.TestCase):
     def test_basic_dataloader(self):
         x = torch.normal(2, 3, size=(34, 4))
         y = torch.normal(1, 3, size=(34, 2))

@@ -9,7 +9,7 @@ from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 
 
-class DtypesTest(test_case.TestCase, parameterized.TestCase):
+class DtypesTest(test_case.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     if backend.backend() == "torch":

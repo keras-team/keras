@@ -9,7 +9,7 @@ from keras.src import testing
 from keras.src.testing.test_utils import named_product
 
 
-class HashedCrossingTest(testing.TestCase, parameterized.TestCase):
+class HashedCrossingTest(testing.TestCase):
     def test_basics(self):
         self.run_layer_test(
             layers.HashedCrossing,

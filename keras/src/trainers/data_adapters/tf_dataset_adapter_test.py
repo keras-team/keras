@@ -5,14 +5,13 @@ import numpy as np
 import pytest
 import tensorflow as tf
 import torch
-from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
 from keras.src.trainers.data_adapters import tf_dataset_adapter
 
 
-class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
+class TestTFDatasetAdapter(testing.TestCase):
     def test_basic_flow(self):
         x = tf.random.normal((34, 4))
         y = tf.random.normal((34, 2))

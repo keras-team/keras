@@ -8,7 +8,7 @@ from keras.src import random
 from keras.src import testing
 
 
-class SolarizationTest(testing.TestCase, parameterized.TestCase):
+class SolarizationTest(testing.TestCase):
     def _test_input_output(self, layer, input_value, expected_value, dtype):
         input = np.ones(shape=(2, 224, 224, 3), dtype=dtype) * input_value
         expected_output = ops.clip(

@@ -77,7 +77,7 @@ TEST_PARAMETERS = [
 
 
 @pytest.mark.requires_trainable_backend
-class MergingLayersTest(testing.TestCase, parameterized.TestCase):
+class MergingLayersTest(testing.TestCase):
     @parameterized.named_parameters(TEST_PARAMETERS)
     def test_basic(
         self,

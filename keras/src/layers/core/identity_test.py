@@ -6,7 +6,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class IdentityTest(testing.TestCase, parameterized.TestCase):
+class IdentityTest(testing.TestCase):
     @parameterized.named_parameters(
         [
             {"testcase_name": "dense", "sparse": False},

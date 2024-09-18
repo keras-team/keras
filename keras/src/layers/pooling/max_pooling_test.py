@@ -134,7 +134,7 @@ def np_maxpool3d(x, pool_size, strides, padding, data_format):
 
 
 @pytest.mark.requires_trainable_backend
-class MaxPoolingBasicTest(testing.TestCase, parameterized.TestCase):
+class MaxPoolingBasicTest(testing.TestCase):
     @parameterized.parameters(
         (2, 1, "valid", "channels_last", (3, 5, 4), (3, 4, 4)),
         (2, 1, "same", "channels_first", (3, 5, 4), (3, 5, 4)),
@@ -238,7 +238,7 @@ class MaxPoolingBasicTest(testing.TestCase, parameterized.TestCase):
         )
 
 
-class MaxPoolingCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class MaxPoolingCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
         (2, 1, "valid", "channels_last"),
         (2, 1, "valid", "channels_first"),

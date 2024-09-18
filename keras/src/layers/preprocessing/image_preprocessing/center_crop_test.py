@@ -8,7 +8,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class CenterCropTest(testing.TestCase, parameterized.TestCase):
+class CenterCropTest(testing.TestCase):
     def np_center_crop(self, img, h_new, w_new, data_format="channels_last"):
         img = np.array(img)
         if img.ndim == 4:

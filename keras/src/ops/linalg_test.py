@@ -329,7 +329,7 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(s.shape, (10, 2))
 
 
-class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class LinalgOpsCorrectnessTest(testing.TestCase):
 
     def test_cholesky(self):
         x = np.random.rand(4, 3, 3).astype("float32")

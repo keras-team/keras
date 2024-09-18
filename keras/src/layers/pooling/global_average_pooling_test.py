@@ -7,7 +7,7 @@ from keras.src import testing
 
 
 @pytest.mark.requires_trainable_backend
-class GlobalAveragePoolingBasicTest(testing.TestCase, parameterized.TestCase):
+class GlobalAveragePoolingBasicTest(testing.TestCase):
     @parameterized.parameters(
         ("channels_last", False, (3, 5, 4), (3, 4)),
         ("channels_last", True, (3, 5, 4), (3, 1, 4)),
@@ -90,9 +90,7 @@ class GlobalAveragePoolingBasicTest(testing.TestCase, parameterized.TestCase):
         )
 
 
-class GlobalAveragePoolingCorrectnessTest(
-    testing.TestCase, parameterized.TestCase
-):
+class GlobalAveragePoolingCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
         ("channels_last", False),
         ("channels_last", True),

@@ -8,7 +8,7 @@ from keras.src.utils import numerical_utils
 NUM_CLASSES = 5
 
 
-class TestNumericalUtils(testing.TestCase, parameterized.TestCase):
+class TestNumericalUtils(testing.TestCase):
     @parameterized.parameters(
         [
             ((1,), (1, NUM_CLASSES)),

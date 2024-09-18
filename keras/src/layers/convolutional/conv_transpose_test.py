@@ -286,7 +286,7 @@ def np_conv3d_transpose(
     return output
 
 
-class ConvTransposeBasicTest(testing.TestCase, parameterized.TestCase):
+class ConvTransposeBasicTest(testing.TestCase):
     @parameterized.parameters(
         {
             "filters": 5,
@@ -546,7 +546,7 @@ class ConvTransposeBasicTest(testing.TestCase, parameterized.TestCase):
             )
 
 
-class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class ConvTransposeCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
         {
             "filters": 5,

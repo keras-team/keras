@@ -14,7 +14,7 @@ from keras.src import saving
 from keras.src import testing
 
 
-class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
+class MultiHeadAttentionTest(testing.TestCase):
     def test_basics(self):
         self.run_layer_test(
             layers.MultiHeadAttention,

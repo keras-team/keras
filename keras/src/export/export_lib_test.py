@@ -53,7 +53,7 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
     backend.backend() not in ("tensorflow", "jax"),
     reason="Export only currently supports the TF and JAX backends.",
 )
-class ExportArchiveTest(testing.TestCase, parameterized.TestCase):
+class ExportArchiveTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
     )

@@ -120,7 +120,7 @@ def _get_variable_value_by_path(variables, path):
 
 
 @pytest.mark.requires_trainable_backend
-class ModelTest(testing.TestCase, parameterized.TestCase):
+class ModelTest(testing.TestCase):
     def test_functional_rerouting(self):
         model = _get_model()
         self.assertIsInstance(model, Functional)

@@ -26,7 +26,7 @@ class MockedRandomFlip(layers.RandomFlip):
         return out
 
 
-class RandomFlipTest(testing.TestCase, parameterized.TestCase):
+class RandomFlipTest(testing.TestCase):
     @parameterized.named_parameters(
         ("random_flip_horizontal", "horizontal"),
         ("random_flip_vertical", "vertical"),

@@ -81,7 +81,7 @@ class VariableInitializationTest(test_case.TestCase):
             KerasVariable(initializer=lambda: np.ones((2, 2)))
 
 
-class VariablePropertiesTest(test_case.TestCase, parameterized.TestCase):
+class VariablePropertiesTest(test_case.TestCase):
     """Tests for KerasVariable._deferred_initialize
     KerasVariable._maybe_autocast"""
 
@@ -665,7 +665,7 @@ class VariableOpsBehaviorTest(test_case.TestCase):
             float(v)
 
 
-class VariableOpsDTypeTest(test_case.TestCase, parameterized.TestCase):
+class VariableOpsDTypeTest(test_case.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     # TODO: Using uint64 will lead to weak type promotion (`float`),

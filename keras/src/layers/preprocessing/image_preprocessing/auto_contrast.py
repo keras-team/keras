@@ -101,3 +101,6 @@ class AutoContrast(BaseImagePreprocessingLayer):
         config = super().get_config()
         config.update({"value_range": self.value_range})
         return config
+
+    def compute_output_shape(self, input_shape):
+        return input_shape

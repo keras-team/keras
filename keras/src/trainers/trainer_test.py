@@ -170,7 +170,7 @@ def sparse_generator(generator_type):
         raise ValueError(f"Invalid generator type {generator_type}")
 
 
-class TestTrainer(testing.TestCase, parameterized.TestCase):
+class TestTrainer(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_metric_tracking(self):
         class ModelWithMetric(Trainer, layers.Dense):

@@ -130,7 +130,7 @@ TEST_CASES = [
     not backend.SUPPORTS_SPARSE_TENSORS,
     reason="Backend does not support sparse tensors.",
 )
-class OptimizerSparseTest(testing.TestCase, parameterized.TestCase):
+class OptimizerSparseTest(testing.TestCase):
     @parameterized.named_parameters(TEST_CASES)
     def test_sparse_gradients(
         self,

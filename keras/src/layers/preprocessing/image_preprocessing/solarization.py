@@ -206,3 +206,6 @@ class Solarization(BaseImagePreprocessingLayer):
             "seed": self.seed,
         }
         return {**base_config, **config}
+
+    def compute_output_shape(self, input_shape):
+        return input_shape

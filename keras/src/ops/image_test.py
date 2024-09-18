@@ -389,7 +389,7 @@ def _fixed_map_coordinates(
     return result
 
 
-class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class ImageOpsCorrectnessTest(testing.TestCase):
     def setUp(self):
         # Defaults to channels_last
         self.data_format = backend.image_data_format()
@@ -1138,7 +1138,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(ref_cropped_image, cropped_image)
 
 
-class ImageOpsBehaviorTests(testing.TestCase, parameterized.TestCase):
+class ImageOpsBehaviorTests(testing.TestCase):
     def setUp(self):
         # Defaults to channels_last
         self.data_format = backend.image_data_format()

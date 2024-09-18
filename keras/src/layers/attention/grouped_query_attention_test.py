@@ -8,7 +8,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
+class GroupedQueryAttentionTest(testing.TestCase):
     def test_basics(self):
         self.run_layer_test(
             layers.GroupedQueryAttention,

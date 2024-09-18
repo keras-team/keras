@@ -52,7 +52,7 @@ class CustomSignatureModel(models.Model):
     backend.backend() != "tensorflow",
     reason="The SavedModel test can only run with TF backend.",
 )
-class SavedModelTest(testing.TestCase, parameterized.TestCase):
+class SavedModelTest(testing.TestCase):
     def test_sequential(self):
         model = models.Sequential([layers.Dense(1)])
         model.compile(loss="mse", optimizer="adam")

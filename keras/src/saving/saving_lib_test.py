@@ -246,7 +246,7 @@ def _load_model_fn(filepath):
     saving_lib.load_model(filepath)
 
 
-class SavingTest(testing.TestCase, parameterized.TestCase):
+class SavingTest(testing.TestCase):
     def setUp(self):
         # Set `_MEMORY_UPPER_BOUND` to zero for testing purpose.
         self.original_value = saving_lib._MEMORY_UPPER_BOUND

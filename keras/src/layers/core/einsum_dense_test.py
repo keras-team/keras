@@ -16,7 +16,7 @@ from keras.src import testing
 from keras.src.export import export_lib
 
 
-class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
+class EinsumDenseTest(testing.TestCase):
     @parameterized.named_parameters(
         {
             "testcase_name": "_1d_end_weight",

@@ -14,7 +14,7 @@ from keras.src import testing
 from keras.src.backend.common import global_state
 
 
-class LayerTest(testing.TestCase, parameterized.TestCase):
+class LayerTest(testing.TestCase):
 
     def test_compute_output_spec(self):
         # Test that implementing compute_output_shape

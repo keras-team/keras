@@ -6,7 +6,7 @@ from keras.src import testing
 from keras.src.utils import backend_utils
 
 
-class BackendUtilsTest(testing.TestCase, parameterized.TestCase):
+class BackendUtilsTest(testing.TestCase):
     @parameterized.named_parameters(
         ("numpy", "numpy"),
         ("jax", "jax"),

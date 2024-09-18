@@ -144,7 +144,7 @@ class CoreOpsStaticShapeTest(testing.TestCase):
             core.unstack(x, axis=axis)
 
 
-class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class CoreOpsCorrectnessTest(testing.TestCase):
     def test_map(self):
         def f(x):
             return x**2
@@ -863,7 +863,7 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(ops.convert_to_numpy(x.grad), 1.0)
 
 
-class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
+class CoreOpsDtypeTest(testing.TestCase):
     import jax  # enable bfloat16 for numpy
 
     # TODO: Using uint64 will lead to weak type promotion (`float`),
