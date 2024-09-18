@@ -1604,9 +1604,9 @@ class NNOpsCorrectnessTest(testing.TestCase):
             input_shape = (2, 3, 10, 9)
         x = np.arange(540, dtype=float).reshape(input_shape)
         self.assertAllClose(
-            knn.average_pool(x, [2, 3], (3, 3), padding="same"),
+            knn.average_pool(x, (2, 3), (3, 3), padding="same"),
             np_avgpool2d(
-                x, [2, 3], (3, 3), padding="same", data_format=data_format
+                x, (2, 3), (3, 3), padding="same", data_format=data_format
             ),
         )
 
