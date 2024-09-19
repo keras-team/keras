@@ -12,9 +12,9 @@ from keras.src.testing.test_utils import named_product
 
 @pytest.mark.skipif(
     backend.backend() == "torch",
-    reason="This test can only run with TF backend. ",
+    reason="This test can only run with TF backend.",
 )
-class DtypesTest(test_case.TestCase, parameterized.TestCase):
+class DtypesTest(test_case.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     if backend.backend() == "torch":
