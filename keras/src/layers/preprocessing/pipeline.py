@@ -49,12 +49,6 @@ class Pipeline(Layer):
     def layers(self):
         return self._pipeline_layers
 
-    def build(self, input_shape):
-        for layer in self._pipeline_layers:
-            layer.build(input_shape)
-            input_shape = layer.compute_output_shape(input_shape)
-        self.built = True
-
     def call(self, inputs, training=True, mask=None):
         for layer in self._pipeline_layers:
             kwargs = {}
