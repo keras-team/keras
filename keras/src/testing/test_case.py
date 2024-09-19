@@ -59,6 +59,7 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         )
 
     def assertAlmostEqual(self, x1, x2, decimal=3, msg=None):
+        msg = msg or ""
         if not isinstance(x1, np.ndarray):
             x1 = backend.convert_to_numpy(x1)
         if not isinstance(x2, np.ndarray):

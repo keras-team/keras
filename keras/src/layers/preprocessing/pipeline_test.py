@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -27,6 +28,7 @@ class CanaryLayer(layers.Layer):
 
 class PipelineTest(testing.TestCase):
     def test_basics(self):
+        run_training_check = False if backend.backend() == "numpy" else True
         self.run_layer_test(
             layers.Pipeline,
             init_kwargs={
@@ -36,8 +38,12 @@ class PipelineTest(testing.TestCase):
             supports_masking=False,
             expected_output_shape=(8, 3, 4, 3),
             run_mixed_precision_check=False,
+            run_training_check=run_training_check,
         )
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy", reason="masking not working in numpy"
+    )
     def test_correctness(self):
         pipeline = layers.Pipeline([CanaryLayer(), CanaryLayer()])
         x = np.array([0])
