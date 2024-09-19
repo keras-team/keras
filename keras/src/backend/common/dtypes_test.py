@@ -10,6 +10,10 @@ from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 
 
+@pytest.mark.skipif(
+    backend.backend() == "torch",
+    reason="This test can only run with TF backend.",
+)
 class DtypesTest(test_case.TestCase, parameterized.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
@@ -19,7 +23,7 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
         # TODO: torch doesn't support uint64.
         ALL_DTYPES = []
         for x in dtypes.ALLOWED_DTYPES:
-            if x not in ["string", "uint64","complex64","complex128"]:
+            if x not in ["string", "uint64"]:
                 x = str(to_torch_dtype(x)).split(".")[-1]
                 if x not in ALL_DTYPES:  # skip duplicates created by remapping
                     ALL_DTYPES.append(x)
