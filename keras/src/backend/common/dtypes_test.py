@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -10,10 +9,6 @@ from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 
 
-@pytest.mark.skipif(
-    backend.backend() == "torch",
-    reason="This test can only run with TF backend.",
-)
 class DtypesTest(test_case.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
