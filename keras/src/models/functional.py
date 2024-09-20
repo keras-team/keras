@@ -162,6 +162,13 @@ class Functional(Function, Model):
                 layers.append(operation)
         return layers
 
+    @layers.setter
+    def layers(self, _):
+        raise AttributeError(
+            "`Model.layers` attribute is reserved and should not be used. "
+            "Please use another name."
+        )
+
     def call(self, inputs, training=None, mask=None):
         # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
