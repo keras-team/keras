@@ -572,8 +572,24 @@ class LayerTest(testing.TestCase):
         CustomLayer()(x)
 
     @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy backend does not support masking.",
+        backend.backend() == "numpy", reason="masking not supported with numpy"
+    )
+    def test_end_to_end_masking(self):
+        # Check that masking survives compilation
+        model = models.Sequential(
+            [
+                layers.Embedding(
+                    2, 2, mask_zero=True, embeddings_initializer="ones"
+                ),
+            ]
+        )
+        model.compile(loss="mse")
+        targets = np.array([[[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [1.0, 1.0]]])
+        loss = model.evaluate(np.array([[1, 0, 0, 1]]), targets)
+        self.assertAllClose(loss, 0.0)
+
+    @pytest.mark.skipif(
+        backend.backend() == "numpy", reason="masking not supported with numpy"
     )
     def test_masking(self):
         class BasicMaskedLayer(layers.Layer):
@@ -587,7 +603,8 @@ class LayerTest(testing.TestCase):
 
         layer = BasicMaskedLayer()
         x = backend.numpy.ones((4, 4))
-        x._keras_mask = backend.numpy.ones((4,))
+        mask = backend.numpy.ones((4,))
+        backend.set_keras_mask(x, mask)
         layer(x)
 
         layer(backend.numpy.ones((4, 4)), mask=backend.numpy.ones((4,)))
@@ -606,9 +623,11 @@ class LayerTest(testing.TestCase):
 
         layer = NestedInputMaskedLayer()
         x1 = backend.numpy.ones((4, 4))
-        x1._keras_mask = backend.numpy.ones((4,))
+        mask1 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x1, mask1)
         x2 = backend.numpy.ones((4, 4))
-        x2._keras_mask = backend.numpy.ones((4,))
+        mask2 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x2, mask2)
         layer([x1, x2])
 
         layer(
@@ -644,11 +663,14 @@ class LayerTest(testing.TestCase):
 
         layer = PositionalNestedInputsMaskedLayer()
         x1_1 = backend.numpy.ones((4, 4))
-        x1_1._keras_mask = backend.numpy.ones((4,))
+        mask1 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x1_1, mask1)
         x1_2 = backend.numpy.ones((4, 4))
-        x1_2._keras_mask = backend.numpy.ones((4,))
+        mask2 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x1_2, mask2)
         x2 = backend.numpy.ones((4, 4))
-        x2._keras_mask = backend.numpy.ones((4,))
+        mask2 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x2, mask2)
         layer((x1_1, x1_2), x2)
         layer(x1=(x1_1, x1_2), x2=x2)
 

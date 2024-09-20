@@ -860,7 +860,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 arg_name = list(call_spec.tensor_arguments_dict.keys())[0]
                 only_tensor_arg = call_spec.tensor_arguments_dict[arg_name]
                 mask = tree.map_structure(
-                    lambda x: getattr(x, "_keras_mask", None),
+                    backend.get_keras_mask,
                     only_tensor_arg,
                 )
                 kwargs["mask"] = mask
@@ -869,9 +869,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 expected_mask_arg_name = f"{k}_mask"
                 if expected_mask_arg_name in call_spec.argument_names:
                     if call_spec.arguments_dict[expected_mask_arg_name] is None:
-                        mask = tree.map_structure(
-                            lambda x: getattr(x, "_keras_mask", None), v
-                        )
+                        mask = tree.map_structure(backend.get_keras_mask, v)
                         kwargs[expected_mask_arg_name] = mask
 
         ####################
@@ -924,7 +922,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             # provided only the first positional input arg and its mask.
             # TODO: consider extending this to all args and kwargs.
             previous_mask = tree.map_structure(
-                lambda x: getattr(x, "_keras_mask", None), call_spec.first_arg
+                backend.get_keras_mask, call_spec.first_arg
             )
             if self.supports_masking:
                 self._set_mask_metadata(
@@ -1510,7 +1508,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         flat_outputs = tree.flatten(outputs)
 
         mask_already_computed = all(
-            getattr(x, "_keras_mask", None) is not None for x in flat_outputs
+            backend.get_keras_mask(x) is not None for x in flat_outputs
         )
         if mask_already_computed:
             return
@@ -1521,18 +1519,14 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
         flat_masks = tree.flatten(output_masks)
         for tensor, mask in zip(flat_outputs, flat_masks):
-            if getattr(tensor, "_keras_mask", None) is None:
-                try:
-                    # Numpy backend does not support masking.
-                    if backend.backend() == "numpy":
-                        warnings.warn(
-                            "The NumPy backend does not support masking at this"
-                            "time. Masks will be ignored."
-                        )
-                    tensor._keras_mask = mask
-                except AttributeError:
-                    # It's a C type.
-                    pass
+            if backend.get_keras_mask(tensor) is None and mask is not None:
+                if backend.backend() == "numpy":
+                    warnings.warn(
+                        "The NumPy backend does not support masking at this"
+                        "time. Masks will be ignored."
+                    )
+                else:
+                    backend.set_keras_mask(tensor, mask)
 
     @python_utils.default
     def get_config(self):

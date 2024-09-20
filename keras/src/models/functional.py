@@ -171,7 +171,7 @@ class Functional(Function, Model):
             masks = tree.flatten(mask)
             for x, mask in zip(inputs, masks):
                 if mask is not None:
-                    x._keras_mask = mask
+                    backend.set_keras_mask(x, mask)
         outputs = self._run_through_graph(
             inputs, operation_fn=lambda op: operation_fn(op, training=training)
         )
@@ -262,8 +262,9 @@ class Functional(Function, Model):
         for i in range(len(flat_inputs)):
             if hasattr(flat_inputs[i], "_keras_history"):
                 adjusted[i]._keras_history = flat_inputs[i]._keras_history
-            if hasattr(flat_inputs[i], "_keras_mask"):
-                adjusted[i]._keras_mask = flat_inputs[i]._keras_mask
+            mask = backend.get_keras_mask(flat_inputs[i])
+            if mask is not None:
+                backend.set_keras_mask(adjusted[i], mask)
         return adjusted
 
     def _standardize_inputs(self, inputs):

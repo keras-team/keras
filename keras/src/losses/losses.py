@@ -1877,11 +1877,7 @@ def sparse_categorical_crossentropy(
     if ignore_class is not None:
         valid_mask = ops.reshape(valid_mask, res_shape)
         res = ops.where(valid_mask, res, 0.0)
-
-        try:
-            res._keras_mask = valid_mask
-        except AttributeError:
-            pass
+        backend.set_keras_mask(res, mask=valid_mask)
 
     return res
 
