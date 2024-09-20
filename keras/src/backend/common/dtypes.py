@@ -305,7 +305,7 @@ def result_type(*dtypes):
     >>> keras.backend.result_type(x.dtype, y.dtype)
     "float32"
 
-    >>> z= keras.ops.ones((1,),dtype='complex64')
+    >>> z= keras.ops.ones((1,), dtype='complex64')
     >>> keras.backend.result_type(z.dtype, int)
     "float64"
 

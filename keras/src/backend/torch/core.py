@@ -46,6 +46,9 @@ TORCH_DTYPES = {
     "bool": torch.bool,
     "float8_e4m3fn": torch.float8_e4m3fn,
     "float8_e5m2": torch.float8_e5m2,
+    "complex32": torch.complex32,
+    "complex64": torch.complex64,
+    "complex128": torch.complex128,
 }
 
 

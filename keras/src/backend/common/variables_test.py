@@ -178,13 +178,9 @@ class VariablePropertiesTest(test_case.TestCase):
         ):
             self.skipTest(f"torch backend does not support dtype {dtype}")
 
-        if backend.backend() == "jax" and dtype in (
-            "complex64",
-            "complex128",
-        ):
-            self.skipTest(f"JAX backend does not support dtype {dtype}")
-
         if backend.backend() == "jax":
+            if dtype in ("complex128",):
+                self.skipTest(f"jax backend does not support dtype {dtype}")
             import jax
 
             if not jax.config.x64_enabled and "64" in dtype:
@@ -679,31 +675,33 @@ class VariableOpsBehaviorTest(test_case.TestCase):
             float(v)
 
 
+# TODO: Using uint64 will lead to weak type promotion (`float`),
+# resulting in different behavior between JAX and Keras. Currently, we
+# are skipping the test for uint64
+ALL_DTYPES = [
+    x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
+] + [None]
+INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
+FLOAT_DTYPES = dtypes.FLOAT_TYPES
+COMPLEX_DTYPES = ["complex32", "complex64", "complex128"]
+
+if backend.backend() == "torch":
+    # TODO: torch doesn't support uint16, uint32 and uint64, complex
+    ALL_DTYPES = [
+        x
+        for x in ALL_DTYPES
+        if x not in ["uint16", "uint32", "uint64", "complex128", "complex64"]
+    ]
+    INT_DTYPES = [
+        x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
+    ]
+# Remove float8 dtypes for the following tests
+ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
+NON_COMPLEX_DTYPES = [x for x in ALL_DTYPES if x and x not in COMPLEX_DTYPES]
+
+
 class VariableOpsDTypeTest(test_case.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
-
-    # TODO: Using uint64 will lead to weak type promotion (`float`),
-    # resulting in different behavior between JAX and Keras. Currently, we
-    # are skipping the test for uint64
-    ALL_DTYPES = [
-        x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
-    ] + [None]
-    INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
-    FLOAT_DTYPES = dtypes.FLOAT_TYPES
-
-    if backend.backend() == "torch":
-        # TODO: torch doesn't support uint16, uint32 and uint64
-        ALL_DTYPES = [
-            x
-            for x in ALL_DTYPES
-            if x
-            not in ["uint16", "uint32", "uint64", "complex128", "complex64"]
-        ]
-        INT_DTYPES = [
-            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
-        ]
-    # Remove float8 dtypes for the following tests
-    ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
 
     def setUp(self):
         from jax.experimental import enable_x64
@@ -747,17 +745,12 @@ class VariableOpsDTypeTest(test_case.TestCase):
         self.assertDType(x1 != x2, expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))
     )
     def test_lt(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
-        if dtype1 in ["complex64", "complex128"] or dtype2 in [
-            "complex64",
-            "complex128",
-        ]:
-            self.skipTest("Skipped test")
         x1 = backend.Variable(np.ones((1,)), dtype=dtype1, trainable=False)
         x2 = backend.Variable(np.ones((1,)), dtype=dtype2, trainable=False)
         x1_jax = jnp.ones((1,), dtype=dtype1)
@@ -767,17 +760,12 @@ class VariableOpsDTypeTest(test_case.TestCase):
         self.assertDType(x1 < x2, expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))
     )
     def test_le(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
-        if dtype1 in ["complex64", "complex128"] or dtype2 in [
-            "complex64",
-            "complex128",
-        ]:
-            self.skipTest("Skipped test")
         x1 = backend.Variable(np.ones((1,)), dtype=dtype1, trainable=False)
         x2 = backend.Variable(np.ones((1,)), dtype=dtype2, trainable=False)
         x1_jax = jnp.ones((1,), dtype=dtype1)
@@ -787,17 +775,12 @@ class VariableOpsDTypeTest(test_case.TestCase):
         self.assertDType(x1 <= x2, expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))
     )
     def test_gt(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
-        if dtype1 in ["complex64", "complex128"] or dtype2 in [
-            "complex64",
-            "complex128",
-        ]:
-            self.skipTest("Skipped test")
         x1 = backend.Variable(np.ones((1,)), dtype=dtype1, trainable=False)
         x2 = backend.Variable(np.ones((1,)), dtype=dtype2, trainable=False)
         x1_jax = jnp.ones((1,), dtype=dtype1)
@@ -807,18 +790,12 @@ class VariableOpsDTypeTest(test_case.TestCase):
         self.assertDType(x1 > x2, expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))
     )
     def test_ge(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
-        if dtype1 in ["complex64", "complex128"] or dtype2 in [
-            "complex64",
-            "complex128",
-        ]:
-            self.skipTest("Skipped test")
-
         x1 = backend.Variable(np.ones((1,)), dtype=dtype1, trainable=False)
         x2 = backend.Variable(np.ones((1,)), dtype=dtype2, trainable=False)
         x1_jax = jnp.ones((1,), dtype=dtype1)
@@ -868,12 +845,6 @@ class VariableOpsDTypeTest(test_case.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
-        if dtype1 in ["complex64", "complex128"] or dtype2 in [
-            "complex64",
-            "complex128",
-        ]:
-            self.skipTest("Skipped test")
-
         x1 = backend.Variable(np.ones((1,)), dtype=dtype1, trainable=False)
         x2 = backend.Variable(np.ones((1,)), dtype=dtype2, trainable=False)
         x1_jax = jnp.ones((1,), dtype=dtype1)
@@ -884,7 +855,7 @@ class VariableOpsDTypeTest(test_case.TestCase):
         self.assertDType(x1.__rmul__(x2), expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))
     )
     def test_truediv(self, dtypes):
         import jax.experimental
@@ -895,11 +866,6 @@ class VariableOpsDTypeTest(test_case.TestCase):
         # the expected dtype from 64 bit to 32 bit when using jax backend.
         with jax.experimental.disable_x64():
             dtype1, dtype2 = dtypes
-            if dtype1 in ["complex64", "complex128"] or dtype2 in [
-                "complex64",
-                "complex128",
-            ]:
-                self.skipTest("Skipped test")
             x1 = backend.Variable(np.ones((1,)), dtype=dtype1, trainable=False)
             x2 = backend.Variable(np.ones((1,)), dtype=dtype2, trainable=False)
             x1_jax = jnp.ones((1,), dtype=dtype1)
@@ -916,17 +882,12 @@ class VariableOpsDTypeTest(test_case.TestCase):
             self.assertDType(x1.__rtruediv__(x2), expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))
     )
     def test_floordiv(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
-        if dtype1 in ["complex64", "complex128"] or dtype2 in [
-            "complex64",
-            "complex128",
-        ]:
-            self.skipTest("Skipped test")
         x1 = backend.Variable(np.ones((1,)), dtype=dtype1, trainable=False)
         x2 = backend.Variable(np.ones((1,)), dtype=dtype2, trainable=False)
         x1_jax = jnp.ones((1,), dtype=dtype1)
@@ -939,17 +900,12 @@ class VariableOpsDTypeTest(test_case.TestCase):
         self.assertDType(x1.__rfloordiv__(x2), expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))
     )
     def test_mod(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
-        if dtype1 in ["complex64", "complex128"] or dtype2 in [
-            "complex64",
-            "complex128",
-        ]:
-            self.skipTest("Skipped test")
         x1 = backend.Variable(np.ones((1,)), dtype=dtype1, trainable=False)
         x2 = backend.Variable(np.ones((1,)), dtype=dtype2, trainable=False)
         x1_jax = jnp.ones((1,), dtype=dtype1)

@@ -1328,3 +1328,24 @@ class LayerTest(testing.TestCase):
         layer2.build(None)
         layer2_names = list(pname for pname, _ in layer2.named_parameters())
         self.assertListEqual(layer1_names, layer2_names)
+
+    def test_complex_dtype_support(self):
+
+        class MyDenseLayer(layers.Layer):
+            def __init__(self, num_outputs):
+                super(MyDenseLayer, self).__init__()
+                self.num_outputs = num_outputs
+
+            def build(self, input_shape):
+                self.kernel = self.add_weight(
+                    shape=[int(input_shape[-1]), self.num_outputs],
+                )
+
+            def call(self, inputs):
+                kernel = ops.cast(self.kernel, "complex64")
+                return ops.matmul(inputs, kernel)
+
+        inputs = ops.zeros([10, 5], dtype="complex64")
+        layer = MyDenseLayer(10)
+        output = layer(inputs)
+        self.assertAllEqual(output.shape, (10, 10))
