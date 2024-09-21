@@ -382,6 +382,6 @@ class SequentialTest(testing.TestCase):
     def test_layers_setter(self):
         model = Sequential()
         with self.assertRaisesRegex(
-            AttributeError, "Use `add\(\)` and `pop\(\)`"
+            AttributeError, r"Use `add\(\)` and `pop\(\)`"
         ):
             model.layers = [layers.Dense(4)]

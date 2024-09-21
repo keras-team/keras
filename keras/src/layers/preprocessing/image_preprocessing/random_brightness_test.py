@@ -30,7 +30,7 @@ class RandomBrightnessTest(testing.TestCase):
         output = layer(inputs, training=False)
         self.assertAllClose(inputs, output)
 
-    def test_output(self):
+    def test_correctness(self):
         seed = 2390
 
         # Always scale up, but randomly between 0 ~ 255
