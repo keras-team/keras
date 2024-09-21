@@ -876,3 +876,10 @@ class ModelTest(testing.TestCase):
             "The following variable path is found twice in the model",
         ):
             model.get_state_tree()
+
+    def test_layers_setter(self):
+        model = Model()
+        with self.assertRaisesRegex(
+            AttributeError, "`Model.layers` attribute is reserved"
+        ):
+            model.layers = [layers.Dense(4)]

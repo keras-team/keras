@@ -530,3 +530,12 @@ class FunctionalTest(testing.TestCase):
     def test_add_loss(self):
         # TODO
         pass
+
+    def test_layers_setter(self):
+        inputs = Input(shape=(3,), batch_size=2, name="input")
+        outputs = layers.Dense(5)(inputs)
+        model = Functional(inputs, outputs)
+        with self.assertRaisesRegex(
+            AttributeError, "`Model.layers` attribute is reserved"
+        ):
+            model.layers = [layers.Dense(4)]

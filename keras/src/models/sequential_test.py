@@ -378,3 +378,10 @@ class SequentialTest(testing.TestCase):
         self.assertTrue(hasattr(model, "output_shape"))
         self.assertTrue(hasattr(model, "inputs"))
         self.assertTrue(hasattr(model, "outputs"))
+
+    def test_layers_setter(self):
+        model = Sequential()
+        with self.assertRaisesRegex(
+            AttributeError, "Use `add\(\)` and `pop\(\)`"
+        ):
+            model.layers = [layers.Dense(4)]

@@ -240,6 +240,13 @@ class Sequential(Model):
             return layers[1:]
         return layers[:]
 
+    @layers.setter
+    def layers(self, _):
+        raise AttributeError(
+            "`Sequential.layers` attribute is reserved and should not be used. "
+            "Use `add()` and `pop()` to change the layers in this model."
+        )
+
     def compute_output_spec(self, inputs, training=None, mask=None):
         if self._functional:
             return self._functional.compute_output_spec(
