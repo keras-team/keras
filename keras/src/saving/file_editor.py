@@ -32,16 +32,11 @@ class KerasFileEditor:
     def __init__(
         self,
         filepath,
-        reference_model=None,
-        custom_objects=None,
-        safe_mode=True,
     ):
         self.filepath = filepath
-        self.custom_objects = custom_objects
         self.metadata = None
         self.config = None
         self.model = None
-        self.reference_model = reference_model
 
         if filepath.endswith(".keras"):
             zf = zipfile.ZipFile(filepath, "r")
@@ -57,18 +52,6 @@ class KerasFileEditor:
             self.config = json.loads(config_json)
             self.metadata = json.loads(metadata_json)
 
-            try:
-                self.model = saving_lib.load_model(
-                    filepath,
-                    custom_objects=custom_objects,
-                    compile=True,
-                    safe_mode=safe_mode,
-                )
-            except Exception as e:
-                io_utils.print_msg(
-                    f"Model file could not be loaded. Error: {e}"
-                )
-
         elif filepath.endswith(".weights.h5"):
             weights_store = H5IOStore(filepath, mode="r")
         else:
@@ -81,6 +64,44 @@ class KerasFileEditor:
         self.weights_dict = self._extract_weights_from_store(
             weights_store.h5_file
         )
+        io_utils.print_msg(self._generate_filepath_info())
+
+        if self.metadata is not None:
+            io_utils.print_msg(self._generate_metadata_info())
+
+    def weights_summary(self):
+        if is_ipython_notebook():
+            self._weights_summary_iteractive()
+        else:
+            self._weights_summary_cli()
+
+    def compare_to_reference(self, model):
+        # TODO
+        raise NotImplementedError()
+
+    def delete_layer(self, layer_name):
+        # TODO
+        raise NotImplementedError()
+
+    def add_layer(self, layer_name, weights):
+        # TODO
+        raise NotImplementedError()
+
+    def rename_layer(self, source_name, target_name):
+        # TODO
+        raise NotImplementedError()
+
+    def delete_weight(self, layer_name, weight_name):
+        # TODO
+        raise NotImplementedError()
+
+    def add_weight(self, layer_name, weight_name, weight_value):
+        # TODO
+        raise NotImplementedError()
+
+    def resave_weights(self, fpath):
+        # TODO
+        raise NotImplementedError()
 
     def _extract_weights_from_store(self, data):
         result = collections.OrderedDict()
@@ -140,32 +161,11 @@ class KerasFileEditor:
                 else:
                     io_utils.print_msg(f"{prefix}{connector}{key}: {value}")
 
-    def _list_layers_cli(self):
-        io_utils.print_msg(self._generate_filepath_info())
-
-        if self.metadata is not None:
-            io_utils.print_msg(self._generate_metadata_info())
-
+    def _weights_summary_cli(self):
         io_utils.print_msg("Weights structure")
         self._print_weights_structure(self.weights_dict, prefix=" " * 2)
 
-    def _list_layers_iteractive(self):
-
-        def _generate_html_filepath():
-            output = f"<h2>{self._generate_filepath_info()}</h2>"
-            return output
-
-        def _generate_html_config():
-            output = f"<p>{self._generate_config_info()}</p>"
-            return output
-
-        def _generate_html_metadata():
-            output = [
-                f"<p>{meta_info}</p>"
-                for meta_info in self._generate_metadata_info()
-            ]
-            output = "".join(output)
-            return output
+    def _weights_summary_iteractive(self):
 
         def _generate_html_weights(dictionary, margin_left=0, font_size=20):
             html = ""
@@ -198,20 +198,8 @@ class KerasFileEditor:
                         )
             return html
 
-        def _generate_html_layer():
-            output = "<p>Layers</p>"
-            output += _generate_html_weights(self.weights_dict["layers"])
-            return output
-
-        output = _generate_html_filepath()
-
-        if self.config is not None:
-            output += _generate_html_config()
-
-        if self.metadata is not None:
-            output += _generate_html_metadata()
-
-        output += _generate_html_layer()
+        output = "Weights structure"
+        output += _generate_html_weights(self.weights_dict)
 
         if is_ipython_notebook():
             ipython.display.display(ipython.display.HTML(output))
