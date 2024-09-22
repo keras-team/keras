@@ -660,7 +660,13 @@ def _save_state(
         return
 
     if hasattr(saveable, "save_own_variables") and weights_store:
-        saveable.save_own_variables(weights_store.make(inner_path))
+        if hasattr(saveable, "name") and isinstance(saveable.name, str):
+            metadata = {"name": saveable.name}
+        else:
+            metadata = None
+        saveable.save_own_variables(
+            weights_store.make(inner_path, metadata=metadata)
+        )
     if hasattr(saveable, "save_assets") and assets_store:
         saveable.save_assets(assets_store.make(inner_path))
 
@@ -924,8 +930,8 @@ class H5IOStore:
         else:
             self.h5_file = h5py.File(root_path, mode=self.mode)
 
-    def make(self, path):
-        return H5Entry(self.h5_file, path, mode="w")
+    def make(self, path, metadata=None):
+        return H5Entry(self.h5_file, path, mode="w", metadata=metadata)
 
     def get(self, path):
         return H5Entry(self.h5_file, path, mode="r")
@@ -941,10 +947,11 @@ class H5IOStore:
 class H5Entry:
     """Leaf entry in a H5IOStore."""
 
-    def __init__(self, h5_file, path, mode):
+    def __init__(self, h5_file, path, mode, metadata=None):
         self.h5_file = h5_file
         self.path = path
         self.mode = mode
+        self.metadata = metadata
 
         if mode == "w":
             if not path:
@@ -953,11 +960,15 @@ class H5Entry:
                 self.group = self.h5_file.create_group(self.path).create_group(
                     "vars"
                 )
+            if self.metadata:
+                for k, v in self.metadata.items():
+                    self.group.attrs[k] = v
         else:
             found = False
             if not path:
-                self.group = self.h5_file["vars"]
-                found = True
+                if "vars" in self.h5_file:
+                    self.group = self.h5_file["vars"]
+                    found = True
             elif path in self.h5_file and "vars" in self.h5_file[path]:
                 self.group = self.h5_file[path]["vars"]
                 found = True
@@ -1026,7 +1037,7 @@ class NpzIOStore:
                 self.f = open(root_path, mode="rb")
             self.contents = np.load(self.f, allow_pickle=True)
 
-    def make(self, path):
+    def make(self, path, metadata=None):
         if not path:
             self.contents["__root__"] = {}
             return self.contents["__root__"]
