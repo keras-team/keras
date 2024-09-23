@@ -466,7 +466,7 @@ class KerasFileEditor:
                         value, metadata=metadata, inner_path=inner_path
                     )
             else:
-                result[key] = value
+                result[key] = value[:]
         return result, metadata
 
     def _generate_filepath_info(self, rich_style=False):
