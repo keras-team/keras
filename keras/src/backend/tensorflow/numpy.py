@@ -8,6 +8,7 @@ import warnings
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
+from tensorflow.python.ops.math_ops import is_nan
 
 from keras.src import tree
 from keras.src.backend import config
@@ -768,7 +769,7 @@ def argmax(x, axis=None, keepdims=False):
     _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
-    y = tf.cast(tf.argmax(x, axis=axis), dtype="int32")
+    y = tf.argmax(x, axis=axis, output_type="int32")
     if keepdims:
         y = _keepdims(_x, y, axis)
     return y
@@ -778,7 +779,7 @@ def argmin(x, axis=None, keepdims=False):
     _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
-    y = tf.cast(tf.argmin(x, axis=axis), dtype="int32")
+    y = tf.argmin(x, axis=axis, output_type="int32")
     if keepdims:
         y = _keepdims(_x, y, axis)
     return y
@@ -833,6 +834,68 @@ def average(x, axis=None, weights=None):
             else:
                 avg = _rank_not_equal_case()
     return avg
+
+
+def bitwise_and(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = tf.cast(x, dtype)
+    y = tf.cast(y, dtype)
+    return tf.bitwise.bitwise_and(x, y)
+
+
+def bitwise_invert(x):
+    x = convert_to_tensor(x)
+    return tf.bitwise.invert(x)
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = tf.cast(x, dtype)
+    y = tf.cast(y, dtype)
+    return tf.bitwise.bitwise_or(x, y)
+
+
+def bitwise_xor(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = tf.cast(x, dtype)
+    y = tf.cast(y, dtype)
+    return tf.bitwise.bitwise_xor(x, y)
+
+
+def bitwise_left_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = tf.cast(x, dtype)
+    y = tf.cast(y, dtype)
+    return tf.bitwise.left_shift(x, y)
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = tf.cast(x, dtype)
+    y = tf.cast(y, dtype)
+    return tf.bitwise.right_shift(x, y)
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
 
 
 def broadcast_to(x, shape):
@@ -1250,16 +1313,17 @@ def imag(x):
     return tf.math.imag(x)
 
 
-def isclose(x1, x2):
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     if "float" in dtype:
-        # atol defaults to 1e-08
-        # rtol defaults to 1e-05
-        return tf.abs(x1 - x2) <= (1e-08 + 1e-05 * tf.abs(x2))
+        result = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        if equal_nan:
+            result = result | (is_nan(x1) & is_nan(x2))
+        return result
     else:
         return tf.equal(x1, x2)
 
@@ -1310,6 +1374,10 @@ def less_equal(x1, x2):
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
+    if num < 0:
+        raise ValueError(
+            f"`num` must be a non-negative integer. Received: num={num}"
+        )
     if dtype is None:
         dtypes_to_resolve = [
             getattr(start, "dtype", type(start)),
@@ -1321,19 +1389,15 @@ def linspace(
         dtype = standardize_dtype(dtype)
     start = convert_to_tensor(start, dtype=dtype)
     stop = convert_to_tensor(stop, dtype=dtype)
-    if num < 0:
-        raise ValueError(
-            f"`num` must be a non-negative integer. Received: num={num}"
-        )
-    step = tf.convert_to_tensor(np.nan)
+    step = convert_to_tensor(np.nan)
     if endpoint:
         result = tf.linspace(start, stop, num, axis=axis)
         if num > 1:
-            step = (stop - start) / (num - 1)
+            step = (stop - start) / (tf.cast(num, dtype) - 1)
     else:
         # tf.linspace doesn't support endpoint=False, so we manually handle it
         if num > 0:
-            step = (stop - start) / num
+            step = (stop - start) / tf.cast(num, dtype)
         if num > 1:
             new_stop = tf.cast(stop, step.dtype) - step
             start = tf.cast(start, new_stop.dtype)
@@ -1798,6 +1862,22 @@ def roll(x, shift, axis=None):
     return tf.reshape(x, original_shape)
 
 
+def searchsorted(sorted_sequence, values, side="left"):
+    if ndim(sorted_sequence) != 1:
+        raise ValueError(
+            "`searchsorted` only supports 1-D sorted sequences. "
+            "You can use `keras.ops.vectorized_map` "
+            "to extend it to N-D sequences. Received: "
+            f"sorted_sequence.shape={sorted_sequence.shape}"
+        )
+    out_type = (
+        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+    )
+    return tf.searchsorted(
+        sorted_sequence, values, side=side, out_type=out_type
+    )
+
+
 @sparse.elementwise_unary
 def sign(x):
     x = convert_to_tensor(x)
@@ -2051,7 +2131,7 @@ def round(x, decimals=0):
         # int
         if decimals > 0:
             return x
-        # temporarilaly convert to floats
+        # temporarily convert to floats
         factor = tf.cast(math.pow(10, decimals), config.floatx())
         x = tf.cast(x, config.floatx())
     else:
@@ -2124,33 +2204,39 @@ def tri(N, M=None, k=0, dtype=None):
 def tril(x, k=0):
     x = convert_to_tensor(x)
 
-    if k >= 0:
-        return tf.linalg.band_part(x, -1, k)
+    def _negative_k_branch():
+        shape = tf.shape(x)
+        rows, cols = shape[-2], shape[-1]
+        i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
+        mask = i >= j - k
+        return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
-    shape = tf.shape(x)
-    rows, cols = shape[-2], shape[-1]
-
-    i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
-
-    mask = i >= j - k
-
-    return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
+    return tf.cond(
+        k >= 0, lambda: tf.linalg.band_part(x, -1, k), _negative_k_branch
+    )
 
 
 def triu(x, k=0):
     x = convert_to_tensor(x)
 
-    if k <= 0:
-        return tf.linalg.band_part(x, -k, -1)
+    def _positive_k_branch():
+        shape = tf.shape(x)
+        rows, cols = shape[-2], shape[-1]
+        i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
+        mask = i <= j - k
+        return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
-    shape = tf.shape(x)
-    rows, cols = shape[-2], shape[-1]
+    return tf.cond(
+        k <= 0, lambda: tf.linalg.band_part(x, -k, -1), _positive_k_branch
+    )
 
-    i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
 
-    mask = i <= j - k
-
-    return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
+def trunc(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "bool" or "int" in dtype:
+        return x
+    return tf.where(x < 0, tf.math.ceil(x), tf.math.floor(x))
 
 
 def vdot(x1, x2):

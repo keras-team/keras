@@ -1,6 +1,8 @@
 import numpy as np
 
+from keras.src import backend
 from keras.src import testing
+from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.metrics import reduction_metrics
 from keras.src.saving import register_keras_serializable
 
@@ -35,6 +37,12 @@ class SumTest(testing.TestCase):
         sum_obj.update_state([[1, 3], [5, 7]], sample_weight=[[1, 1], [1, 0]])
         result = sum_obj.result()
         self.assertAllClose(result, 9.0, atol=1e-3)
+
+    def test_weighted_nd_broadcast(self):
+        sum_obj = reduction_metrics.Sum(name="sum", dtype="float32")
+        sum_obj.update_state([[1, 3], [5, 7]], sample_weight=[[1, 0]])
+        result = sum_obj.result()
+        self.assertAllClose(result, 6.0, atol=1e-3)
 
 
 class MeanTest(testing.TestCase):
@@ -73,6 +81,19 @@ class MeanTest(testing.TestCase):
         mean_obj.update_state([[1, 3], [5, 7]], sample_weight=[[1, 1], [1, 0]])
         result = mean_obj.result()
         self.assertAllClose(result, 3.0, atol=1e-3)
+
+    def test_weighted_nd_broadcast(self):
+        mean_obj = reduction_metrics.Mean(name="mean", dtype="float32")
+        mean_obj.update_state([[1, 3], [5, 7]], sample_weight=[[1, 0]])
+        result = mean_obj.result()
+        self.assertAllClose(result, 3.0, atol=1e-3)
+
+    def test_weighted_dynamic_shapes(self):
+        mean_obj = reduction_metrics.Mean(name="mean", dtype="float32")
+        result = backend.compute_output_spec(
+            mean_obj, KerasTensor((None, 2)), KerasTensor((None, 2))
+        )
+        self.assertAllEqual(result.shape, ())
 
 
 # How users would register a custom function or class to use with
@@ -127,3 +148,29 @@ class MetricWrapperTest(testing.TestCase):
         sample_weight = np.array([1.0, 1.5, 2.0, 2.5])
         result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(0.54285, result, atol=1e-5)
+
+    def test_weighted_broadcast(self):
+        mse_obj = reduction_metrics.MeanMetricWrapper(
+            fn=mse, name="mse", dtype="float32"
+        )
+        y_true = np.array(
+            [[0, 1, 0, 1, 0], [0, 0, 1, 1, 1], [1, 1, 1, 1, 0], [0, 0, 0, 0, 1]]
+        )
+        y_pred = np.array(
+            [[0, 0, 1, 1, 0], [1, 1, 1, 1, 1], [0, 1, 0, 1, 0], [1, 1, 1, 1, 1]]
+        )
+        sample_weight = np.array([[1.0, 0.0, 0.5, 0.0, 1.0]])
+        result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAllClose(0.45, result, atol=1e-5)
+
+    def test_weighted_dynamic_shape(self):
+        mse_obj = reduction_metrics.MeanMetricWrapper(
+            fn=mse, name="mse", dtype="float32"
+        )
+        result = backend.compute_output_spec(
+            mse_obj,
+            KerasTensor((None, 5)),
+            KerasTensor((None, 5)),
+            KerasTensor((None, 5)),
+        )
+        self.assertAllEqual(result.shape, ())

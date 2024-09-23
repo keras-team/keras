@@ -10,9 +10,10 @@ from keras.src import layers
 from keras.src import models
 from keras.src import testing
 from keras.src.saving import saving_api
+from keras.src.testing.test_utils import named_product
 
 
-class DiscretizationTest(testing.TestCase, parameterized.TestCase):
+class DiscretizationTest(testing.TestCase):
     def test_discretization_basics(self):
         self.run_layer_test(
             layers.Discretization,
@@ -37,37 +38,74 @@ class DiscretizationTest(testing.TestCase, parameterized.TestCase):
         output = layer(np.array([[0.0, 0.1, 0.3]]))
         self.assertTrue(output.dtype, "int32")
 
-    @parameterized.parameters(
-        [
-            ("int", [[-1.0, 0.0, 0.1, 0.8, 1.2]], [[0, 1, 1, 2, 3]]),
-            ("one_hot", [0.1, 0.8], [[0, 1, 0, 0], [0, 0, 1, 0]]),
-            ("multi_hot", [[0.1, 0.8]], [[0, 1, 1, 0]]),
-            (
-                "one_hot",
-                [[[0.15, 0.75], [0.85, 0.45]]],
-                [
-                    [
-                        [[0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]],
-                        [[0.0, 0.0, 1.0, 0.0], [0.0, 1.0, 0.0, 0.0]],
-                    ]
-                ],
+    @parameterized.named_parameters(
+        named_product(
+            [
+                {
+                    "testcase_name": "int",
+                    "output_mode": "int",
+                    "input_array": [[-1.0, 0.0, 0.1, 0.8, 1.2]],
+                    "expected_output": [[0, 1, 1, 2, 3]],
+                },
+                {
+                    "testcase_name": "one_hot_rank_1",
+                    "output_mode": "one_hot",
+                    "input_array": [0.1, 0.8],
+                    "expected_output": [[0, 1, 0, 0], [0, 0, 1, 0]],
+                },
+                {
+                    "testcase_name": "multi_hot_rank_2",
+                    "output_mode": "multi_hot",
+                    "input_array": [[0.1, 0.8]],
+                    "expected_output": [[0, 1, 1, 0]],
+                },
+                {
+                    "testcase_name": "one_hot_rank_3",
+                    "output_mode": "one_hot",
+                    "input_array": [[[0.15, 0.75], [0.85, 0.45]]],
+                    "expected_output": [
+                        [
+                            [[0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]],
+                            [[0.0, 0.0, 1.0, 0.0], [0.0, 1.0, 0.0, 0.0]],
+                        ]
+                    ],
+                },
+                {
+                    "testcase_name": "multi_hot_rank_3",
+                    "output_mode": "multi_hot",
+                    "input_array": [[[0.15, 0.75], [0.85, 0.45]]],
+                    "expected_output": [
+                        [[0.0, 1.0, 1.0, 0.0], [0.0, 1.0, 1.0, 0.0]]
+                    ],
+                },
+                {
+                    "testcase_name": "count",
+                    "output_mode": "count",
+                    "input_array": [[0.1, 0.8, 0.9]],
+                    "expected_output": [[0, 1, 2, 0]],
+                },
+            ],
+            sparse=(
+                [True, False] if backend.SUPPORTS_SPARSE_TENSORS else [False]
             ),
-            (
-                "multi_hot",
-                [[[0.15, 0.75], [0.85, 0.45]]],
-                [[[0.0, 1.0, 1.0, 0.0], [0.0, 1.0, 1.0, 0.0]]],
-            ),
-            ("count", [[0.1, 0.8, 0.9]], [[0, 1, 2, 0]]),
-        ]
+        )
     )
-    def test_correctness(self, output_mode, input_array, expected_output):
+    def test_correctness(
+        self, output_mode, input_array, expected_output, sparse
+    ):
+        if output_mode == "int" and sparse:
+            pytest.skip("sparse=True cannot be combined with output_mode=int")
+
         input_array = np.array(input_array)
         expected_output = np.array(expected_output)
 
         layer = layers.Discretization(
-            bin_boundaries=[0.0, 0.5, 1.0], output_mode=output_mode
+            bin_boundaries=[0.0, 0.5, 1.0],
+            output_mode=output_mode,
+            sparse=sparse,
         )
         output = layer(input_array)
+        self.assertSparse(output, sparse)
         self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, expected_output)
 
@@ -125,56 +163,3 @@ class DiscretizationTest(testing.TestCase, parameterized.TestCase):
         model.save(fpath)
         model = saving_api.load_model(fpath)
         self.assertAllClose(layer(ref_input), ref_output)
-
-    @parameterized.parameters(
-        [
-            (
-                "one_hot",
-                [[-1.0, 0.2, 0.7, 1.2]],
-                [
-                    [
-                        [1.0, 0.0, 0.0, 0.0],
-                        [0.0, 1.0, 0.0, 0.0],
-                        [0.0, 0.0, 1.0, 0.0],
-                        [0.0, 0.0, 0.0, 1.0],
-                    ]
-                ],
-            ),
-            (
-                "multi_hot",
-                [[[-1.0], [0.2], [0.7], [1.2]]],
-                [
-                    [
-                        [1.0, 0.0, 0.0, 0.0],
-                        [0.0, 1.0, 0.0, 0.0],
-                        [0.0, 0.0, 1.0, 0.0],
-                        [0.0, 0.0, 0.0, 1.0],
-                    ]
-                ],
-            ),
-            (
-                "count",
-                [[-1.0], [0.2], [0.7], [1.2]],
-                [
-                    [1.0, 0.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0, 0.0],
-                    [0.0, 0.0, 1.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0],
-                ],
-            ),
-        ]
-    )
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason="Sparse tensor only works in TensorFlow",
-    )
-    def test_sparse_output(self, output_mode, input_array, expected_output):
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        x = np.array(input_array)
-        layer = layers.Discretization(
-            bin_boundaries=[0.0, 0.5, 1.0], sparse=True, output_mode=output_mode
-        )
-        output = layer(x)
-        self.assertTrue(isinstance(output, tf.SparseTensor))
-        self.assertAllClose(output, np.array(expected_output))

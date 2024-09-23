@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras.src import backend
+from keras.src import dtype_policies
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
 from keras.src.ops import numpy as knp
@@ -38,6 +39,22 @@ class OpWithCustomConstructor(operation.Operation):
         if self.mode == "foo":
             return x
         return self.alpha * x
+
+    def compute_output_spec(self, x):
+        return keras_tensor.KerasTensor(x.shape, x.dtype)
+
+
+class OpWithCustomDtype(operation.Operation):
+    def __init__(self, dtype):
+        if not isinstance(dtype, (str, dtype_policies.DTypePolicy)):
+            raise AssertionError(
+                "`dtype` must be a instance of `DTypePolicy` or str. "
+                f"Received: dtype={dtype} of type {type(dtype)}"
+            )
+        super().__init__(dtype=dtype)
+
+    def call(self, x):
+        return x
 
     def compute_output_spec(self, x):
         return keras_tensor.KerasTensor(x.shape, x.dtype)
@@ -160,3 +177,34 @@ class OperationTest(testing.TestCase):
             ValueError, "must be a string and cannot contain character `/`."
         ):
             OpWithMultipleOutputs(name="test/op")
+
+    def test_dtype(self):
+        # Test dtype argument
+        op = OpWithCustomDtype(dtype="bfloat16")
+        self.assertEqual(op._dtype_policy.name, "bfloat16")
+
+        policy = dtype_policies.DTypePolicy("mixed_bfloat16")
+        op = OpWithCustomDtype(dtype=policy)
+        self.assertEqual(op._dtype_policy.name, "mixed_bfloat16")
+
+        # Test dtype config to ensure it remains unchanged
+        config = op.get_config()
+        copied_config = config.copy()
+        OpWithCustomDtype.from_config(config)
+        self.assertEqual(config, copied_config)
+
+        # Test floating dtype serialization
+        op = OpWithCustomDtype(dtype="mixed_bfloat16")
+        config = op.get_config()
+        self.assertEqual(config["dtype"], "mixed_bfloat16")  # A plain string
+        revived_op = OpWithCustomDtype.from_config(config)
+        self.assertEqual(op._dtype_policy.name, revived_op._dtype_policy.name)
+
+        # Test quantized dtype serialization
+        policy = dtype_policies.QuantizedDTypePolicy("int8", "bfloat16")
+        op = OpWithCustomDtype(policy)
+        self.assertEqual(op._dtype_policy.name, "int8_from_bfloat16")
+        config = op.get_config()  # A serialized config
+        self.assertEqual(config["dtype"], dtype_policies.serialize(policy))
+        revived_op = OpWithCustomDtype.from_config(config)
+        self.assertEqual(op._dtype_policy.name, revived_op._dtype_policy.name)

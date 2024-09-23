@@ -1,10 +1,13 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    BaseImagePreprocessingLayer,
+)
+from keras.src.ops.core import _saturate_cast
 
 
 @keras_export("keras.layers.Resizing")
-class Resizing(TFDataLayer):
+class Resizing(BaseImagePreprocessingLayer):
     """A preprocessing layer which resizes images.
 
     This layer resizes an image input to a target height and width. The input
@@ -59,6 +62,8 @@ class Resizing(TFDataLayer):
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
     """
 
+    _USE_BASE_FACTOR = False
+
     def __init__(
         self,
         height,
@@ -81,10 +86,10 @@ class Resizing(TFDataLayer):
         self.fill_mode = fill_mode
         self.fill_value = fill_value
 
-    def call(self, inputs):
+    def transform_images(self, images, transformation=None, training=True):
         size = (self.height, self.width)
-        return self.backend.image.resize(
-            inputs,
+        resized = self.backend.image.resize(
+            images,
             size=size,
             interpolation=self.interpolation,
             data_format=self.data_format,
@@ -93,6 +98,24 @@ class Resizing(TFDataLayer):
             fill_mode=self.fill_mode,
             fill_value=self.fill_value,
         )
+        if resized.dtype == images.dtype:
+            return resized
+        if backend.is_int_dtype(images.dtype):
+            resized = self.backend.numpy.round(resized)
+        return _saturate_cast(resized, images.dtype, self.backend)
+
+    def transform_segmentation_masks(
+        self, segmentation_masks, transformation=None, training=True
+    ):
+        return self.transform_images(segmentation_masks)
+
+    def transform_labels(self, labels, transformation=None, training=True):
+        return labels
+
+    def transform_bounding_boxes(
+        self, bounding_boxes, transformation, training=True
+    ):
+        raise NotImplementedError
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)

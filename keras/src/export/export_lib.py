@@ -338,8 +338,15 @@ class ExportArchive:
                 # 5. Wrap in a `tf.function`
                 def stateless_fn(variables, *args, **kwargs):
                     state_mapping = zip(self._backend_variables, variables)
-                    with StatelessScope(state_mapping=state_mapping):
-                        return fn(*args, **kwargs)
+                    with StatelessScope(state_mapping=state_mapping) as scope:
+                        output = fn(*args, **kwargs)
+
+                    # Gather updated non-trainable variables
+                    non_trainable_variables = []
+                    for var in self._backend_non_trainable_variables:
+                        new_value = scope.get_current_value(var)
+                        non_trainable_variables.append(new_value)
+                    return output, non_trainable_variables
 
                 jax2tf_stateless_fn = self._convert_jax2tf_function(
                     stateless_fn,
@@ -348,12 +355,18 @@ class ExportArchive:
                 )
 
                 def stateful_fn(*args, **kwargs):
-                    return jax2tf_stateless_fn(
+                    output, non_trainable_variables = jax2tf_stateless_fn(
                         # Change the trackable `ListWrapper` to a plain `list`
                         list(self._tf_trackable.variables),
                         *args,
                         **kwargs,
                     )
+                    for var, new_value in zip(
+                        self._tf_trackable.non_trainable_variables,
+                        non_trainable_variables,
+                    ):
+                        var.assign(new_value)
+                    return output
 
                 # Note: we truncate the number of parameters to what is
                 # specified by `input_signature`.
@@ -452,7 +465,7 @@ class ExportArchive:
             variables = tree.flatten(tree.map_structure(tf.Variable, variables))
         setattr(self._tf_trackable, name, list(variables))
 
-    def write_out(self, filepath, options=None):
+    def write_out(self, filepath, options=None, verbose=True):
         """Write the corresponding SavedModel to disk.
 
         Arguments:
@@ -460,6 +473,8 @@ class ExportArchive:
                 Path where to save the artifact.
             options: `tf.saved_model.SaveOptions` object that specifies
                 SavedModel saving options.
+            verbose: whether to print all the variables of an
+                exported SavedModel.
 
         **Note on TF-Serving**: all endpoints registered via `add_endpoint()`
         are made visible for TF-Serving in the SavedModel artifact. In addition,
@@ -493,7 +508,9 @@ class ExportArchive:
 
         # Print out available endpoints
         endpoints = "\n\n".join(
-            _print_signature(getattr(self._tf_trackable, name), name)
+            _print_signature(
+                getattr(self._tf_trackable, name), name, verbose=verbose
+            )
             for name in self._endpoint_names
         )
         io_utils.print_msg(
@@ -604,7 +621,7 @@ class ExportArchive:
                 "the TF runtime in the same environment will not work. "
                 "To use JAX-native serialization for high-performance export "
                 "and serving, please install `tensorflow-gpu` and ensure "
-                "CUDA version compatiblity between your JAX and TF "
+                "CUDA version compatibility between your JAX and TF "
                 "installations."
             )
             return False
@@ -612,7 +629,7 @@ class ExportArchive:
             return True
 
 
-def export_model(model, filepath):
+def export_model(model, filepath, verbose=True):
     export_archive = ExportArchive()
     export_archive.track(model)
     if isinstance(model, (Functional, Sequential)):
@@ -621,18 +638,17 @@ def export_model(model, filepath):
             input_signature = [input_signature]
         export_archive.add_endpoint("serve", model.__call__, input_signature)
     else:
-        save_spec = _get_save_spec(model)
-        if not save_spec or not model._called:
+        input_signature = _get_input_signature(model)
+        if not input_signature or not model._called:
             raise ValueError(
                 "The model provided has never called. "
                 "It must be called at least once before export."
             )
-        input_signature = [save_spec]
         export_archive.add_endpoint("serve", model.__call__, input_signature)
-    export_archive.write_out(filepath)
+    export_archive.write_out(filepath, verbose=verbose)
 
 
-def _get_save_spec(model):
+def _get_input_signature(model):
     shapes_dict = getattr(model, "_build_shapes_dict", None)
     if not shapes_dict:
         return None
@@ -642,28 +658,24 @@ def _get_save_spec(model):
         # into plain Python structures because they don't work with jax2tf/JAX.
         if isinstance(structure, dict):
             return {k: make_tensor_spec(v) for k, v in structure.items()}
-        if isinstance(structure, (list, tuple)):
+        elif isinstance(structure, tuple):
             if all(isinstance(d, (int, type(None))) for d in structure):
                 return tf.TensorSpec(
                     shape=(None,) + structure[1:], dtype=model.input_dtype
                 )
-            result = [make_tensor_spec(v) for v in structure]
-            return tuple(result) if isinstance(structure, tuple) else result
+            return tuple(make_tensor_spec(v) for v in structure)
+        elif isinstance(structure, list):
+            if all(isinstance(d, (int, type(None))) for d in structure):
+                return tf.TensorSpec(
+                    shape=[None] + structure[1:], dtype=model.input_dtype
+                )
+            return [make_tensor_spec(v) for v in structure]
         else:
             raise ValueError(
                 f"Unsupported type {type(structure)} for {structure}"
             )
 
-    if len(shapes_dict) == 1:
-        value = list(shapes_dict.values())[0]
-        return make_tensor_spec(value)
-
-    specs = {}
-    for key, value in shapes_dict.items():
-        key = key.rstrip("_shape")
-        specs[key] = make_tensor_spec(value)
-
-    return specs
+    return [make_tensor_spec(value) for value in shapes_dict.values()]
 
 
 @keras_export("keras.layers.TFSMLayer")
@@ -805,9 +817,9 @@ def _make_tensor_spec(x):
     return tf.TensorSpec(shape, dtype=x.dtype, name=x.name)
 
 
-def _print_signature(fn, name):
+def _print_signature(fn, name, verbose=True):
     concrete_fn = fn._list_all_concrete_functions()[0]
-    pprinted_signature = concrete_fn.pretty_printed_signature(verbose=True)
+    pprinted_signature = concrete_fn.pretty_printed_signature(verbose=verbose)
     lines = pprinted_signature.split("\n")
     lines = [f"* Endpoint '{name}'"] + lines[1:]
     endpoint = "\n".join(lines)

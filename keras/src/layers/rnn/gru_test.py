@@ -7,7 +7,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class GRUTest(testing.TestCase, parameterized.TestCase):
+class GRUTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
@@ -284,5 +284,28 @@ class GRUTest(testing.TestCase, parameterized.TestCase):
         output = layer(sequence, mask=mask)
         self.assertAllClose(
             np.array([[0.11669192, 0.11669192], [0.28380975, 0.28380975]]),
+            output,
+        )
+
+    def test_legacy_implementation_argument(self):
+        sequence = np.arange(72).reshape((3, 6, 4)).astype("float32")
+        layer = layers.GRU(
+            3,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+        )
+        config = layer.get_config()
+        config["implementation"] = 0  # Add legacy argument
+        layer = layers.GRU.from_config(config)
+        output = layer(sequence)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.5217289, 0.5217289, 0.5217289],
+                    [0.6371659, 0.6371659, 0.6371659],
+                    [0.39384964, 0.39384964, 0.3938496],
+                ]
+            ),
             output,
         )

@@ -6,7 +6,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 from keras.src.backend.common.backend_utils import (
-    _convert_conv_tranpose_padding_args_from_keras_to_torch,
+    _convert_conv_transpose_padding_args_from_keras_to_torch,
 )
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
@@ -63,9 +63,9 @@ def np_conv1d_transpose(
     if h_dilation > 1:
         # Increase kernel size
         new_h_kernel = h_kernel + (h_dilation - 1) * (h_kernel - 1)
-        new_kenel_size_tuple = (new_h_kernel,)
+        new_kernel_size_tuple = (new_h_kernel,)
         new_kernel_weights = np.zeros(
-            (*new_kenel_size_tuple, ch_out, ch_in),
+            (*new_kernel_size_tuple, ch_out, ch_in),
             dtype=kernel_weights.dtype,
         )
         new_kernel_weights[::h_dilation] = kernel_weights
@@ -140,9 +140,9 @@ def np_conv2d_transpose(
         # Increase kernel size
         new_h_kernel = h_kernel + (h_dilation - 1) * (h_kernel - 1)
         new_w_kernel = w_kernel + (w_dilation - 1) * (w_kernel - 1)
-        new_kenel_size_tuple = (new_h_kernel, new_w_kernel)
+        new_kernel_size_tuple = (new_h_kernel, new_w_kernel)
         new_kernel_weights = np.zeros(
-            (*new_kenel_size_tuple, ch_out, ch_in),
+            (*new_kernel_size_tuple, ch_out, ch_in),
             dtype=kernel_weights.dtype,
         )
         new_kernel_weights[::h_dilation, ::w_dilation] = kernel_weights
@@ -233,9 +233,9 @@ def np_conv3d_transpose(
         new_h_kernel = h_kernel + (h_dilation - 1) * (h_kernel - 1)
         new_w_kernel = w_kernel + (w_dilation - 1) * (w_kernel - 1)
         new_d_kernel = d_kernel + (d_dilation - 1) * (d_kernel - 1)
-        new_kenel_size_tuple = (new_h_kernel, new_w_kernel, new_d_kernel)
+        new_kernel_size_tuple = (new_h_kernel, new_w_kernel, new_d_kernel)
         new_kernel_weights = np.zeros(
-            (*new_kenel_size_tuple, ch_out, ch_in),
+            (*new_kernel_size_tuple, ch_out, ch_in),
             dtype=kernel_weights.dtype,
         )
         new_kernel_weights[::h_dilation, ::w_dilation, ::d_dilation] = (
@@ -286,7 +286,7 @@ def np_conv3d_transpose(
     return output
 
 
-class ConvTransposeBasicTest(testing.TestCase, parameterized.TestCase):
+class ConvTransposeBasicTest(testing.TestCase):
     @parameterized.parameters(
         {
             "filters": 5,
@@ -546,7 +546,7 @@ class ConvTransposeBasicTest(testing.TestCase, parameterized.TestCase):
             )
 
 
-class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class ConvTransposeCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
         {
             "filters": 5,
@@ -843,7 +843,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
             (
                 torch_padding,
                 torch_output_padding,
-            ) = _convert_conv_tranpose_padding_args_from_keras_to_torch(
+            ) = _convert_conv_transpose_padding_args_from_keras_to_torch(
                 kernel_size=kernel_size,
                 stride=strides,
                 dilation_rate=1,

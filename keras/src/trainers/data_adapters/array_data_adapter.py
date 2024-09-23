@@ -243,8 +243,6 @@ class ArrayDataAdapter(DataAdapter):
         return dataset.prefetch(tf.data.AUTOTUNE)
 
     def get_jax_iterator(self):
-        from keras.src.backend.jax.core import convert_to_tensor
-
         inputs = array_slicing.convert_to_sliceable(
             self._inputs, target_backend="jax"
         )
@@ -252,7 +250,6 @@ class ArrayDataAdapter(DataAdapter):
         def slice_and_convert_to_jax(sliceable, indices=None):
             x = sliceable[indices]
             x = sliceable.convert_to_jax_compatible(x)
-            x = convert_to_tensor(x)
             return x
 
         return self._get_iterator(slice_and_convert_to_jax, inputs)

@@ -28,8 +28,8 @@ class NumpyTrainer(base_trainer.Trainer):
             y_pred = self(x, training=False)
         else:
             y_pred = self(x)
-        loss = self.compute_loss(
-            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        loss = self._compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
         self._loss_tracker.update_state(
             loss, sample_weight=tree.flatten(x)[0].shape[0]
@@ -97,7 +97,10 @@ class NumpyTrainer(base_trainer.Trainer):
             self._compile_metrics is not None
             and not self._compile_metrics.built
         )
-        if model_unbuilt or compile_metrics_unbuilt:
+        compile_loss_unbuilt = (
+            self._compile_loss is not None and not self._compile_loss.built
+        )
+        if model_unbuilt or compile_metrics_unbuilt or compile_loss_unbuilt:
             # Create symbolic tensors matching an input batch.
 
             def to_symbolic_input(v):
@@ -128,6 +131,15 @@ class NumpyTrainer(base_trainer.Trainer):
                 # Build all metric state with `backend.compute_output_spec`.
                 backend.compute_output_spec(
                     self.compute_metrics,
+                    x,
+                    y,
+                    y_pred,
+                    sample_weight=sample_weight,
+                )
+            if compile_loss_unbuilt:
+                # Build `CompileLoss` state with `backend.compute_output_spec`.
+                backend.compute_output_spec(
+                    self._compute_loss,
                     x,
                     y,
                     y_pred,
@@ -264,7 +276,7 @@ class NumpyTrainer(base_trainer.Trainer):
         self.make_test_function()
         self.stop_evaluating = False
         callbacks.on_test_begin()
-        logs = None
+        logs = {}
         self.reset_metrics()
         for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_test_batch_begin(step)

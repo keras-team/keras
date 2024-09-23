@@ -37,6 +37,15 @@ class SeedGeneratorTest(testing.TestCase):
         seed2 = seed_generator.make_default_seed()
         self.assertNotEqual(seed1, seed2)
 
+    def test_seed_generator_dtype(self):
+        gen = seed_generator.SeedGenerator(seed=42)
+        self.assertEqual(gen.state.dtype, backend.random_seed_dtype())
+        seed = gen.next()
+        self.assertEqual(gen.state.dtype, backend.random_seed_dtype())
+        self.assertEqual(
+            backend.standardize_dtype(seed.dtype), backend.random_seed_dtype()
+        )
+
     def test_draw_seed_from_seed_generator(self):
         gen = seed_generator.SeedGenerator(seed=42)
         seed1 = seed_generator.draw_seed(gen)
@@ -45,6 +54,9 @@ class SeedGeneratorTest(testing.TestCase):
     def test_draw_seed_from_integer(self):
         seed2 = seed_generator.draw_seed(12345)
         self.assertTrue(backend.is_tensor(seed2))
+        self.assertEqual(
+            backend.standardize_dtype(seed2.dtype), backend.random_seed_dtype()
+        )
 
     def test_draw_seed_from_none(self):
         seed3 = seed_generator.draw_seed(None)

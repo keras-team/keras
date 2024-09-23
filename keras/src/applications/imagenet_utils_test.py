@@ -9,7 +9,7 @@ from keras.src.applications import imagenet_utils as utils
 from keras.src.dtype_policies.dtype_policy import set_dtype_policy
 
 
-class TestImageNetUtils(testing.TestCase, parameterized.TestCase):
+class TestImageNetUtils(testing.TestCase):
     def test_preprocess_input(self):
         # Test invalid mode check
         x = np.random.uniform(0, 255, (10, 10, 3))

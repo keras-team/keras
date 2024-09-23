@@ -35,9 +35,7 @@ class Operation:
             if any_symbolic_tensors(args, kwargs):
                 call_fn = self.symbolic_call
             else:
-                if isinstance(
-                    self._dtype_policy, dtype_policies.QuantizedDTypePolicy
-                ):
+                if getattr(self, "quantization_mode", None) is not None:
                     call_fn = self.quantized_call
                 else:
                     call_fn = self.call
@@ -50,7 +48,7 @@ class Operation:
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
             return self.symbolic_call(*args, **kwargs)
-        if isinstance(self._dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if getattr(self, "quantization_mode", None) is not None:
             return self.quantized_call(*args, **kwargs)
         else:
             return self.call(*args, **kwargs)
@@ -98,10 +96,23 @@ class Operation:
         out of the box in most cases without forcing the user
         to manually implement `get_config()`.
         """
+        instance = super(Operation, cls).__new__(cls)
+
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
-        instance = super(Operation, cls).__new__(cls)
+
+        # Explicitly serialize `dtype` to support auto_config
+        dtype = kwargs.get("dtype", None)
+        if dtype is not None and isinstance(dtype, dtype_policies.DTypePolicy):
+            # For backward compatibility, we use a str (`name`) for
+            # `DTypePolicy`
+            if dtype.quantization_mode is None:
+                kwargs["dtype"] = dtype.name
+            # Otherwise, use `dtype_policies.serialize`
+            else:
+                kwargs["dtype"] = dtype_policies.serialize(dtype)
+
         # For safety, we only rely on auto-configs for a small set of
         # serializable types.
         supported_types = (str, int, float, bool, type(None))
@@ -187,20 +198,38 @@ class Operation:
 
     @classmethod
     def from_config(cls, config):
-        """Creates a layer from its config.
+        """Creates an operation from its config.
 
-        This method is the reverse of `get_config`,
-        capable of instantiating the same layer from the config
-        dictionary. It does not handle layer connectivity
-        (handled by Network), nor weights (handled by `set_weights`).
+        This method is the reverse of `get_config`, capable of instantiating the
+        same operation from the config dictionary.
+
+        Note: If you override this method, you might receive a serialized dtype
+        config, which is a `dict`. You can deserialize it as follows:
+
+        ```python
+        if "dtype" in config and isinstance(config["dtype"], dict):
+            policy = dtype_policies.deserialize(config["dtype"])
+        ```
 
         Args:
-            config: A Python dictionary, typically the
-                output of get_config.
+            config: A Python dictionary, typically the output of `get_config`.
 
         Returns:
-            A layer instance.
+            An operation instance.
         """
+        # Explicitly deserialize dtype config if needed. This enables users to
+        # directly interact with the instance of `DTypePolicy`.
+        if "dtype" in config and isinstance(config["dtype"], dict):
+            config = config.copy()
+            policy = dtype_policies.deserialize(config["dtype"])
+            if (
+                not isinstance(policy, dtype_policies.DTypePolicyMap)
+                and policy.quantization_mode is None
+            ):
+                # For backward compatibility, we use a str (`name`) for
+                # `DTypePolicy`
+                policy = policy.name
+            config["dtype"] = policy
         try:
             return cls(**config)
         except Exception as e:
@@ -253,7 +282,7 @@ class Operation:
             The operation's attribute `attr` at the node of index `node_index`.
         """
         if not self._inbound_nodes:
-            raise ValueError(
+            raise AttributeError(
                 f"The layer {self.name} has never been called "
                 f"and thus has no defined {attr_name}."
             )

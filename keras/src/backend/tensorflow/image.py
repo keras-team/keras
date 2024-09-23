@@ -4,6 +4,7 @@ import operator
 
 import tensorflow as tf
 
+from keras.src import backend
 from keras.src.backend.tensorflow.core import convert_to_tensor
 
 RESIZE_INTERPOLATIONS = (
@@ -12,32 +13,94 @@ RESIZE_INTERPOLATIONS = (
     "lanczos3",
     "lanczos5",
     "bicubic",
+    "area",
 )
 
 
-def rgb_to_grayscale(image, data_format="channels_last"):
+def rgb_to_grayscale(images, data_format=None):
+    images = convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+    channels_axis = -1 if data_format == "channels_last" else -3
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    # Convert to floats
+    original_dtype = images.dtype
+    compute_dtype = backend.result_type(images.dtype, float)
+    images = tf.cast(images, compute_dtype)
+
+    # Ref: tf.image.rgb_to_grayscale
+    rgb_weights = convert_to_tensor(
+        [0.2989, 0.5870, 0.1140], dtype=images.dtype
+    )
+    images = tf.tensordot(images, rgb_weights, axes=(channels_axis, -1))
+    images = tf.expand_dims(images, axis=channels_axis)
+    return tf.cast(images, original_dtype)
+
+
+def rgb_to_hsv(images, data_format=None):
+    images = convert_to_tensor(images)
+    dtype = images.dtype
+    data_format = backend.standardize_data_format(data_format)
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    if not backend.is_float_dtype(dtype):
+        raise ValueError(
+            "Invalid images dtype: expected float dtype. "
+            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+        )
     if data_format == "channels_first":
-        if len(image.shape) == 4:
-            image = tf.transpose(image, (0, 2, 3, 1))
-        elif len(image.shape) == 3:
-            image = tf.transpose(image, (1, 2, 0))
+        if len(images.shape) == 4:
+            images = tf.transpose(images, (0, 2, 3, 1))
         else:
-            raise ValueError(
-                "Invalid input rank: expected rank 3 (single image) "
-                "or rank 4 (batch of images). Received input with shape: "
-                f"image.shape={image.shape}"
-            )
-    grayscale_image = tf.image.rgb_to_grayscale(image)
+            images = tf.transpose(images, (1, 2, 0))
+    images = tf.image.rgb_to_hsv(images)
     if data_format == "channels_first":
-        if len(image.shape) == 4:
-            grayscale_image = tf.transpose(grayscale_image, (0, 3, 1, 2))
-        elif len(image.shape) == 3:
-            grayscale_image = tf.transpose(grayscale_image, (2, 0, 1))
-    return tf.cast(grayscale_image, image.dtype)
+        if len(images.shape) == 4:
+            images = tf.transpose(images, (0, 3, 1, 2))
+        elif len(images.shape) == 3:
+            images = tf.transpose(images, (2, 0, 1))
+    return images
+
+
+def hsv_to_rgb(images, data_format=None):
+    images = convert_to_tensor(images)
+    dtype = images.dtype
+    data_format = backend.standardize_data_format(data_format)
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    if not backend.is_float_dtype(dtype):
+        raise ValueError(
+            "Invalid images dtype: expected float dtype. "
+            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+        )
+    if data_format == "channels_first":
+        if len(images.shape) == 4:
+            images = tf.transpose(images, (0, 2, 3, 1))
+        else:
+            images = tf.transpose(images, (1, 2, 0))
+    images = tf.image.hsv_to_rgb(images)
+    if data_format == "channels_first":
+        if len(images.shape) == 4:
+            images = tf.transpose(images, (0, 3, 1, 2))
+        elif len(images.shape) == 3:
+            images = tf.transpose(images, (2, 0, 1))
+    return images
 
 
 def resize(
-    image,
+    images,
     size,
     interpolation="bilinear",
     antialias=False,
@@ -45,8 +108,9 @@ def resize(
     pad_to_aspect_ratio=False,
     fill_mode="constant",
     fill_value=0.0,
-    data_format="channels_last",
+    data_format=None,
 ):
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -68,32 +132,33 @@ def resize(
             f"(height, width). Received: size={size}"
         )
     size = tuple(size)
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
     if data_format == "channels_first":
-        if len(image.shape) == 4:
-            image = tf.transpose(image, (0, 2, 3, 1))
-        elif len(image.shape) == 3:
-            image = tf.transpose(image, (1, 2, 0))
+        if len(images.shape) == 4:
+            images = tf.transpose(images, (0, 2, 3, 1))
         else:
-            raise ValueError(
-                "Invalid input rank: expected rank 3 (single image) "
-                "or rank 4 (batch of images). Received input with shape: "
-                f"image.shape={image.shape}"
-            )
+            images = tf.transpose(images, (1, 2, 0))
+
     if crop_to_aspect_ratio:
-        shape = tf.shape(image)
+        shape = tf.shape(images)
         height, width = shape[-3], shape[-2]
         target_height, target_width = size
         crop_height = tf.cast(
             tf.cast(width * target_height, "float32") / target_width,
             "int32",
         )
-        crop_height = tf.minimum(height, crop_height)
+        crop_height = tf.maximum(tf.minimum(height, crop_height), 1)
         crop_height = tf.cast(crop_height, "int32")
         crop_width = tf.cast(
             tf.cast(height * target_width, "float32") / target_height,
             "int32",
         )
-        crop_width = tf.minimum(width, crop_width)
+        crop_width = tf.maximum(tf.minimum(width, crop_width), 1)
         crop_width = tf.cast(crop_width, "int32")
 
         crop_box_hstart = tf.cast(
@@ -102,21 +167,21 @@ def resize(
         crop_box_wstart = tf.cast(
             tf.cast(width - crop_width, "float32") / 2, "int32"
         )
-        if len(image.shape) == 4:
-            image = image[
+        if len(images.shape) == 4:
+            images = images[
                 :,
                 crop_box_hstart : crop_box_hstart + crop_height,
                 crop_box_wstart : crop_box_wstart + crop_width,
                 :,
             ]
         else:
-            image = image[
+            images = images[
                 crop_box_hstart : crop_box_hstart + crop_height,
                 crop_box_wstart : crop_box_wstart + crop_width,
                 :,
             ]
     elif pad_to_aspect_ratio:
-        shape = tf.shape(image)
+        shape = tf.shape(images)
         height, width = shape[-3], shape[-2]
         target_height, target_width = size
         pad_height = tf.cast(
@@ -138,28 +203,28 @@ def resize(
         img_box_wstart = tf.cast(
             tf.cast(pad_width - width, "float32") / 2, "int32"
         )
-        if len(image.shape) == 4:
-            batch_size = tf.shape(image)[0]
-            channels = tf.shape(image)[3]
+        if len(images.shape) == 4:
+            batch_size = tf.shape(images)[0]
+            channels = tf.shape(images)[3]
             padded_img = tf.cond(
                 img_box_hstart > 0,
                 lambda: tf.concat(
                     [
                         tf.ones(
                             (batch_size, img_box_hstart, width, channels),
-                            dtype=image.dtype,
+                            dtype=images.dtype,
                         )
                         * fill_value,
-                        image,
+                        images,
                         tf.ones(
                             (batch_size, img_box_hstart, width, channels),
-                            dtype=image.dtype,
+                            dtype=images.dtype,
                         )
                         * fill_value,
                     ],
                     axis=1,
                 ),
-                lambda: image,
+                lambda: images,
             )
             padded_img = tf.cond(
                 img_box_wstart > 0,
@@ -167,13 +232,13 @@ def resize(
                     [
                         tf.ones(
                             (batch_size, height, img_box_wstart, channels),
-                            dtype=image.dtype,
+                            dtype=images.dtype,
                         )
                         * fill_value,
                         padded_img,
                         tf.ones(
                             (batch_size, height, img_box_wstart, channels),
-                            dtype=image.dtype,
+                            dtype=images.dtype,
                         )
                         * fill_value,
                     ],
@@ -182,26 +247,26 @@ def resize(
                 lambda: padded_img,
             )
         else:
-            channels = tf.shape(image)[2]
+            channels = tf.shape(images)[2]
             padded_img = tf.cond(
                 img_box_hstart > 0,
                 lambda: tf.concat(
                     [
                         tf.ones(
                             (img_box_hstart, width, channels),
-                            dtype=image.dtype,
+                            dtype=images.dtype,
                         )
                         * fill_value,
-                        image,
+                        images,
                         tf.ones(
                             (img_box_hstart, width, channels),
-                            dtype=image.dtype,
+                            dtype=images.dtype,
                         )
                         * fill_value,
                     ],
                     axis=0,
                 ),
-                lambda: image,
+                lambda: images,
             )
             padded_img = tf.cond(
                 img_box_wstart > 0,
@@ -209,13 +274,13 @@ def resize(
                     [
                         tf.ones(
                             (height, img_box_wstart, channels),
-                            dtype=image.dtype,
+                            dtype=images.dtype,
                         )
                         * fill_value,
                         padded_img,
                         tf.ones(
                             (height, img_box_wstart, channels),
-                            dtype=image.dtype,
+                            dtype=images.dtype,
                         )
                         * fill_value,
                     ],
@@ -223,17 +288,17 @@ def resize(
                 ),
                 lambda: padded_img,
             )
-        image = padded_img
+        images = padded_img
 
     resized = tf.image.resize(
-        image, size, method=interpolation, antialias=antialias
+        images, size, method=interpolation, antialias=antialias
     )
     if data_format == "channels_first":
-        if len(image.shape) == 4:
+        if len(images.shape) == 4:
             resized = tf.transpose(resized, (0, 3, 1, 2))
-        elif len(image.shape) == 3:
+        elif len(images.shape) == 3:
             resized = tf.transpose(resized, (2, 0, 1))
-    return tf.cast(resized, image.dtype)
+    return resized
 
 
 AFFINE_TRANSFORM_INTERPOLATIONS = (
@@ -250,13 +315,14 @@ AFFINE_TRANSFORM_FILL_MODES = (
 
 
 def affine_transform(
-    image,
+    images,
     transform,
     interpolation="bilinear",
     fill_mode="constant",
     fill_value=0,
-    data_format="channels_last",
+    data_format=None,
 ):
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -268,11 +334,11 @@ def affine_transform(
             "Invalid value for argument `fill_mode`. Expected of one "
             f"{AFFINE_TRANSFORM_FILL_MODES}. Received: fill_mode={fill_mode}"
         )
-    if len(image.shape) not in (3, 4):
+    if len(images.shape) not in (3, 4):
         raise ValueError(
-            "Invalid image rank: expected rank 3 (single image) "
+            "Invalid images rank: expected rank 3 (single image) "
             "or rank 4 (batch of images). Received input with shape: "
-            f"image.shape={image.shape}"
+            f"images.shape={images.shape}"
         )
     if len(transform.shape) not in (1, 2):
         raise ValueError(
@@ -282,24 +348,24 @@ def affine_transform(
         )
     # unbatched case
     need_squeeze = False
-    if len(image.shape) == 3:
-        image = tf.expand_dims(image, axis=0)
+    if len(images.shape) == 3:
+        images = tf.expand_dims(images, axis=0)
         need_squeeze = True
     if len(transform.shape) == 1:
         transform = tf.expand_dims(transform, axis=0)
 
     if data_format == "channels_first":
-        image = tf.transpose(image, (0, 2, 3, 1))
+        images = tf.transpose(images, (0, 2, 3, 1))
 
     affined = tf.raw_ops.ImageProjectiveTransformV3(
-        images=image,
+        images=images,
         transforms=tf.cast(transform, dtype=tf.float32),
-        output_shape=tf.shape(image)[1:-1],
+        output_shape=tf.shape(images)[1:-1],
         fill_value=fill_value,
         interpolation=interpolation.upper(),
         fill_mode=fill_mode.upper(),
     )
-    affined = tf.ensure_shape(affined, image.shape)
+    affined = tf.ensure_shape(affined, images.shape)
 
     if data_format == "channels_first":
         affined = tf.transpose(affined, (0, 3, 1, 2))
@@ -347,19 +413,27 @@ def _linear_indices_and_weights(coordinate):
 
 
 def map_coordinates(
-    input, coordinates, order, fill_mode="constant", fill_value=0.0
+    inputs, coordinates, order, fill_mode="constant", fill_value=0.0
 ):
-    input_arr = convert_to_tensor(input)
+    input_arr = convert_to_tensor(inputs)
     coordinate_arrs = convert_to_tensor(coordinates)
+
+    if coordinate_arrs.shape[0] != len(input_arr.shape):
+        raise ValueError(
+            "First dim of `coordinates` must be the same as the rank of "
+            "`inputs`. "
+            f"Received inputs with shape: {input_arr.shape} and coordinate "
+            f"leading dim of {coordinate_arrs.shape[0]}"
+        )
+    if len(coordinate_arrs.shape) < 2:
+        raise ValueError(
+            "Invalid coordinates rank: expected at least rank 2."
+            f" Received input with shape: {coordinate_arrs.shape}"
+        )
+
     # unstack into a list of tensors for following operations
     coordinate_arrs = tf.unstack(coordinate_arrs, axis=0)
     fill_value = convert_to_tensor(tf.cast(fill_value, input_arr.dtype))
-
-    if len(coordinates) != len(input_arr.shape):
-        raise ValueError(
-            "coordinates must be a sequence of length input.shape, but "
-            f"{len(coordinates)} != {len(input_arr.shape)}"
-        )
 
     index_fixer = _INDEX_FIXERS.get(fill_mode)
     if index_fixer is None:

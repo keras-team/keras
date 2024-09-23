@@ -1,10 +1,12 @@
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    BaseImagePreprocessingLayer,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
 @keras_export("keras.layers.RandomBrightness")
-class RandomBrightness(TFDataLayer):
+class RandomBrightness(BaseImagePreprocessingLayer):
     """A preprocessing layer which randomly adjusts brightness during training.
 
     This layer will randomly increase/reduce the brightness for the input RGB
@@ -62,20 +64,15 @@ class RandomBrightness(TFDataLayer):
     ```
     """
 
-    _FACTOR_VALIDATION_ERROR = (
-        "The `factor` argument should be a number (or a list of two numbers) "
-        "in the range [-1.0, 1.0]. "
-    )
     _VALUE_RANGE_VALIDATION_ERROR = (
         "The `value_range` argument should be a list of two numbers. "
     )
 
     def __init__(self, factor, value_range=(0, 255), seed=None, **kwargs):
-        super().__init__(**kwargs)
-        self._set_factor(factor)
-        self._set_value_range(value_range)
+        super().__init__(factor=factor, **kwargs)
         self.seed = seed
         self.generator = SeedGenerator(seed)
+        self._set_value_range(value_range)
 
     def _set_value_range(self, value_range):
         if not isinstance(value_range, (tuple, list)):
@@ -90,39 +87,11 @@ class RandomBrightness(TFDataLayer):
             )
         self.value_range = sorted(value_range)
 
-    def _set_factor(self, factor):
-        if isinstance(factor, (tuple, list)):
-            if len(factor) != 2:
-                raise ValueError(
-                    self._FACTOR_VALIDATION_ERROR + f"Received: factor={factor}"
-                )
-            self._check_factor_range(factor[0])
-            self._check_factor_range(factor[1])
-            self._factor = sorted(factor)
-        elif isinstance(factor, (int, float)):
-            self._check_factor_range(factor)
-            factor = abs(factor)
-            self._factor = [-factor, factor]
+    def get_random_transformation(self, data, training=True, seed=None):
+        if isinstance(data, dict):
+            images = data["images"]
         else:
-            raise ValueError(
-                self._FACTOR_VALIDATION_ERROR + f"Received: factor={factor}"
-            )
-
-    def _check_factor_range(self, input_number):
-        if input_number > 1.0 or input_number < -1.0:
-            raise ValueError(
-                self._FACTOR_VALIDATION_ERROR
-                + f"Received: input_number={input_number}"
-            )
-
-    def call(self, inputs, training=True):
-        inputs = self.backend.cast(inputs, self.compute_dtype)
-        if training:
-            return self._randomly_adjust_brightness(inputs)
-        else:
-            return inputs
-
-    def _randomly_adjust_brightness(self, images):
+            images = data
         images_shape = self.backend.shape(images)
         rank = len(images_shape)
         if rank == 3:
@@ -136,27 +105,49 @@ class RandomBrightness(TFDataLayer):
                 "Expected the input image to be rank 3 or 4. Received "
                 f"inputs.shape={images_shape}"
             )
+        if not training:
+            return {"rgb_delta": self.backend.numpy.zeros(rgb_delta_shape)}
 
-        seed_generator = self._get_seed_generator(self.backend._backend)
+        if seed is None:
+            seed = self._get_seed_generator(self.backend._backend)
         rgb_delta = self.backend.random.uniform(
-            minval=self._factor[0],
-            maxval=self._factor[1],
+            minval=self.factor[0],
+            maxval=self.factor[1],
             shape=rgb_delta_shape,
-            seed=seed_generator,
+            seed=seed,
         )
         rgb_delta = rgb_delta * (self.value_range[1] - self.value_range[0])
-        rgb_delta = self.backend.cast(rgb_delta, images.dtype)
-        images += rgb_delta
-        return self.backend.numpy.clip(
-            images, self.value_range[0], self.value_range[1]
-        )
+        return {"rgb_delta": rgb_delta}
+
+    def transform_images(self, images, transformation, training=True):
+        if training:
+            rgb_delta = transformation["rgb_delta"]
+            rgb_delta = self.backend.cast(rgb_delta, images.dtype)
+            images += rgb_delta
+            return self.backend.numpy.clip(
+                images, self.value_range[0], self.value_range[1]
+            )
+        return images
+
+    def transform_labels(self, labels, transformation, training=True):
+        return labels
+
+    def transform_bounding_boxes(
+        self, bounding_boxes, transformation, training=True
+    ):
+        return bounding_boxes
+
+    def transform_segmentation_masks(
+        self, segmentation_masks, transformation, training=True
+    ):
+        return segmentation_masks
 
     def compute_output_shape(self, input_shape):
         return input_shape
 
     def get_config(self):
         config = {
-            "factor": self._factor,
+            "factor": self.factor,
             "value_range": self.value_range,
             "seed": self.seed,
         }

@@ -6,7 +6,7 @@ def register_tree_node_class(cls):
 
 
 def is_nested(structure):
-    dmtree.is_nested(structure)
+    return dmtree.is_nested(structure)
 
 
 def traverse(func, structure, top_down=True):

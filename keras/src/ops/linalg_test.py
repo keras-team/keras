@@ -329,7 +329,7 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(s.shape, (10, 2))
 
 
-class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class LinalgOpsCorrectnessTest(testing.TestCase):
 
     def test_cholesky(self):
         x = np.random.rand(4, 3, 3).astype("float32")
@@ -445,9 +445,9 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     )
     def test_norm(self, ndim, ord, axis, keepdims):
         if ndim == 1:
-            x = np.random.random((5,))
+            x = np.random.random((5,)).astype("float32")
         else:
-            x = np.random.random((5, 6))
+            x = np.random.random((5, 6)).astype("float32")
 
         vector_norm = (ndim == 1) or isinstance(axis, int)
 
@@ -482,7 +482,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         expected_result = np.linalg.norm(
             x, ord=ord, axis=axis, keepdims=keepdims
         )
-        self.assertAllClose(output, expected_result)
+        self.assertAllClose(output, expected_result, atol=1e-5)
 
     def test_qr(self):
         x = np.random.random((4, 5))
@@ -526,12 +526,17 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output, expected_result)
 
     def test_svd(self):
-        x = np.random.rand(4, 30, 20)
+        x = np.random.rand(4, 30, 20).astype("float32")
         u, s, vh = linalg.svd(x)
         x_reconstructed = (u[..., :, : s.shape[-1]] * s[..., None, :]) @ vh[
             ..., : s.shape[-1], :
         ]
-        self.assertAllClose(x_reconstructed, x, atol=1e-4)
+        # High tolerance due to numerical instability
+        self.assertAllClose(x_reconstructed, x, atol=1e-3)
+
+        # Test `compute_uv=False`
+        s_no_uv = linalg.svd(x, compute_uv=False)
+        self.assertAllClose(s_no_uv, s)
 
     @parameterized.named_parameters(
         ("b_rank_1", 1, None),

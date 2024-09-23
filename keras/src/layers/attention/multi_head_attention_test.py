@@ -6,6 +6,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import constraints
+from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src import layers
 from keras.src import models
@@ -13,7 +14,7 @@ from keras.src import saving
 from keras.src import testing
 
 
-class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
+class MultiHeadAttentionTest(testing.TestCase):
     def test_basics(self):
         self.run_layer_test(
             layers.MultiHeadAttention,
@@ -93,7 +94,7 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         ("without_key_same_proj", (4, 8), (2, 8), None, None),
         ("with_key_same_proj", (4, 8), (2, 8), (2, 3), None),
-        ("wihtout_key_different_proj", (4, 8), (2, 8), None, (3, 4)),
+        ("without_key_different_proj", (4, 8), (2, 8), None, (3, 4)),
         ("with_key_different_proj", (4, 8), (2, 8), (2, 3), (1, 5)),
         ("high_dim_same_proj", (4, 2, 3, 8), (1, 1, 5, 8), (1, 1, 5, 2), None),
         (
@@ -147,6 +148,10 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
         )
         with self.assertRaisesRegex(ValueError, r"must be equal"):
             layer.compute_output_shape(query_shape, value_shape, key_shape)
+        with self.assertRaisesRegex(ValueError, r"must be equal"):
+            layer(
+                np.ones(query_shape), np.ones(value_shape), np.ones(key_shape)
+            )
 
     def test_initializer(self):
         # Test with a specified initializer.
@@ -378,3 +383,26 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
         self.assertLen(out, 2)
         self.assertEqual(symbolic_out[0].shape, out[0].shape)
         self.assertEqual(symbolic_out[1].shape, out[1].shape)
+
+    def test_dtype_policy_map(self):
+        quantized_policy = dtype_policies.QuantizedDTypePolicy(
+            "int8", "float32"
+        )
+        policy_map = dtype_policies.DTypePolicyMap()
+
+        # Preset the quantized policy
+        policy_map["mha/query"] = quantized_policy
+        policy_map["mha/key"] = quantized_policy
+        policy_map["mha/value"] = quantized_policy
+        query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
+        key = np.array([[[0.0, 1.0], [1.0, 0.0]]])
+        value = np.array([[[1.0, 2.0], [3.0, 4.0]]])
+        layer = layers.MultiHeadAttention(
+            num_heads=3, key_dim=8, use_bias=False, dtype=policy_map, name="mha"
+        )
+        layer.build(query.shape, key.shape, value.shape)
+
+        # Sublayers should be quantized
+        self.assertDType(layer._query_dense._kernel, "int8")
+        self.assertDType(layer._key_dense._kernel, "int8")
+        self.assertDType(layer._value_dense._kernel, "int8")

@@ -144,6 +144,20 @@ class Function(Operation):
             inputs, operation_fn=lambda op: op.compute_output_spec
         )
 
+    def compute_output_shape(self, input_shape):
+        # Wrap `input_shape` into the structure of KerasTensor to utilize
+        # `compute_output_spec`.
+        input_shape_struct = tree.map_shape_structure(
+            lambda x: KerasTensor(shape=x), input_shape
+        )
+        # Ensure that dtype and sparse settings are the same as self._inputs,
+        # because we only care about the shape in this function.
+        for x, x_ref in zip(tree.flatten(input_shape_struct), self._inputs):
+            x._dtype = x_ref.dtype
+            x._sparse = x_ref.sparse
+        output_spec = self.compute_output_spec(input_shape_struct)
+        return tree.map_structure(lambda x: x.shape, output_spec)
+
     def call(self, inputs):
         """Computes output tensors for new inputs."""
         self._assert_input_compatibility(inputs)

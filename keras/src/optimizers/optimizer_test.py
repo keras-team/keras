@@ -13,7 +13,7 @@ from keras.src import optimizers
 from keras.src import testing
 
 
-class OptimizerTest(testing.TestCase, parameterized.TestCase):
+class OptimizerTest(testing.TestCase):
     def test_iterations_counter(self):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
         grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
@@ -195,30 +195,42 @@ class OptimizerTest(testing.TestCase, parameterized.TestCase):
             learning_rate=1.0, gradient_accumulation_steps=3
         )
         self.assertEqual(optimizer.gradient_accumulation_steps, 3)
+
+        # Iteration 1
         optimizer.apply_gradients([(grads, v)])
         self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
         self.assertAllClose(
             optimizer._accumulated_gradients[0], [[1.0, 1.0], [1.0, 1.0]]
         )
-        self.assertAllClose(optimizer.iterations, 1)
+        self.assertAllClose(optimizer._iterations, 1)
+        self.assertAllClose(optimizer.iterations, 0)
+
+        # Iteration 2
         optimizer.apply_gradients([(grads, v)])
         self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
         self.assertAllClose(
             optimizer._accumulated_gradients[0], [[2.0, 2.0], [2.0, 2.0]]
         )
-        self.assertAllClose(optimizer.iterations, 2)
+        self.assertAllClose(optimizer._iterations, 2)
+        self.assertAllClose(optimizer.iterations, 0)
+
+        # Iteration 3
         optimizer.apply_gradients([(grads, v)])
         self.assertAllClose(v, [[0.0, 1.0], [2.0, 3.0]])
         self.assertAllClose(
             optimizer._accumulated_gradients[0], [[0.0, 0.0], [0.0, 0.0]]
         )
-        self.assertAllClose(optimizer.iterations, 3)
+        self.assertAllClose(optimizer._iterations, 3)
+        self.assertAllClose(optimizer.iterations, 1)
+
+        # Iteration 4
         optimizer.apply_gradients([(grads, v)])
         self.assertAllClose(v, [[0.0, 1.0], [2.0, 3.0]])
         self.assertAllClose(
             optimizer._accumulated_gradients[0], [[1.0, 1.0], [1.0, 1.0]]
         )
-        self.assertAllClose(optimizer.iterations, 4)
+        self.assertAllClose(optimizer._iterations, 4)
+        self.assertAllClose(optimizer.iterations, 1)
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="Requires TF")
     def test_tf_checkpointing(self):
@@ -281,7 +293,8 @@ class OptimizerTest(testing.TestCase, parameterized.TestCase):
 
         # Iteration 1
         optimizer.apply_gradients([(grad_ones, v), (grad_ones, v2)])
-        self.assertAllClose(optimizer.iterations, 1)
+        self.assertAllClose(optimizer._iterations, 1)
+        self.assertAllClose(optimizer.iterations, 0)
         self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
         self.assertAllClose(v2, [[1.0, 2.0], [3.0, 4.0]])
         self.assertAllClose(
@@ -290,9 +303,11 @@ class OptimizerTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             optimizer._accumulated_gradients[1], [[1.0, 1.0], [1.0, 1.0]]
         )
+
         # Iteration 2
         optimizer.apply_gradients([(grad_twos, v), (grad_twos, v2)])
-        self.assertAllClose(optimizer.iterations, 2)
+        self.assertAllClose(optimizer._iterations, 2)
+        self.assertAllClose(optimizer.iterations, 1)
         self.assertAllClose(v, [[2.0, 2.0], [2.0, 2.0]])
         self.assertAllClose(v2, [[-0.5, 0.5], [1.5, 2.5]])
         self.assertAllClose(
@@ -301,9 +316,11 @@ class OptimizerTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             optimizer._accumulated_gradients[1], [[0.0, 0.0], [0.0, 0.0]]
         )
+
         # Iteration 3
         optimizer.apply_gradients([(grad_ones, v), (grad_ones, v2)])
-        self.assertAllClose(optimizer.iterations, 3)
+        self.assertAllClose(optimizer._iterations, 3)
+        self.assertAllClose(optimizer.iterations, 1)
         self.assertAllClose(v, [[2.0, 2.0], [2.0, 2.0]])
         self.assertAllClose(v2, [[-0.5, 0.5], [1.5, 2.5]])
         self.assertAllClose(
@@ -312,6 +329,49 @@ class OptimizerTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             optimizer._accumulated_gradients[1], [[1.0, 1.0], [1.0, 1.0]]
         )
+
+    @parameterized.parameters(
+        [
+            ("adam",),
+            ("sgd",),
+            ("adamw",),
+            ("adagrad",),
+            ("rmsprop",),
+            ("adadelta",),
+            ("adamax",),
+            ("lion",),
+            ("nadam",),
+            ("ftrl",),
+            ("adafactor",),
+        ]
+    )
+    def test_gradient_accumulation_with_weigth_decay(self, optimizer):
+        optimizer1 = optimizers.get(
+            {"class_name": optimizer, "config": {"weight_decay": 0.05}}
+        )
+        optimizer3 = optimizers.get(
+            {
+                "class_name": optimizer,
+                "config": {
+                    "weight_decay": 0.05,
+                    "gradient_accumulation_steps": 3,
+                },
+            }
+        )
+        variable1 = backend.Variable([[0.9], [0.5]])
+        variable3 = backend.Variable([[0.9], [0.5]])
+
+        for epoch in range(8):
+            grads3 = np.random.random([3, 2, 1]).astype("float32")
+
+            grads1 = backend.convert_to_tensor(grads3.mean(axis=0))
+            optimizer1.apply_gradients([(grads1, variable1)])
+
+            for batch in range(3):
+                grads3_ = backend.convert_to_tensor(grads3[batch])
+                optimizer3.apply_gradients([(grads3_, variable3)])
+
+        self.assertAllClose(variable1, variable3)
 
     def test_setting_lr_to_callable_untracks_lr_var(self):
         adam = optimizers.Adam(learning_rate=0.001)

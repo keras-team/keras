@@ -8,7 +8,7 @@ from keras.src import ops
 from keras.src import testing
 
 
-class FlattenTest(testing.TestCase, parameterized.TestCase):
+class FlattenTest(testing.TestCase):
     @parameterized.named_parameters(
         [
             {"testcase_name": "dense", "sparse": False},

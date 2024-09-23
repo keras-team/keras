@@ -5,14 +5,17 @@ import os
 import numpy as np
 import pytest
 import tensorflow as tf
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import metrics
 from keras.src import models
+from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
 from keras.src.saving import object_registration
+from keras.src.testing.test_utils import named_product
 
 
 @object_registration.register_keras_serializable(package="my_package")
@@ -143,6 +146,52 @@ class SavedModelTest(testing.TestCase):
             atol=1e-4,
         )
 
+    @parameterized.named_parameters(
+        named_product(struct_type=["tuple", "array", "dict"])
+    )
+    def test_model_with_input_structure(self, struct_type):
+
+        class TupleModel(models.Model):
+
+            def call(self, inputs):
+                x, y = inputs
+                return x + ops.mean(y, axis=1)
+
+        class ArrayModel(models.Model):
+
+            def call(self, inputs):
+                x = inputs[0]
+                y = inputs[1]
+                return x + ops.mean(y, axis=1)
+
+        class DictModel(models.Model):
+
+            def call(self, inputs):
+                x = inputs["x"]
+                y = inputs["y"]
+                return x + ops.mean(y, axis=1)
+
+        input_x = tf.constant([1.0])
+        input_y = tf.constant([[1.0, 0.0, 2.0]])
+        if struct_type == "tuple":
+            model = TupleModel()
+            inputs = (input_x, input_y)
+        elif struct_type == "array":
+            model = ArrayModel()
+            inputs = [input_x, input_y]
+        elif struct_type == "dict":
+            model = DictModel()
+            inputs = {"x": input_x, "y": input_y}
+
+        result = model(inputs)
+        path = os.path.join(self.get_temp_dir(), "my_keras_model")
+        tf.saved_model.save(model, path)
+        restored_model = tf.saved_model.load(path)
+        outputs = restored_model.signatures["serving_default"](
+            inputs=input_x, inputs_1=input_y
+        )
+        self.assertAllClose(result, outputs["output_0"], rtol=1e-4, atol=1e-4)
+
     def test_multi_input_model(self):
         input_1 = layers.Input(shape=(3,))
         input_2 = layers.Input(shape=(5,))
@@ -169,15 +218,19 @@ class SavedModelTest(testing.TestCase):
     def test_multi_input_custom_model_and_layer(self):
         @object_registration.register_keras_serializable(package="my_package")
         class CustomLayer(layers.Layer):
-            def __call__(self, *input_list):
+            def build(self, *input_shape):
+                self.built = True
+
+            def call(self, *input_list):
                 self.add_loss(input_list[-2] * 2)
                 return sum(input_list)
 
         @object_registration.register_keras_serializable(package="my_package")
         class CustomModel(models.Model):
-            def build(self, input_shape):
-                super().build(input_shape)
+            def build(self, *input_shape):
                 self.layer = CustomLayer()
+                self.layer.build(*input_shape)
+                self.built = True
 
             @tf.function
             def call(self, *inputs):

@@ -31,7 +31,7 @@ def example_generator(x, y, sample_weight=None, batch_size=32):
     return make
 
 
-class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
+class GeneratorDataAdapterTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(
             [
@@ -73,7 +73,9 @@ class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
-            expected_class = jax.Array
+            expected_class = (
+                jax.Array if generator_type == "jax" else np.ndarray
+            )
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
@@ -133,6 +135,29 @@ class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
             else:
                 self.assertEqual(bx.shape, (2, 6))
                 self.assertEqual(by.shape, (2, 2))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="tf.data.Dataset specific behavior",
+    )
+    def test_with_unexpected_shapes(self):
+        def generator():
+            yield np.ones([16, 4], "float32"), np.ones([16, 2], "float32")
+            yield np.ones([16, 5], "float32"), np.ones([16, 2], "float32")
+            yield np.ones([16, 6], "float32"), np.ones([16, 3], "float32")
+
+        adapter = generator_data_adapter.GeneratorDataAdapter(generator())
+
+        it = iter(adapter.get_tf_dataset())
+        next(it)
+        next(it)
+        # note that Tensorflow wraps the TypeError in an InvalidArgumentError.
+        with self.assertRaisesRegex(
+            tf.errors.InvalidArgumentError,
+            "TypeError:.* shape \\(16, 3\\).* shape \\(None, 2\\) was expected"
+            ".*first two batches",
+        ):
+            next(it)
 
     @parameterized.named_parameters(
         named_product(generator_type=["tf", "jax", "scipy"])

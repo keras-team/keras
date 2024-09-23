@@ -8,69 +8,46 @@ from keras.src.ops.operation_utils import compute_conv_output_shape
 
 
 class RGBToGrayscale(Operation):
-    def __init__(
-        self,
-        data_format="channels_last",
-    ):
+    def __init__(self, data_format=None):
         super().__init__()
-        self.data_format = data_format
+        self.data_format = backend.standardize_data_format(data_format)
 
-    def call(self, image):
+    def call(self, images):
         return backend.image.rgb_to_grayscale(
-            image,
-            data_format=self.data_format,
+            images, data_format=self.data_format
         )
 
-    def compute_output_spec(self, image):
-        if len(image.shape) not in (3, 4):
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        if len(images_shape) not in (3, 4):
             raise ValueError(
-                "Invalid image rank: expected rank 3 (single image) "
-                "or rank 4 (batch of images). Received input with shape: "
-                f"image.shape={image.shape}"
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). "
+                f"Received: images.shape={images_shape}"
             )
-
-        if len(image.shape) == 3:
-            if self.data_format == "channels_last":
-                return KerasTensor(image.shape[:-1] + (1,), dtype=image.dtype)
-            else:
-                return KerasTensor((1,) + image.shape[1:], dtype=image.dtype)
-        elif len(image.shape) == 4:
-            if self.data_format == "channels_last":
-                return KerasTensor(
-                    (image.shape[0],) + image.shape[1:-1] + (1,),
-                    dtype=image.dtype,
-                )
-            else:
-                return KerasTensor(
-                    (
-                        image.shape[0],
-                        1,
-                    )
-                    + image.shape[2:],
-                    dtype=image.dtype,
-                )
+        if self.data_format == "channels_last":
+            images_shape[-1] = 1
+        else:
+            images_shape[-3] = 1
+        return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.rgb_to_grayscale")
-def rgb_to_grayscale(
-    image,
-    data_format="channels_last",
-):
+def rgb_to_grayscale(images, data_format=None):
     """Convert RGB images to grayscale.
 
     This function converts RGB images to grayscale images. It supports both
-    3D and 4D tensors, where the last dimension represents channels.
+    3D and 4D tensors.
 
     Args:
-        image: Input RGB image or batch of RGB images. Must be a 3D tensor
-            with shape `(height, width, channels)` or a 4D tensor with shape
-            `(batch, height, width, channels)`.
+        images: Input image or batch of images. Must be 3D or 4D.
         data_format: A string specifying the data format of the input tensor.
             It can be either `"channels_last"` or `"channels_first"`.
             `"channels_last"` corresponds to inputs with shape
             `(batch, height, width, channels)`, while `"channels_first"`
             corresponds to inputs with shape `(batch, channels, height, width)`.
-            Defaults to `"channels_last"`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
 
     Returns:
         Grayscale image or batch of grayscale images.
@@ -78,7 +55,7 @@ def rgb_to_grayscale(
     Examples:
 
     >>> import numpy as np
-    >>> from keras.src import ops
+    >>> from keras import ops
     >>> x = np.random.random((2, 4, 4, 3))
     >>> y = ops.image.rgb_to_grayscale(x)
     >>> y.shape
@@ -94,14 +71,150 @@ def rgb_to_grayscale(
     >>> y.shape
     (2, 1, 4, 4)
     """
-    if any_symbolic_tensors((image,)):
-        return RGBToGrayscale(
-            data_format=data_format,
-        ).symbolic_call(image)
-    return backend.image.rgb_to_grayscale(
-        image,
-        data_format=data_format,
-    )
+    if any_symbolic_tensors((images,)):
+        return RGBToGrayscale(data_format=data_format).symbolic_call(images)
+    return backend.image.rgb_to_grayscale(images, data_format=data_format)
+
+
+class RGBToHSV(Operation):
+    def __init__(self, data_format=None):
+        super().__init__()
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images):
+        return backend.image.rgb_to_hsv(images, data_format=self.data_format)
+
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        dtype = images.dtype
+        if len(images_shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). "
+                f"Received: images.shape={images_shape}"
+            )
+        if not backend.is_float_dtype(dtype):
+            raise ValueError(
+                "Invalid images dtype: expected float dtype. "
+                f"Received: images.dtype={dtype}"
+            )
+        return KerasTensor(shape=images_shape, dtype=images.dtype)
+
+
+@keras_export("keras.ops.image.rgb_to_hsv")
+def rgb_to_hsv(images, data_format=None):
+    """Convert RGB images to HSV.
+
+    `images` must be of float dtype, and the output is only well defined if the
+    values in `images` are in `[0, 1]`.
+
+    All HSV values are in `[0, 1]`. A hue of `0` corresponds to pure red, `1/3`
+    is pure green, and `2/3` is pure blue.
+
+    Args:
+        images: Input image or batch of images. Must be 3D or 4D.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        HSV image or batch of HSV images.
+
+    Examples:
+
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.random.random((2, 4, 4, 3))
+    >>> y = ops.image.rgb_to_hsv(x)
+    >>> y.shape
+    (2, 4, 4, 3)
+
+    >>> x = np.random.random((4, 4, 3)) # Single RGB image
+    >>> y = ops.image.rgb_to_hsv(x)
+    >>> y.shape
+    (4, 4, 3)
+
+    >>> x = np.random.random((2, 3, 4, 4))
+    >>> y = ops.image.rgb_to_hsv(x, data_format="channels_first")
+    >>> y.shape
+    (2, 3, 4, 4)
+    """
+    if any_symbolic_tensors((images,)):
+        return RGBToHSV(data_format=data_format).symbolic_call(images)
+    return backend.image.rgb_to_hsv(images, data_format=data_format)
+
+
+class HSVToRGB(Operation):
+    def __init__(self, data_format=None):
+        super().__init__()
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images):
+        return backend.image.hsv_to_rgb(images, data_format=self.data_format)
+
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        dtype = images.dtype
+        if len(images_shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). "
+                f"Received: images.shape={images_shape}"
+            )
+        if not backend.is_float_dtype(dtype):
+            raise ValueError(
+                "Invalid images dtype: expected float dtype. "
+                f"Received: images.dtype={dtype}"
+            )
+        return KerasTensor(shape=images_shape, dtype=images.dtype)
+
+
+@keras_export("keras.ops.image.hsv_to_rgb")
+def hsv_to_rgb(images, data_format=None):
+    """Convert HSV images to RGB.
+
+    `images` must be of float dtype, and the output is only well defined if the
+    values in `images` are in `[0, 1]`.
+
+    Args:
+        images: Input image or batch of images. Must be 3D or 4D.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        RGB image or batch of RGB images.
+
+    Examples:
+
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.random.random((2, 4, 4, 3))
+    >>> y = ops.image.hsv_to_rgb(x)
+    >>> y.shape
+    (2, 4, 4, 3)
+
+    >>> x = np.random.random((4, 4, 3)) # Single HSV image
+    >>> y = ops.image.hsv_to_rgb(x)
+    >>> y.shape
+    (4, 4, 3)
+
+    >>> x = np.random.random((2, 3, 4, 4))
+    >>> y = ops.image.hsv_to_rgb(x, data_format="channels_first")
+    >>> y.shape
+    (2, 3, 4, 4)
+    """
+    if any_symbolic_tensors((images,)):
+        return HSVToRGB(data_format=data_format).symbolic_call(images)
+    return backend.image.hsv_to_rgb(images, data_format=data_format)
 
 
 class Resize(Operation):
@@ -114,21 +227,21 @@ class Resize(Operation):
         pad_to_aspect_ratio=False,
         fill_mode="constant",
         fill_value=0.0,
-        data_format="channels_last",
+        data_format=None,
     ):
         super().__init__()
         self.size = tuple(size)
         self.interpolation = interpolation
         self.antialias = antialias
-        self.data_format = data_format
         self.crop_to_aspect_ratio = crop_to_aspect_ratio
         self.pad_to_aspect_ratio = pad_to_aspect_ratio
         self.fill_mode = fill_mode
         self.fill_value = fill_value
+        self.data_format = backend.standardize_data_format(data_format)
 
-    def call(self, image):
-        return backend.image.resize(
-            image,
+    def call(self, images):
+        return _resize(
+            images,
             self.size,
             interpolation=self.interpolation,
             antialias=self.antialias,
@@ -139,32 +252,26 @@ class Resize(Operation):
             fill_value=self.fill_value,
         )
 
-    def compute_output_spec(self, image):
-        if len(image.shape) == 3:
-            return KerasTensor(
-                self.size + (image.shape[-1],), dtype=image.dtype
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        if len(images_shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"images.shape={images.shape}"
             )
-        elif len(image.shape) == 4:
-            if self.data_format == "channels_last":
-                return KerasTensor(
-                    (image.shape[0],) + self.size + (image.shape[-1],),
-                    dtype=image.dtype,
-                )
-            else:
-                return KerasTensor(
-                    (image.shape[0], image.shape[1]) + self.size,
-                    dtype=image.dtype,
-                )
-        raise ValueError(
-            "Invalid input rank: expected rank 3 (single image) "
-            "or rank 4 (batch of images). Received input with shape: "
-            f"image.shape={image.shape}"
-        )
+        if self.data_format == "channels_last":
+            height_axis, width_axis = -3, -2
+        else:
+            height_axis, width_axis = -2, -1
+        images_shape[height_axis] = self.size[0]
+        images_shape[width_axis] = self.size[1]
+        return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.resize")
 def resize(
-    image,
+    images,
     size,
     interpolation="bilinear",
     antialias=False,
@@ -172,12 +279,12 @@ def resize(
     pad_to_aspect_ratio=False,
     fill_mode="constant",
     fill_value=0.0,
-    data_format="channels_last",
+    data_format=None,
 ):
     """Resize images to size using the specified interpolation method.
 
     Args:
-        image: Input image or batch of images. Must be 3D or 4D.
+        images: Input image or batch of images. Must be 3D or 4D.
         size: Size of output image in `(height, width)` format.
         interpolation: Interpolation method. Available methods are `"nearest"`,
             `"bilinear"`, and `"bicubic"`. Defaults to `"bilinear"`.
@@ -199,14 +306,13 @@ def resize(
             supported at this time
             (fill with constant value, equal to `fill_value`).
         fill_value: Float. Padding value to use when `pad_to_aspect_ratio=True`.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, weight)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
-            `"channels_last"`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
 
     Returns:
         Resized image or batch of images.
@@ -234,18 +340,18 @@ def resize(
             "Expected `size` to be a tuple of 2 integers. "
             f"Received: size={size}"
         )
-    if len(image.shape) < 3 or len(image.shape) > 4:
+    if len(images.shape) < 3 or len(images.shape) > 4:
         raise ValueError(
-            "Expected an image array with shape `(height, width, "
-            "channels)`, or `(batch_size, height, width, channels)`, but "
-            f"got input with incorrect rank, of shape {image.shape}."
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
         )
     if pad_to_aspect_ratio and crop_to_aspect_ratio:
         raise ValueError(
             "Only one of `pad_to_aspect_ratio` & `crop_to_aspect_ratio` "
             "can be `True`."
         )
-    if any_symbolic_tensors((image,)):
+    if any_symbolic_tensors((images,)):
         return Resize(
             size,
             interpolation=interpolation,
@@ -255,9 +361,9 @@ def resize(
             pad_to_aspect_ratio=pad_to_aspect_ratio,
             fill_mode=fill_mode,
             fill_value=fill_value,
-        ).symbolic_call(image)
-    return backend.image.resize(
-        image,
+        ).symbolic_call(images)
+    return _resize(
+        images,
         size,
         interpolation=interpolation,
         antialias=antialias,
@@ -269,23 +375,54 @@ def resize(
     )
 
 
+def _resize(
+    images,
+    size,
+    interpolation="bilinear",
+    antialias=False,
+    crop_to_aspect_ratio=False,
+    pad_to_aspect_ratio=False,
+    fill_mode="constant",
+    fill_value=0.0,
+    data_format=None,
+):
+    resized = backend.image.resize(
+        images,
+        size,
+        interpolation=interpolation,
+        antialias=antialias,
+        crop_to_aspect_ratio=crop_to_aspect_ratio,
+        data_format=data_format,
+        pad_to_aspect_ratio=pad_to_aspect_ratio,
+        fill_mode=fill_mode,
+        fill_value=fill_value,
+    )
+    if resized.dtype == images.dtype:
+        # Only `torch` backend will cast result to original dtype with
+        # correct rounding and without dtype overflow
+        return resized
+    if backend.is_int_dtype(images.dtype):
+        resized = ops.round(resized)
+    return ops.saturate_cast(resized, images.dtype)
+
+
 class AffineTransform(Operation):
     def __init__(
         self,
         interpolation="bilinear",
         fill_mode="constant",
         fill_value=0,
-        data_format="channels_last",
+        data_format=None,
     ):
         super().__init__()
         self.interpolation = interpolation
         self.fill_mode = fill_mode
         self.fill_value = fill_value
-        self.data_format = data_format
+        self.data_format = backend.standardize_data_format(data_format)
 
-    def call(self, image, transform):
+    def call(self, images, transform):
         return backend.image.affine_transform(
-            image,
+            images,
             transform,
             interpolation=self.interpolation,
             fill_mode=self.fill_mode,
@@ -293,12 +430,12 @@ class AffineTransform(Operation):
             data_format=self.data_format,
         )
 
-    def compute_output_spec(self, image, transform):
-        if len(image.shape) not in (3, 4):
+    def compute_output_spec(self, images, transform):
+        if len(images.shape) not in (3, 4):
             raise ValueError(
-                "Invalid image rank: expected rank 3 (single image) "
+                "Invalid images rank: expected rank 3 (single image) "
                 "or rank 4 (batch of images). Received input with shape: "
-                f"image.shape={image.shape}"
+                f"images.shape={images.shape}"
             )
         if len(transform.shape) not in (1, 2):
             raise ValueError(
@@ -306,22 +443,22 @@ class AffineTransform(Operation):
                 "or rank 2 (batch of transforms). Received input with shape: "
                 f"transform.shape={transform.shape}"
             )
-        return KerasTensor(image.shape, dtype=image.dtype)
+        return KerasTensor(images.shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.affine_transform")
 def affine_transform(
-    image,
+    images,
     transform,
     interpolation="bilinear",
     fill_mode="constant",
     fill_value=0,
-    data_format="channels_last",
+    data_format=None,
 ):
     """Applies the given transform(s) to the image(s).
 
     Args:
-        image: Input image or batch of images. Must be 3D or 4D.
+        images: Input image or batch of images. Must be 3D or 4D.
         transform: Projective transform matrix/matrices. A vector of length 8 or
             tensor of size N x 8. If one row of transform is
             `[a0, a1, a2, b0, b1, b2, c0, c1]`, then it maps the output point
@@ -350,14 +487,13 @@ def affine_transform(
                 The input is extended by the nearest pixel.
         fill_value: Value used for points outside the boundaries of the input if
             `fill_mode="constant"`. Defaults to `0`.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, weight)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
-            `"channels_last"`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
 
     Returns:
         Applied affine transform image or batch of images.
@@ -393,15 +529,15 @@ def affine_transform(
     >>> y.shape
     (2, 3, 64, 80)
     """
-    if any_symbolic_tensors((image, transform)):
+    if any_symbolic_tensors((images, transform)):
         return AffineTransform(
             interpolation=interpolation,
             fill_mode=fill_mode,
             fill_value=fill_value,
             data_format=data_format,
-        ).symbolic_call(image, transform)
+        ).symbolic_call(images, transform)
     return backend.image.affine_transform(
-        image,
+        images,
         transform,
         interpolation=interpolation,
         fill_mode=fill_mode,
@@ -417,7 +553,7 @@ class ExtractPatches(Operation):
         strides=None,
         dilation_rate=1,
         padding="valid",
-        data_format="channels_last",
+        data_format=None,
     ):
         super().__init__()
         if isinstance(size, int):
@@ -426,11 +562,11 @@ class ExtractPatches(Operation):
         self.strides = strides
         self.dilation_rate = dilation_rate
         self.padding = padding
-        self.data_format = data_format
+        self.data_format = backend.standardize_data_format(data_format)
 
-    def call(self, image):
+    def call(self, images):
         return _extract_patches(
-            image=image,
+            images=images,
             size=self.size,
             strides=self.strides,
             dilation_rate=self.dilation_rate,
@@ -438,20 +574,21 @@ class ExtractPatches(Operation):
             data_format=self.data_format,
         )
 
-    def compute_output_spec(self, image):
-        image_shape = image.shape
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        original_ndim = len(images_shape)
         if not self.strides:
             strides = (self.size[0], self.size[1])
         if self.data_format == "channels_last":
-            channels_in = image.shape[-1]
+            channels_in = images_shape[-1]
         else:
-            channels_in = image.shape[-3]
-        if len(image.shape) == 3:
-            image_shape = (1,) + image_shape
+            channels_in = images_shape[-3]
+        if original_ndim == 3:
+            images_shape = [1] + images_shape
         filters = self.size[0] * self.size[1] * channels_in
         kernel_size = (self.size[0], self.size[1])
         out_shape = compute_conv_output_shape(
-            image_shape,
+            images_shape,
             filters,
             kernel_size,
             strides=strides,
@@ -459,25 +596,25 @@ class ExtractPatches(Operation):
             data_format=self.data_format,
             dilation_rate=self.dilation_rate,
         )
-        if len(image.shape) == 3:
+        if original_ndim == 3:
             out_shape = out_shape[1:]
-        return KerasTensor(shape=out_shape, dtype=image.dtype)
+        return KerasTensor(shape=out_shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.extract_patches")
 def extract_patches(
-    image,
+    images,
     size,
     strides=None,
     dilation_rate=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
 ):
     """Extracts patches from the image(s).
 
     Args:
-        image: Input image or batch of images. Must be 3D or 4D.
-        size: Patch size int or tuple (patch_height, patch_widht)
+        images: Input image or batch of images. Must be 3D or 4D.
+        size: Patch size int or tuple (patch_height, patch_width)
         strides: strides along height and width. If not specified, or
             if `None`, it defaults to the same value as `size`.
         dilation_rate: This is the input stride, specifying how far two
@@ -485,14 +622,13 @@ def extract_patches(
             strides must be 1. NOTE: `strides > 1` is not supported in
             conjunction with `dilation_rate > 1`
         padding: The type of padding algorithm to use: `"same"` or `"valid"`.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, weight)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
-            `"channels_last"`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
 
     Returns:
         Extracted patches 3D (if not batched) or 4D (if batched)
@@ -510,27 +646,27 @@ def extract_patches(
     >>> patches.shape
     (18, 18, 27)
     """
-    if any_symbolic_tensors((image,)):
+    if any_symbolic_tensors((images,)):
         return ExtractPatches(
             size=size,
             strides=strides,
             dilation_rate=dilation_rate,
             padding=padding,
             data_format=data_format,
-        ).symbolic_call(image)
+        ).symbolic_call(images)
 
     return _extract_patches(
-        image, size, strides, dilation_rate, padding, data_format=data_format
+        images, size, strides, dilation_rate, padding, data_format=data_format
     )
 
 
 def _extract_patches(
-    image,
+    images,
     size,
     strides=None,
     dilation_rate=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
 ):
     if isinstance(size, int):
         patch_h = patch_w = size
@@ -541,23 +677,24 @@ def _extract_patches(
             "Invalid `size` argument. Expected an "
             f"int or a tuple of length 2. Received: size={size}"
         )
+    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
-        channels_in = image.shape[-1]
+        channels_in = images.shape[-1]
     elif data_format == "channels_first":
-        channels_in = image.shape[-3]
+        channels_in = images.shape[-3]
     if not strides:
         strides = size
     out_dim = patch_h * patch_w * channels_in
-    kernel = backend.numpy.eye(out_dim, dtype=image.dtype)
+    kernel = backend.numpy.eye(out_dim, dtype=images.dtype)
     kernel = backend.numpy.reshape(
         kernel, (patch_h, patch_w, channels_in, out_dim)
     )
     _unbatched = False
-    if len(image.shape) == 3:
+    if len(images.shape) == 3:
         _unbatched = True
-        image = backend.numpy.expand_dims(image, axis=0)
+        images = backend.numpy.expand_dims(images, axis=0)
     patches = backend.nn.conv(
-        inputs=image,
+        inputs=images,
         kernel=kernel,
         strides=strides,
         padding=padding,
@@ -570,27 +707,27 @@ def _extract_patches(
 
 
 class MapCoordinates(Operation):
-    def __init__(self, order=1, fill_mode="constant", fill_value=0):
+    def __init__(self, order, fill_mode="constant", fill_value=0):
         super().__init__()
         self.order = order
         self.fill_mode = fill_mode
         self.fill_value = fill_value
 
-    def call(self, image, coordinates):
+    def call(self, inputs, coordinates):
         return backend.image.map_coordinates(
-            image,
+            inputs,
             coordinates,
             order=self.order,
             fill_mode=self.fill_mode,
             fill_value=self.fill_value,
         )
 
-    def compute_output_spec(self, image, coordinates):
-        if coordinates.shape[0] != len(image.shape):
+    def compute_output_spec(self, inputs, coordinates):
+        if coordinates.shape[0] != len(inputs.shape):
             raise ValueError(
                 "First dim of `coordinates` must be the same as the rank of "
-                "`image`. "
-                f"Received image with shape: {image.shape} and coordinate "
+                "`inputs`. "
+                f"Received inputs with shape: {inputs.shape} and coordinate "
                 f"leading dim of {coordinates.shape[0]}"
             )
         if len(coordinates.shape) < 2:
@@ -598,57 +735,57 @@ class MapCoordinates(Operation):
                 "Invalid coordinates rank: expected at least rank 2."
                 f" Received input with shape: {coordinates.shape}"
             )
-        return KerasTensor(coordinates.shape[1:], dtype=image.dtype)
+        return KerasTensor(coordinates.shape[1:], dtype=inputs.dtype)
 
 
 @keras_export("keras.ops.image.map_coordinates")
 def map_coordinates(
-    input, coordinates, order, fill_mode="constant", fill_value=0
+    inputs, coordinates, order, fill_mode="constant", fill_value=0
 ):
-    """Map the input array to new coordinates by interpolation..
+    """Map the input array to new coordinates by interpolation.
 
     Note that interpolation near boundaries differs from the scipy function,
     because we fixed an outstanding bug
     [scipy/issues/2640](https://github.com/scipy/scipy/issues/2640).
 
     Args:
-        input: The input array.
-        coordinates: The coordinates at which input is evaluated.
+        inputs: The input array.
+        coordinates: The coordinates at which inputs is evaluated.
         order: The order of the spline interpolation. The order must be `0` or
             `1`. `0` indicates the nearest neighbor and `1` indicates the linear
             interpolation.
-        fill_mode: Points outside the boundaries of the input are filled
+        fill_mode: Points outside the boundaries of the inputs are filled
             according to the given mode. Available methods are `"constant"`,
             `"nearest"`, `"wrap"` and `"mirror"` and `"reflect"`. Defaults to
             `"constant"`.
             - `"constant"`: `(k k k k | a b c d | k k k k)`
-                The input is extended by filling all values beyond
+                The inputs is extended by filling all values beyond
                 the edge with the same constant value k specified by
                 `fill_value`.
             - `"nearest"`: `(a a a a | a b c d | d d d d)`
-                The input is extended by the nearest pixel.
+                The inputs is extended by the nearest pixel.
             - `"wrap"`: `(a b c d | a b c d | a b c d)`
-                The input is extended by wrapping around to the opposite edge.
+                The inputs is extended by wrapping around to the opposite edge.
             - `"mirror"`: `(c d c b | a b c d | c b a b)`
-                The input is extended by mirroring about the edge.
+                The inputs is extended by mirroring about the edge.
             - `"reflect"`: `(d c b a | a b c d | d c b a)`
-                The input is extended by reflecting about the edge of the last
+                The inputs is extended by reflecting about the edge of the last
                 pixel.
-        fill_value: Value used for points outside the boundaries of the input if
-            `fill_mode="constant"`. Defaults to `0`.
+        fill_value: Value used for points outside the boundaries of the inputs
+            if `fill_mode="constant"`. Defaults to `0`.
 
     Returns:
-        Output image or batch of images.
+        Output input or batch of inputs.
 
     """
-    if any_symbolic_tensors((input, coordinates)):
+    if any_symbolic_tensors((inputs, coordinates)):
         return MapCoordinates(
             order,
             fill_mode,
             fill_value,
-        ).symbolic_call(input, coordinates)
+        ).symbolic_call(inputs, coordinates)
     return backend.image.map_coordinates(
-        input,
+        inputs,
         coordinates,
         order,
         fill_mode,
@@ -660,59 +797,54 @@ class PadImages(Operation):
     def __init__(
         self,
         top_padding=None,
-        bottom_padding=None,
         left_padding=None,
+        bottom_padding=None,
         right_padding=None,
         target_height=None,
         target_width=None,
+        data_format=None,
     ):
         super().__init__()
         self.top_padding = top_padding
-        self.bottom_padding = bottom_padding
         self.left_padding = left_padding
+        self.bottom_padding = bottom_padding
         self.right_padding = right_padding
         self.target_height = target_height
         self.target_width = target_width
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
         return _pad_images(
             images,
             self.top_padding,
-            self.bottom_padding,
             self.left_padding,
+            self.bottom_padding,
             self.right_padding,
             self.target_height,
             self.target_width,
+            self.data_format,
         )
 
     def compute_output_spec(self, images):
-        images_shape = ops.shape(images)
-        if self.target_height is None:
-            height_axis = 0 if len(images_shape) == 3 else 1
-            self.target_height = (
-                self.top_padding
-                + images_shape[height_axis]
-                + self.bottom_padding
-            )
-        if self.target_width is None:
-            width_axis = 0 if len(images_shape) == 3 else 2
-            self.target_width = (
-                self.left_padding
-                + images_shape[width_axis]
-                + self.right_padding
-            )
-        out_shape = (
-            images_shape[0],
-            self.target_height,
-            self.target_width,
-            images_shape[-1],
-        )
-        if len(images_shape) == 3:
-            out_shape = out_shape[1:]
-        return KerasTensor(
-            shape=out_shape,
-            dtype=images.dtype,
-        )
+        images_shape = list(images.shape)
+
+        if self.data_format == "channels_last":
+            height_axis, width_axis = -3, -2
+            height, width = images_shape[height_axis], images_shape[width_axis]
+        else:
+            height_axis, width_axis = -2, -1
+            height, width = images_shape[height_axis], images_shape[width_axis]
+
+        target_height = self.target_height
+        if target_height is None and height is not None:
+            target_height = self.top_padding + height + self.bottom_padding
+        target_width = self.target_width
+        if target_width is None and width is not None:
+            target_width = self.left_padding + width + self.right_padding
+
+        images_shape[height_axis] = target_height
+        images_shape[width_axis] = target_width
+        return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.pad_images")
@@ -720,28 +852,32 @@ def pad_images(
     images,
     top_padding=None,
     left_padding=None,
-    target_height=None,
-    target_width=None,
     bottom_padding=None,
     right_padding=None,
+    target_height=None,
+    target_width=None,
+    data_format=None,
 ):
     """Pad `images` with zeros to the specified `height` and `width`.
 
     Args:
-        images: 4D Tensor of shape `(batch, height, width, channels)` or 3D
-            Tensor of shape `(height, width, channels)`.
+        images: Input image or batch of images. Must be 3D or 4D.
         top_padding: Number of rows of zeros to add on top.
-        bottom_padding: Number of rows of zeros to add at the bottom.
         left_padding: Number of columns of zeros to add on the left.
+        bottom_padding: Number of rows of zeros to add at the bottom.
         right_padding: Number of columns of zeros to add on the right.
         target_height: Height of output images.
         target_width: Width of output images.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
 
     Returns:
-        If `images` were 4D, a 4D float Tensor of shape
-            `(batch, target_height, target_width, channels)`
-        If `images` were 3D, a 3D float Tensor of shape
-            `(target_height, target_width, channels)`
+        Padded image or batch of images.
 
     Example:
 
@@ -762,48 +898,47 @@ def pad_images(
     if any_symbolic_tensors((images,)):
         return PadImages(
             top_padding,
-            bottom_padding,
             left_padding,
+            bottom_padding,
             right_padding,
             target_height,
             target_width,
+            data_format,
         ).symbolic_call(images)
 
     return _pad_images(
         images,
         top_padding,
-        bottom_padding,
         left_padding,
+        bottom_padding,
         right_padding,
         target_height,
         target_width,
+        data_format,
     )
 
 
 def _pad_images(
     images,
     top_padding,
-    bottom_padding,
     left_padding,
+    bottom_padding,
     right_padding,
     target_height,
     target_width,
+    data_format=None,
 ):
+    data_format = backend.standardize_data_format(data_format)
     images = backend.convert_to_tensor(images)
-    is_batch = True
     images_shape = ops.shape(images)
-    if len(images_shape) == 3:
-        is_batch = False
-        images = backend.numpy.expand_dims(images, 0)
-    elif len(images_shape) != 4:
+
+    # Check
+    if len(images_shape) not in (3, 4):
         raise ValueError(
             f"Invalid shape for argument `images`: "
             "it must have rank 3 or 4. "
             f"Received: images.shape={images_shape}"
         )
-
-    batch, height, width, depth = ops.shape(images)
-
     if [top_padding, bottom_padding, target_height].count(None) != 1:
         raise ValueError(
             "Must specify exactly two of "
@@ -821,6 +956,13 @@ def _pad_images(
             f"target_width={target_width}"
         )
 
+    is_batch = False if len(images_shape) == 3 else True
+    if data_format == "channels_last":
+        height, width = images_shape[-3], images_shape[-2]
+    else:
+        height, width = images_shape[-2], images_shape[-1]
+
+    # Infer padding
     if top_padding is None:
         top_padding = target_height - bottom_padding - height
     if bottom_padding is None:
@@ -832,7 +974,7 @@ def _pad_images(
 
     if top_padding < 0:
         raise ValueError(
-            "top_padding must be >= 0. " f"Received: top_padding={top_padding}"
+            f"top_padding must be >= 0. Received: top_padding={top_padding}"
         )
     if left_padding < 0:
         raise ValueError(
@@ -850,44 +992,29 @@ def _pad_images(
             f"Received: bottom_padding={bottom_padding}"
         )
 
-    paddings = backend.numpy.reshape(
-        backend.numpy.stack(
-            [
-                0,
-                0,
-                top_padding,
-                bottom_padding,
-                left_padding,
-                right_padding,
-                0,
-                0,
-            ]
-        ),
-        [4, 2],
-    )
-    padded = backend.numpy.pad(images, paddings)
+    # Compute pad_width
+    pad_width = [[top_padding, bottom_padding], [left_padding, right_padding]]
+    if data_format == "channels_last":
+        pad_width = pad_width + [[0, 0]]
+    else:
+        pad_width = [[0, 0]] + pad_width
+    if is_batch:
+        pad_width = [[0, 0]] + pad_width
 
-    if target_height is None:
-        target_height = top_padding + height + bottom_padding
-    if target_width is None:
-        target_width = left_padding + width + right_padding
-    padded_shape = [batch, target_height, target_width, depth]
-    padded = backend.numpy.reshape(padded, padded_shape)
-
-    if not is_batch:
-        padded = backend.numpy.squeeze(padded, axis=[0])
-    return padded
+    padded_images = backend.numpy.pad(images, pad_width)
+    return padded_images
 
 
 class CropImages(Operation):
     def __init__(
         self,
         top_cropping,
-        bottom_cropping,
         left_cropping,
+        bottom_cropping,
         right_cropping,
         target_height,
         target_width,
+        data_format=None,
     ):
         super().__init__()
         self.top_cropping = top_cropping
@@ -896,52 +1023,54 @@ class CropImages(Operation):
         self.right_cropping = right_cropping
         self.target_height = target_height
         self.target_width = target_width
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
         return _crop_images(
             images,
             self.top_cropping,
-            self.bottom_cropping,
             self.left_cropping,
+            self.bottom_cropping,
             self.right_cropping,
             self.target_height,
             self.target_width,
+            self.data_format,
         )
 
     def compute_output_spec(self, images):
-        images_shape = ops.shape(images)
-        out_shape = (
-            images_shape[0],
-            self.target_height,
-            self.target_width,
-            images_shape[-1],
-        )
-        if self.target_height is None:
-            height_axis = 0 if len(images_shape) == 3 else 1
-            self.target_height = (
-                self.top_cropping
-                - images_shape[height_axis]
-                - self.bottom_cropping
+        images_shape = list(images.shape)
+
+        if self.data_format == "channels_last":
+            height_axis, width_axis = -3, -2
+        else:
+            height_axis, width_axis = -2, -1
+        height, width = images_shape[height_axis], images_shape[width_axis]
+
+        if height is None and self.target_height is None:
+            raise ValueError(
+                "When the height of the images is unknown, `target_height` "
+                "must be specified."
+                f"Received images.shape={images_shape} and "
+                f"target_height={self.target_height}"
             )
-        if self.target_width is None:
-            width_axis = 0 if len(images_shape) == 3 else 2
-            self.target_width = (
-                self.left_cropping
-                - images_shape[width_axis]
-                - self.right_cropping
+        if width is None and self.target_width is None:
+            raise ValueError(
+                "When the width of the images is unknown, `target_width` "
+                "must be specified."
+                f"Received images.shape={images_shape} and "
+                f"target_width={self.target_width}"
             )
-        out_shape = (
-            images_shape[0],
-            self.target_height,
-            self.target_width,
-            images_shape[-1],
-        )
-        if len(images_shape) == 3:
-            out_shape = out_shape[1:]
-        return KerasTensor(
-            shape=out_shape,
-            dtype=images.dtype,
-        )
+
+        target_height = self.target_height
+        if target_height is None:
+            target_height = height - self.top_cropping - self.bottom_cropping
+        target_width = self.target_width
+        if target_width is None:
+            target_width = width - self.left_cropping - self.right_cropping
+
+        images_shape[height_axis] = target_height
+        images_shape[width_axis] = target_width
+        return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.crop_images")
@@ -949,28 +1078,32 @@ def crop_images(
     images,
     top_cropping=None,
     left_cropping=None,
-    target_height=None,
-    target_width=None,
     bottom_cropping=None,
     right_cropping=None,
+    target_height=None,
+    target_width=None,
+    data_format=None,
 ):
     """Crop `images` to a specified `height` and `width`.
 
     Args:
-        images: 4-D batch of images of shape `(batch, height, width, channels)`
-             or 3-D single image of shape `(height, width, channels)`.
+        images: Input image or batch of images. Must be 3D or 4D.
         top_cropping: Number of columns to crop from the top.
-        bottom_cropping: Number of columns to crop from the bottom.
         left_cropping: Number of columns to crop from the left.
+        bottom_cropping: Number of columns to crop from the bottom.
         right_cropping: Number of columns to crop from the right.
         target_height: Height of the output images.
         target_width: Width of the output images.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
 
     Returns:
-        If `images` were 4D, a 4D float Tensor of shape
-            `(batch, target_height, target_width, channels)`
-        If `images` were 3D, a 3D float Tensor of shape
-            `(target_height, target_width, channels)`
+        Cropped image or batch of images.
 
     Example:
 
@@ -987,48 +1120,47 @@ def crop_images(
     if any_symbolic_tensors((images,)):
         return CropImages(
             top_cropping,
-            bottom_cropping,
             left_cropping,
+            bottom_cropping,
             right_cropping,
             target_height,
             target_width,
+            data_format,
         ).symbolic_call(images)
 
     return _crop_images(
         images,
         top_cropping,
-        bottom_cropping,
         left_cropping,
+        bottom_cropping,
         right_cropping,
         target_height,
         target_width,
+        data_format,
     )
 
 
 def _crop_images(
     images,
     top_cropping,
-    bottom_cropping,
     left_cropping,
+    bottom_cropping,
     right_cropping,
     target_height,
     target_width,
+    data_format=None,
 ):
+    data_format = backend.standardize_data_format(data_format)
     images = backend.convert_to_tensor(images)
-    is_batch = True
     images_shape = ops.shape(images)
-    if len(images_shape) == 3:
-        is_batch = False
-        images = backend.numpy.expand_dims(images, 0)
-    elif len(images_shape) != 4:
+
+    # Check
+    if len(images_shape) not in (3, 4):
         raise ValueError(
             f"Invalid shape for argument `images`: "
             "it must have rank 3 or 4. "
             f"Received: images.shape={images_shape}"
         )
-
-    batch, height, width, depth = ops.shape(images)
-
     if [top_cropping, bottom_cropping, target_height].count(None) != 1:
         raise ValueError(
             "Must specify exactly two of "
@@ -1046,6 +1178,15 @@ def _crop_images(
             f"target_width={target_width}"
         )
 
+    is_batch = False if len(images_shape) == 3 else True
+    if data_format == "channels_last":
+        height, width = images_shape[-3], images_shape[-2]
+        channels = images_shape[-1]
+    else:
+        height, width = images_shape[-2], images_shape[-1]
+        channels = images_shape[-3]
+
+    # Infer padding
     if top_cropping is None:
         top_cropping = height - target_height - bottom_cropping
     if target_height is None:
@@ -1076,26 +1217,19 @@ def _crop_images(
             f"Received: target_width={target_width}"
         )
 
-    if isinstance(top_cropping, int) and isinstance(left_cropping, int):
-        start_indices = [0, top_cropping, left_cropping, 0]
+    # Compute start_indices and shape
+    start_indices = [top_cropping, left_cropping]
+    shape = [target_height, target_width]
+    if data_format == "channels_last":
+        start_indices = start_indices + [0]
+        shape = shape + [channels]
     else:
-        start_indices = backend.numpy.stack([0, top_cropping, left_cropping, 0])
-    if (
-        isinstance(batch, int)
-        and isinstance(target_height, int)
-        and isinstance(target_width, int)
-        and isinstance(depth, int)
-    ):
-        shape = [batch, target_height, target_width, depth]
-    else:
-        shape = backend.numpy.stack([batch, target_height, target_width, depth])
-    cropped = ops.slice(
-        images,
-        start_indices,
-        shape,
-    )
+        start_indices = [0] + start_indices
+        shape = [channels] + shape
+    if is_batch:
+        batch_size = images_shape[0]
+        start_indices = [0] + start_indices
+        shape = [batch_size] + shape
 
-    cropped = backend.numpy.reshape(cropped, shape)
-    if not is_batch:
-        cropped = backend.numpy.squeeze(cropped, axis=[0])
-    return cropped
+    cropped_images = ops.slice(images, start_indices, shape)
+    return cropped_images

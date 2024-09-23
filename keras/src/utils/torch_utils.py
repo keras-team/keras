@@ -16,6 +16,9 @@ class TorchModuleWrapper(Layer):
     `torch.nn.Module` into a Keras layer, in particular by making its
     parameters trackable by Keras.
 
+    `TorchModuleWrapper` is only compatible with the PyTorch backend and
+    cannot be used with the TensorFlow or JAX backends.
+
     Args:
         module: `torch.nn.Module` instance. If it's a `LazyModule`
             instance, then its parameters must be initialized before
@@ -109,7 +112,11 @@ class TorchModuleWrapper(Layer):
             self._track_variable(variable)
         self.built = True
 
-    def call(self, *args, **kwargs):
+    def call(self, *args, training=None, **kwargs):
+        if training is False:
+            self.eval()
+        else:
+            self.train()
         return self.module(*args, **kwargs)
 
     def save_own_variables(self, store):

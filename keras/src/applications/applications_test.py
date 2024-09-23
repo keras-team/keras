@@ -118,7 +118,7 @@ def _get_elephant(target_size):
     reason="Env variable set to skip.",
 )
 @pytest.mark.requires_trainable_backend
-class ApplicationsTest(testing.TestCase, parameterized.TestCase):
+class ApplicationsTest(testing.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.original_image_data_format = backend.image_data_format()

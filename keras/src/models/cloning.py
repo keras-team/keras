@@ -98,7 +98,7 @@ def clone_model(
             config["seed"] = 1337
         return layer.__class__.from_config(config)
 
-    new_model = clone_model(model)
+    new_model = clone_model(model, clone_function=clone_function)
     ```
 
     Using a `call_function` to add a `Dropout` layer after each `Dense` layer
@@ -228,7 +228,7 @@ def _wrap_clone_function(
             return cache[id(layer)]
         if recursive:
             if isinstance(layer, Sequential):
-                # Note: Sequential doens't support call_function.
+                # Note: Sequential doesn't support call_function.
                 clone = clone_model(
                     layer,
                     clone_function=clone_function,

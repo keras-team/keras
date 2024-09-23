@@ -17,6 +17,7 @@ class ELUTest(testing.TestCase):
             init_kwargs={},
             input_shape=(2, 3, 4),
             supports_masking=True,
+            assert_built_after_instantiation=True,
         )
 
     def test_correctness(self):

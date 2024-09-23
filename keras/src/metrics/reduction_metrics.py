@@ -9,7 +9,7 @@ from keras.src.saving import serialization_lib
 
 def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
     dtype = dtype or backend.floatx()
-    mask = getattr(values, "_keras_mask", None)
+    mask = backend.get_keras_mask(values)
     values = ops.cast(values, dtype=dtype)
     if sample_weight is not None:
         sample_weight = ops.convert_to_tensor(sample_weight, dtype=dtype)
@@ -22,15 +22,18 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
         values, sample_weight = losses.loss.squeeze_or_expand_to_same_rank(
             values, sample_weight
         )
-        # Reduce values to same ndim as weight array
+        # Reduce values to same ndim as weight array.
         weight_ndim = len(sample_weight.shape)
         values_ndim = len(values.shape)
         if values_ndim > weight_ndim:
             values = reduce_fn(
                 values, axis=list(range(weight_ndim, values_ndim))
             )
+        # Broadcast sample_weight. It doesn't change the multiplication below
+        # but changes the sample_weight reduction applied later.
+        sample_weight = ops.broadcast_to(sample_weight, ops.shape(values))
         values = values * sample_weight
-        if values_ndim > 1:
+        if weight_ndim > 1:
             sample_weight = reduce_fn(
                 sample_weight, axis=list(range(1, weight_ndim))
             )
@@ -38,7 +41,6 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
     values_ndim = len(values.shape)
     if values_ndim > 1:
         values = reduce_fn(values, axis=list(range(1, values_ndim)))
-        return values, sample_weight
     return values, sample_weight
 
 
@@ -82,10 +84,10 @@ class Sum(Metric):
         values, _ = reduce_to_samplewise_values(
             values, sample_weight, reduce_fn=ops.sum, dtype=self.dtype
         )
-        self.total.assign(self.total + ops.sum(values))
+        self.total.assign_add(ops.sum(values))
 
     def reset_state(self):
-        self.total.assign(0.0)
+        self.total.assign(0)
 
     def result(self):
         return ops.cast(self.total, self.dtype)
@@ -138,17 +140,17 @@ class Mean(Metric):
         values, sample_weight = reduce_to_samplewise_values(
             values, sample_weight, reduce_fn=ops.mean, dtype=self.dtype
         )
-        self.total.assign(self.total + ops.sum(values))
-        if len(values.shape) >= 1:
+        self.total.assign_add(ops.sum(values))
+        if sample_weight is not None:
+            num_samples = ops.sum(sample_weight)
+        elif len(values.shape) >= 1:
             num_samples = ops.shape(values)[0]
         else:
             num_samples = 1
-        if sample_weight is not None:
-            num_samples = ops.sum(sample_weight)
-        self.count.assign(self.count + ops.cast(num_samples, dtype=self.dtype))
+        self.count.assign_add(ops.cast(num_samples, dtype=self.dtype))
 
     def reset_state(self):
-        self.total.assign(0.0)
+        self.total.assign(0)
         self.count.assign(0)
 
     def result(self):
@@ -198,7 +200,7 @@ class MeanMetricWrapper(Mean):
             self._direction = "down"
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        mask = getattr(y_pred, "_keras_mask", None)
+        mask = backend.get_keras_mask(y_pred)
         values = self._fn(y_true, y_pred, **self._fn_kwargs)
         if sample_weight is not None and mask is not None:
             sample_weight = losses.loss.apply_mask(

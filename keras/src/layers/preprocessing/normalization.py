@@ -5,12 +5,12 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.layers.layer import Layer
+from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras.src.utils.module_utils import tensorflow as tf
 
 
 @keras_export("keras.layers.Normalization")
-class Normalization(Layer):
+class Normalization(TFDataLayer):
     """A preprocessing layer that normalizes continuous features.
 
     This layer will shift and scale inputs into a distribution centered around
@@ -106,17 +106,19 @@ class Normalization(Layer):
             axis = tuple(axis)
         self.axis = axis
 
+        self.input_mean = mean
+        self.input_variance = variance
+        self.invert = invert
+        self.supports_masking = True
+        self._build_input_shape = None
+        self.mean = None
+
         # Set `mean` and `variance` if passed.
         if (mean is not None) != (variance is not None):
             raise ValueError(
                 "When setting values directly, both `mean` and `variance` "
                 f"must be set. Received: mean={mean} and variance={variance}"
             )
-        self.input_mean = mean
-        self.input_variance = variance
-        self.invert = invert
-        self.supports_masking = True
-        self._build_input_shape = None
 
     def build(self, input_shape):
         if input_shape is None:
@@ -292,19 +294,38 @@ class Normalization(Layer):
         self.variance = ops.cast(self.variance, self.compute_dtype)
 
     def call(self, inputs):
-        inputs = backend.convert_to_tensor(inputs, dtype=self.compute_dtype)
+        # This layer can be called in tf.data
+        # even with another backend after it has been adapted.
+        # However it must use backend-native logic for adapt().
+        if self.mean is None:
+            # May happen when in tf.data when mean/var was passed explicitly
+            raise ValueError(
+                "You must call `.build(input_shape)` "
+                "on the layer before using it."
+            )
+        inputs = self.backend.core.convert_to_tensor(
+            inputs, dtype=self.compute_dtype
+        )
+        # Ensure the weights are in the correct backend. Without this, it is
+        # possible to cause breakage when using this layer in tf.data.
+        mean = self.convert_weight(self.mean)
+        variance = self.convert_weight(self.variance)
         if self.invert:
-            return ops.add(
-                self.mean,
-                ops.multiply(
+            return self.backend.numpy.add(
+                mean,
+                self.backend.numpy.multiply(
                     inputs,
-                    ops.maximum(ops.sqrt(self.variance), backend.epsilon()),
+                    self.backend.numpy.maximum(
+                        self.backend.numpy.sqrt(variance), backend.epsilon()
+                    ),
                 ),
             )
         else:
-            return ops.divide(
-                ops.subtract(inputs, self.mean),
-                ops.maximum(ops.sqrt(self.variance), backend.epsilon()),
+            return self.backend.numpy.divide(
+                self.backend.numpy.subtract(inputs, mean),
+                self.backend.numpy.maximum(
+                    self.backend.numpy.sqrt(variance), backend.epsilon()
+                ),
             )
 
     def compute_output_shape(self, input_shape):

@@ -24,8 +24,8 @@ ALL_OBJECTS_DICT.update(
 
 
 @keras_export("keras.regularizers.serialize")
-def serialize(initializer):
-    return serialization_lib.serialize_keras_object(initializer)
+def serialize(regularizer):
+    return serialization_lib.serialize_keras_object(regularizer)
 
 
 @keras_export("keras.regularizers.deserialize")

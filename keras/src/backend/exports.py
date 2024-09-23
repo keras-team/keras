@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import KerasVariable
 
 if backend.backend() == "tensorflow":
     BackendVariable = backend.tensorflow.core.Variable
@@ -25,7 +26,7 @@ else:
 
 
 @keras_export("keras.Variable")
-class Variable(BackendVariable):
+class Variable(BackendVariable, KerasVariable):
     pass
 
 

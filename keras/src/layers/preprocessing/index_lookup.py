@@ -5,6 +5,7 @@ import numpy as np
 from keras.src import backend
 from keras.src.layers.layer import Layer
 from keras.src.utils import argument_validation
+from keras.src.utils import numerical_utils
 from keras.src.utils import tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -698,6 +699,8 @@ class IndexLookup(Layer):
             self.num_documents.assign(0)
 
     def call(self, inputs):
+        from keras.src.backend import tensorflow as tf_backend
+
         self._ensure_known_vocab_size()
 
         inputs = tf_utils.ensure_tensor(inputs, dtype=self._key_dtype)
@@ -731,14 +734,26 @@ class IndexLookup(Layer):
         idf_weights = (
             self.idf_weights_const if self.output_mode == "tf_idf" else None
         )
-        return tf_utils.encode_categorical_inputs(
+        output = numerical_utils.encode_categorical_inputs(
             lookups,
-            output_mode=self.output_mode,
+            output_mode=(
+                "count" if self.output_mode == "tf_idf" else self.output_mode
+            ),
             depth=depth,
             dtype=self._value_dtype,
             sparse=self.sparse,
-            idf_weights=idf_weights,
+            backend_module=tf_backend,
         )
+        if self.output_mode == "tf_idf":
+            if idf_weights is None:
+                raise ValueError(
+                    "When `output_mode` is `'tf_idf'`, `idf_weights` must be "
+                    "provided."
+                )
+            output = tf_backend.numpy.multiply(
+                tf_backend.core.cast(output, idf_weights.dtype), idf_weights
+            )
+        return output
 
     def _lookup_dense(self, inputs):
         """Lookup table values for a dense Tensor, handling masking and OOV."""

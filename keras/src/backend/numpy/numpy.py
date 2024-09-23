@@ -65,6 +65,8 @@ def matmul(x1, x2):
         dtype = "int32"
     else:
         dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.matmul(x1, x2).astype(dtype)
 
 
@@ -291,6 +293,53 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     return np.bincount(x, weights, minlength).astype(dtype)
 
 
+def bitwise_and(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.bitwise_and(x, y)
+
+
+def bitwise_invert(x):
+    x = convert_to_tensor(x)
+    return np.bitwise_not(x)
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.bitwise_or(x, y)
+
+
+def bitwise_xor(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.bitwise_xor(x, y)
+
+
+def bitwise_left_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.left_shift(x, y)
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.right_shift(x, y)
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
+
+
 def broadcast_to(x, shape):
     return np.broadcast_to(x, shape)
 
@@ -505,8 +554,8 @@ def imag(x):
     return np.imag(x)
 
 
-def isclose(x1, x2):
-    return np.isclose(x1, x2)
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    return np.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 def isfinite(x):
@@ -787,6 +836,20 @@ def roll(x, shift, axis=None):
     return np.roll(x, shift, axis=axis)
 
 
+def searchsorted(sorted_sequence, values, side="left"):
+    if ndim(sorted_sequence) != 1:
+        raise ValueError(
+            "`searchsorted` only supports 1-D sorted sequences. "
+            "You can use `keras.ops.vectorized_map` "
+            "to extend it to N-D sequences. Received: "
+            f"sorted_sequence.shape={sorted_sequence.shape}"
+        )
+    out_type = (
+        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+    )
+    return np.searchsorted(sorted_sequence, values, side=side).astype(out_type)
+
+
 def sign(x):
     return np.sign(x)
 
@@ -916,6 +979,14 @@ def tril(x, k=0):
 
 def triu(x, k=0):
     return np.triu(x, k=k)
+
+
+def trunc(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or "bool" == dtype:
+        return x
+    return np.trunc(x)
 
 
 def vdot(x1, x2):
