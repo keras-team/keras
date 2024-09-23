@@ -138,13 +138,18 @@ class KerasFileEditor:
             ref_name,
             error_count,
             match_count,
+            checked_paths,
         ):
             base_inner_path = inner_path
             for ref_key, ref_val in ref_spec.items():
                 inner_path = base_inner_path + "/" + ref_key
+                if inner_path in checked_paths:
+                    continue
+
                 if ref_key not in target:
+                    error_count += 1
+                    checked_paths.add(inner_path)
                     if isinstance(ref_val, dict):
-                        error_count += 1
                         self.console.print(
                             f"[color(160)]...Object [bold]{inner_path}[/] "
                             f"present in {ref_name}, "
@@ -169,12 +174,14 @@ class KerasFileEditor:
                         ref_name,
                         error_count=error_count,
                         match_count=match_count,
+                        checked_paths=checked_paths,
                     )
                     error_count += _error_count
                     match_count += _match_count
                 else:
                     if target[ref_key].shape != ref_val.shape:
                         error_count += 1
+                        checked_paths.add(inner_path)
                         self.console.print(
                             f"[color(160)]...Weight shape mismatch "
                             f"for [bold]{inner_path}[/][/]\n"
@@ -187,6 +194,7 @@ class KerasFileEditor:
                         match_count += 1
             return error_count, match_count
 
+        checked_paths = set()
         error_count, match_count = _compare(
             self.weights_dict,
             ref_spec,
@@ -195,6 +203,7 @@ class KerasFileEditor:
             ref_name="reference model",
             error_count=0,
             match_count=0,
+            checked_paths=checked_paths,
         )
         _error_count, _ = _compare(
             ref_spec,
@@ -204,6 +213,7 @@ class KerasFileEditor:
             ref_name="saved file",
             error_count=0,
             match_count=0,
+            checked_paths=checked_paths,
         )
         error_count += _error_count
         self.console.print("─────────────────────")

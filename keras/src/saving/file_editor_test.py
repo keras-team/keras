@@ -74,3 +74,18 @@ class SavingTest(testing.TestCase):
         editor.summary()
         out = editor.compare_to(target_model)  # Succeeds
         self.assertEqual(out["status"], "success")
+
+        editor.delete_weight("dense_2", "1")
+        out = editor.compare_to(target_model)  # Fails
+        self.assertEqual(out["status"], "error")
+        self.assertEqual(out["error_count"], 1)
+
+        editor.add_weights("dense_2", {"1": np.zeros((7,))})
+        out = editor.compare_to(target_model)  # Fails
+        self.assertEqual(out["status"], "error")
+        self.assertEqual(out["error_count"], 1)
+
+        editor.delete_weight("dense_2", "1")
+        editor.add_weights("dense_2", {"1": np.zeros((3,))})
+        out = editor.compare_to(target_model)  # Succeeds
+        self.assertEqual(out["status"], "success")
