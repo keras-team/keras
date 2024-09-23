@@ -254,5 +254,5 @@ def unstack(x, num=None, axis=0):
 
 def custom_gradient(fun):
     raise NotImplementedError(
-        "`custom_gradient` is not supported with numpy backend"
+        "`custom_gradient` is not supported with openvino backend"
     )

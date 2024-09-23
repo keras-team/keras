@@ -1,2 +1,2 @@
-class NumpyLayer:
+class OpenvinoLayer:
     pass
