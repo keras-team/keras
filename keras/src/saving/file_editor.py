@@ -7,6 +7,7 @@ import h5py
 import rich.console
 
 from keras.src import backend
+from keras.src.api_export import keras_export
 from keras.src.saving import saving_lib
 from keras.src.saving.saving_lib import H5IOStore
 from keras.src.utils import naming
@@ -31,6 +32,7 @@ def is_ipython_notebook():
         return False
 
 
+@keras_export("keras.saving.KerasFileEditor")
 class KerasFileEditor:
     """Utility to inspect, edit, and resave Keras weights files.
 
@@ -97,10 +99,7 @@ class KerasFileEditor:
 
     def summary(self):
         """Prints the weight structure of the opened file."""
-        if is_ipython_notebook():
-            self._weights_summary_iteractive()
-        else:
-            self._weights_summary_cli()
+        self._weights_summary_cli()
 
     def compare_to(self, reference_model):
         """Compares the opened file to a reference model.
@@ -564,9 +563,6 @@ class KerasFileEditor:
 
         output = "Weights structure"
         output += _generate_html_weights(self.weights_dict)
-
-        if is_ipython_notebook():
-            ipython.display.display(ipython.display.HTML(output))
 
 
 def get_weight_spec_of_saveable(saveable, spec, visited_saveables=None):
