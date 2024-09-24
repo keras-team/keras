@@ -58,6 +58,10 @@ class CallbackList(Callback):
         if callbacks:
             if isinstance(callbacks, (list, tuple)):
                 for cbk in callbacks:
+                    if getattr(cbk, "async_safe", False):
+                        # Callbacks that expose self.async_safe == True
+                        # will be assumed safe for async dispatch.
+                        continue
                     if not utils.is_default(cbk.on_batch_end):
                         async_train = False
                     if not utils.is_default(cbk.on_train_batch_end):
