@@ -1,3 +1,6 @@
+from keras.src.random.seed_generator import SeedGenerator
+
+
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     raise NotImplementedError(
         "`normal` is not supported with openvino backend"

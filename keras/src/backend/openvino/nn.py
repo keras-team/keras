@@ -1,20 +1,9 @@
 import numpy as np
-from openvino.runtime.opset14 import elu
-from openvino.runtime.opset14 import gelu
-from openvino.runtime.opset14 import hard_sigmoid
-from openvino.runtime.opset14 import log_softmax
-from openvino.runtime.opset14 import multiply
-from openvino.runtime.opset14 import relu
-from openvino.runtime.opset14 import selu
-from openvino.runtime.opset14 import sigmoid
-from openvino.runtime.opset14 import softmax
-from openvino.runtime.opset14 import softplus
-from openvino.runtime.opset14 import softsign
-from openvino.runtime.opset14 import tanh
+from openvino.runtime import opset14
 
 
 def relu(x):
-    return relu(x)
+    return opset14.relu(x)
 
 
 def relu6(x):
@@ -24,23 +13,23 @@ def relu6(x):
 
 
 def sigmoid(x):
-    return sigmoid(x)
+    return opset14.sigmoid(x)
 
 
 def tanh(x):
-    return tanh(x)
+    return opset14.tanh(x)
 
 
 def softplus(x):
-    return softplus(x)
+    return opset14.softplus(x)
 
 
 def softsign(x):
-    return softsign(x)
+    return opset14.softsign(x)
 
 
 def silu(x):
-    return multiply(x, sigmoid(x))
+    return opset14.multiply(x, opset14.sigmoid(x))
 
 
 def log_sigmoid(x):
@@ -58,15 +47,15 @@ def leaky_relu(x, negative_slope=0.2):
 def hard_sigmoid(x):
     alpha = 1 / np.array(6.0, dtype=np.float32)
     beta = np.array(0.5, dtype=np.float32)
-    return hard_sigmoid(x, alpha, beta)
+    return opset14.hard_sigmoid(x, alpha, beta)
 
 
 def hard_silu(x):
-    return multiply(x, hard_sigmoid(x))
+    return opset14.multiply(x, hard_sigmoid(x))
 
 
 def elu(x, alpha=1.0):
-    return elu(x, alpha)
+    return opset14.elu(x, alpha)
 
 
 def selu(
@@ -74,22 +63,22 @@ def selu(
         alpha=1.6732632423543772848170429916717,
         scale=1.0507009873554804934193349852946,
 ):
-    return selu(x, alpha, scale)
+    return opset14.selu(x, alpha, scale)
 
 
 def gelu(x, approximate=True):
     approximate_mode = "erf"
     if approximate:
         approximate_mode = "tanh"
-    return gelu(x, approximate_mode)
+    return opset14.gelu(x, approximate_mode)
 
 
 def softmax(x, axis=None):
-    return softmax(x, axis)
+    return opset14.softmax(x, axis)
 
 
 def log_softmax(x, axis=None):
-    return log_softmax(x, axis)
+    return opset14.log_softmax(x, axis)
 
 
 def max_pool(
