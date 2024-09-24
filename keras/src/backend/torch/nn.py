@@ -141,7 +141,7 @@ def _compute_padding_length(
 
 
 def _apply_same_padding(
-    inputs, kernel_size, strides, operation_type, dilation_rate=1
+    inputs, kernel_size, strides, data_format, operation_type, dilation_rate=1
 ):
     """Apply same padding to the input tensor.
 
@@ -174,7 +174,10 @@ def _apply_same_padding(
                 spatial_shape[i], kernel_size[i], strides[i], dilation_rate[i]
             )
             mode = "constant"
-        padding = padding + (padding_size,)
+        if data_format == "channels_last":
+            padding = (padding_size,) + padding
+        else:
+            padding = padding + (padding_size,)
 
     if all([left == right for left, right in padding]):
         return inputs, [left for left, _ in padding]
@@ -252,7 +255,7 @@ def max_pool(
         # Torch does not natively support `"same"` padding, we need to manually
         # apply the right amount of padding to `inputs`.
         inputs, padding = _apply_same_padding(
-            inputs, pool_size, strides, operation_type="pooling"
+            inputs, pool_size, strides, data_format, operation_type="pooling"
         )
     else:
         padding = 0
@@ -312,7 +315,7 @@ def average_pool(
         # Torch does not natively support `"same"` padding, we need to manually
         # apply the right amount of padding to `inputs`.
         inputs, padding = _apply_same_padding(
-            inputs, pool_size, strides, operation_type="pooling"
+            inputs, pool_size, strides, data_format, operation_type="pooling"
         )
     else:
         padding = 0
@@ -377,6 +380,7 @@ def conv(
             inputs,
             kernel.shape[2:],
             strides,
+            data_format,
             operation_type="conv",
             dilation_rate=dilation_rate,
         )
