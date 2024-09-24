@@ -1,5 +1,5 @@
 from keras.src.backend.common import dtypes
-from keras.src.backend.openvino.core import convert_to_tensor, ov_to_keras_type, OPENVINO_DTYPES
+from keras.src.backend.openvino.core import OPENVINO_DTYPES, convert_to_tensor, ov_to_keras_type
 
 
 def _align_operand_types(x1, x2, op_name):
