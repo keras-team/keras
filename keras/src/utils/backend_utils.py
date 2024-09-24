@@ -92,11 +92,9 @@ class DynamicBackend:
                     "Currently, we cannot dynamically import the numpy backend "
                     "because it would disrupt the namespace of the import."
                 )
-
         if self._backend == "openvino":
-            from keras.src.backend import openvino as openvino_backend
-
-            return getattr(openvino_backend, name)
+            module = importlib.import_module("keras.src.backend.openvino")
+            return getattr(module, name)
 
 @keras_export("keras.config.set_backend")
 def set_backend(backend):

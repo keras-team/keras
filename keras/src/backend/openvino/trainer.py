@@ -1,10 +1,14 @@
 import numpy as np
+import openvino as ov
+import openvino.runtime.opset14 as ov_opset
 
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import tree
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.openvino.core import OPENVINO_DTYPES
+from keras.src.backend.openvino.core import get_device
 from keras.src.backend.openvino.core import is_tensor
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import data_adapter_utils
@@ -19,29 +23,15 @@ class OpenVINOTrainer(base_trainer.Trainer):
         self.predict_function = None
 
     def test_step(self, data):
-        (
-            x,
-            y,
-            sample_weight,
-        ) = data_adapter_utils.unpack_x_y_sample_weight(data)
-        if self._call_has_training_arg:
-            y_pred = self(x, training=False)
-        else:
-            y_pred = self(x)
-        loss = self.compute_loss(
-            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
-        )
-        self._loss_tracker.update_state(
-            loss, sample_weight=tree.flatten(x)[0].shape[0]
-        )
+        (x, y, sample_weight,) = data_adapter_utils.unpack_x_y_sample_weight(data)
+        y_pred = self(x)
+        loss = self.compute_loss(x=x, y=y, y_pred=y_pred, sample_weight=sample_weight)
+        self._loss_tracker.update_state(loss, sample_weight=tree.flatten(x)[0].shape[0])
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
-        if self._call_has_training_arg:
-            y_pred = self(x, training=False)
-        else:
-            y_pred = self(x)
+        y_pred = self(x)
         return y_pred
 
     def make_test_function(self, force=False):
@@ -68,34 +58,28 @@ class OpenVINOTrainer(base_trainer.Trainer):
         if self.predict_function is not None and not force:
             return self.predict_function
 
-        def one_predict_step(data):
-            data = data[0]
-            return self.predict_step(data)
-
-        def multi_predict_steps(data):
-            outputs = one_predict_step(data[:1])
-
-            for single_step_data in data[1:]:
-                step_outputs = one_predict_step([single_step_data])
-                outputs = tree.map_structure(
-                    lambda t1, t2: np.concatenate([t1, t2]),
-                    outputs,
-                    step_outputs,
-                )
-            return outputs
-
-        if self.steps_per_execution > 1:
-            predict_step = multi_predict_steps
-        else:
-            predict_step = one_predict_step
-
-        self.predict_function = predict_step
+        ov_inputs = []
+        for _input in self._inputs:
+            ov_type = OPENVINO_DTYPES[_input.dtype]
+            ov_shape = _input.shape
+            ov_shape = list(ov_shape)
+            for i in range(len(ov_shape)):
+                if ov_shape[i] is None:
+                    ov_shape[i] = -1
+            param = ov_opset.parameter(shape=ov_shape, dtype=ov_type)
+            ov_inputs.append(param)
+        # build OpenVINO graph ov.Model
+        ov_outputs = self._run_through_graph(ov_inputs, operation_fn=lambda op: op)
+        ov_outputs = tree.flatten(ov_outputs)
+        ov_model = ov.Model(results=ov_outputs, parameters=ov_inputs)
+        self.predict_function = ov.compile_model(ov_model, get_device())
+        return self.predict_function
 
     def _symbolic_build(self, data_batch):
         model_unbuilt = not all(layer.built for layer in self._flatten_layers())
         compile_metrics_unbuilt = (
-            self._compile_metrics is not None
-            and not self._compile_metrics.built
+                self._compile_metrics is not None
+                and not self._compile_metrics.built
         )
         if model_unbuilt or compile_metrics_unbuilt:
             # Create symbolic tensors matching an input batch.
@@ -136,29 +120,31 @@ class OpenVINOTrainer(base_trainer.Trainer):
         self._post_build()
 
     def fit(
-        self,
-        x=None,
-        y=None,
-        batch_size=None,
-        epochs=1,
-        verbose="auto",
-        callbacks=None,
-        validation_split=0.0,
-        validation_data=None,
-        shuffle=True,
-        class_weight=None,
-        sample_weight=None,
-        initial_epoch=0,
-        steps_per_epoch=None,
-        validation_steps=None,
-        validation_batch_size=None,
-        validation_freq=1,
+            self,
+            x=None,
+            y=None,
+            batch_size=None,
+            epochs=1,
+            verbose="auto",
+            callbacks=None,
+            validation_split=0.0,
+            validation_data=None,
+            shuffle=True,
+            class_weight=None,
+            sample_weight=None,
+            initial_epoch=0,
+            steps_per_epoch=None,
+            validation_steps=None,
+            validation_batch_size=None,
+            validation_freq=1,
     ):
-        raise NotImplementedError("fit not implemented for OpenVINO backend.")
+        raise NotImplementedError(
+            "fit not supported with openvino backend."
+        )
 
     @traceback_utils.filter_traceback
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
+            self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         # Create an iterator that yields batches of input data.
         epoch_iterator = EpochIterator(
@@ -196,13 +182,20 @@ class OpenVINOTrainer(base_trainer.Trainer):
                 )
             return outputs
 
+        def unpack_singleton(x):
+            if isinstance(x, (list, tuple)) and len(x) == 1:
+                return x[0]
+            return x
+
         self.make_predict_function()
         self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
         for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_predict_batch_begin(step)
-            batch_outputs = self.predict_function(data)
+            flat_inputs = tree.flatten(data)
+            batch_outputs = self.predict_function(flat_inputs)
+            batch_outputs = unpack_singleton(tree.pack_sequence_as(self._outputs_struct, batch_outputs.to_tuple()))
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
             if self.stop_predicting:
@@ -212,16 +205,16 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def evaluate(
-        self,
-        x=None,
-        y=None,
-        batch_size=None,
-        verbose="auto",
-        sample_weight=None,
-        steps=None,
-        callbacks=None,
-        return_dict=False,
-        **kwargs,
+            self,
+            x=None,
+            y=None,
+            batch_size=None,
+            verbose="auto",
+            sample_weight=None,
+            steps=None,
+            callbacks=None,
+            return_dict=False,
+            **kwargs,
     ):
         # TODO: respect compiled trainable state
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
@@ -281,23 +274,23 @@ class OpenVINOTrainer(base_trainer.Trainer):
         return self._flatten_metrics_in_order(logs)
 
     def train_on_batch(
-        self,
-        x,
-        y=None,
-        sample_weight=None,
-        class_weight=None,
-        return_dict=False,
+            self,
+            x,
+            y=None,
+            sample_weight=None,
+            class_weight=None,
+            return_dict=False,
     ):
         raise NotImplementedError(
-            "train_on_batch not implemented for OpenVINO backend."
+            "train_on_batch not supported with openvino backend."
         )
 
     def test_on_batch(
-        self,
-        x,
-        y=None,
-        sample_weight=None,
-        return_dict=False,
+            self,
+            x,
+            y=None,
+            sample_weight=None,
+            return_dict=False,
     ):
         self._assert_compile_called("test_on_batch")
 
