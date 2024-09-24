@@ -1,8 +1,19 @@
 import numpy as np
+from openvino.runtime.opset14 import elu
+from openvino.runtime.opset14 import gelu
+from openvino.runtime.opset14 import hard_sigmoid
+from openvino.runtime.opset14 import log_softmax
+from openvino.runtime.opset14 import multiply
+from openvino.runtime.opset14 import relu
+from openvino.runtime.opset14 import selu
+from openvino.runtime.opset14 import sigmoid
+from openvino.runtime.opset14 import softmax
+from openvino.runtime.opset14 import softplus
+from openvino.runtime.opset14 import softsign
+from openvino.runtime.opset14 import tanh
 
 
 def relu(x):
-    from openvino.runtime.opset14 import relu
     return relu(x)
 
 
@@ -13,28 +24,22 @@ def relu6(x):
 
 
 def sigmoid(x):
-    from openvino.runtime.opset14 import sigmoid
     return sigmoid(x)
 
 
 def tanh(x):
-    from openvino.runtime.opset14 import tanh
     return tanh(x)
 
 
 def softplus(x):
-    from openvino.runtime.opset14 import softplus
     return softplus(x)
 
 
 def softsign(x):
-    from openvino.runtime.opset14 import softsign
     return softsign(x)
 
 
 def silu(x):
-    from openvino.runtime.opset14 import sigmoid
-    from openvino.runtime.opset14 import multiply
     return multiply(x, sigmoid(x))
 
 
@@ -51,19 +56,16 @@ def leaky_relu(x, negative_slope=0.2):
 
 
 def hard_sigmoid(x):
-    from openvino.runtime.opset14 import hard_sigmoid
     alpha = 1 / np.array(6.0, dtype=np.float32)
     beta = np.array(0.5, dtype=np.float32)
     return hard_sigmoid(x, alpha, beta)
 
 
 def hard_silu(x):
-    from openvino.runtime.opset14 import multiply
     return multiply(x, hard_sigmoid(x))
 
 
 def elu(x, alpha=1.0):
-    from openvino.runtime.opset14 import elu
     return elu(x, alpha)
 
 
@@ -72,12 +74,10 @@ def selu(
         alpha=1.6732632423543772848170429916717,
         scale=1.0507009873554804934193349852946,
 ):
-    from openvino.runtime.opset14 import selu
     return selu(x, alpha, scale)
 
 
 def gelu(x, approximate=True):
-    from openvino.runtime.opset14 import gelu
     approximate_mode = "erf"
     if approximate:
         approximate_mode = "tanh"
@@ -85,12 +85,10 @@ def gelu(x, approximate=True):
 
 
 def softmax(x, axis=None):
-    from openvino.runtime.opset14 import softmax
     return softmax(x, axis)
 
 
 def log_softmax(x, axis=None):
-    from openvino.runtime.opset14 import log_softmax
     return log_softmax(x, axis)
 
 
