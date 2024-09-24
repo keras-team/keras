@@ -2443,29 +2443,17 @@ def sum(x, axis=None, keepdims=False):
 
 def eye(N, M=None, k=0, dtype=None):
     dtype = dtype or config.floatx()
-    if not M:
-        M = N
-    # Making sure N, M and k are `int`
-    N, M, k = int(N), int(M), int(k)
-    if k >= M or -k >= N:
-        # tf.linalg.diag will raise an error in this case
-        return zeros([N, M], dtype=dtype)
-    if k == 0:
+    M = N if M is None else M
+    if isinstance(k, int) and k == 0:
         return tf.eye(N, M, dtype=dtype)
-    # We need the precise length, otherwise tf.linalg.diag will raise an error
-    diag_len = builtins.min(N, M)
-    if k > 0:
-        if N >= M:
-            diag_len -= k
-        elif N + k > M:
-            diag_len = M - k
-    elif k <= 0:
-        if M >= N:
-            diag_len += k
-        elif M - k > N:
-            diag_len = N + k
-    diagonal_ = tf.ones([diag_len], dtype=dtype)
-    return tf.linalg.diag(diagonal=diagonal_, num_rows=N, num_cols=M, k=k)
+    # Create a smaller square eye and pad appropriately.
+    return tf.pad(
+        tf.eye(tf.minimum(M - k, N + k), dtype=dtype),
+        paddings=(
+            (tf.maximum(-k, 0), tf.maximum(N - M + k, 0)),
+            (tf.maximum(k, 0), tf.maximum(M - N - k, 0)),
+        ),
+    )
 
 
 def floor_divide(x1, x2):
