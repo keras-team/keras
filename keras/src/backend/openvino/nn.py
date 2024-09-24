@@ -33,7 +33,8 @@ def softsign(x):
 
 
 def silu(x):
-    from openvino.runtime.opset14 import sigmoid, multiply
+    from openvino.runtime.opset14 import sigmoid
+    from openvino.runtime.opset14 import multiply
     return multiply(x, sigmoid(x))
 
 

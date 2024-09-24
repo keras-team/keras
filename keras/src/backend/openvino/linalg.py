@@ -1,7 +1,3 @@
-import numpy as np
-from keras.src.backend.openvino.core import convert_to_tensor
-
-
 def cholesky(a):
     raise NotImplementedError(
         "`cholesky` is not supported with openvino backend"

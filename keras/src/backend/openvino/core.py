@@ -1,15 +1,15 @@
 import contextlib
 
 import numpy as np
+import openvino as ov
 
-from keras.src.backend.common import global_state
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
+from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
-import openvino as ov
 
 SUPPORTS_SPARSE_TENSORS = False
 
@@ -38,6 +38,7 @@ def ov_to_keras_type(ov_type):
     raise ValueError(
         f"Requested OpenVINO type has no keras analogue '{ov_type.to_string()}'"
     )
+
 
 @contextlib.contextmanager
 def device_scope(device_name):
@@ -226,10 +227,10 @@ def slice_update(inputs, start_indices, updates):
 
 
 def while_loop(
-    cond,
-    body,
-    loop_vars,
-    maximum_iterations=None,
+        cond,
+        body,
+        loop_vars,
+        maximum_iterations=None,
 ):
     raise NotImplementedError(
         "`while_loop` is not supported with openvino backend"
