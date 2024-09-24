@@ -13,7 +13,7 @@ import shutil
 
 import namex
 
-package = "keras"
+PACKAGE = "keras"
 BUILD_DIR_NAME = "tmp_build_dir"
 
 
@@ -28,7 +28,7 @@ def copy_source_to_build_directory(root_path):
         shutil.rmtree(build_dir)
     os.mkdir(build_dir)
     shutil.copytree(
-        package, os.path.join(build_dir, package), ignore=ignore_files
+        PACKAGE, os.path.join(build_dir, PACKAGE), ignore=ignore_files
     )
     return build_dir
 
@@ -163,12 +163,12 @@ def update_package_init(template_fname, dest_fname, api_module):
 def build():
     # Backup the `keras/__init__.py` and restore it on error in api gen.
     root_path = os.path.dirname(os.path.abspath(__file__))
-    code_api_dir = os.path.join(root_path, package, "api")
-    code_init_fname = os.path.join(root_path, package, "__init__.py")
+    code_api_dir = os.path.join(root_path, PACKAGE, "api")
+    code_init_fname = os.path.join(root_path, PACKAGE, "__init__.py")
     # Create temp build dir
     build_dir = copy_source_to_build_directory(root_path)
-    build_api_dir = os.path.join(build_dir, package, "api")
-    build_init_fname = os.path.join(build_dir, package, "__init__.py")
+    build_api_dir = os.path.join(build_dir, PACKAGE, "api")
+    build_init_fname = os.path.join(build_dir, PACKAGE, "__init__.py")
     build_api_init_fname = os.path.join(build_api_dir, "__init__.py")
     try:
         os.chdir(build_dir)
@@ -184,7 +184,7 @@ def build():
         # Add __version__ to `api/`.
         export_version_string(build_api_init_fname)
         # Creates `_tf_keras` with full keras API
-        create_legacy_directory(package_dir=os.path.join(build_dir, package))
+        create_legacy_directory(package_dir=os.path.join(build_dir, PACKAGE))
         # Update toplevel init with all `api/` imports.
         api_module = importlib.import_module(f"{BUILD_DIR_NAME}.keras.api")
         update_package_init(code_init_fname, build_init_fname, api_module)

@@ -57,6 +57,8 @@ then
                --ignore keras/src/backend/jax/distribution_lib_test.py \
                --ignore keras/src/distribution/distribution_lib_test.py \
                --cov=keras
+
+   pytest keras/src/distribution/distribution_lib_test.py --cov=keras
 fi
 
 if [ "$KERAS_BACKEND" == "torch" ]

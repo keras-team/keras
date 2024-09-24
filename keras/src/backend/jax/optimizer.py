@@ -16,7 +16,7 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
     def _backend_apply_gradients(self, grads, trainable_variables):
         if self.gradient_accumulation_steps:
             is_update_step = (
-                self.iterations + 1
+                self._iterations + 1
             ) % self.gradient_accumulation_steps == 0
             steps = self.gradient_accumulation_steps
 
@@ -47,6 +47,10 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
                 lambda: list(grads),
             )
 
+            # Apply clipping and weight decay.
+            grads = self._clip_gradients(grads)
+            self._apply_weight_decay(trainable_variables)
+
             self._backend_update_step(
                 grads, trainable_variables, self.learning_rate
             )
@@ -71,6 +75,10 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
                 g_acc.assign(n_g_acc)
 
         else:
+            # Apply clipping and weight decay.
+            grads = self._clip_gradients(grads)
+            self._apply_weight_decay(trainable_variables)
+
             self._backend_update_step(
                 grads, trainable_variables, self.learning_rate
             )
@@ -101,4 +109,4 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
                         + var.value * should_not_overwrite_model_vars_int
                     )
 
-        self.iterations.assign_add(1)
+        self._iterations.assign_add(1)

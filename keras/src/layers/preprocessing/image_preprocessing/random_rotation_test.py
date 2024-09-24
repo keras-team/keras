@@ -7,7 +7,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class RandomRotationTest(testing.TestCase, parameterized.TestCase):
+class RandomRotationTest(testing.TestCase):
     @parameterized.named_parameters(
         ("random_rotate_neg4", -0.4),
         ("random_rotate_neg2", -0.2),

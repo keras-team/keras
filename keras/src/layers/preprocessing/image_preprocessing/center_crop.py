@@ -1,11 +1,12 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    BaseImagePreprocessingLayer,
+)
 from keras.src.utils import image_utils
 
 
 @keras_export("keras.layers.CenterCrop")
-class CenterCrop(TFDataLayer):
+class CenterCrop(BaseImagePreprocessingLayer):
     """A preprocessing layer which crops images.
 
     This layers crops the central portion of the images to a target size. If an
@@ -45,14 +46,30 @@ class CenterCrop(TFDataLayer):
             `"channels_last"`.
     """
 
+    _USE_BASE_FACTOR = False
+
     def __init__(self, height, width, data_format=None, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(data_format=data_format, **kwargs)
         self.height = height
         self.width = width
-        self.data_format = backend.standardize_data_format(data_format)
 
-    def call(self, inputs):
-        inputs = self.backend.cast(inputs, self.compute_dtype)
+    def transform_labels(self, labels, transformation, training=True):
+        return labels
+
+    def transform_bounding_boxes(
+        self, bounding_boxes, transformation, training=True
+    ):
+        raise NotImplementedError
+
+    def transform_segmentation_masks(
+        self, segmentation_masks, transformation, training=True
+    ):
+        return self.transform_images(
+            segmentation_masks, transformation, training=training
+        )
+
+    def transform_images(self, images, transformation=None, training=True):
+        inputs = self.backend.cast(images, self.compute_dtype)
         if self.data_format == "channels_first":
             init_height = inputs.shape[-2]
             init_width = inputs.shape[-1]
@@ -101,7 +118,6 @@ class CenterCrop(TFDataLayer):
                     w_start : w_start + self.width,
                     :,
                 ]
-
         return image_utils.smart_resize(
             inputs,
             [self.height, self.width],

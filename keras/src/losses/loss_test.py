@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from keras.src import backend
+from keras.src import dtype_policies
 from keras.src import losses as losses_module
 from keras.src import ops
 from keras.src import testing
@@ -17,6 +18,16 @@ class ExampleLoss(Loss):
 
 
 class LossTest(testing.TestCase):
+    def setUp(self):
+        self._global_dtype_policy = dtype_policies.dtype_policy.dtype_policy()
+        self._floatx = backend.floatx()
+        return super().setUp()
+
+    def tearDown(self):
+        dtype_policies.dtype_policy.set_dtype_policy(self._global_dtype_policy)
+        backend.set_floatx(self._floatx)
+        return super().tearDown()
+
     def test_squeeze_or_expand(self):
         x1 = ops.ones((3,))
         x2 = ops.ones((3, 1))
@@ -251,4 +262,28 @@ class LossTest(testing.TestCase):
         # JAX will map float64 to float32.
         loss_fn = ExampleLoss(dtype="float16")
         loss = loss_fn(y_true, y_pred)
-        self.assertEqual(backend.standardize_dtype(loss.dtype), "float16")
+        self.assertDType(loss, "float16")
+
+        # Test DTypePolicy for `dtype` argument
+        loss_fn = ExampleLoss(dtype=dtype_policies.DTypePolicy("mixed_float16"))
+        loss = loss_fn(y_true, y_pred)
+        self.assertDType(loss, "float16")
+
+        # `dtype` setter should raise AttributeError
+        with self.assertRaises(AttributeError):
+            loss.dtype = "bfloat16"
+
+    def test_default_dtype(self):
+        y_true = np.array([1.0, 0.0, 1.0, 0.0], dtype="float32")
+        y_pred = np.array([0.1, 0.2, 0.3, 0.4], dtype="float32")
+
+        # Defaults to `keras.config.floatx()` not global `dtype_policy`
+        dtype_policies.dtype_policy.set_dtype_policy("mixed_float16")
+        loss_fn = ExampleLoss()
+        loss = loss_fn(y_true, y_pred)
+        self.assertDType(loss, "float32")
+
+        backend.set_floatx("float16")
+        loss_fn = ExampleLoss()
+        loss = loss_fn(y_true, y_pred)
+        self.assertDType(loss, backend.floatx())

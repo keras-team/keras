@@ -27,6 +27,13 @@ from keras.src.ops.numpy import argsort
 from keras.src.ops.numpy import array
 from keras.src.ops.numpy import average
 from keras.src.ops.numpy import bincount
+from keras.src.ops.numpy import bitwise_and
+from keras.src.ops.numpy import bitwise_invert
+from keras.src.ops.numpy import bitwise_left_shift
+from keras.src.ops.numpy import bitwise_not
+from keras.src.ops.numpy import bitwise_or
+from keras.src.ops.numpy import bitwise_right_shift
+from keras.src.ops.numpy import bitwise_xor
 from keras.src.ops.numpy import broadcast_to
 from keras.src.ops.numpy import ceil
 from keras.src.ops.numpy import clip
@@ -70,6 +77,7 @@ from keras.src.ops.numpy import isclose
 from keras.src.ops.numpy import isfinite
 from keras.src.ops.numpy import isinf
 from keras.src.ops.numpy import isnan
+from keras.src.ops.numpy import left_shift
 from keras.src.ops.numpy import less
 from keras.src.ops.numpy import less_equal
 from keras.src.ops.numpy import linspace
@@ -111,6 +119,7 @@ from keras.src.ops.numpy import real
 from keras.src.ops.numpy import reciprocal
 from keras.src.ops.numpy import repeat
 from keras.src.ops.numpy import reshape
+from keras.src.ops.numpy import right_shift
 from keras.src.ops.numpy import roll
 from keras.src.ops.numpy import round
 from keras.src.ops.numpy import select
@@ -141,6 +150,7 @@ from keras.src.ops.numpy import tri
 from keras.src.ops.numpy import tril
 from keras.src.ops.numpy import triu
 from keras.src.ops.numpy import true_divide
+from keras.src.ops.numpy import trunc
 from keras.src.ops.numpy import var
 from keras.src.ops.numpy import vdot
 from keras.src.ops.numpy import vectorize

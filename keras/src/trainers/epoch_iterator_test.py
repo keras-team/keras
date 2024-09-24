@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import tensorflow as tf
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
@@ -171,3 +172,54 @@ class TestEpochIterator(testing.TestCase):
         x = "unsupported_data"
         with self.assertRaisesRegex(ValueError, "Unrecognized data type"):
             _ = epoch_iterator.EpochIterator(x=x)
+
+    @parameterized.named_parameters(
+        [
+            {"testcase_name": "infinite", "infinite": True},
+            {"testcase_name": "finite", "infinite": False},
+        ]
+    )
+    def test_epoch_callbacks(self, infinite):
+        class TestPyDataset(data_adapters.py_dataset_adapter.PyDataset):
+            def __init__(
+                self,
+                workers=1,
+                use_multiprocessing=False,
+                max_queue_size=10,
+                infinite=False,
+            ):
+                super().__init__(workers, use_multiprocessing, max_queue_size)
+                self.data = np.random.rand(64, 2)
+                self.batch_size = 16
+                self.infinite = infinite
+
+                # check that callbacks are called in the correct order
+                self.tracker = []
+
+            @property
+            def num_batches(self):
+                if self.infinite:
+                    return None
+                return len(self.data) // self.batch_size
+
+            def on_epoch_begin(self):
+                self.tracker.append(1)
+
+            def __getitem__(self, index):
+                idx = index % 2
+                return self.data[
+                    idx * self.batch_size : (idx + 1) * self.batch_size
+                ]
+
+            def on_epoch_end(self):
+                self.tracker.append(2)
+
+        ds = TestPyDataset(infinite=infinite)
+        epoch_iter = epoch_iterator.EpochIterator(x=ds, steps_per_epoch=10)
+
+        num_epochs = 5
+        for epoch in range(num_epochs):
+            for step, batch in epoch_iter.enumerate_epoch():
+                pass
+
+        self.assertAllEqual(ds.tracker, [1, 2] * num_epochs)

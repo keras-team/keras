@@ -1,3 +1,4 @@
+import concurrent.futures
 import inspect
 import platform
 import warnings
@@ -29,6 +30,11 @@ class Trainer:
         self._compute_loss_has_training_arg = (
             "training" in inspect.signature(self.compute_loss).parameters
         )
+
+        # Placeholders used in `compile`
+        self._compile_loss = None
+        self._compile_metrics = None
+        self._loss_tracker = None
 
     @traceback_utils.filter_traceback
     @tracking.no_automatic_dependency_tracking
@@ -134,6 +140,7 @@ class Trainer:
                 wrapped in a `LossScaleOptimizer`, which will dynamically
                 scale the loss to prevent underflow.
         """
+        self._clear_previous_trainer_metrics()
         optimizer = optimizers.get(optimizer)
         self.optimizer = optimizer
         if (
@@ -154,14 +161,10 @@ class Trainer:
                 loss, loss_weights, output_names=output_names
             )
             self.loss = loss
-        else:
-            self._compile_loss = None
         if metrics is not None or weighted_metrics is not None:
             self._compile_metrics = CompileMetrics(
                 metrics, weighted_metrics, output_names=output_names
             )
-        else:
-            self._compile_metrics = None
         if jit_compile == "auto":
             if run_eagerly:
                 jit_compile = False
@@ -246,10 +249,23 @@ class Trainer:
 
     @property
     def metrics(self):
-        metrics = [self._loss_tracker] if self.compiled else []
-        metrics.extend(super().metrics)
-        if self.compiled and self._compile_metrics is not None:
-            metrics += [self._compile_metrics]
+        # Order: loss tracker, individual loss trackers, compiled metrics,
+        # custom metrcis, sublayer metrics.
+        metrics = []
+        if self.compiled:
+            if self._loss_tracker is not None:
+                metrics.append(self._loss_tracker)
+            if self._compile_metrics is not None:
+                metrics.append(self._compile_metrics)
+            if self._compile_loss is not None:
+                metrics.extend(self._compile_loss.metrics)
+        metrics.extend(self._metrics)
+        for layer in self._flatten_layers(include_self=False):
+            if isinstance(layer, Trainer):
+                # All Trainer-related metrics in sublayers should be ignored
+                # because a new Trainer has been instantiated.
+                continue
+            metrics.extend(layer.metrics)
         return metrics
 
     @property
@@ -259,6 +275,32 @@ class Trainer:
     def reset_metrics(self):
         for m in self.metrics:
             m.reset_state()
+
+    def _get_own_metrics(self):
+        metrics = []
+        if self._loss_tracker is not None:
+            metrics.append(self._loss_tracker)
+        if self._compile_metrics is not None:
+            metrics.append(self._compile_metrics)
+        if self._compile_loss is not None:
+            metrics.extend(self._compile_loss.metrics)
+        metrics.extend(self._metrics)
+        return metrics
+
+    def _clear_previous_trainer_metrics(self):
+        for layer in self._flatten_layers(include_self=False):
+            if not isinstance(layer, Trainer):
+                continue
+            # A sublayer might be a Trainer. In that case, we need to clear
+            # the Trainer-related metrics, as they are not usable when a
+            # new Trainer is instantiated.
+            for m in self._get_own_metrics():
+                layer._tracker.untrack(m)
+            layer._loss_tracker = None
+            layer._compile_metrics = None
+            if layer._compile_loss is not None:
+                layer._compile_loss._metrics.clear()
+            layer._metrics.clear()
 
     def compute_loss(
         self,
@@ -282,7 +324,7 @@ class Trainer:
                 self.loss_tracker = metrics.Mean(name='loss')
 
             def compute_loss(self, x, y, y_pred, sample_weight, training=True):
-                loss = ops.means((y_pred - y) ** 2)
+                loss = ops.mean((y_pred - y) ** 2)
                 loss += ops.sum(self.losses)
                 self.loss_tracker.update_state(loss)
                 return loss
@@ -408,22 +450,28 @@ class Trainer:
         """Update metric states and collect all metrics to be returned.
 
         Subclasses can optionally override this method to provide custom metric
-        updating and collection logic.
+        updating and collection logic. Custom metrics are not passed in
+        `compile()`, they can be created in `__init__` or `build`. They are
+        automatically tracked and returned by `self.metrics`.
 
         Example:
 
         ```python
         class MyModel(Sequential):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.custom_metric = MyMetric(name="custom_metric")
+
             def compute_metrics(self, x, y, y_pred, sample_weight):
-                # This super call updates `self.compiled_metrics` and returns
+                # This super call updates metrics from `compile` and returns
                 # results for all metrics listed in `self.metrics`.
                 metric_results = super().compute_metrics(
                     x, y, y_pred, sample_weight)
 
-                # Note that `self.custom_metric` is not listed
-                # in `self.metrics`.
+                # `metric_results` contains the previous result for
+                # `custom_metric`, this is where we update it.
                 self.custom_metric.update_state(x, y, y_pred, sample_weight)
-                metric_results['metric_name'] = self.custom_metric.result()
+                metric_results['custom_metric'] = self.custom_metric.result()
                 return metric_results
         ```
 
@@ -919,22 +967,27 @@ class Trainer:
             )
 
     def _pythonify_logs(self, logs):
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            result = self._pythonify_logs_inner(logs, executor)
+            for key, future_value in result.items():
+                result[key] = future_value.result()
+        return result
+
+    def _pythonify_logs_inner(self, logs, executor):
         result = {}
         for key, value in sorted(logs.items()):
             if isinstance(value, dict):
-                result.update(self._pythonify_logs(value))
+                result.update(
+                    self._pythonify_logs_inner(value, executor=executor)
+                )
             else:
-                try:
-                    value = float(value)
-                except:
-                    pass
-                result[key] = value
+                result[key] = executor.submit(_async_float_cast, value)
         return result
 
     def _get_metrics_result_or_logs(self, logs):
         """Returns model metrics as a dict if the keys match with input logs.
 
-        When the training / evalution is performed with an asynchronous steps,
+        When the training / evaluation is performed with an asynchronous steps,
         the last scheduled `train / test_step` may not give the latest metrics
         because it is not guaranteed to be executed the last. This method gets
         metrics from the model directly instead of relying on the return from
@@ -998,16 +1051,13 @@ class Trainer:
             self._compile_metrics is not None
             and not self._compile_metrics.built
         )
+        compile_loss_unbuilt = (
+            self._compile_loss is not None and not self._compile_loss.built
+        )
         optimizer_unbuilt = (
             self.optimizer is not None and not self.optimizer.built
         )
-        if model_unbuilt or compile_metrics_unbuilt or optimizer_unbuilt:
-            if data_batch is None:
-                for _, data in iterator.enumerate_epoch():
-                    data_batch = data[0]
-                    break
-
-        if model_unbuilt or compile_metrics_unbuilt:
+        if model_unbuilt or compile_metrics_unbuilt or compile_loss_unbuilt:
             # Create symbolic tensors matching an input batch.
 
             def to_symbolic_input(v):
@@ -1017,6 +1067,10 @@ class Trainer:
                     v.shape, backend.standardize_dtype(v.dtype)
                 )
 
+            if data_batch is None:
+                for _, data in iterator.enumerate_epoch():
+                    data_batch = data[0]
+                    break
             data_batch = tree.map_structure(to_symbolic_input, data_batch)
             (
                 x,
@@ -1026,7 +1080,7 @@ class Trainer:
 
             # Build all model state with `backend.compute_output_spec`.
             try:
-                y_pred = backend.compute_output_spec(self, x)
+                y_pred = backend.compute_output_spec(self, x, training=False)
             except Exception as e:
                 raise RuntimeError(
                     "Unable to automatically build the model. "
@@ -1048,6 +1102,16 @@ class Trainer:
                     y_pred,
                     sample_weight=sample_weight,
                 )
+            if compile_loss_unbuilt:
+                # Build `CompileLoss` state with `backend.compute_output_spec`.
+                backend.compute_output_spec(
+                    self._compute_loss,
+                    x,
+                    y,
+                    y_pred,
+                    sample_weight=sample_weight,
+                    training=False,
+                )
         if optimizer_unbuilt:
             # Build optimizer
             self.optimizer.build(self.trainable_variables)
@@ -1066,3 +1130,11 @@ def model_supports_jit(model):
     if all(x.supports_jit for x in model._flatten_layers()):
         return True
     return False
+
+
+def _async_float_cast(value):
+    try:
+        value = float(value)
+    except:
+        pass
+    return value

@@ -1,3 +1,5 @@
+from itertools import combinations
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -33,7 +35,7 @@ from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product
 
 
-class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
+class NNOpsDynamicShapeTest(testing.TestCase):
     def test_relu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.relu(x).shape, (None, 2, 3))
@@ -210,12 +212,17 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.multi_hot(x, 5, 2).shape, (None, 5, 1))
         self.assertSparse(knn.multi_hot(x, 5, sparse=True))
 
-    @parameterized.product(dtype=["float32", "int32"])
-    def test_multi_hot_dtype(self, dtype):
-        # dtype tests
+    @parameterized.named_parameters(
+        named_product(dtype=["float32", "int32", "bool"], sparse=[False, True])
+    )
+    def test_multi_hot_dtype(self, dtype, sparse):
+        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
+            pytest.skip("Backend does not support sparse tensors")
+
         x = np.arange(5)
-        out = knn.multi_hot(x, 5, axis=0, dtype=dtype)
+        out = knn.multi_hot(x, 5, axis=0, dtype=dtype, sparse=sparse)
         self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+        self.assertSparse(out, sparse)
 
     def test_conv(self):
         data_format = backend.config.image_data_format()
@@ -564,12 +571,17 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.one_hot(x, 5, 2).shape, (None, 3, 5, 1))
         self.assertSparse(knn.one_hot(x, 5, sparse=True))
 
-    @parameterized.product(dtype=["float32", "int32"])
-    def test_one_hot_dtype(self, dtype):
-        # dtype tests
+    @parameterized.named_parameters(
+        named_product(dtype=["float32", "int32", "bool"], sparse=[False, True])
+    )
+    def test_one_hot_dtype(self, dtype, sparse):
+        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
+            pytest.skip("Backend does not support sparse tensors")
+
         x = np.arange(5)
-        out = knn.one_hot(x, 5, axis=0, dtype=dtype)
+        out = knn.one_hot(x, 5, axis=0, dtype=dtype, sparse=sparse)
         self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+        self.assertSparse(out, sparse)
 
     def test_moments(self):
         x = KerasTensor([None, 3, 4])
@@ -1127,7 +1139,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, ())
 
 
-class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class NNOpsCorrectnessTest(testing.TestCase):
     def test_relu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(knn.relu(x), [0, 0, 1, 2, 3])
@@ -1238,6 +1250,16 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             ],
         )
 
+    def test_softmax_correctness_with_axis_tuple(self):
+        input = np.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]])
+        combination = combinations(range(3), 2)
+        for axis in list(combination):
+            result = keras.ops.nn.softmax(input, axis=axis)
+            normalized_sum_by_axis = np.sum(
+                ops.convert_to_numpy(result), axis=axis
+            )
+            self.assertAllClose(normalized_sum_by_axis, 1.0)
+
     def test_log_softmax(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
         self.assertAllClose(
@@ -1268,6 +1290,16 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 [-2.407606, -1.407606, -0.407606],
             ],
         )
+
+    def test_log_softmax_correctness_with_axis_tuple(self):
+        input = np.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]])
+        combination = combinations(range(3), 2)
+        for axis in list(combination):
+            result = keras.ops.nn.log_softmax(input, axis=axis)
+            normalized_sum_by_axis = np.sum(
+                np.exp(ops.convert_to_numpy(result)), axis=axis
+            )
+            self.assertAllClose(normalized_sum_by_axis, 1.0)
 
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
@@ -1303,7 +1335,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     def test_average_pool_valid_padding(self):
         data_format = backend.config.image_data_format()
-        # Test 1D max pooling.
+        # Test 1D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
         else:
@@ -1314,7 +1346,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np_avgpool1d(x, 2, 1, padding="valid", data_format=data_format),
         )
 
-        # Test 2D max pooling.
+        # Test 2D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 10, 9, 3)
         else:
@@ -1325,13 +1357,9 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np_avgpool2d(x, 2, 1, padding="valid", data_format=data_format),
         )
 
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="Torch outputs differently from TF when using `same` padding.",
-    )
     def test_average_pool_same_padding(self):
         data_format = backend.config.image_data_format()
-        # Test 1D max pooling.
+        # Test 1D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
         else:
@@ -1343,7 +1371,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np_avgpool1d(x, 2, 2, padding="same", data_format=data_format),
         )
 
-        # Test 2D max pooling.
+        # Test 2D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 10, 9, 3)
         else:
@@ -1472,6 +1500,19 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             groups=1,
         )
         self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
+
+        # Test for tracing error on tensorflow backend.
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            @tf.function
+            def conv(x):
+                return knn.conv(
+                    x, kernel, strides, padding=padding, data_format=data_format
+                )
+
+            outputs = conv(inputs_3d)
+            self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
 
     @parameterized.product(
         strides=(1, (1, 1), (2, 2)),
@@ -1872,7 +1913,11 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         reason="synchronized=True only implemented for TF backend",
     )
     def test_moments_sync_with_distribution_strategy(self, dtype):
+        from tensorflow.python.eager import context
+
         from keras.src.utils.module_utils import tensorflow as tf
+
+        context._reset_context()
 
         # Config 2 CPUs for testing.
         logical_cpus = tf.config.list_logical_devices("CPU")
@@ -1902,6 +1947,8 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(mean.values[0], 4.5)
             self.assertEqual(variance.values[0], 8.75)
             self.assertEqual(variance.values[0], 8.75)
+
+        context._reset_context()
 
     def test_batch_normalization(self):
         x = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
@@ -2063,6 +2110,13 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             ],
         )
 
+        # linalg.norm(x, ...) < epsilon
+        x = np.array([[1e-6, 1e-8]], dtype=np.float32)
+        self.assertAllClose(
+            knn.normalize(x, axis=-1, order=2, epsilon=1e-5),
+            [[1e-1, 1e-3]],
+        )
+
     def test_psnr(self):
         x1 = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
         x2 = np.array([[0.2, 0.2, 0.3], [0.4, 0.6, 0.6]])
@@ -2083,7 +2137,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAlmostEqual(psnr_2, expected_psnr_2)
 
 
-class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
+class NNOpsDtypeTest(testing.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     FLOAT_DTYPES = dtypes.FLOAT_TYPES
@@ -2445,7 +2499,7 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(standardize_dtype(scores.dtype), expected_dtype)
 
 
-class NNOpsBehaviorTest(testing.TestCase, parameterized.TestCase):
+class NNOpsBehaviorTest(testing.TestCase):
     def test_logit_recovery_binary_crossentropy(self):
         layer = layers.Dense(
             4, activation="sigmoid", use_bias=False, kernel_initializer="ones"

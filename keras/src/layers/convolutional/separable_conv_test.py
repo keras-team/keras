@@ -14,7 +14,7 @@ from keras.src.layers.convolutional.depthwise_conv_test import (
 )
 
 
-class SeparableConvBasicTest(testing.TestCase, parameterized.TestCase):
+class SeparableConvBasicTest(testing.TestCase):
     @parameterized.parameters(
         {
             "depth_multiplier": 5,
@@ -208,7 +208,7 @@ class SeparableConvBasicTest(testing.TestCase, parameterized.TestCase):
             )
 
 
-class SeparableConvCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class SeparableConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
         {
             "depth_multiplier": 5,

@@ -75,7 +75,7 @@ class SeedGenerator:
             self.state = self.backend.Variable(
                 seed_initializer,
                 shape=(2,),
-                dtype="uint32",
+                dtype=self.backend.random_seed_dtype(),
                 trainable=False,
                 name="seed_generator_state",
             )
@@ -86,9 +86,9 @@ class SeedGenerator:
         new_seed_value = seed_state.value * 1
         if ordered:
             increment = self.backend.convert_to_tensor(
-                np.array([0, 1]), dtype="uint32"
+                np.array([0, 1]), dtype=seed_state.dtype
             )
-            self.state.assign(seed_state + increment)
+            self.state.assign(self.backend.numpy.add(seed_state, increment))
         else:
             # This produces a sequence of near-unique numbers
             # between 0 and 1M
@@ -133,11 +133,12 @@ def make_default_seed():
 
 def draw_seed(seed):
     from keras.src.backend import convert_to_tensor
+    from keras.src.backend import random_seed_dtype
 
     if isinstance(seed, SeedGenerator):
         return seed.next()
     elif isinstance(seed, int):
-        return convert_to_tensor([seed, 0], dtype="uint32")
+        return convert_to_tensor([seed, 0], dtype=random_seed_dtype())
     elif seed is None:
         return global_seed_generator().next(ordered=False)
     raise ValueError(

@@ -1,9 +1,10 @@
 import os
-import warnings
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
+from keras.src import applications
 from keras.src import backend
 from keras.src import layers
 from keras.src import saving
@@ -12,6 +13,7 @@ from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
 from keras.src.models import Functional
 from keras.src.models import Model
+from keras.src.models import Sequential
 
 
 class FunctionalTest(testing.TestCase):
@@ -159,9 +161,8 @@ class FunctionalTest(testing.TestCase):
 
         model = Functional({"a": input_a}, outputs)
 
-        # Eager call
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
+        with pytest.warns() as record:
+            # Eager call
             in_val = {
                 "a": np.random.random((2, 3)),
                 "b": np.random.random((2, 1)),
@@ -169,14 +170,43 @@ class FunctionalTest(testing.TestCase):
             out_val = model(in_val)
             self.assertEqual(out_val.shape, (2, 3))
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
             # Symbolic call
             input_a_2 = Input(shape=(3,), batch_size=2)
             input_b_2 = Input(shape=(1,), batch_size=2)
             in_val = {"a": input_a_2, "b": input_b_2}
             out_val = model(in_val)
             self.assertEqual(out_val.shape, (2, 3))
+        self.assertLen(record, 1)
+        self.assertStartsWith(
+            str(record[0].message),
+            r"The structure of `inputs` doesn't match the expected structure:",
+        )
+
+    @parameterized.named_parameters(
+        ("list", list),
+        ("tuple", tuple),
+        ("dict", dict),
+    )
+    def test_restored_multi_output_type(self, out_type):
+        inputs = Input(shape=(3,), batch_size=2, name="input")
+        x = layers.Dense(5)(inputs)
+        output_a = layers.Dense(4)(x)
+        output_b = layers.Dense(5)(x)
+        if dict == out_type:
+            outputs = {"a": output_a, "b": output_b}
+        else:
+            outputs = out_type([output_a, output_b])
+        model = Functional(inputs, outputs)
+        model_restored = Functional.from_config(model.get_config())
+
+        # Eager call
+        in_val = np.random.random((2, 3))
+        out_val = model_restored(in_val)
+        self.assertIsInstance(out_val, out_type)
+
+        # Symbolic call
+        out_val = model_restored(Input(shape=(3,), batch_size=2))
+        self.assertIsInstance(out_val, out_type)
 
     @pytest.mark.requires_trainable_backend
     def test_layer_getters(self):
@@ -466,6 +496,46 @@ class FunctionalTest(testing.TestCase):
         self.assertAllClose(out, np.ones((2, 2)))
         # Note: it's not intended to work in symbolic mode (yet).
 
+    def test_warning_for_mismatched_inputs_structure(self):
+        i1 = Input((2,))
+        i2 = Input((2,))
+        outputs = layers.Add()([i1, i2])
+        model = Model({"i1": i1, "i2": i2}, outputs)
+
+        with pytest.warns() as record:
+            model([np.ones((2, 2)), np.zeros((2, 2))])
+        self.assertLen(record, 1)
+        self.assertStartsWith(
+            str(record[0].message),
+            r"The structure of `inputs` doesn't match the expected structure:",
+        )
+
+    def test_for_functional_in_sequential(self):
+        # Test for a v3.4.1 regression.
+        if backend.image_data_format() == "channels_first":
+            image_size = (3, 100, 100)
+        else:
+            image_size = (100, 100, 3)
+        base_model = applications.mobilenet.MobileNet(
+            include_top=False, weights=None
+        )
+        model = Sequential()
+        model.add(layers.Input(shape=image_size))
+        model.add(base_model)
+        model.add(layers.GlobalAveragePooling2D())
+        model.add(layers.Dense(7, activation="softmax"))
+        config = model.get_config()
+        model = Sequential.from_config(config)
+
     def test_add_loss(self):
         # TODO
         pass
+
+    def test_layers_setter(self):
+        inputs = Input(shape=(3,), batch_size=2, name="input")
+        outputs = layers.Dense(5)(inputs)
+        model = Functional(inputs, outputs)
+        with self.assertRaisesRegex(
+            AttributeError, "`Model.layers` attribute is reserved"
+        ):
+            model.layers = [layers.Dense(4)]

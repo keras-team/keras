@@ -16,7 +16,7 @@ except ImportError:
 
 
 @keras_export(["keras.saving.save_model", "keras.models.save_model"])
-def save_model(model, filepath, overwrite=True, zipped=True, **kwargs):
+def save_model(model, filepath, overwrite=True, zipped=None, **kwargs):
     """Saves a model as a `.keras` file.
 
     Args:
@@ -25,7 +25,8 @@ def save_model(model, filepath, overwrite=True, zipped=True, **kwargs):
         overwrite: Whether we should overwrite any existing model at the target
             location, or instead ask the user via an interactive prompt.
         zipped: Whether to save the model as a zipped `.keras`
-            archive (default), or as an unzipped directory.
+            archive (default when saving locally), or as an unzipped directory
+            (default when saving on the Hugging Face Hub).
 
     Example:
 
@@ -88,9 +89,13 @@ def save_model(model, filepath, overwrite=True, zipped=True, **kwargs):
             "`keras.saving.save_model(model, 'my_model.keras')`. "
         )
 
+    is_hf = str(filepath).startswith("hf://")
+    if zipped is None:
+        zipped = not is_hf  # default behavior depends on destination
+
     # If file exists and should not be overwritten.
     try:
-        exists = os.path.exists(filepath)
+        exists = (not is_hf) and os.path.exists(filepath)
     except TypeError:
         exists = False
     if exists and not overwrite:
@@ -159,12 +164,14 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     is_keras_dir = file_utils.isdir(filepath) and file_utils.exists(
         file_utils.join(filepath, "config.json")
     )
+    is_hf = str(filepath).startswith("hf://")
 
     # Support for remote zip files
     if (
         file_utils.is_remote_path(filepath)
         and not file_utils.isdir(filepath)
         and not is_keras_zip
+        and not is_hf
     ):
         local_path = file_utils.join(
             saving_lib.get_temp_dir(), os.path.basename(filepath)
@@ -178,7 +185,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             filepath = local_path
             is_keras_zip = True
 
-    if is_keras_zip or is_keras_dir:
+    if is_keras_zip or is_keras_dir or is_hf:
         return saving_lib.load_model(
             filepath,
             custom_objects=custom_objects,

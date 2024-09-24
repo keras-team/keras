@@ -10,8 +10,10 @@ from unittest import mock
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 import keras
+from keras.src import backend
 from keras.src import ops
 from keras.src import testing
 from keras.src.saving import saving_lib
@@ -239,8 +241,22 @@ def _get_subclassed_functional_model(compile=True):
     return functional_model
 
 
-@pytest.mark.requires_trainable_backend
+# We need a global function for `Pool.apply_async`
+def _load_model_fn(filepath):
+    saving_lib.load_model(filepath)
+
+
 class SavingTest(testing.TestCase):
+    def setUp(self):
+        # Set `_MEMORY_UPPER_BOUND` to zero for testing purpose.
+        self.original_value = saving_lib._MEMORY_UPPER_BOUND
+        saving_lib._MEMORY_UPPER_BOUND = 0
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        saving_lib._MEMORY_UPPER_BOUND = self.original_value
+        return super().tearDown()
+
     def _test_inference_after_instantiation(self, model):
         x_ref = np.random.random((2, 4))
         y_ref = model(x_ref)
@@ -253,28 +269,20 @@ class SavingTest(testing.TestCase):
             self.assertAllClose(w_ref, w)
         self.assertAllClose(y_ref, loaded_model(x_ref))
 
-    def test_inference_after_instantiation_subclassed(self):
-        model = _get_subclassed_model(compile=False)
+    @parameterized.named_parameters(
+        ("subclassed", _get_subclassed_model),
+        ("basic_sequential", _get_basic_sequential_model),
+        ("basic_functional", _get_basic_functional_model),
+        ("custom_sequential", _get_custom_sequential_model),
+        ("custom_functional", _get_custom_functional_model),
+        ("subclassed_functional", _get_subclassed_functional_model),
+    )
+    def test_inference_after_instantiation(self, model_fn):
+        model = model_fn(compile=False)
         self._test_inference_after_instantiation(model)
 
-    def test_inference_after_instantiation_basic_sequential(self):
-        model = _get_basic_sequential_model(compile=False)
-        self._test_inference_after_instantiation(model)
-
-    def test_inference_after_instantiation_basic_functional(self):
-        model = _get_basic_functional_model(compile=False)
-        self._test_inference_after_instantiation(model)
-
-    def test_inference_after_instantiation_custom_sequential(self):
-        model = _get_custom_sequential_model(compile=False)
-        self._test_inference_after_instantiation(model)
-
-    def test_inference_after_instantiation_custom_functional(self):
-        model = _get_custom_functional_model(compile=False)
-        self._test_inference_after_instantiation(model)
-
-    def test_inference_after_instantiation_subclassed_functional(self):
-        model = _get_subclassed_functional_model(compile=False)
+        # Test small model path
+        saving_lib._MEMORY_UPPER_BOUND = 1.0
         self._test_inference_after_instantiation(model)
 
     def _test_compile_preserved(self, model):
@@ -309,28 +317,21 @@ class SavingTest(testing.TestCase):
         for ref_m, m in zip(ref_metrics, new_metrics):
             self.assertAllClose(ref_m, m)
 
-    def test_compile_preserved_subclassed(self):
-        model = _get_subclassed_model(compile=True)
+    @parameterized.named_parameters(
+        ("subclassed", _get_subclassed_model),
+        ("basic_sequential", _get_basic_sequential_model),
+        ("basic_functional", _get_basic_functional_model),
+        ("custom_sequential", _get_custom_sequential_model),
+        ("custom_functional", _get_custom_functional_model),
+        ("subclassed_functional", _get_subclassed_functional_model),
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_compile_preserved(self, model_fn):
+        model = model_fn(compile=True)
         self._test_compile_preserved(model)
 
-    def test_compile_preserved_basic_sequential(self):
-        model = _get_basic_sequential_model(compile=True)
-        self._test_compile_preserved(model)
-
-    def test_compile_preserved_custom_sequential(self):
-        model = _get_custom_sequential_model(compile=True)
-        self._test_compile_preserved(model)
-
-    def test_compile_preserved_basic_functional(self):
-        model = _get_basic_functional_model(compile=True)
-        self._test_compile_preserved(model)
-
-    def test_compile_preserved_custom_functional(self):
-        model = _get_custom_functional_model(compile=True)
-        self._test_compile_preserved(model)
-
-    def test_compile_preserved_subclassed_functional(self):
-        model = _get_subclassed_functional_model(compile=True)
+        # Test small model path
+        saving_lib._MEMORY_UPPER_BOUND = 1.0
         self._test_compile_preserved(model)
 
     def test_saving_preserve_unbuilt_state(self):
@@ -342,6 +343,7 @@ class SavingTest(testing.TestCase):
         self.assertFalse(subclassed_model.built)
         self.assertFalse(loaded_model.built)
 
+    @pytest.mark.requires_trainable_backend
     def test_saved_module_paths_and_class_names(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = _get_subclassed_model()
@@ -368,6 +370,7 @@ class SavingTest(testing.TestCase):
             "my_mean_squared_error",
         )
 
+    @pytest.mark.requires_trainable_backend
     def test_saving_custom_assets_and_variables(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         model = ModelWithCustomSaving()
@@ -501,6 +504,7 @@ class SavingTest(testing.TestCase):
         saving_lib.load_weights_only(model, temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
+    @pytest.mark.requires_trainable_backend
     def test_compile_arg(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
         model = _get_basic_functional_model()
@@ -589,6 +593,7 @@ class SavingTest(testing.TestCase):
             np.array(new_model.layers[2].kernel), new_layer_kernel_value
         )
 
+    @pytest.mark.requires_trainable_backend
     def test_save_to_fileobj(self) -> None:
         model = keras.Sequential(
             [keras.layers.Dense(1, input_shape=(1,)), keras.layers.Dense(1)]
@@ -612,19 +617,27 @@ class SavingTest(testing.TestCase):
 
         self.assertAllClose(pred1, pred2, atol=1e-5)
 
-    def test_save_model_exception_raised(self):
+    @parameterized.named_parameters(
+        ("high_memory_config", True),
+        ("low_memory_config", False),
+    )
+    def test_save_model_exception_raised(self, is_memory_sufficient):
+        if is_memory_sufficient:
+            saving_lib._MEMORY_UPPER_BOUND = 0.5  # 50%
+
         # Assume we have an error in `save_own_variables`.
         class RaiseErrorLayer(keras.layers.Layer):
-            def __init__(self, **kwargs):
+            def __init__(self, units, **kwargs):
                 super().__init__(**kwargs)
+                self.dense = keras.layers.Dense(units)
 
             def call(self, inputs):
-                return inputs
+                return self.dense(inputs)
 
             def save_own_variables(self, store):
                 raise ValueError
 
-        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer()])
+        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer(1)])
         filepath = f"{self.get_temp_dir()}/model.keras"
         with self.assertRaises(ValueError):
             saving_lib.save_model(model, filepath)
@@ -635,19 +648,31 @@ class SavingTest(testing.TestCase):
             all_filenames = zf.namelist()
             self.assertNotIn("model.weights.h5", all_filenames)
 
-    def test_load_model_exception_raised(self):
+        # Ensure we don't have any temporary files left.
+        self.assertLen(os.listdir(Path(filepath).parent), 1)
+        self.assertIn("model.keras", os.listdir(Path(filepath).parent))
+
+    @parameterized.named_parameters(
+        ("high_memory_config", True),
+        ("low_memory_config", False),
+    )
+    def test_load_model_exception_raised(self, is_memory_sufficient):
+        if is_memory_sufficient:
+            saving_lib._MEMORY_UPPER_BOUND = 0.5  # 50%
+
         # Assume we have an error in `load_own_variables`.
         class RaiseErrorLayer(keras.layers.Layer):
-            def __init__(self, **kwargs):
+            def __init__(self, units, **kwargs):
                 super().__init__(**kwargs)
+                self.dense = keras.layers.Dense(units)
 
             def call(self, inputs):
-                return inputs
+                return self.dense(inputs)
 
             def load_own_variables(self, store):
                 raise ValueError
 
-        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer()])
+        model = keras.Sequential([keras.Input([1]), RaiseErrorLayer(1)])
         filepath = f"{self.get_temp_dir()}/model.keras"
         saving_lib.save_model(model, filepath)
         with self.assertRaises(ValueError):
@@ -655,9 +680,48 @@ class SavingTest(testing.TestCase):
                 filepath, custom_objects={"RaiseErrorLayer": RaiseErrorLayer}
             )
 
-        # Ensure we don't leave a bad "model.weights.h5" on the filesystem.
-        self.assertTrue(Path(filepath).exists())
-        self.assertFalse(Path(filepath).with_name("model.weights.h5").exists())
+        # Ensure we don't have any temporary files left.
+        self.assertLen(os.listdir(Path(filepath).parent), 1)
+        self.assertIn("model.keras", os.listdir(Path(filepath).parent))
+
+    def test_load_model_read_only_system(self):
+        model = keras.Sequential([keras.Input([1]), keras.layers.Dense(32)])
+        filepath = f"{self.get_temp_dir()}/model.keras"
+        saving_lib.save_model(model, filepath)
+
+        # Load the model correctly, regardless of whether an OSError occurs.
+        original_mode = os.stat(Path(filepath).parent).st_mode
+        os.chmod(Path(filepath).parent, mode=0o555)
+        model = saving_lib.load_model(filepath)
+        os.chmod(Path(filepath).parent, mode=original_mode)
+
+        # Ensure we don't have any temporary files left.
+        self.assertLen(os.listdir(Path(filepath).parent), 1)
+        self.assertIn("model.keras", os.listdir(Path(filepath).parent))
+
+    @pytest.mark.skipif(
+        backend.backend() == "jax",
+        reason="JAX backend doesn't support Python's multiprocessing",
+    )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu() or testing.torch_uses_gpu(),
+        reason="This test doesn't support GPU",
+    )
+    def test_load_model_concurrently(self):
+        import multiprocessing as mp
+
+        model = keras.Sequential([keras.Input([1]), keras.layers.Dense(2)])
+        filepath = f"{self.get_temp_dir()}/model.keras"
+        saving_lib.save_model(model, filepath)
+
+        # Load the model concurrently.
+        results = []
+        with mp.Pool(4) as pool:
+            for i in range(4):
+                results.append(pool.apply_async(_load_model_fn, (filepath,)))
+            pool.close()
+            pool.join()
+        [r.get() for r in results]  # No error occurs here
 
 
 @pytest.mark.requires_trainable_backend
@@ -894,6 +958,24 @@ class SavingBattleTest(testing.TestCase):
         self.assertAllClose(
             model_a.dense.kernel.numpy(), model_b.dense.kernel.numpy()
         )
+
+    def test_normalization_legacy_h5_format(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "custom_model.h5")
+
+        inputs = keras.Input((32,))
+        normalization = keras.layers.Normalization()
+        outputs = normalization(inputs)
+
+        model = keras.Model(inputs, outputs)
+
+        x = np.random.random((1, 32))
+        normalization.adapt(x)
+        ref_out = model(x)
+
+        model.save(temp_filepath)
+        new_model = keras.saving.load_model(temp_filepath)
+        out = new_model(x)
+        self.assertAllClose(ref_out, out, atol=1e-6)
 
     def test_legacy_h5_format(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "custom_model.h5")

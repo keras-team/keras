@@ -9,7 +9,7 @@ from keras.src import models
 from keras.src import testing
 
 
-class RandomZoomTest(testing.TestCase, parameterized.TestCase):
+class RandomZoomTest(testing.TestCase):
     @parameterized.named_parameters(
         ("random_zoom_in_4_by_6", -0.4, -0.6),
         ("random_zoom_in_2_by_3", -0.2, -0.3),

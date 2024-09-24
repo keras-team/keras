@@ -11,7 +11,7 @@ if backend.SUPPORTS_SPARSE_TENSORS:
     TEST_CASES += [{"testcase_name": "sparse", "sparse": True}]
 
 
-class CategoryEncodingTest(testing.TestCase, parameterized.TestCase):
+class CategoryEncodingTest(testing.TestCase):
     @parameterized.named_parameters(TEST_CASES)
     def test_count_output(self, sparse):
         input_array = np.array([1, 2, 3, 1])

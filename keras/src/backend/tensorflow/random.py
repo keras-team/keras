@@ -7,14 +7,22 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
-def tf_draw_seed(seed):
-    # TF ops only accept int32/64 seeds but our base seed is uint32.
-    return tf.cast(draw_seed(seed), dtype="int32")
+def _cast_seed(seed):
+    # TensorFlow has a device placement issue that `Variable` must be int64
+    # in `SeedGenerator`. However, all `tf.random.stateless_*` expect the seed
+    # to be int32 to run with XLA.
+    # This function addresses the inconsistency using `floormod`.
+    # Ref: https://www.tensorflow.org/api_docs/python/tf/random
+    if standardize_dtype(seed.dtype) == "int32":
+        return seed
+    else:
+        seed = tf.cast(tf.math.floormod(seed, tf.int32.max - 1), dtype="int32")
+        return seed
 
 
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = tf_draw_seed(seed)
+    seed = _cast_seed(draw_seed(seed))
     return tf.random.stateless_normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
     )
@@ -22,7 +30,7 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = tf_draw_seed(seed)
+    seed = _cast_seed(draw_seed(seed))
     return tf.random.stateless_uniform(
         shape=shape,
         minval=tf.cast(minval, dtype),
@@ -33,21 +41,21 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 
 
 def categorical(logits, num_samples, dtype="int64", seed=None):
-    seed = tf_draw_seed(seed)
+    seed = _cast_seed(draw_seed(seed))
     output = tf.random.stateless_categorical(logits, num_samples, seed=seed)
     return tf.cast(output, dtype)
 
 
 def randint(shape, minval, maxval, dtype="int32", seed=None):
-    intemediate_dtype = dtype
+    intermediate_dtype = dtype
     if standardize_dtype(dtype) not in ["int32", "int64"]:
-        intemediate_dtype = "int64"
-    seed = tf_draw_seed(seed)
+        intermediate_dtype = "int64"
+    seed = _cast_seed(draw_seed(seed))
     output = tf.random.stateless_uniform(
         shape=shape,
         minval=minval,
         maxval=maxval,
-        dtype=intemediate_dtype,
+        dtype=intermediate_dtype,
         seed=seed,
     )
     return tf.cast(output, dtype)
@@ -55,7 +63,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = tf_draw_seed(seed)
+    seed = _cast_seed(draw_seed(seed))
     return tf.random.stateless_truncated_normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
     )
@@ -75,7 +83,7 @@ def _get_concrete_noise_shape(inputs, noise_shape):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
-    seed = tf_draw_seed(seed)
+    seed = _cast_seed(draw_seed(seed))
     noise_shape = _get_concrete_noise_shape(inputs, noise_shape)
     return tf.nn.experimental.stateless_dropout(
         inputs,
@@ -88,7 +96,7 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
 def shuffle(x, axis=0, seed=None):
     from keras.src.backend.tensorflow.numpy import swapaxes
 
-    seed = tf_draw_seed(seed)
+    seed = _cast_seed(draw_seed(seed))
     if axis == 0:
         return tf.random.experimental.stateless_shuffle(x, seed=seed)
     x = swapaxes(x, axis1=0, axis2=axis)
@@ -99,16 +107,16 @@ def shuffle(x, axis=0, seed=None):
 
 def gamma(shape, alpha, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = tf_draw_seed(seed)
+    seed = _cast_seed(draw_seed(seed))
     # TODO: `tf.random.stateless_gamma` doesn't support bfloat16
-    intemediate_dtype = dtype
+    intermediate_dtype = dtype
     if standardize_dtype(dtype) == "bfloat16":
-        intemediate_dtype = "float32"
+        intermediate_dtype = "float32"
     return tf.cast(
         tf.random.stateless_gamma(
             shape,
             alpha=alpha,
-            dtype=intemediate_dtype,
+            dtype=intermediate_dtype,
             seed=seed,
         ),
         dtype,
@@ -117,18 +125,18 @@ def gamma(shape, alpha, dtype=None, seed=None):
 
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = tf_draw_seed(seed)
+    seed = _cast_seed(draw_seed(seed))
     # TODO: `tf.random.stateless_binomial` doesn't support bfloat16
-    intemediate_dtype = dtype
+    intermediate_dtype = dtype
     if standardize_dtype(dtype) == "bfloat16":
-        intemediate_dtype = "float32"
+        intermediate_dtype = "float32"
     return tf.cast(
         tf.random.stateless_binomial(
             shape=shape,
             seed=seed,
             counts=counts,
             probs=probabilities,
-            output_dtype=intemediate_dtype,
+            output_dtype=intermediate_dtype,
         ),
         dtype,
     )
@@ -146,18 +154,18 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
     # gamma random variables to prevent any unintended
     # dependencies and correlations between the generated values
     # due to the usage of same seed.
-    seed_1 = tf_draw_seed(seed)
+    seed_1 = _cast_seed(draw_seed(seed))
     # The choice of 12 is totally arbitrary, as we're
     # incrementing the first drawn seed by a CONSTANT to
     # ensure deterministic results.
     seed_2 = seed_1 + 12
 
     # TODO: `tf.random.stateless_gamma` doesn't support bfloat16
-    intemediate_dtype = dtype
+    intermediate_dtype = dtype
     if standardize_dtype(dtype) == "bfloat16":
-        intemediate_dtype = "float32"
-    alpha = tf.convert_to_tensor(alpha, dtype=intemediate_dtype)
-    beta = tf.convert_to_tensor(beta, dtype=intemediate_dtype)
+        intermediate_dtype = "float32"
+    alpha = tf.convert_to_tensor(alpha, dtype=intermediate_dtype)
+    beta = tf.convert_to_tensor(beta, dtype=intermediate_dtype)
 
     # tensorflow's tf.random.stateless_gamma has a bit of unconventional
     # implementation of the stateless_gamma function where it checks the
@@ -167,20 +175,18 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
     # such as for output shape of (2, 3) and alpha shape of (1, 3)
     # So to resolve this, we explicitly broadcast alpha and beta to shape before
     # passing them to the stateless_gamma function.
-    if tf.rank(alpha) > 1:
-        alpha = tf.broadcast_to(alpha, shape)
-    if tf.rank(beta) > 1:
-        beta = tf.broadcast_to(beta, shape)
+    alpha = tf.broadcast_to(alpha, shape)
+    beta = tf.broadcast_to(beta, shape)
 
     gamma_a = tf.cast(
         tf.random.stateless_gamma(
-            shape=shape, seed=seed_1, alpha=alpha, dtype=intemediate_dtype
+            shape=shape, seed=seed_1, alpha=alpha, dtype=intermediate_dtype
         ),
         dtype,
     )
     gamma_b = tf.cast(
         tf.random.stateless_gamma(
-            shape=shape, seed=seed_2, alpha=beta, dtype=intemediate_dtype
+            shape=shape, seed=seed_2, alpha=beta, dtype=intermediate_dtype
         ),
         dtype,
     )

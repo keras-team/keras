@@ -9,7 +9,7 @@ from keras.src.saving import serialization_lib
 
 def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
     dtype = dtype or backend.floatx()
-    mask = getattr(values, "_keras_mask", None)
+    mask = backend.get_keras_mask(values)
     values = ops.cast(values, dtype=dtype)
     if sample_weight is not None:
         sample_weight = ops.convert_to_tensor(sample_weight, dtype=dtype)
@@ -87,7 +87,7 @@ class Sum(Metric):
         self.total.assign_add(ops.sum(values))
 
     def reset_state(self):
-        self.total.assign(0.0)
+        self.total.assign(0)
 
     def result(self):
         return ops.cast(self.total, self.dtype)
@@ -150,7 +150,7 @@ class Mean(Metric):
         self.count.assign_add(ops.cast(num_samples, dtype=self.dtype))
 
     def reset_state(self):
-        self.total.assign(0.0)
+        self.total.assign(0)
         self.count.assign(0)
 
     def result(self):
@@ -200,7 +200,7 @@ class MeanMetricWrapper(Mean):
             self._direction = "down"
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        mask = getattr(y_pred, "_keras_mask", None)
+        mask = backend.get_keras_mask(y_pred)
         values = self._fn(y_true, y_pred, **self._fn_kwargs)
         if sample_weight is not None and mask is not None:
             sample_weight = losses.loss.apply_mask(

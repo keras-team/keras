@@ -184,9 +184,9 @@ def resize(
         else:
             height, width = shape[-2], shape[-1]
         crop_height = int(float(width * target_height) / target_width)
-        crop_height = min(height, crop_height)
+        crop_height = max(min(height, crop_height), 1)
         crop_width = int(float(height * target_width) / target_height)
-        crop_width = min(width, crop_width)
+        crop_width = max(min(width, crop_width), 1)
         crop_box_hstart = int(float(height - crop_height) / 2)
         crop_box_wstart = int(float(width - crop_width) / 2)
         if data_format == "channels_last":

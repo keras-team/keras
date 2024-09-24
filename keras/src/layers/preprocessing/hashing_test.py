@@ -23,7 +23,7 @@ class ArrayLike:
 @pytest.mark.skipif(
     backend.backend() == "numpy", reason="Broken with NumPy backend."
 )
-class HashingTest(testing.TestCase, parameterized.TestCase):
+class HashingTest(testing.TestCase):
     def test_config(self):
         layer = layers.Hashing(
             num_bins=8,

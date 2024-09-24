@@ -7,7 +7,7 @@ from keras.src.backend import KerasTensor
 from keras.src.layers import InputLayer
 
 
-class InputLayerTest(testing.TestCase, parameterized.TestCase):
+class InputLayerTest(testing.TestCase):
     # Testing happy path for layer without input tensor
     @parameterized.named_parameters(
         [

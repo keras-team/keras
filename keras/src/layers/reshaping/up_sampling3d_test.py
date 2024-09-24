@@ -7,7 +7,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class UpSampling3dTest(testing.TestCase, parameterized.TestCase):
+class UpSampling3dTest(testing.TestCase):
     @parameterized.product(
         data_format=["channels_first", "channels_last"],
         length_dim1=[2, 3],

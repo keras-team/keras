@@ -157,20 +157,20 @@ class ModelCheckpoint(Callback):
         if mode == "min":
             self.monitor_op = np.less
             if self.best is None:
-                self.best = np.Inf
+                self.best = np.inf
         elif mode == "max":
             self.monitor_op = np.greater
             if self.best is None:
-                self.best = -np.Inf
+                self.best = -np.inf
         else:
             if "acc" in self.monitor or self.monitor.startswith("fmeasure"):
                 self.monitor_op = np.greater
                 if self.best is None:
-                    self.best = -np.Inf
+                    self.best = -np.inf
             else:
                 self.monitor_op = np.less
                 if self.best is None:
-                    self.best = np.Inf
+                    self.best = np.inf
 
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError(
@@ -341,7 +341,7 @@ class ModelCheckpoint(Callback):
         later time of modification (for instance, when epoch/batch is used as
         formatting option), but not necessarily (when accuracy or loss is used).
         The tie-breaker is put in the logic as best effort to return the most
-        recent, and to avoid undeterministic result.
+        recent, and to avoid nondeterministic result.
 
         Modified time of a file is obtained with `os.path.getmtime()`.
 

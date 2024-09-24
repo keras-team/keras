@@ -7,7 +7,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
+class RandomTranslationTest(testing.TestCase):
     @parameterized.named_parameters(
         ("random_translate_4_by_6", 0.4, 0.6),
         ("random_translate_3_by_2", 0.3, 0.2),

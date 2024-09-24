@@ -5,6 +5,7 @@ import pytest
 
 from keras.src import backend
 from keras.src import layers
+from keras.src import saving
 from keras.src import testing
 from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
@@ -150,6 +151,58 @@ class SequentialTest(testing.TestCase):
         y = model(x)
         self.assertEqual(y.shape, (2, 3, 4))
 
+    def test_basic_flow_with_functional_model_as_first_layer(self):
+        # Build functional model
+        inputs = Input((16, 16, 3))
+        outputs = layers.Conv2D(4, 3, padding="same")(inputs)
+        functional_model = Model(inputs=inputs, outputs=outputs)
+
+        model = Sequential(
+            [functional_model, layers.Flatten(), layers.Dense(1)]
+        )
+        model.summary()
+        self.assertEqual(len(model.layers), 3)
+        self.assertTrue(model.built)
+        for layer in model.layers:
+            self.assertTrue(layer.built)
+
+        # Test eager call
+        x = np.random.random((1, 16, 16, 3))
+        y = model(x)
+        self.assertEqual(type(model._functional), Functional)
+        self.assertEqual(tuple(y.shape), (1, 1))
+
+        # Test symbolic call
+        x = backend.KerasTensor((1, 16, 16, 3))
+        y = model(x)
+        self.assertEqual(y.shape, (1, 1))
+
+    def test_basic_flow_with_sequential_model_as_first_layer(self):
+        # Build sequential model
+        sequential_model = Sequential(
+            [Input((16, 16, 3)), layers.Conv2D(4, 3, padding="same")]
+        )
+
+        model = Sequential(
+            [sequential_model, layers.Flatten(), layers.Dense(1)]
+        )
+        model.summary()
+        self.assertEqual(len(model.layers), 3)
+        self.assertTrue(model.built)
+        for layer in model.layers:
+            self.assertTrue(layer.built)
+
+        # Test eager call
+        x = np.random.random((1, 16, 16, 3))
+        y = model(x)
+        self.assertEqual(type(model._functional), Functional)
+        self.assertEqual(tuple(y.shape), (1, 1))
+
+        # Test symbolic call
+        x = backend.KerasTensor((1, 16, 16, 3))
+        y = model(x)
+        self.assertEqual(y.shape, (1, 1))
+
     def test_dict_inputs(self):
         class DictLayer(layers.Layer):
             def call(self, inputs):
@@ -173,6 +226,12 @@ class SequentialTest(testing.TestCase):
         y = model(x)
         self.assertEqual(type(y), list)
         model.summary()
+
+    def test_nested_sequential(self):
+        # https://github.com/keras-team/keras/issues/20203
+        model = Sequential()
+        model.add(Input(shape=(16,)))
+        Sequential([model])
 
     def test_errors(self):
         # Trying to pass 2 Inputs
@@ -252,6 +311,21 @@ class SequentialTest(testing.TestCase):
         )
         self.assertLen(revived.layers, 1)
 
+    def test_serialization_with_lambda_layer(self):
+        # https://github.com/keras-team/keras/issues/20074
+        inputs = np.random.random(size=(1, 10, 4)).astype("float32")
+        CONV_WIDTH = 3
+        model = Sequential([layers.Lambda(lambda x: x[:, -CONV_WIDTH:, :])])
+        outputs = model(inputs)
+
+        temp = self.get_temp_dir()
+        save_path = f"{temp}/model.keras"
+        model.save(save_path)
+        revived = saving.load_model(save_path, safe_mode=False)
+        revived_outputs = revived(inputs)
+        self.assertLen(revived.layers, 1)
+        self.assertAllClose(revived_outputs, outputs)
+
     def test_functional_properties(self):
         model = Sequential(name="seq")
         inputs = Input(shape=(2,))
@@ -291,3 +365,23 @@ class SequentialTest(testing.TestCase):
         layer = Sequential([layers.Dense(4), layers.Dense(8)])
         output_shape = layer.compute_output_shape((1, 2))
         self.assertEqual(output_shape, (1, 8))
+
+    def test_hasattr(self):
+        model = Sequential()
+        self.assertFalse(hasattr(model, "input_shape"))
+        self.assertFalse(hasattr(model, "output_shape"))
+        self.assertFalse(hasattr(model, "inputs"))
+        self.assertFalse(hasattr(model, "outputs"))
+
+        model = Sequential([layers.Input((4,)), layers.Dense(8)])
+        self.assertTrue(hasattr(model, "input_shape"))
+        self.assertTrue(hasattr(model, "output_shape"))
+        self.assertTrue(hasattr(model, "inputs"))
+        self.assertTrue(hasattr(model, "outputs"))
+
+    def test_layers_setter(self):
+        model = Sequential()
+        with self.assertRaisesRegex(
+            AttributeError, r"Use `add\(\)` and `pop\(\)`"
+        ):
+            model.layers = [layers.Dense(4)]

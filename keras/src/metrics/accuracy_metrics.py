@@ -110,12 +110,6 @@ class BinaryAccuracy(reduction_metrics.MeanMetricWrapper):
     """
 
     def __init__(self, name="binary_accuracy", dtype=None, threshold=0.5):
-        if threshold is not None and (threshold <= 0 or threshold >= 1):
-            raise ValueError(
-                "Invalid value for argument `threshold`. "
-                "Expected a value in interval (0, 1). "
-                f"Received: threshold={threshold}"
-            )
         super().__init__(
             fn=binary_accuracy, name=name, dtype=dtype, threshold=threshold
         )
@@ -155,7 +149,7 @@ def categorical_accuracy(y_true, y_pred):
 
     # If the predicted output and actual output types don't match, force cast
     # them to match.
-    if y_pred.dtype != y_true.dtype:
+    if y_pred.dtype is not y_true.dtype:
         y_pred = ops.cast(y_pred, dtype=y_true.dtype)
     matches = ops.cast(ops.equal(y_true, y_pred), backend.floatx())
     if reshape_matches:
@@ -241,7 +235,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
 
     # If the predicted output and actual output types don't match, force cast
     # them to match.
-    if y_pred.dtype != y_true.dtype:
+    if y_pred.dtype is not y_true.dtype:
         y_pred = ops.cast(y_pred, y_true.dtype)
     matches = ops.cast(ops.equal(y_true, y_pred), backend.floatx())
     if reshape_matches:

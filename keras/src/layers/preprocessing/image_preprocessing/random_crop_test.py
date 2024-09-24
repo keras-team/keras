@@ -11,12 +11,50 @@ class RandomCropTest(testing.TestCase):
         self.run_layer_test(
             layers.RandomCrop,
             init_kwargs={
-                "height": 1,
-                "width": 1,
+                "height": 2,
+                "width": 2,
+                "data_format": "channels_last",
             },
-            input_shape=(2, 3, 4),
+            input_shape=(1, 3, 4, 3),
             supports_masking=False,
             run_training_check=False,
+            expected_output_shape=(1, 2, 2, 3),
+        )
+        self.run_layer_test(
+            layers.RandomCrop,
+            init_kwargs={
+                "height": 2,
+                "width": 2,
+                "data_format": "channels_last",
+            },
+            input_shape=(3, 4, 3),
+            supports_masking=False,
+            run_training_check=False,
+            expected_output_shape=(2, 2, 3),
+        )
+        self.run_layer_test(
+            layers.RandomCrop,
+            init_kwargs={
+                "height": 2,
+                "width": 2,
+                "data_format": "channels_first",
+            },
+            input_shape=(1, 3, 3, 4),
+            supports_masking=False,
+            run_training_check=False,
+            expected_output_shape=(1, 3, 2, 2),
+        )
+        self.run_layer_test(
+            layers.RandomCrop,
+            init_kwargs={
+                "height": 2,
+                "width": 2,
+                "data_format": "channels_first",
+            },
+            input_shape=(3, 3, 4),
+            supports_masking=False,
+            run_training_check=False,
+            expected_output_shape=(3, 2, 2),
         )
 
     def test_random_crop_full(self):
@@ -98,3 +136,28 @@ class RandomCropTest(testing.TestCase):
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         output = next(iter(ds)).numpy()
         self.assertEqual(list(output.shape), [2, 8, 9, 3])
+
+    def test_dict_input(self):
+        layer = layers.RandomCrop(
+            3, 3, data_format="channels_last", bounding_box_format="xyxy"
+        )
+        data = {
+            "images": np.random.random((2, 4, 5, 3)),
+            "labels": np.random.random((2, 7)),
+            "segmentation_masks": np.random.random((2, 4, 5, 7)),
+            "bounding_boxes": {
+                "boxes": np.array([[1, 2, 2, 3]]),
+                "labels": np.array([0]),
+            },
+        }
+        transformed_data = layer(data)
+        self.assertEqual(
+            data["images"].shape[:-1],
+            transformed_data["segmentation_masks"].shape[:-1],
+        )
+        self.assertAllClose(data["labels"], transformed_data["labels"])
+        self.assertEqual(data["bounding_boxes"]["boxes"].shape, (1, 4))
+        self.assertAllClose(
+            data["bounding_boxes"]["labels"],
+            transformed_data["bounding_boxes"]["labels"],
+        )

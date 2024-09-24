@@ -9,7 +9,7 @@ from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 
 
-class DtypesTest(test_case.TestCase, parameterized.TestCase):
+class DtypesTest(test_case.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     if backend.backend() == "torch":
@@ -89,6 +89,16 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
     def test_resolve_weak_type_for_bfloat16_with_precision(self):
         self.assertEqual(
             dtypes._resolve_weak_type("bfloat16", precision="64"), "float64"
+        )
+
+    def test_respect_weak_type_for_complex64(self):
+        self.assertAllEqual(
+            dtypes._respect_weak_type("complex64", True), "complex"
+        )
+
+    def test_respect_weak_type_for_complex128(self):
+        self.assertAllEqual(
+            dtypes._respect_weak_type("complex128", True), "complex"
         )
 
     def test_invalid_dtype_for_keras_promotion(self):

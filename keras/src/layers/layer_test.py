@@ -2,6 +2,7 @@ import pickle
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import dtype_policies
@@ -139,6 +140,31 @@ class LayerTest(testing.TestCase):
 
         # This works
         SomeLayer()(x, bool_arg=True)
+
+    @parameterized.named_parameters(
+        ("call", "call", None),
+        ("compute_output_shape", "compute_output_shape", None),
+        (
+            "quantized_build",
+            "quantized_build",
+            {"input_shape": None, "mode": None},
+        ),
+        ("quantize", "quantize", {"mode": "int8"}),
+        ("_int8_call", "_int8_call", None),
+        ("_float8_call", "_float8_call", None),
+    )
+    def test_not_implemented_error(self, method, args):
+        layer = layers.Layer()
+        layer.built = True
+
+        with self.assertRaisesRegex(
+            NotImplementedError,
+            f"does not have a `{method}` method implemented.",
+        ):
+            if isinstance(args, dict):
+                getattr(layer, method)(**args)
+            else:
+                getattr(layer, method)(args)
 
     def test_rng_seed_tracking(self):
         class RNGLayer(layers.Layer):
@@ -546,8 +572,24 @@ class LayerTest(testing.TestCase):
         CustomLayer()(x)
 
     @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy backend does not support masking.",
+        backend.backend() == "numpy", reason="masking not supported with numpy"
+    )
+    def test_end_to_end_masking(self):
+        # Check that masking survives compilation
+        model = models.Sequential(
+            [
+                layers.Embedding(
+                    2, 2, mask_zero=True, embeddings_initializer="ones"
+                ),
+            ]
+        )
+        model.compile(loss="mse")
+        targets = np.array([[[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [1.0, 1.0]]])
+        loss = model.evaluate(np.array([[1, 0, 0, 1]]), targets)
+        self.assertAllClose(loss, 0.0)
+
+    @pytest.mark.skipif(
+        backend.backend() == "numpy", reason="masking not supported with numpy"
     )
     def test_masking(self):
         class BasicMaskedLayer(layers.Layer):
@@ -561,7 +603,8 @@ class LayerTest(testing.TestCase):
 
         layer = BasicMaskedLayer()
         x = backend.numpy.ones((4, 4))
-        x._keras_mask = backend.numpy.ones((4,))
+        mask = backend.numpy.ones((4,))
+        backend.set_keras_mask(x, mask)
         layer(x)
 
         layer(backend.numpy.ones((4, 4)), mask=backend.numpy.ones((4,)))
@@ -580,9 +623,11 @@ class LayerTest(testing.TestCase):
 
         layer = NestedInputMaskedLayer()
         x1 = backend.numpy.ones((4, 4))
-        x1._keras_mask = backend.numpy.ones((4,))
+        mask1 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x1, mask1)
         x2 = backend.numpy.ones((4, 4))
-        x2._keras_mask = backend.numpy.ones((4,))
+        mask2 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x2, mask2)
         layer([x1, x2])
 
         layer(
@@ -618,11 +663,14 @@ class LayerTest(testing.TestCase):
 
         layer = PositionalNestedInputsMaskedLayer()
         x1_1 = backend.numpy.ones((4, 4))
-        x1_1._keras_mask = backend.numpy.ones((4,))
+        mask1 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x1_1, mask1)
         x1_2 = backend.numpy.ones((4, 4))
-        x1_2._keras_mask = backend.numpy.ones((4,))
+        mask2 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x1_2, mask2)
         x2 = backend.numpy.ones((4, 4))
-        x2._keras_mask = backend.numpy.ones((4,))
+        mask2 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x2, mask2)
         layer((x1_1, x1_2), x2)
         layer(x1=(x1_1, x1_2), x2=x2)
 
@@ -971,16 +1019,66 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.dtype_policy.name, "mixed_bfloat16")
         self.assertEqual(layer.dtype_policy.compute_dtype, "bfloat16")
         self.assertEqual(layer.dtype_policy.variable_dtype, "float32")
-        # Set by FloatDTypePolicy
-        layer.dtype_policy = dtype_policies.FloatDTypePolicy("mixed_float16")
+        # Set by DTypePolicy
+        layer.dtype_policy = dtype_policies.DTypePolicy("mixed_float16")
         self.assertEqual(layer.dtype_policy.name, "mixed_float16")
         self.assertEqual(layer.dtype_policy.compute_dtype, "float16")
         self.assertEqual(layer.dtype_policy.variable_dtype, "float32")
+        # Set with DTypePolicyMap
+        dtype_policy_map = dtype_policies.DTypePolicyMap()
+        layer = layers.Dense(2, dtype=dtype_policy_map)
+        layer.build([None, 1])
+        layer.dtype_policy = "mixed_bfloat16"
+        self.assertIsInstance(
+            layer._dtype_policy, dtype_policies.DTypePolicyMap
+        )
+        self.assertEqual(
+            layer._dtype_policy[layer.path],
+            dtype_policies.DTypePolicy("mixed_bfloat16"),
+        )
 
     def test_pickle_layer(self):
         layer = layers.Dense(2)
         reloaded = pickle.loads(pickle.dumps(layer))
         self.assertEqual(layer.get_config(), reloaded.get_config())
+
+    def test_serialize_dtype(self):
+        assertIsNone = self.assertIsNone
+        assertIsNotNone = self.assertIsNotNone
+
+        class AssertionDense(layers.Dense):
+            def __init__(self, *args, **kwargs):
+                dtype = kwargs["dtype"]
+                if isinstance(dtype, str):
+                    # `dtype` is a plain string, it should be the `name` from a
+                    # `DTypePolicy`
+                    dtype = dtype_policies.get(dtype)
+                    assertIsNone(dtype.quantization_mode)
+                else:
+                    # `dtype` is a DTypePolicy instance, it should be an
+                    # instance of `QuantizedDTypePolicy`
+                    assertIsNotNone(dtype.quantization_mode)
+                super().__init__(*args, **kwargs)
+
+        # Test floating dtype serialization
+        layer = layers.Dense(2, dtype="bfloat16")
+        config = layer.get_config()
+        self.assertIn("dtype", config)
+        self.assertEqual(
+            config["dtype"],
+            dtype_policies.serialize(dtype_policies.DTypePolicy("bfloat16")),
+        )
+        AssertionDense.from_config(config)  # Assertion inside
+
+        # Test quantized dtype serialization
+        layer = layers.Dense(2, dtype="int8_from_bfloat16")
+        config = layer.get_config()
+        self.assertIn("dtype", config)
+        self.assertEqual(
+            config["dtype"],
+            dtype_policies.serialize(dtype_policies.get("int8_from_bfloat16")),
+        )
+        AssertionDense.from_config(config)  # Assertion inside
 
     def test_serialize_activity_regularizer(self):
         layer = layers.Dense(2, activity_regularizer="l2")
@@ -1026,7 +1124,7 @@ class LayerTest(testing.TestCase):
         self.assertTrue("inner_inner_layer/inner" in variable_paths)
         if backend.backend() == "torch":
             parameter_names = set(
-                param_name.replace("torch_params.", "")
+                param_name.replace("_torch_params.", "")
                 for param_name, _ in layer.named_parameters()
             )
             self.assertSetEqual(variable_paths, parameter_names)
@@ -1083,7 +1181,7 @@ class LayerTest(testing.TestCase):
         )
         if backend.backend() == "torch":
             parameter_names = set(
-                param_name.replace("torch_params.", "")
+                param_name.replace("_torch_params.", "")
                 for param_name, _ in layer.named_parameters()
             )
             self.assertSetEqual(variable_paths, parameter_names)
@@ -1136,7 +1234,7 @@ class LayerTest(testing.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "torch_params.training_layer/post_build_modify_layer/var",
+                "_torch_params.training_layer/post_build_modify_layer/var",
             )
 
         layer.post_build_modify_layer.post_build_add()
@@ -1158,7 +1256,7 @@ class LayerTest(testing.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "torch_params.training_layer/post_build_modify_layer/var",
+                "_torch_params.training_layer/post_build_modify_layer/var",
             )
 
             parameter_names = [
@@ -1168,11 +1266,11 @@ class LayerTest(testing.TestCase):
             self.assertEqual(len(parameter_names), 2)
             self.assertEqual(
                 parameter_names[0],
-                "torch_params.training_layer/post_build_modify_layer/var",
+                "_torch_params.training_layer/post_build_modify_layer/var",
             )
             self.assertEqual(
                 parameter_names[1],
-                "torch_params.training_layer/post_build_modify_layer/var2",
+                "_torch_params.training_layer/post_build_modify_layer/var2",
             )
 
         layer.post_build_modify_layer.post_build_remove()
@@ -1191,12 +1289,12 @@ class LayerTest(testing.TestCase):
             self.assertEqual(len(parameter_names), 2)
             self.assertEqual(
                 parameter_names[0],
-                "post_build_modify_layer.torch_params.training_layer/"
+                "post_build_modify_layer._torch_params.training_layer/"
                 "post_build_modify_layer/var2",
             )
             self.assertEqual(
                 parameter_names[1],
-                "torch_params.training_layer/post_build_modify_layer/var",
+                "_torch_params.training_layer/post_build_modify_layer/var",
             )
 
             parameter_names = [
@@ -1206,7 +1304,7 @@ class LayerTest(testing.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "torch_params.training_layer/post_build_modify_layer/var2",
+                "_torch_params.training_layer/post_build_modify_layer/var2",
             )
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
@@ -1230,3 +1328,24 @@ class LayerTest(testing.TestCase):
         layer2.build(None)
         layer2_names = list(pname for pname, _ in layer2.named_parameters())
         self.assertListEqual(layer1_names, layer2_names)
+
+    def test_complex_dtype_support(self):
+
+        class MyDenseLayer(layers.Layer):
+            def __init__(self, num_outputs):
+                super(MyDenseLayer, self).__init__()
+                self.num_outputs = num_outputs
+
+            def build(self, input_shape):
+                self.kernel = self.add_weight(
+                    shape=[int(input_shape[-1]), self.num_outputs],
+                )
+
+            def call(self, inputs):
+                kernel = ops.cast(self.kernel, "complex64")
+                return ops.matmul(inputs, kernel)
+
+        inputs = ops.zeros([10, 5], dtype="complex64")
+        layer = MyDenseLayer(10)
+        output = layer(inputs)
+        self.assertAllEqual(output.shape, (10, 10))

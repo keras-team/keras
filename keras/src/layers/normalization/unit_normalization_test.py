@@ -20,6 +20,7 @@ class UnitNormalizationTest(testing.TestCase):
             input_shape=(2, 3),
             expected_output_shape=(2, 3),
             supports_masking=True,
+            assert_built_after_instantiation=True,
         )
         self.run_layer_test(
             layers.UnitNormalization,
@@ -27,6 +28,7 @@ class UnitNormalizationTest(testing.TestCase):
             input_shape=(1, 3, 3),
             expected_output_shape=(1, 3, 3),
             supports_masking=True,
+            assert_built_after_instantiation=True,
         )
 
     def test_invalid_axis(self):

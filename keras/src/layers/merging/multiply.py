@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.merging.base_merge import Merge
@@ -31,7 +32,7 @@ class Multiply(Merge):
     """
 
     def _merge_function(self, inputs):
-        masks = [getattr(x, "_keras_mask", None) for x in inputs]
+        masks = [backend.get_keras_mask(x) for x in inputs]
         has_output_mask = all(mask is not None for mask in masks)
         output = None
         output_mask = None
@@ -53,7 +54,7 @@ class Multiply(Merge):
             # Replace 1s with 0s outside of mask per standard masking rules.
             output = ops.where(output_mask, output, ops.cast(0, output.dtype))
             output_mask = ops.any(output_mask, axis=-1, keepdims=False)
-            output._keras_mask = output_mask
+            backend.set_keras_mask(output, output_mask)
         return output
 
 

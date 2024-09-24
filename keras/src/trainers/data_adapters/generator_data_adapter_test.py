@@ -31,7 +31,7 @@ def example_generator(x, y, sample_weight=None, batch_size=32):
     return make
 
 
-class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
+class GeneratorDataAdapterTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(
             [
@@ -73,7 +73,9 @@ class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
-            expected_class = jax.Array
+            expected_class = (
+                jax.Array if generator_type == "jax" else np.ndarray
+            )
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor

@@ -240,7 +240,7 @@ class Resize(Operation):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.image.resize(
+        return _resize(
             images,
             self.size,
             interpolation=self.interpolation,
@@ -362,7 +362,7 @@ def resize(
             fill_mode=fill_mode,
             fill_value=fill_value,
         ).symbolic_call(images)
-    return backend.image.resize(
+    return _resize(
         images,
         size,
         interpolation=interpolation,
@@ -373,6 +373,37 @@ def resize(
         fill_mode=fill_mode,
         fill_value=fill_value,
     )
+
+
+def _resize(
+    images,
+    size,
+    interpolation="bilinear",
+    antialias=False,
+    crop_to_aspect_ratio=False,
+    pad_to_aspect_ratio=False,
+    fill_mode="constant",
+    fill_value=0.0,
+    data_format=None,
+):
+    resized = backend.image.resize(
+        images,
+        size,
+        interpolation=interpolation,
+        antialias=antialias,
+        crop_to_aspect_ratio=crop_to_aspect_ratio,
+        data_format=data_format,
+        pad_to_aspect_ratio=pad_to_aspect_ratio,
+        fill_mode=fill_mode,
+        fill_value=fill_value,
+    )
+    if resized.dtype == images.dtype:
+        # Only `torch` backend will cast result to original dtype with
+        # correct rounding and without dtype overflow
+        return resized
+    if backend.is_int_dtype(images.dtype):
+        resized = ops.round(resized)
+    return ops.saturate_cast(resized, images.dtype)
 
 
 class AffineTransform(Operation):
@@ -583,7 +614,7 @@ def extract_patches(
 
     Args:
         images: Input image or batch of images. Must be 3D or 4D.
-        size: Patch size int or tuple (patch_height, patch_widht)
+        size: Patch size int or tuple (patch_height, patch_width)
         strides: strides along height and width. If not specified, or
             if `None`, it defaults to the same value as `size`.
         dilation_rate: This is the input stride, specifying how far two

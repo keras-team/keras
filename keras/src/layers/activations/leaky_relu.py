@@ -49,8 +49,9 @@ class LeakyReLU(Layer):
                 "cannot be None or negative value. Expected a float."
                 f" Received: negative_slope={negative_slope}"
             )
-        self.supports_masking = True
         self.negative_slope = negative_slope
+        self.supports_masking = True
+        self.built = True
 
     def call(self, inputs):
         return activations.leaky_relu(

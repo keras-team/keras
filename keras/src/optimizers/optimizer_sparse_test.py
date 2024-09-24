@@ -130,7 +130,7 @@ TEST_CASES = [
     not backend.SUPPORTS_SPARSE_TENSORS,
     reason="Backend does not support sparse tensors.",
 )
-class OptimizerSparseTest(testing.TestCase, parameterized.TestCase):
+class OptimizerSparseTest(testing.TestCase):
     @parameterized.named_parameters(TEST_CASES)
     def test_sparse_gradients(
         self,
@@ -204,7 +204,7 @@ class OptimizerSparseTest(testing.TestCase, parameterized.TestCase):
                 )
 
         # patch "_apply_weight_decay" to exclude this special case.
-        # patch the optimizer "assign" methods to detect sparse udpates.
+        # patch the optimizer "assign" methods to detect sparse updates.
         # patch the tf.Variable "assign" methods to detect direct assign calls.
         with mock.patch.object(
             optimizer_to_patch, "_apply_weight_decay", autospec=True

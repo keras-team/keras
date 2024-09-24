@@ -2,9 +2,11 @@ import copy
 import inspect
 import typing
 
+from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.backend.common import standardize_shape
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.legacy.saving import saving_utils
@@ -62,7 +64,7 @@ class Sequential(Model):
     """
 
     def __new__(cls, *args, **kwargs):
-        return typing.cast(Sequential, super().__new__(cls))
+        return typing.cast(cls, super().__new__(cls))
 
     def __init__(self, layers=None, trainable=True, name=None):
         super().__init__(trainable=trainable, name=name)
@@ -137,6 +139,12 @@ class Sequential(Model):
         if isinstance(self._layers[0], InputLayer) and len(self._layers) > 1:
             input_shape = self._layers[0].batch_shape
             self.build(input_shape)
+        elif hasattr(self._layers[0], "input_shape") and len(self._layers) > 1:
+            # We can build the Sequential model if the first layer has the
+            # `input_shape` property. This is most commonly found in Functional
+            # model.
+            input_shape = self._layers[0].input_shape
+            self.build(input_shape)
 
     def _lock_state(self):
         # Unlike other layers, Sequential is mutable after build.
@@ -146,13 +154,9 @@ class Sequential(Model):
         return "Sequential"
 
     def build(self, input_shape=None):
-        if not isinstance(input_shape, (tuple, list)):
-            # Do not attempt to build if the model does not have a single
-            # input tensor.
-            return
-        if input_shape and not (
-            isinstance(input_shape[0], int) or input_shape[0] is None
-        ):
+        try:
+            input_shape = standardize_shape(input_shape)
+        except:
             # Do not attempt to build if the model does not have a single
             # input tensor.
             return
@@ -223,10 +227,7 @@ class Sequential(Model):
             outputs = layer(inputs, **kwargs)
             inputs = outputs
 
-            def _get_mask_from_keras_tensor(kt):
-                return getattr(kt, "_keras_mask", None)
-
-            mask = tree.map_structure(_get_mask_from_keras_tensor, outputs)
+            mask = tree.map_structure(backend.get_keras_mask, outputs)
         return outputs
 
     @property
@@ -238,6 +239,13 @@ class Sequential(Model):
         if layers and isinstance(layers[0], InputLayer):
             return layers[1:]
         return layers[:]
+
+    @layers.setter
+    def layers(self, _):
+        raise AttributeError(
+            "`Sequential.layers` attribute is reserved and should not be used. "
+            "Use `add()` and `pop()` to change the layers in this model."
+        )
 
     def compute_output_spec(self, inputs, training=None, mask=None):
         if self._functional:
@@ -265,7 +273,7 @@ class Sequential(Model):
     def input_shape(self):
         if self._functional:
             return self._functional.input_shape
-        raise ValueError(
+        raise AttributeError(
             f"Sequential model '{self.name}' has no defined input shape yet."
         )
 
@@ -273,7 +281,7 @@ class Sequential(Model):
     def output_shape(self):
         if self._functional:
             return self._functional.output_shape
-        raise ValueError(
+        raise AttributeError(
             f"Sequential model '{self.name}' has no defined output shape yet."
         )
 
@@ -281,7 +289,7 @@ class Sequential(Model):
     def inputs(self):
         if self._functional:
             return self._functional.inputs
-        raise ValueError(
+        raise AttributeError(
             f"Sequential model '{self.name}' has no defined inputs yet."
         )
 
@@ -289,7 +297,7 @@ class Sequential(Model):
     def outputs(self):
         if self._functional:
             return self._functional.outputs
-        raise ValueError(
+        raise AttributeError(
             f"Sequential model '{self.name}' has no defined outputs yet."
         )
 
