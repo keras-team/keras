@@ -170,7 +170,7 @@ class Functional(Function, Model):
         )
 
     def call(self, inputs, training=None, mask=None):
-        # Add support for traning, masking
+        # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
             masks = [None] * len(inputs)
