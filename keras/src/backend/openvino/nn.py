@@ -10,9 +10,7 @@ def relu(x):
 
 
 def relu6(x):
-    raise NotImplementedError(
-        "`relu6` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`relu6` is not supported with openvino backend")
 
 
 def sigmoid(x):
@@ -62,9 +60,9 @@ def elu(x, alpha=1.0):
 
 
 def selu(
-        x,
-        alpha=1.6732632423543772848170429916717,
-        scale=1.0507009873554804934193349852946,
+    x,
+    alpha=1.6732632423543772848170429916717,
+    scale=1.0507009873554804934193349852946,
 ):
     return opset14.selu(x, alpha, scale)
 
@@ -85,11 +83,11 @@ def log_softmax(x, axis=None):
 
 
 def max_pool(
-        inputs,
-        pool_size,
-        strides=None,
-        padding="valid",
-        data_format=None,
+    inputs,
+    pool_size,
+    strides=None,
+    padding="valid",
+    data_format=None,
 ):
     raise NotImplementedError(
         "`max_pool` is not supported with openvino backend"
@@ -97,11 +95,11 @@ def max_pool(
 
 
 def average_pool(
-        inputs,
-        pool_size,
-        strides,
-        padding,
-        data_format=None,
+    inputs,
+    pool_size,
+    strides,
+    padding,
+    data_format=None,
 ):
     raise NotImplementedError(
         "`average_pool` is not supported with openvino backend"
@@ -109,25 +107,23 @@ def average_pool(
 
 
 def conv(
-        inputs,
-        kernel,
-        strides=1,
-        padding="valid",
-        data_format=None,
-        dilation_rate=1,
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
 ):
-    raise NotImplementedError(
-        "`conv` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`conv` is not supported with openvino backend")
 
 
 def depthwise_conv(
-        inputs,
-        kernel,
-        strides=1,
-        padding="valid",
-        data_format=None,
-        dilation_rate=1,
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
 ):
     raise NotImplementedError(
         "`depthwise_conv` is not supported with openvino backend"
@@ -135,13 +131,13 @@ def depthwise_conv(
 
 
 def separable_conv(
-        inputs,
-        depthwise_kernel,
-        pointwise_kernel,
-        strides=1,
-        padding="valid",
-        data_format=None,
-        dilation_rate=1,
+    inputs,
+    depthwise_kernel,
+    pointwise_kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
 ):
     raise NotImplementedError(
         "`separable_conv` is not supported with openvino backend"
@@ -149,13 +145,13 @@ def separable_conv(
 
 
 def conv_transpose(
-        inputs,
-        kernel,
-        strides=1,
-        padding="valid",
-        output_padding=None,
-        data_format=None,
-        dilation_rate=1,
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    output_padding=None,
+    data_format=None,
+    dilation_rate=1,
 ):
     raise NotImplementedError(
         "`conv_transpose` is not supported with openvino backend"
@@ -199,7 +195,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
 
 
 def batch_normalization(
-        x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
 ):
     raise NotImplementedError(
         "`batch_normalization` is not supported with openvino backend"
@@ -213,13 +209,13 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
 
 
 def ctc_decode(
-        inputs,
-        sequence_lengths,
-        strategy="greedy",
-        beam_width=100,
-        top_paths=1,
-        merge_repeated=True,
-        mask_index=0,
+    inputs,
+    sequence_lengths,
+    strategy="greedy",
+    beam_width=100,
+    top_paths=1,
+    merge_repeated=True,
+    mask_index=0,
 ):
     raise NotImplementedError(
         "`ctc_decode` is not supported with openvino backend"
@@ -227,6 +223,4 @@ def ctc_decode(
 
 
 def psnr(x1, x2, max_val):
-    raise NotImplementedError(
-        "`psnr` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`psnr` is not supported with openvino backend")
