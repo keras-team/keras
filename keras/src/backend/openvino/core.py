@@ -4,8 +4,8 @@ import numpy as np
 import openvino as ov
 
 from keras.src import tree
-from keras.src.backend.common import global_state
 from keras.src.backend.common import KerasVariable
+from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
