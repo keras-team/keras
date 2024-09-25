@@ -853,3 +853,45 @@ def psnr(x1, x2, max_val):
     mse = torch.mean((x1 - x2) ** 2)
     psnr = 20 * torch.log10(max_val) - 10 * torch.log10(mse)
     return psnr
+
+
+def _get_large_negative(dtype):
+    dtype = backend.standardize_dtype(dtype)
+    if dtype == "float16":
+        val = 65500.0
+    else:
+        val = 3.38953e38
+    return convert_to_tensor(val * -0.7, dtype=dtype)
+
+
+def dot_product_attention(
+    query, key, value, bias=None, mask=None, scale=None, is_causal=False
+):
+    if bias is not None:
+        raise ValueError(
+            "torch's `dot_product_attention` doesn't support `bias`."
+        )
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if len(query.shape) != 4:
+        raise ValueError(
+            "`dot_product_attention` only supports 3D and 4D inputs. "
+            f"Received: query.shape={query.shape}, key.shape={key.shape}, "
+            f"value.shape={value.shape}."
+        )
+    bias = bias if bias is None else convert_to_tensor(bias)
+    mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
+    if mask is not None:
+        # Explicit set `is_causal` to `False` when `mask` is not `None`.
+        is_causal = False
+        mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
+
+    axis0, axis1 = 1, 2
+    query = torch.transpose(query, axis0, axis1)
+    key = torch.transpose(key, axis0, axis1)
+    value = torch.transpose(value, axis0, axis1)
+    attention_output = torch.nn.functional.scaled_dot_product_attention(
+        query, key, value, attn_mask=mask, is_causal=is_causal, scale=scale
+    )
+    return torch.transpose(attention_output, axis1, axis0)

@@ -1,3 +1,4 @@
+import math
 from itertools import combinations
 
 import numpy as np
@@ -33,6 +34,58 @@ from keras.src.layers.pooling.max_pooling_test import np_maxpool2d
 from keras.src.ops import nn as knn
 from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product
+
+
+def _dot_product_attention(
+    query, key, value, bias=None, mask=None, scale=None, is_causal=False
+):
+    # A pure and simplified numpy version of `dot_product_attention`
+    # Ref: jax.nn.dot_product_attention
+    # https://github.com/jax-ml/jax/blob/jax-v0.4.32/jax/_src/nn/functions.py#L828
+    # Not support `query_seq_lengths` and `key_value_seq_lengths` args
+
+    def _apply_masks(logits, mask, is_causal):
+        def _get_large_negative(dtype):
+            dtype = backend.standardize_dtype(dtype)
+            if dtype == "float16":
+                val = 65500.0
+            else:
+                val = 3.38953e38
+            return np.asarray(val * -0.7, dtype=dtype)
+
+        def _get_causal_mask(query_length, key_length):
+            mask = np.tril(np.ones((query_length, key_length), dtype=np.bool_))
+            return mask[None, None, :, :]
+
+        if mask is None and not is_causal:
+            return logits
+        combined_mask = np.ones_like(logits, dtype=np.bool_)
+        if mask is not None:
+            combined_mask = np.logical_and(combined_mask, mask)
+        if is_causal:
+            T, S = logits.shape[2], logits.shape[3]
+            mask = _get_causal_mask(T, S)
+            combined_mask = np.logical_and(combined_mask, mask)
+        padded_logits = np.where(
+            combined_mask, logits, _get_large_negative(logits.dtype)
+        )
+        return padded_logits
+
+    def softmax(x, axis=None):
+        exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
+        return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
+
+    _, _, _, H = key.shape
+    scale = (1.0 / np.sqrt(H)) if scale is None else scale
+    logits = np.einsum("BTNH,BSNH->BNTS", query, key)
+    logits *= np.array(scale, dtype=logits.dtype)
+    if bias is not None:
+        logits = (logits + bias).astype(logits.dtype)
+    padded_logits = _apply_masks(logits, mask, is_causal)
+    padded_logits = padded_logits.astype(np.float32)
+    probs = softmax(padded_logits, axis=-1).astype(key.dtype)
+    encoded = np.einsum("BNTS,BSNH->BTNH", probs, value)
+    return encoded
 
 
 class NNOpsDynamicShapeTest(testing.TestCase):
@@ -672,6 +725,13 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         out = knn.psnr(x1, x2, max_val=224)
         self.assertEqual(out.shape, ())
 
+    def test_dot_product_attention(self):
+        query = KerasTensor([None, None, 8, 16])
+        key = KerasTensor([None, None, 6, 16])
+        value = KerasTensor([None, None, 6, 16])
+        out = knn.dot_product_attention(query, key, value)
+        self.assertEqual(out.shape, query.shape)
+
 
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
@@ -1137,6 +1197,13 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x2 = KerasTensor([5, 6, 7])
         out = knn.psnr(x1, x2, max_val=224)
         self.assertEqual(out.shape, ())
+
+    def test_dot_product_attention(self):
+        query = KerasTensor([2, 3, 8, 16])
+        key = KerasTensor([2, 4, 6, 16])
+        value = KerasTensor([2, 4, 6, 16])
+        out = knn.dot_product_attention(query, key, value)
+        self.assertEqual(out.shape, query.shape)
 
 
 class NNOpsCorrectnessTest(testing.TestCase):
@@ -2136,6 +2203,55 @@ class NNOpsCorrectnessTest(testing.TestCase):
         psnr_2 = knn.psnr(x3, x4, max_val)
         self.assertAlmostEqual(psnr_2, expected_psnr_2)
 
+    @parameterized.named_parameters(
+        named_product(
+            bias=(None, True),
+            scale=(None, 1.0),
+            mask_and_is_causal=((None, False), (True, False), (None, True)),
+        )
+    )
+    def test_dot_product_attention(self, bias, scale, mask_and_is_causal):
+        mask, is_causal = mask_and_is_causal
+        query_shape = (2, 3, 4, 5)
+        key_shape = (2, 6, 4, 5)
+        mask_shape = (2, 4, 3, 6)
+        query = np.arange(math.prod(query_shape), dtype=float).reshape(
+            query_shape
+        )
+        key = np.arange(math.prod(key_shape), dtype=float).reshape(key_shape)
+        value = np.arange(math.prod(key_shape), dtype=float).reshape(key_shape)
+        if mask is not None:
+            mask = np.arange(math.prod(mask_shape)).reshape(mask_shape)
+            mask = (mask > 10).astype("bool")
+        if bias is not None:
+            if backend.backend() == "torch":
+                self.skipTest(
+                    "torch does not support `bias` with `dot_product_attention`"
+                )
+            bias = np.arange(math.prod(mask_shape), dtype=float).reshape(
+                mask_shape
+            )
+
+        expected = _dot_product_attention(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            is_causal=is_causal,
+        )
+        outputs = knn.dot_product_attention(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            is_causal=is_causal,
+        )
+        self.assertAllClose(outputs, expected)
+
 
 class NNOpsDtypeTest(testing.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
@@ -2497,6 +2613,23 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(standardize_dtype(decoded.dtype), "int32")
         self.assertEqual(standardize_dtype(scores.dtype), expected_dtype)
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_dot_product_attention(self, dtype):
+        # TODO: Get expected output from jax if `jax.nn.dot_product_attention`
+        # is available.
+        query = knp.ones((2, 3, 3, 4), dtype=dtype)
+        key = knp.ones((2, 3, 3, 4), dtype=dtype)
+        value = knp.ones((2, 3, 3, 4), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(
+            knn.dot_product_attention(query, key, value), expected_dtype
+        )
+        self.assertDType(
+            knn.DotProductAttention().symbolic_call(query, key, value),
+            expected_dtype,
+        )
 
 
 class NNOpsBehaviorTest(testing.TestCase):
