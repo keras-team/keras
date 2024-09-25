@@ -4,7 +4,6 @@ import pprint
 import zipfile
 
 import h5py
-import IPython.display
 import numpy as np
 import rich.console
 
@@ -735,7 +734,7 @@ class KerasFileEditor:
 
         _initialize_id_counter()
         output += _generate_html_weights(self.weights_dict)
-        IPython.display.display(IPython.display.HTML(output))
+        ipython.display.display(ipython.display.HTML(output))
 
 
 def get_weight_spec_of_saveable(saveable, spec, visited_saveables=None):
