@@ -1,6 +1,9 @@
 import numpy as np
 from openvino.runtime import opset14
 
+from keras.src import backend
+from keras.src.utils.module_utils import scipy
+
 
 def relu(x):
     return opset14.relu(x)

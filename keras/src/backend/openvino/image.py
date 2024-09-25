@@ -1,3 +1,7 @@
+from keras.src import backend
+from keras.src.utils.module_utils import scipy
+
+
 def rgb_to_grayscale(image, data_format="channels_last"):
     raise NotImplementedError(
         "`rgb_to_grayscale` is not supported with openvino backend"

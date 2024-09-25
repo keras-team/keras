@@ -1,3 +1,8 @@
+from keras.src.backend import standardize_dtype
+from keras.src.backend.common import dtypes
+from keras.src.utils.module_utils import scipy
+
+
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     raise NotImplementedError(
         "`segment_sum` is not supported with openvino backend"

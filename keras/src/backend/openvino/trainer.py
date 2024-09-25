@@ -5,6 +5,8 @@ import openvino.runtime.opset14 as ov_opset
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import tree
+from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import get_device
 from keras.src.trainers import trainer as base_trainer
