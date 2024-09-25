@@ -127,15 +127,11 @@ def shape(x):
 
 
 def cast(x, dtype):
-    raise NotImplementedError(
-        "`cast` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`cast` is not supported with openvino backend")
 
 
 def cond(pred, true_fn, false_fn):
-    raise NotImplementedError(
-        "`cond` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`cond` is not supported with openvino backend")
 
 
 def vectorized_map(function, elements):
@@ -205,9 +201,7 @@ def compute_output_spec(fn, *args, **kwargs):
 
 
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
-    raise NotImplementedError(
-        "`scan` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`scan` is not supported with openvino backend")
 
 
 def scatter(indices, values, shape):
@@ -223,9 +217,7 @@ def scatter_update(inputs, indices, updates):
 
 
 def slice(inputs, start_indices, lengths):
-    raise NotImplementedError(
-        "`slice` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`slice` is not supported with openvino backend")
 
 
 def slice_update(inputs, start_indices, updates):
@@ -235,10 +227,10 @@ def slice_update(inputs, start_indices, updates):
 
 
 def while_loop(
-        cond,
-        body,
-        loop_vars,
-        maximum_iterations=None,
+    cond,
+    body,
+    loop_vars,
+    maximum_iterations=None,
 ):
     raise NotImplementedError(
         "`while_loop` is not supported with openvino backend"

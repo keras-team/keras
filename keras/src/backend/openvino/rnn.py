@@ -2,33 +2,27 @@ from keras.src import tree
 
 
 def rnn(
-        step_function,
-        inputs,
-        initial_states,
-        go_backwards=False,
-        mask=None,
-        constants=None,
-        unroll=False,
-        input_length=None,
-        time_major=False,
-        zero_output_for_mask=False,
-        return_all_outputs=True,
+    step_function,
+    inputs,
+    initial_states,
+    go_backwards=False,
+    mask=None,
+    constants=None,
+    unroll=False,
+    input_length=None,
+    time_major=False,
+    zero_output_for_mask=False,
+    return_all_outputs=True,
 ):
-    raise NotImplementedError(
-        "`rnn` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`rnn` is not supported with openvino backend")
 
 
 def lstm(*args, **kwargs):
-    raise NotImplementedError(
-        "`lstm` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`lstm` is not supported with openvino backend")
 
 
 def gru(*args, **kwargs):
-    raise NotImplementedError(
-        "`gru` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`gru` is not supported with openvino backend")
 
 
 def unstack(x, axis=0):

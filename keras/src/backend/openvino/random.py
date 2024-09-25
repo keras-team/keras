@@ -5,9 +5,7 @@ from keras.src.random.seed_generator import make_default_seed
 
 
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
-    raise NotImplementedError(
-        "`normal` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`normal` is not supported with openvino backend")
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
@@ -47,9 +45,7 @@ def shuffle(x, axis=0, seed=None):
 
 
 def gamma(shape, alpha, dtype=None, seed=None):
-    raise NotImplementedError(
-        "`gamma` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`gamma` is not supported with openvino backend")
 
 
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
@@ -59,6 +55,4 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
 
 
 def beta(shape, alpha, beta, dtype=None, seed=None):
-    raise NotImplementedError(
-        "`beta` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`beta` is not supported with openvino backend")

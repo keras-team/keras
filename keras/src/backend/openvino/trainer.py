@@ -38,7 +38,9 @@ class OpenVINOTrainer(base_trainer.Trainer):
         ov_compiled_model = self._get_compiled_model()
         flatten_x = tree.flatten(x)
         y_pred = ov_compiled_model(flatten_x)
-        y_pred = self._unpack_singleton(tree.pack_sequence_as(self._outputs_struct, y_pred.to_tuple()))
+        y_pred = self._unpack_singleton(
+            tree.pack_sequence_as(self._outputs_struct, y_pred.to_tuple())
+        )
         return y_pred
 
     def make_test_function(self, force=False):
@@ -62,7 +64,10 @@ class OpenVINOTrainer(base_trainer.Trainer):
         self.test_function = test_step
 
     def _get_compiled_model(self):
-        if self.ov_compiled_model is not None and get_device() == self.ov_device:
+        if (
+            self.ov_compiled_model is not None
+            and get_device() == self.ov_device
+        ):
             return self.ov_compiled_model
 
         # prepare compiled model from scratch
@@ -78,7 +83,9 @@ class OpenVINOTrainer(base_trainer.Trainer):
             param = ov_opset.parameter(shape=ov_shape, dtype=ov_type)
             ov_inputs.append(param)
         # build OpenVINO graph ov.Model
-        ov_outputs = self._run_through_graph(ov_inputs, operation_fn=lambda op: op)
+        ov_outputs = self._run_through_graph(
+            ov_inputs, operation_fn=lambda op: op
+        )
         ov_outputs = tree.flatten(ov_outputs)
         ov_model = ov.Model(results=ov_outputs, parameters=ov_inputs)
         self.ov_compiled_model = ov.compile_model(ov_model, get_device())
@@ -113,23 +120,23 @@ class OpenVINOTrainer(base_trainer.Trainer):
         self.predict_function = predict_step
 
     def fit(
-            self,
-            x=None,
-            y=None,
-            batch_size=None,
-            epochs=1,
-            verbose="auto",
-            callbacks=None,
-            validation_split=0.0,
-            validation_data=None,
-            shuffle=True,
-            class_weight=None,
-            sample_weight=None,
-            initial_epoch=0,
-            steps_per_epoch=None,
-            validation_steps=None,
-            validation_batch_size=None,
-            validation_freq=1,
+        self,
+        x=None,
+        y=None,
+        batch_size=None,
+        epochs=1,
+        verbose="auto",
+        callbacks=None,
+        validation_split=0.0,
+        validation_data=None,
+        shuffle=True,
+        class_weight=None,
+        sample_weight=None,
+        initial_epoch=0,
+        steps_per_epoch=None,
+        validation_steps=None,
+        validation_batch_size=None,
+        validation_freq=1,
     ):
         raise NotImplementedError(
             "`fit` is not supported with openvino backend"
@@ -137,7 +144,7 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-            self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
+        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         # Create an iterator that yields batches of input data.
         epoch_iterator = EpochIterator(
@@ -191,39 +198,39 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def evaluate(
-            self,
-            x=None,
-            y=None,
-            batch_size=None,
-            verbose="auto",
-            sample_weight=None,
-            steps=None,
-            callbacks=None,
-            return_dict=False,
-            **kwargs,
+        self,
+        x=None,
+        y=None,
+        batch_size=None,
+        verbose="auto",
+        sample_weight=None,
+        steps=None,
+        callbacks=None,
+        return_dict=False,
+        **kwargs,
     ):
         raise NotImplementedError(
             "`evaluate` is not supported with openvino backend"
         )
 
     def train_on_batch(
-            self,
-            x,
-            y=None,
-            sample_weight=None,
-            class_weight=None,
-            return_dict=False,
+        self,
+        x,
+        y=None,
+        sample_weight=None,
+        class_weight=None,
+        return_dict=False,
     ):
         raise NotImplementedError(
             "`train_on_batch` is not supported with openvino backend"
         )
 
     def test_on_batch(
-            self,
-            x,
-            y=None,
-            sample_weight=None,
-            return_dict=False,
+        self,
+        x,
+        y=None,
+        sample_weight=None,
+        return_dict=False,
     ):
         raise NotImplementedError(
             "`test_on_batch` is not supported with openvino backend"

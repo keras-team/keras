@@ -11,27 +11,19 @@ def cholesky(a):
 
 
 def det(a):
-    raise NotImplementedError(
-        "`det` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`det` is not supported with openvino backend")
 
 
 def eig(a):
-    raise NotImplementedError(
-        "`eig` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`eig` is not supported with openvino backend")
 
 
 def eigh(a):
-    raise NotImplementedError(
-        "`eigh` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`eigh` is not supported with openvino backend")
 
 
 def inv(a):
-    raise NotImplementedError(
-        "`inv` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`inv` is not supported with openvino backend")
 
 
 def lu_factor(a):
@@ -41,21 +33,15 @@ def lu_factor(a):
 
 
 def norm(x, ord=None, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`norm` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`norm` is not supported with openvino backend")
 
 
 def qr(x, mode="reduced"):
-    raise NotImplementedError(
-        "`qr` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`qr` is not supported with openvino backend")
 
 
 def solve(a, b):
-    raise NotImplementedError(
-        "`solve` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`solve` is not supported with openvino backend")
 
 
 def solve_triangular(a, b, lower=False):
@@ -65,12 +51,8 @@ def solve_triangular(a, b, lower=False):
 
 
 def svd(x, full_matrices=True, compute_uv=True):
-    raise NotImplementedError(
-        "`svd` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`svd` is not supported with openvino backend")
 
 
 def lstsq(a, b, rcond=None):
-    raise NotImplementedError(
-        "`lstsq` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`lstsq` is not supported with openvino backend")

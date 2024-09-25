@@ -96,6 +96,7 @@ class DynamicBackend:
             module = importlib.import_module("keras.src.backend.openvino")
             return getattr(module, name)
 
+
 @keras_export("keras.config.set_backend")
 def set_backend(backend):
     """Reload the backend (and the Keras package).
