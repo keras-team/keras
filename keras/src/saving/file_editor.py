@@ -4,6 +4,8 @@ import pprint
 import zipfile
 
 import h5py
+import IPython.display
+import numpy as np
 import rich.console
 
 from keras.src import backend
@@ -549,6 +551,158 @@ class KerasFileEditor:
 
     def _weights_summary_iteractive(self):
 
+        def _find_factors_closest_to_sqrt(num):
+            sqrt_num = int(np.sqrt(num))
+
+            for i in range(sqrt_num, 0, -1):
+                if num % i == 0:
+                    M = i
+                    N = num // i
+
+                    if M > N:
+                        return N, M
+                    return M, N
+
+        def _color_from_value(value):
+            scaled_value = (value + 3) / 6
+            scaled_value = np.clip(scaled_value, 0, 1)
+
+            gray_value = int(255 * (1 - scaled_value))
+
+            return f"rgba({gray_value}, {gray_value}, {gray_value}, 1)"
+
+        def _reduce_3d_array_by_mean(arr, n, axis):
+            if axis == 2:
+                trimmed_arr = arr[:, :, : arr.shape[2] - (arr.shape[2] % n)]
+                reshaped = np.reshape(
+                    trimmed_arr, (arr.shape[0], arr.shape[1], -1, n)
+                )
+                mean_values = np.mean(reshaped, axis=3)
+
+            elif axis == 1:
+                trimmed_arr = arr[:, : arr.shape[1] - (arr.shape[1] % n), :]
+                reshaped = np.reshape(
+                    trimmed_arr, (arr.shape[0], -1, n, arr.shape[2])
+                )
+                mean_values = np.mean(reshaped, axis=2)
+
+            elif axis == 0:
+                trimmed_arr = arr[: arr.shape[0] - (arr.shape[0] % n), :, :]
+                reshaped = np.reshape(
+                    trimmed_arr, (-1, n, arr.shape[1], arr.shape[2])
+                )
+                mean_values = np.mean(reshaped, axis=1)
+
+            else:
+                raise ValueError("Axis must be 0, 1, or 2.")
+
+            return mean_values
+
+        def _initialize_id_counter():
+            global id_counter
+            id_counter = 0
+
+        def _increment_counter():
+            global id_counter
+            id_counter += 1
+
+        def _get_counter():
+            return id_counter
+
+        def _create_matrix_html(matrix, subplot_size=840):
+            rows, cols, num_slices = matrix.shape
+
+            M, N = _find_factors_closest_to_sqrt(num_slices)
+
+            subplot_html = ""
+            for i in range(num_slices):
+                cell_html = ""
+                for row in matrix[..., i]:
+                    for value in row:
+                        color = _color_from_value(value)
+                        cell_html += (
+                            f'<div class="cell" '
+                            f'style="background-color: {color};">'
+                            f"</div>"
+                        )
+                subplot_html += f"""
+                <div class="matrix">
+                  {cell_html}
+                </div>
+                """
+
+            cell_size = subplot_size // (N * cols)
+
+            _increment_counter()
+            div_num = _get_counter()
+
+            html_code = f"""
+            <div class="unique-container_{div_num}">
+                  <style>
+                      .unique-container_{div_num} .subplots {{
+                      display: inline-grid;
+                      grid-template-columns: repeat({N}, 1fr);
+                      column-gap: 5px;  /* Minimal horizontal gap */
+                      row-gap: 5px;     /* Small vertical gap */
+                      margin: 0;
+                      padding: 0;
+                    }}
+                    .unique-container_{div_num} .matrix {{
+                      display: inline-grid;
+                      grid-template-columns: repeat({cols}, {cell_size}px);
+                      grid-template-rows: repeat({rows}, {cell_size}px);
+                      gap: 1px;
+                      margin: 0;
+                      padding: 0;
+                    }}
+                    .unique-container_{div_num} .cell {{
+                      width: {cell_size}px;
+                      height: {cell_size}px;
+                      display: flex;
+                      justify-content: center;
+                      align-items: center;
+                      font-size: 5px;
+                      font-weight: bold;
+                      color: white;
+                    }}
+                     .unique-container_{div_num} {{
+                      margin-top: 20px;
+                      margin-bottom: 20px;
+                    }}
+                  </style>
+                  <div class="subplots">
+                    {subplot_html}
+                  </div>
+                  </div>
+                """
+
+            return html_code
+
+        def _display_weight(weight, axis=-1, threshold=16):
+            if weight.ndim == 1:
+                weight = weight[..., np.newaxis]
+
+            weight = np.swapaxes(weight, axis, -1)
+            weight = weight.reshape(-1, weight.shape[-1])
+
+            M, N = _find_factors_closest_to_sqrt(weight.shape[0])
+            weight = weight.reshape(M, N, weight.shape[-1])
+
+            for reduce_axis in [0, 1, 2]:
+                if weight.shape[reduce_axis] > threshold:
+                    weight = _reduce_3d_array_by_mean(
+                        weight,
+                        weight.shape[reduce_axis] // threshold,
+                        axis=reduce_axis,
+                    )
+
+            weight = (weight - weight.min()) / (
+                weight.max() - weight.min() + 1e-5
+            )
+
+            html_code = _create_matrix_html(weight)
+            return html_code
+
         def _generate_html_weights(dictionary, margin_left=0, font_size=20):
             html = ""
             for key, value in dictionary.items():
@@ -563,29 +717,28 @@ class KerasFileEditor:
                         + "</details>"
                     )
                 else:
-                    if isinstance(value, h5py.Dataset):
-                        html += (
-                            f'<details style="margin-left: {margin_left}px;">'
-                            + f'<summary style="font-size: {font_size}px;">'
-                            + f"{key} : shape={value.shape}"
-                            + f", dtype={value.dtype}</summary>"
-                            + "</details>"
-                        )
-                    else:
-                        html += (
-                            f'<details style="margin-left: {margin_left}px;">'
-                            + f'<summary style="font-size: {font_size}px;">'
-                            + f"{key} </summary>"
-                            + "</details>"
-                        )
+                    html += (
+                        f'<details style="margin-left: {margin_left}px;">'
+                        + f'<summary style="font-size: {font_size}px;">'
+                        + f"{key} : shape={value.shape}"
+                        + f", dtype={value.dtype}</summary>"
+                        + f"<div style="
+                        f'"margin-left: {margin_left}px;'
+                        f'"margin-top: {margin_left}px;">'
+                        + f"{_display_weight(value)}"
+                        + "</div>"
+                        + "</details>"
+                    )
             return html
 
         output = "Weights structure"
+
+        _initialize_id_counter()
         output += _generate_html_weights(self.weights_dict)
+        IPython.display.display(IPython.display.HTML(output))
 
 
 def get_weight_spec_of_saveable(saveable, spec, visited_saveables=None):
-
     from keras.src.saving.keras_saveable import KerasSaveable
 
     visited_saveables = visited_saveables or set()
@@ -627,7 +780,6 @@ def get_weight_spec_of_saveable(saveable, spec, visited_saveables=None):
 
 
 def get_weight_spec_of_container(container, spec, visited_saveables):
-
     from keras.src.saving.keras_saveable import KerasSaveable
 
     used_names = {}
