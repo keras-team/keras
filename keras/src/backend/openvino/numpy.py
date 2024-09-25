@@ -1,10 +1,6 @@
 from openvino.runtime import opset14
 
-from keras.src import tree
-from keras.src.backend import config
-from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
-from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import ov_to_keras_type
@@ -15,7 +11,8 @@ def _align_operand_types(x1, x2, op_name):
     x2_type = x2.element_type
     if x1_type.is_dynamic() or x2_type.is_dynamic():
         raise ValueError(
-            f"'{op_name}' operation is not supported for dynamic operand type with openvino backend"
+            f"'{op_name}' operation is not supported for dynamic operand type "
+            "with openvino backend"
         )
     x1_type = ov_to_keras_type(x1_type)
     x2_type = ov_to_keras_type(x2_type)

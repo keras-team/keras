@@ -1,9 +1,6 @@
 import numpy as np
 from openvino.runtime import opset14
 
-from keras.src import backend
-from keras.src.utils.module_utils import scipy
-
 
 def relu(x):
     return opset14.relu(x)
@@ -178,7 +175,8 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     raise NotImplementedError(
-        "`sparse_categorical_crossentropy` is not supported with openvino backend"
+        "`sparse_categorical_crossentropy` is not supported "
+        "with openvino backend"
     )
 
 

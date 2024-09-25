@@ -7,11 +7,9 @@ from keras.src import tree
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
-from keras.src.backend.common.symbolic_scope import SymbolicScope
 
 SUPPORTS_SPARSE_TENSORS = False
 
@@ -84,7 +82,8 @@ class Variable(KerasVariable):
 
     def _convert_to_tensor(self, value, dtype=None):
         raise NotImplementedError(
-            "`Variable._convert_to_tensor` is not supported with openvino backend"
+            "`Variable._convert_to_tensor` is not supported "
+            "with openvino backend"
         )
 
     # Overload native accessor.
