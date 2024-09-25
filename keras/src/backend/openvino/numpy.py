@@ -1,3 +1,5 @@
+from openvino.runtime import opset14
+
 from keras.src.backend.common import dtypes
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import convert_to_tensor
@@ -5,7 +7,6 @@ from keras.src.backend.openvino.core import ov_to_keras_type
 
 
 def _align_operand_types(x1, x2, op_name):
-    from openvino.runtime.opset14 import convert
     x1_type = x1.element_type
     x2_type = x2.element_type
     if x1_type.is_dynamic() or x2_type.is_dynamic():
@@ -17,16 +18,15 @@ def _align_operand_types(x1, x2, op_name):
     result_type = dtypes.result_type(x1_type, x2_type)
     result_type = OPENVINO_DTYPES[result_type]
     if x1_type != result_type:
-        x1 = convert(x1, result_type)
+        x1 = opset14.convert(x1, result_type)
     if x2_type != result_type:
-        x2 = convert(x2, result_type)
+        x2 = opset14.convert(x2, result_type)
     return x1, x2
 
 
 def add(x1, x2):
-    from openvino.runtime.opset14 import add
     x1, x2 = _align_operand_types(x1, x2, "add()")
-    return add(x1, x2)
+    return opset14.add(x1, x2)
 
 
 def einsum(subscripts, *operands, **kwargs):
@@ -36,9 +36,8 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    from openvino.runtime.opset14 import subtract
     x1, x2 = _align_operand_types(x1, x2, "subtract()")
-    return subtract(x1, x2)
+    return opset14.subtract(x1, x2)
 
 
 def matmul(x1, x2):
@@ -48,9 +47,8 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    from openvino.runtime.opset14 import multiply
     x1, x2 = _align_operand_types(x1, x2, "multiply()")
-    return multiply(x1, x2)
+    return opset14.multiply(x1, x2)
 
 
 def mean(x, axis=None, keepdims=False):
@@ -78,13 +76,11 @@ def zeros(shape, dtype=None):
 
 
 def absolute(x):
-    from openvino.runtime.opset14 import absolute
-    return absolute(x)
+    return opset14.absolute(x)
 
 
 def abs(x):
-    from openvino.runtime.opset14 import absolute
-    return absolute(x)
+    return opset14.absolute(x)
 
 
 def all(x, axis=None, keepdims=False):
@@ -772,9 +768,8 @@ def where(condition, x1, x2):
 
 
 def divide(x1, x2):
-    from openvino.runtime.opset14 import divide
     x1, x2 = _align_operand_types(x1, x2)
-    return divide(x1, x2)
+    return opset14.divide(x1, x2)
 
 
 def divide_no_nan(x1, x2):
@@ -788,14 +783,12 @@ def true_divide(x1, x2):
 
 
 def power(x1, x2):
-    from openvino.runtime.opset14 import power
     x1, x2 = _align_operand_types(x1, x2)
-    return power(x1, x2)
+    return opset14.power(x1, x2)
 
 
 def negative(x):
-    from openvino.runtime.opset14 import negative
-    return negative(x)
+    return opset14.negative(x)
 
 
 def square(x):
@@ -847,8 +840,7 @@ def floor_divide(x1, x2):
 
 
 def logical_xor(x1, x2):
-    from openvino.runtime.opset14 import logical_xor
-    return logical_xor(x1, x2)
+    return opset14.logical_xor(x1, x2)
 
 
 def correlate(x1, x2, mode="valid"):

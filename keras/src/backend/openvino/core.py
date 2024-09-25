@@ -71,17 +71,25 @@ def _parse_device_input(device_name):
 
 class Variable(KerasVariable):
     def _initialize(self, value):
-        self._value = np.array(value, dtype=self._dtype)
+        raise NotImplementedError(
+            "`Variable._initialize` is not supported with openvino backend"
+        )
 
     def _direct_assign(self, value):
-        self._value = np.array(value, dtype=self._dtype)
+        raise NotImplementedError(
+            "`Variable._direct_assign` is not supported with openvino backend"
+        )
 
     def _convert_to_tensor(self, value, dtype=None):
-        return convert_to_tensor(value, dtype=dtype)
+        raise NotImplementedError(
+            "`Variable._convert_to_tensor` is not supported with openvino backend"
+        )
 
     # Overload native accessor.
     def __array__(self):
-        return self.value
+        raise NotImplementedError(
+            "`Variable.__array__` is not supported with openvino backend"
+        )
 
 
 def convert_to_tensor(x, dtype=None, sparse=None):
@@ -94,14 +102,12 @@ def convert_to_tensor(x, dtype=None, sparse=None):
             return x.value.astype(dtype)
         return x.value
     if not is_tensor(x) and standardize_dtype(dtype) == "bfloat16":
-        # Can't create bfloat16 arrays on the fly (e.g. from a h5 Dataset).
-        # Instead we convert "as is" (to stored dtype) and cast.
-        return np.asarray(x).astype(dtype)
+        return ov.Tensor(np.asarray(x).astype(dtype))
     if dtype is None:
         dtype = result_type(
             *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
         )
-    return np.array(x, dtype=dtype)
+    return ov.Tensor(np.array(x, dtype=dtype))
 
 
 def convert_to_numpy(x):
@@ -109,7 +115,7 @@ def convert_to_numpy(x):
 
 
 def is_tensor(x):
-    if isinstance(x, (np.generic, np.ndarray)):
+    if isinstance(x, ov.Tensor):
         return True
     return False
 
