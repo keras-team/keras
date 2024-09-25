@@ -64,8 +64,8 @@ class KerasFileEditor:
     """
 
     def __init__(
-        self,
-        filepath,
+            self,
+            filepath,
     ):
         self.filepath = filepath
         self.metadata = None
@@ -132,14 +132,14 @@ class KerasFileEditor:
         get_weight_spec_of_saveable(reference_model, ref_spec)
 
         def _compare(
-            target,
-            ref_spec,
-            inner_path,
-            target_name,
-            ref_name,
-            error_count,
-            match_count,
-            checked_paths,
+                target,
+                ref_spec,
+                inner_path,
+                target_name,
+                ref_name,
+                error_count,
+                match_count,
+                checked_paths,
         ):
             base_inner_path = inner_path
             for ref_key, ref_val in ref_spec.items():
@@ -500,7 +500,7 @@ class KerasFileEditor:
         return f"Saved with Keras {version} " f"- date: {date}"
 
     def _print_weights_structure(
-        self, weights_dict, indent=0, is_first=True, prefix="", inner_path=""
+            self, weights_dict, indent=0, is_first=True, prefix="", inner_path=""
     ):
         for idx, (key, value) in enumerate(weights_dict.items()):
             inner_path = inner_path + "/" + key
@@ -696,7 +696,7 @@ class KerasFileEditor:
                     )
 
             weight = (weight - weight.min()) / (
-                weight.max() - weight.min() + 1e-5
+                    weight.max() - weight.min() + 1e-5
             )
 
             html_code = _create_matrix_html(weight)
@@ -707,26 +707,26 @@ class KerasFileEditor:
             for key, value in dictionary.items():
                 if isinstance(value, dict) and value:
                     html += (
-                        f'<details style="margin-left: {margin_left}px;">'
-                        + f'<summary style="font-size: {font_size}px;">'
-                        + f"{key}</summary>"
-                        + _generate_html_weights(
-                            value, margin_left + 20, font_size - 1
-                        )
-                        + "</details>"
+                            f'<details style="margin-left: {margin_left}px;">'
+                            + f'<summary style="font-size: {font_size}px;">'
+                            + f"{key}</summary>"
+                            + _generate_html_weights(
+                        value, margin_left + 20, font_size - 1
+                    )
+                            + "</details>"
                     )
                 else:
                     html += (
-                        f'<details style="margin-left: {margin_left}px;">'
-                        + f'<summary style="font-size: {font_size}px;">'
-                        + f"{key} : shape={value.shape}"
-                        + f", dtype={value.dtype}</summary>"
-                        + f"<div style="
-                        f'"margin-left: {margin_left}px;'
-                        f'"margin-top: {margin_left}px;">'
-                        + f"{_display_weight(value)}"
-                        + "</div>"
-                        + "</details>"
+                            f'<details style="margin-left: {margin_left}px;">'
+                            + f'<summary style="font-size: {font_size}px;">'
+                            + f"{key} : shape={value.shape}"
+                            + f", dtype={value.dtype}</summary>"
+                            + f"<div style="
+                              f'"margin-left: {margin_left}px;'
+                              f'"margin-top: {margin_left}px;">'
+                            + f"{_display_weight(value)}"
+                            + "</div>"
+                            + "</details>"
                     )
             return html
 
