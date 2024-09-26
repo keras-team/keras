@@ -109,7 +109,10 @@ class KerasFileEditor:
 
     def summary(self):
         """Prints the weight structure of the opened file."""
-        self._weights_summary_cli()
+        if is_ipython_notebook():
+            self._weights_summary_interactive()
+        else:
+            self._weights_summary_cli()
 
     def compare_to(self, reference_model):
         """Compares the opened file to a reference model.
