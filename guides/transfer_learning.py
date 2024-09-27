@@ -315,9 +315,12 @@ the case for other layers in general, as
   https://keras.io/getting_started/faq/#whats-the-difference-between-the-training-argument-in-call-and-the-trainable-attribute).
 But the two are tied in the case of the `BatchNormalization` layer.
 - When you unfreeze a model for finetuning by setting `base_model.trainable=True` that 
-contains `BatchNormalization` layers, then all layers of pretrained(based) model become
-trainable along with BatchNormalization layers.BatchNormalization layer normalize(update)
-its output using a moving average of mean and standard deviation.  
+contains `BatchNormalization` layers, then all layers of the base model become
+trainable along with `BatchNormalization` layers. It's a good idea to keep
+`BatchNormalization` either frozen during fine-tuning, or running in inference mode,
+so remember to set `layer.trainable = False`
+on those layers specifically after unfreezing the outer model, or otherwise
+call the model with `training=False` to keep it inference mode.
 
 You'll see this pattern in action in the end-to-end example at the end of this guide.
 """
