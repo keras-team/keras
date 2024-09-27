@@ -1,4 +1,5 @@
 from keras.src import backend
+from keras.src import utils
 from keras.src.api_export import keras_export
 
 
@@ -85,12 +86,15 @@ class Callback:
             self._model.jax_state_sync()
         return self._model
 
+    @utils.default
     def on_batch_begin(self, batch, logs=None):
         """A backwards compatibility alias for `on_train_batch_begin`."""
 
+    @utils.default
     def on_batch_end(self, batch, logs=None):
         """A backwards compatibility alias for `on_train_batch_end`."""
 
+    @utils.default
     def on_epoch_begin(self, epoch, logs=None):
         """Called at the start of an epoch.
 
@@ -103,6 +107,7 @@ class Callback:
               method but that may change in the future.
         """
 
+    @utils.default
     def on_epoch_end(self, epoch, logs=None):
         """Called at the end of an epoch.
 
@@ -118,6 +123,7 @@ class Callback:
               `{'loss': 0.2, 'accuracy': 0.7}`.
         """
 
+    @utils.default
     def on_train_batch_begin(self, batch, logs=None):
         """Called at the beginning of a training batch in `fit` methods.
 
@@ -135,6 +141,7 @@ class Callback:
         # For backwards compatibility.
         self.on_batch_begin(batch, logs=logs)
 
+    @utils.default
     def on_train_batch_end(self, batch, logs=None):
         """Called at the end of a training batch in `fit` methods.
 
@@ -151,6 +158,7 @@ class Callback:
         # For backwards compatibility.
         self.on_batch_end(batch, logs=logs)
 
+    @utils.default
     def on_test_batch_begin(self, batch, logs=None):
         """Called at the beginning of a batch in `evaluate` methods.
 
@@ -169,6 +177,7 @@ class Callback:
               method but that may change in the future.
         """
 
+    @utils.default
     def on_test_batch_end(self, batch, logs=None):
         """Called at the end of a batch in `evaluate` methods.
 
@@ -186,6 +195,7 @@ class Callback:
             logs: Dict. Aggregated metric results up until this batch.
         """
 
+    @utils.default
     def on_predict_batch_begin(self, batch, logs=None):
         """Called at the beginning of a batch in `predict` methods.
 
@@ -201,6 +211,7 @@ class Callback:
               method but that may change in the future.
         """
 
+    @utils.default
     def on_predict_batch_end(self, batch, logs=None):
         """Called at the end of a batch in `predict` methods.
 
@@ -215,6 +226,7 @@ class Callback:
             logs: Dict. Aggregated metric results up until this batch.
         """
 
+    @utils.default
     def on_train_begin(self, logs=None):
         """Called at the beginning of training.
 
@@ -225,6 +237,7 @@ class Callback:
               method but that may change in the future.
         """
 
+    @utils.default
     def on_train_end(self, logs=None):
         """Called at the end of training.
 
@@ -236,6 +249,7 @@ class Callback:
               that may change in the future.
         """
 
+    @utils.default
     def on_test_begin(self, logs=None):
         """Called at the beginning of evaluation or validation.
 
@@ -246,6 +260,7 @@ class Callback:
               method but that may change in the future.
         """
 
+    @utils.default
     def on_test_end(self, logs=None):
         """Called at the end of evaluation or validation.
 
@@ -257,6 +272,7 @@ class Callback:
               but that may change in the future.
         """
 
+    @utils.default
     def on_predict_begin(self, logs=None):
         """Called at the beginning of prediction.
 
@@ -267,6 +283,7 @@ class Callback:
               method but that may change in the future.
         """
 
+    @utils.default
     def on_predict_end(self, logs=None):
         """Called at the end of prediction.
 

@@ -1,4 +1,7 @@
+import concurrent.futures
+
 from keras.src import tree
+from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
 from keras.src.callbacks.history import History
@@ -34,12 +37,46 @@ class CallbackList(Callback):
                 via `Callback.set_params`.
         """
         self.callbacks = tree.flatten(callbacks) if callbacks else []
+        self._executor = None
+        self._futures = []
+        self._configure_async_dispatch(callbacks)
         self._add_default_callbacks(add_history, add_progbar)
+        self.set_model(model)
+        self.set_params(params)
 
-        if model:
-            self.set_model(model)
+    def set_params(self, params):
+        self.params = params
         if params:
-            self.set_params(params)
+            for callback in self.callbacks:
+                callback.set_params(params)
+
+    def _configure_async_dispatch(self, callbacks):
+        # Determine whether callbacks can be dispatched asynchronously.
+        async_train = True
+        async_test = True
+        async_predict = True
+        if callbacks:
+            if isinstance(callbacks, (list, tuple)):
+                for cbk in callbacks:
+                    if getattr(cbk, "async_safe", False):
+                        # Callbacks that expose self.async_safe == True
+                        # will be assumed safe for async dispatch.
+                        continue
+                    if not utils.is_default(cbk.on_batch_end):
+                        async_train = False
+                    if not utils.is_default(cbk.on_train_batch_end):
+                        async_train = False
+                    if not utils.is_default(cbk.on_test_batch_end):
+                        async_test = False
+                    if not utils.is_default(cbk.on_predict_batch_end):
+                        async_predict = False
+
+        if async_train or async_test or async_predict:
+            self._executor = concurrent.futures.ThreadPoolExecutor()
+
+        self._async_train = async_train
+        self._async_test = async_test
+        self._async_predict = async_predict
 
     def _add_default_callbacks(self, add_history, add_progbar):
         """Adds `Callback`s that are always present."""
@@ -60,30 +97,45 @@ class CallbackList(Callback):
             self._progbar = ProgbarLogger()
             self.callbacks.append(self._progbar)
 
-    def append(self, callback):
-        self.callbacks.append(callback)
-
-    def set_params(self, params):
-        self.params = params
-        for callback in self.callbacks:
-            callback.set_params(params)
-
     def set_model(self, model):
+        if not model:
+            return
         super().set_model(model)
         if self._history:
             model.history = self._history
         for callback in self.callbacks:
             callback.set_model(model)
 
+    def _async_dispatch(self, fn, *args):
+        for future in self._futures:
+            if future.done():
+                future.result()
+                self._futures.remove(future)
+        future = self._executor.submit(fn, *args)
+        self._futures.append(future)
+
+    def _pythonify_logs(self, logs):
+        result = {}
+        for key, value in sorted(logs.items()):
+            if isinstance(value, dict):
+                result.update(self._pythonify_logs(value))
+            else:
+                try:
+                    value = float(value)
+                except:
+                    pass
+                result[key] = value
+        return result
+
+    def _clear_futures(self):
+        for future in self._futures:
+            future.result()
+        self._futures = []
+
     def on_batch_begin(self, batch, logs=None):
         logs = logs or {}
         for callback in self.callbacks:
             callback.on_batch_begin(batch, logs=logs)
-
-    def on_batch_end(self, batch, logs=None):
-        logs = logs or {}
-        for callback in self.callbacks:
-            callback.on_batch_end(batch, logs=logs)
 
     def on_epoch_begin(self, epoch, logs=None):
         logs = logs or {}
@@ -91,6 +143,9 @@ class CallbackList(Callback):
             callback.on_epoch_begin(epoch, logs)
 
     def on_epoch_end(self, epoch, logs=None):
+        if self._async_train:
+            self._clear_futures()
+
         logs = logs or {}
         for callback in self.callbacks:
             callback.on_epoch_end(epoch, logs)
@@ -100,27 +155,59 @@ class CallbackList(Callback):
         for callback in self.callbacks:
             callback.on_train_batch_begin(batch, logs=logs)
 
-    def on_train_batch_end(self, batch, logs=None):
-        logs = logs or {}
-        for callback in self.callbacks:
-            callback.on_train_batch_end(batch, logs=logs)
-
     def on_test_batch_begin(self, batch, logs=None):
         logs = logs or {}
         for callback in self.callbacks:
             callback.on_test_batch_begin(batch, logs=logs)
-
-    def on_test_batch_end(self, batch, logs=None):
-        logs = logs or {}
-        for callback in self.callbacks:
-            callback.on_test_batch_end(batch, logs=logs)
 
     def on_predict_batch_begin(self, batch, logs=None):
         logs = logs or {}
         for callback in self.callbacks:
             callback.on_predict_batch_begin(batch, logs=logs)
 
+    def on_batch_end(self, batch, logs=None):
+        if self._async_train:
+            self._async_dispatch(self._on_batch_end, batch, logs)
+        else:
+            self._on_batch_end(batch, logs)
+
+    def on_train_batch_end(self, batch, logs=None):
+        if self._async_train:
+            self._async_dispatch(self._on_train_batch_end, batch, logs)
+        else:
+            self._on_train_batch_end(batch, logs)
+
+    def on_test_batch_end(self, batch, logs=None):
+        if self._async_test:
+            self._async_dispatch(self._on_test_batch_end, batch, logs)
+        else:
+            self._on_test_batch_end(batch, logs)
+
     def on_predict_batch_end(self, batch, logs=None):
+        if self._async_predict:
+            self._async_dispatch(self._on_predict_batch_end, batch, logs)
+        else:
+            self._on_predict_batch_end(batch, logs)
+
+    def _on_batch_end(self, batch, logs=None):
+        logs = logs or {}
+        logs = self._pythonify_logs(logs)
+        for callback in self.callbacks:
+            callback.on_batch_end(batch, logs=logs)
+
+    def _on_train_batch_end(self, batch, logs=None):
+        logs = logs or {}
+        logs = self._pythonify_logs(logs)
+        for callback in self.callbacks:
+            callback.on_train_batch_end(batch, logs=logs)
+
+    def _on_test_batch_end(self, batch, logs=None):
+        logs = logs or {}
+        logs = self._pythonify_logs(logs)
+        for callback in self.callbacks:
+            callback.on_test_batch_end(batch, logs=logs)
+
+    def _on_predict_batch_end(self, batch, logs=None):
         logs = logs or {}
         for callback in self.callbacks:
             callback.on_predict_batch_end(batch, logs=logs)
@@ -131,6 +218,9 @@ class CallbackList(Callback):
             callback.on_train_begin(logs)
 
     def on_train_end(self, logs=None):
+        if self._async_train:
+            self._clear_futures()
+
         logs = logs or {}
         for callback in self.callbacks:
             callback.on_train_end(logs)
@@ -141,6 +231,9 @@ class CallbackList(Callback):
             callback.on_test_begin(logs)
 
     def on_test_end(self, logs=None):
+        if self._async_test:
+            self._clear_futures()
+
         logs = logs or {}
         for callback in self.callbacks:
             callback.on_test_end(logs)
@@ -151,6 +244,9 @@ class CallbackList(Callback):
             callback.on_predict_begin(logs)
 
     def on_predict_end(self, logs=None):
+        if self._async_predict:
+            self._clear_futures()
+
         logs = logs or {}
         for callback in self.callbacks:
             callback.on_predict_end(logs)
