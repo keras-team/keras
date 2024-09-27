@@ -553,14 +553,16 @@ class KerasFileEditor:
 
     def _weights_summary_interactive(self):
 
-        def _generate_html_weights(dictionary, margin_left=0, font_size=20):
+        def _generate_html_weights(dictionary, margin_left=0, font_size=1):
             html = ""
             for key, value in dictionary.items():
                 if isinstance(value, dict) and value:
                     html += (
                         f'<details style="margin-left: {margin_left}px;">'
-                        + f'<summary style="font-size: {font_size}px;">'
-                        + f"{key}</summary>"
+                        + '<summary style="'
+                        + f'font-size: {font_size}em; '
+                        + "font-weight: 'bold';"
+                        + f'">{key}</summary>'
                         + _generate_html_weights(
                             value, margin_left + 20, font_size - 1
                         )
@@ -569,7 +571,7 @@ class KerasFileEditor:
                 else:
                     html += (
                         f'<details style="margin-left: {margin_left}px;">'
-                        + f'<summary style="font-size: {font_size}px;">'
+                        + f'<summary style="font-size: {font_size}em;">'
                         + f"{key} : shape={value.shape}"
                         + f", dtype={value.dtype}</summary>"
                         + f"<div style="
