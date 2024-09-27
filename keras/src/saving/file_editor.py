@@ -560,7 +560,7 @@ class KerasFileEditor:
                     html += (
                         f'<details style="margin-left: {margin_left}px;">'
                         + '<summary style="'
-                        + f'font-size: {font_size}em; '
+                        + f"font-size: {font_size}em; "
                         + "font-weight: 'bold';"
                         + f'">{key}</summary>'
                         + _generate_html_weights(
@@ -683,13 +683,8 @@ def display_weight(weight, axis=-1, threshold=16):
                     return N, M
                 return M, N
 
-    def _color_from_value(value):
-        scaled_value = (value + 3) / 6
-        scaled_value = np.clip(scaled_value, 0, 1)
-
-        gray_value = int(255 * (1 - scaled_value))
-
-        return f"rgba({gray_value}, {gray_value}, {gray_value}, 1)"
+    def _color_from_rbg(value):
+        return f"rgba({value[0]}, {value[1]}, {value[2]}, 1)"
 
     def _reduce_3d_array_by_mean(arr, n, axis):
         if axis == 2:
@@ -723,12 +718,25 @@ def display_weight(weight, axis=-1, threshold=16):
 
         M, N = _find_factors_closest_to_sqrt(num_slices)
 
+        try:
+            from matplotlib import cm
+        except ImportError:
+            cm = None
+        if cm:
+            rgb_matrix = cm.jet(matrix)
+        else:
+            rgb_matrix = (matrix - np.min(matrix)) / (
+                np.max(matrix) - np.min(matrix)
+            )
+            rgb_matrix = np.stack([rgb_matrix, rgb_matrix, rgb_matrix], axis=-1)
+        rgb_matrix = (rgb_matrix[..., :3] * 255).astype("uint8")
+
         subplot_html = ""
         for i in range(num_slices):
             cell_html = ""
-            for row in matrix[..., i]:
-                for value in row:
-                    color = _color_from_value(value)
+            for row in rgb_matrix[..., i, :]:
+                for rgb in row:
+                    color = _color_from_rbg(rgb)
                     cell_html += (
                         f'<div class="cell" '
                         f'style="background-color: {color};">'

@@ -34,6 +34,7 @@ class SavingTest(testing.TestCase):
 
         editor = KerasFileEditor(temp_filepath)
         editor.summary()
+        editor._weights_summary_interactive()
 
         target_model = get_target_model()
 
