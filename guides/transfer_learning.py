@@ -314,11 +314,10 @@ the case for other layers in general, as
 [weight trainability & inference/training modes are two orthogonal concepts](
   https://keras.io/getting_started/faq/#whats-the-difference-between-the-training-argument-in-call-and-the-trainable-attribute).
 But the two are tied in the case of the `BatchNormalization` layer.
-- When you unfreeze a model that contains `BatchNormalization` layers in order to do
-fine-tuning, you should keep the `BatchNormalization` layers in inference mode by
- passing `training=False` when calling the base model.
-Otherwise the updates applied to the non-trainable weights will suddenly destroy
-what the model has learned.
+- When you unfreeze a model for finetuning by setting `base_model.trainable=True` that 
+contains `BatchNormalization` layers, then all layers of pretrained(based) model become
+trainable along with BatchNormalization layers.BatchNormalization layer normalize(update)
+its output using a moving average of mean and standard deviation.  
 
 You'll see this pattern in action in the end-to-end example at the end of this guide.
 """
