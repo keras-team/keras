@@ -40,19 +40,19 @@ class DeviceTest(testing.TestCase):
 
         with backend.device_scope("cpu:0"):
             t = backend.numpy.ones((2, 1))
-            self.assertEqual(t.device(), jax.devices("cpu")[0])
+            self.assertEqual(t.device, jax.devices("cpu")[0])
         with backend.device_scope("CPU:0"):
             t = backend.numpy.ones((2, 1))
-            self.assertEqual(t.device(), jax.devices("cpu")[0])
+            self.assertEqual(t.device, jax.devices("cpu")[0])
 
         # When leaving the scope, the device should be back with gpu:0
         t = backend.numpy.ones((2, 1))
-        self.assertEqual(t.device(), jax.devices("gpu")[0])
+        self.assertEqual(t.device, jax.devices("gpu")[0])
 
         # Also verify the explicit gpu device
         with backend.device_scope("gpu:0"):
             t = backend.numpy.ones((2, 1))
-            self.assertEqual(t.device(), jax.devices("gpu")[0])
+            self.assertEqual(t.device, jax.devices("gpu")[0])
 
     @pytest.mark.skipif(backend.backend() != "jax", reason="jax only")
     def test_invalid_jax_device(self):

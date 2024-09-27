@@ -7,7 +7,9 @@ torch>=2.1.0
 torchvision>=0.16.0
 
 # Jax with cuda support.
-jax[cuda12_pip]
+# TODO: Higher version breaks CI.
+--find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+jax[cuda12]==0.4.28
 flax
 
 -r requirements-common.txt
