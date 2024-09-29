@@ -169,7 +169,7 @@ def softmax(x, axis=-1):
 def elu(x, alpha=1.0):
     """Exponential Linear Unit.
 
-    The exponential linear unit (ELU) with `alpha > 0` is define as:
+    The exponential linear unit (ELU) with `alpha > 0` is defined as:
 
     - `x` if `x > 0`
     - alpha * `exp(x) - 1` if `x < 0`
