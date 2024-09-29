@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import losses as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import ops
@@ -413,8 +414,8 @@ class CompileLoss(losses_module.Loss):
         reduction="sum_over_batch_size",
         output_names=None,
     ):
-        if loss_weights and not isinstance(
-            loss_weights, (list, tuple, dict, float)
+        if loss_weights is not None and not isinstance(
+            loss_weights, (list, tuple, dict, float, backend.Variable)
         ):
             raise ValueError(
                 "Expected `loss_weights` argument to be a float "
@@ -517,12 +518,14 @@ class CompileLoss(losses_module.Loss):
         else:
             flat_loss_weights = tree.flatten(loss_weights)
             for loss_weight in flat_loss_weights:
-                if not isinstance(loss_weight, (int, float, type(None))):
+                if not isinstance(
+                    loss_weight, (int, float, type(None), backend.Variable)
+                ):
                     raise TypeError(
                         "When providing the `loss_weights` argument, each "
                         "element should be a Python int, float (the weighting "
                         "coefficient corresponding to the loss for that "
-                        "output) or `None`."
+                        "output), `None` or `Variable`."
                         f"Received: loss_weights={loss_weights}"
                     )
             if len(flat_loss_weights) != len(flat_losses):

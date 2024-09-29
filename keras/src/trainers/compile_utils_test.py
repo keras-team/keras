@@ -347,3 +347,20 @@ class TestCompileLoss(testing.TestCase):
         }
         value = compile_loss(y_true, y_pred)
         self.assertAllClose(value, 1.07666, atol=1e-5)
+
+    def test_variable_as_loss_weights(self):
+        loss_weights = backend.Variable(initializer="zeros", shape=())
+        compile_loss = CompileLoss(loss="mse", loss_weights=loss_weights)
+        y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
+        y_pred = np.array([[0.4, 0.1], [0.2, 0.6], [0.6, 0.1]])
+        compile_loss.build(y_true, y_pred)
+        # `loss_weights` is set to `0.0`.
+        value = compile_loss(y_true, y_pred)
+        self.assertAllClose(value, 0.0, atol=1e-5)
+        # Test changing the `loss_weights` value
+        loss_weights.assign(1.0)
+        value = compile_loss(y_true, y_pred)
+        self.assertAllClose(value, 0.068333, atol=1e-5)
+        loss_weights.assign(1.5)
+        value = compile_loss(y_true, y_pred)
+        self.assertAllClose(value, 0.068333 * 1.5, atol=1e-5)
