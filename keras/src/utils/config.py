@@ -127,7 +127,7 @@ class Config:
     def update(self, *args, **kwargs):
         self._raise_if_frozen()
         return self._config.update(*args, **kwargs)
-    
+
     def get(self, keyname, value=None):
         return self._config.get(keyname, value)
 
