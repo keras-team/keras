@@ -20,9 +20,10 @@ class STFTInitializer(initializers.Initializer):
         frame_length, _, fft_length = shape
 
         _fft_length = (fft_length - 1) * 2
-        freq = ops.reshape(
-            ops.arange(fft_length, dtype=dtype), (1, 1, fft_length)
-        ) / _fft_length
+        freq = (
+            ops.reshape(ops.arange(fft_length, dtype=dtype), (1, 1, fft_length))
+            / _fft_length
+        )
         time = ops.reshape(
             ops.arange(frame_length, dtype=dtype), (frame_length, 1, 1)
         )
@@ -69,11 +70,10 @@ class Spectrogram(layers.Layer):
             periodic. Default is False.
         scaling (str): Type of scaling applied to the window. Can be 'density',
             'spectrum', or None. Default is 'density'.
-        padding (str): Padding strategy. Can be 'valid', 'same', or 'divide'.
+        padding (str): Padding strategy. Can be 'valid' or 'same'.
             Default is 'valid'.
         padding_mode (str): The padding mode to use when padding is applied.
             Default is 'constant'.
-        **kwargs: Additional keyword arguments passed to the parent class.
 
     Raises:
         ValueError: If an invalid value is provided for 'mode', 'scaling',
@@ -112,9 +112,8 @@ class Spectrogram(layers.Layer):
         scaling="density",
         padding="valid",
         padding_mode="constant",
-        **kwargs
+        **kwargs,
     ):
-
         if fft_length is not None and (fft_length & -fft_length) != fft_length:
             warnings.warn(
                 "`fft_length` is recommended to be a power of two. "
@@ -150,10 +149,10 @@ class Spectrogram(layers.Layer):
                 f"or 'spectrum'. Received scaling={scaling}"
             )
 
-        if padding not in ["valid", "same", "divide"]:
+        if padding not in ["valid", "same"]:
             raise ValueError(
-                "Padding is invalid, it should be 'valid', "
-                f"'same' or 'divide'. Received: padding={padding}"
+                "Padding is invalid, it should be 'valid', 'same'. "
+                f"Received: padding={padding}"
             )
 
         super().__init__(**kwargs)
@@ -175,9 +174,7 @@ class Spectrogram(layers.Layer):
         self.padding = padding
         self.padding_mode = padding_mode
         self._padding_length = 0
-        if self.padding == "divide":
-            self._padding_length = self.frame_length - self._frame_step
-        elif self.padding == "same":
+        if self.padding == "same":
             self._padding_length = self.frame_length
 
         self.input_spec = layers.input_spec.InputSpec(
@@ -202,7 +199,9 @@ class Spectrogram(layers.Layer):
     def call(self, inputs):
         dtype = inputs.dtype
         if backend.standardize_dtype(dtype) not in {
-            "float16", "float32", "float64"
+            "float16",
+            "float32",
+            "float64",
         }:
             raise TypeError(
                 "Invalid input type. Expected `float16`, `float32` or "
@@ -228,9 +227,7 @@ class Spectrogram(layers.Layer):
                 )
             win = ops.reshape(win, [-1, 1, 1])
             if self.scaling == "density":
-                scaling = ops.sqrt(
-                    ops.sum(ops.square(win)) + backend.epsilon()
-                )
+                scaling = ops.sqrt(ops.sum(ops.square(win)) + backend.epsilon())
             elif self.scaling == "spectrum":
                 scaling = ops.abs(ops.sum(win)) + backend.epsilon()
 
@@ -249,26 +246,32 @@ class Spectrogram(layers.Layer):
         if self.mode != "imag":
             real_kernel = ops.cast(
                 self.real_kernel if win is None else self.real_kernel * win,
-                dtype
+                dtype,
             )
-            real_signal = ops.conv(
-                inputs,
-                real_kernel,
-                strides=self._frame_step,
-                data_format="channels_last",
-            ) / scaling
+            real_signal = (
+                ops.conv(
+                    inputs,
+                    real_kernel,
+                    strides=self._frame_step,
+                    data_format="channels_last",
+                )
+                / scaling
+            )
 
         if self.mode != "real":
             imag_kernel = ops.cast(
                 self.imag_kernel if win is None else self.imag_kernel * win,
-                dtype
+                dtype,
             )
-            imag_signal = ops.conv(
-                inputs,
-                imag_kernel,
-                strides=self._frame_step,
-                data_format="channels_last",
-            ) / scaling
+            imag_signal = (
+                ops.conv(
+                    inputs,
+                    imag_kernel,
+                    strides=self._frame_step,
+                    data_format="channels_last",
+                )
+                / scaling
+            )
         if self.mode == "real":
             return real_signal
         elif self.mode == "imag":

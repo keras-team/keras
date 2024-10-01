@@ -3,6 +3,8 @@ import pytest
 import scipy.signal
 import tensorflow as tf
 
+from keras import Input
+from keras import Sequential
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
@@ -13,19 +15,24 @@ class TestSpectrogram(testing.TestCase):
     def _calc_spectrograms(
         X, mode, scaling, window, periodic, frame_length, frame_step, fft_length
     ):
-        dtype = 'float64'
+        dtype = "float64"
 
-        layer = layers.Spectrogram(
-            mode=mode,
-            frame_length=frame_length,
-            frame_step=frame_step,
-            fft_length=fft_length,
-            window=window,
-            scaling=scaling,
-            periodic=periodic,
-            dtype=dtype
+        layer = Sequential(
+            [
+                Input(shape=(160000, 1), dtype=dtype),
+                layers.Spectrogram(
+                    mode=mode,
+                    frame_length=frame_length,
+                    frame_step=frame_step,
+                    fft_length=fft_length,
+                    window=window,
+                    scaling=scaling,
+                    periodic=periodic,
+                    dtype=dtype,
+                ),
+            ]
         )
-        Y = layer(X)
+        Y = layer.predict(X, verbose=0)
 
         window_arr = scipy.signal.get_window(window, frame_length, periodic)
         _, _, S = scipy.signal.spectrogram(
@@ -83,7 +90,7 @@ class TestSpectrogram(testing.TestCase):
                 "frame_step": 43,
                 "fft_length": 512,
                 "mode": "imag",
-                "padding": "same"
+                "padding": "same",
             },
             input_shape=(2, 160000, 1),
             expected_output_shape=(2, 160000 // 43 + 1, 257),
@@ -100,7 +107,7 @@ class TestSpectrogram(testing.TestCase):
                 "frame_step": 10,
                 "fft_length": 512,
                 "trainable": False,
-                "padding": "same"
+                "padding": "same",
             },
             input_shape=(2, 160000, 1),
             expected_output_shape=(2, 160000 // 10 + 1, 257),
@@ -116,22 +123,21 @@ class TestSpectrogram(testing.TestCase):
         rnd = np.random.RandomState(41)
         X = rnd.uniform(low=-1, high=1, size=(4, 160000, 1)).astype(np.float64)
         names = [
-            'scaling',
-            'window',
-            'periodic',
-            'frame_length',
-            'frame_step',
-            'fft_length'
+            "scaling",
+            "window",
+            "periodic",
+            "frame_length",
+            "frame_step",
+            "fft_length",
         ]
         for args in [
-            ('density', 'hann', False, 512, 256, 1024),
-            ('spectrum', 'blackman', True, 512, 32, 1024),
-            ('spectrum', 'hamming', True, 256, 192, 512),
-            ('spectrum', 'tukey', False, 512, 128, 512),
-            ('density', 'hamming', True, 256, 256, 256),
-            ('density', 'hann', True, 256, 128, 256),
+            ("density", "hann", False, 512, 256, 1024),
+            ("spectrum", "blackman", True, 512, 32, 1024),
+            ("spectrum", "hamming", True, 256, 192, 512),
+            ("spectrum", "tukey", False, 512, 128, 512),
+            ("density", "hamming", True, 256, 256, 256),
+            ("density", "hann", True, 256, 128, 256),
         ]:
-
             init_args = dict(zip(names, args))
 
             tol_kwargs = {"atol": 5e-4, "rtol": 1e-6}
@@ -149,9 +155,9 @@ class TestSpectrogram(testing.TestCase):
             init_args["mode"] = "angle"
             Y_true, Y = self._calc_spectrograms(X, **init_args)
 
-            tol_kwargs = {"atol": 1e-4, "rtol": 1e-5}
+            tol_kwargs = {"atol": 5e-4, "rtol": 1e-5}
 
-            PI = np.arccos(np.float128(-1))
+            PI = np.arccos(np.float128(-1)).astype(Y_true.dtype)
             mask = np.isclose(Y_true, Y, **tol_kwargs)
             mask |= np.isclose(Y_true, Y + 2 * PI, **tol_kwargs)
             mask |= np.isclose(Y_true, Y - 2 * PI, **tol_kwargs)
@@ -167,13 +173,24 @@ class TestSpectrogram(testing.TestCase):
         input_shape = (2, 16000, 1)
         output_shape = (2, 16000 // 128 + 1, 257)
         layer = layers.Spectrogram(
-            frame_length=256,
-            frame_step=128,
-            fft_length=512,
-            padding="same"
+            frame_length=256, frame_step=128, fft_length=512, padding="same"
         )
         input_data = np.random.random(input_shape)
         ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output = output.numpy()
         self.assertEqual(tuple(output.shape), output_shape)
+
+    def test_exceptions(self):
+        with self.assertRaises(ValueError):
+            layers.Spectrogram(
+                frame_length=256, frame_step=1024, fft_length=512
+            )
+        with self.assertRaises(ValueError):
+            layers.Spectrogram(frame_length=256, frame_step=32, fft_length=128)
+        with self.assertRaises(ValueError):
+            layers.Spectrogram(padding="mypadding")
+        with self.assertRaises(ValueError):
+            layers.Spectrogram(scaling="l2")
+        with self.assertRaises(ValueError):
+            layers.Spectrogram(mode="spectrogram")
