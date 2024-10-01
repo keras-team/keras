@@ -5,7 +5,7 @@ from keras.src.backend.common import global_state
 
 def set_tensor_attr(tensor, attr, value):
     try:
-        setattr(tensor, "_keras_mask", value)
+        setattr(tensor, attr, value)
     except AttributeError:
         if value is None:
             return
