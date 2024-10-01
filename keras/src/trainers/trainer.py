@@ -224,6 +224,7 @@ class Trainer:
 
         if backend.backend() == "tensorflow":
             import tensorflow as tf
+            from tensorflow.python.framework.config import is_op_determinism_enabled
 
             devices = tf.config.list_physical_devices()
             if not list(filter(lambda x: x.device_type != "CPU", devices)):
@@ -232,6 +233,11 @@ class Trainer:
 
             if self._distribute_strategy:
                 # Disable XLA with tf.distribute
+                return False
+
+            if is_op_determinism_enabled():
+                # disable XLA with determinism enabled since not all ops are
+                # supported by XLA with determinism enabled.
                 return False
 
         if model_supports_jit(self):
