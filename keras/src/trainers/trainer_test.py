@@ -1724,7 +1724,8 @@ class TestTrainer(testing.TestCase):
     )
 
     def test_jit_compile_with_tf_determinism(self):
-        from tensorflow.config.experimental import enable_op_determinism
+        from tensorflow.python.framework.config import disable_op_determinism
+        from tensorflow.python.framework.config import enable_op_determinism
 
         enable_op_determinism()
 
@@ -1734,7 +1735,9 @@ class TestTrainer(testing.TestCase):
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
         )
+
         self.assertFalse(model.jit_compile)
+        disable_op_determinism()
 
 
 class TrainerDistributeTest(testing.TestCase):
