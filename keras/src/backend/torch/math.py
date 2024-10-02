@@ -422,4 +422,5 @@ def logdet(x):
 
 
 def histogram(x, bins, range):
-    return torch.histogram(x, bins=bins, range=range)
+    hist_result = torch.histogram(x, bins=bins, range=range)
+    return hist_result.hist, hist_result.bin_edges
