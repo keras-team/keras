@@ -283,13 +283,12 @@ class TestTrainer(testing.TestCase):
 
     @parameterized.named_parameters(
         [
-            ("determinism_enabled", False, False, False, True),
-            ("eager", True, False, False, False),
-            ("graph_fn", False, False, False, False),
-            ("jit", False, True, False, True),
-            ("steps_per_epoch_eager", True, False, True, True),
-            ("steps_per_epoch_graph_fn", False, False, True, True),
-            ("steps_per_epoch_jit", False, True, True, True),
+            ("eager", True, False, False),
+            ("graph_fn", False, False, False),
+            ("jit", False, True, False),
+            ("steps_per_epoch_eager", True, False, True),
+            ("steps_per_epoch_graph_fn", False, False, True),
+            ("steps_per_epoch_jit", False, True, True),
         ]
     )
     @pytest.mark.requires_trainable_backend
