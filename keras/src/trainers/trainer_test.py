@@ -283,12 +283,13 @@ class TestTrainer(testing.TestCase):
 
     @parameterized.named_parameters(
         [
-            ("eager", True, False, False),
-            ("graph_fn", False, False, False),
-            ("jit", False, True, False),
-            ("steps_per_epoch_eager", True, False, True),
-            ("steps_per_epoch_graph_fn", False, False, True),
-            ("steps_per_epoch_jit", False, True, True),
+            ("determinism_enabled", False, False, False, True),
+            ("eager", True, False, False, False),
+            ("graph_fn", False, False, False, False),
+            ("jit", False, True, False, True),
+            ("steps_per_epoch_eager", True, False, True, True),
+            ("steps_per_epoch_graph_fn", False, False, True, True),
+            ("steps_per_epoch_jit", False, True, True, True),
         ]
     )
     @pytest.mark.requires_trainable_backend
@@ -1717,6 +1718,22 @@ class TestTrainer(testing.TestCase):
             self.assertAllClose(v, 0.0)
         for v in model._compile_loss.variables:
             self.assertAllClose(v, 0.0)
+
+    pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="This test is only applicable to TensorFlow.",
+    )
+    def test_jit_compile_with_tf_determinism(self):
+        from tensorflow.config.experimental import enable_op_determinism
+        enable_op_determinism()
+
+        model = ExampleModel(units=3)
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+        )
+        self.assertFalse(model.jit_compile)
 
 
 class TrainerDistributeTest(testing.TestCase):
