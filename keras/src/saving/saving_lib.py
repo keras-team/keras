@@ -524,7 +524,7 @@ def save_weights_only(model, filepath, objects_to_skip=None):
         )
 
     if file_utils.is_remote_path(filepath):
-        filepath = file_utils.get_file(model, filepath, cache_subdir='models')
+        filepath = file_utils.get_file(model, filepath, cache_subdir="models")
 
     weights_store = H5IOStore(filepath, mode="w")
     if objects_to_skip is not None:
@@ -542,15 +542,14 @@ def save_weights_only(model, filepath, objects_to_skip=None):
 
 
 def load_weights_only(
-        model, filepath, skip_mismatch=False, objects_to_skip=None
+    model, filepath, skip_mismatch=False, objects_to_skip=None
 ):
-    """Load the weights of a model from a filepath (.keras or .weights.h5).
-    """
+    """Load the weights of a model from a filepath (.keras or .weights.h5)."""
     archive = None
     filepath = str(filepath)
 
     if file_utils.is_remote_path(filepath):
-        filepath = file_utils.get_file(model, filepath, cache_subdir='models')
+        filepath = file_utils.get_file(model, filepath, cache_subdir="models")
 
     if filepath.endswith(".weights.h5"):
         weights_store = H5IOStore(filepath, mode="r")
@@ -653,11 +652,11 @@ def _walk_saveable(saveable):
 
 
 def _save_state(
-        saveable,
-        weights_store,
-        assets_store,
-        inner_path,
-        visited_saveables,
+    saveable,
+    weights_store,
+    assets_store,
+    inner_path,
+    visited_saveables,
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
@@ -703,14 +702,14 @@ def _save_state(
 
 
 def _load_state(
-        saveable,
-        weights_store,
-        assets_store,
-        inner_path,
-        skip_mismatch=False,
-        visited_saveables=None,
-        failed_saveables=None,
-        error_msgs=None,
+    saveable,
+    weights_store,
+    assets_store,
+    inner_path,
+    skip_mismatch=False,
+    visited_saveables=None,
+    failed_saveables=None,
+    error_msgs=None,
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
@@ -789,7 +788,7 @@ def _load_state(
 
 
 def _save_container_state(
-        container, weights_store, assets_store, inner_path, visited_saveables
+    container, weights_store, assets_store, inner_path, visited_saveables
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
@@ -818,14 +817,14 @@ def _save_container_state(
 
 
 def _load_container_state(
-        container,
-        weights_store,
-        assets_store,
-        inner_path,
-        skip_mismatch,
-        visited_saveables,
-        failed_saveables,
-        error_msgs,
+    container,
+    weights_store,
+    assets_store,
+    inner_path,
+    skip_mismatch,
+    visited_saveables,
+    failed_saveables,
+    error_msgs,
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
@@ -1136,6 +1135,6 @@ def is_memory_sufficient(model):
     else:
         available_memory = psutil.virtual_memory().available  # In bytes
     return (
-            weight_memory_size(model.variables)
-            < available_memory * _MEMORY_UPPER_BOUND
+        weight_memory_size(model.variables)
+        < available_memory * _MEMORY_UPPER_BOUND
     )
