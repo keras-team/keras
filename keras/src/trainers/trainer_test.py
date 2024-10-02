@@ -1722,8 +1722,10 @@ class TestTrainer(testing.TestCase):
         backend.backend() != "tensorflow",
         reason="This test is only applicable to TensorFlow.",
     )
+
     def test_jit_compile_with_tf_determinism(self):
         from tensorflow.config.experimental import enable_op_determinism
+
         enable_op_determinism()
 
         model = ExampleModel(units=3)
