@@ -20,7 +20,7 @@ class TestSpectrogram(testing.TestCase):
         layer = Sequential(
             [
                 Input(shape=(None, 1), dtype=dtype),
-                layers.Spectrogram(
+                layers.STFTSpectrogram(
                     mode=mode,
                     frame_length=frame_length,
                     frame_step=frame_step,
@@ -51,7 +51,7 @@ class TestSpectrogram(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_spectrogram_basics(self):
         self.run_layer_test(
-            layers.Spectrogram,
+            layers.STFTSpectrogram,
             init_kwargs={
                 "frame_length": 500,
                 "frame_step": 25,
@@ -67,7 +67,7 @@ class TestSpectrogram(testing.TestCase):
         )
 
         self.run_layer_test(
-            layers.Spectrogram,
+            layers.STFTSpectrogram,
             init_kwargs={
                 "frame_length": 150,
                 "frame_step": 71,
@@ -84,7 +84,7 @@ class TestSpectrogram(testing.TestCase):
         )
 
         self.run_layer_test(
-            layers.Spectrogram,
+            layers.STFTSpectrogram,
             init_kwargs={
                 "frame_length": 150,
                 "frame_step": 43,
@@ -101,7 +101,7 @@ class TestSpectrogram(testing.TestCase):
             supports_masking=False,
         )
         self.run_layer_test(
-            layers.Spectrogram,
+            layers.STFTSpectrogram,
             init_kwargs={
                 "frame_length": 150,
                 "frame_step": 10,
@@ -178,7 +178,7 @@ class TestSpectrogram(testing.TestCase):
     def test_tf_data_compatibility(self):
         input_shape = (2, 16000, 1)
         output_shape = (2, 16000 // 128 + 1, 257)
-        layer = layers.Spectrogram(
+        layer = layers.STFTSpectrogram(
             frame_length=256,
             frame_step=128,
             fft_length=512,
@@ -193,16 +193,20 @@ class TestSpectrogram(testing.TestCase):
 
     def test_exceptions(self):
         with self.assertRaises(ValueError):
-            layers.Spectrogram(
+            layers.STFTSpectrogram(
                 frame_length=256, frame_step=1024, fft_length=512
             )
         with self.assertRaises(ValueError):
-            layers.Spectrogram(frame_length=256, frame_step=32, fft_length=128)
+            layers.STFTSpectrogram(
+                frame_length=256, frame_step=32, fft_length=128
+            )
         with self.assertRaises(ValueError):
-            layers.Spectrogram(frame_length=256, frame_step=32, fft_length=127)
+            layers.STFTSpectrogram(
+                frame_length=256, frame_step=32, fft_length=127
+            )
         with self.assertRaises(ValueError):
-            layers.Spectrogram(padding="mypadding")
+            layers.STFTSpectrogram(padding="mypadding")
         with self.assertRaises(ValueError):
-            layers.Spectrogram(scaling="l2")
+            layers.STFTSpectrogram(scaling="l2")
         with self.assertRaises(ValueError):
-            layers.Spectrogram(mode="spectrogram")
+            layers.STFTSpectrogram(mode="spectrogram")

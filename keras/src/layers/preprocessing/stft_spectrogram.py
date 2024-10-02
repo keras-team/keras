@@ -38,8 +38,8 @@ class STFTInitializer(initializers.Initializer):
         return {"side": self.side}
 
 
-@keras_export("keras.layers.Spectrogram")
-class Spectrogram(layers.Layer):
+@keras_export("keras.layers.STFTSpectrogram")
+class STFTSpectrogram(layers.Layer):
     """
     A layer that computes Spectrograms of the input signal to produce
     a spectrogram. This layers utilizes Short-Time Fourier Transform (STFT) by
@@ -92,7 +92,7 @@ class Spectrogram(layers.Layer):
 
     Example:
         ```
-        spectrogram_layer = keras.layers.Spectrogram(
+        spectrogram_layer = keras.layers.STFTSpectrogram(
             mode='log', frame_length=256, fft_length=512
         )
         output = spectrogram_layer(input_signal)
@@ -289,8 +289,6 @@ class Spectrogram(layers.Layer):
             return linear_stft
         elif self.mode == "log":
             return ops.log(backend.epsilon() + linear_stft)
-
-        raise NotImplementedError(f"{self.mode} mode is not implemented")
 
     def compute_output_shape(self, input_shape):
         batch_size, time_length, channels = input_shape
