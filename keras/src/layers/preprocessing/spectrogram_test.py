@@ -13,7 +13,7 @@ from keras.src import testing
 class TestSpectrogram(testing.TestCase):
     @staticmethod
     def _calc_spectrograms(
-        X, mode, scaling, window, periodic, frame_length, frame_step, fft_length
+        x, mode, scaling, window, periodic, frame_length, frame_step, fft_length
     ):
         dtype = "float64"
 
@@ -32,11 +32,11 @@ class TestSpectrogram(testing.TestCase):
                 ),
             ]
         )
-        Y = layer.predict(X, verbose=0)
+        y = layer.predict(x, verbose=0)
 
         window_arr = scipy.signal.get_window(window, frame_length, periodic)
         _, _, S = scipy.signal.spectrogram(
-            X[..., 0].astype(np.float64),
+            x[..., 0].astype(np.float64),
             window=window_arr.astype(np.float64),
             nperseg=frame_length,
             noverlap=frame_length - frame_step,
@@ -45,8 +45,8 @@ class TestSpectrogram(testing.TestCase):
             detrend=False,
             nfft=fft_length,
         )
-        Y_true = np.transpose(S, [0, 2, 1])
-        return Y_true, Y
+        y_true = np.transpose(S, [0, 2, 1])
+        return y_true, y
 
     @pytest.mark.requires_trainable_backend
     def test_spectrogram_basics(self):
@@ -121,7 +121,7 @@ class TestSpectrogram(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_spectrogram_error(self):
         rnd = np.random.RandomState(41)
-        X = rnd.uniform(low=-1, high=1, size=(4, 160000, 1)).astype(np.float64)
+        x = rnd.uniform(low=-1, high=1, size=(4, 160000, 1)).astype(np.float64)
         names = [
             "scaling",
             "window",
@@ -143,26 +143,26 @@ class TestSpectrogram(testing.TestCase):
             tol_kwargs = {"atol": 5e-4, "rtol": 1e-6}
 
             init_args["mode"] = "magnitude"
-            Y_true, Y = self._calc_spectrograms(X, **init_args)
-            self.assertEqual(np.shape(Y_true), np.shape(Y))
-            self.assertAllClose(Y_true, Y, **tol_kwargs)
+            y_true, y = self._calc_spectrograms(x, **init_args)
+            self.assertEqual(np.shape(y_true), np.shape(y))
+            self.assertAllClose(y_true, y, **tol_kwargs)
 
             init_args["mode"] = "psd"
-            Y_true, Y = self._calc_spectrograms(X, **init_args)
-            self.assertEqual(np.shape(Y_true), np.shape(Y))
-            self.assertAllClose(Y_true, Y, **tol_kwargs)
+            y_true, y = self._calc_spectrograms(x, **init_args)
+            self.assertEqual(np.shape(y_true), np.shape(y))
+            self.assertAllClose(y_true, y, **tol_kwargs)
 
             init_args["mode"] = "angle"
-            Y_true, Y = self._calc_spectrograms(X, **init_args)
+            y_true, y = self._calc_spectrograms(x, **init_args)
 
             # tol_kwargs = {"atol": 1e-3, "rtol": 1e-4}
 
-            PI = np.arccos(np.float128(-1)).astype(Y_true.dtype)
-            mask = np.isclose(Y, Y_true, **tol_kwargs)
-            mask |= np.isclose(Y + 2 * PI, Y_true, **tol_kwargs)
-            mask |= np.isclose(Y - 2 * PI, Y_true, **tol_kwargs)
-            mask |= np.isclose(np.cos(Y), np.cos(Y_true), **tol_kwargs)
-            mask |= np.isclose(np.sin(Y), np.sin(Y_true), **tol_kwargs)
+            pi = np.arccos(np.float128(-1)).astype(y_true.dtype)
+            mask = np.isclose(y, y_true, **tol_kwargs)
+            mask |= np.isclose(y + 2 * pi, y_true, **tol_kwargs)
+            mask |= np.isclose(y - 2 * pi, y_true, **tol_kwargs)
+            mask |= np.isclose(np.cos(y), np.cos(y_true), **tol_kwargs)
+            mask |= np.isclose(np.sin(y), np.sin(y_true), **tol_kwargs)
 
             if backend.backend() == "jax":
                 # TODO(mostafa-mahmoud): investigate the rare cases

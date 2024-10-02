@@ -27,8 +27,7 @@ class STFTInitializer(initializers.Initializer):
         time = ops.reshape(
             ops.arange(frame_length, dtype=dtype), (frame_length, 1, 1)
         )
-        PI = ops.arccos(ops.cast(-1, dtype))
-        args = -2 * time * freq * PI
+        args = -2 * time * freq * ops.arccos(ops.cast(-1, dtype))
 
         if self.side == "real":
             return ops.cast(ops.cos(args), dtype)
