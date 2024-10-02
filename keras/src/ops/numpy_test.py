@@ -8334,7 +8334,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
 
-@pytest.mask.skipif(
+@pytest.mark.skipif(
     testing.torch_uses_gpu(),
     reason="histogram op not implemented for torch on gpu",
 )
