@@ -223,6 +223,7 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertIs(data_layout.device_mesh, self.device_mesh)
         self.assertEqual(data_layout.axes, ("data", None, None))
 
+    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
     def test_get_variable_layout(self):
         distribution = distribution_lib.DataParallel(
             device_mesh=self.device_mesh

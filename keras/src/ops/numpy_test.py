@@ -8334,6 +8334,10 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
 
+@pytest.mask.skipif(
+    testing.torch_uses_gpu(),
+    reason="histogram op not implemented for torch on gpu",
+)
 class HistogramTest(testing.TestCase):
     def test_histogram_default_args(self):
         hist_op = knp.histogram
