@@ -109,10 +109,7 @@ class KerasFileEditor:
 
     def summary(self):
         """Prints the weight structure of the opened file."""
-        if is_ipython_notebook():
-            self._weights_summary_interactive()
-        else:
-            self._weights_summary_cli()
+        self._weights_summary_cli()
 
     def compare_to(self, reference_model):
         """Compares the opened file to a reference model.
@@ -561,7 +558,7 @@ class KerasFileEditor:
                         f'<details style="margin-left: {margin_left}px;">'
                         + '<summary style="'
                         + f"font-size: {font_size}em; "
-                        + "font-weight: 'bold';"
+                        + "font-weight: bold;"
                         + f'">{key}</summary>'
                         + _generate_html_weights(
                             value, margin_left + 20, font_size - 1

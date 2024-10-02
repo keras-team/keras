@@ -1,24 +1,10 @@
-import weakref
-
-from keras.src.backend.common import global_state
+from keras.src.backend.common.tensor_attributes import get_tensor_attr
+from keras.src.backend.common.tensor_attributes import set_tensor_attr
 
 
 def set_keras_mask(x, mask):
-    try:
-        x._keras_mask = mask
-    except AttributeError:
-        if mask is None:
-            return
-        mask_dict = global_state.get_global_attribute("keras_mask_dict")
-        if mask_dict is None:
-            mask_dict = weakref.WeakValueDictionary()
-            global_state.set_global_attribute("keras_mask_dict", mask_dict)
-        mask_dict[id(x)] = mask
+    return set_tensor_attr(x, "_keras_mask", mask)
 
 
 def get_keras_mask(x):
-    if not hasattr(x, "_keras_mask"):
-        mask_dict = global_state.get_global_attribute("keras_mask_dict")
-        if mask_dict is not None:
-            return mask_dict.get(id(x), None)
-    return getattr(x, "_keras_mask", None)
+    return get_tensor_attr(x, "_keras_mask")
