@@ -47,7 +47,6 @@ from keras.src.ops.math import erfinv
 from keras.src.ops.math import extract_sequences
 from keras.src.ops.math import fft
 from keras.src.ops.math import fft2
-from keras.src.ops.math import histogram
 from keras.src.ops.math import in_top_k
 from keras.src.ops.math import irfft
 from keras.src.ops.math import istft
@@ -160,6 +159,7 @@ from keras.src.ops.numpy import full_like
 from keras.src.ops.numpy import get_item
 from keras.src.ops.numpy import greater
 from keras.src.ops.numpy import greater_equal
+from keras.src.ops.numpy import histogram
 from keras.src.ops.numpy import hstack
 from keras.src.ops.numpy import identity
 from keras.src.ops.numpy import imag

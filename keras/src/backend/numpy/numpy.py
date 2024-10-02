@@ -1177,3 +1177,7 @@ def slogdet(x):
 
 def argpartition(x, kth, axis=-1):
     return np.argpartition(x, kth, axis).astype("int32")
+
+
+def histogram(x, bins, range):
+    return np.histogram(x, bins=bins, range=range)
