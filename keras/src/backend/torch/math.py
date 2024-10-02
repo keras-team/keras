@@ -419,3 +419,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
 def logdet(x):
     x = convert_to_tensor(x)
     return torch.logdet(x)
+
+
+def histogram(x, bins, range):
+    hist_result = torch.histogram(x, bins=bins, range=range)
+    return hist_result.hist, hist_result.bin_edges
