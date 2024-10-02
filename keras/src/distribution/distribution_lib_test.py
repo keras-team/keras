@@ -268,6 +268,7 @@ class ModelParallelDistributionTest(testing.TestCase):
             shape, axis_names, self.devices
         )
 
+    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
     def test_distribute_weights(self):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)
         layout_map[".*kernel"] = distribution_lib.TensorLayout([None, "model"])
