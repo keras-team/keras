@@ -1025,12 +1025,17 @@ def histogram(x, bins=10, range=None):
 
     Example:
 
+    ```
+    >>> nput_tensor = np.random.rand(8)
+    >>> keras.ops.histogram(input_tensor)
+    (array([1, 1, 1, 0, 0, 1, 2, 1, 0, 1], dtype=int32),
+    array([0.0189519 , 0.10294958, 0.18694726, 0.27094494, 0.35494262,
+        0.43894029, 0.52293797, 0.60693565, 0.69093333, 0.77493101,
+        0.85892869]))
+    ```
 
     """
 
-    # Do we keep these validations? We don't seem to have them
-    # in the functions above, and this method is 80% validation at
-    # this point.
     if not isinstance(bins, int):
         raise TypeError("bins must be of type `int`")
     if bins < 0:

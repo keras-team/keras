@@ -388,7 +388,6 @@ def histogram(x, bins, range):
     else:
         min_val, max_val = range
 
-    # Needed to prevent impact on histogram values
     x = tf.boolean_mask(x, (x >= min_val) & (x <= max_val))
     bin_edges = tf.linspace(min_val, max_val, bins + 1)
     bin_edges_list = bin_edges.numpy().tolist()
