@@ -294,3 +294,7 @@ def logdet(x):
     # `np.log(np.linalg.det(x))`. See
     # https://numpy.org/doc/stable/reference/generated/numpy.linalg.slogdet.html
     return slogdet(x)[1]
+
+
+def histogram(x, bins, range):
+    return jnp.histogram(x, bins=bins, range=range)

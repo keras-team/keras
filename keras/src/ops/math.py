@@ -971,3 +971,84 @@ def logdet(x):
     if any_symbolic_tensors((x,)):
         return Logdet().symbolic_call(x)
     return backend.math.logdet(x)
+
+
+class Histogram(Operation):
+    def __init__(self, bins=10, range=None):
+        super().__init__()
+
+        if not isinstance(bins, int):
+            raise TypeError("bins must be of type `int`")
+        if bins < 0:
+            raise ValueError("`bins` should be a non-negative integer")
+
+        if range:
+            if len(range) < 2 or not isinstance(range, tuple):
+                raise ValueError("range must be a tuple of two elements")
+
+            if range[1] < range[0]:
+                raise ValueError(
+                    "The second element of range must be greater than the first"
+                )
+
+        self.bins = bins
+        self.range = range
+
+    def call(self, x):
+        x = backend.convert_to_tensor(x)
+        if len(x.shape) > 1:
+            raise ValueError("Input tensor must be 1-dimensional")
+        return backend.math.histogram(x, bins=self.bins, range=self.range)
+
+    def compute_output_spec(self, x):
+        return (
+            KerasTensor(shape=(self.bins,), dtype=x.dtype),
+            KerasTensor(shape=(self.bins + 1,), dtype=x.dtype),
+        )
+
+
+@keras_export("keras.ops.histogram")
+def histogram(x, bins=10, range=None):
+    """Computes a histogram of the data tensor `x`.
+
+    Args:
+        x: Input tensor.
+        bins: An integer representing the number of histogram bins.
+            Defaults to 10.
+        range: A tuple representing the lower and upper range of the bins.
+            If not specified, it will use the min and max of `x`.
+
+    Returns:
+        A tuple containing:
+        - A tensor representing the counts of elements in each bin.
+        - A tensor representing the bin edges.
+
+    Example:
+
+
+    """
+
+    # Do we keep these validations? We don't seem to have them
+    # in the functions above, and this method is 80% validation at
+    # this point.
+    if not isinstance(bins, int):
+        raise TypeError("bins must be of type `int`")
+    if bins < 0:
+        raise ValueError("`bins` should be a non-negative integer")
+
+    if range:
+        if len(range) < 2 or not isinstance(range, tuple):
+            raise ValueError("range must be a tuple of two elements")
+
+        if range[1] < range[0]:
+            raise ValueError(
+                "The second element of range must be greater than the first"
+            )
+
+    if any_symbolic_tensors((x,)):
+        return Histogram(bins=bins, range=range).symbolic_call(x)
+
+    x = backend.convert_to_tensor(x)
+    if len(x.shape) > 1:
+        raise ValueError("Input tensor must be 1-dimensional")
+    return backend.math.histogram(x, bins=bins, range=range)

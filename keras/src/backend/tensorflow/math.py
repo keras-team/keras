@@ -370,3 +370,32 @@ def norm(x, ord=None, axis=None, keepdims=False):
 def logdet(x):
     x = convert_to_tensor(x)
     return tf.linalg.logdet(x)
+
+
+def histogram(x, bins, range):
+    """
+    Computes a histogram of the data tensor `x` using TensorFlow.
+    The `tf.histogram_fixed_width()` and `tf.histogram_fixed_width_bins()`
+    methods yielded slight numerical differences on some edge cases.
+    """
+
+    x = tf.convert_to_tensor(x, dtype=x.dtype)
+
+    # Handle the range argument
+    if range is None:
+        min_val = tf.reduce_min(x)
+        max_val = tf.reduce_max(x)
+    else:
+        min_val, max_val = range
+
+    # Needed to prevent impact on histogram values
+    x = tf.boolean_mask(x, (x >= min_val) & (x <= max_val))
+    bin_edges = tf.linspace(min_val, max_val, bins + 1)
+    bin_edges_list = bin_edges.numpy().tolist()
+    bin_indices = tf.raw_ops.Bucketize(input=x, boundaries=bin_edges_list[1:-1])
+
+    bin_counts = tf.math.bincount(
+        bin_indices, minlength=bins, maxlength=bins, dtype=x.dtype
+    )
+
+    return bin_counts, bin_edges
