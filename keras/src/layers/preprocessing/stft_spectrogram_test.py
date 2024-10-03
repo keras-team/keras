@@ -38,7 +38,7 @@ class TestSpectrogram(testing.TestCase):
         )
         if data_format == "channels_first":
             y = layer.predict(np.transpose(x, [0, 2, 1]), verbose=0)
-            y = np.tranpose(y, [0, 2, 1])
+            y = np.transpose(y, [0, 2, 1])
         else:
             y = layer.predict(x, verbose=0)
 
