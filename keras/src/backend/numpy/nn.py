@@ -977,3 +977,78 @@ def psnr(x1, x2, max_val):
     mse = np.mean(np.square(x1 - x2))
     psnr = 20 * np.log10(max_val) - 10 * np.log10(mse)
     return psnr
+
+
+def _get_large_negative(dtype):
+    dtype = backend.standardize_dtype(dtype)
+    val = 65500.0 if dtype == "float16" else 3.38953e38
+    return np.asarray(val * -0.7, dtype=dtype)
+
+
+def _apply_masks(logits, mask, is_causal):
+    if mask is None and not is_causal:
+        return logits
+
+    combined_mask = np.ones_like(logits, dtype=np.bool_)
+    if mask is not None:
+        combined_mask = np.logical_and(combined_mask, mask)
+
+    if is_causal:
+        T, S = logits.shape[2], logits.shape[3]
+        mask = np.tril(np.ones((T, S), dtype=np.bool_))
+        mask = mask[None, None, :, :]
+        combined_mask = np.logical_and(combined_mask, mask)
+
+    padded_logits = np.where(
+        combined_mask, logits, _get_large_negative(logits.dtype)
+    )
+    return padded_logits
+
+
+def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
+    logits_dtype = np.promote_types(query.dtype, np.float32)
+    logits = np.einsum(
+        "BTNH,BSNH->BNTS",
+        query.astype(logits_dtype),
+        key.astype(logits_dtype),
+    )
+    logits *= np.array(scale, dtype=logits.dtype)
+
+    if bias is not None:
+        logits = (logits + bias).astype(logits.dtype)
+
+    padded_logits = _apply_masks(logits, mask, is_causal)
+
+    # Softmax and it is always carried out in fp32.
+    padded_logits = padded_logits.astype(np.float32)
+    probs = softmax(padded_logits, axis=-1).astype(key.dtype)
+    encoded_dtype = probs.dtype
+    if backend.standardize_dtype(probs.dtype) == "bfloat16":
+        # `np.einsum` doesn't support bfloat16
+        probs = probs.astype("float32")
+        value = value.astype("float32")
+    encoded = np.einsum("BNTS,BSNH->BTNH", probs, value)
+    encoded = encoded.astype(encoded_dtype)
+    return encoded
+
+
+def dot_product_attention(
+    query, key, value, bias=None, mask=None, scale=None, is_causal=False
+):
+    # Ref: jax.nn.dot_product_attention
+    # https://github.com/jax-ml/jax/blob/jax-v0.4.32/jax/_src/nn/functions.py#L828
+    # Not support `query_seq_lengths` and `key_value_seq_lengths` args
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if len(query.shape) != 4:
+        raise ValueError(
+            "`dot_product_attention` only supports 4D inputs. "
+            f"Received: query.shape={query.shape}, key.shape={key.shape}, "
+            f"value.shape={value.shape}."
+        )
+    _, _, _, H = key.shape
+    scale = (1.0 / np.sqrt(H)) if scale is None else scale
+    return _dot_product_attention_xla(
+        query, key, value, bias, mask, is_causal, scale
+    )

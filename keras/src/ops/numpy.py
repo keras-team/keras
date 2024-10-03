@@ -2901,7 +2901,7 @@ class GetItem(Operation):
             if not remaining_shape:
                 raise ValueError(
                     f"Array has shape {x.shape} but slice "
-                    f"has to many indices. Recieved: `{key}`"
+                    f"has to many indices. Received: `{key}`"
                 )
             length = remaining_shape.pop(0)
             if isinstance(subkey, int):
@@ -2921,7 +2921,7 @@ class GetItem(Operation):
                     new_shape.append(length)
             else:
                 raise ValueError(
-                    f"Unsupported key type for array slice. Recieved: `{key}`"
+                    f"Unsupported key type for array slice. Received: `{key}`"
                 )
         return KerasTensor(tuple(new_shape), dtype=x.dtype)
 
@@ -5576,6 +5576,41 @@ def triu(x, k=0):
     return backend.numpy.triu(x, k=k)
 
 
+class Trunc(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.numpy.trunc(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.trunc", "keras.ops.numpy.trunc"])
+def trunc(x):
+    """Return the truncated value of the input, element-wise.
+
+    The truncated value of the scalar `x` is the nearest integer `i` which is
+    closer to zero than `x` is. In short, the fractional part of the signed
+    number `x` is discarded.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        The truncated value of each element in `x`.
+
+    Example:
+    >>> x = ops.array([-1.7, -1.5, -0.2, 0.2, 1.5, 1.7, 2.0])
+    >>> ops.trunc(x)
+    array([-1.0, -1.0, -0.0, 0.0, 1.0, 1.0, 2.0])
+    """
+    if any_symbolic_tensors((x,)):
+        return Trunc().symbolic_call(x)
+    return backend.numpy.trunc(x)
+
+
 class Vdot(Operation):
     def call(self, x1, x2):
         return backend.numpy.vdot(x1, x2)
@@ -6513,7 +6548,7 @@ class Slogdet(Operation):
 
     def compute_output_spec(self, x):
         sign = KerasTensor((), dtype=x.dtype)
-        logabsdet = KerasTensor((), dtype=x.dtype)
+        logabsdet = KerasTensor(x.shape[:-2], dtype=x.dtype)
         return (sign, logabsdet)
 
 
@@ -6576,3 +6611,99 @@ def argpartition(x, kth, axis=-1):
     if any_symbolic_tensors((x,)):
         return Argpartition(kth, axis).symbolic_call(x)
     return backend.numpy.argpartition(x, kth, axis)
+
+
+class Histogram(Operation):
+    def __init__(self, bins=10, range=None):
+        super().__init__()
+
+        if not isinstance(bins, int):
+            raise TypeError("bins must be of type `int`")
+        if bins < 0:
+            raise ValueError("`bins` should be a non-negative integer")
+
+        if range:
+            if len(range) < 2 or not isinstance(range, tuple):
+                raise ValueError("range must be a tuple of two elements")
+
+            if range[1] < range[0]:
+                raise ValueError(
+                    "The second element of range must be greater than the first"
+                )
+
+        self.bins = bins
+        self.range = range
+
+    def call(self, x):
+        x = backend.convert_to_tensor(x)
+        if len(x.shape) > 1:
+            raise ValueError("Input tensor must be 1-dimensional")
+        return backend.math.histogram(x, bins=self.bins, range=self.range)
+
+    def compute_output_spec(self, x):
+        return (
+            KerasTensor(shape=(self.bins,), dtype=x.dtype),
+            KerasTensor(shape=(self.bins + 1,), dtype=x.dtype),
+        )
+
+
+@keras_export(["keras.ops.histogram", "keras.ops.numpy.histogram"])
+def histogram(x, bins=10, range=None):
+    """Computes a histogram of the data tensor `x`.
+
+    Args:
+        x: Input tensor.
+        bins: An integer representing the number of histogram bins.
+            Defaults to 10.
+        range: A tuple representing the lower and upper range of the bins.
+            If not specified, it will use the min and max of `x`.
+
+    Returns:
+        A tuple containing:
+        - A tensor representing the counts of elements in each bin.
+        - A tensor representing the bin edges.
+
+    Example:
+
+    ```
+    >>> input_tensor = np.random.rand(8)
+    >>> keras.ops.histogram(input_tensor)
+    (array([1, 1, 1, 0, 0, 1, 2, 1, 0, 1], dtype=int32),
+    array([0.0189519 , 0.10294958, 0.18694726, 0.27094494, 0.35494262,
+        0.43894029, 0.52293797, 0.60693565, 0.69093333, 0.77493101,
+        0.85892869]))
+    ```
+    """
+    if not isinstance(bins, int):
+        raise TypeError(
+            f"Argument `bins` must be of type `int`. Received: bins={bins}"
+        )
+    if bins < 0:
+        raise ValueError(
+            "Argument `bins` should be a non-negative integer. "
+            f"Received: bins={bins}"
+        )
+
+    if range:
+        if len(range) < 2 or not isinstance(range, tuple):
+            raise ValueError(
+                "Argument `range` must be a tuple of two elements. "
+                f"Received: range={range}"
+            )
+
+        if range[1] < range[0]:
+            raise ValueError(
+                "The second element of `range` must be greater than the first. "
+                f"Received: range={range}"
+            )
+
+    if any_symbolic_tensors((x,)):
+        return Histogram(bins=bins, range=range).symbolic_call(x)
+
+    x = backend.convert_to_tensor(x)
+    if len(x.shape) > 1:
+        raise ValueError(
+            "Input tensor must be 1-dimensional. "
+            f"Received: input.shape={x.shape}"
+        )
+    return backend.numpy.histogram(x, bins=bins, range=range)

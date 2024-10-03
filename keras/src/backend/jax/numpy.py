@@ -1079,6 +1079,14 @@ def triu(x, k=0):
     return jnp.triu(x, k=k)
 
 
+def trunc(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or "bool" == dtype:
+        return x
+    return jnp.trunc(x)
+
+
 def vdot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1238,3 +1246,7 @@ def slogdet(x):
 
 def argpartition(x, kth, axis=-1):
     return jnp.argpartition(x, kth, axis)
+
+
+def histogram(x, bins, range):
+    return jnp.histogram(x, bins=bins, range=range)

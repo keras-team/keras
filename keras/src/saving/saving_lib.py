@@ -627,7 +627,7 @@ def _walk_saveable(saveable):
         )
 
     obj_type = saveable._obj_type()
-    attr_skiplist = get_attr_skiplist(obj_type)
+    attr_skipset = get_attr_skipset(obj_type)
 
     # Save all layers directly tracked by Sequential and Functional first.
     # This helps avoid ordering concerns for subclassed Sequential or Functional
@@ -636,7 +636,7 @@ def _walk_saveable(saveable):
         yield "layers", saveable.layers
 
     for child_attr in sorted(dir(saveable), key=lambda x: _name_key(x)):
-        if child_attr.startswith("__") or child_attr in attr_skiplist:
+        if child_attr.startswith("__") or child_attr in attr_skipset:
             continue
         try:
             child_obj = getattr(saveable, child_attr)
@@ -660,7 +660,13 @@ def _save_state(
         return
 
     if hasattr(saveable, "save_own_variables") and weights_store:
-        saveable.save_own_variables(weights_store.make(inner_path))
+        if hasattr(saveable, "name") and isinstance(saveable.name, str):
+            metadata = {"name": saveable.name}
+        else:
+            metadata = None
+        saveable.save_own_variables(
+            weights_store.make(inner_path, metadata=metadata)
+        )
     if hasattr(saveable, "save_assets") and assets_store:
         saveable.save_assets(assets_store.make(inner_path))
 
@@ -924,8 +930,8 @@ class H5IOStore:
         else:
             self.h5_file = h5py.File(root_path, mode=self.mode)
 
-    def make(self, path):
-        return H5Entry(self.h5_file, path, mode="w")
+    def make(self, path, metadata=None):
+        return H5Entry(self.h5_file, path, mode="w", metadata=metadata)
 
     def get(self, path):
         return H5Entry(self.h5_file, path, mode="r")
@@ -941,10 +947,11 @@ class H5IOStore:
 class H5Entry:
     """Leaf entry in a H5IOStore."""
 
-    def __init__(self, h5_file, path, mode):
+    def __init__(self, h5_file, path, mode, metadata=None):
         self.h5_file = h5_file
         self.path = path
         self.mode = mode
+        self.metadata = metadata
 
         if mode == "w":
             if not path:
@@ -953,11 +960,15 @@ class H5Entry:
                 self.group = self.h5_file.create_group(self.path).create_group(
                     "vars"
                 )
+            if self.metadata:
+                for k, v in self.metadata.items():
+                    self.group.attrs[k] = v
         else:
             found = False
             if not path:
-                self.group = self.h5_file["vars"]
-                found = True
+                if "vars" in self.h5_file:
+                    self.group = self.h5_file["vars"]
+                    found = True
             elif path in self.h5_file and "vars" in self.h5_file[path]:
                 self.group = self.h5_file[path]["vars"]
                 found = True
@@ -1026,7 +1037,7 @@ class NpzIOStore:
                 self.f = open(root_path, mode="rb")
             self.contents = np.load(self.f, allow_pickle=True)
 
-    def make(self, path):
+    def make(self, path, metadata=None):
         if not path:
             self.contents["__root__"] = {}
             return self.contents["__root__"]
@@ -1061,48 +1072,50 @@ def get_temp_dir():
     return temp_dir
 
 
-def get_attr_skiplist(obj_type):
-    skiplist = global_state.get_global_attribute(
+def get_attr_skipset(obj_type):
+    skipset = global_state.get_global_attribute(
         f"saving_attr_skiplist_{obj_type}", None
     )
-    if skiplist is not None:
-        return skiplist
+    if skipset is not None:
+        return skipset
 
-    skiplist = [
-        "_self_unconditional_dependency_names",
-    ]
+    skipset = set(
+        [
+            "_self_unconditional_dependency_names",
+        ]
+    )
     if obj_type == "Layer":
         ref_obj = Layer()
-        skiplist += dir(ref_obj)
+        skipset.update(dir(ref_obj))
     elif obj_type == "Functional":
         ref_obj = Layer()
-        skiplist += dir(ref_obj) + ["operations", "_operations"]
+        skipset.update(dir(ref_obj) + ["operations", "_operations"])
     elif obj_type == "Sequential":
         ref_obj = Layer()
-        skiplist += dir(ref_obj) + ["_functional"]
+        skipset.update(dir(ref_obj) + ["_functional"])
     elif obj_type == "Metric":
         ref_obj_a = Metric()
         ref_obj_b = CompileMetrics([], [])
-        skiplist += dir(ref_obj_a) + dir(ref_obj_b)
+        skipset.update(dir(ref_obj_a) + dir(ref_obj_b))
     elif obj_type == "Optimizer":
         ref_obj = Optimizer(1.0)
-        skiplist += dir(ref_obj)
-        skiplist.remove("variables")
+        skipset.update(dir(ref_obj))
+        skipset.remove("variables")
     elif obj_type == "Loss":
         ref_obj = Loss()
-        skiplist += dir(ref_obj)
+        skipset.update(dir(ref_obj))
     else:
         raise ValueError(
-            f"get_attr_skiplist got invalid {obj_type=}. "
+            f"get_attr_skipset got invalid {obj_type=}. "
             "Accepted values for `obj_type` are "
             "['Layer', 'Functional', 'Sequential', 'Metric', "
             "'Optimizer', 'Loss']"
         )
 
     global_state.set_global_attribute(
-        f"saving_attr_skiplist_{obj_type}", skiplist
+        f"saving_attr_skipset_{obj_type}", skipset
     )
-    return skiplist
+    return skipset
 
 
 def is_memory_sufficient(model):

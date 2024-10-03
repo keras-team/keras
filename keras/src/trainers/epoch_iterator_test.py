@@ -9,7 +9,7 @@ from keras.src.trainers import data_adapters
 from keras.src.trainers import epoch_iterator
 
 
-class TestEpochIterator(testing.TestCase, parameterized.TestCase):
+class TestEpochIterator(testing.TestCase):
     def test_basic_flow(self):
         x = np.random.random((100, 16))
         y = np.random.random((100, 4))

@@ -414,3 +414,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
         dtype = dtypes.result_type(x.dtype, float)
     x = cast(x, dtype)
     return torch.linalg.norm(x, ord=ord, dim=axis, keepdim=keepdims)
+
+
+def logdet(x):
+    x = convert_to_tensor(x)
+    return torch.logdet(x)

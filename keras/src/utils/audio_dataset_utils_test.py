@@ -66,7 +66,7 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
         return temp_dir
 
     def test_audio_dataset_from_directory_standalone(self):
-        # Test retrieving audio samples withouts labels from a directory and its
+        # Test retrieving audio samples without labels from a directory and its
         # subdirs.
         # Save a few extra audio in the parent directory.
         directory = self._prepare_directory(count=7, num_classes=2)

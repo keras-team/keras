@@ -246,7 +246,7 @@ def _load_model_fn(filepath):
     saving_lib.load_model(filepath)
 
 
-class SavingTest(testing.TestCase, parameterized.TestCase):
+class SavingTest(testing.TestCase):
     def setUp(self):
         # Set `_MEMORY_UPPER_BOUND` to zero for testing purpose.
         self.original_value = saving_lib._MEMORY_UPPER_BOUND
@@ -958,6 +958,24 @@ class SavingBattleTest(testing.TestCase):
         self.assertAllClose(
             model_a.dense.kernel.numpy(), model_b.dense.kernel.numpy()
         )
+
+    def test_normalization_legacy_h5_format(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "custom_model.h5")
+
+        inputs = keras.Input((32,))
+        normalization = keras.layers.Normalization()
+        outputs = normalization(inputs)
+
+        model = keras.Model(inputs, outputs)
+
+        x = np.random.random((1, 32))
+        normalization.adapt(x)
+        ref_out = model(x)
+
+        model.save(temp_filepath)
+        new_model = keras.saving.load_model(temp_filepath)
+        out = new_model(x)
+        self.assertAllClose(ref_out, out, atol=1e-6)
 
     def test_legacy_h5_format(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "custom_model.h5")

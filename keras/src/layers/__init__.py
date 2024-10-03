@@ -78,24 +78,47 @@ from keras.src.layers.pooling.global_max_pooling3d import GlobalMaxPooling3D
 from keras.src.layers.pooling.max_pooling1d import MaxPooling1D
 from keras.src.layers.pooling.max_pooling2d import MaxPooling2D
 from keras.src.layers.pooling.max_pooling3d import MaxPooling3D
-from keras.src.layers.preprocessing.audio_preprocessing import MelSpectrogram
 from keras.src.layers.preprocessing.category_encoding import CategoryEncoding
-from keras.src.layers.preprocessing.center_crop import CenterCrop
 from keras.src.layers.preprocessing.discretization import Discretization
 from keras.src.layers.preprocessing.hashed_crossing import HashedCrossing
 from keras.src.layers.preprocessing.hashing import Hashing
+from keras.src.layers.preprocessing.image_preprocessing.auto_contrast import (
+    AutoContrast,
+)
+from keras.src.layers.preprocessing.image_preprocessing.center_crop import (
+    CenterCrop,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_brightness import (
+    RandomBrightness,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_contrast import (
+    RandomContrast,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_crop import (
+    RandomCrop,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_flip import (
+    RandomFlip,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_rotation import (
+    RandomRotation,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_translation import (
+    RandomTranslation,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_zoom import (
+    RandomZoom,
+)
+from keras.src.layers.preprocessing.image_preprocessing.resizing import Resizing
+from keras.src.layers.preprocessing.image_preprocessing.solarization import (
+    Solarization,
+)
 from keras.src.layers.preprocessing.index_lookup import IndexLookup
 from keras.src.layers.preprocessing.integer_lookup import IntegerLookup
+from keras.src.layers.preprocessing.mel_spectrogram import MelSpectrogram
 from keras.src.layers.preprocessing.normalization import Normalization
-from keras.src.layers.preprocessing.random_brightness import RandomBrightness
-from keras.src.layers.preprocessing.random_contrast import RandomContrast
-from keras.src.layers.preprocessing.random_crop import RandomCrop
-from keras.src.layers.preprocessing.random_flip import RandomFlip
-from keras.src.layers.preprocessing.random_rotation import RandomRotation
-from keras.src.layers.preprocessing.random_translation import RandomTranslation
-from keras.src.layers.preprocessing.random_zoom import RandomZoom
+from keras.src.layers.preprocessing.pipeline import Pipeline
 from keras.src.layers.preprocessing.rescaling import Rescaling
-from keras.src.layers.preprocessing.resizing import Resizing
 from keras.src.layers.preprocessing.string_lookup import StringLookup
 from keras.src.layers.preprocessing.text_vectorization import TextVectorization
 from keras.src.layers.regularization.activity_regularization import (

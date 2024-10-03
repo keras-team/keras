@@ -46,6 +46,9 @@ TORCH_DTYPES = {
     "bool": torch.bool,
     "float8_e4m3fn": torch.float8_e4m3fn,
     "float8_e5m2": torch.float8_e5m2,
+    "complex32": torch.complex32,
+    "complex64": torch.complex64,
+    "complex128": torch.complex128,
 }
 
 
@@ -642,6 +645,8 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 def stop_gradient(variable):
+    if isinstance(variable, KerasVariable):
+        variable = variable.value
     # We can't use `.requires_grad_(False)` here since it only
     # works when the tensor is a leaf node in the graph.
     return variable.detach()

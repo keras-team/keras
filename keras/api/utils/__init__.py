@@ -31,6 +31,7 @@ from keras.src.trainers.data_adapters.py_dataset_adapter import (
     PyDataset as Sequence,
 )
 from keras.src.utils.audio_dataset_utils import audio_dataset_from_directory
+from keras.src.utils.config import Config
 from keras.src.utils.dataset_utils import split_dataset
 from keras.src.utils.file_utils import get_file
 from keras.src.utils.image_dataset_utils import image_dataset_from_directory

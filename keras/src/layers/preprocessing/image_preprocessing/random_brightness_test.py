@@ -30,7 +30,7 @@ class RandomBrightnessTest(testing.TestCase):
         output = layer(inputs, training=False)
         self.assertAllClose(inputs, output)
 
-    def test_output(self):
+    def test_correctness(self):
         seed = 2390
 
         # Always scale up, but randomly between 0 ~ 255
@@ -114,3 +114,29 @@ class RandomBrightnessTest(testing.TestCase):
             layer(
                 wrong_rank_input, training=True
             )  # Call the method that triggers the error
+
+    def test_dict_input(self):
+        layer = layers.RandomBrightness(factor=0.1, bounding_box_format="xyxy")
+        data = {
+            "images": np.random.random((2, 4, 5, 3)),
+            "labels": np.random.random((2, 7)),
+            "segmentation_masks": np.random.random((2, 4, 5, 7)),
+            "bounding_boxes": {
+                "boxes": np.array([[1, 2, 2, 3]]),
+                "labels": np.array([0]),
+            },
+        }
+        transformed_data = layer(data)
+        self.assertEqual(
+            data["images"].shape[:-1],
+            transformed_data["segmentation_masks"].shape[:-1],
+        )
+        self.assertAllClose(data["labels"], transformed_data["labels"])
+        self.assertAllClose(
+            data["bounding_boxes"]["boxes"],
+            transformed_data["bounding_boxes"]["boxes"],
+        )
+        self.assertAllClose(
+            data["bounding_boxes"]["labels"],
+            transformed_data["bounding_boxes"]["labels"],
+        )

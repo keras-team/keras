@@ -47,15 +47,15 @@ def categorical(logits, num_samples, dtype="int64", seed=None):
 
 
 def randint(shape, minval, maxval, dtype="int32", seed=None):
-    intemediate_dtype = dtype
+    intermediate_dtype = dtype
     if standardize_dtype(dtype) not in ["int32", "int64"]:
-        intemediate_dtype = "int64"
+        intermediate_dtype = "int64"
     seed = _cast_seed(draw_seed(seed))
     output = tf.random.stateless_uniform(
         shape=shape,
         minval=minval,
         maxval=maxval,
-        dtype=intemediate_dtype,
+        dtype=intermediate_dtype,
         seed=seed,
     )
     return tf.cast(output, dtype)
@@ -109,14 +109,14 @@ def gamma(shape, alpha, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = _cast_seed(draw_seed(seed))
     # TODO: `tf.random.stateless_gamma` doesn't support bfloat16
-    intemediate_dtype = dtype
+    intermediate_dtype = dtype
     if standardize_dtype(dtype) == "bfloat16":
-        intemediate_dtype = "float32"
+        intermediate_dtype = "float32"
     return tf.cast(
         tf.random.stateless_gamma(
             shape,
             alpha=alpha,
-            dtype=intemediate_dtype,
+            dtype=intermediate_dtype,
             seed=seed,
         ),
         dtype,
@@ -127,16 +127,16 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = _cast_seed(draw_seed(seed))
     # TODO: `tf.random.stateless_binomial` doesn't support bfloat16
-    intemediate_dtype = dtype
+    intermediate_dtype = dtype
     if standardize_dtype(dtype) == "bfloat16":
-        intemediate_dtype = "float32"
+        intermediate_dtype = "float32"
     return tf.cast(
         tf.random.stateless_binomial(
             shape=shape,
             seed=seed,
             counts=counts,
             probs=probabilities,
-            output_dtype=intemediate_dtype,
+            output_dtype=intermediate_dtype,
         ),
         dtype,
     )
@@ -161,11 +161,11 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
     seed_2 = seed_1 + 12
 
     # TODO: `tf.random.stateless_gamma` doesn't support bfloat16
-    intemediate_dtype = dtype
+    intermediate_dtype = dtype
     if standardize_dtype(dtype) == "bfloat16":
-        intemediate_dtype = "float32"
-    alpha = tf.convert_to_tensor(alpha, dtype=intemediate_dtype)
-    beta = tf.convert_to_tensor(beta, dtype=intemediate_dtype)
+        intermediate_dtype = "float32"
+    alpha = tf.convert_to_tensor(alpha, dtype=intermediate_dtype)
+    beta = tf.convert_to_tensor(beta, dtype=intermediate_dtype)
 
     # tensorflow's tf.random.stateless_gamma has a bit of unconventional
     # implementation of the stateless_gamma function where it checks the
@@ -180,13 +180,13 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
 
     gamma_a = tf.cast(
         tf.random.stateless_gamma(
-            shape=shape, seed=seed_1, alpha=alpha, dtype=intemediate_dtype
+            shape=shape, seed=seed_1, alpha=alpha, dtype=intermediate_dtype
         ),
         dtype,
     )
     gamma_b = tf.cast(
         tf.random.stateless_gamma(
-            shape=shape, seed=seed_2, alpha=beta, dtype=intemediate_dtype
+            shape=shape, seed=seed_2, alpha=beta, dtype=intermediate_dtype
         ),
         dtype,
     )

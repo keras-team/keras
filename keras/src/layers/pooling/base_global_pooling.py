@@ -14,6 +14,7 @@ class BaseGlobalPooling(Layer):
         self.data_format = backend.standardize_data_format(data_format)
         self.keepdims = keepdims
         self.input_spec = InputSpec(ndim=pool_dimensions + 2)
+        self.built = True
 
     def call(self, inputs):
         raise NotImplementedError

@@ -70,6 +70,7 @@ from keras.src.ops.numpy import full_like
 from keras.src.ops.numpy import get_item
 from keras.src.ops.numpy import greater
 from keras.src.ops.numpy import greater_equal
+from keras.src.ops.numpy import histogram
 from keras.src.ops.numpy import hstack
 from keras.src.ops.numpy import identity
 from keras.src.ops.numpy import imag
@@ -150,6 +151,7 @@ from keras.src.ops.numpy import tri
 from keras.src.ops.numpy import tril
 from keras.src.ops.numpy import triu
 from keras.src.ops.numpy import true_divide
+from keras.src.ops.numpy import trunc
 from keras.src.ops.numpy import var
 from keras.src.ops.numpy import vdot
 from keras.src.ops.numpy import vectorize

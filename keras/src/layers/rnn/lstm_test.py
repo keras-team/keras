@@ -7,7 +7,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class LSTMTest(testing.TestCase, parameterized.TestCase):
+class LSTMTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(

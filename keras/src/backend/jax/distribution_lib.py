@@ -58,7 +58,7 @@ def distribute_variable(value, layout):
     if layout.is_fully_addressable:
         return jax.device_put(value, layout)
     else:
-        # Need to only distribute the value to local addressible devices, and
+        # Need to only distribute the value to local addressable devices, and
         # repack them back into global format.
         mapping = layout.addressable_devices_indices_map(value.shape)
         local_values = jax.device_put(
@@ -94,7 +94,7 @@ def distribute_tensor(tensor, layout):
     if layout.is_fully_addressable:
         return jax.device_put(tensor, layout)
     else:
-        # Need to only distribute the value to local addressible devices, and
+        # Need to only distribute the value to local addressable devices, and
         # repack them back into global format.
         mapping = layout.addressable_devices_indices_map(tensor.shape)
         local_values = jax.device_put(

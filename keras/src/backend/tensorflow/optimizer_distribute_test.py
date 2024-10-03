@@ -15,7 +15,7 @@ from keras.src.optimizers.sgd import SGD
     backend.backend() != "tensorflow",
     reason="The distribute test can only run with TF backend.",
 )
-class OptimizerDistributeTest(testing.TestCase, parameterized.TestCase):
+class OptimizerDistributeTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         # Need at least 2 devices for distribution related tests.

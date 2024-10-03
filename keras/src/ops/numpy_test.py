@@ -1543,6 +1543,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.triu(x, k=1).shape, (None, 3, None, 5))
         self.assertEqual(knp.triu(x, k=-1).shape, (None, 3, None, 5))
 
+    def test_trunc(self):
+        x = KerasTensor((None, 3, None, 5))
+        self.assertEqual(knp.trunc(x).shape, (None, 3, None, 5))
+
     def test_vstack(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((None, 3))
@@ -2074,6 +2078,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.triu(x, k=1).shape, (2, 3, 4, 5))
         self.assertEqual(knp.triu(x, k=-1).shape, (2, 3, 4, 5))
 
+    def test_trunc(self):
+        x = KerasTensor((2, 3, 4, 5))
+        self.assertEqual(knp.trunc(x).shape, (2, 3, 4, 5))
+
     def test_vstack(self):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
@@ -2088,7 +2096,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             knp.argpartition(x, (1, 3))
 
 
-class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
+class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
     def test_add(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
@@ -3007,7 +3015,7 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         )
 
 
-class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_mean(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.mean(x), np.mean(x))
@@ -4380,6 +4388,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         self.assertAllClose(fn(x, k), np.triu(x_np, k_np))
 
+    def test_trunc(self):
+        x = np.array([-1.7, -2.5, -0.2, 0.2, 1.5, 1.7, 2.0])
+        self.assertAllClose(knp.trunc(x), np.trunc(x))
+        self.assertAllClose(knp.Trunc()(x), np.trunc(x))
+
+        x = np.array([-1, -2, -0, 0, 1, 1, 2], dtype="int32")
+        self.assertAllClose(knp.trunc(x), np.trunc(x))
+        self.assertAllClose(knp.Trunc()(x), np.trunc(x))
+
     def test_vstack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
@@ -4475,6 +4492,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         out = knp.slogdet(x)
         self.assertEqual(out[0].shape, ())
         self.assertEqual(out[1].shape, ())
+
+        x = backend.KerasTensor((2, 4, 3, 3))
+        out = knp.slogdet(x)
+        self.assertEqual(out[0].shape, ())
+        self.assertEqual(out[1].shape, (2, 4))
 
     def test_nan_to_num(self):
         x = knp.array([1.0, np.nan, np.inf, -np.inf])
@@ -4739,7 +4761,7 @@ def snake_to_pascal_case(name):
     not backend.SUPPORTS_SPARSE_TENSORS,
     reason="Backend does not support sparse tensors.",
 )
-class SparseTest(testing.TestCase, parameterized.TestCase):
+class SparseTest(testing.TestCase):
     DTYPES = ["int32", "float32"]
     DENSIFYING_UNARY_OPS = [
         "arccos",
@@ -5116,14 +5138,16 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Divide()(x, y), expected_result)
 
 
-class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
+class NumpyDtypeTest(testing.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     # TODO: Using uint64 will lead to weak type promotion (`float`),
     # resulting in different behavior between JAX and Keras. Currently, we
     # are skipping the test for uint64
     ALL_DTYPES = [
-        x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
+        x
+        for x in dtypes.ALLOWED_DTYPES
+        if x not in ["string", "uint64", "complex64", "complex128"]
     ] + [None]
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
     FLOAT_DTYPES = dtypes.FLOAT_TYPES
@@ -8152,6 +8176,18 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_trunc(self, dtype):
+        x = knp.ones((1, 1), dtype=dtype)
+        # TODO: jax <= 0.30.0 doesn't preserve the original dtype.
+        expected_dtype = dtype or backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.trunc(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Trunc().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_var(self, dtype):
         import jax.numpy as jnp
 
@@ -8296,3 +8332,119 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(knp.ZerosLike().symbolic_call(x).dtype),
             expected_dtype,
         )
+
+
+@pytest.mark.skipif(
+    testing.torch_uses_gpu(),
+    reason="histogram op not implemented for torch on gpu",
+)
+class HistogramTest(testing.TestCase):
+    def test_histogram_default_args(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(8)
+
+        # Expected output
+        expected_counts, expected_edges = np.histogram(input_tensor)
+
+        counts, edges = hist_op(input_tensor)
+
+        self.assertEqual(counts.shape, expected_counts.shape)
+        self.assertAllClose(counts, expected_counts)
+        self.assertEqual(edges.shape, expected_edges.shape)
+        self.assertAllClose(edges, expected_edges)
+
+    def test_histogram_custom_bins(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(8)
+        bins = 5
+
+        # Expected output
+        expected_counts, expected_edges = np.histogram(input_tensor, bins=bins)
+
+        counts, edges = hist_op(input_tensor, bins=bins)
+
+        self.assertEqual(counts.shape, expected_counts.shape)
+        self.assertAllClose(counts, expected_counts)
+        self.assertEqual(edges.shape, expected_edges.shape)
+        self.assertAllClose(edges, expected_edges)
+
+    def test_histogram_custom_range(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(10)
+        range_specified = (2, 8)
+
+        # Expected output
+        expected_counts, expected_edges = np.histogram(
+            input_tensor, range=range_specified
+        )
+
+        counts, edges = hist_op(input_tensor, range=range_specified)
+
+        self.assertEqual(counts.shape, expected_counts.shape)
+        self.assertAllClose(counts, expected_counts)
+        self.assertEqual(edges.shape, expected_edges.shape)
+        self.assertAllClose(edges, expected_edges)
+
+    def test_histogram_symbolic_input(self):
+        hist_op = knp.histogram
+        input_tensor = KerasTensor(shape=(None,), dtype="float32")
+
+        counts, edges = hist_op(input_tensor)
+
+        self.assertEqual(counts.shape, (10,))
+        self.assertEqual(edges.shape, (11,))
+
+    def test_histogram_non_integer_bins_raises_error(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(8)
+
+        with self.assertRaisesRegex(
+            ValueError, "Argument `bins` should be a non-negative integer"
+        ):
+            hist_op(input_tensor, bins=-5)
+
+    def test_histogram_range_validation(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(8)
+
+        with self.assertRaisesRegex(
+            ValueError, "Argument `range` must be a tuple of two elements"
+        ):
+            hist_op(input_tensor, range=(1,))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "The second element of `range` must be greater than the first",
+        ):
+            hist_op(input_tensor, range=(5, 1))
+
+    def test_histogram_large_values(self):
+        hist_op = knp.histogram
+        input_tensor = np.array([1e10, 2e10, 3e10, 4e10, 5e10])
+
+        counts, edges = hist_op(input_tensor, bins=5)
+
+        expected_counts, expected_edges = np.histogram(input_tensor, bins=5)
+
+        self.assertAllClose(counts, expected_counts)
+        self.assertAllClose(edges, expected_edges)
+
+    def test_histogram_float_input(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(8)
+
+        counts, edges = hist_op(input_tensor, bins=5)
+
+        expected_counts, expected_edges = np.histogram(input_tensor, bins=5)
+
+        self.assertAllClose(counts, expected_counts)
+        self.assertAllClose(edges, expected_edges)
+
+    def test_histogram_high_dimensional_input(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(3, 4, 5)
+
+        with self.assertRaisesRegex(
+            ValueError, "Input tensor must be 1-dimensional"
+        ):
+            hist_op(input_tensor)

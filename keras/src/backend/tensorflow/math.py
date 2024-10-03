@@ -365,3 +365,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
         )
     else:
         raise ValueError(f"Invalid axis values. Received: axis={axis}")
+
+
+def logdet(x):
+    x = convert_to_tensor(x)
+    return tf.linalg.logdet(x)

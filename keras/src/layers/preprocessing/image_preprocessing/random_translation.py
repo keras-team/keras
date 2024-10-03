@@ -1,11 +1,12 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    BaseImagePreprocessingLayer,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
 @keras_export("keras.layers.RandomTranslation")
-class RandomTranslation(TFDataLayer):
+class RandomTranslation(BaseImagePreprocessingLayer):
     """A preprocessing layer which randomly translates images during training.
 
     This layer will apply random translations to each image during training,
@@ -81,6 +82,7 @@ class RandomTranslation(TFDataLayer):
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
     """
 
+    _USE_BASE_FACTOR = False
     _FACTOR_VALIDATION_ERROR = (
         "The `factor` argument should be a number (or a list of two numbers) "
         "in the range [-1.0, 1.0]. "
@@ -99,7 +101,7 @@ class RandomTranslation(TFDataLayer):
         data_format=None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(data_format=data_format, **kwargs)
         self.height_factor = height_factor
         self.height_lower, self.height_upper = self._set_factor(
             height_factor, "height_factor"
@@ -125,7 +127,6 @@ class RandomTranslation(TFDataLayer):
         self.interpolation = interpolation
         self.seed = seed
         self.generator = SeedGenerator(seed)
-        self.data_format = backend.standardize_data_format(data_format)
         self.supports_jit = False
 
     def _set_factor(self, factor, factor_name):
@@ -156,41 +157,65 @@ class RandomTranslation(TFDataLayer):
                 + f"Received: input_number={input_number}"
             )
 
-    def call(self, inputs, training=True):
-        inputs = self.backend.cast(inputs, self.compute_dtype)
+    def transform_images(self, images, transformation, training=True):
+        images = self.backend.cast(images, self.compute_dtype)
         if training:
-            return self._randomly_translate_inputs(inputs)
-        else:
-            return inputs
+            return self._translate_inputs(images, transformation)
+        return images
 
-    def _randomly_translate_inputs(self, inputs):
-        inputs_shape = self.backend.shape(inputs)
-        unbatched = len(inputs_shape) == 3
+    def transform_labels(self, labels, transformation, training=True):
+        return labels
+
+    def transform_bounding_boxes(
+        self, bounding_boxes, transformation, training=True
+    ):
+        raise NotImplementedError
+
+    def transform_segmentation_masks(
+        self, segmentation_masks, transformation, training=True
+    ):
+        return self.transform_images(
+            segmentation_masks, transformation, training=training
+        )
+
+    def get_random_transformation(self, data, training=True, seed=None):
+        if not training:
+            return None
+
+        if isinstance(data, dict):
+            images = data["images"]
+        else:
+            images = data
+
+        images_shape = self.backend.shape(images)
+        unbatched = len(images_shape) == 3
         if unbatched:
-            inputs = self.backend.numpy.expand_dims(inputs, axis=0)
-            inputs_shape = self.backend.shape(inputs)
-
-        batch_size = inputs_shape[0]
-        if self.data_format == "channels_first":
-            height = inputs_shape[-2]
-            width = inputs_shape[-1]
+            images_shape = self.backend.shape(images)
+            batch_size = 1
         else:
-            height = inputs_shape[-3]
-            width = inputs_shape[-2]
+            batch_size = images_shape[0]
+        if self.data_format == "channels_first":
+            height = images_shape[-2]
+            width = images_shape[-1]
+        else:
+            height = images_shape[-3]
+            width = images_shape[-2]
 
-        seed_generator = self._get_seed_generator(self.backend._backend)
+        if seed is None:
+            seed = self._get_seed_generator(self.backend._backend)
+
         height_translate = self.backend.random.uniform(
             minval=self.height_lower,
             maxval=self.height_upper,
             shape=[batch_size, 1],
-            seed=seed_generator,
+            seed=seed,
         )
         height_translate = self.backend.numpy.multiply(height_translate, height)
         width_translate = self.backend.random.uniform(
             minval=self.width_lower,
             maxval=self.width_upper,
             shape=[batch_size, 1],
-            seed=seed_generator,
+            seed=seed,
         )
         width_translate = self.backend.numpy.multiply(width_translate, width)
         translations = self.backend.cast(
@@ -199,7 +224,18 @@ class RandomTranslation(TFDataLayer):
             ),
             dtype="float32",
         )
+        return {"translations": translations}
 
+    def _translate_inputs(self, inputs, transformation):
+        if transformation is None:
+            return inputs
+
+        inputs_shape = self.backend.shape(inputs)
+        unbatched = len(inputs_shape) == 3
+        if unbatched:
+            inputs = self.backend.numpy.expand_dims(inputs, axis=0)
+
+        translations = transformation["translations"]
         outputs = self.backend.image.affine_transform(
             inputs,
             transform=self._get_translation_matrix(translations),

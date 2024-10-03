@@ -6,7 +6,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class IdentityTest(testing.TestCase, parameterized.TestCase):
+class IdentityTest(testing.TestCase):
     @parameterized.named_parameters(
         [
             {"testcase_name": "dense", "sparse": False},
@@ -30,4 +30,5 @@ class IdentityTest(testing.TestCase, parameterized.TestCase):
             expected_num_losses=0,
             run_training_check=not sparse,
             supports_masking=True,
+            assert_built_after_instantiation=True,
         )

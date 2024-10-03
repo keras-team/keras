@@ -14,7 +14,7 @@ from keras.src import testing
 from keras.src.backend.common import global_state
 
 
-class LayerTest(testing.TestCase, parameterized.TestCase):
+class LayerTest(testing.TestCase):
 
     def test_compute_output_spec(self):
         # Test that implementing compute_output_shape
@@ -572,8 +572,24 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
         CustomLayer()(x)
 
     @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy backend does not support masking.",
+        backend.backend() == "numpy", reason="masking not supported with numpy"
+    )
+    def test_end_to_end_masking(self):
+        # Check that masking survives compilation
+        model = models.Sequential(
+            [
+                layers.Embedding(
+                    2, 2, mask_zero=True, embeddings_initializer="ones"
+                ),
+            ]
+        )
+        model.compile(loss="mse")
+        targets = np.array([[[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [1.0, 1.0]]])
+        loss = model.evaluate(np.array([[1, 0, 0, 1]]), targets)
+        self.assertAllClose(loss, 0.0)
+
+    @pytest.mark.skipif(
+        backend.backend() == "numpy", reason="masking not supported with numpy"
     )
     def test_masking(self):
         class BasicMaskedLayer(layers.Layer):
@@ -587,7 +603,8 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
 
         layer = BasicMaskedLayer()
         x = backend.numpy.ones((4, 4))
-        x._keras_mask = backend.numpy.ones((4,))
+        mask = backend.numpy.ones((4,))
+        backend.set_keras_mask(x, mask)
         layer(x)
 
         layer(backend.numpy.ones((4, 4)), mask=backend.numpy.ones((4,)))
@@ -606,9 +623,11 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
 
         layer = NestedInputMaskedLayer()
         x1 = backend.numpy.ones((4, 4))
-        x1._keras_mask = backend.numpy.ones((4,))
+        mask1 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x1, mask1)
         x2 = backend.numpy.ones((4, 4))
-        x2._keras_mask = backend.numpy.ones((4,))
+        mask2 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x2, mask2)
         layer([x1, x2])
 
         layer(
@@ -644,11 +663,14 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
 
         layer = PositionalNestedInputsMaskedLayer()
         x1_1 = backend.numpy.ones((4, 4))
-        x1_1._keras_mask = backend.numpy.ones((4,))
+        mask1 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x1_1, mask1)
         x1_2 = backend.numpy.ones((4, 4))
-        x1_2._keras_mask = backend.numpy.ones((4,))
+        mask2 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x1_2, mask2)
         x2 = backend.numpy.ones((4, 4))
-        x2._keras_mask = backend.numpy.ones((4,))
+        mask2 = backend.numpy.ones((4,))
+        backend.set_keras_mask(x2, mask2)
         layer((x1_1, x1_2), x2)
         layer(x1=(x1_1, x1_2), x2=x2)
 
@@ -1102,7 +1124,7 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
         self.assertTrue("inner_inner_layer/inner" in variable_paths)
         if backend.backend() == "torch":
             parameter_names = set(
-                param_name.replace("torch_params.", "")
+                param_name.replace("_torch_params.", "")
                 for param_name, _ in layer.named_parameters()
             )
             self.assertSetEqual(variable_paths, parameter_names)
@@ -1159,7 +1181,7 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
         )
         if backend.backend() == "torch":
             parameter_names = set(
-                param_name.replace("torch_params.", "")
+                param_name.replace("_torch_params.", "")
                 for param_name, _ in layer.named_parameters()
             )
             self.assertSetEqual(variable_paths, parameter_names)
@@ -1212,7 +1234,7 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "torch_params.training_layer/post_build_modify_layer/var",
+                "_torch_params.training_layer/post_build_modify_layer/var",
             )
 
         layer.post_build_modify_layer.post_build_add()
@@ -1234,7 +1256,7 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "torch_params.training_layer/post_build_modify_layer/var",
+                "_torch_params.training_layer/post_build_modify_layer/var",
             )
 
             parameter_names = [
@@ -1244,11 +1266,11 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(len(parameter_names), 2)
             self.assertEqual(
                 parameter_names[0],
-                "torch_params.training_layer/post_build_modify_layer/var",
+                "_torch_params.training_layer/post_build_modify_layer/var",
             )
             self.assertEqual(
                 parameter_names[1],
-                "torch_params.training_layer/post_build_modify_layer/var2",
+                "_torch_params.training_layer/post_build_modify_layer/var2",
             )
 
         layer.post_build_modify_layer.post_build_remove()
@@ -1267,12 +1289,12 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(len(parameter_names), 2)
             self.assertEqual(
                 parameter_names[0],
-                "post_build_modify_layer.torch_params.training_layer/"
+                "post_build_modify_layer._torch_params.training_layer/"
                 "post_build_modify_layer/var2",
             )
             self.assertEqual(
                 parameter_names[1],
-                "torch_params.training_layer/post_build_modify_layer/var",
+                "_torch_params.training_layer/post_build_modify_layer/var",
             )
 
             parameter_names = [
@@ -1282,7 +1304,7 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "torch_params.training_layer/post_build_modify_layer/var2",
+                "_torch_params.training_layer/post_build_modify_layer/var2",
             )
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
@@ -1306,3 +1328,24 @@ class LayerTest(testing.TestCase, parameterized.TestCase):
         layer2.build(None)
         layer2_names = list(pname for pname, _ in layer2.named_parameters())
         self.assertListEqual(layer1_names, layer2_names)
+
+    def test_complex_dtype_support(self):
+
+        class MyDenseLayer(layers.Layer):
+            def __init__(self, num_outputs):
+                super(MyDenseLayer, self).__init__()
+                self.num_outputs = num_outputs
+
+            def build(self, input_shape):
+                self.kernel = self.add_weight(
+                    shape=[int(input_shape[-1]), self.num_outputs],
+                )
+
+            def call(self, inputs):
+                kernel = ops.cast(self.kernel, "complex64")
+                return ops.matmul(inputs, kernel)
+
+        inputs = ops.zeros([10, 5], dtype="complex64")
+        layer = MyDenseLayer(10)
+        output = layer(inputs)
+        self.assertAllEqual(output.shape, (10, 10))

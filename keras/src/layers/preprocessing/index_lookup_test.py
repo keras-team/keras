@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import pytest
-from absl.testing import parameterized
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -15,7 +14,7 @@ from keras.src.saving import saving_api
 @pytest.mark.skipif(
     backend.backend() == "numpy", reason="Failing for numpy backend."
 )
-class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
+class IndexLookupLayerTest(testing.TestCase):
     def test_basics_string_vocab(self):
         # Case: adapt + list inputs
         adapt_data = ["one", "one", "one", "two", "two", "three"]

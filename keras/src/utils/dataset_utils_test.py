@@ -23,7 +23,7 @@ class MyTorchDataset(TorchDataset):
         return self.x[index], self.y[index]
 
 
-class DatasetUtilsTest(test_case.TestCase, parameterized.TestCase):
+class DatasetUtilsTest(test_case.TestCase):
     @parameterized.named_parameters(
         named_product(
             dataset_type=["list", "tuple", "tensorflow", "torch"],

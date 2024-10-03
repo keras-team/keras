@@ -33,6 +33,10 @@ class DeviceTest(testing.TestCase):
         import jax
         from jax.lib import xla_bridge
 
+        def get_device(t):
+            # After updating to Jax 0.4.33, Directly access via t.device attr.
+            return list(t.devices())[0]
+
         platform = xla_bridge.get_backend().platform
 
         if platform != "gpu":
@@ -40,19 +44,19 @@ class DeviceTest(testing.TestCase):
 
         with backend.device_scope("cpu:0"):
             t = backend.numpy.ones((2, 1))
-            self.assertEqual(t.device(), jax.devices("cpu")[0])
+            self.assertEqual(get_device(t), jax.devices("cpu")[0])
         with backend.device_scope("CPU:0"):
             t = backend.numpy.ones((2, 1))
-            self.assertEqual(t.device(), jax.devices("cpu")[0])
+            self.assertEqual(get_device(t), jax.devices("cpu")[0])
 
         # When leaving the scope, the device should be back with gpu:0
         t = backend.numpy.ones((2, 1))
-        self.assertEqual(t.device(), jax.devices("gpu")[0])
+        self.assertEqual(get_device(t), jax.devices("gpu")[0])
 
         # Also verify the explicit gpu device
         with backend.device_scope("gpu:0"):
             t = backend.numpy.ones((2, 1))
-            self.assertEqual(t.device(), jax.devices("gpu")[0])
+            self.assertEqual(get_device(t), jax.devices("gpu")[0])
 
     @pytest.mark.skipif(backend.backend() != "jax", reason="jax only")
     def test_invalid_jax_device(self):

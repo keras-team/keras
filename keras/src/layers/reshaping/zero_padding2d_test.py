@@ -7,7 +7,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class ZeroPadding2DTest(testing.TestCase, parameterized.TestCase):
+class ZeroPadding2DTest(testing.TestCase):
     @parameterized.parameters(
         {"data_format": "channels_first"},
         {"data_format": "channels_last"},

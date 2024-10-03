@@ -94,7 +94,7 @@ class ExceptionPyDataset(py_dataset_adapter.PyDataset):
         raise ValueError("Expected exception")
 
 
-class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
+class PyDatasetAdapterTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(
             [

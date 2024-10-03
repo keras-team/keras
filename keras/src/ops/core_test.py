@@ -144,7 +144,7 @@ class CoreOpsStaticShapeTest(testing.TestCase):
             core.unstack(x, axis=axis)
 
 
-class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class CoreOpsCorrectnessTest(testing.TestCase):
     def test_map(self):
         def f(x):
             return x**2
@@ -565,7 +565,7 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 self.b = self.add_weight(shape=(1,), initializer="zeros")
 
             def call(self, x, training=False):
-                return x * ops.stop_gradient(self.w.value) + self.b
+                return x * ops.stop_gradient(self.w) + self.b
 
         model = models.Sequential([ExampleLayer()])
         model.compile(
@@ -769,6 +769,17 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(x.shape, y.shape)
         self.assertTrue(hasattr(x, "_keras_history"))
 
+    def test_saturate_cast(self):
+        x = ops.ones((2,), dtype="float32")
+        y = ops.saturate_cast(x, "float16")
+        self.assertIn("float16", str(y.dtype))
+
+        x = ops.KerasTensor((2,), dtype="float32")
+        y = ops.saturate_cast(x, "float16")
+        self.assertEqual("float16", y.dtype)
+        self.assertEqual(x.shape, y.shape)
+        self.assertTrue(hasattr(y, "_keras_history"))
+
     def test_vectorized_map(self):
         def fn(x):
             return x + 1
@@ -852,14 +863,16 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(ops.convert_to_numpy(x.grad), 1.0)
 
 
-class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
+class CoreOpsDtypeTest(testing.TestCase):
     import jax  # enable bfloat16 for numpy
 
     # TODO: Using uint64 will lead to weak type promotion (`float`),
     # resulting in different behavior between JAX and Keras. Currently, we
     # are skipping the test for uint64
     ALL_DTYPES = [
-        x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
+        x
+        for x in dtypes.ALLOWED_DTYPES
+        if x not in ["string", "uint64", "complex64", "complex128"]
     ] + [None]
 
     if backend.backend() == "torch":
@@ -1138,6 +1151,19 @@ class CoreOpsCallsTests(testing.TestCase):
         self.assertEqual(result.dtype, target_dtype)
         # Check that the values are the same
         expected_values = x.astype(target_dtype)
+        self.assertTrue(np.array_equal(result, expected_values))
+
+    def test_saturate_cast_basic_functionality(self):
+        x = np.array([-256, 1.0, 257.0], dtype=np.float32)
+        target_dtype = np.uint8
+        cast = core.SaturateCast(target_dtype)
+        result = cast.call(x)
+        result = core.convert_to_numpy(result)
+        self.assertEqual(result.dtype, target_dtype)
+        # Check that the values are the same
+        expected_values = np.clip(x, 0, 255).astype(target_dtype)
+        print(result)
+        print(expected_values)
         self.assertTrue(np.array_equal(result, expected_values))
 
     def test_cond_check_output_spec_list_tuple(self):

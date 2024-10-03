@@ -17,7 +17,7 @@ from keras.src.backend.common import keras_tensor
 from keras.src.export import export_lib
 
 
-class DenseTest(testing.TestCase, parameterized.TestCase):
+class DenseTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_dense_basics(self):
         # 2D case, no bias.
