@@ -8,7 +8,8 @@ from keras.src.saving import serialization_lib
 class Pipeline(Layer):
     """Applies a series of layers to an input.
 
-    This class is useful to build a preprocessing pipeline.
+    This class is useful to build a preprocessing pipeline,
+    in particular an image data augmentation pipeline.
     Compared to a `Sequential` model, `Pipeline` features
     a few important differences:
 
