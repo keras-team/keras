@@ -1718,11 +1718,10 @@ class TestTrainer(testing.TestCase):
         for v in model._compile_loss.variables:
             self.assertAllClose(v, 0.0)
 
-    pytest.mark.skipif(
+    @pytest.mark.skipif(
         backend.backend() != "tensorflow",
         reason="This test is only applicable to TensorFlow.",
     )
-
     @pytest.mark.requires_trainable_backend
     def test_jit_compile_with_tf_determinism(self):
         from tensorflow.python.framework.config import disable_op_determinism
