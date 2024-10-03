@@ -1722,7 +1722,7 @@ class TestTrainer(testing.TestCase):
         backend.backend() != "tensorflow",
         reason="This test is only applicable to TensorFlow.",
     )
-
+    @pytest.mark.requires_trainable_backend
     def test_jit_compile_with_tf_determinism(self):
         from tensorflow.python.framework.config import disable_op_determinism
         from tensorflow.python.framework.config import enable_op_determinism
