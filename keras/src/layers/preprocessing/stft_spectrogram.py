@@ -325,11 +325,6 @@ class STFTSpectrogram(layers.Layer):
                 "Invalid input type. Expected `float16`, `float32` or "
                 f"`float64`. Received: input type={dtype}"
             )
-        input_channels = (
-            inputs.shape[-1]
-            if self.data_format == "channels_last"
-            else inputs.shape[1]
-        )
 
         real_signal = None
         imag_signal = None
