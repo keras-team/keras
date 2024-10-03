@@ -49,6 +49,134 @@ class TestSpectrogram(testing.TestCase):
         return y_true, y
 
     @pytest.mark.requires_trainable_backend
+    def test_spectrogram_channels_broadcasting(self):
+        dtype = "float64"
+
+        rnd = np.random.RandomState(41)
+        audio = rnd.uniform(-1, 1, size=(3, 16000, 7))
+
+        layer_last = Sequential(
+            [
+                Input(shape=(None, 7), dtype=dtype),
+                layers.STFTSpectrogram(
+                    mode="psd", dtype=dtype, data_format="channels_last"
+                ),
+            ]
+        )
+        layer_single = Sequential(
+            [
+                Input(shape=(None, 1), dtype=dtype),
+                layers.STFTSpectrogram(
+                    mode="psd", dtype=dtype, data_format="channels_last"
+                ),
+            ]
+        )
+
+        layer_expand = Sequential(
+            [
+                Input(shape=(None, 7), dtype=dtype),
+                layers.STFTSpectrogram(
+                    mode="psd",
+                    dtype=dtype,
+                    data_format="channels_last",
+                    expand_dims=True,
+                ),
+            ]
+        )
+
+        y_last = layer_last.predict(audio, verbose=0)
+        y_expanded = layer_expand.predict(audio, verbose=0)
+        y_singles = [
+            layer_single.predict(audio[..., i : i + 1], verbose=0)
+            for i in range(audio.shape[-1])
+        ]
+
+        self.assertAllClose(y_last, np.concatenate(y_singles, axis=-1))
+        self.assertAllClose(y_expanded, np.stack(y_singles, axis=-1))
+
+    @pytest.mark.skipif(
+        backend.backend() == "tensorflow",
+        reason="TF doesn't support channels_first",
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_spectrogram_channels_first(self):
+        dtype = "float64"
+
+        rnd = np.random.RandomState(41)
+        audio = rnd.uniform(-1, 1, size=(3, 16000, 7))
+
+        layer_first = Sequential(
+            [
+                Input(shape=(7, None), dtype=dtype),
+                layers.STFTSpectrogram(
+                    mode="psd", dtype=dtype, data_format="channels_first"
+                ),
+            ]
+        )
+        layer_last = Sequential(
+            [
+                Input(shape=(None, 7), dtype=dtype),
+                layers.STFTSpectrogram(
+                    mode="psd", dtype=dtype, data_format="channels_last"
+                ),
+            ]
+        )
+        layer_single = Sequential(
+            [
+                Input(shape=(None, 1), dtype=dtype),
+                layers.STFTSpectrogram(
+                    mode="psd", dtype=dtype, data_format="channels_last"
+                ),
+            ]
+        )
+        layer_expand = Sequential(
+            [
+                Input(shape=(7, None), dtype=dtype),
+                layers.STFTSpectrogram(
+                    mode="psd",
+                    dtype=dtype,
+                    data_format="channels_first",
+                    expand_dims=True,
+                ),
+            ]
+        )
+
+        y_singles = [
+            layer_single.predict(audio[..., i : i + 1], verbose=0)
+            for i in range(audio.shape[-1])
+        ]
+        y_expanded = layer_expand.predict(
+            np.transpose(audio, [0, 2, 1]), verbose=0
+        )
+        y_last = layer_last.predict(audio, verbose=0)
+        y_first = layer_first.predict(np.transpose(audio, [0, 2, 1]), verbose=0)
+        self.assertAllClose(np.transpose(y_first, [0, 2, 1]), y_last)
+        self.assertAllClose(y_expanded, np.stack(y_singles, axis=1))
+        self.assertAllClose(
+            y_first,
+            np.transpose(np.concatenate(y_singles, axis=-1), [0, 2, 1]),
+        )
+        self.run_layer_test(
+            layers.STFTSpectrogram,
+            init_kwargs={
+                "frame_length": 150,
+                "frame_step": 10,
+                "fft_length": 512,
+                "trainable": False,
+                "padding": "same",
+                "expand_dims": True,
+                "data_format": "channels_first",
+            },
+            input_shape=(2, 3, 160000),
+            expected_output_shape=(2, 3, 160000 // 10, 257),
+            expected_num_trainable_weights=0,
+            expected_num_non_trainable_weights=2,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=False,
+        )
+
+    @pytest.mark.requires_trainable_backend
     def test_spectrogram_basics(self):
         self.run_layer_test(
             layers.STFTSpectrogram,
@@ -56,9 +184,10 @@ class TestSpectrogram(testing.TestCase):
                 "frame_length": 500,
                 "frame_step": 25,
                 "fft_length": 1024,
+                "mode": "stft",
             },
             input_shape=(2, 16000, 1),
-            expected_output_shape=(2, 15500 // 25 + 1, 513),
+            expected_output_shape=(2, 15500 // 25 + 1, 513 * 2),
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
@@ -109,8 +238,26 @@ class TestSpectrogram(testing.TestCase):
                 "trainable": False,
                 "padding": "same",
             },
-            input_shape=(2, 160000, 1),
-            expected_output_shape=(2, 160000 // 10 + 1, 257),
+            input_shape=(2, 160000, 3),
+            expected_output_shape=(2, 160000 // 10, 257 * 3),
+            expected_num_trainable_weights=0,
+            expected_num_non_trainable_weights=2,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=False,
+        )
+        self.run_layer_test(
+            layers.STFTSpectrogram,
+            init_kwargs={
+                "frame_length": 150,
+                "frame_step": 10,
+                "fft_length": 512,
+                "trainable": False,
+                "padding": "same",
+                "expand_dims": True,
+            },
+            input_shape=(2, 160000, 3),
+            expected_output_shape=(2, 160000 // 10, 257, 3),
             expected_num_trainable_weights=0,
             expected_num_non_trainable_weights=2,
             expected_num_seed_generators=0,
@@ -155,8 +302,6 @@ class TestSpectrogram(testing.TestCase):
             init_args["mode"] = "angle"
             y_true, y = self._calc_spectrograms(x, **init_args)
 
-            # tol_kwargs = {"atol": 1e-3, "rtol": 1e-4}
-
             pi = np.arccos(np.float128(-1)).astype(y_true.dtype)
             mask = np.isclose(y, y_true, **tol_kwargs)
             mask |= np.isclose(y + 2 * pi, y_true, **tol_kwargs)
@@ -177,7 +322,7 @@ class TestSpectrogram(testing.TestCase):
     )
     def test_tf_data_compatibility(self):
         input_shape = (2, 16000, 1)
-        output_shape = (2, 16000 // 128 + 1, 257)
+        output_shape = (2, 16000 // 128, 257)
         layer = layers.STFTSpectrogram(
             frame_length=256,
             frame_step=128,
