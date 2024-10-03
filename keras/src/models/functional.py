@@ -132,7 +132,7 @@ class Functional(Function, Model):
         if not all(is_input_keras_tensor(t) for t in flat_inputs):
             inputs, outputs = clone_graph_nodes(inputs, outputs)
 
-        Function.__init__(self, inputs, outputs, name=name, **kwargs)
+        Function.__init__(self, inputs, outputs, name=name)
 
         if trainable is not None:
             self.trainable = trainable
