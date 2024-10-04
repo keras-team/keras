@@ -854,63 +854,98 @@ def psnr(x1, x2, max_val):
     psnr = 20 * torch.log10(max_val) - 10 * torch.log10(mse)
     return psnr
 
-  
+
 def make_causal_mask(size, dtype, device):
-    mask = torch.tril(torch.ones((size, size), dtype=dtype, device=device))
-    mask = mask.masked_fill(mask.logical_not(), -torch.inf)
+    # 1 is subtracted to invert the lower triangle with the upper one.
+    mask = 1 - torch.tril(torch.ones((size, size), dtype=dtype, device=device))
+    mask = mask.masked_fill(mask.bool(), -torch.inf)
     mask = mask.view((1, 1, size, size))
     return mask
 
 
+def merge_masks(attn_mask, input_mask):
+    if attn_mask is None:
+        return input_mask
+    return attn_mask + input_mask
+
+
 def flash_attention(
-    query, key, value, attn_mask=None, dropout=0.0, is_causal=False, scale=None
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    dropout=0.0,
 ):
-    if query.ndim < 4:
+    if query.ndim != 4:
         raise ValueError(
             "Expected `query` to have 4 dims. " f"Received: {query.ndim}."
         )
 
-    if key.ndim < 4:
+    if key.ndim != 4:
         raise ValueError(
             "Expected `key` to have 4 dims. " f"Received: {key.ndim}."
         )
 
-    if value.ndim < 4:
+    if value.ndim != 4:
         raise ValueError(
-            "Expected `value` to have 4 dims. " f"Received: {value.ndim}."
+            f"Expected `value` to have 4 dims. Received: {value.ndim}."
         )
 
+    if bias is not None and bias.ndim != 4:
+        raise ValueError(
+            f"Expected `bias` to have 4 dims. Received: {bias.ndim}."
+        )
+
+    if mask is not None and mask.ndim != 2 and mask.ndim != 4:
+        raise ValueError(
+            "Expected `mask` to have either 2 dims or 4 dims. "
+            f"Received: {mask.ndim}."
+        )
+
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(key)
+
     flash_attn_backend = [torch.nn.attention.SDPBackend.FLASH_ATTENTION]
-    mask = None
+    attn_mask = None
+
     if is_causal:
         # We manually create the causal mask here instead of setting
         # `is_causal=True` in the PyTorch function
         # because it will not accept attention mask if we did that.
-        mask = make_causal_mask(query.shape[-2], query.dtype, query.device)
+        attn_mask = make_causal_mask(query.shape[-2], query.dtype, query.device)
 
-    if attn_mask is not None and mask is not None:
-        attn_mask = convert_to_tensor(attn_mask)
-        if attn_mask.ndim == 2:
-            attn_mask = attn_mask.view(
-                (attn_mask.shape[0], 1, 1, attn_mask.shape[1])
-            )
+    if mask is not None:
+        mask = convert_to_tensor(mask)
+        mask = mask.to(dtype=query.dtype, device=query.device)
 
-        attn_mask = attn_mask.masked_fill(attn_mask.logical_not(), -torch.inf)
-        mask += attn_mask
+        if mask.ndim == 2:
+            mask = mask.view((mask.shape[0], 1, 1, mask.shape[1]))
+
+        mask = mask.masked_fill(mask.logical_not(), -torch.inf)
+        attn_mask = merge_masks(attn_mask, mask)
+
+    if bias is not None:
+        bias = convert_to_tensor(bias)
+        bias = bias.to(dtype=query.dtype, device=query.device)
+        attn_mask = merge_masks(attn_mask, bias)
 
     with torch.nn.attention.sdpa_kernel(backends=flash_attn_backend):
         output = tnn.scaled_dot_product_attention(
             query=query,
             key=key,
             value=value,
-            attn_mask=mask,
+            attn_mask=attn_mask,
             dropout_p=dropout,
             is_causal=False,
             scale=scale,
         )
     return output
 
-  
+
 def _get_large_negative(dtype):
     dtype = backend.standardize_dtype(dtype)
     if dtype == "float16":
