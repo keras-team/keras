@@ -736,7 +736,8 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         named_product(mask=(True, False), is_causal=(True, False))
     )
     @pytest.mark.skipif(
-        backend.backend() in ["tensorflow", "jax"], reason="Not supported yet."
+        backend.backend() in ["tensorflow", "jax", "numpy"],
+        reason="Not supported.",
     )
     def test_flash_attention(self, mask, is_causal):
         num_heads, seqlen, embed_dim = 2, 10, 16
@@ -1227,7 +1228,8 @@ class NNOpsStaticShapeTest(testing.TestCase):
         named_product(mask=(True, False), is_causal=(True, False))
     )
     @pytest.mark.skipif(
-        backend.backend() in ["tensorflow", "jax"], reason="Not supported yet."
+        backend.backend() in ["tensorflow", "jax", "numpy"],
+        reason="Not supported.",
     )
     def test_flash_attention(self, mask, is_causal):
         num_heads, seqlen, embed_dim = 2, 10, 16
@@ -2289,7 +2291,8 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(outputs, expected)
 
     @pytest.mark.skipif(
-        backend.backend() in ["tensorflow", "jax"], reason="Not supported yet."
+        backend.backend() in ["tensorflow", "jax", "numpy"],
+        reason="Not supported.",
     )
     def test_flash_attention(self):
         query_shape = (1, 4, 2, 2)
@@ -2725,8 +2728,8 @@ class NNOpsDtypeTest(testing.TestCase):
         named_product(dtype=("bfloat16", "float16", "float32"))
     )
     @pytest.mark.skipif(
-        backend.backend() in ["tensorflow", "jax"],
-        reason="Not supported in tensorflow or jax yet.",
+        backend.backend() in ["tensorflow", "jax", "numpy"],
+        reason="Not supported.",
     )
     def test_flash_attention(self, dtype):
         query = knp.ones((2, 3, 3, 4), dtype=dtype)
