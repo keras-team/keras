@@ -332,7 +332,7 @@ class TestSpectrogram(testing.TestCase):
     )
     def test_tf_data_compatibility(self):
         input_shape = (2, 16000, 1)
-        output_shape = (2, 16000 // 128, 257)
+        output_shape = (2, 16000 // 128, 358)
         layer = layers.STFTSpectrogram(
             frame_length=256,
             frame_step=128,
