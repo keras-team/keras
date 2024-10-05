@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.signal
 
 from keras.src import backend
 from keras.src import initializers
@@ -67,3 +68,65 @@ class ConstantInitializersTest(testing.TestCase):
         self.assertAllClose(np_values, np.eye(*shape) * gain)
 
         self.run_class_serialization_test(initializer)
+
+    def test_stft_initializer(self):
+        shape = (256, 1, 513)
+        time_range = np.arange(256).reshape((-1, 1, 1))
+        freq_range = (np.arange(513) / 1024.0).reshape((1, 1, -1))
+        pi = np.arccos(np.float64(-1))
+        args = -2 * pi * time_range * freq_range
+
+        tol_kwargs = {}
+        if backend.backend() == "jax":
+            # TODO(mostafa-mahmoud): investigate the cases
+            # of non-small error in jax and torch
+            tol_kwargs = {"atol": 1e-4, "rtol": 1e-6}
+
+        initializer = initializers.STFTInitializer("real", None)
+        values = backend.convert_to_numpy(initializer(shape))
+        self.assertAllClose(np.cos(args), values, atol=1e-4)
+        self.run_class_serialization_test(initializer)
+
+        initializer = initializers.STFTInitializer(
+            "real",
+            "hamming",
+            None,
+            True,
+        )
+        window = scipy.signal.windows.get_window("hamming", 256, True)
+        window = window.astype("float64").reshape((-1, 1, 1))
+        values = backend.convert_to_numpy(initializer(shape, "float64"))
+        self.assertAllClose(np.cos(args) * window, values, **tol_kwargs)
+        self.run_class_serialization_test(initializer)
+
+        initializer = initializers.STFTInitializer(
+            "imag",
+            "tukey",
+            "density",
+            False,
+        )
+        window = scipy.signal.windows.get_window("tukey", 256, False)
+        window = window.astype("float64").reshape((-1, 1, 1))
+        window = window / np.sqrt(np.sum(window**2))
+        values = backend.convert_to_numpy(initializer(shape, "float64"))
+        self.assertAllClose(np.sin(args) * window, values, **tol_kwargs)
+        self.run_class_serialization_test(initializer)
+
+        initializer = initializers.STFTInitializer(
+            "imag",
+            list(range(1, 257)),
+            "spectrum",
+        )
+        window = np.arange(1, 257)
+        window = window.astype("float64").reshape((-1, 1, 1))
+        window = window / np.sum(window)
+        values = backend.convert_to_numpy(initializer(shape, "float64"))
+        self.assertAllClose(np.sin(args) * window, values, **tol_kwargs)
+        self.run_class_serialization_test(initializer)
+
+        with self.assertRaises(ValueError):
+            initializers.STFTInitializer("imaginary")
+        with self.assertRaises(ValueError):
+            initializers.STFTInitializer("real", scaling="l2")
+        with self.assertRaises(ValueError):
+            initializers.STFTInitializer("real", window="unknown")
