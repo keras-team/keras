@@ -336,7 +336,7 @@ class TestSpectrogram(testing.TestCase):
         layer = layers.STFTSpectrogram(
             frame_length=256,
             frame_step=128,
-            fft_length=512,
+            fft_length=715,
             padding="same",
             scaling=None,
         )
@@ -353,11 +353,11 @@ class TestSpectrogram(testing.TestCase):
             )
         with self.assertRaises(ValueError):
             layers.STFTSpectrogram(
-                frame_length=256, frame_step=32, fft_length=128
+                frame_length=256, frame_step=0, fft_length=512
             )
         with self.assertRaises(ValueError):
             layers.STFTSpectrogram(
-                frame_length=256, frame_step=32, fft_length=127
+                frame_length=256, frame_step=32, fft_length=128
             )
         with self.assertRaises(ValueError):
             layers.STFTSpectrogram(padding="mypadding")
@@ -365,3 +365,13 @@ class TestSpectrogram(testing.TestCase):
             layers.STFTSpectrogram(scaling="l2")
         with self.assertRaises(ValueError):
             layers.STFTSpectrogram(mode="spectrogram")
+        with self.assertRaises(ValueError):
+            layers.STFTSpectrogram(window="unknowable")
+        with self.assertRaises(ValueError):
+            layers.STFTSpectrogram(scaling="l2")
+        with self.assertRaises(ValueError):
+            layers.STFTSpectrogram(padding="divide")
+        with self.assertRaises(TypeError):
+            layers.STFTSpectrogram()(
+                np.random.randint(0, 255, size=(2, 16000, 1))
+            )

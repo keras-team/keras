@@ -80,10 +80,11 @@ class STFTSpectrogram(layers.Layer):
         frame_step: Integer, the step size (hop length) between
             consecutive frames. If not provided, defaults to half the
             frame_length. Defaults to `frame_length // 2`.
-        fft_length: Integer, the size of the FFT to apply to each frame.
-            Should be a power of two and greater than or equal to
-            `frame_length`. Defaults to the smallest power of two that is
-            greater than or equal to `frame_length`.
+        fft_length: Integer, the size of frequency bins used in the Fast-Fourier
+            Transform (FFT) to apply to each frame. Should be greater than or
+            equal to `frame_length`.  Recommended to be a power of two. Defaults
+            to the smallest power of two that is greater than or equal
+            to `frame_length`.
         window: (String or array_like), the windowing function to apply to each
             frame. Can be `"hann`" (default), `"hamming`", or a custom window
             provided as an array_like.
@@ -144,25 +145,25 @@ class STFTSpectrogram(layers.Layer):
         data_format=None,
         **kwargs,
     ):
+        if frame_step is not None and (
+            frame_step > frame_length or frame_step < 1
+        ):
+            raise ValueError(
+                "`frame_step` should be a positive integer not greater than "
+                f"`frame_length`. Recieved frame_step={frame_step}, "
+                f"frame_length={frame_length}"
+            )
+
+        if fft_length is not None and fft_length < frame_length:
+            raise ValueError(
+                "`fft_length` should be not less than `frame_length`. "
+                f"Recieved fft_length={fft_length}, frame_length={frame_length}"
+            )
+
         if fft_length is not None and (fft_length & -fft_length) != fft_length:
             warnings.warn(
                 "`fft_length` is recommended to be a power of two. "
                 f"Received fft_length={fft_length}"
-            )
-
-        if frame_step is not None and (
-            frame_step > frame_length or frame_step < 0
-        ):
-            raise ValueError(
-                "`frame_step` should not be greater than `frame_length`"
-            )
-
-        if fft_length is not None and (
-            fft_length < frame_length or fft_length < 0 or fft_length % 2 != 0
-        ):
-            raise ValueError(
-                "`fft_length` should be an even integer and "
-                "not less than `frame_length`"
             )
 
         all_modes = ["log", "magnitude", "psd", "real", "imag", "angle", "stft"]
