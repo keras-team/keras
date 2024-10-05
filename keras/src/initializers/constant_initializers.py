@@ -156,7 +156,7 @@ class Identity(Initializer):
 
 @keras_export(["keras.initializers.STFTInitializer"])
 class STFTInitializer(Initializer):
-    """Initializer for 1D convolution kernels to compute Short-term Fourier Transformation (STFT).
+    """Initializer of Conv kernels for Short-term Fourier Transformation (STFT).
 
     Since the formula involves complex numbers, this class compute either the
     real or the imaginary components of the final output.
