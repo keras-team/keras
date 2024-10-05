@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.signal
 
 from keras.src import backend
 from keras.src import initializers
@@ -66,4 +67,53 @@ class ConstantInitializersTest(testing.TestCase):
         np_values = backend.convert_to_numpy(values)
         self.assertAllClose(np_values, np.eye(*shape) * gain)
 
+        self.run_class_serialization_test(initializer)
+
+    def test_stft_initializer(self):
+        shape = (256, 1, 513)
+        time_range = np.arange(256).reshape((-1, 1, 1))
+        freq_range = (np.arange(513) / 1024.0).reshape((1, 1, -1))
+        pi = np.arccos(np.float64(-1))
+        args = -2 * pi * time_range * freq_range
+
+        initializer = initializers.STFTInitializer("real", None)
+        values = backend.convert_to_numpy(initializer(shape))
+        self.assertAllClose(values, np.cos(args), atol=1e-4)
+        self.run_class_serialization_test(initializer)
+
+        initializer = initializers.STFTInitializer(
+            "real",
+            "hamming",
+            None,
+            True,
+        )
+        window = scipy.signal.windows.get_window("hamming", 256, True)
+        window = window.astype("float64").reshape((-1, 1, 1))
+        values = backend.convert_to_numpy(initializer(shape, "float64"))
+        self.assertAllClose(values, np.cos(args) * window)
+        self.run_class_serialization_test(initializer)
+
+        initializer = initializers.STFTInitializer(
+            "imag",
+            "tukey",
+            "density",
+            False,
+        )
+        window = scipy.signal.windows.get_window("tukey", 256, False)
+        window = window.astype("float64").reshape((-1, 1, 1))
+        window = window / np.sqrt(np.sum(window**2))
+        values = backend.convert_to_numpy(initializer(shape, "float64"))
+        self.assertAllClose(values, np.sin(args) * window)
+        self.run_class_serialization_test(initializer)
+
+        initializer = initializers.STFTInitializer(
+            "imag",
+            list(range(1, 257)),
+            "spectrum",
+        )
+        window = np.arange(1, 257)
+        window = window.astype("float64").reshape((-1, 1, 1))
+        window = window / np.sum(window)
+        values = backend.convert_to_numpy(initializer(shape, "float64"))
+        self.assertAllClose(values, np.sin(args) * window)
         self.run_class_serialization_test(initializer)

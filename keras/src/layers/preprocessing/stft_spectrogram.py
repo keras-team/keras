@@ -9,85 +9,67 @@ from keras.src.api_export import keras_export
 from keras.src.utils.module_utils import scipy
 
 
-class STFTInitializer(initializers.Initializer):
-    def __init__(self, side, window, scaling, periodic=None):
-        if side not in ["real", "imag"]:
-            raise ValueError(f"side should be 'real' or 'imag', not {side}")
-        if isinstance(window, str):
-            # throws an exception for invalid window function
-            scipy.signal.get_window(window, 1)
-        if scaling is not None and scaling not in ["density", "spectrum"]:
-            raise ValueError(
-                "Scaling is invalid, it must be `None`, 'density' "
-                f"or 'spectrum'. Received scaling={scaling}"
-            )
-        self.side = side
-        self.window = window
-        self.scaling = scaling
-        self.periodic = periodic
-
-    def __call__(self, shape, dtype=None):
-        dtype = backend.standardize_dtype(dtype)
-        frame_length, input_channels, fft_length = shape
-
-        win = None
-        scaling = 1
-        if self.window is not None:
-            win = self.window
-            if isinstance(win, str):
-                # Using SciPy since it provides more windowing functions,
-                # easier to be compatible with multiple backends.
-                win = scipy.signal.get_window(win, frame_length, self.periodic)
-            win = ops.convert_to_tensor(win, dtype=dtype)
-            if len(win.shape) != 1 or win.shape[-1] != frame_length:
-                raise ValueError(
-                    "The shape of `window` must be equal to [frame_length]."
-                    f"Received: window shape={win.shape}"
-                )
-            win = ops.reshape(win, [frame_length, 1, 1])
-            if self.scaling == "density":
-                scaling = ops.sqrt(ops.sum(ops.square(win)) + backend.epsilon())
-            elif self.scaling == "spectrum":
-                scaling = ops.abs(ops.sum(win)) + backend.epsilon()
-
-        _fft_length = (fft_length - 1) * 2
-        freq = (
-            ops.reshape(ops.arange(fft_length, dtype=dtype), (1, 1, fft_length))
-            / _fft_length
-        )
-        time = ops.reshape(
-            ops.arange(frame_length, dtype=dtype), (frame_length, 1, 1)
-        )
-        args = -2 * time * freq * ops.arccos(ops.cast(-1, dtype))
-
-        if self.side == "real":
-            kernel = ops.cast(ops.cos(args), dtype)
-        else:
-            kernel = ops.cast(ops.sin(args), dtype)
-
-        if win is not None:
-            kernel = kernel * win / scaling
-        return kernel
-
-    def get_config(self):
-        return {
-            "side": self.side,
-            "window": self.window,
-            "periodic": self.periodic,
-            "scaling": self.scaling,
-        }
-
-
 @keras_export("keras.layers.STFTSpectrogram")
 class STFTSpectrogram(layers.Layer):
-    """
+    """Layer to compute the Short-Time Fourier Transform (STFT) on a 1D signal.
+
     A layer that computes Spectrograms of the input signal to produce
     a spectrogram. This layers utilizes Short-Time Fourier Transform (STFT) by
-    utilizing convolution kernels, which allows parallelization on GPUs and
-    trainable kernels for fine-tuning support. This layer allows
-    different modes of output (e.g., log-scaled magnitude, phase, power
-    spectral density, etc.) and provides flexibility in windowing, padding,
-    and scaling options for the STFT calculation.
+    The layer computes Spectrograms based on STFT by utilizing convolution
+    kernels, which allows parallelization on GPUs and trainable kernels for
+    fine-tuning support. This layer allows different modes of output
+    (e.g., log-scaled magnitude, phase, power spectral density, etc.) and
+    provides flexibility in windowing, padding, and scaling options for the
+    STFT calculation.
+
+    Examples:
+
+    Apply it as a non-trainable preprocessing layer on 3 audio tracks of
+    1 channel, 10 seconds and sampled at 16 kHz.
+
+    >>> layer = keras.layers.STFTSpectrogram(
+    ...     mode='log',
+    ...     frame_length=256,
+    ...     frame_step=128,   # 50% overlap
+    ...     fft_length=512,
+    ...     window="hann",
+    ...     padding="valid",
+    ...     trainable=False,  # non-trainable, preprocessing only
+    ... )
+    >>> layer(keras.random.uniform(shape=(3, 160000, 1))).shape
+    (3, 1249, 257)
+
+    Apply it as a trainable processing layer on 3 stereo audio tracks of
+    2 channels, 10 seconds and sampled at 16 kHz. This is initialized as the
+    non-trainable layer, but then can be trained jointly within a model.
+
+    >>> layer = keras.layers.STFTSpectrogram(
+    ...     mode='log',
+    ...     frame_length=256,
+    ...     frame_step=128,    # 50% overlap
+    ...     fft_length=512,
+    ...     window="hamming",  # hamming windowing function
+    ...     padding="same",    # padding to preserve the time dimension
+    ...     trainable=True,    # trainable, this is the default in keras
+    ... )
+    >>> layer(keras.random.uniform(shape=(3, 160000, 2))).shape
+    (3, 1250, 514)
+
+    Similar to the last example, but add an extra dimension so the output is
+    an image to be used with image models. We apply this here on a signal of
+    3 input channels to output an image tensor, hence is directly applicable
+    with an image model.
+
+    >>> layer = keras.layers.STFTSpectrogram(
+    ...     mode='log',
+    ...     frame_length=256,
+    ...     frame_step=128,
+    ...     fft_length=512,
+    ...     padding="same",
+    ...     expand_dims=True,  # this adds the extra dimension
+    ... )
+    >>> layer(keras.random.uniform(shape=(3, 160000, 3))).shape
+    (3, 1250, 257, 3)
 
     Args:
         mode: String, the output type of the spectrogram. Can be one of
@@ -146,15 +128,6 @@ class STFTSpectrogram(layers.Layer):
 
         where `new_time_length` depends on the padding, and `freq_channels` is
         the number of FFT bins `(fft_length // 2 + 1)`.
-
-    Example:
-        ```python
-        spectrogram_layer = keras.layers.STFTSpectrogram(
-            mode='log', frame_length=256, fft_length=512
-        )
-        output = spectrogram_layer(input_signal)
-        ```
-
     """
 
     def __init__(
@@ -243,7 +216,7 @@ class STFTSpectrogram(layers.Layer):
             self.real_kernel = self.add_weight(
                 name="real_kernel",
                 shape=shape,
-                initializer=STFTInitializer(
+                initializer=initializers.STFTInitializer(
                     "real", self.window, self.scaling, self.periodic
                 ),
             )
@@ -251,7 +224,7 @@ class STFTSpectrogram(layers.Layer):
             self.imag_kernel = self.add_weight(
                 name="imag_kernel",
                 shape=shape,
-                initializer=STFTInitializer(
+                initializer=initializers.STFTInitializer(
                     "imag", self.window, self.scaling, self.periodic
                 ),
             )
