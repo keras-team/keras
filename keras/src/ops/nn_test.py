@@ -2235,6 +2235,11 @@ class NNOpsCorrectnessTest(testing.TestCase):
                 mask_shape
             )
 
+        if flash_attention and backend.backend() in ["tensorflow", "numpy", "jax"]:
+            self.skipTest(
+                "flash attention is not supported in tensorflow and numpy."
+            )
+
         expected = _dot_product_attention(
             query,
             key,
