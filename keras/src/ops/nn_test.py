@@ -732,25 +732,6 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         out = knn.dot_product_attention(query, key, value)
         self.assertEqual(out.shape, query.shape)
 
-    @parameterized.named_parameters(
-        named_product(mask=(True, False), is_causal=(True, False))
-    )
-    @pytest.mark.skipif(
-        backend.backend() in ["tensorflow", "jax", "numpy"],
-        reason="Not supported.",
-    )
-    def test_flash_attention(self, mask, is_causal):
-        num_heads, seqlen, embed_dim = 2, 10, 16
-        x = KerasTensor([None, num_heads, seqlen, embed_dim])
-        if mask:
-            attn_mask = KerasTensor([None, num_heads, seqlen, seqlen])
-        else:
-            attn_mask = None
-        output = ops.flash_attention(
-            x, x, x, mask=attn_mask, is_causal=is_causal
-        )
-        self.assertEqual(output.shape, x.shape)
-
 
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
@@ -1223,25 +1204,6 @@ class NNOpsStaticShapeTest(testing.TestCase):
         value = KerasTensor([2, 4, 6, 16])
         out = knn.dot_product_attention(query, key, value)
         self.assertEqual(out.shape, query.shape)
-
-    @parameterized.named_parameters(
-        named_product(mask=(True, False), is_causal=(True, False))
-    )
-    @pytest.mark.skipif(
-        backend.backend() in ["tensorflow", "jax", "numpy"],
-        reason="Not supported.",
-    )
-    def test_flash_attention(self, mask, is_causal):
-        num_heads, seqlen, embed_dim = 2, 10, 16
-        x = KerasTensor([None, num_heads, seqlen, embed_dim])
-        if mask:
-            attn_mask = KerasTensor([None, num_heads, seqlen, seqlen])
-        else:
-            attn_mask = None
-        output = ops.flash_attention(
-            x, x, x, mask=attn_mask, is_causal=is_causal
-        )
-        self.assertEqual(output.shape, x.shape)
 
 
 class NNOpsCorrectnessTest(testing.TestCase):
@@ -2246,9 +2208,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
             bias=(None, True),
             scale=(None, 1.0),
             mask_and_is_causal=((None, False), (True, False), (None, True)),
+            flash_attention=(True, False),
         )
     )
-    def test_dot_product_attention(self, bias, scale, mask_and_is_causal):
+    def test_dot_product_attention(
+        self, bias, scale, mask_and_is_causal, flash_attention
+    ):
         mask, is_causal = mask_and_is_causal
         query_shape = (2, 3, 4, 5)
         key_shape = (2, 6, 4, 5)
@@ -2287,63 +2252,9 @@ class NNOpsCorrectnessTest(testing.TestCase):
             mask=mask,
             scale=scale,
             is_causal=is_causal,
+            flash_attention=flash_attention,
         )
         self.assertAllClose(outputs, expected)
-
-    @pytest.mark.skipif(
-        backend.backend() in ["tensorflow", "jax", "numpy"],
-        reason="Not supported.",
-    )
-    def test_flash_attention(self):
-        query_shape = (1, 4, 2, 2)
-        key_shape = (1, 4, 2, 2)
-        mask_shape = (1, 4, 2, 2)
-        query = (
-            np.arange(math.prod(query_shape), dtype=float)
-            .reshape(query_shape)
-            .astype("float32")
-        )
-        key = (
-            np.arange(math.prod(key_shape), dtype=float)
-            .reshape(key_shape)
-            .astype("float32")
-        )
-        value = (
-            np.arange(math.prod(key_shape), dtype=float)
-            .reshape(key_shape)
-            .astype("float32")
-        )
-
-        attn_mask = (
-            np.arange(1, math.prod(mask_shape) + 1)
-            .reshape(mask_shape)
-            .astype("float32")
-        )
-        attn_bias = (
-            np.arange(math.prod(mask_shape), dtype=float)
-            .reshape(mask_shape)
-            .astype("float32")
-        )
-
-        outputs = ops.flash_attention(
-            query,
-            key,
-            value,
-            bias=attn_bias,
-            mask=attn_mask,
-            is_causal=True,
-        )
-        expected_output = np.array(
-            [
-                [
-                    [[0.0000, 1.0000], [1.9998, 2.9998]],
-                    [[4.0000, 5.0000], [6.0000, 7.0000]],
-                    [[8.0000, 9.0000], [10.0000, 11.0000]],
-                    [[12.0000, 13.0000], [14.0000, 15.0000]],
-                ]
-            ]
-        )
-        self.assertAllClose(outputs, expected_output, atol=0.0001)
 
 
 class NNOpsDtypeTest(testing.TestCase):
@@ -2721,28 +2632,6 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertDType(
             knn.DotProductAttention().symbolic_call(query, key, value),
-            expected_dtype,
-        )
-
-    @parameterized.named_parameters(
-        named_product(dtype=("bfloat16", "float16", "float32"))
-    )
-    @pytest.mark.skipif(
-        backend.backend() in ["tensorflow", "jax", "numpy"],
-        reason="Not supported.",
-    )
-    def test_flash_attention(self, dtype):
-        query = knp.ones((2, 3, 3, 4), dtype=dtype)
-        key = knp.ones((2, 3, 3, 4), dtype=dtype)
-        value = knp.ones((2, 3, 3, 4), dtype=dtype)
-        expected_dtype = dtype
-
-        eager_output = ops.flash_attention(query, key, value)
-        sym_output = ops.FlashAttention().symbolic_call(query, key, value)
-
-        self.assertDType(eager_output, expected_dtype)
-        self.assertDType(
-            sym_output,
             expected_dtype,
         )
 

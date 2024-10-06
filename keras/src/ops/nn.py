@@ -2131,7 +2131,16 @@ class DotProductAttention(Operation):
         super().__init__()
         self.is_causal = is_causal
 
-    def call(self, query, key, value, bias=None, mask=None, scale=None):
+    def call(
+        self,
+        query,
+        key,
+        value,
+        bias=None,
+        mask=None,
+        scale=None,
+        flash_attention=False,
+    ):
         return backend.nn.dot_product_attention(
             query,
             key,
@@ -2140,10 +2149,18 @@ class DotProductAttention(Operation):
             mask=mask,
             scale=scale,
             is_causal=self.is_causal,
+            flash_attention=flash_attention,
         )
 
     def compute_output_spec(
-        self, query, key, value, bias=None, mask=None, scale=None
+        self,
+        query,
+        key,
+        value,
+        bias=None,
+        mask=None,
+        scale=None,
+        flash_attention=False,
     ):
         return KerasTensor(query.shape, dtype=query.dtype)
 
@@ -2152,7 +2169,14 @@ class DotProductAttention(Operation):
     ["keras.ops.dot_product_attention", "keras.ops.nn.dot_product_attention"]
 )
 def dot_product_attention(
-    query, key, value, bias=None, mask=None, scale=None, is_causal=False
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=False,
 ):
     """Scaled dot product attention function.
 
@@ -2207,6 +2231,7 @@ def dot_product_attention(
             bias=bias,
             mask=mask,
             scale=scale,
+            flash_attention=flash_attention,
         )
     return backend.nn.dot_product_attention(
         query,
@@ -2216,141 +2241,5 @@ def dot_product_attention(
         mask=mask,
         scale=scale,
         is_causal=is_causal,
-    )
-
-
-class FlashAttention(Operation):
-    def __init__(self):
-        super().__init__()
-
-    def call(
-        self,
-        query,
-        key,
-        value,
-        bias=None,
-        mask=None,
-        scale=None,
-        is_causal=False,
-        dropout=0.0,
-    ):
-        return backend.nn.flash_attention(
-            query,
-            key,
-            value,
-            bias,
-            mask,
-            scale,
-            is_causal,
-            dropout,
-        )
-
-    def compute_output_spec(
-        self,
-        query,
-        key,
-        value,
-        bias=None,
-        mask=None,
-        scale=None,
-        is_causal=False,
-        dropout=0.0,
-    ):
-        return KerasTensor(shape=query.shape, dtype=query.dtype)
-
-
-@keras_export(["keras.ops.flash_attention", "keras.ops.nn.flash_attention"])
-def flash_attention(
-    query,
-    key,
-    value,
-    bias=None,
-    mask=None,
-    scale=None,
-    is_causal=False,
-    dropout=0.0,
-):
-    """Flash attention function.
-
-    Computes the attention function using Flash attention algorithm
-    on Q (`query`), K (`key`), and V(`value`):
-    `attention(Q, K, V) = softmax(Q * K / sqrt(d)) * V`. If we define `logits`
-    as the output of `Q * K` and the `probs` as the output of `softmax`.
-
-    Throughout this function, we utilize the following notation to represent the
-    shape of array:
-    - B: batch size
-    - S: length of the key/value
-    - T: length of the query
-    - N: number of attention heads
-    - H: dimensions of each attention head
-    - K: number of key/value heads
-    - G: number of groups, which equals to `N // K`
-
-    Args:
-        query: The query array with the shape of `(B, N, T, H)`.
-        key: The key array with the shape of `(B, N, T, H)`. When `K` equals
-            `N`, multi-headed attention (MHA) is performed. Otherwise, grouped
-            query attention (GQA) is performed if `N` is a multiple of `K`. and
-            multi-query attention (MQA) is performed if `K==1` (a special case
-            of GQA).
-        value: The value array with the same shape of `key`.
-        bias: Optional bias array to be added to logits. The shape must be
-            broadcastable to `(B, N, T, S)`.
-        mask: Optional mask array used to filter out logits. It is a boolean
-            mask where `True` indicates the element should take part in
-            attention. For an additive mask, users should pass it to bias. The
-            shape must be broadcastable to `(B, N, T, S)`.
-        scale: Optional scale for the logits. If `None`, the scale will be set
-            to `1.0 / sqrt(H)`.
-        is_causal: Whether to apply causal mask.
-
-    Returns:
-        An array of the attention output with the same shape of `query`.
-
-    Example:
-
-    >>> query = keras.random.normal((2, 8, 4, 16))
-    >>> key = keras.random.normal((2, 8, 6, 16))
-    >>> value = keras.random.normal((2, 8, 6, 16))
-    >>> keras.ops.nn.dot_product_attention(query, key, value).shape
-    (2, 8, 4, 16)
-    """
-    framework = backend.backend()
-    if framework in ["tensorflow", "jax"]:
-        raise ValueError(
-            "Flash attention is currently supported in `torch` "
-            f"backend only. Received: {framework}"
-        )
-    if any_symbolic_tensors(
-        (
-            query,
-            key,
-            value,
-            bias,
-            mask,
-            scale,
-            is_causal,
-            dropout,
-        )
-    ):
-        return FlashAttention().symbolic_call(
-            query=query,
-            key=key,
-            value=value,
-            bias=bias,
-            mask=mask,
-            scale=scale,
-            is_causal=is_causal,
-            dropout=dropout,
-        )
-    return backend.nn.flash_attention(
-        query,
-        key,
-        value,
-        bias,
-        mask,
-        scale,
-        is_causal,
-        dropout,
+        flash_attention=flash_attention,
     )
