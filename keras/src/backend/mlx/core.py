@@ -305,6 +305,11 @@ def stop_gradient(variable):
     return mx.stop_gradient(variable)
 
 
+def random_seed_dtype():
+    # mlx random seed uses uint64.
+    return "uint64"
+
+
 def unstack(x, num=None, axis=0):
     y = x.split(num or x.shape[axis], axis=axis)
     return [yi.squeeze(axis) for yi in y]
