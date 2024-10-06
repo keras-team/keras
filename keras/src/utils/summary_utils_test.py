@@ -9,7 +9,7 @@ from keras.src import testing
 from keras.src.utils import summary_utils
 
 
-class SummaryUtilsTest(testing.TestCase, parameterized.TestCase):
+class SummaryUtilsTest(testing.TestCase):
     @parameterized.parameters([("adam",), (None,)])
     @pytest.mark.requires_trainable_backend
     def test_print_model_summary(self, optimizer):

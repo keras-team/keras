@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src import initializers
+from keras.src import random
 from keras.src import testing
 from keras.src import utils
 
@@ -191,3 +192,20 @@ class InitializersTest(testing.TestCase):
                 mode="fan_in",
                 distribution="invalid_dist",
             )
+
+    def test_serialization_with_seed_generator(self):
+        seed = random.SeedGenerator()
+        initializer = initializers.OrthogonalInitializer(seed=seed)
+        self.run_class_serialization_test(initializer)
+
+        seed = random.SeedGenerator()
+        initializer = initializers.VarianceScaling(seed=seed)
+        self.run_class_serialization_test(initializer)
+
+        seed = random.SeedGenerator()
+        initializer = initializers.RandomUniform(seed=seed)
+        self.run_class_serialization_test(initializer)
+
+        seed = random.SeedGenerator()
+        initializer = initializers.RandomNormal(seed=seed)
+        self.run_class_serialization_test(initializer)

@@ -1184,6 +1184,294 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     )
 
 
+class BitwiseAnd(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x, y):
+        return backend.numpy.bitwise_and(x, y)
+
+    def compute_output_spec(self, x, y):
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.bitwise_and", "keras.ops.numpy.bitwise_and"])
+def bitwise_and(x, y):
+    """Compute the bit-wise AND of two arrays element-wise.
+
+    Computes the bit-wise AND of the underlying binary representation of the
+    integers in the input arrays. This ufunc implements the C/Python operator
+    `&`.
+
+    Args:
+        x: Input integer tensor.
+        y: Input integer tensor.
+
+    Returns:
+        Result tensor.
+    """
+    if any_symbolic_tensors((x, y)):
+        return BitwiseAnd().symbolic_call(x, y)
+    return backend.numpy.bitwise_and(x, y)
+
+
+class BitwiseInvert(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.numpy.bitwise_invert(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.bitwise_invert", "keras.ops.numpy.bitwise_invert"])
+def bitwise_invert(x):
+    """Compute bit-wise inversion, or bit-wise NOT, element-wise.
+
+    Computes the bit-wise NOT of the underlying binary representation of the
+    integers in the input arrays. This ufunc implements the C/Python operator
+    `~`.
+
+    Args:
+        x: Input integer tensor.
+
+    Returns:
+        Result tensor.
+    """
+    if any_symbolic_tensors((x,)):
+        return BitwiseInvert().symbolic_call(x)
+    return backend.numpy.bitwise_invert(x)
+
+
+class BitwiseNot(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.numpy.bitwise_not(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.bitwise_not", "keras.ops.numpy.bitwise_not"])
+def bitwise_not(x):
+    """Compute bit-wise inversion, or bit-wise NOT, element-wise.
+
+    Computes the bit-wise NOT of the underlying binary representation of the
+    integers in the input arrays. This ufunc implements the C/Python operator
+    `~`.
+
+    Args:
+        x: Input integer tensor.
+
+    Returns:
+        Result tensor.
+    """
+    if any_symbolic_tensors((x,)):
+        return BitwiseNot().symbolic_call(x)
+    return backend.numpy.bitwise_not(x)
+
+
+class BitwiseOr(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x, y):
+        return backend.numpy.bitwise_or(x, y)
+
+    def compute_output_spec(self, x, y):
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.bitwise_or", "keras.ops.numpy.bitwise_or"])
+def bitwise_or(x, y):
+    """Compute the bit-wise OR of two arrays element-wise.
+
+    Computes the bit-wise OR of the underlying binary representation of the
+    integers in the input arrays. This ufunc implements the C/Python operator
+    `|`.
+
+    Args:
+        x: Input integer tensor.
+        y: Input integer tensor.
+
+    Returns:
+        Result tensor.
+    """
+    if any_symbolic_tensors((x, y)):
+        return BitwiseOr().symbolic_call(x, y)
+    return backend.numpy.bitwise_or(x, y)
+
+
+class BitwiseXor(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x, y):
+        return backend.numpy.bitwise_xor(x, y)
+
+    def compute_output_spec(self, x, y):
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.bitwise_xor", "keras.ops.numpy.bitwise_xor"])
+def bitwise_xor(x, y):
+    """Compute the bit-wise XOR of two arrays element-wise.
+
+    Computes the bit-wise XOR of the underlying binary representation of the
+    integers in the input arrays. This ufunc implements the C/Python operator
+    `^`.
+
+    Args:
+        x: Input integer tensor.
+        y: Input integer tensor.
+
+    Returns:
+        Result tensor.
+    """
+    if any_symbolic_tensors((x, y)):
+        return BitwiseXor().symbolic_call(x, y)
+    return backend.numpy.bitwise_xor(x, y)
+
+
+class BitwiseLeftShift(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x, y):
+        return backend.numpy.bitwise_left_shift(x, y)
+
+    def compute_output_spec(self, x, y):
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(
+    ["keras.ops.bitwise_left_shift", "keras.ops.numpy.bitwise_left_shift"]
+)
+def bitwise_left_shift(x, y):
+    """Shift the bits of an integer to the left.
+
+    Bits are shifted to the left by appending `y` 0s at the right of `x`.
+    Since the internal representation of numbers is in binary format, this
+    operation is equivalent to multiplying `x` by `2**y`.
+
+    Args:
+        x: Input integer tensor.
+        y: Input integer tensor.
+
+    Returns:
+        Result tensor.
+    """
+    if any_symbolic_tensors((x, y)):
+        return BitwiseLeftShift().symbolic_call(x, y)
+    return backend.numpy.bitwise_left_shift(x, y)
+
+
+class LeftShift(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x, y):
+        return backend.numpy.left_shift(x, y)
+
+    def compute_output_spec(self, x, y):
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.left_shift", "keras.ops.numpy.left_shift"])
+def left_shift(x, y):
+    """Shift the bits of an integer to the left.
+
+    Bits are shifted to the left by appending `y` 0s at the right of `x`.
+    Since the internal representation of numbers is in binary format, this
+    operation is equivalent to multiplying `x` by `2**y`.
+
+    Args:
+        x: Input integer tensor.
+        y: Input integer tensor.
+
+    Returns:
+        Result tensor.
+    """
+    if any_symbolic_tensors((x, y)):
+        return LeftShift().symbolic_call(x, y)
+    return backend.numpy.left_shift(x, y)
+
+
+class BitwiseRightShift(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x, y):
+        return backend.numpy.bitwise_right_shift(x, y)
+
+    def compute_output_spec(self, x, y):
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(
+    ["keras.ops.bitwise_right_shift", "keras.ops.numpy.bitwise_right_shift"]
+)
+def bitwise_right_shift(x, y):
+    """Shift the bits of an integer to the right.
+
+    Bits are shifted to the right `y`. Because the internal representation of
+    numbers is in binary format, this operation is equivalent to dividing `x` by
+    `2**y`.
+
+    Args:
+        x: Input integer tensor.
+        y: Input integer tensor.
+
+    Returns:
+        Result tensor.
+    """
+    if any_symbolic_tensors((x, y)):
+        return BitwiseRightShift().symbolic_call(x, y)
+    return backend.numpy.bitwise_right_shift(x, y)
+
+
+class RightShift(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x, y):
+        return backend.numpy.right_shift(x, y)
+
+    def compute_output_spec(self, x, y):
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.right_shift", "keras.ops.numpy.right_shift"])
+def right_shift(x, y):
+    """Shift the bits of an integer to the right.
+
+    Bits are shifted to the right `y`. Because the internal representation of
+    numbers is in binary format, this operation is equivalent to dividing `x` by
+    `2**y`.
+
+    Args:
+        x: Input integer tensor.
+        y: Input integer tensor.
+
+    Returns:
+        Result tensor.
+    """
+    if any_symbolic_tensors((x, y)):
+        return RightShift().symbolic_call(x, y)
+    return backend.numpy.right_shift(x, y)
+
+
 class BroadcastTo(Operation):
     def __init__(self, shape):
         super().__init__()
@@ -2613,7 +2901,7 @@ class GetItem(Operation):
             if not remaining_shape:
                 raise ValueError(
                     f"Array has shape {x.shape} but slice "
-                    f"has to many indices. Recieved: `{key}`"
+                    f"has to many indices. Received: `{key}`"
                 )
             length = remaining_shape.pop(0)
             if isinstance(subkey, int):
@@ -2633,7 +2921,7 @@ class GetItem(Operation):
                     new_shape.append(length)
             else:
                 raise ValueError(
-                    f"Unsupported key type for array slice. Recieved: `{key}`"
+                    f"Unsupported key type for array slice. Received: `{key}`"
                 )
         return KerasTensor(tuple(new_shape), dtype=x.dtype)
 
@@ -5288,6 +5576,41 @@ def triu(x, k=0):
     return backend.numpy.triu(x, k=k)
 
 
+class Trunc(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.numpy.trunc(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.trunc", "keras.ops.numpy.trunc"])
+def trunc(x):
+    """Return the truncated value of the input, element-wise.
+
+    The truncated value of the scalar `x` is the nearest integer `i` which is
+    closer to zero than `x` is. In short, the fractional part of the signed
+    number `x` is discarded.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        The truncated value of each element in `x`.
+
+    Example:
+    >>> x = ops.array([-1.7, -1.5, -0.2, 0.2, 1.5, 1.7, 2.0])
+    >>> ops.trunc(x)
+    array([-1.0, -1.0, -0.0, 0.0, 1.0, 1.0, 2.0])
+    """
+    if any_symbolic_tensors((x,)):
+        return Trunc().symbolic_call(x)
+    return backend.numpy.trunc(x)
+
+
 class Vdot(Operation):
     def call(self, x1, x2):
         return backend.numpy.vdot(x1, x2)
@@ -6225,7 +6548,7 @@ class Slogdet(Operation):
 
     def compute_output_spec(self, x):
         sign = KerasTensor((), dtype=x.dtype)
-        logabsdet = KerasTensor((), dtype=x.dtype)
+        logabsdet = KerasTensor(x.shape[:-2], dtype=x.dtype)
         return (sign, logabsdet)
 
 
@@ -6288,3 +6611,99 @@ def argpartition(x, kth, axis=-1):
     if any_symbolic_tensors((x,)):
         return Argpartition(kth, axis).symbolic_call(x)
     return backend.numpy.argpartition(x, kth, axis)
+
+
+class Histogram(Operation):
+    def __init__(self, bins=10, range=None):
+        super().__init__()
+
+        if not isinstance(bins, int):
+            raise TypeError("bins must be of type `int`")
+        if bins < 0:
+            raise ValueError("`bins` should be a non-negative integer")
+
+        if range:
+            if len(range) < 2 or not isinstance(range, tuple):
+                raise ValueError("range must be a tuple of two elements")
+
+            if range[1] < range[0]:
+                raise ValueError(
+                    "The second element of range must be greater than the first"
+                )
+
+        self.bins = bins
+        self.range = range
+
+    def call(self, x):
+        x = backend.convert_to_tensor(x)
+        if len(x.shape) > 1:
+            raise ValueError("Input tensor must be 1-dimensional")
+        return backend.math.histogram(x, bins=self.bins, range=self.range)
+
+    def compute_output_spec(self, x):
+        return (
+            KerasTensor(shape=(self.bins,), dtype=x.dtype),
+            KerasTensor(shape=(self.bins + 1,), dtype=x.dtype),
+        )
+
+
+@keras_export(["keras.ops.histogram", "keras.ops.numpy.histogram"])
+def histogram(x, bins=10, range=None):
+    """Computes a histogram of the data tensor `x`.
+
+    Args:
+        x: Input tensor.
+        bins: An integer representing the number of histogram bins.
+            Defaults to 10.
+        range: A tuple representing the lower and upper range of the bins.
+            If not specified, it will use the min and max of `x`.
+
+    Returns:
+        A tuple containing:
+        - A tensor representing the counts of elements in each bin.
+        - A tensor representing the bin edges.
+
+    Example:
+
+    ```
+    >>> input_tensor = np.random.rand(8)
+    >>> keras.ops.histogram(input_tensor)
+    (array([1, 1, 1, 0, 0, 1, 2, 1, 0, 1], dtype=int32),
+    array([0.0189519 , 0.10294958, 0.18694726, 0.27094494, 0.35494262,
+        0.43894029, 0.52293797, 0.60693565, 0.69093333, 0.77493101,
+        0.85892869]))
+    ```
+    """
+    if not isinstance(bins, int):
+        raise TypeError(
+            f"Argument `bins` must be of type `int`. Received: bins={bins}"
+        )
+    if bins < 0:
+        raise ValueError(
+            "Argument `bins` should be a non-negative integer. "
+            f"Received: bins={bins}"
+        )
+
+    if range:
+        if len(range) < 2 or not isinstance(range, tuple):
+            raise ValueError(
+                "Argument `range` must be a tuple of two elements. "
+                f"Received: range={range}"
+            )
+
+        if range[1] < range[0]:
+            raise ValueError(
+                "The second element of `range` must be greater than the first. "
+                f"Received: range={range}"
+            )
+
+    if any_symbolic_tensors((x,)):
+        return Histogram(bins=bins, range=range).symbolic_call(x)
+
+    x = backend.convert_to_tensor(x)
+    if len(x.shape) > 1:
+        raise ValueError(
+            "Input tensor must be 1-dimensional. "
+            f"Received: input.shape={x.shape}"
+        )
+    return backend.numpy.histogram(x, bins=bins, range=range)

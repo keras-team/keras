@@ -9,7 +9,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class ResizingTest(testing.TestCase, parameterized.TestCase):
+class ResizingTest(testing.TestCase):
     def test_resizing_basics(self):
         self.run_layer_test(
             layers.Resizing,

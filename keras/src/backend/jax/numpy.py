@@ -369,6 +369,53 @@ def average(x, axis=None, weights=None):
     return jnp.average(x, weights=weights, axis=axis)
 
 
+def bitwise_and(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return jnp.bitwise_and(x, y)
+
+
+def bitwise_invert(x):
+    x = convert_to_tensor(x)
+    return jnp.invert(x)
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return jnp.bitwise_or(x, y)
+
+
+def bitwise_xor(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return jnp.bitwise_xor(x, y)
+
+
+def bitwise_left_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return jnp.left_shift(x, y)
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return jnp.right_shift(x, y)
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
+
+
 def broadcast_to(x, shape):
     x = convert_to_tensor(x)
     return jnp.broadcast_to(x, shape)
@@ -1032,6 +1079,14 @@ def triu(x, k=0):
     return jnp.triu(x, k=k)
 
 
+def trunc(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or "bool" == dtype:
+        return x
+    return jnp.trunc(x)
+
+
 def vdot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1062,7 +1117,8 @@ def divide(x1, x2):
 def divide_no_nan(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return jnp.where(x2 == 0, 0, jnp.divide(x1, x2))
+    safe_x2 = jnp.where(x2 == 0, 1, x2)
+    return jnp.where(x2 == 0, 0, jnp.divide(x1, safe_x2))
 
 
 def true_divide(x1, x2):
@@ -1190,3 +1246,7 @@ def slogdet(x):
 
 def argpartition(x, kth, axis=-1):
     return jnp.argpartition(x, kth, axis)
+
+
+def histogram(x, bins, range):
+    return jnp.histogram(x, bins=bins, range=range)

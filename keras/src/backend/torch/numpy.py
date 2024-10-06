@@ -411,6 +411,53 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     return cast(torch.bincount(x, weights, minlength), dtype)
 
 
+def bitwise_and(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_and(x, y)
+
+
+def bitwise_invert(x):
+    x = convert_to_tensor(x)
+    return torch.bitwise_not(x)
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_or(x, y)
+
+
+def bitwise_xor(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_xor(x, y)
+
+
+def bitwise_left_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_left_shift(x, y)
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_right_shift(x, y)
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
+
+
 def broadcast_to(x, shape):
     x = convert_to_tensor(x)
     return torch.broadcast_to(x, shape)
@@ -1409,6 +1456,13 @@ def triu(x, k=0):
     return torch.triu(x, diagonal=k)
 
 
+def trunc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "bool":
+        return x
+    return torch.trunc(x)
+
+
 def vdot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1647,3 +1701,8 @@ def argpartition(x, kth, axis=-1):
     top_ind = torch.topk(proxy, x.shape[-1] - kth - 1)[1]
     out = torch.cat([bottom_ind, top_ind], dim=x.dim() - 1)
     return cast(torch.transpose(out, -1, axis), "int32")
+
+
+def histogram(x, bins, range):
+    hist_result = torch.histogram(x, bins=bins, range=range)
+    return hist_result.hist, hist_result.bin_edges

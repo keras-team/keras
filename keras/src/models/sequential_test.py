@@ -227,6 +227,12 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(type(y), list)
         model.summary()
 
+    def test_nested_sequential(self):
+        # https://github.com/keras-team/keras/issues/20203
+        model = Sequential()
+        model.add(Input(shape=(16,)))
+        Sequential([model])
+
     def test_errors(self):
         # Trying to pass 2 Inputs
         model = Sequential()
@@ -359,3 +365,23 @@ class SequentialTest(testing.TestCase):
         layer = Sequential([layers.Dense(4), layers.Dense(8)])
         output_shape = layer.compute_output_shape((1, 2))
         self.assertEqual(output_shape, (1, 8))
+
+    def test_hasattr(self):
+        model = Sequential()
+        self.assertFalse(hasattr(model, "input_shape"))
+        self.assertFalse(hasattr(model, "output_shape"))
+        self.assertFalse(hasattr(model, "inputs"))
+        self.assertFalse(hasattr(model, "outputs"))
+
+        model = Sequential([layers.Input((4,)), layers.Dense(8)])
+        self.assertTrue(hasattr(model, "input_shape"))
+        self.assertTrue(hasattr(model, "output_shape"))
+        self.assertTrue(hasattr(model, "inputs"))
+        self.assertTrue(hasattr(model, "outputs"))
+
+    def test_layers_setter(self):
+        model = Sequential()
+        with self.assertRaisesRegex(
+            AttributeError, r"Use `add\(\)` and `pop\(\)`"
+        ):
+            model.layers = [layers.Dense(4)]

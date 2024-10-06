@@ -769,7 +769,7 @@ def argmax(x, axis=None, keepdims=False):
     _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
-    y = tf.cast(tf.argmax(x, axis=axis), dtype="int32")
+    y = tf.argmax(x, axis=axis, output_type="int32")
     if keepdims:
         y = _keepdims(_x, y, axis)
     return y
@@ -779,7 +779,7 @@ def argmin(x, axis=None, keepdims=False):
     _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
-    y = tf.cast(tf.argmin(x, axis=axis), dtype="int32")
+    y = tf.argmin(x, axis=axis, output_type="int32")
     if keepdims:
         y = _keepdims(_x, y, axis)
     return y
@@ -834,6 +834,68 @@ def average(x, axis=None, weights=None):
             else:
                 avg = _rank_not_equal_case()
     return avg
+
+
+def bitwise_and(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = tf.cast(x, dtype)
+    y = tf.cast(y, dtype)
+    return tf.bitwise.bitwise_and(x, y)
+
+
+def bitwise_invert(x):
+    x = convert_to_tensor(x)
+    return tf.bitwise.invert(x)
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = tf.cast(x, dtype)
+    y = tf.cast(y, dtype)
+    return tf.bitwise.bitwise_or(x, y)
+
+
+def bitwise_xor(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = tf.cast(x, dtype)
+    y = tf.cast(y, dtype)
+    return tf.bitwise.bitwise_xor(x, y)
+
+
+def bitwise_left_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = tf.cast(x, dtype)
+    y = tf.cast(y, dtype)
+    return tf.bitwise.left_shift(x, y)
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = tf.cast(x, dtype)
+    y = tf.cast(y, dtype)
+    return tf.bitwise.right_shift(x, y)
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
 
 
 def broadcast_to(x, shape):
@@ -2069,7 +2131,7 @@ def round(x, decimals=0):
         # int
         if decimals > 0:
             return x
-        # temporarilaly convert to floats
+        # temporarily convert to floats
         factor = tf.cast(math.pow(10, decimals), config.floatx())
         x = tf.cast(x, config.floatx())
     else:
@@ -2167,6 +2229,14 @@ def triu(x, k=0):
     return tf.cond(
         k <= 0, lambda: tf.linalg.band_part(x, -k, -1), _positive_k_branch
     )
+
+
+def trunc(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "bool" or "int" in dtype:
+        return x
+    return tf.where(x < 0, tf.math.ceil(x), tf.math.floor(x))
 
 
 def vdot(x1, x2):
@@ -2373,29 +2443,17 @@ def sum(x, axis=None, keepdims=False):
 
 def eye(N, M=None, k=0, dtype=None):
     dtype = dtype or config.floatx()
-    if not M:
-        M = N
-    # Making sure N, M and k are `int`
-    N, M, k = int(N), int(M), int(k)
-    if k >= M or -k >= N:
-        # tf.linalg.diag will raise an error in this case
-        return zeros([N, M], dtype=dtype)
-    if k == 0:
+    M = N if M is None else M
+    if isinstance(k, int) and k == 0:
         return tf.eye(N, M, dtype=dtype)
-    # We need the precise length, otherwise tf.linalg.diag will raise an error
-    diag_len = builtins.min(N, M)
-    if k > 0:
-        if N >= M:
-            diag_len -= k
-        elif N + k > M:
-            diag_len = M - k
-    elif k <= 0:
-        if M >= N:
-            diag_len += k
-        elif M - k > N:
-            diag_len = N + k
-    diagonal_ = tf.ones([diag_len], dtype=dtype)
-    return tf.linalg.diag(diagonal=diagonal_, num_rows=N, num_cols=M, k=k)
+    # Create a smaller square eye and pad appropriately.
+    return tf.pad(
+        tf.eye(tf.minimum(M - k, N + k), dtype=dtype),
+        paddings=(
+            (tf.maximum(-k, 0), tf.maximum(N - M + k, 0)),
+            (tf.maximum(k, 0), tf.maximum(M - N - k, 0)),
+        ),
+    )
 
 
 def floor_divide(x1, x2):
@@ -2488,3 +2546,31 @@ def argpartition(x, kth, axis=-1):
 
     out = tf.concat([bottom_ind, top_ind], axis=x.ndim - 1)
     return swapaxes(out, -1, axis)
+
+
+def histogram(x, bins, range):
+    """Computes a histogram of the data tensor `x`.
+
+    Note: the `tf.histogram_fixed_width()` and
+    `tf.histogram_fixed_width_bins()` functions
+    yield slight numerical differences for some edge cases.
+    """
+
+    x = tf.convert_to_tensor(x, dtype=x.dtype)
+
+    # Handle the range argument
+    if range is None:
+        min_val = tf.reduce_min(x)
+        max_val = tf.reduce_max(x)
+    else:
+        min_val, max_val = range
+
+    x = tf.boolean_mask(x, (x >= min_val) & (x <= max_val))
+    bin_edges = tf.linspace(min_val, max_val, bins + 1)
+    bin_edges_list = bin_edges.numpy().tolist()
+    bin_indices = tf.raw_ops.Bucketize(input=x, boundaries=bin_edges_list[1:-1])
+
+    bin_counts = tf.math.bincount(
+        bin_indices, minlength=bins, maxlength=bins, dtype=x.dtype
+    )
+    return bin_counts, bin_edges

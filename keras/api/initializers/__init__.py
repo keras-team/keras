@@ -16,6 +16,7 @@ from keras.src.initializers.constant_initializers import (
 from keras.src.initializers.constant_initializers import Identity as identity
 from keras.src.initializers.constant_initializers import Ones
 from keras.src.initializers.constant_initializers import Ones as ones
+from keras.src.initializers.constant_initializers import STFTInitializer
 from keras.src.initializers.constant_initializers import Zeros
 from keras.src.initializers.constant_initializers import Zeros as zeros
 from keras.src.initializers.initializer import Initializer

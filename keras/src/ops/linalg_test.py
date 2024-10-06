@@ -329,7 +329,7 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(s.shape, (10, 2))
 
 
-class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class LinalgOpsCorrectnessTest(testing.TestCase):
 
     def test_cholesky(self):
         x = np.random.rand(4, 3, 3).astype("float32")
@@ -535,6 +535,10 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         ]
         # High tolerance due to numerical instability
         self.assertAllClose(x_reconstructed, x, atol=1e-3)
+
+        # Test `compute_uv=False`
+        s_no_uv = linalg.svd(x, compute_uv=False)
+        self.assertAllClose(s_no_uv, s)
 
     @parameterized.named_parameters(
         ("b_rank_1", 1, None),

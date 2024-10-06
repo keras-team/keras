@@ -182,7 +182,7 @@ if flax is not None:
     backend.backend() != "jax",
     reason="JaxLayer and FlaxLayer are only supported with JAX backend",
 )
-class TestJaxLayer(testing.TestCase, parameterized.TestCase):
+class TestJaxLayer(testing.TestCase):
     def _test_layer(
         self,
         model_name,

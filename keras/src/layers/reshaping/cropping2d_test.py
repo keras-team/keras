@@ -8,7 +8,7 @@ from keras.src import ops
 from keras.src import testing
 
 
-class Cropping2DTest(testing.TestCase, parameterized.TestCase):
+class Cropping2DTest(testing.TestCase):
     @parameterized.product(
         (
             # different cropping values

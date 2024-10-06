@@ -276,7 +276,7 @@ def np_conv3d(
     return out
 
 
-class ConvBasicTest(testing.TestCase, parameterized.TestCase):
+class ConvBasicTest(testing.TestCase):
     @parameterized.parameters(
         {
             "filters": 5,
@@ -758,7 +758,7 @@ class ConvBasicTest(testing.TestCase, parameterized.TestCase):
         )
 
 
-class ConvCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class ConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
         {
             "filters": 5,

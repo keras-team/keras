@@ -4,7 +4,6 @@ from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
-from keras.src.backend import standardize_dtype
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 
@@ -219,6 +218,18 @@ class BatchNormalization(Layer):
         self.built = True
 
     def compute_output_shape(self, input_shape):
+        if isinstance(self.axis, int):
+            axes = [self.axis]
+        else:
+            axes = self.axis
+
+        for axis in axes:
+            if axis >= len(input_shape) or axis < -len(input_shape):
+                raise ValueError(
+                    f"Axis {axis} is out of bounds for "
+                    f"input shape {input_shape}. "
+                    f"Received: axis={self.axis}"
+                )
         return input_shape
 
     def call(self, inputs, training=None, mask=None):
@@ -232,11 +243,10 @@ class BatchNormalization(Layer):
                     f"mask.shape={mask.shape}, inputs.shape={inputs.shape}"
                 )
 
-        input_dtype = standardize_dtype(inputs.dtype)
-        if input_dtype in ("float16", "bfloat16"):
-            # BN is prone to overflowing for float16/bfloat16 inputs, so we opt
-            # out BN for mixed precision.
-            inputs = ops.cast(inputs, "float32")
+        compute_dtype = backend.result_type(inputs.dtype, "float32")
+        # BN is prone to overflow with float16/bfloat16 inputs, so we upcast to
+        # float32 for the subsequent computations.
+        inputs = ops.cast(inputs, compute_dtype)
 
         moving_mean = ops.cast(self.moving_mean, inputs.dtype)
         moving_variance = ops.cast(self.moving_variance, inputs.dtype)
@@ -274,9 +284,7 @@ class BatchNormalization(Layer):
             scale=gamma,
             epsilon=self.epsilon,
         )
-        if input_dtype in ("float16", "bfloat16"):
-            outputs = ops.cast(outputs, input_dtype)
-        return outputs
+        return ops.cast(outputs, self.compute_dtype)
 
     def get_config(self):
         base_config = super().get_config()

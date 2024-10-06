@@ -31,7 +31,7 @@ def example_generator(x, y, sample_weight=None, batch_size=32):
     return make
 
 
-class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
+class GeneratorDataAdapterTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(
             [

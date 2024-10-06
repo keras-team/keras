@@ -942,3 +942,102 @@ def psnr(x1, x2, max_val):
     mse = jnp.mean(jnp.square(x1 - x2))
     psnr = 20 * jnp.log10(max_val) - 10 * jnp.log10(mse)
     return psnr
+
+
+def _apply_masks(logits, mask, is_causal):
+    if mask is None and not is_causal:
+        return logits
+
+    combined_mask = jnp.ones_like(logits, dtype="bool")
+    if mask is not None:
+        combined_mask = jnp.logical_and(combined_mask, mask)
+
+    if is_causal:
+        T, S = logits.shape[2], logits.shape[3]
+        mask = jnp.tril(jnp.ones((T, S), dtype="bool"))
+        mask = mask[None, None, :, :]
+        combined_mask = jnp.logical_and(combined_mask, mask)
+
+    large_negative_number = jnp.asarray(
+        -0.7 * jnp.finfo(logits.dtype).max, dtype=logits.dtype
+    )
+    padded_logits = jnp.where(combined_mask, logits, large_negative_number)
+    return padded_logits
+
+
+def _dot_product_attention_core(
+    query, key, value, bias, mask, is_causal, scale
+):
+    logits_dtype = jnp.promote_types(query.dtype, jnp.float32)
+    logits = jnp.einsum(
+        "BTNH,BSNH->BNTS", query, key, preferred_element_type=logits_dtype
+    )
+    logits *= jnp.array(scale, dtype=logits.dtype)
+
+    if bias is not None:
+        logits = (logits + bias).astype(logits.dtype)
+
+    padded_logits = _apply_masks(logits, mask, is_causal)
+
+    # Softmax and it is always carried out in fp32.
+    padded_logits = padded_logits.astype(jnp.float32)
+    probs = jax.nn.softmax(padded_logits, axis=-1).astype(key.dtype)
+    return jnp.einsum("BNTS,BSNH->BTNH", probs, value)
+
+
+def dot_product_attention(
+    query, key, value, bias=None, mask=None, scale=None, is_causal=False
+):
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if len(query.shape) != 4:
+        raise ValueError(
+            "`dot_product_attention` only supports 4D inputs. "
+            f"Received: query.shape={query.shape}, key.shape={key.shape}, "
+            f"value.shape={value.shape}."
+        )
+
+    # `dot_product_attention` is only available in jax>=0.4.31
+    if hasattr(jax.nn, "dot_product_attention"):
+        return jax.nn.dot_product_attention(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            is_causal=is_causal,
+        )
+
+    # Ref: jax.nn.dot_product_attention
+    # https://github.com/jax-ml/jax/blob/jax-v0.4.33/jax/_src/nn/functions.py#L886
+    # Not support `query_seq_lengths` and `key_value_seq_lengths` args
+    output_shape = query.shape
+    _, _, K, H = key.shape
+    scale = (1.0 / jnp.sqrt(H)) if scale is None else scale
+
+    # _dot_product_attention_xla
+    B, T, N, H = query.shape
+    G = N // K
+    query = jnp.reshape(query, (B, T, K, G, H))
+
+    def _reshape_to_grouped(t):
+        if t is not None:
+            tB, tN, tT, tS = t.shape
+            if tN == 1:
+                t = jnp.broadcast_to(t[:, :, None, :, :], (tB, tN, G, tT, tS))
+            else:
+                assert tN == N
+                t = jnp.reshape(t, (tB, K, G, tT, tS))
+        return t
+
+    bias = _reshape_to_grouped(bias)
+    mask = _reshape_to_grouped(mask)
+    vmapped_fn = jax.vmap(
+        _dot_product_attention_core,
+        in_axes=(3, None, None, 2, 2, None, None),
+        out_axes=3,
+    )
+    encoded = vmapped_fn(query, key, value, bias, mask, is_causal, scale)
+    return jnp.reshape(encoded, output_shape)

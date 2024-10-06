@@ -70,6 +70,35 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.arctan2(x, y).shape, (2, 3))
 
+    def test_bitwise_and(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.bitwise_and(x, y).shape, (None, 3))
+
+    def test_bitwise_or(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.bitwise_or(x, y).shape, (None, 3))
+
+    def test_bitwise_xor(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.bitwise_xor(x, y).shape, (None, 3))
+
+    def test_bitwise_left_shift(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.bitwise_left_shift(x, y).shape, (None, 3))
+
+    # left_shift is same as bitwise_left_shift
+
+    def test_bitwise_right_shift(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.bitwise_right_shift(x, y).shape, (None, 3))
+
+    # right_shift is same as bitwise_right_shift
+
     def test_cross(self):
         x1 = KerasTensor((2, 3, 3))
         x2 = KerasTensor((1, 3, 2))
@@ -530,6 +559,35 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.arctan2(x, y)
+
+    def test_bitwise_and(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.bitwise_and(x, y).shape, (2, 3))
+
+    def test_bitwise_or(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.bitwise_or(x, y).shape, (2, 3))
+
+    def test_bitwise_xor(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.bitwise_xor(x, y).shape, (2, 3))
+
+    def test_bitwise_left_shift(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.bitwise_left_shift(x, y).shape, (2, 3))
+
+    # left_shift is same as bitwise_left_shift
+
+    def test_bitwise_right_shift(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.bitwise_right_shift(x, y).shape, (2, 3))
+
+    # right_shift is same as bitwise_right_shift
 
     def test_cross(self):
         x1 = KerasTensor((2, 3, 3))
@@ -1055,6 +1113,12 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             weights = KerasTensor((None, 4))
             knp.average(x, weights=weights)
 
+    def test_bitwise_invert(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.bitwise_invert(x).shape, (None, 3))
+
+    # bitwise_not is same as bitwise_invert
+
     def test_broadcast_to(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.broadcast_to(x, (2, 3, 3)).shape, (2, 3, 3))
@@ -1479,6 +1543,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.triu(x, k=1).shape, (None, 3, None, 5))
         self.assertEqual(knp.triu(x, k=-1).shape, (None, 3, None, 5))
 
+    def test_trunc(self):
+        x = KerasTensor((None, 3, None, 5))
+        self.assertEqual(knp.trunc(x).shape, (None, 3, None, 5))
+
     def test_vstack(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((None, 3))
@@ -1611,6 +1679,12 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_average(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.average(x).shape, ())
+
+    def test_bitwise_invert(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.bitwise_invert(x).shape, (2, 3))
+
+    # bitwise_not is same as bitwise_invert
 
     def test_broadcast_to(self):
         x = KerasTensor((2, 3))
@@ -2004,6 +2078,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.triu(x, k=1).shape, (2, 3, 4, 5))
         self.assertEqual(knp.triu(x, k=-1).shape, (2, 3, 4, 5))
 
+    def test_trunc(self):
+        x = KerasTensor((2, 3, 4, 5))
+        self.assertEqual(knp.trunc(x).shape, (2, 3, 4, 5))
+
     def test_vstack(self):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
@@ -2018,7 +2096,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             knp.argpartition(x, (1, 3))
 
 
-class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
+class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
     def test_add(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
@@ -2184,6 +2262,40 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.arctan2(x, y), np.arctan2(x, y))
 
         self.assertAllClose(knp.Arctan2()(x, y), np.arctan2(x, y))
+
+    def test_bitwise_and(self):
+        x = np.array([2, 5, 255])
+        y = np.array([3, 14, 16])
+        self.assertAllClose(knp.bitwise_and(x, y), np.bitwise_and(x, y))
+        self.assertAllClose(knp.BitwiseAnd()(x, y), np.bitwise_and(x, y))
+
+    def test_bitwise_or(self):
+        x = np.array([2, 5, 255])
+        y = np.array([3, 14, 16])
+        self.assertAllClose(knp.bitwise_or(x, y), np.bitwise_or(x, y))
+        self.assertAllClose(knp.BitwiseOr()(x, y), np.bitwise_or(x, y))
+
+    def test_bitwise_xor(self):
+        x = np.array([2, 5, 255])
+        y = np.array([3, 14, 16])
+        self.assertAllClose(knp.bitwise_xor(x, y), np.bitwise_xor(x, y))
+        self.assertAllClose(knp.BitwiseXor()(x, y), np.bitwise_xor(x, y))
+
+    def test_bitwise_left_shift(self):
+        x = np.array([50, 60, 70])
+        y = np.array([1, 2, 3])
+        self.assertAllClose(knp.bitwise_left_shift(x, y), np.left_shift(x, y))
+        self.assertAllClose(knp.BitwiseLeftShift()(x, y), np.left_shift(x, y))
+
+    # left_shift is same as bitwise_left_shift
+
+    def test_bitwise_right_shift(self):
+        x = np.array([5, 6, 7])
+        y = np.array([1, 2, 3])
+        self.assertAllClose(knp.bitwise_right_shift(x, y), np.right_shift(x, y))
+        self.assertAllClose(knp.BitwiseRightShift()(x, y), np.right_shift(x, y))
+
+    # right_shift is same as bitwise_right_shift
 
     def test_cross(self):
         x1 = np.ones([2, 1, 4, 3])
@@ -2903,7 +3015,7 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         )
 
 
-class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_mean(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.mean(x), np.mean(x))
@@ -3285,6 +3397,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )(x)
         self.assertAllClose(output, expected_output)
         self.assertSparse(output, sparse_input or sparse_arg)
+
+    def test_bitwise_invert(self):
+        x = np.array([2, 5, 255])
+        self.assertAllClose(knp.bitwise_invert(x), np.bitwise_not(x))
+        self.assertAllClose(knp.BitwiseInvert()(x), np.bitwise_not(x))
+
+    # bitwise_not is same as bitwise_invert
 
     def test_broadcast_to(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -4269,6 +4388,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         self.assertAllClose(fn(x, k), np.triu(x_np, k_np))
 
+    def test_trunc(self):
+        x = np.array([-1.7, -2.5, -0.2, 0.2, 1.5, 1.7, 2.0])
+        self.assertAllClose(knp.trunc(x), np.trunc(x))
+        self.assertAllClose(knp.Trunc()(x), np.trunc(x))
+
+        x = np.array([-1, -2, -0, 0, 1, 1, 2], dtype="int32")
+        self.assertAllClose(knp.trunc(x), np.trunc(x))
+        self.assertAllClose(knp.Trunc()(x), np.trunc(x))
+
     def test_vstack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
@@ -4364,6 +4492,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         out = knp.slogdet(x)
         self.assertEqual(out[0].shape, ())
         self.assertEqual(out[1].shape, ())
+
+        x = backend.KerasTensor((2, 4, 3, 3))
+        out = knp.slogdet(x)
+        self.assertEqual(out[0].shape, ())
+        self.assertEqual(out[1].shape, (2, 4))
 
     def test_nan_to_num(self):
         x = knp.array([1.0, np.nan, np.inf, -np.inf])
@@ -4628,7 +4761,7 @@ def snake_to_pascal_case(name):
     not backend.SUPPORTS_SPARSE_TENSORS,
     reason="Backend does not support sparse tensors.",
 )
-class SparseTest(testing.TestCase, parameterized.TestCase):
+class SparseTest(testing.TestCase):
     DTYPES = ["int32", "float32"]
     DENSIFYING_UNARY_OPS = [
         "arccos",
@@ -5005,14 +5138,16 @@ class SparseTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Divide()(x, y), expected_result)
 
 
-class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
+class NumpyDtypeTest(testing.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     # TODO: Using uint64 will lead to weak type promotion (`float`),
     # resulting in different behavior between JAX and Keras. Currently, we
     # are skipping the test for uint64
     ALL_DTYPES = [
-        x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
+        x
+        for x in dtypes.ALLOWED_DTYPES
+        if x not in ["string", "uint64", "complex64", "complex128"]
     ] + [None]
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
     FLOAT_DTYPES = dtypes.FLOAT_TYPES
@@ -5777,6 +5912,113 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(
             knp.Average().symbolic_call(x1, weights=x2).dtype, expected_dtype
         )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+    )
+    def test_bitwise_and(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.bitwise_and(x1_jax, x2_jax).dtype
+        )
+
+        self.assertDType(knp.bitwise_and(x1, x2), expected_dtype)
+        self.assertDType(knp.BitwiseAnd().symbolic_call(x1, x2), expected_dtype)
+
+    @parameterized.named_parameters(named_product(dtype=INT_DTYPES))
+    def test_bitwise_invert(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.invert(x_jax).dtype)
+
+        self.assertDType(knp.bitwise_invert(x), expected_dtype)
+        self.assertDType(knp.BitwiseInvert().symbolic_call(x), expected_dtype)
+
+    # bitwise_not is same as bitwise_invert
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+    )
+    def test_bitwise_or(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.bitwise_or(x1_jax, x2_jax).dtype)
+
+        self.assertDType(knp.bitwise_or(x1, x2), expected_dtype)
+        self.assertDType(knp.BitwiseOr().symbolic_call(x1, x2), expected_dtype)
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+    )
+    def test_bitwise_xor(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.bitwise_xor(x1_jax, x2_jax).dtype
+        )
+
+        self.assertDType(knp.bitwise_xor(x1, x2), expected_dtype)
+        self.assertDType(knp.BitwiseXor().symbolic_call(x1, x2), expected_dtype)
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+    )
+    def test_bitwise_left_shift(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.left_shift(x1_jax, x2_jax).dtype)
+
+        self.assertDType(knp.bitwise_left_shift(x1, x2), expected_dtype)
+        self.assertDType(
+            knp.BitwiseLeftShift().symbolic_call(x1, x2), expected_dtype
+        )
+
+    # left_shift is same as bitwise_left_shift
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+    )
+    def test_bitwise_right_shift(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.right_shift(x1_jax, x2_jax).dtype
+        )
+
+        self.assertDType(knp.bitwise_right_shift(x1, x2), expected_dtype)
+        self.assertDType(
+            knp.BitwiseRightShift().symbolic_call(x1, x2), expected_dtype
+        )
+
+    # right_shift is same as bitwise_right_shift
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_broadcast_to(self, dtype):
@@ -7937,6 +8179,18 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_trunc(self, dtype):
+        x = knp.ones((1, 1), dtype=dtype)
+        # TODO: jax <= 0.30.0 doesn't preserve the original dtype.
+        expected_dtype = dtype or backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.trunc(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Trunc().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_var(self, dtype):
         import jax.numpy as jnp
 
@@ -8081,3 +8335,119 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(knp.ZerosLike().symbolic_call(x).dtype),
             expected_dtype,
         )
+
+
+@pytest.mark.skipif(
+    testing.torch_uses_gpu(),
+    reason="histogram op not implemented for torch on gpu",
+)
+class HistogramTest(testing.TestCase):
+    def test_histogram_default_args(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(8)
+
+        # Expected output
+        expected_counts, expected_edges = np.histogram(input_tensor)
+
+        counts, edges = hist_op(input_tensor)
+
+        self.assertEqual(counts.shape, expected_counts.shape)
+        self.assertAllClose(counts, expected_counts)
+        self.assertEqual(edges.shape, expected_edges.shape)
+        self.assertAllClose(edges, expected_edges)
+
+    def test_histogram_custom_bins(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(8)
+        bins = 5
+
+        # Expected output
+        expected_counts, expected_edges = np.histogram(input_tensor, bins=bins)
+
+        counts, edges = hist_op(input_tensor, bins=bins)
+
+        self.assertEqual(counts.shape, expected_counts.shape)
+        self.assertAllClose(counts, expected_counts)
+        self.assertEqual(edges.shape, expected_edges.shape)
+        self.assertAllClose(edges, expected_edges)
+
+    def test_histogram_custom_range(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(10)
+        range_specified = (2, 8)
+
+        # Expected output
+        expected_counts, expected_edges = np.histogram(
+            input_tensor, range=range_specified
+        )
+
+        counts, edges = hist_op(input_tensor, range=range_specified)
+
+        self.assertEqual(counts.shape, expected_counts.shape)
+        self.assertAllClose(counts, expected_counts)
+        self.assertEqual(edges.shape, expected_edges.shape)
+        self.assertAllClose(edges, expected_edges)
+
+    def test_histogram_symbolic_input(self):
+        hist_op = knp.histogram
+        input_tensor = KerasTensor(shape=(None,), dtype="float32")
+
+        counts, edges = hist_op(input_tensor)
+
+        self.assertEqual(counts.shape, (10,))
+        self.assertEqual(edges.shape, (11,))
+
+    def test_histogram_non_integer_bins_raises_error(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(8)
+
+        with self.assertRaisesRegex(
+            ValueError, "Argument `bins` should be a non-negative integer"
+        ):
+            hist_op(input_tensor, bins=-5)
+
+    def test_histogram_range_validation(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(8)
+
+        with self.assertRaisesRegex(
+            ValueError, "Argument `range` must be a tuple of two elements"
+        ):
+            hist_op(input_tensor, range=(1,))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "The second element of `range` must be greater than the first",
+        ):
+            hist_op(input_tensor, range=(5, 1))
+
+    def test_histogram_large_values(self):
+        hist_op = knp.histogram
+        input_tensor = np.array([1e10, 2e10, 3e10, 4e10, 5e10])
+
+        counts, edges = hist_op(input_tensor, bins=5)
+
+        expected_counts, expected_edges = np.histogram(input_tensor, bins=5)
+
+        self.assertAllClose(counts, expected_counts)
+        self.assertAllClose(edges, expected_edges)
+
+    def test_histogram_float_input(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(8)
+
+        counts, edges = hist_op(input_tensor, bins=5)
+
+        expected_counts, expected_edges = np.histogram(input_tensor, bins=5)
+
+        self.assertAllClose(counts, expected_counts)
+        self.assertAllClose(edges, expected_edges)
+
+    def test_histogram_high_dimensional_input(self):
+        hist_op = knp.histogram
+        input_tensor = np.random.rand(3, 4, 5)
+
+        with self.assertRaisesRegex(
+            ValueError, "Input tensor must be 1-dimensional"
+        ):
+            hist_op(input_tensor)

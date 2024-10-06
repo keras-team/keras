@@ -9,7 +9,7 @@ from keras.src import testing
 from keras.src.testing.test_utils import named_product
 
 
-class HashedCrossingTest(testing.TestCase, parameterized.TestCase):
+class HashedCrossingTest(testing.TestCase):
     def test_basics(self):
         self.run_layer_test(
             layers.HashedCrossing,
@@ -90,7 +90,7 @@ class HashedCrossingTest(testing.TestCase, parameterized.TestCase):
             output = output.numpy()
         self.assertAllClose(np.array([1, 4, 1, 1, 3]), output)
 
-    def test_upsupported_shape_input_fails(self):
+    def test_unsupported_shape_input_fails(self):
         with self.assertRaisesRegex(ValueError, "inputs should have shape"):
             layers.HashedCrossing(num_bins=10)(
                 (np.array([[[1.0]]]), np.array([[[1.0]]]))

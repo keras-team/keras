@@ -8,7 +8,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
+class GroupedQueryAttentionTest(testing.TestCase):
     def test_basics(self):
         self.run_layer_test(
             layers.GroupedQueryAttention,
@@ -124,7 +124,7 @@ class GroupedQueryAttentionTest(testing.TestCase, parameterized.TestCase):
         backend.backend() == "numpy",
         reason="Numpy backend does not support masking.",
     )
-    def test_query_mask_progagation(self):
+    def test_query_mask_propagation(self):
         """Test automatic propagation of the query's mask."""
         layer = layers.GroupedQueryAttention(
             num_query_heads=2, num_key_value_heads=2, head_dim=2

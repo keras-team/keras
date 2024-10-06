@@ -2,6 +2,7 @@ import copy
 import inspect
 import typing
 
+from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
@@ -63,7 +64,7 @@ class Sequential(Model):
     """
 
     def __new__(cls, *args, **kwargs):
-        return typing.cast(Sequential, super().__new__(cls))
+        return typing.cast(cls, super().__new__(cls))
 
     def __init__(self, layers=None, trainable=True, name=None):
         super().__init__(trainable=trainable, name=name)
@@ -226,10 +227,7 @@ class Sequential(Model):
             outputs = layer(inputs, **kwargs)
             inputs = outputs
 
-            def _get_mask_from_keras_tensor(kt):
-                return getattr(kt, "_keras_mask", None)
-
-            mask = tree.map_structure(_get_mask_from_keras_tensor, outputs)
+            mask = tree.map_structure(backend.get_keras_mask, outputs)
         return outputs
 
     @property
@@ -241,6 +239,13 @@ class Sequential(Model):
         if layers and isinstance(layers[0], InputLayer):
             return layers[1:]
         return layers[:]
+
+    @layers.setter
+    def layers(self, _):
+        raise AttributeError(
+            "`Sequential.layers` attribute is reserved and should not be used. "
+            "Use `add()` and `pop()` to change the layers in this model."
+        )
 
     def compute_output_spec(self, inputs, training=None, mask=None):
         if self._functional:
@@ -268,7 +273,7 @@ class Sequential(Model):
     def input_shape(self):
         if self._functional:
             return self._functional.input_shape
-        raise ValueError(
+        raise AttributeError(
             f"Sequential model '{self.name}' has no defined input shape yet."
         )
 
@@ -276,7 +281,7 @@ class Sequential(Model):
     def output_shape(self):
         if self._functional:
             return self._functional.output_shape
-        raise ValueError(
+        raise AttributeError(
             f"Sequential model '{self.name}' has no defined output shape yet."
         )
 
@@ -284,7 +289,7 @@ class Sequential(Model):
     def inputs(self):
         if self._functional:
             return self._functional.inputs
-        raise ValueError(
+        raise AttributeError(
             f"Sequential model '{self.name}' has no defined inputs yet."
         )
 
@@ -292,7 +297,7 @@ class Sequential(Model):
     def outputs(self):
         if self._functional:
             return self._functional.outputs
-        raise ValueError(
+        raise AttributeError(
             f"Sequential model '{self.name}' has no defined outputs yet."
         )
 

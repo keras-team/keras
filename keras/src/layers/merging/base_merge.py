@@ -35,7 +35,7 @@ class Merge(Layer):
         output_mask = None
 
         for x in inputs:
-            mask = getattr(x, "_keras_mask", None)
+            mask = backend.get_keras_mask(x)
             if mask is not None:
                 mask = ops.broadcast_to(ops.expand_dims(mask, -1), ops.shape(x))
             if output is None:
@@ -54,7 +54,7 @@ class Merge(Layer):
 
         if output_mask is not None:
             output_mask = ops.any(output_mask, axis=-1, keepdims=False)
-            output._keras_mask = output_mask
+            backend.set_keras_mask(output, output_mask)
         return output
 
     def _compute_elemwise_op_output_shape(self, shape1, shape2):

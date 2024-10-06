@@ -7,7 +7,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class MelSpectrogramTest(testing.TestCase, parameterized.TestCase):
+class MelSpectrogramTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_mel_spectrogram_basics(self):
         self.run_layer_test(

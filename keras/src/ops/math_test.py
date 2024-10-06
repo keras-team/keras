@@ -144,7 +144,7 @@ def _max_reduce(left, right):
     return np.max(np.stack([left, right]), axis=0)
 
 
-class MathOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
+class MathOpsDynamicShapeTest(testing.TestCase):
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
@@ -275,8 +275,13 @@ class MathOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         x = KerasTensor([None, 3])
         self.assertEqual(kmath.rsqrt(x).shape, (None, 3))
 
+    def test_logdet(self):
+        x = KerasTensor((None, 3, 3))
+        out = kmath.logdet(x)
+        self.assertEqual(out.shape, (None,))
 
-class MathOpsStaticShapeTest(testing.TestCase, parameterized.TestCase):
+
+class MathOpsStaticShapeTest(testing.TestCase):
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
         backend.backend() == "jax",
@@ -402,8 +407,17 @@ class MathOpsStaticShapeTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(output.shape, ref.shape)
 
+    def test_logdet(self):
+        x = KerasTensor((3, 3))
+        out = kmath.logdet(x)
+        self.assertEqual(out.shape, ())
 
-class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+        x = KerasTensor((2, 4, 3, 3))
+        out = kmath.logdet(x)
+        self.assertEqual(out.shape, (2, 4))
+
+
+class MathOpsCorrectnessTest(testing.TestCase):
 
     def run_segment_reduce_test(
         self,
@@ -920,8 +934,21 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             expected_output, output_from_edge_erfinv_op, atol=1e-4
         )
 
+    def test_logdet(self):
+        x = np.array(
+            [
+                [4.42, -1.18, 0.06, 0.74],
+                [-1.18, 1.77, -0.84, -1.16],
+                [0.06, -0.84, 5.84, 0.55],
+                [0.74, -1.16, 0.55, 0.77],
+            ],
+            dtype="float32",
+        )
+        out = kmath.logdet(x)
+        self.assertAllClose(out, -1.1178946, atol=1e-3)
 
-class MathDtypeTest(testing.TestCase, parameterized.TestCase):
+
+class MathDtypeTest(testing.TestCase):
     """Test the floating dtype to verify that the behavior matches JAX."""
 
     # TODO: Using uint64 will lead to weak type promotion (`float`),
@@ -1317,7 +1344,7 @@ class ISTFTTest(testing.TestCase):
         self.assertEqual(output_spec.shape, expected_shape)
 
 
-class TestMathErrors(testing.TestCase, parameterized.TestCase):
+class TestMathErrors(testing.TestCase):
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(

@@ -14,7 +14,7 @@ from keras.src.testing.test_utils import named_product
 from keras.src.utils.rng_utils import set_random_seed
 
 
-class RandomCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class RandomCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
         {"seed": 10, "shape": (5,), "mean": 0, "stddev": 1},
         {"seed": 10, "shape": (2, 3), "mean": 0, "stddev": 1},
@@ -322,7 +322,7 @@ class RandomCorrectnessTest(testing.TestCase, parameterized.TestCase):
             )
 
 
-class RandomBehaviorTest(testing.TestCase, parameterized.TestCase):
+class RandomBehaviorTest(testing.TestCase):
     def test_beta_tf_data_compatibility(self):
         import tensorflow as tf
 
@@ -439,7 +439,7 @@ class RandomBehaviorTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(outputs_mod, outputs_nomod)
 
 
-class RandomDTypeTest(testing.TestCase, parameterized.TestCase):
+class RandomDTypeTest(testing.TestCase):
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
     FLOAT_DTYPES = dtypes.FLOAT_TYPES
     if backend.backend() == "torch":

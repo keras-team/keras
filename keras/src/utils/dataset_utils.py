@@ -154,7 +154,7 @@ def _get_data_iterator_from_dataset(dataset, dataset_type_spec):
     Returns:
         iterator: An `iterator` object.
     """
-    if dataset_type_spec == list:
+    if dataset_type_spec is list:
         if len(dataset) == 0:
             raise ValueError(
                 "Received an empty list dataset. "
@@ -180,7 +180,7 @@ def _get_data_iterator_from_dataset(dataset, dataset_type_spec):
                 )
 
         return iter(zip(*dataset))
-    elif dataset_type_spec == tuple:
+    elif dataset_type_spec is tuple:
         if len(dataset) == 0:
             raise ValueError(
                 "Received an empty list dataset."
@@ -206,14 +206,14 @@ def _get_data_iterator_from_dataset(dataset, dataset_type_spec):
                 )
 
         return iter(zip(*dataset))
-    elif dataset_type_spec == tf.data.Dataset:
+    elif dataset_type_spec is tf.data.Dataset:
         if is_batched(dataset):
             dataset = dataset.unbatch()
         return iter(dataset)
 
     elif is_torch_dataset(dataset):
         return iter(dataset)
-    elif dataset_type_spec == np.ndarray:
+    elif dataset_type_spec is np.ndarray:
         return iter(dataset)
     raise ValueError(f"Invalid dataset_type_spec: {dataset_type_spec}")
 
@@ -350,9 +350,9 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
 
     # check left_size is non-negative and less than 1 and less than total_length
     if (
-        left_size_type == int
+        left_size_type is int
         and (left_size <= 0 or left_size >= total_length)
-        or left_size_type == float
+        or left_size_type is float
         and (left_size <= 0 or left_size >= 1)
     ):
         raise ValueError(
@@ -365,9 +365,9 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
     # check right_size is non-negative and less than 1 and less than
     # total_length
     if (
-        right_size_type == int
+        right_size_type is int
         and (right_size <= 0 or right_size >= total_length)
-        or right_size_type == float
+        or right_size_type is float
         and (right_size <= 0 or right_size >= 1)
     ):
         raise ValueError(
@@ -380,7 +380,7 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
     # check sum of left_size and right_size is less than or equal to
     # total_length
     if (
-        right_size_type == left_size_type == float
+        right_size_type is left_size_type is float
         and right_size + left_size > 1
     ):
         raise ValueError(
@@ -388,14 +388,14 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
             "than 1. It must be less than or equal to 1."
         )
 
-    if left_size_type == float:
+    if left_size_type is float:
         left_size = round(left_size * total_length)
-    elif left_size_type == int:
+    elif left_size_type is int:
         left_size = float(left_size)
 
-    if right_size_type == float:
+    if right_size_type is float:
         right_size = round(right_size * total_length)
-    elif right_size_type == int:
+    elif right_size_type is int:
         right_size = float(right_size)
 
     if left_size is None:
@@ -663,7 +663,7 @@ def index_subdirectory(directory, class_indices, follow_links, formats):
 
 
 def get_training_or_validation_split(samples, labels, validation_split, subset):
-    """Potentially restict samples & labels to a training or validation split.
+    """Potentially restrict samples & labels to a training or validation split.
 
     Args:
         samples: List of elements.

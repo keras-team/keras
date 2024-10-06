@@ -13,7 +13,7 @@ from keras.src import optimizers
 from keras.src import testing
 
 
-class OptimizerTest(testing.TestCase, parameterized.TestCase):
+class OptimizerTest(testing.TestCase):
     def test_iterations_counter(self):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
         grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])

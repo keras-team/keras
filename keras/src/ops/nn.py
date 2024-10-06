@@ -1945,7 +1945,7 @@ def ctc_decode(
         A tuple containing:
         - The tensor representing the list of decoded sequences. If
             `strategy="greedy"`, the shape is `(1, batch_size, max_length)`. If
-            `strategy="beam_seatch"`, the shape is
+            `strategy="beam_search"`, the shape is
             `(top_paths, batch_size, max_length)`. Note that: `-1` indicates the
             blank label.
         - If `strategy="greedy"`, a tensor of shape `(batch_size, 1)`
@@ -1975,16 +1975,19 @@ def ctc_decode(
 
 
 class Normalize(Operation):
-    def __init__(self, axis=-1, order=2):
+    def __init__(self, axis=-1, order=2, epsilon=None):
         super().__init__()
         self.axis = axis
         self.order = order
+        self.epsilon = epsilon
 
     def compute_output_spec(self, x):
         return KerasTensor(shape=x.shape)
 
     def call(self, x):
-        return _normalize(x, axis=self.axis, order=self.order)
+        return _normalize(
+            x, axis=self.axis, order=self.order, epsilon=self.epsilon
+        )
 
 
 @keras_export(
@@ -1993,7 +1996,7 @@ class Normalize(Operation):
         "keras.ops.nn.normalize",
     ]
 )
-def normalize(x, axis=-1, order=2):
+def normalize(x, axis=-1, order=2, epsilon=None):
     """Normalizes `x` over the specified axis.
 
     It is defined as: `normalize(x) = x / max(norm(x), epsilon)`.
@@ -2004,6 +2007,8 @@ def normalize(x, axis=-1, order=2):
             Default to -1.
         order: The exponent value in the norm formulation.
             Defaults to 2.
+        epsilon: A lower bound value for the norm.
+            Defaults to `backend.epsilon()`.
 
     Returns:
         The normalized array.
@@ -2018,11 +2023,13 @@ def normalize(x, axis=-1, order=2):
 
     """
     if any_symbolic_tensors((x,)):
-        return Normalize(axis=axis, order=order).symbolic_call(x)
-    return _normalize(x, axis=axis, order=order)
+        return Normalize(axis=axis, order=order, epsilon=epsilon).symbolic_call(
+            x
+        )
+    return _normalize(x, axis=axis, order=order, epsilon=epsilon)
 
 
-def _normalize(x, axis=-1, order=2):
+def _normalize(x, axis=-1, order=2, epsilon=None):
     if not isinstance(order, int) or not order >= 1:
         raise ValueError(
             f"Argument `order` must be an int >= 1. Received: order={order}"
@@ -2030,7 +2037,17 @@ def _normalize(x, axis=-1, order=2):
     x = backend.convert_to_tensor(x)
     if len(x.shape) == 0:
         x = backend.numpy.expand_dims(x, axis=0)
-    epsilon = backend.epsilon()
+    if epsilon is None:
+        epsilon = backend.epsilon()
+    if 2 == order:
+        # A special case: L2 normalization with `x * rsqrt(...)`
+        # instead of `x / sqrt(...)`
+        square_sum = backend.numpy.sum(
+            backend.numpy.square(x), axis=axis, keepdims=True
+        )
+        inv_norm = backend.math.rsqrt(square_sum)
+        inv_norm = backend.numpy.minimum(inv_norm, 1.0 / epsilon)
+        return x * inv_norm
     norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
     denom = backend.numpy.maximum(norm, epsilon)
     return backend.numpy.divide(x, denom)
@@ -2106,4 +2123,97 @@ def psnr(
         x1,
         x2,
         max_val,
+    )
+
+
+class DotProductAttention(Operation):
+    def __init__(self, is_causal=False):
+        super().__init__()
+        self.is_causal = is_causal
+
+    def call(self, query, key, value, bias=None, mask=None, scale=None):
+        return backend.nn.dot_product_attention(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            is_causal=self.is_causal,
+        )
+
+    def compute_output_spec(
+        self, query, key, value, bias=None, mask=None, scale=None
+    ):
+        return KerasTensor(query.shape, dtype=query.dtype)
+
+
+@keras_export(
+    ["keras.ops.dot_product_attention", "keras.ops.nn.dot_product_attention"]
+)
+def dot_product_attention(
+    query, key, value, bias=None, mask=None, scale=None, is_causal=False
+):
+    """Scaled dot product attention function.
+
+    Computes the attention function on Q (`query`), K (`key`), and V(`value`):
+    `attention(Q, K, V) = softmax(Q * K / sqrt(d)) * V`. If we define `logits`
+    as the output of `Q * K` and the `probs` as the output of `softmax`.
+
+    Throughout this function, we utilize the following notation to represent the
+    shape of array:
+    - B: batch size
+    - S: length of the key/value
+    - T: length of the query
+    - N: number of attention heads
+    - H: dimensions of each attention head
+    - K: number of key/value heads
+    - G: number of groups, which equals to `N // K`
+
+    Args:
+        query: The query array with the shape of `(B, T, N, H)`.
+        key: The key array with the shape of `(B, S, K, H)`. When `K` equals
+            `N`, multi-headed attention (MHA) is performed. Otherwise, grouped
+            query attention (GQA) is performed if `N` is a multiple of `K`. and
+            multi-query attention (MQA) is performed if `K==1` (a special case
+            of GQA).
+        value: The value array with the same shape of `key`.
+        bias: Optional bias array to be added to logits. The shape must be
+            broadcastable to `(B, N, T, S)`.
+        mask: Optional mask array used to filter out logits. It is a boolean
+            mask where `True` indicates the element should take part in
+            attention. For an additive mask, users should pass it to bias. The
+            shape must be broadcastable to `(B, N, T, S)`.
+        scale: Optional scale for the logits. If `None`, the scale will be set
+            to `1.0 / sqrt(H)`.
+        is_causal: Whether to apply causal mask.
+
+    Returns:
+        An array of the attention output with the same shape of `query`.
+
+    Example:
+
+    >>> query = keras.random.normal((2, 4, 8, 16))
+    >>> key = keras.random.normal((2, 6, 8, 16))
+    >>> value = keras.random.normal((2, 6, 8, 16))
+    >>> keras.ops.nn.dot_product_attention(query, key, value).shape
+    (2, 4, 8, 16)
+    """
+    if any_symbolic_tensors((query, key, value)):
+        return DotProductAttention(is_causal=is_causal).symbolic_call(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+        )
+    return backend.nn.dot_product_attention(
+        query,
+        key,
+        value,
+        bias=bias,
+        mask=mask,
+        scale=scale,
+        is_causal=is_causal,
     )

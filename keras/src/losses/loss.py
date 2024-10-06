@@ -47,7 +47,7 @@ class Loss(KerasSaveable):
         return self._dtype
 
     def __call__(self, y_true, y_pred, sample_weight=None):
-        in_mask = getattr(y_pred, "_keras_mask", None)
+        in_mask = backend.get_keras_mask(y_pred)
 
         with ops.name_scope(self.name):
             y_pred = tree.map_structure(
@@ -58,7 +58,7 @@ class Loss(KerasSaveable):
             )
 
             losses = self.call(y_true, y_pred)
-            out_mask = getattr(losses, "_keras_mask", None)
+            out_mask = backend.get_keras_mask(losses)
 
             if in_mask is not None and out_mask is not None:
                 mask = in_mask & out_mask

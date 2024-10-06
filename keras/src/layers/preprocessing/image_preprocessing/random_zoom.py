@@ -1,11 +1,13 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    BaseImagePreprocessingLayer,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
 @keras_export("keras.layers.RandomZoom")
-class RandomZoom(TFDataLayer):
+class RandomZoom(BaseImagePreprocessingLayer):
     """A preprocessing layer which randomly zooms images during training.
 
     This layer will randomly zoom in or out on each axis of an image
@@ -87,8 +89,10 @@ class RandomZoom(TFDataLayer):
     >>> out_img = layer(input_img)
     """
 
+    _USE_BASE_FACTOR = False
     _FACTOR_VALIDATION_ERROR = (
-        "The `factor` argument should be a number (or a list of two numbers) "
+        "The `height_factor` and `width_factor` arguments "
+        "should be a number (or a list of two numbers) "
         "in the range [-1.0, 1.0]. "
     )
     _SUPPORTED_FILL_MODE = ("reflect", "wrap", "constant", "nearest")
@@ -132,7 +136,6 @@ class RandomZoom(TFDataLayer):
         self.seed = seed
         self.generator = SeedGenerator(seed)
         self.data_format = backend.standardize_data_format(data_format)
-
         self.supports_jit = False
 
     def _set_factor(self, factor, factor_name):
@@ -163,48 +166,90 @@ class RandomZoom(TFDataLayer):
                 + f"Received: input_number={input_number}"
             )
 
-    def call(self, inputs, training=True):
-        inputs = self.backend.cast(inputs, self.compute_dtype)
+    def transform_images(self, images, transformation, training=True):
+        images = self.backend.cast(images, self.compute_dtype)
         if training:
-            return self._randomly_zoom_inputs(inputs)
+            return self._zoom_inputs(images, transformation)
+        return images
+
+    def transform_labels(self, labels, transformation, training=True):
+        return labels
+
+    def transform_bounding_boxes(
+        self, bounding_boxes, transformation, training=True
+    ):
+        raise NotImplementedError
+
+    def transform_segmentation_masks(
+        self, segmentation_masks, transformation, training=True
+    ):
+        return self.transform_images(
+            segmentation_masks, transformation, training=training
+        )
+
+    def get_random_transformation(self, data, training=True, seed=None):
+        if not training:
+            return None
+        if isinstance(data, dict):
+            images = data["images"]
         else:
+            images = data
+        images_shape = self.backend.shape(images)
+        if len(images_shape) == 4:
+            zoom_factor_shape = (images_shape[0], 1)
+        else:
+            zoom_factor_shape = (1, 1)
+
+        if not training:
+            return {
+                "height_zoom": self.backend.numpy.zeros(zoom_factor_shape),
+                "width_zoom": self.backend.numpy.zeros(zoom_factor_shape),
+            }
+        if seed is None:
+            seed = self._get_seed_generator(self.backend._backend)
+
+        height_zoom = self.backend.random.uniform(
+            minval=1.0 + self.height_lower,
+            maxval=1.0 + self.height_upper,
+            shape=zoom_factor_shape,
+            seed=seed,
+        )
+        if self.width_factor is not None:
+            width_zoom = self.backend.random.uniform(
+                minval=1.0 + self.width_lower,
+                maxval=1.0 + self.width_upper,
+                shape=zoom_factor_shape,
+                seed=seed,
+            )
+        else:
+            width_zoom = height_zoom
+        return {
+            "height_zoom": height_zoom,
+            "width_zoom": width_zoom,
+        }
+
+    def _zoom_inputs(self, inputs, transformation):
+        if transformation is None:
             return inputs
 
-    def _randomly_zoom_inputs(self, inputs):
+        width_zoom = transformation["width_zoom"]
+        height_zoom = transformation["height_zoom"]
+        zooms = self.backend.cast(
+            self.backend.numpy.concatenate([width_zoom, height_zoom], axis=1),
+            dtype="float32",
+        )
+
         inputs_shape = self.backend.shape(inputs)
         unbatched = len(inputs_shape) == 3
         if unbatched:
             inputs = self.backend.numpy.expand_dims(inputs, axis=0)
             inputs_shape = self.backend.shape(inputs)
-
-        batch_size = inputs_shape[0]
         if self.data_format == "channels_first":
             height = inputs_shape[-2]
             width = inputs_shape[-1]
         else:
             height = inputs_shape[-3]
             width = inputs_shape[-2]
-
-        seed_generator = self._get_seed_generator(self.backend._backend)
-        height_zoom = self.backend.random.uniform(
-            minval=1.0 + self.height_lower,
-            maxval=1.0 + self.height_upper,
-            shape=[batch_size, 1],
-            seed=seed_generator,
-        )
-        if self.width_factor is not None:
-            width_zoom = self.backend.random.uniform(
-                minval=1.0 + self.width_lower,
-                maxval=1.0 + self.width_upper,
-                shape=[batch_size, 1],
-                seed=seed_generator,
-            )
-        else:
-            width_zoom = height_zoom
-        zooms = self.backend.cast(
-            self.backend.numpy.concatenate([width_zoom, height_zoom], axis=1),
-            dtype="float32",
-        )
 
         outputs = self.backend.image.affine_transform(
             inputs,

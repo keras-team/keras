@@ -432,7 +432,7 @@ class CompileLoss(losses_module.Loss):
         # Inferred by `y_pred` and `output_names`
         self.inferred_output_names = None
 
-        # Use `Tracker` to track metrcis for individual losses.
+        # Use `Tracker` to track metrics for individual losses.
         self._metrics = []
         self._tracker = Tracker(
             {
@@ -530,7 +530,7 @@ class CompileLoss(losses_module.Loss):
                     "When providing the `loss_weights` argument, it should "
                     "have equal length of `loss` argument. "
                     f"Received: loss_weights length={len(flat_loss_weights)}, "
-                    f"loss legnth={len(flat_losses)}"
+                    f"loss length={len(flat_losses)}"
                 )
 
         y_true = tree.flatten(y_true)
@@ -591,14 +591,21 @@ class CompileLoss(losses_module.Loss):
         filtered_y_pred_keys,
         output_names,
     ):
-        if len(filtered_y_true_keys) > 0:
-            if isinstance(y_true, dict):
-                for k in filtered_y_true_keys:
-                    y_true.pop(k)
+        if len(filtered_y_true_keys) > 0 and isinstance(y_true, dict):
+            # Modifying data in-place can cause errors in TF's graph.
+            filtered_y_true = {}
+            for k, v in y_true.items():
+                if k not in filtered_y_true_keys:
+                    filtered_y_true[k] = v
+            y_true = filtered_y_true
         if len(filtered_y_pred_keys) > 0:
             if isinstance(y_pred, dict):
-                for k in filtered_y_pred_keys:
-                    y_pred.pop(k)
+                # Modifying data in-place can cause errors in TF's graph.
+                filtered_y_pred = {}
+                for k, v in y_pred.items():
+                    if k not in filtered_y_pred_keys:
+                        filtered_y_pred[k] = v
+                y_pred = filtered_y_pred
             elif output_names is not None:
                 y_pred = []
                 for x, output_name in zip(tree.flatten(y_pred), output_names):
@@ -613,15 +620,15 @@ class CompileLoss(losses_module.Loss):
     def call(self, y_true, y_pred, sample_weight=None):
         if not self.built:
             self.build(y_true, y_pred)
-
-        # Filter unused inputs.
-        y_true, y_pred = self._filter_unused_inputs(
-            y_true,
-            y_pred,
-            self.filtered_y_true_keys,
-            self.filtered_y_pred_keys,
-            self.inferred_output_names,
-        )
+        else:
+            # Filter unused inputs.
+            y_true, y_pred = self._filter_unused_inputs(
+                y_true,
+                y_pred,
+                self.filtered_y_true_keys,
+                self.filtered_y_pred_keys,
+                self.inferred_output_names,
+            )
 
         # Flatten the inputs.
         y_true = tree.flatten(y_true)

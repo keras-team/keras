@@ -318,7 +318,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 for step, iterator in epoch_iterator.enumerate_epoch():
                     callbacks.on_train_batch_begin(step)
                     logs = self.train_function(iterator)
-                    logs = self._pythonify_logs(logs)
                     callbacks.on_train_batch_end(step, logs)
                     if self.stop_training:
                         break
@@ -431,7 +430,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
             for step, iterator in epoch_iterator.enumerate_epoch():
                 callbacks.on_test_batch_begin(step)
                 logs = self.test_function(iterator)
-                logs = self._pythonify_logs(logs)
                 callbacks.on_test_batch_end(step, logs)
                 if self.stop_evaluating:
                     break
@@ -904,6 +902,8 @@ def _is_tpu_strategy_class(clz):
 
 def convert_to_np_if_not_ragged(x):
     if isinstance(x, tf.RaggedTensor):
+        return x
+    elif isinstance(x, tf.SparseTensor):
         return x
     return x.numpy()
 

@@ -306,7 +306,7 @@ class Normalization(TFDataLayer):
         inputs = self.backend.core.convert_to_tensor(
             inputs, dtype=self.compute_dtype
         )
-        # Enusre the weights are in the correct backend. Without this, it is
+        # Ensure the weights are in the correct backend. Without this, it is
         # possible to cause breakage when using this layer in tf.data.
         mean = self.convert_weight(self.mean)
         variance = self.convert_weight(self.variance)

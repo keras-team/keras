@@ -234,7 +234,7 @@ class TestCompileMetrics(testing.TestCase):
         self.assertTrue("my_custom_metric" in result)
 
 
-class TestCompileLoss(testing.TestCase, parameterized.TestCase):
+class TestCompileLoss(testing.TestCase):
     def test_single_output_case(self):
         compile_loss = CompileLoss(
             loss=losses_module.MeanSquaredError(),

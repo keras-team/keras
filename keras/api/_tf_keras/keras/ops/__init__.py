@@ -18,6 +18,7 @@ from keras.src.ops.core import dtype
 from keras.src.ops.core import fori_loop
 from keras.src.ops.core import is_tensor
 from keras.src.ops.core import map
+from keras.src.ops.core import saturate_cast
 from keras.src.ops.core import scan
 from keras.src.ops.core import scatter
 from keras.src.ops.core import scatter_update
@@ -49,6 +50,7 @@ from keras.src.ops.math import fft2
 from keras.src.ops.math import in_top_k
 from keras.src.ops.math import irfft
 from keras.src.ops.math import istft
+from keras.src.ops.math import logdet
 from keras.src.ops.math import logsumexp
 from keras.src.ops.math import rfft
 from keras.src.ops.math import rsqrt
@@ -65,6 +67,7 @@ from keras.src.ops.nn import conv_transpose
 from keras.src.ops.nn import ctc_decode
 from keras.src.ops.nn import ctc_loss
 from keras.src.ops.nn import depthwise_conv
+from keras.src.ops.nn import dot_product_attention
 from keras.src.ops.nn import elu
 from keras.src.ops.nn import gelu
 from keras.src.ops.nn import hard_sigmoid
@@ -113,6 +116,13 @@ from keras.src.ops.numpy import argsort
 from keras.src.ops.numpy import array
 from keras.src.ops.numpy import average
 from keras.src.ops.numpy import bincount
+from keras.src.ops.numpy import bitwise_and
+from keras.src.ops.numpy import bitwise_invert
+from keras.src.ops.numpy import bitwise_left_shift
+from keras.src.ops.numpy import bitwise_not
+from keras.src.ops.numpy import bitwise_or
+from keras.src.ops.numpy import bitwise_right_shift
+from keras.src.ops.numpy import bitwise_xor
 from keras.src.ops.numpy import broadcast_to
 from keras.src.ops.numpy import ceil
 from keras.src.ops.numpy import clip
@@ -149,6 +159,7 @@ from keras.src.ops.numpy import full_like
 from keras.src.ops.numpy import get_item
 from keras.src.ops.numpy import greater
 from keras.src.ops.numpy import greater_equal
+from keras.src.ops.numpy import histogram
 from keras.src.ops.numpy import hstack
 from keras.src.ops.numpy import identity
 from keras.src.ops.numpy import imag
@@ -156,6 +167,7 @@ from keras.src.ops.numpy import isclose
 from keras.src.ops.numpy import isfinite
 from keras.src.ops.numpy import isinf
 from keras.src.ops.numpy import isnan
+from keras.src.ops.numpy import left_shift
 from keras.src.ops.numpy import less
 from keras.src.ops.numpy import less_equal
 from keras.src.ops.numpy import linspace
@@ -197,6 +209,7 @@ from keras.src.ops.numpy import real
 from keras.src.ops.numpy import reciprocal
 from keras.src.ops.numpy import repeat
 from keras.src.ops.numpy import reshape
+from keras.src.ops.numpy import right_shift
 from keras.src.ops.numpy import roll
 from keras.src.ops.numpy import round
 from keras.src.ops.numpy import searchsorted
@@ -228,6 +241,7 @@ from keras.src.ops.numpy import tri
 from keras.src.ops.numpy import tril
 from keras.src.ops.numpy import triu
 from keras.src.ops.numpy import true_divide
+from keras.src.ops.numpy import trunc
 from keras.src.ops.numpy import var
 from keras.src.ops.numpy import vdot
 from keras.src.ops.numpy import vectorize

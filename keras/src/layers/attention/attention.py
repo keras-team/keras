@@ -33,7 +33,7 @@ class Attention(Layer):
             query and key vectors. `"concat"` refers to the hyperbolic tangent
             of the concatenation of the `query` and `key` vectors.
 
-    Call Args:
+    Call arguments:
         inputs: List of the following tensors:
             - `query`: Query tensor of shape `(batch_size, Tq, dim)`.
             - `value`: Value tensor of shape `(batch_size, Tv, dim)`.

@@ -508,7 +508,7 @@ class TextVectorization(Layer):
         Args:
             vocabulary: Either an array or a string path to a text file.
                 If passing an array, can pass a tuple, list, 1D NumPy array,
-                or 1D tensor containing the vocbulary terms.
+                or 1D tensor containing the vocabulary terms.
                 If passing a file path, the file should contain one line
                 per term in the vocabulary.
             idf_weights: A tuple, list, 1D NumPy array, or 1D tensor of inverse

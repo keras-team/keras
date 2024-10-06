@@ -103,7 +103,7 @@ class SaveModelTests(test_case.TestCase):
         )
 
 
-class LoadModelTests(test_case.TestCase, parameterized.TestCase):
+class LoadModelTests(test_case.TestCase):
     def get_model(self, dtype=None):
         return Sequential(
             [
@@ -191,7 +191,7 @@ class LoadModelTests(test_case.TestCase, parameterized.TestCase):
         self.assertTrue(np.allclose(model.predict(x), loaded_model.predict(x)))
 
 
-class LoadWeightsTests(test_case.TestCase, parameterized.TestCase):
+class LoadWeightsTests(test_case.TestCase):
     def get_model(self, dtype=None):
         return Sequential(
             [

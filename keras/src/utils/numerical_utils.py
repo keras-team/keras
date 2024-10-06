@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.utils import tf_utils
 
 
 @keras_export("keras.utils.normalize")
@@ -119,7 +120,8 @@ def encode_categorical_inputs(
         dtype: the dtype of the output, unless `count_weights` is not `None`.
         sparse: whether the output should be sparse for backends supporting it.
         count_weights: weights to apply if `output_mode` is `"count"`.
-        backend_module: the backend to use instead of the curren one.
+        backend_module: the backend to use instead of the current one.
+
     Returns: the encoded inputs.
     """
     backend_module = backend_module or backend
@@ -131,8 +133,26 @@ def encode_categorical_inputs(
 
     # In all cases, we should uprank scalar input to a single sample.
     if rank_of_inputs == 0:
-        # We need to update `rank_of_inputs` if necessary.
         inputs = backend_module.numpy.expand_dims(inputs, -1)
+        rank_of_inputs = 1
+
+    if (
+        backend_module.__name__.endswith("tensorflow")
+        and rank_of_inputs <= 2
+        and output_mode in ("multi_hot", "count")
+    ):
+        # TF only fastpath. Uses bincount; faster. Doesn't work for rank 3+.
+        try:
+            return tf_utils.tf_encode_categorical_inputs(
+                inputs,
+                output_mode,
+                depth,
+                dtype=dtype,
+                sparse=sparse,
+                count_weights=count_weights,
+            )
+        except ValueError:
+            pass
 
     if output_mode == "multi_hot":
         return backend_module.nn.multi_hot(

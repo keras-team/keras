@@ -56,7 +56,7 @@ class ClassifierWithNoSpecialCasing(models.Model):
 @pytest.mark.skipif(
     backend.backend() != "torch", reason="Requires torch backend"
 )
-class TorchUtilsTest(testing.TestCase, parameterized.TestCase):
+class TorchUtilsTest(testing.TestCase):
     @parameterized.parameters(
         {"use_batch_norm": False, "num_torch_layers": 1},
         {"use_batch_norm": True, "num_torch_layers": 1},

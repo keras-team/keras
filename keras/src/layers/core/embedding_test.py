@@ -14,7 +14,7 @@ from keras.src.export import export_lib
 from keras.src.testing import test_case
 
 
-class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
+class EmbeddingTest(test_case.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_embedding_basics(self):
         self.run_layer_test(

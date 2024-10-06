@@ -13,7 +13,7 @@ from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import array_data_adapter
 
 
-class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
+class TestArrayDataAdapter(testing.TestCase):
     def make_array(self, array_type, shape, dtype):
         x = np.array([[i] * shape[1] for i in range(shape[0])], dtype=dtype)
         if array_type == "np":

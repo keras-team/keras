@@ -12,7 +12,7 @@ from keras.src.dtype_policies.dtype_policy import set_dtype_policy
 from keras.src.testing import test_case
 
 
-class DTypePolicyTest(test_case.TestCase, parameterized.TestCase):
+class DTypePolicyTest(test_case.TestCase):
     """Test `DTypePolicy`.
 
     In the tests, we also test `DTypePolicy` for historical reasons.
@@ -227,7 +227,7 @@ class DTypePolicyTest(test_case.TestCase, parameterized.TestCase):
         )
 
 
-class QuantizedDTypePolicyTest(test_case.TestCase, parameterized.TestCase):
+class QuantizedDTypePolicyTest(test_case.TestCase):
     def setUp(self):
         """Record the global dtype policy before each test."""
         super().setUp()

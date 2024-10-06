@@ -436,11 +436,12 @@ class JAXTrainer(base_trainer.Trainer):
                     "optimizer_variables": optimizer_variables,
                     "metrics_variables": metrics_variables,
                 }
-
-                # Callbacks
-                logs = self._pythonify_logs(logs)
+                # Dispatch callbacks. This takes care of async dispatch.
                 callbacks.on_train_batch_end(step, logs)
+
                 if self.stop_training:
+                    # Stop training if a callback has set
+                    # this flag in on_(train_)batch_end.
                     break
 
             # Reattach state to the model (if not already done by a callback).
@@ -587,8 +588,10 @@ class JAXTrainer(base_trainer.Trainer):
                 "non_trainable_variables": non_trainable_variables,
                 "metrics_variables": metrics_variables,
             }
-            logs = self._pythonify_logs(logs)
+
+            # Dispatch callbacks. This takes care of async dispatch.
             callbacks.on_test_batch_end(step, logs)
+
             if self.stop_evaluating:
                 break
 
@@ -679,7 +682,10 @@ class JAXTrainer(base_trainer.Trainer):
                 state, x
             )
             outputs = append_to_outputs(batch_outputs, outputs)
+
+            # Dispatch callbacks. This takes care of async dispatch.
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+
             if self.stop_predicting:
                 break
 

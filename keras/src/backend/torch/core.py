@@ -4,7 +4,6 @@ import functools
 
 import ml_dtypes
 import numpy as np
-import optree
 import torch
 
 from keras.src import tree
@@ -47,6 +46,9 @@ TORCH_DTYPES = {
     "bool": torch.bool,
     "float8_e4m3fn": torch.float8_e4m3fn,
     "float8_e5m2": torch.float8_e5m2,
+    "complex32": torch.complex32,
+    "complex64": torch.complex64,
+    "complex128": torch.complex128,
 }
 
 
@@ -437,7 +439,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
     # Ref: jax.lax.associative_scan
     if not callable(f):
         raise TypeError(f"`f` should be a callable. Received: f={f}")
-    elems_flat, tree = optree.tree_flatten(elems)
+    elems_flat = tree.flatten(elems)
     elems_flat = [convert_to_tensor(elem) for elem in elems_flat]
     if reverse:
         elems_flat = [torch.flip(elem, (axis,)) for elem in elems_flat]
@@ -446,10 +448,10 @@ def associative_scan(f, elems, reverse=False, axis=0):
         a_flat = [convert_to_tensor(a) for a in a_flat]
         b_flat = [convert_to_tensor(b) for b in b_flat]
 
-        a = optree.tree_unflatten(tree, a_flat)
-        b = optree.tree_unflatten(tree, b_flat)
+        a = tree.pack_sequence_as(elems, a_flat)
+        b = tree.pack_sequence_as(elems, b_flat)
         c = f(a, b)
-        c_flat, _ = optree.tree_flatten(c)
+        c_flat = tree.flatten(c)
         return c_flat
 
     num_elems = int(elems_flat[0].shape[axis])
@@ -484,12 +486,12 @@ def associative_scan(f, elems, reverse=False, axis=0):
         a_pad = [[0, 0] for _ in range(a.dim())]
         a_pad[axis][-1] = 1 if a.shape[axis] == b.shape[axis] else 0
         a_pad = a_pad[::-1]
-        a_pad, _ = optree.tree_flatten(a_pad)
+        a_pad = tree.flatten(a_pad)
 
         b_pad = [[0, 0] for _ in range(b.dim())]
         b_pad[axis] = [1, 0] if a.shape[axis] == b.shape[axis] else [1, 1]
         b_pad = b_pad[::-1]
-        b_pad, _ = optree.tree_flatten(b_pad)
+        b_pad = tree.flatten(b_pad)
 
         op = torch.bitwise_or if a.dtype == torch.bool else torch.add
         return op(
@@ -548,7 +550,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
     if reverse:
         scans = [torch.flip(scanned, (axis,)) for scanned in scans]
 
-    return optree.tree_unflatten(tree, scans)
+    return tree.pack_sequence_as(elems, scans)
 
 
 def scatter(indices, values, shape):
@@ -643,6 +645,8 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 def stop_gradient(variable):
+    if isinstance(variable, KerasVariable):
+        variable = variable.value
     # We can't use `.requires_grad_(False)` here since it only
     # works when the tensor is a leaf node in the graph.
     return variable.detach()

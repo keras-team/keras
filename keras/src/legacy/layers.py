@@ -36,9 +36,8 @@ class AlphaDropout(Layer):
             else:
                 noise_shape = self.noise_shape
             kept_idx = tf.greater_equal(
-                backend.random.uniform(noise_shape),
+                backend.random.uniform(noise_shape, seed=self.seed_generator),
                 self.rate,
-                seed=self.seed_generator,
             )
             kept_idx = tf.cast(kept_idx, inputs.dtype)
 

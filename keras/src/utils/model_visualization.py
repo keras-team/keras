@@ -36,7 +36,7 @@ def check_graphviz():
         # to check the pydot/graphviz installation.
         pydot.Dot.create(pydot.Dot())
         return True
-    except (OSError, pydot.InvocationException):
+    except (OSError, pydot.PydotException):
         return False
 
 
@@ -188,6 +188,14 @@ def make_node(layer, **kwargs):
     node.set("border", "0")
     node.set("margin", "0")
     return node
+
+
+def remove_unused_edges(dot):
+    nodes = [v.get_name() for v in dot.get_nodes()]
+    for edge in dot.get_edges():
+        if edge.get_destination() not in nodes:
+            dot.del_edge(edge.get_source(), edge.get_destination())
+    return dot
 
 
 @keras_export("keras.utils.model_to_dot")
@@ -460,6 +468,7 @@ def plot_model(
     to_file = str(to_file)
     if dot is None:
         return
+    dot = remove_unused_edges(dot)
     _, extension = os.path.splitext(to_file)
     if not extension:
         extension = "png"
