@@ -2263,7 +2263,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
                     "current JAX version"
                 ):
                     self.skipTest(
-                        "JAX version is does not have "
+                        "JAX version does not have "
                         "`dot_product_attention` function."
                     )
             except RuntimeError as e:
