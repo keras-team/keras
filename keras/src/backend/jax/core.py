@@ -56,7 +56,7 @@ def convert_to_tensor(x, dtype=None, sparse=True):
         # an existing distributed jax array will raise error.
         return x
 
-    if isinstance(x, Variable):
+    if isinstance(x, KerasVariable):
         if dtype is not None and x.dtype != dtype:
             return x.value.astype(dtype)
         return x.value

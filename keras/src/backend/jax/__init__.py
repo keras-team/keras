@@ -1,3 +1,4 @@
+from keras.src.backend.common.name_scope import name_scope
 from keras.src.backend.jax import core
 from keras.src.backend.jax import distribution_lib
 from keras.src.backend.jax import image

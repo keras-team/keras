@@ -6,13 +6,13 @@ if backend() == "torch":
     # upon import.
     import torch
 
+from keras.src.api_export import keras_export
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.keras_tensor import is_keras_tensor
 from keras.src.backend.common.masking import get_keras_mask
 from keras.src.backend.common.masking import set_keras_mask
-from keras.src.backend.common.name_scope import name_scope
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
@@ -47,3 +47,24 @@ elif backend() == "numpy":
     distribution_lib = None
 else:
     raise ValueError(f"Unable to import backend : {backend()}")
+
+
+BackendVariable = Variable  # noqa: F405
+
+
+@keras_export("keras.Variable")
+class Variable(BackendVariable):
+    pass
+
+
+backend_name_scope = name_scope  # noqa: F405
+
+
+@keras_export("keras.name_scope")
+class name_scope(backend_name_scope):
+    pass
+
+
+@keras_export("keras.device")
+def device(device_name):
+    return device_scope(device_name)  # noqa: F405

@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from keras.src import backend
 from keras.src import tree
 
 
@@ -471,13 +472,11 @@ def gru(
     if not cudnn_supported:
         raise NotImplementedError
 
-    from keras.src.backend.tensorflow import Variable
-
-    if isinstance(kernel, Variable):
+    if isinstance(kernel, backend.Variable):
         kernel = kernel.value
-    if isinstance(recurrent_kernel, Variable):
+    if isinstance(recurrent_kernel, backend.Variable):
         recurrent_kernel = recurrent_kernel.value
-    if isinstance(bias, Variable):
+    if isinstance(bias, backend.Variable):
         bias = bias.value
 
     try:
@@ -828,13 +827,11 @@ def lstm(
     if not cudnn_supported:
         raise NotImplementedError
 
-    from keras.src.backend.tensorflow import Variable
-
-    if isinstance(kernel, Variable):
+    if isinstance(kernel, backend.Variable):
         kernel = kernel.value
-    if isinstance(recurrent_kernel, Variable):
+    if isinstance(recurrent_kernel, backend.Variable):
         recurrent_kernel = recurrent_kernel.value
-    if isinstance(bias, Variable):
+    if isinstance(bias, backend.Variable):
         bias = bias.value
 
     try:

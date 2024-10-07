@@ -71,7 +71,7 @@ class SeedGenerator:
             dtype = kwargs.get("dtype", None)
             return self.backend.convert_to_tensor([seed, 0], dtype=dtype)
 
-        with backend.name_scope(self.name, caller=self):
+        with self.backend.name_scope(self.name, caller=self):
             self.state = self.backend.Variable(
                 seed_initializer,
                 shape=(2,),

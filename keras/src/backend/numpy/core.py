@@ -1,4 +1,5 @@
 import builtins
+import contextlib
 import functools
 import warnings
 
@@ -36,7 +37,7 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         raise ValueError("`sparse=True` is not supported with numpy backend")
     if dtype is not None:
         dtype = standardize_dtype(dtype)
-    if isinstance(x, Variable):
+    if isinstance(x, KerasVariable):
         if dtype and dtype != x.dtype:
             return x.value.astype(dtype)
         return x.value
@@ -433,3 +434,8 @@ class custom_gradient:
     def __call__(self, *args, **kwargs):
         outputs, _ = self.fun(*args, **kwargs)
         return outputs
+
+
+@contextlib.contextmanager
+def device_scope(device_name):
+    yield
