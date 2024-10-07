@@ -14,6 +14,7 @@ we are doing the following to automate device placement if a GPU is available:
 - `convert_to_numpy` will bring the tensor to CPU before converting it to NumPy.
 """
 
+from keras.src.backend.common.name_scope import name_scope
 from keras.src.backend.torch import core
 from keras.src.backend.torch import image
 from keras.src.backend.torch import linalg

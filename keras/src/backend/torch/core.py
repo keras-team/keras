@@ -187,11 +187,7 @@ class Variable(KerasVariable):
 def convert_to_tensor(x, dtype=None, sparse=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with torch backend")
-    if type(x) is Variable:
-        # We cannot use `isinstance(x, Variable)` due to the failure of
-        # TorchDynamo.
-        # torch._dynamo.exc.InternalTorchDynamoError:
-        # GetAttrVariable(SuperVariable(), value) has no type.
+    if isinstance(x, Variable):
         # TorchDynamo has bugs supporting nn.Parameter type check.
         # Return it directly instead of pass it to the rest of the logic in the
         # function.
