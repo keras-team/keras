@@ -2245,6 +2245,47 @@ class NNOpsCorrectnessTest(testing.TestCase):
                 "PyTorch with specific requirements."
             )
 
+        if flash_attention and backend.backend() == "jax":
+            try:
+                outputs = knn.dot_product_attention(
+                    query,
+                    key,
+                    value,
+                    bias=bias,
+                    mask=mask,
+                    scale=scale,
+                    is_causal=is_causal,
+                    flash_attention=flash_attention,
+                )
+            except ValueError as e:
+                if e.args[0].startswith(
+                    "Flash attention is not supported in your "
+                    "current JAX version"
+                ):
+                    self.skipTest(
+                        "JAX version is does not have "
+                        "`dot_product_attention` function."
+                    )
+            except RuntimeError as e:
+                if e.args[0] == "cuDNN is not detected.":
+                    self.skipTest("No CuDNN to run flash attention for JAX.")
+                elif e.args[0] == "Require at least Ampere arch to run":
+                    self.skipTest(
+                        "Requires at least Ampere arch to run flash attention "
+                        "for JAX."
+                    )
+        else:
+            outputs = knn.dot_product_attention(
+                query,
+                key,
+                value,
+                bias=bias,
+                mask=mask,
+                scale=scale,
+                is_causal=is_causal,
+                flash_attention=flash_attention,
+            )
+
         expected = _dot_product_attention(
             query,
             key,
@@ -2253,16 +2294,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
             mask=mask,
             scale=scale,
             is_causal=is_causal,
-        )
-        outputs = knn.dot_product_attention(
-            query,
-            key,
-            value,
-            bias=bias,
-            mask=mask,
-            scale=scale,
-            is_causal=is_causal,
-            flash_attention=flash_attention,
         )
         self.assertAllClose(outputs, expected)
 
