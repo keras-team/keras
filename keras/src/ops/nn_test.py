@@ -2235,9 +2235,15 @@ class NNOpsCorrectnessTest(testing.TestCase):
                 mask_shape
             )
 
-        if flash_attention and backend.backend() in ["torch", "tensorflow", "numpy"]:
-            self.skipTest("Not supported in TF and NumPy and supported for "
-                          "PyTorch with specific requirements.")
+        if flash_attention and backend.backend() in [
+            "torch",
+            "tensorflow",
+            "numpy",
+        ]:
+            self.skipTest(
+                "Not supported in TF and NumPy and supported for "
+                "PyTorch with specific requirements."
+            )
 
         expected = _dot_product_attention(
             query,
