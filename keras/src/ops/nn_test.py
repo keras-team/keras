@@ -2208,12 +2208,9 @@ class NNOpsCorrectnessTest(testing.TestCase):
             bias=(None, True),
             scale=(None, 1.0),
             mask_and_is_causal=((None, False), (True, False), (None, True)),
-            flash_attention=(True, False),
         )
     )
-    def test_dot_product_attention(
-        self, bias, scale, mask_and_is_causal, flash_attention
-    ):
+    def test_dot_product_attention(self, bias, scale, mask_and_is_causal):
         mask, is_causal = mask_and_is_causal
         query_shape = (2, 3, 4, 5)
         key_shape = (2, 6, 4, 5)
@@ -2235,15 +2232,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
                 mask_shape
             )
 
-        if flash_attention and backend.backend() in [
-            "tensorflow",
-            "numpy",
-            "jax",
-        ]:
-            self.skipTest(
-                "flash attention is not supported in tensorflow and numpy."
-            )
-
         expected = _dot_product_attention(
             query,
             key,
@@ -2261,7 +2249,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
             mask=mask,
             scale=scale,
             is_causal=is_causal,
-            flash_attention=flash_attention,
         )
         self.assertAllClose(outputs, expected)
 
