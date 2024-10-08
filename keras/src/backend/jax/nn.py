@@ -986,7 +986,14 @@ def _dot_product_attention_core(
 
 
 def dot_product_attention(
-    query, key, value, bias=None, mask=None, scale=None, is_causal=False
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=False,
 ):
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
@@ -1000,6 +1007,7 @@ def dot_product_attention(
 
     # `dot_product_attention` is only available in jax>=0.4.31
     if hasattr(jax.nn, "dot_product_attention"):
+        implementation = "cudnn" if flash_attention else "xla"
         return jax.nn.dot_product_attention(
             query,
             key,
@@ -1008,6 +1016,14 @@ def dot_product_attention(
             mask=mask,
             scale=scale,
             is_causal=is_causal,
+            implementation=implementation,
+        )
+
+    if flash_attention:
+        raise ValueError(
+            "Flash attention is not supported in your "
+            "current JAX version. Please update it "
+            "using `pip install -U jax jaxlib`."
         )
 
     # Ref: jax.nn.dot_product_attention
