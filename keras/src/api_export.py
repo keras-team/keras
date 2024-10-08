@@ -31,8 +31,10 @@ def get_name_from_symbol(symbol):
 if namex:
 
     class keras_export(namex.export):
-        def __init__(self, path):
-            super().__init__(package="keras", path=path)
+        def __init__(self, path, import_path=None):
+            super().__init__(
+                package="keras", path=path, import_path=import_path
+            )
 
         def __call__(self, symbol):
             register_internal_serializable(self.path, symbol)
@@ -41,9 +43,11 @@ if namex:
 else:
 
     class keras_export:
-        def __init__(self, path):
+        def __init__(self, path, import_path=None):
             self.path = path
+            self.import_path = import_path
 
         def __call__(self, symbol):
+            # TODO resolve import_path instead?
             register_internal_serializable(self.path, symbol)
             return symbol

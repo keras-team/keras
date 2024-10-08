@@ -5,6 +5,7 @@ import warnings
 import numpy as np
 
 from keras.src import tree
+from keras.src.api_export import keras_export
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import slice_along_axis
@@ -16,6 +17,7 @@ from keras.src.backend.common.symbolic_scope import SymbolicScope
 SUPPORTS_SPARSE_TENSORS = False
 
 
+@keras_export("keras.Variable", import_path="keras.src.backend.Variable")
 class Variable(KerasVariable):
     def _initialize(self, value):
         self._value = np.array(value, dtype=self._dtype)

@@ -7,6 +7,7 @@ import numpy as np
 import torch
 
 from keras.src import tree
+from keras.src.api_export import keras_export
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
@@ -94,6 +95,7 @@ def to_torch_dtype(dtype):
     return standardized_dtype
 
 
+@keras_export("keras.Variable", import_path="keras.src.backend.Variable")
 class Variable(KerasVariable):
     def _initialize(self, value):
         if isinstance(value, torch.nn.Parameter):

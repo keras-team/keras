@@ -5,6 +5,7 @@ import ml_dtypes
 import numpy as np
 
 from keras.src import tree
+from keras.src.api_export import keras_export
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
@@ -16,6 +17,7 @@ from keras.src.backend.jax import distribution_lib
 SUPPORTS_SPARSE_TENSORS = True
 
 
+@keras_export("keras.Variable", import_path="keras.src.backend.Variable")
 class Variable(KerasVariable):
     def _initialize(self, value):
         value = jnp.array(value, dtype=self._dtype)

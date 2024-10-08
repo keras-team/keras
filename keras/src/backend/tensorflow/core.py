@@ -5,6 +5,7 @@ import tensorflow as tf
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 
 from keras.src import tree
+from keras.src.api_export import keras_export
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
@@ -20,6 +21,7 @@ from keras.src.utils.naming import auto_name
 SUPPORTS_SPARSE_TENSORS = True
 
 
+@keras_export("keras.Variable", import_path="keras.src.backend.Variable")
 class Variable(
     KerasVariable,
     tf.__internal__.types.Tensor,
