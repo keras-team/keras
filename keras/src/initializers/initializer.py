@@ -15,7 +15,7 @@ class Initializer:
     ```
 
     Optionally, you can also implement the method `get_config()` and the class
-    method `from_config` in order to support serialization,just like with
+    method `from_config` in order to support serialization, just like with
     any Keras object.
 
     Here's a simple example: a random normal initializer.
