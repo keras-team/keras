@@ -11,6 +11,9 @@ from keras.src.utils.naming import auto_name
 class Loss(KerasSaveable):
     """Loss base class.
 
+    This is the class to subclass in order to create new
+    custom losses.
+
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
