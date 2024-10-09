@@ -13,5 +13,8 @@ torchvision>=0.16.0
 jax[cpu]
 flax
 
+# OpenVINO
+openvino~=2024.4.0
+
 # Common deps.
 -r requirements-common.txt
