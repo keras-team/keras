@@ -1279,6 +1279,8 @@ def relu(x, alpha=0.0, max_value=None, threshold=0.0):
             negative_part = tf.nn.relu(-x + threshold)
         else:
             negative_part = tf.nn.relu(-x)
+    else:
+        negative_part = 1
 
     clip_max = max_value is not None
 

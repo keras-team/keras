@@ -318,7 +318,7 @@ def map_graph(inputs, outputs):
                         "The following previous operations were accessed "
                         f"without issue: {operations_with_complete_input}"
                     )
-                operations_with_complete_input.append(operation.name)
+                operations_with_complete_input.append(node.operation.name)
 
             for x in tree.flatten(node.outputs):
                 computable_tensors.add(x)

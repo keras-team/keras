@@ -252,6 +252,7 @@ train_state = get_replicated_train_state(devices)
 # Custom training loop
 for epoch in range(num_epochs):
     data_iter = iter(train_data)
+    loss_value = None  # default
     for data in data_iter:
         x, y = data
         sharded_x = jax.device_put(x.numpy(), data_sharding)

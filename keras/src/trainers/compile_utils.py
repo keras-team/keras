@@ -170,6 +170,7 @@ class CompileMetrics(metrics_module.Metric):
         return vars
 
     def build(self, y_true, y_pred):
+        num_outputs = 1  # default
         if self.output_names:
             output_names = self.output_names
         elif isinstance(y_pred, dict):
@@ -182,7 +183,6 @@ class CompileMetrics(metrics_module.Metric):
                 output_names = None
         else:
             output_names = None
-            num_outputs = 1
         if output_names:
             num_outputs = len(output_names)
 

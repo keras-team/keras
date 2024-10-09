@@ -95,8 +95,7 @@ class TextVectorizationTest(testing.TestCase):
         )
         input_data = [["foo qux bar"], ["qux baz"]]
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertAllClose(output, np.array([[4, 1, 3, 0], [1, 2, 0, 0]]))
 
         # Test adapt flow
@@ -107,8 +106,7 @@ class TextVectorizationTest(testing.TestCase):
         )
         layer.adapt(input_data)
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
-        for output in ds.take(1):
-            output.numpy()
+        next(iter(ds)).numpy()
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow", reason="Requires string tensors."

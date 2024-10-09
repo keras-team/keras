@@ -77,8 +77,7 @@ class StringLookupTest(testing.TestCase):
         )
         input_data = ["b", "c", "d"]
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(3).map(layer)
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertAllClose(output, np.array([2, 3, 0]))
 
     @pytest.mark.skipif(not backend.backend() == "tensorflow", reason="tf only")

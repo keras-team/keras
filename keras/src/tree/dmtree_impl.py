@@ -60,6 +60,7 @@ def pack_sequence_as(structure, flat_sequence, sequence_fn=None):
             )
         return flat_sequence[0]
 
+    packed = []
     try:
         final_index, packed = packed_nest_with_indices(
             structure, flat_sequence, 0, is_nested_fn, sequence_fn

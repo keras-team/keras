@@ -102,6 +102,5 @@ class IntegerLookupTest(testing.TestCase):
         )
         input_data = [2, 3, 4, 5]
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(4).map(layer)
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertAllClose(output, np.array([2, 3, 4, 0]))

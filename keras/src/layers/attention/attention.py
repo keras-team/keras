@@ -134,6 +134,8 @@ class Attention(Layer):
                 scores = self.concat_score_weight * ops.sum(
                     ops.tanh(q_reshaped + k_reshaped), axis=-1
                 )
+        else:
+            raise ValueError("scores not computed")
 
         return scores
 
