@@ -211,13 +211,6 @@ class MultiHeadAttention(Layer):
         """
         key_shape = value_shape if key_shape is None else key_shape
 
-        if query_shape[-1] != value_shape[-1]:
-            raise ValueError(
-                "The last dimension of `query_shape` and `value_shape` "
-                f"must be equal, but are {query_shape[-1]}, {value_shape[-1]}. "
-                "Received: query_shape={query_shape}, value_shape={value_shape}"
-            )
-
         if value_shape[1:-1] != key_shape[1:-1]:
             raise ValueError(
                 "All dimensions of `value` and `key`, except the last one, "
@@ -603,13 +596,6 @@ class MultiHeadAttention(Layer):
     ):
         if key_shape is None:
             key_shape = value_shape
-
-        if query_shape[-1] != value_shape[-1]:
-            raise ValueError(
-                "The last dimension of `query_shape` and `value_shape` "
-                f"must be equal, but are {query_shape[-1]}, {value_shape[-1]}. "
-                "Received: query_shape={query_shape}, value_shape={value_shape}"
-            )
 
         if value_shape[1:-1] != key_shape[1:-1]:
             raise ValueError(
