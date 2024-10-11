@@ -137,7 +137,7 @@ class RandomCropTest(testing.TestCase):
         input_data = np.random.random(input_shape)
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         output = next(iter(ds)).numpy()
-        self.assertEqual(list(output.shape), output_shape)
+        self.assertEqual(tuple(output.shape), output_shape)
 
     def test_dict_input(self):
         layer = layers.RandomCrop(
