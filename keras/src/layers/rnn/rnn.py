@@ -107,7 +107,8 @@ class RNN(Layer):
     - Specify `stateful=True` in the layer constructor.
     - Specify a fixed batch size for your model, by passing
     If sequential model:
-        `batch_input_shape=(...)` to the first layer in your model.
+        Pass `batch_size=1` to `model.fit()` or use a dataset based on a
+        generator or `tf.data.Dataset`.
     Else for functional model with 1 or more Input layers:
         `batch_shape=(...)` to all the first layers in your model.
     This is the expected shape of your inputs
