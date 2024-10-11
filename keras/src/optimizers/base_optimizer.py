@@ -12,6 +12,59 @@ from keras.src.utils.naming import auto_name
 
 
 class BaseOptimizer(KerasSaveable):
+    """Abstract optimizer base class.
+
+    If you intend to create your own optimization algorithm, please inherit from
+    this class and override the following methods:
+
+    - `build`: Create your optimizer-related variables, such as momentum
+        variables in the SGD optimizer.
+    - `update_step`: Implement your optimizer's variable updating logic.
+    - `get_config`: serialization of the optimizer.
+
+    Example:
+
+    ```python
+    class SGD(Optimizer):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.momentum = 0.9
+
+        def build(self, variables):
+            super().build(variables)
+            self.momentums = []
+            for variable in variables:
+                self.momentums.append(
+                    self.add_variable_from_reference(
+                        reference_variable=variable, name="momentum"
+                    )
+                )
+
+        def update_step(self, gradient, variable, learning_rate):
+            learning_rate = ops.cast(learning_rate, variable.dtype)
+            gradient = ops.cast(gradient, variable.dtype)
+            m = self.momentums[self._get_variable_index(variable)]
+            self.assign(
+                m,
+                ops.subtract(
+                    ops.multiply(m, ops.cast(self.momentum, variable.dtype)),
+                    ops.multiply(gradient, learning_rate),
+                ),
+            )
+            self.assign_add(variable, m)
+
+        def get_config(self):
+            config = super().get_config()
+            config.update(
+                {
+                    "momentum": self.momentum,
+                    "nesterov": self.nesterov,
+                }
+            )
+            return config
+    ```
+    """
+
     def __init__(
         self,
         learning_rate,

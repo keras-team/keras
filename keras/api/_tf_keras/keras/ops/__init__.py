@@ -159,6 +159,7 @@ from keras.src.ops.numpy import full_like
 from keras.src.ops.numpy import get_item
 from keras.src.ops.numpy import greater
 from keras.src.ops.numpy import greater_equal
+from keras.src.ops.numpy import histogram
 from keras.src.ops.numpy import hstack
 from keras.src.ops.numpy import identity
 from keras.src.ops.numpy import imag

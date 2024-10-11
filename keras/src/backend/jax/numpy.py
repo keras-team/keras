@@ -1246,3 +1246,7 @@ def slogdet(x):
 
 def argpartition(x, kth, axis=-1):
     return jnp.argpartition(x, kth, axis)
+
+
+def histogram(x, bins, range):
+    return jnp.histogram(x, bins=bins, range=range)

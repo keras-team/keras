@@ -1,3 +1,11 @@
+"""A class for JAX specific optimizer logic.
+
+Its purpose is to route around statelessness
+requirements in cond ops used for EMA handling
+and gradient accumulation handling. We do this
+by skipping conditionals entirely.
+"""
+
 import jax
 from jax import numpy as jnp
 
@@ -5,13 +13,6 @@ from keras.src.optimizers import base_optimizer
 
 
 class JaxOptimizer(base_optimizer.BaseOptimizer):
-    """A class for JAX specific optimizer logic.
-
-    Its purpose is to route around statelessness
-    requirements in cond ops used for EMA handling
-    and gradient accumulation handling. We do this
-    by skipping conditionals entirely.
-    """
 
     def _backend_apply_gradients(self, grads, trainable_variables):
         if self.gradient_accumulation_steps:

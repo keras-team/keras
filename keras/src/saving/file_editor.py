@@ -109,12 +109,9 @@ class KerasFileEditor:
 
     def summary(self):
         """Prints the weight structure of the opened file."""
-        if is_ipython_notebook():
-            self._weights_summary_interactive()
-        else:
-            self._weights_summary_cli()
+        self._weights_summary_cli()
 
-    def compare_to(self, reference_model):
+    def compare(self, reference_model):
         """Compares the opened file to a reference model.
 
         This method will list all mismatches between the
@@ -414,7 +411,7 @@ class KerasFileEditor:
 
         self._edit_object(add_weight_fn, object_name)
 
-    def resave_weights(self, filepath):
+    def save(self, filepath):
         """Save the edited weights file.
 
         Args:
@@ -450,6 +447,9 @@ class KerasFileEditor:
 
         _save(self.weights_dict, weights_store, inner_path="")
         weights_store.close()
+
+    def resave_weights(self, filepath):
+        self.save(filepath)
 
     def _extract_weights_from_store(self, data, metadata=None, inner_path=""):
         metadata = metadata or {}
@@ -561,7 +561,7 @@ class KerasFileEditor:
                         f'<details style="margin-left: {margin_left}px;">'
                         + '<summary style="'
                         + f"font-size: {font_size}em; "
-                        + "font-weight: 'bold';"
+                        + "font-weight: bold;"
                         + f'">{key}</summary>'
                         + _generate_html_weights(
                             value, margin_left + 20, font_size - 1
