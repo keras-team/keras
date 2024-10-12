@@ -1,4 +1,5 @@
 import builtins
+import contextlib
 import functools
 import warnings
 
@@ -433,3 +434,8 @@ class custom_gradient:
     def __call__(self, *args, **kwargs):
         outputs, _ = self.fun(*args, **kwargs)
         return outputs
+
+
+@contextlib.contextmanager
+def device_scope(device_name):
+    yield
