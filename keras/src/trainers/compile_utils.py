@@ -620,15 +620,15 @@ class CompileLoss(losses_module.Loss):
     def call(self, y_true, y_pred, sample_weight=None):
         if not self.built:
             self.build(y_true, y_pred)
-        else:
-            # Filter unused inputs.
-            y_true, y_pred = self._filter_unused_inputs(
-                y_true,
-                y_pred,
-                self.filtered_y_true_keys,
-                self.filtered_y_pred_keys,
-                self.inferred_output_names,
-            )
+
+        # Filter unused inputs.
+        y_true, y_pred = self._filter_unused_inputs(
+            y_true,
+            y_pred,
+            self.filtered_y_true_keys,
+            self.filtered_y_pred_keys,
+            self.inferred_output_names,
+        )
 
         # Flatten the inputs.
         y_true = tree.flatten(y_true)
