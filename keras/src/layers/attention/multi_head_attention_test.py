@@ -104,6 +104,13 @@ class MultiHeadAttentionTest(testing.TestCase):
             (1, 1, 5, 2),
             (3, 2),
         ),
+        (
+            "different_qv_last_dims",
+            (4, 2, 3, 8),
+            (4, 2, 3, 7),
+            (4, 2, 3, 8),
+            None,
+        ),
     )
     def test_compute_output_shape(
         self, query_dims, value_dims, key_dims, output_shape
@@ -130,7 +137,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertEqual(output.shape, comp_output_shape)
 
     @parameterized.named_parameters(
-        ("query_value_dim_mismatch", (2, 4, 8), (2, 2, 7), 2),
+        ("query_value_dim_mismatch", (2, 4, 8), (2, 2, 7), (2,)),
         ("key_value_dim_mismatch", (2, 4, 8), (2, 2, 8), (2, 1, 7)),
         (
             "key_value_dim_mismatch_high_dim",
