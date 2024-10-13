@@ -4348,6 +4348,13 @@ class Pad(Operation):
         return pad_width
 
     def call(self, x, constant_values=None):
+        if len(self.pad_width) > 1 and len(self.pad_width) != len(x.shape):
+            raise ValueError(
+                "`pad_width` must have the same length as `x.shape`. "
+                f"Received: pad_width={self.pad_width} "
+                f"(of length {len(self.pad_width)}) and x.shape={x.shape} "
+                f"(of length {len(x.shape)})"
+            )
         return backend.numpy.pad(
             x,
             pad_width=self.pad_width,
