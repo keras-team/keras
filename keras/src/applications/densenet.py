@@ -289,6 +289,8 @@ def DenseNet(
                     cache_subdir="models",
                     file_hash="1ceb130c1ea1b78c3bf6114dbdfd8807",
                 )
+            else:
+                raise ValueError("weights_path undefined")
         else:
             if blocks == [6, 12, 24, 16]:
                 weights_path = file_utils.get_file(
@@ -311,6 +313,8 @@ def DenseNet(
                     cache_subdir="models",
                     file_hash="c13680b51ded0fb44dff2d8f86ac8bb1",
                 )
+            else:
+                raise ValueError("weights_path undefined")
         model.load_weights(weights_path)
     elif weights is not None:
         model.load_weights(weights)

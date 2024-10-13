@@ -914,6 +914,8 @@ class BaseOptimizer(KerasSaveable):
             learning_rate = serialization_lib.serialize_keras_object(
                 self._learning_rate
             )
+        else:
+            learning_rate = 0.5
 
         config = {
             "name": self.name,
