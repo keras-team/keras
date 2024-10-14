@@ -2,6 +2,7 @@ import types
 
 from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import array_data_adapter
+from keras.src.trainers.data_adapters import data_adapter
 from keras.src.trainers.data_adapters import py_dataset_adapter
 from keras.src.trainers.data_adapters.array_data_adapter import ArrayDataAdapter
 from keras.src.trainers.data_adapters.generator_data_adapter import (
@@ -23,6 +24,10 @@ def get_data_adapter(
     shuffle=False,
     class_weight=None,
 ):
+    # Allow passing a custom data adapter.
+    if isinstance(x, data_adapter.DataAdapter):
+        return x
+
     # Check for multi-process/worker distribution. Since only tf.dataset
     # is supported at the moment, we will raise error if the inputs fail
     # the type check
