@@ -133,7 +133,7 @@ def reduce_values(values, reduction="sum_over_batch_size"):
     ):
         return values
     loss = ops.sum(values)
-    if (reduction == "sum_over_batch_size") or (reduction == "mean"):
+    if reduction in ("mean", "sum_over_batch_size"):
         loss /= ops.cast(
             ops.prod(ops.convert_to_tensor(ops.shape(values), dtype="int32")),
             loss.dtype,
@@ -178,7 +178,7 @@ def apply_mask(sample_weight, mask, dtype, reduction):
     """Applies any mask on predictions to sample weights."""
     if mask is not None:
         mask = ops.cast(mask, dtype=dtype)
-        if (reduction == "sum_over_batch_size") or (reduction == "mean"):
+        if reduction in ("mean", "sum_over_batch_size"):
             # Valid entries have weight `total/valid`, while invalid ones
             # have 0. When summed over batch, they will be reduced to:
             #
