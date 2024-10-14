@@ -178,7 +178,7 @@ def apply_mask(sample_weight, mask, dtype, reduction):
     """Applies any mask on predictions to sample weights."""
     if mask is not None:
         mask = ops.cast(mask, dtype=dtype)
-        if reduction == "sum_over_batch_size":
+        if (reduction == "sum_over_batch_size") or (reduction == "mean")
             # Valid entries have weight `total/valid`, while invalid ones
             # have 0. When summed over batch, they will be reduced to:
             #
