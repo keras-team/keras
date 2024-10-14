@@ -1,4 +1,7 @@
-from keras.src import backend, dtype_policies, ops, tree
+from keras.src import backend
+from keras.src import dtype_policies
+from keras.src import ops
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils.naming import auto_name
@@ -161,7 +164,9 @@ def reduce_weighted_values(
     if sample_weight is not None:
         sample_weight = ops.cast(sample_weight, values.dtype)
         # Update dimensions of `sample_weight` to match `losses`.
-        values, sample_weight = squeeze_or_expand_to_same_rank(values, sample_weight)
+        values, sample_weight = squeeze_or_expand_to_same_rank(
+            values, sample_weight
+        )
         values = values * sample_weight
 
     # Apply reduction function to the individual weighted losses.
@@ -190,7 +195,9 @@ def apply_mask(sample_weight, mask, dtype, reduction):
 
         if sample_weight is not None:
             sample_weight = ops.cast(sample_weight, dtype=dtype)
-            mask, sample_weight = squeeze_or_expand_to_same_rank(mask, sample_weight)
+            mask, sample_weight = squeeze_or_expand_to_same_rank(
+                mask, sample_weight
+            )
             sample_weight *= mask
         else:
             sample_weight = mask
