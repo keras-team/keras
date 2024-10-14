@@ -341,7 +341,7 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 def stop_gradient(variable):
-    if isinstance(variable, KerasVariable):
+    if isinstance(variable, Variable):
         variable = variable.value
     return jax.lax.stop_gradient(variable)
 

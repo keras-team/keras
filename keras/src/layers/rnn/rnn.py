@@ -107,6 +107,10 @@ class RNN(Layer):
     - Specify `stateful=True` in the layer constructor.
     - Specify a fixed batch size for your model, by passing
         `batch_size=...` to the `Input` layer(s) of your model.
+        Remember to also specify the same `batch_size=...` when
+        calling `fit()`, or otherwise use a generator-like
+        data source like a `keras.utils.PyDataset` or a
+        `tf.data.Dataset`.
     - Specify `shuffle=False` when calling `fit()`, since your
         batches are expected to be temporally ordered.
 

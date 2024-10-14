@@ -359,6 +359,7 @@ class Sequential(Model):
             model.add(layer)
         if (
             not model._functional
+            and "build_input_shape" in locals()
             and build_input_shape
             and isinstance(build_input_shape, (tuple, list))
         ):

@@ -169,6 +169,24 @@ class ModelTest(testing.TestCase):
         )
         self.assertIsInstance(new_model, Functional)
 
+    def test_reviving_functional_from_config_custom_model(self):
+        class CustomModel(Model):
+            def __init__(self, *args, param=1, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.param = param
+
+            def get_config(self):
+                base_config = super().get_config()
+                config = {"param": self.param}
+                return base_config | config
+
+        inputs = layers.Input((3,))
+        outputs = layers.Dense(5)(inputs)
+        model = CustomModel(inputs=inputs, outputs=outputs, param=3)
+
+        new_model = CustomModel.from_config(model.get_config())
+        self.assertEqual(new_model.param, 3)
+
     @parameterized.named_parameters(
         ("single_output_1", _get_model_single_output),
         ("single_output_2", _get_model_single_output),

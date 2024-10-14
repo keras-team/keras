@@ -1033,8 +1033,17 @@ def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
 
 
 def dot_product_attention(
-    query, key, value, bias=None, mask=None, scale=None, is_causal=False
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=False,
 ):
+    if flash_attention:
+        raise ValueError("Flash attention is not implemented in NumPy.")
     # Ref: jax.nn.dot_product_attention
     # https://github.com/jax-ml/jax/blob/jax-v0.4.32/jax/_src/nn/functions.py#L828
     # Not support `query_seq_lengths` and `key_value_seq_lengths` args

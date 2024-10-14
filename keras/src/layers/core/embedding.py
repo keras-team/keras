@@ -146,7 +146,7 @@ class Embedding(Layer):
         return ops.not_equal(inputs, 0)
 
     def compute_output_shape(self, input_shape):
-        return input_shape + (self.output_dim,)
+        return (*input_shape, self.output_dim)
 
     def enable_lora(
         self, rank, a_initializer="he_uniform", b_initializer="zeros"

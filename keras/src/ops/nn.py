@@ -2131,7 +2131,16 @@ class DotProductAttention(Operation):
         super().__init__()
         self.is_causal = is_causal
 
-    def call(self, query, key, value, bias=None, mask=None, scale=None):
+    def call(
+        self,
+        query,
+        key,
+        value,
+        bias=None,
+        mask=None,
+        scale=None,
+        flash_attention=False,
+    ):
         return backend.nn.dot_product_attention(
             query,
             key,
@@ -2140,10 +2149,18 @@ class DotProductAttention(Operation):
             mask=mask,
             scale=scale,
             is_causal=self.is_causal,
+            flash_attention=flash_attention,
         )
 
     def compute_output_spec(
-        self, query, key, value, bias=None, mask=None, scale=None
+        self,
+        query,
+        key,
+        value,
+        bias=None,
+        mask=None,
+        scale=None,
+        flash_attention=False,
     ):
         return KerasTensor(query.shape, dtype=query.dtype)
 
@@ -2152,7 +2169,14 @@ class DotProductAttention(Operation):
     ["keras.ops.dot_product_attention", "keras.ops.nn.dot_product_attention"]
 )
 def dot_product_attention(
-    query, key, value, bias=None, mask=None, scale=None, is_causal=False
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=False,
 ):
     """Scaled dot product attention function.
 
@@ -2207,6 +2231,7 @@ def dot_product_attention(
             bias=bias,
             mask=mask,
             scale=scale,
+            flash_attention=flash_attention,
         )
     return backend.nn.dot_product_attention(
         query,
@@ -2216,4 +2241,5 @@ def dot_product_attention(
         mask=mask,
         scale=scale,
         is_causal=is_causal,
+        flash_attention=flash_attention,
     )

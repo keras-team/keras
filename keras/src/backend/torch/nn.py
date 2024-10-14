@@ -864,8 +864,28 @@ def _get_large_negative(dtype):
     return convert_to_tensor(val * -0.7, dtype=dtype)
 
 
+def is_flash_attention_enabled(query, key, value, mask=None, is_causal=False):
+    params = torch.backends.cuda.SDPAParams(
+        query,
+        key,
+        value,
+        mask,
+        0.0,
+        is_causal,
+    )
+    is_enabled = torch.backends.cuda.can_use_flash_attention(params, False)
+    return is_enabled
+
+
 def dot_product_attention(
-    query, key, value, bias=None, mask=None, scale=None, is_causal=False
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=False,
 ):
     if bias is not None:
         raise ValueError(
@@ -891,7 +911,35 @@ def dot_product_attention(
     query = torch.transpose(query, axis0, axis1)
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
-    attention_output = torch.nn.functional.scaled_dot_product_attention(
-        query, key, value, attn_mask=mask, is_causal=is_causal, scale=scale
-    )
+
+    if flash_attention:
+        is_enabled = is_flash_attention_enabled(
+            query=query,
+            key=key,
+            value=value,
+            mask=mask,
+            is_causal=is_causal,
+        )
+        if not is_enabled:
+            raise ValueError(
+                "Flash attention is not enabled in `torch` backend. "
+                "The dtype of the inputs should be float16/bfloat16 "
+                "and your GPU should support flash attention implementation."
+            )
+
+        with torch.nn.attention.sdpa_kernel(
+            backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
+        ):
+            attention_output = torch.nn.functional.scaled_dot_product_attention(
+                query,
+                key,
+                value,
+                attn_mask=mask,
+                is_causal=is_causal,
+                scale=scale,
+            )
+    else:
+        attention_output = torch.nn.functional.scaled_dot_product_attention(
+            query, key, value, attn_mask=mask, is_causal=is_causal, scale=scale
+        )
     return torch.transpose(attention_output, axis1, axis0)

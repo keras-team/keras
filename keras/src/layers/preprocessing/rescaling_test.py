@@ -72,8 +72,7 @@ class RescalingTest(testing.TestCase):
         layer = layers.Rescaling(scale=1.0 / 255, offset=0.5)
         x = np.random.random((3, 10, 10, 3)) * 255
         ds = tf_data.Dataset.from_tensor_slices(x).batch(3).map(layer)
-        for output in ds.take(1):
-            output.numpy()
+        next(iter(ds)).numpy()
 
     def test_rescaling_with_channels_first_and_vector_scale(self):
         config = backend.image_data_format()
