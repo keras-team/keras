@@ -14,7 +14,8 @@ class Loss(KerasSaveable):
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"`, `mean`
+            or `None`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
@@ -92,7 +93,7 @@ class Loss(KerasSaveable):
 
 
 def standardize_reduction(reduction):
-    allowed = {"sum_over_batch_size", "sum", None, "none"}
+    allowed = {"sum_over_batch_size", "sum", None, "none", "mean"}
     if reduction not in allowed:
         raise ValueError(
             "Invalid value for argument `reduction`. "
@@ -132,7 +133,7 @@ def reduce_values(values, reduction="sum_over_batch_size"):
     ):
         return values
     loss = ops.sum(values)
-    if reduction == "sum_over_batch_size":
+    if (reduction == "sum_over_batch_size") or (reduction == "mean"):
         loss /= ops.cast(
             ops.prod(ops.convert_to_tensor(ops.shape(values), dtype="int32")),
             loss.dtype,

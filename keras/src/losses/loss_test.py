@@ -69,7 +69,7 @@ class LossTest(testing.TestCase):
         self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(np.sum((y_true - y_pred) ** 2), loss)
 
-        # sum_over_batch_size
+        # sum_over_batch_size or mean
         loss_fn = ExampleLoss(reduction="sum_over_batch_size")
         loss = loss_fn(y_true, y_pred)
         self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
