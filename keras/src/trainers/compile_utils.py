@@ -2,6 +2,7 @@ from keras.src import losses as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import tree
+from keras.src.utils.module_utils import optree
 from keras.src.utils.naming import get_object_name
 from keras.src.utils.tracking import Tracker
 
@@ -412,6 +413,7 @@ class CompileLoss(losses_module.Loss):
         loss_weights=None,
         reduction="sum_over_batch_size",
         output_names=None,
+        path_separator="/",
     ):
         if loss_weights and not isinstance(
             loss_weights, (list, tuple, dict, float)
@@ -442,6 +444,8 @@ class CompileLoss(losses_module.Loss):
                 )
             }
         )
+        self._y_pred_compile_structure = None
+        self._path_separator = path_separator
 
     @property
     def metrics(self):
@@ -460,22 +464,10 @@ class CompileLoss(losses_module.Loss):
         output_names = self._get_y_pred_output_names(y_pred)
         inferred_output_names = output_names or self.output_names
 
-        if is_function_like(loss) and tree.is_nested(y_pred):
-            # The model has multiple outputs but only one loss fn
-            # was provided. Broadcast loss to all outputs.
-            loss = tree.map_structure(lambda x: loss, y_pred)
-
-        # Check and filter the keys.
-        if isinstance(loss, dict):
-            if inferred_output_names is None:
-                raise ValueError(
-                    "Argument `loss` can only be provided as a dict "
-                    "when the model also returns a dict of outputs. "
-                    f"Received loss={loss}"
-                )
-        filtered_y_pred_keys = []
-        filtered_y_true_keys = []
-        if isinstance(loss, dict):
+        if isinstance(loss, dict) and (
+            not tree.is_nested(y_pred) or isinstance(y_pred, (list, tuple))
+        ):
+            # loss maps output_names
             loss_keys = set(loss.keys())
             if inferred_output_names is not None:
                 y_pred_keys = set(inferred_output_names)
@@ -485,33 +477,111 @@ class CompileLoss(losses_module.Loss):
                         "the `loss` argument, but they can't be found in "
                         "the model's output (`y_pred`)."
                     )
-                filtered_y_pred_keys.extend(list(y_pred_keys - loss_keys))
-            if isinstance(y_true, dict):
-                y_true_keys = set(y_true.keys())
-                if len(loss_keys - y_true_keys) > 0:
+
+            loss = tree.flatten(loss)
+
+        if not tree.is_nested(loss):
+            loss = tree.map_structure(lambda x: loss, y_pred)
+
+        if isinstance(loss, dict):
+            is_loss_mapping = True
+            loss_keys = set(loss.keys())
+            accessors = optree.tree_accessors(y_pred, namespace="keras")
+            paths_list = []
+
+            def path_fn(a):
+                path = self._path_separator.join([str(e.entry) for e in a])
+                path_field = self._path_separator.join(
+                    [
+                        e.field if hasattr(e, "field") else str(e.entry)
+                        for e in a
+                    ]
+                )
+                accessor_paths = {path, path_field}
+                paths_list.extend(accessor_paths)
+                return a, tuple(accessor_paths)
+
+            accessors_paths = [path_fn(a) for a in accessors]
+            sorted_paths = sorted(paths_list)
+            # check whether paths don't overlap with each other,
+            # may happen if the structure's fields contain
+            # the path separator.
+            for i in range(len(sorted_paths) - 1):
+                if sorted_paths[i + 1].startswith(sorted_paths[i]):
                     raise KeyError(
-                        f"There are keys: {list(loss_keys - y_true_keys)} in "
-                        "the `loss` argument, but they can't be found in "
-                        "`y` (`y_true`)."
+                        f"The model's output structure contains "
+                        f"the following ambiguous path: {sorted_paths[i]}."
                     )
-                filtered_y_true_keys.extend(list(y_true_keys - loss_keys))
-        filtered_y_pred_keys = set(filtered_y_pred_keys)
-        filtered_y_true_keys = set(filtered_y_true_keys)
+            flat_losses = []
+            remaining_loss_paths = loss_keys.copy()
 
-        # Filter unused inputs.
-        y_true, y_pred = self._filter_unused_inputs(
-            y_true,
-            y_pred,
-            filtered_y_true_keys,
-            filtered_y_pred_keys,
-            self.inferred_output_names,
-        )
+            def fn(a, paths):
+                for key in remaining_loss_paths:
+                    for path in paths:
+                        if path.startswith(key):
+                            loss_accessor = optree.PyTreeAccessor(
+                                a[: len(key.split(self._path_separator))]
+                            )
+                            losses = tree.flatten(loss[key])
+                            flat_losses.extend(
+                                [(loss_accessor, _loss) for _loss in losses]
+                            )
+                            remaining_loss_paths.remove(key)
+                            break
+                    if key not in remaining_loss_paths:
+                        break
 
-        # `loss` could be a plain function (or a `Loss` instance), a list, a
-        # nested list, or a dict. However, in `call`, we want to iterate over
-        # all losses, so we flatten them into a list regardless of their
-        # original structure.
-        flat_losses = tree.flatten(loss)
+            remaining_count = len(remaining_loss_paths)
+            while remaining_loss_paths:
+                [fn(a, paths) for a, paths in accessors_paths]
+                if remaining_count == len(remaining_loss_paths):
+                    raise KeyError(
+                        f"There are keys: {list(remaining_loss_paths)} in "
+                        "the `loss` argument, but they can't be found in "
+                        "the model's output (`y_pred`)."
+                    )
+                remaining_count = len(remaining_loss_paths)
+        else:
+            is_loss_mapping = False
+            loss = tree.flatten(loss)
+            accessors, _, _ = optree.tree_flatten_with_accessor(loss)
+            flat_losses = [(a, a(loss)) for a in accessors]
+            y_pred = tree.flatten(y_pred)
+            y_true = tree.flatten(y_true)
+            if len(y_true) != len(flat_losses):
+                raise ValueError(
+                    "For a model with multiple outputs, "
+                    "when providing the `loss` argument as a list, "
+                    "it should have as many entries as the model has outputs. "
+                    f"Received:\nloss={loss}\nof length {len(flat_losses)} "
+                    f"whereas the model has {len(y_pred)} outputs."
+                )
+
+        # Get the real loss instances.
+        flat_losses = [
+            (accessor, get_loss(identifier, accessor(y_true), accessor(y_pred)))
+            for accessor, identifier in flat_losses
+        ]
+
+        # Add `Mean` metric to the tracker for each loss.
+        if len(flat_losses) > 1:
+            for accessor, _loss in flat_losses:
+                if _loss is not None:
+                    if is_loss_mapping:
+                        name = self._path_separator.join(
+                            [str(e) for e in accessor.path]
+                        )
+                    elif inferred_output_names is not None and len(
+                        inferred_output_names
+                    ) == len(flat_losses):
+                        name = accessor(inferred_output_names)
+                    else:
+                        name = _loss.name
+                    name += "_loss"
+                    self._tracker.add_to_store(
+                        "metrics", metrics_module.Mean(name=name)
+                    )
+
         if loss_weights is None:
             flat_loss_weights = [None] * len(flat_losses)
         else:
@@ -533,43 +603,12 @@ class CompileLoss(losses_module.Loss):
                     f"loss length={len(flat_losses)}"
                 )
 
-        y_true = tree.flatten(y_true)
-        y_pred = tree.flatten(y_pred)
-        if len(y_pred) != len(flat_losses):
-            raise ValueError(
-                "For a model with multiple outputs, "
-                "when providing the `loss` argument as a list, "
-                "it should have as many entries as the model has outputs. "
-                f"Received:\nloss={loss}\nof length {len(flat_losses)} "
-                f"whereas the model has {len(y_pred)} outputs."
-            )
-
-        # Get the real loss instances.
-        flat_losses = [
-            get_loss(identifier, _y_true, _y_pred)
-            for identifier, _y_true, _y_pred in zip(flat_losses, y_true, y_pred)
-        ]
-
-        # Add `Mean` metric to the tracker for each loss.
-        if len(flat_losses) > 1:
-            for i, _loss in enumerate(flat_losses):
-                if _loss is not None:
-                    if inferred_output_names is not None and len(
-                        inferred_output_names
-                    ) == len(flat_losses):
-                        name = inferred_output_names[i]
-                    else:
-                        name = _loss.name
-                    name += "_loss"
-                    self._tracker.add_to_store(
-                        "metrics", metrics_module.Mean(name=name)
-                    )
-
         self.flat_losses = flat_losses
         self.flat_loss_weights = flat_loss_weights
-        self.filtered_y_true_keys = filtered_y_true_keys
-        self.filtered_y_pred_keys = filtered_y_pred_keys
         self.inferred_output_names = inferred_output_names
+        self._y_pred_build_structure = optree.tree_structure(
+            y_pred, namespace="keras"
+        )
         self.built = True
 
     def _get_y_pred_output_names(self, y_pred):
@@ -618,42 +657,38 @@ class CompileLoss(losses_module.Loss):
             return self.call(y_true, y_pred, sample_weight)
 
     def call(self, y_true, y_pred, sample_weight=None):
+        y_pred_struct = optree.tree_structure(y_pred, namespace="keras")
+        y_true_struct = optree.tree_structure(y_true, namespace="keras")
+        if y_true_struct != y_pred_struct:
+            # y_true is either flat or leaf
+            if not tree.is_nested(y_true):
+                y_true = [y_true]
+            y_true = tree.pack_sequence_as(y_pred, y_true)
+
         if not self.built:
             self.build(y_true, y_pred)
 
-        # Filter unused inputs.
-        y_true, y_pred = self._filter_unused_inputs(
-            y_true,
-            y_pred,
-            self.filtered_y_true_keys,
-            self.filtered_y_pred_keys,
-            self.inferred_output_names,
-        )
+        if self._y_pred_build_structure != y_pred_struct:
+            # the build have been made with flattened structure
+            y_pred = tree.flatten(y_pred)
+            y_true = tree.flatten(y_true)
 
-        # Flatten the inputs.
-        y_true = tree.flatten(y_true)
-        y_pred = tree.flatten(y_pred)
         if sample_weight is not None:
             sample_weight = tree.flatten(sample_weight)
-            # For multi-outputs, repeat sample weights for n outputs.
-            if len(sample_weight) < len(y_true):
-                sample_weight = [sample_weight[0] for _ in range(len(y_true))]
         else:
-            sample_weight = [None for _ in y_true]
+            sample_weight = [None for _ in self.flat_losses]
 
         # We need to add a dummy `None` if the model has only a single output.
         metrics = [None] if len(self.metrics) == 0 else self.metrics
 
         # Iterate all losses in flat form.
         loss_values = []
-        for loss_fn, y_t, y_p, loss_weight, sample_weight, metric in zip(
-            self.flat_losses,
-            y_true,
-            y_pred,
-            self.flat_loss_weights,
-            sample_weight,
-            metrics,
+
+        for (accessor, loss_fn), loss_weight, sample_weight, metric in zip(
+            self.flat_losses, self.flat_loss_weights, sample_weight, metrics
         ):
+            y_t, y_p = accessor(y_true), accessor(y_pred)
+
             if loss_fn:
                 value = ops.cast(
                     loss_fn(y_t, y_p, sample_weight), dtype=self.dtype
@@ -666,6 +701,7 @@ class CompileLoss(losses_module.Loss):
                     metric.update_state(
                         value, sample_weight=tree.flatten(y_p)[0].shape[0]
                     )
+
         if loss_values:
             total_loss = sum(loss_values)
             return total_loss

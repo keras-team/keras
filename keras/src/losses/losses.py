@@ -6,6 +6,7 @@ from keras.src.api_export import keras_export
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.saving import serialization_lib
+from keras.src.utils.module_utils import optree
 from keras.src.utils.numerical_utils import normalize
 
 
@@ -23,7 +24,9 @@ class LossFunctionWrapper(Loss):
         self._fn_kwargs = kwargs
 
     def call(self, y_true, y_pred):
-        y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
+        y_true, y_pred = optree.tree_transpose_map(
+            squeeze_or_expand_to_same_rank, y_true, y_pred
+        )
         return self.fn(y_true, y_pred, **self._fn_kwargs)
 
     def get_config(self):
