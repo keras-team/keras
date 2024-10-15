@@ -983,7 +983,7 @@ class ModelTest(testing.TestCase):
             flat_y_pred, flat_y_true = tree.flatten(y_pred), tree.flatten(
                 y_true
             )
-            diff = ops.convert_to_tensor(0, dtype=flat_y_pred[0].dtype)
+            diff = 0
             for y_p, y_t in zip(flat_y_pred, flat_y_true):
                 diff += losses.mean_absolute_error(y_t, y_p)
             return diff
