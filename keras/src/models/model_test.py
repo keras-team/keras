@@ -7,7 +7,6 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
-from keras.src import ops
 from keras.src import testing
 from keras.src import tree
 from keras.src.layers.core.input_layer import Input
