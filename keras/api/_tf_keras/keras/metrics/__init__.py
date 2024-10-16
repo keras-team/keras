@@ -51,6 +51,16 @@ from keras.src.metrics.confusion_metrics import SensitivityAtSpecificity
 from keras.src.metrics.confusion_metrics import SpecificityAtSensitivity
 from keras.src.metrics.confusion_metrics import TrueNegatives
 from keras.src.metrics.confusion_metrics import TruePositives
+from keras.src.metrics.correlation_metrics import (
+    ConcordanceCorrelationCoefficient,
+)
+from keras.src.metrics.correlation_metrics import PearsonCorrelationCoefficient
+from keras.src.metrics.correlation_metrics import (
+    concordance_correlation_coefficient,
+)
+from keras.src.metrics.correlation_metrics import (
+    pearson_correlation_coefficient,
+)
 from keras.src.metrics.f_score_metrics import F1Score
 from keras.src.metrics.f_score_metrics import FBetaScore
 from keras.src.metrics.hinge_metrics import CategoricalHinge
