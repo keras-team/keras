@@ -421,7 +421,7 @@ class TestTensorBoardV2(testing.TestCase):
         model.compile(
             optimizer="adam", loss=losses.BinaryCrossentropy(from_logits=True)
         )
-        x, y = np.ones((10, 10)), np.ones((10, 10, 1))
+        x, y = np.ones((10, 10)), np.ones((10, 10))
         logdir, _, _ = self._get_log_dirs()
         tb_cbk = callbacks.TensorBoard(
             logdir,

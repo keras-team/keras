@@ -2,6 +2,7 @@ import warnings
 
 from keras.src import backend
 from keras.src import ops
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
@@ -23,6 +24,11 @@ class LossFunctionWrapper(Loss):
         self._fn_kwargs = kwargs
 
     def call(self, y_true, y_pred):
+        y_true_y_pred = tree.map_structure(
+            squeeze_or_expand_to_same_rank, y_true, y_pred
+        )
+        y_true = tree.map_structure_up_to(y_true, lambda x: x[0], y_true_y_pred)
+        y_pred = tree.map_structure_up_to(y_pred, lambda x: x[1], y_true_y_pred)
         return self.fn(y_true, y_pred, **self._fn_kwargs)
 
     def get_config(self):
