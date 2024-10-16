@@ -113,9 +113,34 @@ class Resizing(BaseImagePreprocessingLayer):
         return labels
 
     def transform_bounding_boxes(
-        self, bounding_boxes, transformation, training=True
+        self,
+        bounding_boxes,
+        orig_width,
+        orig_height,
+        transformation,
+        training=True,
     ):
-        raise NotImplementedError
+        if "rel" in self.bounding_box_format:
+            return bounding_boxes
+
+        if self.bounding_box_format == "yxyx":
+            bounding_boxes["boxes"] = self._transform_yxyx(
+                bounding_boxes["boxes"],
+                orig_height=orig_height,
+                orig_width=orig_width,
+            )
+
+        return bounding_boxes
+
+    def _transform_yxyx(self, boxes, orig_height, orig_width):
+        boxes_ymin = boxes[..., 0] * (self.height / orig_height)
+        boxes_xmin = boxes[..., 1] * (self.width / orig_width)
+        boxes_ymax = boxes[..., 2] * (self.height / orig_height)
+        boxes_xmax = boxes[..., 3] * (self.width / orig_width)
+
+        return self.backend.numpy.stack(
+            [boxes_ymin, boxes_xmin, boxes_ymax, boxes_xmax]
+        )
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
