@@ -92,6 +92,67 @@ def concordance_correlation_coefficient(y_true, y_pred, axis=-1):
     return ops.mean(2 * covar / (norm + backend.epsilon()), axis=axis)
 
 
+@keras_export("keras.metrics.PearsonCorrelationCoefficient")
+class PearsonCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
+    """Calculates the Pearson Correlation Coefficient (PCC).
+
+    PCC measures the linear relationship between the true values (`y_true`) and
+    the predicted values (`y_pred`). The coefficient ranges from -1 to 1, where
+    a value of 1 implies a perfect positive linear correlation, 0 indicates no
+    linear correlation, and -1 indicates a perfect negative linear correlation.
+
+    This metric is widely used in regression tasks where the strength of the
+    linear relationship between predictions and true labels is an
+    important evaluation criterion.
+
+    Args:
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+        axis: (Optional) integer or tuple of integers of the axis/axes along
+            which to compute the metric. Defaults to `-1`.
+
+    Example:
+
+    >>> pcc = keras.metrics.PearsonCorrelationCoefficient(axis=-1)
+    >>> y_true = [[0, 1, 0.5], [1, 1, 0.2]]
+    >>> y_pred = [[0.1, 0.9, 0.5], [1, 0.9, 0.2]]
+    >>> pcc.update_state(y_true, y_pred)
+    >>> pcc.result()
+    0.9966996338993913
+
+    Usage with `compile()` API:
+
+    ```python
+    model.compile(optimizer='sgd',
+                  loss='mean_squared_error',
+                  metrics=[keras.metrics.PearsonCorrelationCoefficient()])
+    ```
+    """
+
+    def __init__(
+        self,
+        name="pearson_correlation_coefficient",
+        dtype=None,
+        axis=-1,
+    ):
+        super().__init__(
+            fn=pearson_correlation_coefficient,
+            name=name,
+            dtype=dtype,
+            axis=axis,
+        )
+        self.axis = axis
+        # Metric should be maximized during optimization.
+        self._direction = "up"
+
+    def get_config(self):
+        return {
+            "name": self.name,
+            "dtype": self.dtype,
+            "axis": self.axis,
+        }
+
+
 @keras_export("keras.metrics.ConcordanceCorrelationCoefficient")
 class ConcordanceCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
     """Calculates the Concordance Correlation Coefficient (CCC).
@@ -138,67 +199,6 @@ class ConcordanceCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
     ):
         super().__init__(
             fn=concordance_correlation_coefficient,
-            name=name,
-            dtype=dtype,
-            axis=axis,
-        )
-        self.axis = axis
-        # Metric should be maximized during optimization.
-        self._direction = "up"
-
-    def get_config(self):
-        return {
-            "name": self.name,
-            "dtype": self.dtype,
-            "axis": self.axis,
-        }
-
-
-@keras_export("keras.metrics.PearsonCorrelationCoefficient")
-class PearsonCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
-    """Calculates the Pearson Correlation Coefficient (PCC).
-
-    PCC measures the linear relationship between the true values (`y_true`) and
-    the predicted values (`y_pred`). The coefficient ranges from -1 to 1, where
-    a value of 1 implies a perfect positive linear correlation, 0 indicates no
-    linear correlation, and -1 indicates a perfect negative linear correlation.
-
-    This metric is widely used in regression tasks where the strength of the
-    linear relationship between predictions and true labels is an
-    important evaluation criterion.
-
-    Args:
-        name: (Optional) string name of the metric instance.
-        dtype: (Optional) data type of the metric result.
-        axis: (Optional) integer or tuple of integers of the axis/axes along
-            which to compute the metric. Defaults to `-1`.
-
-    Example:
-
-    >>> pcc = keras.metrics.PearsonCorrelationCoefficient(axis=-1)
-    >>> y_true = [[0, 1, 0.5], [1, 1, 0.2]]
-    >>> y_pred = [[0.1, 0.9, 0.5], [1, 0.9, 0.2]]
-    >>> pcc.update_state(y_true, y_pred)
-    >>> pcc.result()
-    0.9966996338993913
-
-    Usage with `compile()` API:
-
-    ```python
-    model.compile(optimizer='sgd',
-                  loss='mean_squared_error',
-                  metrics=[keras.metrics.PearsonCorrelationCoefficient()])
-    ```
-    """
-
-    def __init__(
-        self,
-        name="pearson_correlation_coefficient",
-        dtype=None,
-        axis=-1,
-    ):
-        super().__init__(
-            fn=pearson_correlation_coefficient,
             name=name,
             dtype=dtype,
             axis=axis,
