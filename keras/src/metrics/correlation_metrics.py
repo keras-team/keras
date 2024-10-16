@@ -5,8 +5,8 @@ from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.metrics import reduction_metrics
 
 
-@keras_export("keras.metrics.pearson_correlation_coefficient")
-def pearson_correlation_coefficient(y_true, y_pred, axis=-1):
+@keras_export("keras.metrics.pearson_correlation")
+def pearson_correlation(y_true, y_pred, axis=-1):
     """Computes the Pearson coefficient between labels and predictions.
 
     Formula:
@@ -27,7 +27,7 @@ def pearson_correlation_coefficient(y_true, y_pred, axis=-1):
 
     >>> y_true = [[0, 1, 0.5], [1, 1, 0.2]]
     >>> y_pred = [[0.1, 0.9, 0.5], [1, 0.9, 0.2]]
-    >>> loss = keras.losses.concordance_correlation_coefficient(
+    >>> loss = keras.losses.concordance_correlation(
     ...     y_true, y_pred, axis=-1
     ... ).numpy()
     [1.         0.99339927]
@@ -45,8 +45,8 @@ def pearson_correlation_coefficient(y_true, y_pred, axis=-1):
     return ops.mean(y_true_norm * y_pred_norm, axis=axis)
 
 
-@keras_export("keras.metrics.concordance_correlation_coefficient")
-def concordance_correlation_coefficient(y_true, y_pred, axis=-1):
+@keras_export("keras.metrics.concordance_correlation")
+def concordance_correlation(y_true, y_pred, axis=-1):
     """Computes the Concordance coefficient between labels and predictions.
 
     Formula:
@@ -71,7 +71,7 @@ def concordance_correlation_coefficient(y_true, y_pred, axis=-1):
 
     >>> y_true = [[0, 1, 0.5], [1, 1, 0.2]]
     >>> y_pred = [[0.1, 0.9, 0.5], [1, 0.9, 0.2]]
-    >>> loss = keras.losses.concordance_correlation_coefficient(
+    >>> loss = keras.losses.concordance_correlation(
     ...     y_true, y_pred, axis=-1
     ... ).numpy()
     [0.97560976 0.98765432]
@@ -92,8 +92,8 @@ def concordance_correlation_coefficient(y_true, y_pred, axis=-1):
     return ops.mean(2 * covar / (norm + backend.epsilon()), axis=axis)
 
 
-@keras_export("keras.metrics.PearsonCorrelationCoefficient")
-class PearsonCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
+@keras_export("keras.metrics.PearsonCorrelation")
+class PearsonCorrelation(reduction_metrics.MeanMetricWrapper):
     """Calculates the Pearson Correlation Coefficient (PCC).
 
     PCC measures the linear relationship between the true values (`y_true`) and
@@ -113,7 +113,7 @@ class PearsonCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
 
     Example:
 
-    >>> pcc = keras.metrics.PearsonCorrelationCoefficient(axis=-1)
+    >>> pcc = keras.metrics.PearsonCorrelation(axis=-1)
     >>> y_true = [[0, 1, 0.5], [1, 1, 0.2]]
     >>> y_pred = [[0.1, 0.9, 0.5], [1, 0.9, 0.2]]
     >>> pcc.update_state(y_true, y_pred)
@@ -125,18 +125,18 @@ class PearsonCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
     ```python
     model.compile(optimizer='sgd',
                   loss='mean_squared_error',
-                  metrics=[keras.metrics.PearsonCorrelationCoefficient()])
+                  metrics=[keras.metrics.PearsonCorrelation()])
     ```
     """
 
     def __init__(
         self,
-        name="pearson_correlation_coefficient",
+        name="pearson_correlation",
         dtype=None,
         axis=-1,
     ):
         super().__init__(
-            fn=pearson_correlation_coefficient,
+            fn=pearson_correlation,
             name=name,
             dtype=dtype,
             axis=axis,
@@ -153,8 +153,8 @@ class PearsonCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
         }
 
 
-@keras_export("keras.metrics.ConcordanceCorrelationCoefficient")
-class ConcordanceCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
+@keras_export("keras.metrics.ConcordanceCorrelation")
+class ConcordanceCorrelation(reduction_metrics.MeanMetricWrapper):
     """Calculates the Concordance Correlation Coefficient (CCC).
 
     CCC evaluates the agreement between true values (`y_true`) and predicted
@@ -175,7 +175,7 @@ class ConcordanceCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
 
     Example:
 
-    >>> ccc = keras.metrics.ConcordanceCorrelationCoefficient(axis=-1)
+    >>> ccc = keras.metrics.ConcordanceCorrelation(axis=-1)
     >>> y_true = [[0, 1, 0.5], [1, 1, 0.2]]
     >>> y_pred = [[0.1, 0.9, 0.5], [1, 0.9, 0.2]]
     >>> ccc.update_state(y_true, y_pred)
@@ -187,18 +187,18 @@ class ConcordanceCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
     ```python
     model.compile(optimizer='sgd',
                   loss='mean_squared_error',
-                  metrics=[keras.metrics.ConcordanceCorrelationCoefficient()])
+                  metrics=[keras.metrics.ConcordanceCorrelation()])
     ```
     """
 
     def __init__(
         self,
-        name="concordance_correlation_coefficient",
+        name="concordance_correlation",
         dtype=None,
         axis=-1,
     ):
         super().__init__(
-            fn=concordance_correlation_coefficient,
+            fn=concordance_correlation,
             name=name,
             dtype=dtype,
             axis=axis,
