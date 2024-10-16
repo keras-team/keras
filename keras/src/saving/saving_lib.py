@@ -3,6 +3,7 @@
 import datetime
 import io
 import json
+import os.path
 import pathlib
 import tempfile
 import warnings
@@ -521,6 +522,10 @@ def save_weights_only(model, filepath, objects_to_skip=None):
             "Invalid `filepath` argument: expected a `.weights.h5` extension. "
             f"Received: filepath={filepath}"
         )
+
+    if file_utils.is_remote_path(filepath):
+        filepath = file_utils.get_file(model, filepath, cache_subdir="models")
+
     weights_store = H5IOStore(filepath, mode="w")
     if objects_to_skip is not None:
         visited_saveables = set(id(o) for o in objects_to_skip)
@@ -539,14 +544,14 @@ def save_weights_only(model, filepath, objects_to_skip=None):
 def load_weights_only(
     model, filepath, skip_mismatch=False, objects_to_skip=None
 ):
-    """Load the weights of a model from a filepath (.keras or .weights.h5).
-
-    Note: only supports h5 for now.
-    """
+    """Load the weights of a model from a filepath (.keras or .weights.h5)."""
     archive = None
     filepath = str(filepath)
+
+    if file_utils.is_remote_path(filepath):
+        filepath = file_utils.get_file(model, filepath, cache_subdir="models")
+
     if filepath.endswith(".weights.h5"):
-        # TODO: download file if h5 filepath is remote
         weights_store = H5IOStore(filepath, mode="r")
     elif filepath.endswith(".keras"):
         archive = zipfile.ZipFile(filepath, "r")
