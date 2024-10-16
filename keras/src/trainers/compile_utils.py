@@ -1,8 +1,10 @@
+from collections import namedtuple
+
 from keras.src import losses as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import tree
-from keras.src.utils.module_utils import optree
+from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.utils.naming import get_object_name
 from keras.src.utils.tracking import Tracker
 
@@ -407,13 +409,14 @@ class CompileMetrics(metrics_module.Metric):
 
 
 class CompileLoss(losses_module.Loss):
+    Loss = namedtuple("Loss", ["path", "loss", "loss_weights", "name"])
+
     def __init__(
         self,
         loss,
         loss_weights=None,
         reduction="sum_over_batch_size",
         output_names=None,
-        path_separator="/",
     ):
         if loss_weights and not isinstance(
             loss_weights, (list, tuple, dict, float)
@@ -425,14 +428,12 @@ class CompileLoss(losses_module.Loss):
                 f"Received instead: loss_weights={loss_weights} "
                 f"of type {type(loss_weights)}"
             )
+
         self._user_loss = loss
         self._user_loss_weights = loss_weights
         self.built = False
         self.output_names = output_names
         super().__init__(name="compile_loss", reduction=reduction)
-
-        # Inferred by `y_pred` and `output_names`
-        self.inferred_output_names = None
 
         # Use `Tracker` to track metrics for individual losses.
         self._metrics = []
@@ -444,8 +445,8 @@ class CompileLoss(losses_module.Loss):
                 )
             }
         )
-        self._y_pred_compile_structure = None
-        self._path_separator = path_separator
+        self._flat_losses = None
+        self._y_pred_build_structure = None
 
     @property
     def metrics(self):
@@ -458,208 +459,214 @@ class CompileLoss(losses_module.Loss):
             vars.extend(m.variables)
         return vars
 
+    def _build_nested(self, y_true, y_pred, loss, output_names, current_path):
+        flat_y_pred = tree.flatten(y_pred)
+        if not tree.is_nested(loss):
+            _loss = loss.loss
+            if _loss is None:
+                return
+            loss_weight = loss.weight
+            resolved_loss = get_loss(_loss, y_true, y_pred)
+            name_path = current_path
+            if not tree.is_nested(output_names):
+                if output_names is not None:
+                    output_name = output_names
+                else:
+                    output_name = resolved_loss.name
+                if len(name_path) == 0:
+                    name_path = (output_name,)
+                elif isinstance(name_path[-1], int):
+                    name_path = name_path[:-1] + (output_name,)
+            name = "/".join([str(path) for path in name_path])
+            if name == "":
+                if isinstance(output_names, dict):
+                    flat_output_names = list(output_names.keys())
+                else:
+                    flat_output_names = tree.flatten(output_names)
+
+                name = "_".join(flat_output_names[:4])
+                if len(flat_output_names) > 4:  # prevent too long naming string
+                    name += "..."
+            self._flat_losses.append(
+                CompileLoss.Loss(current_path, resolved_loss, loss_weight, name)
+            )
+            return
+        elif (
+            issubclass(type(loss), (list, tuple))
+            and all([not tree.is_nested(_loss) for _loss in loss])
+            and len(loss) == len(flat_y_pred)
+        ):
+            loss = tree.pack_sequence_as(y_pred, loss)
+        elif issubclass(type(loss), (list, tuple)) and not isinstance(
+            y_pred, type(loss)
+        ):
+            for _loss in loss:
+                self._build_nested(
+                    y_true,
+                    y_pred,
+                    _loss,
+                    output_names,
+                    current_path,
+                )
+            return
+
+        if not tree.is_nested(loss):
+            return self._build_nested(
+                y_true, y_pred, loss, output_names, current_path
+            )
+
+        # At this point loss should match the structure of y_pred and y_true
+        # We assume y_pred and y_true have the same structure and this
+        # have been already asserted.
+
+        if not isinstance(loss, type(y_pred)):
+            raise KeyError(
+                f"The path: {current_path} in "
+                "the `loss` argument, can't be found in "
+                "the model's output (`y_pred`)."
+            )
+
+        # shallow traverse the loss config
+        if isinstance(loss, dict):
+            iterator = loss.items()
+
+            def key_check_fn(key, objs):
+                return all([key in obj for obj in objs])
+
+        elif issubclass(type(loss), (list, tuple)):
+            iterator = enumerate(loss)
+
+            def key_check_fn(key, objs):
+                return all([key < len(obj) for obj in objs])
+
+        else:
+            raise TypeError(
+                f"Unsupported type {type(loss)} "
+                f"in the `loss` configuration."
+            )
+
+        for key, _loss in iterator:
+            if not key_check_fn(key, (y_true, y_pred)):
+                raise KeyError(
+                    f"The path: {current_path + (key,)} in "
+                    "the `loss` argument, can't be found in "
+                    "the model's output (`y_pred`)."
+                )
+
+            self._build_nested(
+                y_true[key],
+                y_pred[key],
+                _loss,
+                output_names[key],
+                current_path + (key,),
+            )
+
     def build(self, y_true, y_pred):
         loss = self._user_loss
         loss_weights = self._user_loss_weights
-        output_names = self._get_y_pred_output_names(y_pred)
-        inferred_output_names = output_names or self.output_names
+        flat_output_names = self.output_names
 
-        if isinstance(loss, dict) and (
-            not tree.is_nested(y_pred) or isinstance(y_pred, (list, tuple))
-        ):
-            # loss maps output_names
-            loss_keys = set(loss.keys())
-            if inferred_output_names is not None:
-                y_pred_keys = set(inferred_output_names)
-                if len(loss_keys - y_pred_keys) > 0:
-                    raise KeyError(
-                        f"There are keys: {list(loss_keys - y_pred_keys)} in "
-                        "the `loss` argument, but they can't be found in "
-                        "the model's output (`y_pred`)."
+        # Pytree leaf container
+        class WeightedLoss:
+            def __init__(self, loss, weight):
+                self.loss = loss
+                self.weight = weight
+
+        # pack the losses and the weights together
+        if loss_weights is not None:
+            try:
+                tree.assert_same_structure(
+                    loss, loss_weights, check_types=False
+                )
+            except ValueError:
+                flat_loss_weights = tree.flatten(loss_weights)
+                if len(tree.flatten(loss)) != len(flat_loss_weights):
+                    raise ValueError(
+                        f"`loss_weights` must match the number of losses, "
+                        f"got {len(tree.flatten(loss))} losses "
+                        f"and {len(loss_weights)} weigths."
                     )
+                loss_weights = tree.pack_sequence_as(loss, flat_loss_weights)
+            loss = tree.map_structure(
+                lambda _loss, _weight: WeightedLoss(_loss, _weight),
+                loss,
+                loss_weights,
+            )
+        else:
+            loss = tree.map_structure(
+                lambda _loss: WeightedLoss(_loss, None), loss
+            )
 
-            loss = tree.flatten(loss)
+        self._flat_losses = []
+
+        if (
+            isinstance(loss, dict)
+            and issubclass(type(y_pred), (list, tuple))
+            and set(loss.keys()) == set(flat_output_names)
+            and len(y_pred) == len(flat_output_names)
+        ):
+            y_pred = {name: y_p for name, y_p in zip(flat_output_names, y_pred)}
+            y_true = {name: y_t for name, y_t in zip(flat_output_names, y_true)}
+        if (
+            isinstance(loss, dict)
+            and not tree.is_nested(y_pred)
+            and set(loss.keys()) == set(flat_output_names)
+            and len(flat_output_names) == 1
+        ):
+            y_pred = {
+                name: y_p for name, y_p in zip(flat_output_names, [y_pred])
+            }
+            y_true = {
+                name: y_t for name, y_t in zip(flat_output_names, [y_true])
+            }
+
+        try:
+            output_names = tree.pack_sequence_as(y_pred, flat_output_names)
+        except:
+            inferred_flat_output_names = self._get_y_pred_output_names(y_pred)
+            output_names = tree.pack_sequence_as(
+                y_pred, inferred_flat_output_names
+            )
 
         if not tree.is_nested(loss):
             loss = tree.map_structure(lambda x: loss, y_pred)
 
-        if isinstance(loss, dict):
-            is_loss_mapping = True
-            loss_keys = set(loss.keys())
-            accessors = optree.tree_accessors(y_pred, namespace="keras")
-            paths_list = []
-
-            def path_fn(a):
-                path = self._path_separator.join([str(e.entry) for e in a])
-                path_field = self._path_separator.join(
-                    [
-                        e.field if hasattr(e, "field") else str(e.entry)
-                        for e in a
-                    ]
-                )
-                accessor_paths = {path, path_field}
-                paths_list.extend(accessor_paths)
-                return a, tuple(accessor_paths)
-
-            accessors_paths = [path_fn(a) for a in accessors]
-            sorted_paths = sorted(paths_list)
-            # check whether paths don't overlap with each other,
-            # may happen if the structure's fields contain
-            # the path separator.
-            for i in range(len(sorted_paths) - 1):
-                if sorted_paths[i + 1].startswith(sorted_paths[i]):
-                    raise KeyError(
-                        f"The model's output structure contains "
-                        f"the following ambiguous path: {sorted_paths[i]}."
-                    )
-            flat_losses = []
-            remaining_loss_paths = loss_keys.copy()
-
-            def fn(a, paths):
-                for key in remaining_loss_paths:
-                    for path in paths:
-                        if path.startswith(key):
-                            loss_accessor = optree.PyTreeAccessor(
-                                a[: len(key.split(self._path_separator))]
-                            )
-                            losses = tree.flatten(loss[key])
-                            flat_losses.extend(
-                                [(loss_accessor, _loss) for _loss in losses]
-                            )
-                            remaining_loss_paths.remove(key)
-                            break
-                    if key not in remaining_loss_paths:
-                        break
-
-            remaining_count = len(remaining_loss_paths)
-            while remaining_loss_paths:
-                [fn(a, paths) for a, paths in accessors_paths]
-                if remaining_count == len(remaining_loss_paths):
-                    raise KeyError(
-                        f"There are keys: {list(remaining_loss_paths)} in "
-                        "the `loss` argument, but they can't be found in "
-                        "the model's output (`y_pred`)."
-                    )
-                remaining_count = len(remaining_loss_paths)
-        else:
-            is_loss_mapping = False
-            loss = tree.flatten(loss)
-            accessors, _, _ = optree.tree_flatten_with_accessor(loss)
-            flat_losses = [(a, a(loss)) for a in accessors]
-            y_pred = tree.flatten(y_pred)
-            y_true = tree.flatten(y_true)
-            if len(y_true) != len(flat_losses):
-                raise ValueError(
-                    "For a model with multiple outputs, "
-                    "when providing the `loss` argument as a list, "
-                    "it should have as many entries as the model has outputs. "
-                    f"Received:\nloss={loss}\nof length {len(flat_losses)} "
-                    f"whereas the model has {len(y_pred)} outputs."
-                )
-
-        # Get the real loss instances.
-        flat_losses = [
-            (accessor, get_loss(identifier, accessor(y_true), accessor(y_pred)))
-            for accessor, identifier in flat_losses
-        ]
+        self._build_nested(y_true, y_pred, loss, output_names, ())
 
         # Add `Mean` metric to the tracker for each loss.
-        if len(flat_losses) > 1:
-            for accessor, _loss in flat_losses:
-                if _loss is not None:
-                    if is_loss_mapping:
-                        name = self._path_separator.join(
-                            [str(e) for e in accessor.path]
-                        )
-                    elif inferred_output_names is not None and len(
-                        inferred_output_names
-                    ) == len(flat_losses):
-                        name = accessor(inferred_output_names)
-                    else:
-                        name = _loss.name
-                    name += "_loss"
-                    self._tracker.add_to_store(
-                        "metrics", metrics_module.Mean(name=name)
-                    )
-
-        if loss_weights is None:
-            flat_loss_weights = [None] * len(flat_losses)
-        else:
-            flat_loss_weights = tree.flatten(loss_weights)
-            for loss_weight in flat_loss_weights:
-                if not isinstance(loss_weight, (int, float, type(None))):
-                    raise TypeError(
-                        "When providing the `loss_weights` argument, each "
-                        "element should be a Python int, float (the weighting "
-                        "coefficient corresponding to the loss for that "
-                        "output) or `None`."
-                        f"Received: loss_weights={loss_weights}"
-                    )
-            if len(flat_loss_weights) != len(flat_losses):
-                raise ValueError(
-                    "When providing the `loss_weights` argument, it should "
-                    "have equal length of `loss` argument. "
-                    f"Received: loss_weights length={len(flat_loss_weights)}, "
-                    f"loss length={len(flat_losses)}"
+        if len(self._flat_losses) > 1:
+            for _loss in self._flat_losses:
+                name = _loss.name + "_loss"
+                self._tracker.add_to_store(
+                    "metrics", metrics_module.Mean(name=name)
                 )
 
-        self.flat_losses = flat_losses
-        self.flat_loss_weights = flat_loss_weights
-        self.inferred_output_names = inferred_output_names
-        self._y_pred_build_structure = optree.tree_structure(
-            y_pred, namespace="keras"
+        self._y_pred_build_structure = tree.map_structure(
+            lambda x: None, y_pred
         )
         self.built = True
 
     def _get_y_pred_output_names(self, y_pred):
-        if isinstance(y_pred, dict):
-            output_names = sorted(y_pred.keys())
+        flat_y_pred = tree.flatten(y_pred)
+        if all((isinstance(x, KerasTensor) for x in flat_y_pred)):
+            output_names = []
+            for tensor in flat_y_pred:
+                if hasattr(tensor, "_keras_history"):
+                    output_names.append(tensor._keras_history.operation.name)
+                else:
+                    output_names.append(tensor.name)
         else:
-            y_pred = tree.flatten(y_pred)
-            if all(hasattr(x, "_keras_history") for x in y_pred):
-                output_names = [x._keras_history.operation.name for x in y_pred]
-            else:
-                output_names = None
+            output_names = [None] * len(flat_y_pred)
         return output_names
-
-    def _filter_unused_inputs(
-        self,
-        y_true,
-        y_pred,
-        filtered_y_true_keys,
-        filtered_y_pred_keys,
-        output_names,
-    ):
-        if len(filtered_y_true_keys) > 0 and isinstance(y_true, dict):
-            # Modifying data in-place can cause errors in TF's graph.
-            filtered_y_true = {}
-            for k, v in y_true.items():
-                if k not in filtered_y_true_keys:
-                    filtered_y_true[k] = v
-            y_true = filtered_y_true
-        if len(filtered_y_pred_keys) > 0:
-            if isinstance(y_pred, dict):
-                # Modifying data in-place can cause errors in TF's graph.
-                filtered_y_pred = {}
-                for k, v in y_pred.items():
-                    if k not in filtered_y_pred_keys:
-                        filtered_y_pred[k] = v
-                y_pred = filtered_y_pred
-            elif output_names is not None:
-                y_pred = []
-                for x, output_name in zip(tree.flatten(y_pred), output_names):
-                    if output_name not in filtered_y_pred_keys:
-                        y_pred.append(x)
-        return y_true, y_pred
 
     def __call__(self, y_true, y_pred, sample_weight=None):
         with ops.name_scope(self.name):
             return self.call(y_true, y_pred, sample_weight)
 
     def call(self, y_true, y_pred, sample_weight=None):
-        y_pred_struct = optree.tree_structure(y_pred, namespace="keras")
-        y_true_struct = optree.tree_structure(y_true, namespace="keras")
-        if y_true_struct != y_pred_struct:
+        try:
+            tree.assert_same_structure(y_pred, y_true, check_types=False)
+        except ValueError:
             # y_true is either flat or leaf
             if not tree.is_nested(y_true):
                 y_true = [y_true]
@@ -668,15 +675,17 @@ class CompileLoss(losses_module.Loss):
         if not self.built:
             self.build(y_true, y_pred)
 
-        if self._y_pred_build_structure != y_pred_struct:
-            # the build have been made with flattened structure
-            y_pred = tree.flatten(y_pred)
-            y_true = tree.flatten(y_true)
-
-        if sample_weight is not None:
-            sample_weight = tree.flatten(sample_weight)
-        else:
-            sample_weight = [None for _ in self.flat_losses]
+        try:
+            tree.assert_same_structure(
+                self._y_pred_build_structure, y_pred, check_types=False
+            )
+        except ValueError:
+            y_pred = tree.pack_sequence_as(
+                self._y_pred_build_structure, tree.flatten(y_pred)
+            )
+            y_true = tree.pack_sequence_as(
+                self._y_pred_build_structure, tree.flatten(y_true)
+            )
 
         # We need to add a dummy `None` if the model has only a single output.
         metrics = [None] if len(self.metrics) == 0 else self.metrics
@@ -684,23 +693,30 @@ class CompileLoss(losses_module.Loss):
         # Iterate all losses in flat form.
         loss_values = []
 
-        for (accessor, loss_fn), loss_weight, sample_weight, metric in zip(
-            self.flat_losses, self.flat_loss_weights, sample_weight, metrics
-        ):
-            y_t, y_p = accessor(y_true), accessor(y_pred)
+        def resolve_path(path, object):
+            for _path in path:
+                object = object[_path]
+            return object
 
-            if loss_fn:
-                value = ops.cast(
-                    loss_fn(y_t, y_p, sample_weight), dtype=self.dtype
+        for (path, loss_fn, loss_weight, name), metric in zip(
+            self._flat_losses, metrics
+        ):
+            y_t, y_p = resolve_path(path, y_true), resolve_path(path, y_pred)
+            if sample_weight is not None and tree.is_nested(sample_weight):
+                _sample_weight = resolve_path(path, sample_weight)
+            else:
+                _sample_weight = sample_weight
+            value = ops.cast(
+                loss_fn(y_t, y_p, _sample_weight), dtype=self.dtype
+            )
+            if loss_weight is not None:
+                value = ops.multiply(value, loss_weight)
+            loss_values.append(value)
+            # Record individual losses.
+            if metric:
+                metric.update_state(
+                    value, sample_weight=tree.flatten(y_p)[0].shape[0]
                 )
-                if loss_weight is not None:
-                    value = ops.multiply(value, loss_weight)
-                loss_values.append(value)
-                # Record individual losses.
-                if metric:
-                    metric.update_state(
-                        value, sample_weight=tree.flatten(y_p)[0].shape[0]
-                    )
 
         if loss_values:
             total_loss = sum(loss_values)
