@@ -64,7 +64,12 @@ class BaseImagePreprocessingLayer(TFDataLayer):
         raise NotImplementedError()
 
     def transform_bounding_boxes(
-        self, bounding_boxes, transformation, training=True
+        self,
+        bounding_boxes,
+        orig_height,
+        orig_width,
+        transformation,
+        training=True,
     ):
         raise NotImplementedError()
 
@@ -98,8 +103,8 @@ class BaseImagePreprocessingLayer(TFDataLayer):
         bounding_boxes = self.backend.numpy.expand_dims(bounding_box, axis=0)
         outputs = self.transform_bounding_boxes(
             bounding_boxes,
-            orig_width,
             orig_height,
+            orig_width,
             transformation=transformation,
             training=training,
         )
@@ -153,7 +158,9 @@ class BaseImagePreprocessingLayer(TFDataLayer):
                         "`bounding_box_format='xyxy'`."
                     )
                 bounding_boxes = densify_bounding_boxes(
-                    data["bounding_boxes"], backend=self.backend
+                    data["bounding_boxes"],
+                    is_batched=is_batched,
+                    backend=self.backend,
                 )
                 if "orig_width" not in data:
                     raise ValueError(
@@ -176,8 +183,8 @@ class BaseImagePreprocessingLayer(TFDataLayer):
                     )
                     data["bounding_boxes"] = self.transform_bounding_boxes(
                         bounding_boxes,
-                        orig_width,
                         orig_height,
+                        orig_width,
                         transformation=transformation,
                         training=training,
                     )
@@ -190,8 +197,8 @@ class BaseImagePreprocessingLayer(TFDataLayer):
                     )
                     data["bounding_boxes"] = self.transform_single_bounding_box(
                         bounding_boxes,
-                        orig_width,
                         orig_height,
+                        orig_width,
                         transformation=transformation,
                         training=training,
                     )

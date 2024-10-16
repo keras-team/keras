@@ -7,7 +7,7 @@ from keras.src.utils import backend_utils
 
 @keras_export("keras.utils.bounding_boxes.convert_format")
 def convert_format(
-    boxes, source, target, images=None, image_shape=None, dtype="float32"
+    boxes, source, target, height=None, width=None, dtype="float32"
 ):
     # Switch to tensorflow backend if we are in tf.data pipe
     backend = "tensorflow" if backend_utils.in_tf_graph() else None
@@ -17,8 +17,8 @@ def convert_format(
         boxes=boxes,
         source=source,
         target=target,
-        images=images,
-        image_shape=image_shape,
+        height=height,
+        width=width,
         dtype=dtype,
     )
     # Switch back to original backend
