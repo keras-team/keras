@@ -3,7 +3,6 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.metrics import reduction_metrics
-from keras.src.utils.numerical_utils import normalize
 
 
 @keras_export("keras.metrics.pearson_correlation_coefficient")
@@ -95,7 +94,7 @@ def concordance_correlation_coefficient(y_true, y_pred, axis=-1):
 
 @keras_export("keras.metrics.ConcordanceCorrelationCoefficient")
 class ConcordanceCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
-    """Calculates the Concordance Correlation Coefficient (CCC) between true and predicted labels.
+    """Calculates the Concordance Correlation Coefficient (CCC).
 
     CCC evaluates the agreement between true values (`y_true`) and predicted
     values (`y_pred`) by considering both precision and accuracy. The
@@ -157,7 +156,7 @@ class ConcordanceCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
 
 @keras_export("keras.metrics.PearsonCorrelationCoefficient")
 class PearsonCorrelationCoefficient(reduction_metrics.MeanMetricWrapper):
-    """Calculates the Pearson Correlation Coefficient (PCC) between true and predicted labels.
+    """Calculates the Pearson Correlation Coefficient (PCC).
 
     PCC measures the linear relationship between the true values (`y_true`) and
     the predicted values (`y_pred`). The coefficient ranges from -1 to 1, where
