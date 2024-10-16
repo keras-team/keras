@@ -7,6 +7,20 @@ from keras.src import layers
 from keras.src import models
 from keras.src import testing
 
+'''
+        Unit Testing and Error Handling for SpectralNormalization
+
+Compares output shapes and the number of trainable vs. non-trainable
+weights.
+
+Raises error when 'power_iterations' <= 0 or when SpectralNormalization
+is applied to a non-kernel layer.
+
+Ensures proper application by verifying the normalization value.
+
+Integration testing. 
+'''
+
 
 class SpectralNormalizationTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
