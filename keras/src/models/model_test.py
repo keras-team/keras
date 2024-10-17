@@ -79,14 +79,6 @@ def _get_model_multi_outputs_struct_list_like(_type):
     return model
 
 
-def _get_model_multi_outputs_struct_long_list_like(_type):
-    x = Input(shape=(3,), name="x")
-    y1 = layers.Dense(1, name="y1", activation="sigmoid")(x)
-    y2 = layers.Dense(1, name="y2", activation="sigmoid")(x)
-    model = Model(x, _type([y1, y2, y1, y2, y1]))
-    return model
-
-
 def _get_model_multi_outputs_struct_namedtuple():
     Y = namedtuple("Y", ["y1", "y2"])
     x = Input(shape=(3,), name="x")
@@ -1127,72 +1119,6 @@ class ModelTest(testing.TestCase):
             ]
         )
         self.assertListEqual(hist_keys, ref_keys)
-
-    @parameterized.product(
-        _type=[tuple, list], other_type=[list, tuple], weighted=[False, True]
-    )
-    def test_functional_struct_outputs_long_struct_losses(
-        self, _type, other_type, weighted
-    ):
-        model = _get_model_multi_outputs_struct_long_list_like(_type)
-        self.assertIsInstance(model, Functional)
-        x = np.random.rand(8, 3)
-        y1 = np.random.rand(8, 1)
-        y2 = np.random.rand(8, 1)
-
-        y = _type([y1, y2, y1, y2, y1])
-
-        loss = other_type(
-            [
-                self.get_struct_loss(model.output),
-                _type(
-                    [
-                        self.get_struct_loss(model.output[0]),
-                        self.get_struct_loss(model.output[1]),
-                        None,
-                        None,
-                    ]
-                ),
-            ]
-        )
-
-        if weighted:
-            loss_weights = tree.map_structure(lambda _: np.random.rand(), loss)
-        else:
-            loss_weights = None
-
-        model.compile(
-            optimizer="sgd",
-            loss=loss,
-            loss_weights=loss_weights,
-        )
-        # Check dict outputs.
-        outputs = model.predict(x)
-        self.assertIsInstance(outputs, _type)
-        if _type is other_type:
-            with self.assertRaisesRegex(
-                ValueError, "don't have the same structure"
-            ):
-                model.fit(x, y, batch_size=2, epochs=1, verbose=0)
-        else:
-            # Fit the model to make sure compile_metrics are built
-            hist = model.fit(
-                x,
-                y,
-                batch_size=2,
-                epochs=1,
-                verbose=0,
-            )
-            hist_keys = sorted(hist.history.keys())
-            ref_keys = sorted(
-                [
-                    "loss",
-                    "y1_loss",
-                    "y2_loss",
-                    "y1_y2_y1_y2..._loss",
-                ]
-            )
-            self.assertListEqual(hist_keys, ref_keys)
 
     def test_functional_struct_outputs_namedtuple_struct_losses(self):
         model, Y = _get_model_multi_outputs_struct_namedtuple()

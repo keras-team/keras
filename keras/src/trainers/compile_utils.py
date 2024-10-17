@@ -483,10 +483,7 @@ class CompileLoss(losses_module.Loss):
                     flat_output_names = list(output_names.keys())
                 else:
                     flat_output_names = tree.flatten(output_names)
-
-                name = "_".join(flat_output_names[:4])
-                if len(flat_output_names) > 4:  # prevent too long naming string
-                    name += "..."
+                name = "_".join(flat_output_names)
             self._flat_losses.append(
                 CompileLoss.Loss(current_path, resolved_loss, loss_weight, name)
             )
