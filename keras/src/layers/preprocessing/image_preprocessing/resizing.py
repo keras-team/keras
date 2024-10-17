@@ -131,7 +131,7 @@ class Resizing(BaseImagePreprocessingLayer):
             )
 
         if self.bounding_box_format in ["xyxy", "xywh", "center_xywh"]:
-            bounding_boxes["boxes"] = self._transform_yxyx(
+            bounding_boxes["boxes"] = self._transform_xyxy(
                 bounding_boxes["boxes"],
                 orig_height=orig_height,
                 orig_width=orig_width,
