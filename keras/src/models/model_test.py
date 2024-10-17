@@ -1018,10 +1018,10 @@ class ModelTest(testing.TestCase):
         return loss_fn
 
     @parameterized.product(
-        _type=[tuple, list], anti_type=[list, tuple], weighted=[False, True]
+        _type=[tuple, list], other_type=[list, tuple], weighted=[False, True]
     )
     def test_functional_struct_outputs_struct_losses(
-        self, _type, anti_type, weighted
+        self, _type, other_type, weighted
     ):
         model = _get_model_multi_outputs_struct_list_like(_type)
         self.assertIsInstance(model, Functional)
@@ -1029,7 +1029,7 @@ class ModelTest(testing.TestCase):
         y1 = np.random.rand(8, 1)
         y2 = np.random.rand(8, 1)
         y = _type([y1, y2])
-        loss = anti_type(
+        loss = other_type(
             [
                 self.get_struct_loss(model.output),
                 _type(
@@ -1051,7 +1051,7 @@ class ModelTest(testing.TestCase):
             loss_weights=loss_weights,
         )
 
-        if _type is anti_type:
+        if _type is other_type:
             with self.assertRaisesRegex(
                 ValueError, "don't have the same structure"
             ):
@@ -1129,10 +1129,10 @@ class ModelTest(testing.TestCase):
         self.assertListEqual(hist_keys, ref_keys)
 
     @parameterized.product(
-        _type=[tuple, list], anti_type=[list, tuple], weighted=[False, True]
+        _type=[tuple, list], other_type=[list, tuple], weighted=[False, True]
     )
     def test_functional_struct_outputs_long_struct_losses(
-        self, _type, anti_type, weighted
+        self, _type, other_type, weighted
     ):
         model = _get_model_multi_outputs_struct_long_list_like(_type)
         self.assertIsInstance(model, Functional)
@@ -1142,7 +1142,7 @@ class ModelTest(testing.TestCase):
 
         y = _type([y1, y2, y1, y2, y1])
 
-        loss = anti_type(
+        loss = other_type(
             [
                 self.get_struct_loss(model.output),
                 _type(
@@ -1169,7 +1169,7 @@ class ModelTest(testing.TestCase):
         # Check dict outputs.
         outputs = model.predict(x)
         self.assertIsInstance(outputs, _type)
-        if _type is anti_type:
+        if _type is other_type:
             with self.assertRaisesRegex(
                 ValueError, "don't have the same structure"
             ):
