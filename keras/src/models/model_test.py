@@ -71,19 +71,19 @@ def _get_model_multi_outputs_dict():
     return model
 
 
-def _get_model_multi_outputs_struct_list_like(type):
+def _get_model_multi_outputs_struct_list_like(_type):
     x = Input(shape=(3,), name="x")
     y1 = layers.Dense(1, name="y1", activation="sigmoid")(x)
     y2 = layers.Dense(1, name="y2", activation="sigmoid")(x)
-    model = Model(x, type([y1, y2]))
+    model = Model(x, _type([y1, y2]))
     return model
 
 
-def _get_model_multi_outputs_struct_long_list_like(type):
+def _get_model_multi_outputs_struct_long_list_like(_type):
     x = Input(shape=(3,), name="x")
     y1 = layers.Dense(1, name="y1", activation="sigmoid")(x)
     y2 = layers.Dense(1, name="y2", activation="sigmoid")(x)
-    model = Model(x, type([y1, y2, y1, y2, y1]))
+    model = Model(x, _type([y1, y2, y1, y2, y1]))
     return model
 
 
@@ -1018,21 +1018,21 @@ class ModelTest(testing.TestCase):
         return loss_fn
 
     @parameterized.product(
-        type=[tuple, list], anti_type=[list, tuple], weighted=[False, True]
+        _type=[tuple, list], anti_type=[list, tuple], weighted=[False, True]
     )
     def test_functional_struct_outputs_struct_losses(
-        self, type, anti_type, weighted
+        self, _type, anti_type, weighted
     ):
-        model = _get_model_multi_outputs_struct_list_like(type)
+        model = _get_model_multi_outputs_struct_list_like(_type)
         self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.rand(8, 1)
-        y = type([y1, y2])
+        y = _type([y1, y2])
         loss = anti_type(
             [
                 self.get_struct_loss(model.output),
-                type(
+                _type(
                     [
                         self.get_struct_loss(model.output[0]),
                         self.get_struct_loss(model.output[1]),
@@ -1051,7 +1051,7 @@ class ModelTest(testing.TestCase):
             loss_weights=loss_weights,
         )
 
-        if type is anti_type:
+        if _type is anti_type:
             with self.assertRaisesRegex(
                 ValueError, "don't have the same structure"
             ):
@@ -1059,7 +1059,7 @@ class ModelTest(testing.TestCase):
         else:
             # Check dict outputs.
             outputs = model.predict(x)
-            self.assertIsInstance(outputs, type)
+            self.assertIsInstance(outputs, _type)
             # Fit the model to make sure compile_metrics are built
             hist = model.fit(
                 x,
@@ -1129,23 +1129,23 @@ class ModelTest(testing.TestCase):
         self.assertListEqual(hist_keys, ref_keys)
 
     @parameterized.product(
-        type=[tuple, list], anti_type=[list, tuple], weighted=[False, True]
+        _type=[tuple, list], anti_type=[list, tuple], weighted=[False, True]
     )
     def test_functional_struct_outputs_long_struct_losses(
-        self, type, anti_type, weighted
+        self, _type, anti_type, weighted
     ):
-        model = _get_model_multi_outputs_struct_long_list_like(type)
+        model = _get_model_multi_outputs_struct_long_list_like(_type)
         self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.rand(8, 1)
 
-        y = type([y1, y2, y1, y2, y1])
+        y = _type([y1, y2, y1, y2, y1])
 
         loss = anti_type(
             [
                 self.get_struct_loss(model.output),
-                type(
+                _type(
                     [
                         self.get_struct_loss(model.output[0]),
                         self.get_struct_loss(model.output[1]),
@@ -1168,8 +1168,8 @@ class ModelTest(testing.TestCase):
         )
         # Check dict outputs.
         outputs = model.predict(x)
-        self.assertIsInstance(outputs, type)
-        if type is anti_type:
+        self.assertIsInstance(outputs, _type)
+        if _type is anti_type:
             with self.assertRaisesRegex(
                 ValueError, "don't have the same structure"
             ):

@@ -607,7 +607,7 @@ class CompileLoss(losses_module.Loss):
         ):
             y_pred = {name: y_p for name, y_p in zip(flat_output_names, y_pred)}
             y_true = {name: y_t for name, y_t in zip(flat_output_names, y_true)}
-        if (
+        elif (
             isinstance(loss, dict)
             and not tree.is_nested(y_pred)
             and set(loss.keys()) == set(flat_output_names)
