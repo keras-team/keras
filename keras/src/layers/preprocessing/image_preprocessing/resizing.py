@@ -113,9 +113,61 @@ class Resizing(BaseImagePreprocessingLayer):
         return labels
 
     def transform_bounding_boxes(
-        self, bounding_boxes, transformation, training=True
+        self,
+        bounding_boxes,
+        orig_height,
+        orig_width,
+        transformation,
+        training=True,
     ):
-        raise NotImplementedError
+        if "rel" in self.bounding_box_format:
+            return bounding_boxes
+
+        elif self.bounding_box_format in ["yxyx", "center_yxhw"]:
+            bounding_boxes["boxes"] = self._transform_yx_pattern(
+                bounding_boxes["boxes"],
+                orig_height=orig_height,
+                orig_width=orig_width,
+            )
+
+        elif self.bounding_box_format in ["xyxy", "xywh", "center_xywh"]:
+            bounding_boxes["boxes"] = self._transform_xy_pattern(
+                bounding_boxes["boxes"],
+                orig_height=orig_height,
+                orig_width=orig_width,
+            )
+        else:
+            raise NotImplementedError()
+
+        return bounding_boxes
+
+    def _transform_yx_pattern(self, boxes, orig_height, orig_width):
+        w_ratios = self.width / orig_width
+        h_ratios = self.height / orig_height
+
+        return self.backend.numpy.stack(
+            [
+                boxes[..., 0] * h_ratios,
+                boxes[..., 1] * w_ratios,
+                boxes[..., 2] * h_ratios,
+                boxes[..., 3] * w_ratios,
+            ],
+            axis=-1,
+        )
+
+    def _transform_xy_pattern(self, boxes, orig_height, orig_width):
+        w_ratios = self.width / orig_width
+        h_ratios = self.height / orig_height
+
+        return self.backend.numpy.stack(
+            [
+                boxes[..., 0] * w_ratios,
+                boxes[..., 1] * h_ratios,
+                boxes[..., 2] * w_ratios,
+                boxes[..., 3] * h_ratios,
+            ],
+            axis=-1,
+        )
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
