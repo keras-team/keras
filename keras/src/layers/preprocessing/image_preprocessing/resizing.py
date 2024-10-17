@@ -130,16 +130,61 @@ class Resizing(BaseImagePreprocessingLayer):
                 orig_width=orig_width,
             )
 
+        if self.bounding_box_format in ["xyxy", "xywh", "center_xywh"]:
+            bounding_boxes["boxes"] = self._transform_yxyx(
+                bounding_boxes["boxes"],
+                orig_height=orig_height,
+                orig_width=orig_width,
+            )
+
         return bounding_boxes
 
     def _transform_yxyx(self, boxes, orig_height, orig_width):
-        boxes_ymin = boxes[..., 0] * (self.height / orig_height)
-        boxes_xmin = boxes[..., 1] * (self.width / orig_width)
-        boxes_ymax = boxes[..., 2] * (self.height / orig_height)
-        boxes_xmax = boxes[..., 3] * (self.width / orig_width)
+        w_ratios = self.width / orig_width
+        h_ratios = self.height / orig_height
+        boxes_ymin = boxes[..., 0] * h_ratios
+        boxes_xmin = boxes[..., 1] * w_ratios
+        boxes_ymax = boxes[..., 2] * h_ratios
+        boxes_xmax = boxes[..., 3] * w_ratios
 
         return self.backend.numpy.stack(
-            [boxes_ymin, boxes_xmin, boxes_ymax, boxes_xmax]
+            [boxes_ymin, boxes_xmin, boxes_ymax, boxes_xmax], axis=-1
+        )
+
+    def _transform_xyxy(self, boxes, orig_height, orig_width):
+        w_ratios = self.width / orig_width
+        h_ratios = self.height / orig_height
+        boxes_xmin = boxes[..., 0] * w_ratios
+        boxes_ymin = boxes[..., 1] * h_ratios
+        boxes_xmax = boxes[..., 2] * w_ratios
+        boxes_ymax = boxes[..., 3] * h_ratios
+
+        return self.backend.numpy.stack(
+            [boxes_xmin, boxes_ymin, boxes_xmax, boxes_ymax], axis=-1
+        )
+
+    def _transform_xywh(self, boxes, orig_height, orig_width):
+        w_ratios = self.width / orig_width
+        h_ratios = self.height / orig_height
+        boxes_x = boxes[..., 0] * w_ratios
+        boxes_y = boxes[..., 1] * h_ratios
+        boxes_w = boxes[..., 2] * w_ratios
+        boxes_h = boxes[..., 3] * h_ratios
+
+        return self.backend.numpy.stack(
+            [boxes_x, boxes_y, boxes_w, boxes_h], axis=-1
+        )
+
+    def _transform_center_xywh(self, boxes, orig_height, orig_width):
+        w_ratios = self.width / orig_width
+        h_ratios = self.height / orig_height
+        boxes_cx = boxes[..., 0] * w_ratios  # cx: center x
+        boxes_cy = boxes[..., 1] * h_ratios  # cy: center y
+        boxes_w = boxes[..., 2] * w_ratios
+        boxes_h = boxes[..., 3] * h_ratios
+
+        return self.backend.numpy.stack(
+            [boxes_cx, boxes_cy, boxes_w, boxes_h], axis=-1
         )
 
     def compute_output_shape(self, input_shape):
