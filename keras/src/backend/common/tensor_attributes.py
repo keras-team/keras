@@ -3,6 +3,12 @@ import weakref
 from keras.src.backend.common import global_state
 
 
+def _clear_tensor_attr(tensor_id, attr):
+    attr_dict = global_state.get_global_attribute(f"{attr}_dict")
+    if attr_dict is not None and tensor_id in attr_dict:
+        del attr_dict[tensor_id]
+
+
 def set_tensor_attr(tensor, attr, value):
     try:
         setattr(tensor, attr, value)
@@ -11,10 +17,11 @@ def set_tensor_attr(tensor, attr, value):
         if attr_dict is None:
             if value is None:
                 return
-            attr_dict = weakref.WeakValueDictionary()
+            attr_dict = {}
             global_state.set_global_attribute(f"{attr}_dict", attr_dict)
         if value is not None:
             attr_dict[id(tensor)] = value
+            weakref.finalize(tensor, _clear_tensor_attr, id(tensor), attr)
         elif id(tensor) in attr_dict:
             del attr_dict[id(tensor)]
 
