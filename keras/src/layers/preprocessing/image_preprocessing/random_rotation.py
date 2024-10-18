@@ -4,6 +4,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    convert_format,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
@@ -125,9 +128,19 @@ class RandomRotation(BaseImagePreprocessingLayer):
         return labels
 
     def transform_bounding_boxes(
-        self, bounding_boxes, transformation, training=True
+        self,
+        bounding_boxes,
+        transformation,
+        training=True,
     ):
         boxes = bounding_boxes["boxes"]
+        boxes = convert_format(
+            boxes=boxes,
+            source=self.bounding_box_format,
+            target="xyxy",
+            height=self.height,
+            width=self.width,
+        )
         shape = self.backend.shape(boxes)
         ones = self.backend.ones((shape[0], shape[1], 1, 1))
         homogeneous_boxes = self.backend.concatenate([boxes, ones], axis=2)
@@ -140,6 +153,13 @@ class RandomRotation(BaseImagePreprocessingLayer):
         )
         transformed_boxes = self.backend.reshape(
             transformed_boxes, (shape[0], shape[1], 4)
+        )
+        boxes = convert_format(
+            boxes=boxes,
+            source="xyxy",
+            target=self.bounding_box_format,
+            height=self.height,
+            width=self.width,
         )
         return {"boxes": transformed_boxes, "labels": bounding_boxes["labels"]}
 
