@@ -90,10 +90,6 @@ class BoundingBox:
             dtype: the data type to use when transforming the boxes, defaults to
                 `"float32"`.
         """
-        # We're in a TF graph, e.g. a tf.data pipeline.
-        backend = "tensorflow" if backend_utils.in_tf_graph() else None
-        self.backend.set_backend(backend)
-
         if isinstance(boxes, dict):
             boxes["boxes"] = self.convert_format(
                 boxes["boxes"],
