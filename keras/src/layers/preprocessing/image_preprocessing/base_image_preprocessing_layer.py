@@ -66,8 +66,6 @@ class BaseImagePreprocessingLayer(TFDataLayer):
     def transform_bounding_boxes(
         self,
         bounding_boxes,
-        orig_height,
-        orig_width,
         transformation,
         training=True,
     ):
@@ -95,16 +93,12 @@ class BaseImagePreprocessingLayer(TFDataLayer):
     def transform_single_bounding_box(
         self,
         bounding_box,
-        orig_width,
-        orig_height,
         transformation,
         training=True,
     ):
         bounding_boxes = self.backend.numpy.expand_dims(bounding_box, axis=0)
         outputs = self.transform_bounding_boxes(
             bounding_boxes,
-            orig_height,
-            orig_width,
             transformation=transformation,
             training=training,
         )
@@ -162,43 +156,16 @@ class BaseImagePreprocessingLayer(TFDataLayer):
                     is_batched=is_batched,
                     backend=self.backend,
                 )
-                if "orig_width" not in data:
-                    raise ValueError(
-                        "'orig_width' key is missing from the input data. "
-                        "Please provide the original image width."
-                    )
-
-                if "orig_height" not in data:
-                    raise ValueError(
-                        "'orig_height' key is missing from the input data. "
-                        "Please provide the original image width."
-                    )
 
                 if is_batched:
-                    orig_width = self.backend.numpy.expand_dims(
-                        data["orig_width"], axis=-1
-                    )
-                    orig_height = self.backend.numpy.expand_dims(
-                        data["orig_height"], axis=-1
-                    )
                     data["bounding_boxes"] = self.transform_bounding_boxes(
                         bounding_boxes,
-                        orig_height,
-                        orig_width,
                         transformation=transformation,
                         training=training,
                     )
                 else:
-                    orig_width = self.backend.numpy.expand_dims(
-                        [data["orig_width"]], axis=-1
-                    )
-                    orig_height = self.backend.numpy.expand_dims(
-                        [data["orig_height"]], axis=-1
-                    )
                     data["bounding_boxes"] = self.transform_single_bounding_box(
                         bounding_boxes,
-                        orig_height,
-                        orig_width,
                         transformation=transformation,
                         training=training,
                     )

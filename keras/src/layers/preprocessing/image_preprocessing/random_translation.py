@@ -169,8 +169,6 @@ class RandomTranslation(BaseImagePreprocessingLayer):
     def transform_bounding_boxes(
         self,
         bounding_boxes,
-        orig_height,
-        orig_width,
         transformation,
         training=True,
     ):

@@ -85,6 +85,12 @@ class Resizing(BaseImagePreprocessingLayer):
         self.pad_to_aspect_ratio = pad_to_aspect_ratio
         self.fill_mode = fill_mode
         self.fill_value = fill_value
+        if self.data_format == "channels_first":
+            self.height_axis = -2
+            self.width_axis = -1
+        elif self.data_format == "channels_last":
+            self.height_axis = -3
+            self.width_axis = -2
 
     def transform_images(self, images, transformation=None, training=True):
         size = (self.height, self.width)
@@ -112,39 +118,56 @@ class Resizing(BaseImagePreprocessingLayer):
     def transform_labels(self, labels, transformation=None, training=True):
         return labels
 
+    def get_random_transformation(self, data, training=True, seed=None):
+
+        if isinstance(data, dict):
+            input_shape = self.backend.shape(data["images"])
+        else:
+            input_shape = self.backend.shape(data)
+
+        input_height, input_width = (
+            input_shape[self.height_axis],
+            input_shape[self.width_axis],
+        )
+        if input_height is None or input_width is None:
+            raise ValueError(
+                "Resizing requires the input to have a fully defined "
+                f"height and width. Received: images.shape={input_shape}"
+            )
+
+        return input_height, input_width
+
     def transform_bounding_boxes(
         self,
         bounding_boxes,
-        orig_height,
-        orig_width,
         transformation,
         training=True,
     ):
+        input_height, input_width = transformation
         if "rel" in self.bounding_box_format:
             return bounding_boxes
 
         elif self.bounding_box_format in ["yxyx", "center_yxhw"]:
             bounding_boxes["boxes"] = self._transform_yx_pattern(
                 bounding_boxes["boxes"],
-                orig_height=orig_height,
-                orig_width=orig_width,
+                input_height=input_height,
+                input_width=input_width,
             )
 
         elif self.bounding_box_format in ["xyxy", "xywh", "center_xywh"]:
             bounding_boxes["boxes"] = self._transform_xy_pattern(
                 bounding_boxes["boxes"],
-                orig_height=orig_height,
-                orig_width=orig_width,
+                input_height=input_height,
+                input_width=input_width,
             )
         else:
             raise NotImplementedError()
 
         return bounding_boxes
 
-    def _transform_yx_pattern(self, boxes, orig_height, orig_width):
-        w_ratios = self.width / orig_width
-        h_ratios = self.height / orig_height
-
+    def _transform_yx_pattern(self, boxes, input_height, input_width):
+        h_ratios = self.height / input_height
+        w_ratios = self.width / input_width
         return self.backend.numpy.stack(
             [
                 boxes[..., 0] * h_ratios,
@@ -155,10 +178,9 @@ class Resizing(BaseImagePreprocessingLayer):
             axis=-1,
         )
 
-    def _transform_xy_pattern(self, boxes, orig_height, orig_width):
-        w_ratios = self.width / orig_width
-        h_ratios = self.height / orig_height
-
+    def _transform_xy_pattern(self, boxes, input_height, input_width):
+        h_ratios = self.height / input_height
+        w_ratios = self.width / input_width
         return self.backend.numpy.stack(
             [
                 boxes[..., 0] * w_ratios,

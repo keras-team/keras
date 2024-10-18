@@ -125,8 +125,6 @@ class RandomBrightnessTest(testing.TestCase):
                 "boxes": np.array([[1, 2, 2, 3]]),
                 "labels": np.array([0]),
             },
-            "orig_height": np.array([[4, 4]]),
-            "orig_width": np.array([[5, 5]]),
         }
         transformed_data = layer(data)
         self.assertEqual(
