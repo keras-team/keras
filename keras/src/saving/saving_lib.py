@@ -3,7 +3,9 @@
 import datetime
 import io
 import json
+import os
 import pathlib
+import shutil
 import tempfile
 import warnings
 import zipfile
@@ -513,27 +515,38 @@ def save_weights_only(model, filepath, objects_to_skip=None):
 
     Note: only supports h5 for now.
     """
-    # TODO: if h5 filepath is remote, create the file in a temporary directory
-    # then upload it
     filepath = str(filepath)
+    tmp_dir = None
+    remote_filepath = None
     if not filepath.endswith(".weights.h5"):
         raise ValueError(
             "Invalid `filepath` argument: expected a `.weights.h5` extension. "
             f"Received: filepath={filepath}"
         )
-    weights_store = H5IOStore(filepath, mode="w")
-    if objects_to_skip is not None:
-        visited_saveables = set(id(o) for o in objects_to_skip)
-    else:
-        visited_saveables = set()
-    _save_state(
-        model,
-        weights_store=weights_store,
-        assets_store=None,
-        inner_path="",
-        visited_saveables=visited_saveables,
-    )
-    weights_store.close()
+    try:
+        if file_utils.is_remote_path(filepath):
+            tmp_dir = get_temp_dir()
+            local_filepath = os.path.join(tmp_dir, os.path.basename(filepath))
+            remote_filepath = filepath
+            filepath = local_filepath
+
+        weights_store = H5IOStore(filepath, mode="w")
+        if objects_to_skip is not None:
+            visited_saveables = set(id(o) for o in objects_to_skip)
+        else:
+            visited_saveables = set()
+        _save_state(
+            model,
+            weights_store=weights_store,
+            assets_store=None,
+            inner_path="",
+            visited_saveables=visited_saveables,
+        )
+        weights_store.close()
+    finally:
+        if tmp_dir is not None:
+            file_utils.copy(filepath, remote_filepath)
+            shutil.rmtree(tmp_dir)
 
 
 def load_weights_only(
@@ -544,36 +557,47 @@ def load_weights_only(
     Note: only supports h5 for now.
     """
     archive = None
+    tmp_dir = None
     filepath = str(filepath)
-    if filepath.endswith(".weights.h5"):
-        # TODO: download file if h5 filepath is remote
-        weights_store = H5IOStore(filepath, mode="r")
-    elif filepath.endswith(".keras"):
-        archive = zipfile.ZipFile(filepath, "r")
-        weights_store = H5IOStore(_VARS_FNAME_H5, archive=archive, mode="r")
 
-    failed_saveables = set()
-    if objects_to_skip is not None:
-        visited_saveables = set(id(o) for o in objects_to_skip)
-    else:
-        visited_saveables = set()
-    error_msgs = {}
-    _load_state(
-        model,
-        weights_store=weights_store,
-        assets_store=None,
-        inner_path="",
-        skip_mismatch=skip_mismatch,
-        visited_saveables=visited_saveables,
-        failed_saveables=failed_saveables,
-        error_msgs=error_msgs,
-    )
-    weights_store.close()
-    if archive:
-        archive.close()
+    try:
+        if file_utils.is_remote_path(filepath):
+            tmp_dir = get_temp_dir()
+            local_filepath = os.path.join(tmp_dir, os.path.basename(filepath))
+            file_utils.copy(filepath, local_filepath)
+            filepath = local_filepath
 
-    if failed_saveables:
-        _raise_loading_failure(error_msgs, warn_only=skip_mismatch)
+        if filepath.endswith(".weights.h5"):
+            weights_store = H5IOStore(filepath, mode="r")
+        elif filepath.endswith(".keras"):
+            archive = zipfile.ZipFile(filepath, "r")
+            weights_store = H5IOStore(_VARS_FNAME_H5, archive=archive, mode="r")
+
+        failed_saveables = set()
+        if objects_to_skip is not None:
+            visited_saveables = set(id(o) for o in objects_to_skip)
+        else:
+            visited_saveables = set()
+        error_msgs = {}
+        _load_state(
+            model,
+            weights_store=weights_store,
+            assets_store=None,
+            inner_path="",
+            skip_mismatch=skip_mismatch,
+            visited_saveables=visited_saveables,
+            failed_saveables=failed_saveables,
+            error_msgs=error_msgs,
+        )
+        weights_store.close()
+        if archive:
+            archive.close()
+
+        if failed_saveables:
+            _raise_loading_failure(error_msgs, warn_only=skip_mismatch)
+    finally:
+        if tmp_dir is not None:
+            shutil.rmtree(tmp_dir)
 
 
 def _raise_loading_failure(error_msgs, warn_only=False):

@@ -1049,3 +1049,16 @@ class SavingBattleTest(testing.TestCase):
         ref_out = model(x)
         out = new_model(x)
         self.assertAllClose(ref_out, out)
+
+    def test_remove_weights_only_saving_and_loading(self):
+        def is_remote_path(path):
+            return True
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "model.weights.h5")
+
+        with mock.patch(
+            "keras.src.utils.file_utils.is_remote_path", is_remote_path
+        ):
+            model = _get_subclassed_model()
+            model.save_weights(temp_filepath)
+            model.load_weights(temp_filepath)
