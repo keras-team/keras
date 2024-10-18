@@ -6,6 +6,7 @@ from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
 from keras.src.callbacks.history import History
 from keras.src.callbacks.progbar_logger import ProgbarLogger
+from keras.src.utils import python_utils
 
 
 @keras_export("keras.callbacks.CallbackList")
@@ -114,31 +115,18 @@ class CallbackList(Callback):
         future = self._executor.submit(fn, *args)
         self._futures.append(future)
 
-    def _pythonify_logs(self, logs):
-        result = {}
-        for key, value in sorted(logs.items()):
-            if isinstance(value, dict):
-                result.update(self._pythonify_logs(value))
-            else:
-                try:
-                    value = float(value)
-                except:
-                    pass
-                result[key] = value
-        return result
-
     def _clear_futures(self):
         for future in self._futures:
             future.result()
         self._futures = []
 
     def on_batch_begin(self, batch, logs=None):
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_batch_begin(batch, logs=logs)
 
     def on_epoch_begin(self, epoch, logs=None):
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_epoch_begin(epoch, logs)
 
@@ -146,22 +134,22 @@ class CallbackList(Callback):
         if self._async_train:
             self._clear_futures()
 
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_epoch_end(epoch, logs)
 
     def on_train_batch_begin(self, batch, logs=None):
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_train_batch_begin(batch, logs=logs)
 
     def on_test_batch_begin(self, batch, logs=None):
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_test_batch_begin(batch, logs=logs)
 
     def on_predict_batch_begin(self, batch, logs=None):
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_predict_batch_begin(batch, logs=logs)
 
@@ -190,30 +178,27 @@ class CallbackList(Callback):
             self._on_predict_batch_end(batch, logs)
 
     def _on_batch_end(self, batch, logs=None):
-        logs = logs or {}
-        logs = self._pythonify_logs(logs)
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_batch_end(batch, logs=logs)
 
     def _on_train_batch_end(self, batch, logs=None):
-        logs = logs or {}
-        logs = self._pythonify_logs(logs)
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_train_batch_end(batch, logs=logs)
 
     def _on_test_batch_end(self, batch, logs=None):
-        logs = logs or {}
-        logs = self._pythonify_logs(logs)
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_test_batch_end(batch, logs=logs)
 
     def _on_predict_batch_end(self, batch, logs=None):
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_predict_batch_end(batch, logs=logs)
 
     def on_train_begin(self, logs=None):
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_train_begin(logs)
 
@@ -221,12 +206,12 @@ class CallbackList(Callback):
         if self._async_train:
             self._clear_futures()
 
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_train_end(logs)
 
     def on_test_begin(self, logs=None):
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_test_begin(logs)
 
@@ -234,12 +219,12 @@ class CallbackList(Callback):
         if self._async_test:
             self._clear_futures()
 
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_test_end(logs)
 
     def on_predict_begin(self, logs=None):
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_predict_begin(logs)
 
@@ -247,6 +232,6 @@ class CallbackList(Callback):
         if self._async_predict:
             self._clear_futures()
 
-        logs = logs or {}
+        logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_predict_end(logs)

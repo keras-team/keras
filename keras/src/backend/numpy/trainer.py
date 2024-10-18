@@ -281,7 +281,6 @@ class NumpyTrainer(base_trainer.Trainer):
         for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_test_batch_begin(step)
             logs = self.test_function(data)
-            logs = self._pythonify_logs(logs)
             callbacks.on_test_batch_end(step, logs)
             if self.stop_evaluating:
                 break
