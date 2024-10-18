@@ -72,3 +72,17 @@ class PipelineTest(testing.TestCase):
         for output in ds.take(1):
             output = output.numpy()
         self.assertEqual(tuple(output.shape), output_shape)
+
+    def test_from_config(self):
+        pipeline = layers.Pipeline(
+            [
+                layers.AutoContrast(),
+                layers.CenterCrop(8, 9),
+            ]
+        )
+        x = np.ones((2, 10, 12, 3))
+        output = pipeline(x)
+        restored = layers.Pipeline.from_config(pipeline.get_config())
+        restored_output = restored(x)
+        self.assertEqual(tuple(output.shape), (2, 8, 9, 3))
+        self.assertAllClose(output, restored_output)
