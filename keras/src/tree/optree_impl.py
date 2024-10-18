@@ -23,6 +23,17 @@ if backend() == "tensorflow":
         namespace="keras",
     )
 
+    from tensorflow.python.trackable.data_structures import _DictWrapper
+
+    optree.register_pytree_node(
+        _DictWrapper,
+        lambda x: (list(x.values()), list(x.keys())),
+        lambda metadata, children: _DictWrapper(
+            {key: child for key, child in zip(metadata, children)}
+        ),
+        namespace="keras",
+    )
+
 
 def is_nested(structure):
     return not optree.tree_is_leaf(
