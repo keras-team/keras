@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import pytest
 
 import keras
 from keras.src import testing
@@ -90,6 +91,7 @@ class SavingTest(testing.TestCase):
         out = editor.compare(target_model)  # Succeeds
         self.assertEqual(out["status"], "success")
 
+    @pytest.mark.requires_trainable_backend
     def test_scalar_weight(self):
         model = keras.Sequential(name="my_sequential")
         model.add(keras.Input(shape=(1,), name="my_input"))
