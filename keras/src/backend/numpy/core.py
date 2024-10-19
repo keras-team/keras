@@ -15,6 +15,7 @@ from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 
 SUPPORTS_SPARSE_TENSORS = False
+IS_THREAD_SAFE = True
 
 
 class Variable(KerasVariable):

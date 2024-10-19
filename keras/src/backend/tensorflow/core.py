@@ -18,6 +18,7 @@ from keras.src.backend.tensorflow.sparse import sparse_to_dense
 from keras.src.utils.naming import auto_name
 
 SUPPORTS_SPARSE_TENSORS = True
+IS_THREAD_SAFE = False
 
 
 class Variable(
