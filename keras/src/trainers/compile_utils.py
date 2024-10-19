@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from keras.src import losses as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import ops
@@ -511,10 +512,14 @@ class CompileLoss(losses_module.Loss):
         # nested list, or a dict. However, in `call`, we want to iterate over
         # all losses, so we flatten them into a list regardless of their
         # original structure.
+        if isinstance(loss, dict):
+            loss = self._handle_dict_order(loss, inferred_output_names)
         flat_losses = tree.flatten(loss)
         if loss_weights is None:
             flat_loss_weights = [None] * len(flat_losses)
         else:
+            if isinstance(loss_weights, dict):
+                loss_weights = self._handle_dict_order(loss_weights, inferred_output_names)
             flat_loss_weights = tree.flatten(loss_weights)
             for loss_weight in flat_loss_weights:
                 if not isinstance(loss_weight, (int, float, type(None))):
@@ -611,7 +616,17 @@ class CompileLoss(losses_module.Loss):
                 for x, output_name in zip(tree.flatten(y_pred), output_names):
                     if output_name not in filtered_y_pred_keys:
                         y_pred.append(x)
+        if isinstance(y_true, dict):
+            y_true = self._handle_dict_order(y_true, output_names)
+        if isinstance(y_pred, dict):
+            y_pred = self._handle_dict_order(y_pred, output_names)
         return y_true, y_pred
+    
+    @staticmethod
+    def _handle_dict_order(dictionary, output_names):
+        if output_names:
+            dictionary = {k:dictionary[k] for k in output_names}
+        return OrderedDict(dictionary)
 
     def __call__(self, y_true, y_pred, sample_weight=None):
         with ops.name_scope(self.name):
