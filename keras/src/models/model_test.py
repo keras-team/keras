@@ -1,4 +1,5 @@
 import pickle
+from collections import namedtuple
 
 import numpy as np
 import pytest
@@ -6,7 +7,9 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import layers
+from keras.src import losses
 from keras.src import testing
+from keras.src import tree
 from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
@@ -68,6 +71,48 @@ def _get_model_multi_outputs_dict():
     return model
 
 
+def _get_model_multi_outputs_struct_list_like(_type):
+    x = Input(shape=(3,), name="x")
+    y1 = layers.Dense(1, name="y1", activation="sigmoid")(x)
+    y2 = layers.Dense(1, name="y2", activation="sigmoid")(x)
+    model = Model(x, _type([y1, y2]))
+    return model
+
+
+def _get_model_multi_outputs_struct_namedtuple():
+    Y = namedtuple("Y", ["y1", "y2"])
+    x = Input(shape=(3,), name="x")
+    y1 = layers.Dense(1, name="y1", activation="sigmoid")(x)
+    y2 = layers.Dense(1, name="y2", activation="sigmoid")(x)
+    model = Model(x, Y(y1, y2))
+    return model, Y
+
+
+def _get_model_multi_outputs_struct_dict():
+    x = Input(shape=(3,), name="x")
+    y1 = layers.Dense(1, name="y1", activation="sigmoid")(x)
+    y2 = layers.Dense(1, name="y2", activation="sigmoid")(x)
+    model = Model(x, {"a": y1, "b": y2})
+    return model
+
+
+def _get_model_multi_outputs_struct():
+    x = Input(shape=(3,), name="x")
+    y1 = layers.Dense(1, name="y1", activation="sigmoid")(x)
+    y2 = layers.Dense(1, name="y2", activation="sigmoid")(x)
+    y3 = layers.Dense(1, name="y3", activation="sigmoid")(x)
+    model = Model(
+        x,
+        {
+            "a": (y1, y2),
+            "b": {"b1": y1, "b2": y2},
+            "c": {"c1": (y1, y2), "c2": y2},
+            "d": y3,
+        },
+    )
+    return model
+
+
 def _get_model_multi_outputs_dict_with_single_tensor():
     x = Input(shape=(3,), name="input_a")
     output = layers.Dense(1, name="output_a")(x)
@@ -121,6 +166,7 @@ def _get_variable_value_by_path(variables, path):
 
 @pytest.mark.requires_trainable_backend
 class ModelTest(testing.TestCase):
+
     def test_functional_rerouting(self):
         model = _get_model()
         self.assertIsInstance(model, Functional)
@@ -620,8 +666,7 @@ class ModelTest(testing.TestCase):
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
             KeyError,
-            "in the `loss` argument, but they can't be found in the "
-            "model's output",
+            "in the `loss` argument, can't be found in the model's output",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -638,8 +683,7 @@ class ModelTest(testing.TestCase):
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
             KeyError,
-            "in the `loss` argument, but they can't be found in the "
-            "model's output",
+            "in the `loss` argument, can't be found in the model's output",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -683,8 +727,7 @@ class ModelTest(testing.TestCase):
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
             KeyError,
-            "in the `loss` argument, but they can't be found in the "
-            "model's output",
+            "in the `loss` argument, can't be found in the model's output",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -725,13 +768,10 @@ class ModelTest(testing.TestCase):
                 ["mean_squared_error", "binary_crossentropy"],
             ],
         )
-        # Fit the model to make sure compile_metrics are built
-        with self.assertRaisesRegex(
-            ValueError,
-            "when providing the `loss` argument as a list, "
-            "it should have as many entries as the model has outputs",
-        ):
-            model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
+        hist = model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
+        hist_keys = sorted(hist.history.keys())
+        ref_keys = sorted(["loss", "output_a_loss", "output_b_loss"])
+        self.assertListEqual(hist_keys, ref_keys)
 
     @parameterized.named_parameters(
         ("int8", "int8"),
@@ -944,3 +984,237 @@ class ModelTest(testing.TestCase):
             AttributeError, "`Model.layers` attribute is reserved"
         ):
             model.layers = [layers.Dense(4)]
+
+    def get_struct_loss(self, structure):
+        def loss_fn(y_true, y_pred):
+            tree.assert_same_structure(structure, y_true, check_types=False)
+            tree.assert_same_structure(structure, y_pred, check_types=False)
+            tree.map_structure(
+                lambda spec, tensor: self.assertEqual(spec.ndim, tensor.ndim),
+                structure,
+                y_true,
+            )
+            tree.map_structure(
+                lambda spec, tensor: self.assertEqual(spec.ndim, tensor.ndim),
+                structure,
+                y_pred,
+            )
+            flat_y_pred, flat_y_true = tree.flatten(y_pred), tree.flatten(
+                y_true
+            )
+            diff = 0
+            for y_p, y_t in zip(flat_y_pred, flat_y_true):
+                diff += losses.mean_absolute_error(y_t, y_p)
+            return diff
+
+        return loss_fn
+
+    @parameterized.product(
+        _type=[tuple, list], other_type=[list, tuple], weighted=[False, True]
+    )
+    def test_functional_struct_outputs_struct_losses(
+        self, _type, other_type, weighted
+    ):
+        model = _get_model_multi_outputs_struct_list_like(_type)
+        self.assertIsInstance(model, Functional)
+        x = np.random.rand(8, 3)
+        y1 = np.random.rand(8, 1)
+        y2 = np.random.rand(8, 1)
+        y = _type([y1, y2])
+        loss = other_type(
+            [
+                self.get_struct_loss(model.output),
+                _type(
+                    [
+                        self.get_struct_loss(model.output[0]),
+                        self.get_struct_loss(model.output[1]),
+                    ]
+                ),
+            ]
+        )
+        if weighted:
+            loss_weights = tree.map_structure(lambda _: np.random.rand(), loss)
+        else:
+            loss_weights = None
+
+        model.compile(
+            optimizer="sgd",
+            loss=loss,
+            loss_weights=loss_weights,
+        )
+
+        if _type is other_type:
+            with self.assertRaisesRegex(
+                ValueError, "don't have the same structure"
+            ):
+                model.fit(x, y, batch_size=2, epochs=1, verbose=0)
+        else:
+            # Check dict outputs.
+            outputs = model.predict(x)
+            self.assertIsInstance(outputs, _type)
+            # Fit the model to make sure compile_metrics are built
+            hist = model.fit(
+                x,
+                y,
+                batch_size=2,
+                epochs=1,
+                verbose=0,
+            )
+            hist_keys = sorted(hist.history.keys())
+            ref_keys = sorted(
+                [
+                    "loss",
+                    "y1_loss",
+                    "y2_loss",
+                    "y1_y2_loss",
+                ]
+            )
+            self.assertListEqual(hist_keys, ref_keys)
+
+    @parameterized.named_parameters(("weighted", True), ("not_weighted", False))
+    def test_functional_struct_outputs_dict_struct_losses(self, weighted):
+        model = _get_model_multi_outputs_struct_dict()
+        self.assertIsInstance(model, Functional)
+        x = np.random.rand(8, 3)
+        y1 = np.random.rand(8, 1)
+        y2 = np.random.rand(8, 1)
+
+        y = {"a": y1, "b": y2}
+        loss = [
+            self.get_struct_loss(model.output),
+            {
+                "a": self.get_struct_loss(model.output["a"]),
+                "b": self.get_struct_loss(model.output["a"]),
+            },
+        ]
+        if weighted:
+            loss_weights = tree.map_structure(lambda _: np.random.rand(), loss)
+        else:
+            loss_weights = None
+
+        model.compile(
+            optimizer="sgd",
+            loss=loss,
+            loss_weights=loss_weights,
+        )
+        # Check dict outputs.
+        outputs = model.predict(x)
+        self.assertIsInstance(outputs, dict)
+
+        # Fit the model to make sure compile_metrics are built
+        hist = model.fit(
+            x,
+            y,
+            batch_size=2,
+            epochs=1,
+            verbose=0,
+        )
+        hist_keys = sorted(hist.history.keys())
+        ref_keys = sorted(
+            [
+                "loss",
+                "a_loss",
+                "b_loss",
+                "a_b_loss",
+            ]
+        )
+        self.assertListEqual(hist_keys, ref_keys)
+
+    def test_functional_struct_outputs_namedtuple_struct_losses(self):
+        model, Y = _get_model_multi_outputs_struct_namedtuple()
+        self.assertIsInstance(model, Functional)
+        x = np.random.rand(8, 3)
+        y1 = np.random.rand(8, 1)
+        y2 = np.random.rand(8, 1)
+
+        y = Y(y1, y2)
+        model.compile(
+            optimizer="sgd",
+            loss=[
+                self.get_struct_loss(model.output),
+                Y(
+                    self.get_struct_loss(model.output.y1),
+                    self.get_struct_loss(model.output.y2),
+                ),
+            ],
+        )
+        # Check dict outputs.
+        outputs = model.predict(x)
+        self.assertIsInstance(outputs, tuple)
+
+        # Fit the model to make sure compile_metrics are built
+        hist = model.fit(
+            x,
+            y,
+            batch_size=2,
+            epochs=1,
+            verbose=0,
+        )
+        hist_keys = sorted(hist.history.keys())
+        ref_keys = sorted(
+            [
+                "loss",
+                "y1_loss",
+                "y2_loss",
+                "y1_y2_loss",
+            ]
+        )
+        self.assertListEqual(hist_keys, ref_keys)
+
+    def test_functional_deeply_nested_outputs_struct_losses(self):
+        model = _get_model_multi_outputs_struct()
+        self.assertIsInstance(model, Functional)
+        x = np.random.rand(8, 3)
+        y1 = np.random.rand(8, 1)
+        y2 = np.random.rand(8, 1)
+        y3 = np.random.rand(8, 1)
+        y = {
+            "a": (y1, y2),
+            "b": {"b1": y1, "b2": y2},
+            "c": {"c1": (y1, y2), "c2": y2},
+            "d": y3,
+        }
+        model.compile(
+            optimizer="sgd",
+            loss={
+                "a": [
+                    self.get_struct_loss(model.output["a"]),
+                    (None, self.get_struct_loss(model.output["a"][1])),
+                ],
+                "b": [
+                    self.get_struct_loss(model.output["b"]),
+                    {"b1": self.get_struct_loss(model.output["b"]["b1"])},
+                ],
+                "c": [
+                    self.get_struct_loss(model.output["c"]),
+                    {"c1": self.get_struct_loss(model.output["c"]["c1"])},
+                ],
+                "d": self.get_struct_loss(model.output["d"]),
+            },
+        )
+        # Check dict outputs.
+        outputs = model.predict(x)
+        self.assertIsInstance(outputs, dict)
+
+        # Fit the model to make sure compile_metrics are built
+        hist = model.fit(
+            x,
+            y,
+            batch_size=2,
+            epochs=1,
+            verbose=0,
+        )
+        hist_keys = sorted(hist.history.keys())
+        ref_keys = sorted(
+            [
+                "a/y2_loss",
+                "a_loss",
+                "b/b1_loss",
+                "b_loss",
+                "c/c1_loss",
+                "c_loss",
+                "d_loss",
+                "loss",
+            ]
+        )
+        self.assertListEqual(hist_keys, ref_keys)

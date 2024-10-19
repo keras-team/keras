@@ -1,4 +1,7 @@
+from collections import namedtuple
+
 import numpy as np
+import tree
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -347,3 +350,143 @@ class TestCompileLoss(testing.TestCase):
         }
         value = compile_loss(y_true, y_pred)
         self.assertAllClose(value, 1.07666, atol=1e-5)
+
+    def test_struct_loss(self):
+        y_true = {
+            "a": {
+                "c": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
+                "d": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            },
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+        }
+        y_pred = {
+            "a": {
+                "c": np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]]),
+                "d": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
+            },
+            "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
+        }
+        loss = {"a": {"c": "mse", "d": "mae"}}
+        compile_loss = CompileLoss(loss=loss, output_names=["c", "d", "b"])
+        y_true_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((3, 4)), y_true
+        )
+        y_pred_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((3, 4)), y_pred
+        )
+        compile_loss.build(y_true_symb, y_pred_symb)
+        value = compile_loss(y_true, y_pred)
+        self.assertAllClose(value, 1.07666, atol=1e-5)
+
+    def test_struct_loss_invalid_weights(self):
+        y_true = {
+            "a": {
+                "c": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
+                "d": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            },
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+        }
+        y_pred = {
+            "a": {
+                "c": np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]]),
+                "d": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
+            },
+            "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
+        }
+        loss = {"a": {"c": "mse", "d": "mae"}}
+        compile_loss = CompileLoss(
+            loss=loss, output_names=["c", "d", "b"], loss_weights=[1]
+        )
+        y_true_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((3, 4)), y_true
+        )
+        y_pred_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((3, 4)), y_pred
+        )
+        with self.assertRaisesRegex(
+            ValueError, "must match the number of losses"
+        ):
+            compile_loss.build(y_true_symb, y_pred_symb)
+
+    def test_struct_loss_indice_path(self):
+        y_true = {
+            "a": (
+                np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
+                np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            ),
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+        }
+        y_pred = {
+            "a": (
+                np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]]),
+                np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
+            ),
+            "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
+        }
+        loss = {"a": ["mse", "mae"]}
+        compile_loss = CompileLoss(loss=loss, output_names=["c", "d", "b"])
+        y_true_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((3, 4)), y_true
+        )
+        y_pred_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((3, 4)), y_pred
+        )
+        compile_loss.build(y_true_symb, y_pred_symb)
+        value = compile_loss(y_true, y_pred)
+        self.assertAllClose(value, 1.07666, atol=1e-5)
+
+    def test_struct_loss_namedtuple(self):
+        Point = namedtuple("Point", ["x", "y"])
+        y_true = {
+            "a": Point(
+                np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
+                np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            ),
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+        }
+        y_pred = {
+            "a": Point(
+                np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]]),
+                np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
+            ),
+            "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
+        }
+        loss = {"a": Point("mse", "mae")}
+        compile_loss = CompileLoss(loss=loss, output_names=["c", "d", "b"])
+        y_true_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((3, 4)), y_true
+        )
+        y_pred_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((3, 4)), y_pred
+        )
+        compile_loss.build(y_true_symb, y_pred_symb)
+        value = compile_loss(y_true, y_pred)
+        self.assertAllClose(value, 1.07666, atol=1e-5)
+
+    def test_struct_loss_invalid_path(self):
+        y_true = {
+            "a": {
+                "c": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
+                "d": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            },
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+        }
+        y_pred = {
+            "a": {
+                "c": np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]]),
+                "d": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
+            },
+            "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
+        }
+        loss = {"a": {"c": "mse"}, "b": {"d": "mae"}}
+        compile_loss = CompileLoss(loss=loss, output_names=["c", "d", "b"])
+        y_true_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((3, 4)), y_true
+        )
+        y_pred_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((3, 4)), y_pred
+        )
+        with self.assertRaisesRegex(
+            KeyError, "can't be found in the model's output"
+        ):
+            compile_loss.build(y_true_symb, y_pred_symb)
