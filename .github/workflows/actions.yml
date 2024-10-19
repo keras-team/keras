@@ -70,14 +70,20 @@ jobs:
         run: |
           python integration_tests/import_test.py
           python integration_tests/numerical_test.py
+      - name: Test JAX-specific integrations
+        if: ${{ matrix.backend == 'jax'}}
+        run: |
+          python integration_tests/jax_custom_fit_test.py
       - name: Test TF-specific integrations
         if: ${{ matrix.backend == 'tensorflow'}}
         run: |
           python integration_tests/tf_distribute_training_test.py
+          python integration_tests/tf_custom_fit_test.py
       - name: Test Torch-specific integrations
         if: ${{ matrix.backend == 'torch'}}
         run: |
           pytest integration_tests/torch_workflow_test.py
+          python integration_tests/torch_custom_fit_test.py
       - name: Test with pytest
         run: |
           pytest keras --ignore keras/src/applications --cov=keras
