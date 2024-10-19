@@ -1,5 +1,6 @@
 import concurrent.futures
 
+from keras.src import backend
 from keras.src import tree
 from keras.src import utils
 from keras.src.api_export import keras_export
@@ -51,6 +52,12 @@ class CallbackList(Callback):
                 callback.set_params(params)
 
     def _configure_async_dispatch(self, callbacks):
+        # https://github.com/keras-team/keras/issues/20382
+        if backend.backend() == "tensorflow":
+            self._async_train = False
+            self._async_test = False
+            self._async_predict = False
+            return
         # Determine whether callbacks can be dispatched asynchronously.
         async_train = True
         async_test = True

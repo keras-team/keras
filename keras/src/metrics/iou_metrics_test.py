@@ -107,6 +107,17 @@ class IoUTest(testing.TestCase):
         model.compile(optimizer="rmsprop", loss="mse", metrics=[m_obj])
         model.fit(np.array([[1.0, 1.0]]), np.array([[1.0, 0.0]]))
 
+    @pytest.mark.requires_trainable_backend
+    def test_callbacks_thread_safe(self):
+        m_obj = metrics.MeanIoU(num_classes=2, ignore_class=0)
+        model = models.Sequential(
+            [
+                layers.Dense(2, activation="softmax"),
+            ]
+        )
+        model.compile(optimizer="rmsprop", loss="mse", metrics=[m_obj])
+        model.fit(np.array([[1.0, 1.0]]), np.array([[1.0, 0.0]]), epochs=1000)
+
 
 class BinaryIoUTest(testing.TestCase):
     def test_config(self):
