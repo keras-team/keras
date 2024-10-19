@@ -6,6 +6,7 @@ from keras.src.backend.numpy import math
 from keras.src.backend.numpy import nn
 from keras.src.backend.numpy import numpy
 from keras.src.backend.numpy import random
+from keras.src.backend.numpy.core import IS_THREAD_SAFE
 from keras.src.backend.numpy.core import SUPPORTS_SPARSE_TENSORS
 from keras.src.backend.numpy.core import Variable
 from keras.src.backend.numpy.core import cast

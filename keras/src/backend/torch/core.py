@@ -20,6 +20,7 @@ from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.config import floatx
 
 SUPPORTS_SPARSE_TENSORS = False
+IS_THREAD_SAFE = True
 
 # Some operators such as 'aten::_foreach_mul_.Scalar'
 # are not currently implemented for the MPS device.
