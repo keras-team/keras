@@ -512,7 +512,7 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
 
 def save_weights_only(model, filepath, objects_to_skip=None):
     """Save only the weights of a model to a target filepath.
-    
+
     Supports both `.weights.h5` and `.keras`.
     """
     filepath = str(filepath)
