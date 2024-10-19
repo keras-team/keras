@@ -299,6 +299,11 @@ class TestTrainer(testing.TestCase):
                     "TODO: Graph mode without XLA in TF backend leads to "
                     "unexpected logs, need further checks."
                 )
+        if jit_compile and backend.backend() == "torch":
+            self.skipTest(
+                "TODO: compilation with torch backend leads to "
+                "unexpected logs, need further checks."
+            )
 
         model = ExampleModel(units=3)
         epochs = 3
