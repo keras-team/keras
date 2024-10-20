@@ -220,11 +220,11 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             input_shape = (None, 3, 8)
         x = KerasTensor(input_shape)
         self.assertEqual(
-            knn.average_pool(x, 2, 1).shape,
+            knn.average_pool(x, 2, 1),
             (None, 7, 3) if data_format == "channels_last" else (None, 3, 7),
         )
         self.assertEqual(
-            knn.average_pool(x, 2, 2, padding="same").shape,
+            knn.average_pool(x, 2, 2, padding="same"),
             (None, 4, 3) if data_format == "channels_last" else (None, 3, 4),
         )
 
@@ -234,7 +234,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             input_shape = (None, 3, 8, None)
         x = KerasTensor(input_shape)
         self.assertEqual(
-            knn.average_pool(x, 2, 1).shape,
+            knn.average_pool(x, 2, 1),
             (
                 (None, 7, None, 3)
                 if data_format == "channels_last"
@@ -242,7 +242,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             ),
         )
         self.assertEqual(
-            knn.average_pool(x, 2, 2, padding="same").shape,
+            knn.average_pool(x, 2, 2, padding="same"),
             (
                 (None, 4, None, 3)
                 if data_format == "channels_last"
@@ -250,7 +250,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             ),
         )
         self.assertEqual(
-            knn.average_pool(x, (2, 2), (2, 2), padding="same").shape,
+            knn.average_pool(x, (2, 2), (2, 2), padding="same"),
             (
                 (None, 4, None, 3)
                 if data_format == "channels_last"
@@ -840,11 +840,11 @@ class NNOpsStaticShapeTest(testing.TestCase):
             input_shape = (1, 3, 8)
         x = KerasTensor(input_shape)
         self.assertEqual(
-            knn.average_pool(x, 2, 1).shape,
+            knn.average_pool(x, 2, 1),
             (1, 7, 3) if data_format == "channels_last" else (1, 3, 7),
         )
         self.assertEqual(
-            knn.average_pool(x, 2, 2, padding="same").shape,
+            knn.average_pool(x, 2, 2, padding="same"),
             (1, 4, 3) if data_format == "channels_last" else (1, 3, 4),
         )
 
@@ -854,15 +854,15 @@ class NNOpsStaticShapeTest(testing.TestCase):
             input_shape = (1, 3, 8, 8)
         x = KerasTensor(input_shape)
         self.assertEqual(
-            knn.average_pool(x, 2, 1).shape,
+            knn.average_pool(x, 2, 1),
             (1, 7, 7, 3) if data_format == "channels_last" else (1, 3, 7, 7),
         )
         self.assertEqual(
-            knn.average_pool(x, 2, 2, padding="same").shape,
+            knn.average_pool(x, 2, 2, padding="same"),
             (1, 4, 4, 3) if data_format == "channels_last" else (1, 3, 4, 4),
         )
         self.assertEqual(
-            knn.average_pool(x, (2, 2), (2, 2), padding="same").shape,
+            knn.average_pool(x, (2, 2), (2, 2), padding="same"),
             (1, 4, 4, 3) if data_format == "channels_last" else (1, 3, 4, 4),
         )
 
