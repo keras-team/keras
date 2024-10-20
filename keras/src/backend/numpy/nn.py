@@ -113,6 +113,10 @@ def gelu(x, approximate=True):
         )
 
 
+def celu(x, alpha=1.0):
+    return np.maximum(x, 0.0) + alpha * np.expm1(np.minimum(x, 0.0) / alpha)
+
+
 def softmax(x, axis=None):
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
