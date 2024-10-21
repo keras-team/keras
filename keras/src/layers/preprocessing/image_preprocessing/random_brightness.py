@@ -133,7 +133,10 @@ class RandomBrightness(BaseImagePreprocessingLayer):
         return labels
 
     def transform_bounding_boxes(
-        self, bounding_boxes, transformation, training=True
+        self,
+        bounding_boxes,
+        transformation,
+        training=True,
     ):
         return bounding_boxes
 
