@@ -170,9 +170,13 @@ class Resizing(BaseImagePreprocessingLayer):
         height_ratio = self.height / input_height
         width_ratio = self.width / input_width
 
-        # Calculate padding or cropping offsets (only one will be non-zero)
-        y_offset = (self.height - input_height * height_ratio) / 2
-        x_offset = (self.width - input_width * width_ratio) / 2
+        if self.pad_to_aspect_ratio:
+            # Calculate padding or cropping offsets (only one will be non-zero)
+            y_offset = (self.height - input_height * height_ratio) / 2
+            x_offset = (self.width - input_width * width_ratio) / 2
+        else:
+            y_offset = 0
+            x_offset = 0
 
         return self.backend.numpy.stack(
             [
