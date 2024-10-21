@@ -115,7 +115,10 @@ def gelu(x, approximate=True):
 
 def celu(x, alpha=1.0):
     x = convert_to_tensor(x)
-    return np.maximum(x, 0.0) + alpha * np.expm1(np.minimum(x, 0.0) / alpha)
+    alpha = np.array(alpha, x.dtype)
+    return np.maximum(x, np.array(0.0, dtype=x.dtype)) + alpha * np.expm1(
+        np.minimum(x, np.array(0.0, dtype=x.dtype)) / alpha
+    )
 
 
 def softmax(x, axis=None):
