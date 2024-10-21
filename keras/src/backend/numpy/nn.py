@@ -114,6 +114,7 @@ def gelu(x, approximate=True):
 
 
 def celu(x, alpha=1.0):
+    x = convert_to_tensor(x)
     return np.maximum(x, 0.0) + alpha * np.expm1(np.minimum(x, 0.0) / alpha)
 
 
