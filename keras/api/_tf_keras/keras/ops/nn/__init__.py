@@ -8,6 +8,7 @@ from keras.src.ops.nn import average_pool
 from keras.src.ops.nn import batch_normalization
 from keras.src.ops.nn import binary_crossentropy
 from keras.src.ops.nn import categorical_crossentropy
+from keras.src.ops.nn import celu
 from keras.src.ops.nn import conv
 from keras.src.ops.nn import conv_transpose
 from keras.src.ops.nn import ctc_decode

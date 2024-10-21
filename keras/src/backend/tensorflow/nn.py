@@ -76,6 +76,12 @@ def gelu(x, approximate=True):
     return tf.nn.gelu(x, approximate=approximate)
 
 
+def celu(x, alpha=1.0):
+    return tf.maximum(x, 0.0) + alpha * tf.math.expm1(
+        tf.minimum(x, 0.0) / alpha
+    )
+
+
 def softmax(x, axis=-1):
     logits = x
     if axis is None:
