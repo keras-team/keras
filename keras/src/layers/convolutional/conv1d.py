@@ -163,7 +163,7 @@ class Conv1D(BaseConv):
             else:
                 bias_shape = (1, self.filters) + (1,) * self.rank
             bias = ops.reshape(self.bias, bias_shape)
-            outputs += bias
+            outputs = ops.add(outputs, bias)
 
         if self.activation is not None:
             return self.activation(outputs)
