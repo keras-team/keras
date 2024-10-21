@@ -1,6 +1,5 @@
 import types
 
-from keras.src.activations.activations import celu
 from keras.src.activations.activations import elu
 from keras.src.activations.activations import exponential
 from keras.src.activations.activations import gelu
@@ -34,7 +33,6 @@ ALL_OBJECTS = {
     softsign,
     silu,
     gelu,
-    celu,
     tanh,
     sigmoid,
     exponential,
