@@ -3,6 +3,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    convert_format,
+)
 from keras.src.ops.core import _saturate_cast
 
 
@@ -129,11 +132,6 @@ class Resizing(BaseImagePreprocessingLayer):
             input_shape[self.height_axis],
             input_shape[self.width_axis],
         )
-        if input_height is None or input_width is None:
-            raise ValueError(
-                "Resizing requires the input to have a fully defined "
-                f"height and width. Received: images.shape={input_shape}"
-            )
 
         return input_height, input_width
 
@@ -144,49 +142,44 @@ class Resizing(BaseImagePreprocessingLayer):
         training=True,
     ):
         input_height, input_width = transformation
-        if "rel" in self.bounding_box_format:
-            return bounding_boxes
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source=self.bounding_box_format,
+            target="rel_yxyx",
+            height=input_height,
+            width=input_width,
+        )
 
-        elif self.bounding_box_format in ["yxyx", "center_yxhw"]:
-            bounding_boxes["boxes"] = self._transform_yx_pattern(
-                bounding_boxes["boxes"],
-                input_height=input_height,
-                input_width=input_width,
-            )
+        bounding_boxes["boxes"] = self._transform_rel_yxyx(
+            bounding_boxes["boxes"],
+            input_height=input_height,
+            input_width=input_width,
+        )
 
-        elif self.bounding_box_format in ["xyxy", "xywh", "center_xywh"]:
-            bounding_boxes["boxes"] = self._transform_xy_pattern(
-                bounding_boxes["boxes"],
-                input_height=input_height,
-                input_width=input_width,
-            )
-        else:
-            raise NotImplementedError()
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source="rel_yxyx",
+            target=self.bounding_box_format,
+            height=input_height,
+            width=input_width,
+        )
 
         return bounding_boxes
 
-    def _transform_yx_pattern(self, boxes, input_height, input_width):
-        h_ratios = self.height / input_height
-        w_ratios = self.width / input_width
-        return self.backend.numpy.stack(
-            [
-                boxes[..., 0] * h_ratios,
-                boxes[..., 1] * w_ratios,
-                boxes[..., 2] * h_ratios,
-                boxes[..., 3] * w_ratios,
-            ],
-            axis=-1,
-        )
+    def _transform_rel_yxyx(self, boxes, input_height, input_width):
+        height_ratio = self.height / input_height
+        width_ratio = self.width / input_width
 
-    def _transform_xy_pattern(self, boxes, input_height, input_width):
-        h_ratios = self.height / input_height
-        w_ratios = self.width / input_width
+        # Calculate padding or cropping offsets (only one will be non-zero)
+        y_offset = (self.height - input_height * height_ratio) / 2
+        x_offset = (self.width - input_width * width_ratio) / 2
+
         return self.backend.numpy.stack(
             [
-                boxes[..., 0] * w_ratios,
-                boxes[..., 1] * h_ratios,
-                boxes[..., 2] * w_ratios,
-                boxes[..., 3] * h_ratios,
+                (boxes[..., 0] * input_height + y_offset) / self.height,
+                (boxes[..., 1] * input_height + x_offset) / self.width,
+                (boxes[..., 2] * input_height + y_offset) / self.height,
+                (boxes[..., 3] * input_height + x_offset) / self.width,
             ],
             axis=-1,
         )

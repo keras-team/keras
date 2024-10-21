@@ -145,6 +145,9 @@ from keras.src.layers.preprocessing.image_preprocessing.auto_contrast import (
 from keras.src.layers.preprocessing.image_preprocessing.center_crop import (
     CenterCrop,
 )
+from keras.src.layers.preprocessing.image_preprocessing.max_bounding_box import (
+    MaxBoundingBox,
+)
 from keras.src.layers.preprocessing.image_preprocessing.random_brightness import (
     RandomBrightness,
 )

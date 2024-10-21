@@ -221,3 +221,31 @@ class ResizingTest(testing.TestCase):
             size[0], size[1], data_format=data_format, crop_to_aspect_ratio=True
         )(img)
         self.assertEqual(output.shape, (1, *size, 4))
+
+    # TODO: Add proper test case for with and without pad to aspect ratio
+    def test_pad_to_aspect_ratio_with_bounding_boxes(self):
+        input_image = np.random.random((1, 100, 75, 3))
+        bounding_boxes = {
+            "boxes": np.array(
+                [
+                    [
+                        [0.156, 0.5653, 0.634, 1.3146],
+                        [0.022, 0.2613, 0.656, 0.6426],
+                        [0.164, 0.3626, 0.644, 1.008],
+                    ]
+                ]
+            ),  # Example boxes (normalized)
+            "labels": np.array([[1, 2, 3]]),  # Dummy labels
+        }
+
+        input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
+
+        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        resizing_layer = layers.Resizing(
+            height=200,
+            width=200,
+            pad_to_aspect_ratio=True,
+            bounding_box_format="rel_yxyx",
+        )
+        ds = ds.map(resizing_layer)
+        ds = ds.batch(batch_size=1)

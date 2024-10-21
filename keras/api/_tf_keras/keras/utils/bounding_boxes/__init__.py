@@ -5,10 +5,10 @@ since your modifications would be overwritten.
 """
 
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (
-    affine,
+    affine_transform,
 )
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (
-    clip_to_images,
+    clip_to_image_size,
 )
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (
     convert_format,

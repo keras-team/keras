@@ -159,7 +159,7 @@ class BoundingBox:
         in_xyxy_boxes = to_xyxy_converter(boxes, height, width)
         return from_xyxy_converter(in_xyxy_boxes, height, width)
 
-    def clip_to_images(
+    def clip_to_image_size(
         self, bounding_boxes, height=None, width=None, format="xyxy"
     ):
         if format not in ("xyxy", "rel_xyxy"):

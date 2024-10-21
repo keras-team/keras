@@ -26,14 +26,14 @@ def convert_format(
     return boxes
 
 
-@keras_export("keras.utils.bounding_boxes.clip_to_images")
-def clip_to_images(bounding_boxes, height=None, width=None, format="xyxy"):
+@keras_export("keras.utils.bounding_boxes.clip_to_image_size")
+def clip_to_image_size(bounding_boxes, height=None, width=None, format="xyxy"):
     # Switch to tensorflow backend if we are in tf.data pipe
 
     box_utils = BoundingBox()
     if backend_utils.in_tf_graph():
         box_utils.backend.set_backend("tensorflow")
-    bounding_boxes = box_utils.clip_to_images(
+    bounding_boxes = box_utils.clip_to_image_size(
         bounding_boxes, height=height, width=width, format=format
     )
     # Switch back to original backend
@@ -41,8 +41,8 @@ def clip_to_images(bounding_boxes, height=None, width=None, format="xyxy"):
     return bounding_boxes
 
 
-@keras_export("keras.utils.bounding_boxes.affine")
-def affine(
+@keras_export("keras.utils.bounding_boxes.affine_transform")
+def affine_transform(
     boxes,
     angle,
     translate_x,
