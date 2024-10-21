@@ -141,6 +141,10 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.gelu(x).shape, (None, 2, 3))
 
+    def test_celu(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.celu(x).shape, (None, 2, 3))
+
     def test_softmax(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.softmax(x).shape, (None, 2, 3))
@@ -786,6 +790,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.gelu(x).shape, (1, 2, 3))
 
+    def test_celu(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.celu(x).shape, (1, 2, 3))
+
     def test_softmax(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.softmax(x).shape, (1, 2, 3))
@@ -1290,6 +1298,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knn.gelu(x),
             [-0.15880796, 0.0, 0.841192, 1.9545977, 2.9963627],
+        )
+
+    def test_celu(self):
+        x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.celu(x),
+            [-0.63212055, 0.0, 1.0, 2.0, 3.0],
         )
 
     def test_softmax(self):
@@ -2360,6 +2375,24 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.Gelu(False).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_celu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.celu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.celu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Celu().symbolic_call(x).dtype),
             expected_dtype,
         )
 
