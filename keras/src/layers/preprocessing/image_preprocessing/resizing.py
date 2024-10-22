@@ -176,7 +176,7 @@ class Resizing(BaseImagePreprocessingLayer):
 
         return bounding_boxes
 
-    def _transform_rel_yxyx(self, boxes, input_height, input_width):
+    def _transform_rel_xyxy(self, boxes, input_height, input_width):
         height_ratio = self.backend.cast(
             self.height / input_height, dtype=boxes.dtype
         )
@@ -194,10 +194,10 @@ class Resizing(BaseImagePreprocessingLayer):
             x_offset = 0
         return self.backend.numpy.stack(
             [
-                (boxes[..., 0] * input_height + y_offset) / self.height,
-                (boxes[..., 1] * input_width + x_offset) / self.width,
-                (boxes[..., 2] * input_height + y_offset) / self.height,
-                (boxes[..., 3] * input_width + x_offset) / self.width,
+                (boxes[..., 0] * input_width + x_offset) / self.width,
+                (boxes[..., 1] * input_height + y_offset) / self.height,
+                (boxes[..., 2] * input_width + x_offset) / self.width,
+                (boxes[..., 3] * input_height + y_offset) / self.height,
             ],
             axis=-1,
         )
