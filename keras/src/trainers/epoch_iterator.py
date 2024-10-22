@@ -92,7 +92,7 @@ class EpochIterator:
         self._steps_seen = 0
         self._epoch_iterator = None
 
-    def enumerate_epoch(self):
+    def _enumerate_iterator(self):
         self.data_adapter.on_epoch_begin()
         steps_per_epoch = self.steps_per_epoch or self._num_batches or -1
 
@@ -120,7 +120,7 @@ class EpochIterator:
         self.data_adapter.on_epoch_end()
 
     def __iter__(self):
-        self._epoch_iterator = self.enumerate_epoch()
+        self._epoch_iterator = self._enumerate_iterator()
         return self
 
     def __next__(self):
@@ -134,6 +134,10 @@ class EpochIterator:
         if buffer:
             return step, buffer
         raise StopIteration
+
+    def enumerate_epoch(self):
+        for step, data in self:
+            yield step, data
 
     @contextlib.contextmanager
     def catch_stop_iteration(self):

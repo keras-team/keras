@@ -10,7 +10,10 @@ from keras.src.trainers import epoch_iterator
 
 
 class TestEpochIterator(testing.TestCase):
-    def test_basic_flow(self):
+    @parameterized.named_parameters(
+        [("iterator", "iterator"), ("enumerate_epoch", "enumerate_epoch")]
+    )
+    def test_basic_flow(self, call_type):
         x = np.random.random((100, 16))
         y = np.random.random((100, 4))
         sample_weight = np.random.random((100,))
@@ -24,7 +27,11 @@ class TestEpochIterator(testing.TestCase):
             shuffle=shuffle,
         )
         steps_seen = []
-        for step, batch in iterator:
+        if call_type == "iterator":
+            generator = iterator
+        else:
+            generator = iterator.enumerate_epoch()
+        for step, batch in generator:
             batch = batch[0]
             steps_seen.append(step)
             self.assertEqual(len(batch), 3)
