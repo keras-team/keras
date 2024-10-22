@@ -10,7 +10,7 @@ class MaxBoundingBox(BaseImagePreprocessingLayer):
 
     Args:
         max_number: Desired output number of bounding boxs.
-        padding_value: The padding value of the `boxes` and `classes` in
+        padding_value: The padding value of the `boxes` and `labels` in
             `bounding_boxes`. Defaults to `-1`.
     """
 
@@ -30,7 +30,7 @@ class MaxBoundingBox(BaseImagePreprocessingLayer):
     ):
         ops = self.backend
         boxes = bounding_boxes["boxes"]
-        classes = bounding_boxes["classes"]
+        labels = bounding_boxes["labels"]
         boxes_shape = ops.shape(boxes)
         batch_size = boxes_shape[0]
         num_boxes = boxes_shape[1]
@@ -45,18 +45,18 @@ class MaxBoundingBox(BaseImagePreprocessingLayer):
             [[0, 0], [0, pad_size], [0, 0]],
             constant_values=self.fill_value,
         )
-        classes = classes[:, : self.max_number]
-        classes = ops.numpy.pad(
-            classes, [[0, 0], [0, pad_size]], constant_values=self.fill_value
+        labels = labels[:, : self.max_number]
+        labels = ops.numpy.pad(
+            labels, [[0, 0], [0, pad_size]], constant_values=self.fill_value
         )
 
         # Ensure shape
         boxes = ops.numpy.reshape(boxes, [batch_size, self.max_number, 4])
-        classes = ops.numpy.reshape(classes, [batch_size, self.max_number])
+        labels = ops.numpy.reshape(labels, [batch_size, self.max_number])
 
         bounding_boxes = bounding_boxes.copy()
         bounding_boxes["boxes"] = boxes
-        bounding_boxes["classes"] = classes
+        bounding_boxes["labels"] = labels
         return bounding_boxes
 
     def transform_segmentation_masks(
@@ -67,20 +67,20 @@ class MaxBoundingBox(BaseImagePreprocessingLayer):
     def compute_output_shape(self, input_shape):
         if isinstance(input_shape, dict) and "bounding_boxes" in input_shape:
             input_keys = set(input_shape["bounding_boxes"].keys())
-            extra_keys = input_keys - set(("boxes", "classes"))
+            extra_keys = input_keys - set(("boxes", "labels"))
             if extra_keys:
                 raise KeyError(
                     "There are unsupported keys in `bounding_boxes`: "
                     f"{list(extra_keys)}. "
-                    "Only `boxes` and `classes` are supported."
+                    "Only `boxes` and `labels` are supported."
                 )
 
             boxes_shape = list(input_shape["bounding_boxes"]["boxes"])
             boxes_shape[1] = self.max_number
-            classes_shape = list(input_shape["bounding_boxes"]["classes"])
-            classes_shape[1] = self.max_number
+            labels_shape = list(input_shape["bounding_boxes"]["labels"])
+            labels_shape[1] = self.max_number
             input_shape["bounding_boxes"]["boxes"] = boxes_shape
-            input_shape["bounding_boxes"]["classes"] = classes_shape
+            input_shape["bounding_boxes"]["labels"] = labels_shape
         return input_shape
 
     def get_config(self):

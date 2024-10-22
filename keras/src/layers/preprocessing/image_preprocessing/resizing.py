@@ -4,6 +4,9 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
     BaseImagePreprocessingLayer,
 )
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    clip_to_image_size,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     convert_format,
 )
 from keras.src.ops.core import _saturate_cast
@@ -145,7 +148,7 @@ class Resizing(BaseImagePreprocessingLayer):
         bounding_boxes = convert_format(
             bounding_boxes,
             source=self.bounding_box_format,
-            target="rel_yxyx",
+            target="rel_xyxy",
             height=input_height,
             width=input_width,
         )
@@ -156,9 +159,16 @@ class Resizing(BaseImagePreprocessingLayer):
             input_width=input_width,
         )
 
+        bounding_boxes = clip_to_image_size(
+            bounding_boxes=bounding_boxes,
+            height=self.height,
+            width=self.width,
+            format="rel_xyxy",
+        )
+
         bounding_boxes = convert_format(
             bounding_boxes,
-            source="rel_yxyx",
+            source="rel_xyxy",
             target=self.bounding_box_format,
             height=input_height,
             width=input_width,
@@ -167,9 +177,14 @@ class Resizing(BaseImagePreprocessingLayer):
         return bounding_boxes
 
     def _transform_rel_yxyx(self, boxes, input_height, input_width):
-        height_ratio = self.height / input_height
-        width_ratio = self.width / input_width
-
+        height_ratio = self.backend.cast(
+            self.height / input_height, dtype=boxes.dtype
+        )
+        width_ratio = self.backend.cast(
+            self.width / input_width, dtype=boxes.dtype
+        )
+        input_height = self.backend.cast(input_height, dtype=boxes.dtype)
+        input_width = self.backend.cast(input_width, dtype=boxes.dtype)
         if self.pad_to_aspect_ratio:
             # Calculate padding or cropping offsets (only one will be non-zero)
             y_offset = (self.height - input_height * height_ratio) / 2
@@ -177,13 +192,12 @@ class Resizing(BaseImagePreprocessingLayer):
         else:
             y_offset = 0
             x_offset = 0
-
         return self.backend.numpy.stack(
             [
                 (boxes[..., 0] * input_height + y_offset) / self.height,
-                (boxes[..., 1] * input_height + x_offset) / self.width,
+                (boxes[..., 1] * input_width + x_offset) / self.width,
                 (boxes[..., 2] * input_height + y_offset) / self.height,
-                (boxes[..., 3] * input_height + x_offset) / self.width,
+                (boxes[..., 3] * input_width + x_offset) / self.width,
             ],
             axis=-1,
         )

@@ -110,7 +110,7 @@ def densify_bounding_boxes(
         )
         return bounding_boxes
 
-    bounding_boxes["boxes"] = backend.convert_to_tensor(boxes, dtype="int32")
+    bounding_boxes["boxes"] = backend.convert_to_tensor(boxes, dtype="float32")
     bounding_boxes["labels"] = backend.convert_to_tensor(labels)
     return bounding_boxes
 
