@@ -202,18 +202,25 @@ class Resizing(BaseImagePreprocessingLayer):
             # Calculate padding or cropping offsets (only one will be non-zero)
             y_offset = (self.height - input_height * min_aspect_ratio) // 2
             x_offset = (self.width - input_width * min_aspect_ratio) // 2
+            return self.backend.numpy.stack(
+                [
+                    boxes[..., 0] * min_aspect_ratio + x_offset,
+                    boxes[..., 1] * min_aspect_ratio + y_offset,
+                    boxes[..., 2] * min_aspect_ratio + x_offset,
+                    boxes[..., 3] * min_aspect_ratio + y_offset,
+                ],
+                axis=-1,
+            )
         else:
-            y_offset = 0
-            x_offset = 0
-        return self.backend.numpy.stack(
-            [
-                boxes[..., 0] * min_aspect_ratio + x_offset,
-                boxes[..., 1] * min_aspect_ratio + y_offset,
-                boxes[..., 2] * min_aspect_ratio + x_offset,
-                boxes[..., 3] * min_aspect_ratio + y_offset,
-            ],
-            axis=-1,
-        )
+            return self.backend.numpy.stack(
+                [
+                    boxes[..., 0] * width_ratio,
+                    boxes[..., 1] * height_ratio,
+                    boxes[..., 2] * width_ratio,
+                    boxes[..., 3] * height_ratio,
+                ],
+                axis=-1,
+            )
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
