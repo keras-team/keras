@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [ master ]
+    branches: [ iterator-fix ]
   pull_request:
   release:
     types: [created]
