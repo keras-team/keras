@@ -699,7 +699,7 @@ def deserialize_node(node_data, created_layers):
             inbound_node_index = history[1]
             inbound_tensor_index = history[2]
             if len(layer._inbound_nodes) <= inbound_node_index:
-                raise ValueError(
+                raise IndexError(
                     "Layer node index out of bounds.\n"
                     f"inbound_layer = {layer}\n"
                     f"inbound_layer._inbound_nodes = {layer._inbound_nodes}\n"
