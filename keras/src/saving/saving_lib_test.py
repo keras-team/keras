@@ -723,6 +723,18 @@ class SavingTest(testing.TestCase):
             pool.join()
         [r.get() for r in results]  # No error occurs here
 
+    def test_load_model_containing_reused_layer(self):
+        # https://github.com/keras-team/keras/issues/20307
+        inputs = keras.Input((4,))
+        reused_layer = keras.layers.Dense(4)
+        x = reused_layer(inputs)
+        x = keras.layers.Dense(4)(x)
+        outputs = reused_layer(x)
+        model = keras.Model(inputs, outputs)
+
+        self.assertLen(model.layers, 3)  # Input + 2 Dense layers
+        self._test_inference_after_instantiation(model)
+
 
 @pytest.mark.requires_trainable_backend
 class SavingAPITest(testing.TestCase):
