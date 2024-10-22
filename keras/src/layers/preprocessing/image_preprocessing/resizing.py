@@ -198,7 +198,7 @@ class Resizing(BaseImagePreprocessingLayer):
         input_height = self.backend.cast(input_height, dtype=boxes.dtype)
         input_width = self.backend.cast(input_width, dtype=boxes.dtype)
         min_aspect_ratio = self.backend.numpy.minimum(height_ratio, width_ratio)
-        if self.pad_to_aspect_ratio or self.crop_to_aspect_ratio:
+        if self.pad_to_aspect_ratio:
             # Calculate padding or cropping offsets (only one will be non-zero)
             y_offset = (self.height - input_height * min_aspect_ratio) // 2
             x_offset = (self.width - input_width * min_aspect_ratio) // 2
