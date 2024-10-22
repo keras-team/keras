@@ -222,6 +222,7 @@ class TorchTrainer(base_trainer.Trainer):
         )
 
         self._symbolic_build(iterator=epoch_iterator)
+        epoch_iterator.reset()
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -250,7 +251,7 @@ class TorchTrainer(base_trainer.Trainer):
             self.train()
 
             logs = {}
-            for step, data in epoch_iterator.enumerate_epoch():
+            for step, data in epoch_iterator:
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
 
@@ -347,6 +348,7 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         self._symbolic_build(iterator=epoch_iterator)
+        epoch_iterator.reset()
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -368,7 +370,7 @@ class TorchTrainer(base_trainer.Trainer):
         callbacks.on_test_begin()
         logs = {}
         self.reset_metrics()
-        for step, data in epoch_iterator.enumerate_epoch():
+        for step, data in epoch_iterator:
             callbacks.on_test_batch_begin(step)
             logs = self.test_function(data)
             callbacks.on_test_batch_end(step, logs)
@@ -428,7 +430,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
-        for step, data in epoch_iterator.enumerate_epoch():
+        for step, data in epoch_iterator:
             callbacks.on_predict_batch_begin(step)
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)
@@ -505,3 +507,4 @@ class TorchTrainer(base_trainer.Trainer):
 class TorchEpochIterator(EpochIterator):
     def _get_iterator(self):
         return self.data_adapter.get_torch_dataloader()
+

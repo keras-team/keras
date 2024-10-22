@@ -381,6 +381,7 @@ class JAXTrainer(base_trainer.Trainer):
         )
 
         self._symbolic_build(iterator=epoch_iterator)
+        epoch_iterator.reset()
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -405,7 +406,7 @@ class JAXTrainer(base_trainer.Trainer):
             callbacks.on_epoch_begin(epoch)
 
             self._jax_state_synced = True
-            for step, data in epoch_iterator.enumerate_epoch():
+            for step, data in epoch_iterator:
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
 
@@ -539,6 +540,7 @@ class JAXTrainer(base_trainer.Trainer):
             )
 
         self._symbolic_build(iterator=epoch_iterator)
+        epoch_iterator.reset()
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -560,7 +562,7 @@ class JAXTrainer(base_trainer.Trainer):
         self.reset_metrics()
 
         self._jax_state_synced = True
-        for step, data in epoch_iterator.enumerate_epoch():
+        for step, data in epoch_iterator:
             callbacks.on_test_batch_begin(step)
 
             if self._jax_state_synced:
@@ -625,7 +627,7 @@ class JAXTrainer(base_trainer.Trainer):
 
         if not all(layer.built for layer in self._flatten_layers()):
             # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch():
+            for _, data in epoch_iterator:
                 # Build model
                 x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data[0])
                 with backend.StatelessScope():
@@ -667,7 +669,7 @@ class JAXTrainer(base_trainer.Trainer):
         self._jax_state_synced = True
         outputs = None
         non_trainable_variables = None
-        for step, x in epoch_iterator.enumerate_epoch():
+        for step, x in epoch_iterator:
             callbacks.on_predict_batch_begin(step)
             if self._jax_state_synced:
                 # The state may have been synced by a callback.
@@ -1036,3 +1038,5 @@ class JAXEpochIterator(EpochIterator):
         while queue:
             yield queue.popleft()
             enqueue(1)
+
+
