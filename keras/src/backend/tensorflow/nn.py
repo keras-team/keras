@@ -82,6 +82,12 @@ def celu(x, alpha=1.0):
     )
 
 
+def glu(x, axis=-1):
+    assert x.shape[axis] % 2 == 0, "axis size must be divisible by 2"
+    x1, x2 = tf.split(x, num_or_size_splits=2, axis=axis)
+    return x1 * tf.sigmoid(x2)
+
+
 def softmax(x, axis=-1):
     logits = x
     if axis is None:
