@@ -103,7 +103,7 @@ class DistributeTest(testing.TestCase):
             distribute_strategy=strategy,
         )
         steps_seen = []
-        for step, data_iterator in epoch_iterator.enumerate_epoch():
+        for step, data_iterator in epoch_iterator:
             steps_seen.append(step)
             batch = next(data_iterator)
             self.assertEqual(len(batch), 3)
