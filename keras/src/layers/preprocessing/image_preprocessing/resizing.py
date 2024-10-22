@@ -153,7 +153,7 @@ class Resizing(BaseImagePreprocessingLayer):
             width=input_width,
         )
 
-        bounding_boxes["boxes"] = self._transform_rel_yxyx(
+        bounding_boxes["boxes"] = self._transform_rel_xyxy(
             bounding_boxes["boxes"],
             input_height=input_height,
             input_width=input_width,
