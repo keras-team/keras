@@ -1038,5 +1038,3 @@ class JAXEpochIterator(EpochIterator):
         while queue:
             yield queue.popleft()
             enqueue(1)
-
-

@@ -147,14 +147,14 @@ class _EpochIterator:
 
 
 class EpochIterator(_EpochIterator):
-  def __next__(self):
-    buffer = []
-    step, iterator = super().__next__()
-    with self.catch_stop_iteration():
-      for _ in range(self.steps_per_execution):
-        data = next(iterator)
-        buffer.append(data)
-      return step, buffer
-    if buffer:
-      return step, buffer
-    raise StopIteration
+    def __next__(self):
+        buffer = []
+        step, iterator = super().__next__()
+        with self.catch_stop_iteration():
+            for _ in range(self.steps_per_execution):
+                data = next(iterator)
+                buffer.append(data)
+            return step, buffer
+        if buffer:
+            return step, buffer
+        raise StopIteration

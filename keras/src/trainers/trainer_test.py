@@ -763,7 +763,13 @@ class TestTrainer(testing.TestCase):
         )
 
         model_2 = ExampleModel(units=1)
-        model_2.compile(loss="mse", optimizer="sgd", steps_per_execution=1)
+        model_2.compile(
+            loss="mse",
+            optimizer="sgd",
+            steps_per_execution=1,
+            run_eagerly=(mode == "eager"),
+            jit_compile=(mode == "jit"),
+        )
         history_2 = model_2.fit(
             x=x, y=y, batch_size=batch_size, epochs=epochs, verbose=0
         )
@@ -839,7 +845,13 @@ class TestTrainer(testing.TestCase):
         )
 
         model_2 = ExampleModel(units=1)
-        model_2.compile(loss="mse", optimizer="sgd", steps_per_execution=1)
+        model_2.compile(
+            loss="mse",
+            optimizer="sgd",
+            steps_per_execution=1,
+            run_eagerly=(mode == "eager"),
+            jit_compile=(mode == "jit"),
+        )
         history_2 = model_2.fit(dataset, epochs=epochs, verbose=0)
 
         self.assertAllClose(history.history["loss"], history_2.history["loss"])
@@ -941,6 +953,8 @@ class TestTrainer(testing.TestCase):
                 optimizer="sgd",
                 metrics=[EpochAgnosticMeanSquaredError()],
                 steps_per_execution=1,
+                run_eagerly=(mode == "eager"),
+                jit_compile=(mode == "jit"),
             )
             step_observer_2 = StepObserver()
 
@@ -1048,6 +1062,8 @@ class TestTrainer(testing.TestCase):
                 optimizer="sgd",
                 metrics=[EpochAgnosticMeanSquaredError()],
                 steps_per_execution=1,
+                run_eagerly=(mode == "eager"),
+                jit_compile=(mode == "jit"),
             )
             step_observer_2 = StepObserver()
 
@@ -1181,6 +1197,8 @@ class TestTrainer(testing.TestCase):
                 optimizer="sgd",
                 metrics=[EpochAgnosticMeanSquaredError()],
                 steps_per_execution=1,
+                run_eagerly=(mode == "eager"),
+                jit_compile=(mode == "jit"),
             )
             step_observer_2 = StepObserver()
 

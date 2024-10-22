@@ -45,8 +45,8 @@ class TestEpochIterator(testing.TestCase):
         )
         steps_seen = []
         with pytest.warns(match="Your input ran out of data"):
-          for step, _ in iterator:
-              steps_seen.append(step)
+            for step, _ in iterator:
+                steps_seen.append(step)
         self.assertLen(steps_seen, steps_per_epoch - 2)
 
         self.assertIsInstance(iterator, epoch_iterator.EpochIterator)

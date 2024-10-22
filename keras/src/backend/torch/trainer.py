@@ -507,4 +507,3 @@ class TorchTrainer(base_trainer.Trainer):
 class TorchEpochIterator(EpochIterator):
     def _get_iterator(self):
         return self.data_adapter.get_torch_dataloader()
-
