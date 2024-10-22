@@ -144,16 +144,22 @@ class Resizing(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
+        ops = self.backend
         input_height, input_width = transformation
+
+        mask_negative_1s = ops.numpy.all(bounding_boxes["boxes"] == -1, axis=-1)
+        mask_zeros = ops.numpy.all(bounding_boxes["boxes"] == 0, axis=-1)
+        boxes_mask = ops.numpy.logical_or(mask_negative_1s, mask_zeros)
+
         bounding_boxes = convert_format(
             bounding_boxes,
             source=self.bounding_box_format,
-            target="rel_xyxy",
+            target="xyxy",
             height=input_height,
             width=input_width,
         )
 
-        bounding_boxes["boxes"] = self._transform_rel_xyxy(
+        bounding_boxes["boxes"] = self._transform_xyxy(
             bounding_boxes["boxes"],
             input_height=input_height,
             input_width=input_width,
@@ -163,20 +169,26 @@ class Resizing(BaseImagePreprocessingLayer):
             bounding_boxes=bounding_boxes,
             height=self.height,
             width=self.width,
-            format="rel_xyxy",
+            format="xyxy",
+        )
+
+        bounding_boxes["boxes"] = ops.numpy.where(
+            ops.numpy.expand_dims(boxes_mask, axis=-1),
+            [0.0, 0.0, 0.0, 0.0],
+            bounding_boxes["boxes"],
         )
 
         bounding_boxes = convert_format(
             bounding_boxes,
-            source="rel_xyxy",
+            source="xyxy",
             target=self.bounding_box_format,
-            height=input_height,
-            width=input_width,
+            height=self.height,
+            width=self.width,
         )
 
         return bounding_boxes
 
-    def _transform_rel_xyxy(self, boxes, input_height, input_width):
+    def _transform_xyxy(self, boxes, input_height, input_width):
         height_ratio = self.backend.cast(
             self.height / input_height, dtype=boxes.dtype
         )
@@ -185,19 +197,20 @@ class Resizing(BaseImagePreprocessingLayer):
         )
         input_height = self.backend.cast(input_height, dtype=boxes.dtype)
         input_width = self.backend.cast(input_width, dtype=boxes.dtype)
-        if self.pad_to_aspect_ratio:
+        min_aspect_ratio = self.backend.numpy.minimum(height_ratio, width_ratio)
+        if self.pad_to_aspect_ratio or self.crop_to_aspect_ratio:
             # Calculate padding or cropping offsets (only one will be non-zero)
-            y_offset = (self.height - input_height * height_ratio) / 2
-            x_offset = (self.width - input_width * width_ratio) / 2
+            y_offset = (self.height - input_height * min_aspect_ratio) // 2
+            x_offset = (self.width - input_width * min_aspect_ratio) // 2
         else:
             y_offset = 0
             x_offset = 0
         return self.backend.numpy.stack(
             [
-                (boxes[..., 0] * input_width + x_offset) / self.width,
-                (boxes[..., 1] * input_height + y_offset) / self.height,
-                (boxes[..., 2] * input_width + x_offset) / self.width,
-                (boxes[..., 3] * input_height + y_offset) / self.height,
+                boxes[..., 0] * min_aspect_ratio + x_offset,
+                boxes[..., 1] * min_aspect_ratio + y_offset,
+                boxes[..., 2] * min_aspect_ratio + x_offset,
+                boxes[..., 3] * min_aspect_ratio + y_offset,
             ],
             axis=-1,
         )
