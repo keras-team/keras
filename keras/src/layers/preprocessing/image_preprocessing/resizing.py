@@ -189,20 +189,17 @@ class Resizing(BaseImagePreprocessingLayer):
         return bounding_boxes
 
     def _transform_xyxy(self, boxes, input_height, input_width):
-        height_ratio = self.backend.cast(
-            self.height / input_height, dtype=boxes.dtype
-        )
-        width_ratio = self.backend.cast(
-            self.width / input_width, dtype=boxes.dtype
-        )
-        input_height = self.backend.cast(input_height, dtype=boxes.dtype)
-        input_width = self.backend.cast(input_width, dtype=boxes.dtype)
-        min_aspect_ratio = self.backend.numpy.minimum(height_ratio, width_ratio)
+        ops = self.backend
+        height_ratio = ops.cast(self.height / input_height, dtype=boxes.dtype)
+        width_ratio = ops.cast(self.width / input_width, dtype=boxes.dtype)
+        input_height = ops.cast(input_height, dtype=boxes.dtype)
+        input_width = ops.cast(input_width, dtype=boxes.dtype)
+        min_aspect_ratio = ops.numpy.minimum(height_ratio, width_ratio)
         if self.pad_to_aspect_ratio:
             # Calculate padding or cropping offsets (only one will be non-zero)
             y_offset = (self.height - input_height * min_aspect_ratio) // 2
             x_offset = (self.width - input_width * min_aspect_ratio) // 2
-            return self.backend.numpy.stack(
+            return ops.numpy.stack(
                 [
                     boxes[..., 0] * min_aspect_ratio + x_offset,
                     boxes[..., 1] * min_aspect_ratio + y_offset,
@@ -211,8 +208,34 @@ class Resizing(BaseImagePreprocessingLayer):
                 ],
                 axis=-1,
             )
+        elif self.crop_to_aspect_ratio:
+            source_aspect_ratio = input_width / input_height
+            target_aspect_ratio = self.width / self.height
+            if ops.numpy.greater(source_aspect_ratio, target_aspect_ratio):
+                new_height = self.height
+                new_width = ops.cast(
+                    new_height * source_aspect_ratio, dtype=new_height.dtype
+                )
+            else:
+                new_width = self.width
+                new_height = ops.cast(
+                    new_width / source_aspect_ratio, dtype=new_height.dtype
+                )
+            scale_x = new_width / input_width
+            scale_y = new_height / input_height
+            # crop_left = (new_width - self.width) // 2
+            # crop_right = (new_height - self.height) // 2
+            return ops.numpy.stack(
+                [
+                    boxes[..., 0] * scale_x,
+                    boxes[..., 1] * scale_y,
+                    boxes[..., 2] * scale_x,
+                    boxes[..., 3] * scale_y,
+                ],
+                axis=-1,
+            )
         else:
-            return self.backend.numpy.stack(
+            return ops.numpy.stack(
                 [
                     boxes[..., 0] * width_ratio,
                     boxes[..., 1] * height_ratio,
