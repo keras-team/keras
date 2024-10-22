@@ -12,7 +12,7 @@ from keras.src import tree
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
-from keras.src.trainers.epoch_iterator import _EpochIterator
+from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
 
 
@@ -668,7 +668,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             self._symbolic_build(data_batch=data_batch)
 
 
-class TFEpochIterator(_EpochIterator):
+class TFEpochIterator(EpochIterator):
     def __init__(self, distribute_strategy=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._distribute_strategy = distribute_strategy
@@ -684,6 +684,9 @@ class TFEpochIterator(_EpochIterator):
 
     def tf_sync(self):
         tf_context.async_wait()
+
+    def __next__(self):
+        return next(self._epoch_iterator)
 
     @contextlib.contextmanager
     def catch_stop_iteration(self):

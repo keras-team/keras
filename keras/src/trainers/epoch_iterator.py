@@ -45,7 +45,7 @@ import warnings
 from keras.src.trainers import data_adapters
 
 
-class _EpochIterator:
+class EpochIterator:
     def __init__(
         self,
         x,
@@ -60,6 +60,7 @@ class _EpochIterator:
         self.steps_per_epoch = steps_per_epoch
         self.steps_per_execution = steps_per_execution
         self._current_iterator = None
+        self._epoch_iterator = None
         self._steps_seen = 0
         self.data_adapter = data_adapters.get_data_adapter(
             x=x,
@@ -91,7 +92,7 @@ class _EpochIterator:
         self._steps_seen = 0
         self._epoch_iterator = None
 
-    def _enumerate_epoch(self):
+    def enumerate_epoch(self):
         self.data_adapter.on_epoch_begin()
         steps_per_epoch = self.steps_per_epoch or self._num_batches or -1
 
@@ -119,11 +120,20 @@ class _EpochIterator:
         self.data_adapter.on_epoch_end()
 
     def __iter__(self):
-        self._epoch_iterator = self._enumerate_epoch()
+        self._epoch_iterator = self.enumerate_epoch()
         return self
 
     def __next__(self):
-        return next(self._epoch_iterator)
+        buffer = []
+        step, iterator = next(self._epoch_iterator)
+        with self.catch_stop_iteration():
+            for _ in range(self.steps_per_execution):
+                data = next(iterator)
+                buffer.append(data)
+            return step, buffer
+        if buffer:
+            return step, buffer
+        raise StopIteration
 
     @contextlib.contextmanager
     def catch_stop_iteration(self):
@@ -144,17 +154,3 @@ class _EpochIterator:
         # Either copied from the data_adapter, or
         # inferred at the end of an iteration.
         return self._num_batches
-
-
-class EpochIterator(_EpochIterator):
-    def __next__(self):
-        buffer = []
-        step, iterator = super().__next__()
-        with self.catch_stop_iteration():
-            for _ in range(self.steps_per_execution):
-                data = next(iterator)
-                buffer.append(data)
-            return step, buffer
-        if buffer:
-            return step, buffer
-        raise StopIteration
