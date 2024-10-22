@@ -41,9 +41,13 @@ def add(x1, x2):
     # Expecting `x1` to be `inputs` and `x2` to be `bias` (no swapping)
     x2_squeeze_shape = [d for d in x2.shape if d is None or d > 1]
     if (
+        # `x2` looks like bias (can be squeezed to vector)
         1 == len(x2_squeeze_shape)
+        # `x1` looks like input tensor (rank >= 2)
         and len(x1.shape) > 1
+        # `x2` non-squeezable dimension defined
         and x2_squeeze_shape[0] is not None
+        # `x2` non-squeezable dimension match `x1` channel dimension
         and x2_squeeze_shape[0] in {x1.shape[1], x1.shape[-1]}
     ):
         if x1.shape[-1] == x2_squeeze_shape[0]:
