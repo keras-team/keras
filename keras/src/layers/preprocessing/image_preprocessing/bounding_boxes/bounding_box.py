@@ -170,7 +170,7 @@ class BoundingBox:
             )
 
         ops = self.backend
-        boxes, classes = bounding_boxes["boxes"], bounding_boxes["classes"]
+        boxes, labels = bounding_boxes["boxes"], bounding_boxes["labels"]
 
         if format == "xyxy":
             x1, y1, x2, y2 = ops.numpy.split(boxes, 4, axis=-1)
@@ -182,7 +182,7 @@ class BoundingBox:
 
             areas = self._compute_area(boxes)
             areas = ops.numpy.squeeze(areas, axis=-1)
-            classes = ops.numpy.where(areas > 0, classes, -1)
+            labels = ops.numpy.where(areas > 0, labels, -1)
         elif format == "rel_xyxy":
             x1, y1, x2, y2 = ops.numpy.split(boxes, 4, axis=-1)
             x1 = ops.numpy.clip(x1, 0.0, 1.0)
@@ -193,11 +193,11 @@ class BoundingBox:
 
             areas = self._compute_area(boxes)
             areas = ops.numpy.squeeze(areas, axis=-1)
-            classes = ops.numpy.where(areas > 0, classes, -1)
+            labels = ops.numpy.where(areas > 0, labels, -1)
 
         result = bounding_boxes.copy()
         result["boxes"] = boxes
-        result["classes"] = classes
+        result["labels"] = labels
         return result
 
     def affine(
