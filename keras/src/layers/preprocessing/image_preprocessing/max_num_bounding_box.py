@@ -4,12 +4,12 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
 )
 
 
-@keras_export("keras.layers.MaxBoundingBox")
-class MaxBoundingBox(BaseImagePreprocessingLayer):
+@keras_export("keras.layers.MaxNumBoundingBoxes")
+class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
     """Ensure the maximum number of bounding boxes.
 
     Args:
-        max_number: Desired output number of bounding boxs.
+        max_number: Desired output number of bounding boxes.
         padding_value: The padding value of the `boxes` and `labels` in
             `bounding_boxes`. Defaults to `-1`.
     """
