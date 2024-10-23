@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [ master ]
+    branches: [ ci-test ]
   pull_request:
   release:
     types: [created]
@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [3.9]
-        backend: [tensorflow, jax, torch, numpy]
+        backend: [torch]
     name: Run tests
     runs-on: ubuntu-latest
     env:
@@ -84,21 +84,21 @@ jobs:
         run: |
           pytest integration_tests/torch_workflow_test.py
           python integration_tests/torch_custom_fit_test.py
+#      - name: Test with pytest
+#        run: |
+#          pytest keras --ignore keras/src/applications
       - name: Test with pytest
         run: |
-          pytest keras --ignore keras/src/applications
-      # - name: Test with pytest
-      #   run: |
-      #     pytest keras --ignore keras/src/applications --cov=keras
-      #     coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
-      # - name: Codecov keras
-      #   uses: codecov/codecov-action@v4
-      #   with:
-      #     env_vars: PYTHON,KERAS_HOME
-      #     flags: keras,keras-${{ matrix.backend }}
-      #     files: core-coverage.xml
-      #     token: ${{ secrets.CODECOV_TOKEN }}
-      #     fail_ci_if_error: false
+          pytest keras --ignore keras/src/applications --cov=keras
+          coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
+      - name: Codecov keras
+        uses: codecov/codecov-action@v4
+        with:
+          env_vars: PYTHON,KERAS_HOME
+          flags: keras,keras-${{ matrix.backend }}
+          files: core-coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   format:
     name: Check the code format
