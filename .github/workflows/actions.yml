@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [3.9]
-        backend: [torch]
+        backend: [tensorflow, jax, torch, numpy]
     name: Run tests
     runs-on: ubuntu-latest
     env:
@@ -54,7 +54,7 @@ jobs:
       - name: Test applications with pytest
         if: ${{ steps.filter.outputs.applications == 'true' }}
         run: |
-          pytest keras/src/applications --cov=keras/src/applications
+          pytest keras/src/applications --cov=keras/src/applications --cov-config=pyproject.toml
           coverage xml --include='keras/src/applications/*' -o apps-coverage.xml
       - name: Codecov keras.applications
         if: ${{ steps.filter.outputs.applications == 'true' }}
@@ -84,12 +84,9 @@ jobs:
         run: |
           pytest integration_tests/torch_workflow_test.py
           python integration_tests/torch_custom_fit_test.py
-#      - name: Test with pytest
-#        run: |
-#          pytest keras --ignore keras/src/applications
       - name: Test with pytest
         run: |
-          pytest keras --ignore keras/src/applications --cov=keras
+          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
           coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Codecov keras
         uses: codecov/codecov-action@v4
