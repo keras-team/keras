@@ -5,4 +5,7 @@ since your modifications would be overwritten.
 """
 
 from keras.src.visualization.draw_bounding_boxes import draw_bounding_boxes
+from keras.src.visualization.plot_bounding_box_gallery import (
+    plot_bounding_box_gallery,
+)
 from keras.src.visualization.plot_image_gallery import plot_image_gallery

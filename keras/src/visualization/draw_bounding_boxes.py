@@ -17,9 +17,9 @@ except ImportError:
 def draw_bounding_boxes(
     images,
     bounding_boxes,
+    color,
     bounding_box_format,
     class_mapping=None,
-    color_mapping=None,
     line_thickness=2,
     text_thickness=1,
     font_scale=1.0,
@@ -40,28 +40,18 @@ def draw_bounding_boxes(
             images. Refer
             [to the keras.io docs](TODO)
             for more details on supported bounding box formats.
-        class_mapping: Optional. dictionary from class ID to class label.
-        color_mapping: Optional. color mapping to each class ID same number of
-            keys as per the `class_mapping`. Defaults to `80` classes of COCO.
-        line_thickness: Optional. line_thickness for the box and text labels.
+        color: the color in which to plot the bounding boxes
+        class_mapping: Dictionary from class ID to class label. Defaults to
+            `None`.
+        line_thickness: Line thicknes for the box and text labels.
             Defaults to `2`.
-        text_thickness: Optional. the thickness for the text, defaults to
-            `1.0`.
-        font_scale: Optional. scale of font to draw in, defaults to `1.0`.
+        text_thickness: The thickness for the text. Defaults to `1.0`.
+        font_scale: Scale of font to draw in. Defaults to `1.0`.
 
     Returns:
         the input `images` with provided bounding boxes plotted on top of them
     """
     class_mapping = class_mapping or {}
-    if len(class_mapping) > 0:
-        num_classes = len(class_mapping)
-    else:
-        num_classes = 80  # Defaults to 80 (COCO)
-
-    if color_mapping is None:
-        color_mapping = {}
-        for i, color in enumerate(_generate_color_palette(num_classes)):
-            color_mapping[i] = color
     text_thickness = text_thickness or line_thickness
     data_format = data_format or backend.image_data_format()
     images_shape = ops.shape(images)
@@ -116,8 +106,6 @@ def draw_bounding_boxes(
                 continue
             x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
             c = int(c)
-            color = color_mapping[c % num_classes]
-
             # Draw bounding box
             cv2.rectangle(_image, (x1, y1), (x2, y2), color, line_thickness)
 
@@ -156,8 +144,3 @@ def _find_text_location(x, y, font_scale, thickness):
         x + static_offset,
         y + (2 * font_height) + line_offset + static_offset,
     )
-
-
-def _generate_color_palette(num_classes: int):
-    palette = np.array([2**25 - 1, 2**15 - 1, 2**21 - 1])
-    return [((i * palette) % 255).tolist() for i in range(num_classes)]

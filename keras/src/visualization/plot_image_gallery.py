@@ -34,9 +34,9 @@ def _extract_image_batch(images, num_images, batch_size):
 def plot_image_gallery(
     images,
     value_range,
-    scale=2,
     rows=None,
     cols=None,
+    scale=2,
     path=None,
     show=None,
     transparent=True,
@@ -50,17 +50,16 @@ def plot_image_gallery(
             gallery.
         value_range: value range of the images. Common examples include
             `(0, 255)` and `(0, 1)`.
-        scale: how large to scale the images in the gallery
-        rows: (Optional) number of rows in the gallery to show.
-            Required if inputs are unbatched.
-        cols: (Optional) number of columns in the gallery to show.
-            Required if inputs are unbatched.
-        path: (Optional) path to save the resulting gallery to.
-        show: (Optional) whether to show the gallery of images.
-        transparent: (Optional) whether to give the image a transparent
-            background, defaults to `True`.
-        dpi: (Optional) the dpi to pass to matplotlib.savefig(), defaults to
-            `60`.
+        rows: int. Number of rows in the gallery to shows. Required if inputs
+            are unbatched. Defaults to `None`
+        cols: int. Number of columns in the gallery to show. Required if inputs
+            are unbatched.Defaults to `None`
+        scale: How large to scale the images in the gallery. Defaults to `2`.
+        path: Path to save the resulting gallery to. Defaults to `None`
+        show: Whether to show the gallery of images. Defaults to `True`
+        transparent: Whether to give the image a transparent
+            background. Defaults to `True`.
+        dpi: The dpi to pass to matplotlib.savefig(). Defaults to `60`.
         legend_handles: (Optional) matplotlib.patches List of legend handles.
             I.e. passing: `[patches.Patch(color='red', label='mylabel')]` will
             produce a legend with a single red patch and the label 'mylabel'.
@@ -71,6 +70,8 @@ def plot_image_gallery(
             "plot_gallery() expects either `path` to be set, or `show` "
             "to be true."
         )
+    # set show to True by default if path is None
+    show = True if path is None else False
 
     batch_size = (
         ops.shape(images)[0] if len(ops.shape(images)) == 4 else 1
@@ -129,5 +130,3 @@ def plot_image_gallery(
     elif show:
         plt.show()
         plt.close()
-    else:
-        return fig
