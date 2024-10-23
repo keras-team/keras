@@ -66,10 +66,10 @@ def draw_bounding_boxes(
             f"Received: bounding_boxes={bounding_boxes} of type "
             f"{type(bounding_boxes)}"
         )
-    if "boxes" not in bounding_boxes or "classes" not in bounding_boxes:
+    if "boxes" not in bounding_boxes or "labels" not in bounding_boxes:
         raise ValueError(
             "`bounding_boxes` should be a dict containing 'boxes' and "
-            f"'classes' keys. Received: bounding_boxes={bounding_boxes}"
+            f"'labels' keys. Received: bounding_boxes={bounding_boxes}"
         )
     if data_format == "channels_last":
         h_axis = -3
@@ -87,7 +87,7 @@ def draw_bounding_boxes(
     # To numpy array
     images = ops.convert_to_numpy(images).astype("uint8")
     boxes = ops.convert_to_numpy(bounding_boxes["boxes"])
-    classes = ops.convert_to_numpy(bounding_boxes["labels"])
+    labels = ops.convert_to_numpy(bounding_boxes["labels"])
     if "confidences" in bounding_boxes:
         confidences = ops.convert_to_numpy(bounding_boxes["confidences"])
     else:
@@ -98,7 +98,7 @@ def draw_bounding_boxes(
     for i in range(batch_size):
         _image = images[i]
         _box = boxes[i]
-        _class = classes[i]
+        _class = labels[i]
         for box_i in range(_box.shape[0]):
             x1, y1, x2, y2 = _box[box_i].astype("int32")
             c = _class[box_i].astype("int32")
