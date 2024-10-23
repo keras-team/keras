@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [ ci-test ]
+    branches: [ master ]
   pull_request:
   release:
     types: [created]
