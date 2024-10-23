@@ -245,7 +245,11 @@ class ResizingTest(testing.TestCase):
     def test_resize_bounding_boxes(
         self, pad_to_aspect_ratio, crop_to_aspect_ratio, expected_boxes
     ):
-        input_image = np.random.random((10, 8, 3))
+        if backend.config.image_data_format() == "channels_last":
+            image_shape = (10, 8, 3)
+        else:
+            image_shape = (3, 10, 8)
+        input_image = np.random.random(image_shape)
         bounding_boxes = {
             "boxes": np.array(
                 [
@@ -289,7 +293,11 @@ class ResizingTest(testing.TestCase):
     def test_resize_tf_data_bounding_boxes(
         self, pad_to_aspect_ratio, crop_to_aspect_ratio, expected_boxes
     ):
-        input_image = np.random.random((1, 10, 8, 3))
+        if backend.config.image_data_format() == "channels_last":
+            image_shape = (1, 10, 8, 3)
+        else:
+            image_shape = (1, 3, 10, 8)
+        input_image = np.random.random(image_shape)
         bounding_boxes = {
             "boxes": np.array(
                 [
