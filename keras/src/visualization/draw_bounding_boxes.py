@@ -20,10 +20,38 @@ def draw_bounding_boxes(
     bounding_box_format,
     class_mapping=None,
     color_mapping=None,
-    thickness=1,
+    line_thickness=2,
+    text_thickness=1,
     font_scale=1.0,
     data_format=None,
 ):
+    """Utility to draw bounding boxes on the target image.
+
+    Accepts a batch of images and batch of bounding boxes. The function draws
+    the bounding boxes onto the image, and returns a new image tensor with the
+    annotated images. This API is intentionally not exported, and is considered
+    an implementation detail.
+
+    Args:
+        images: a batch Tensor of images to plot bounding boxes onto.
+        bounding_boxes: a Tensor of batched bounding boxes to plot onto the
+            provided images.
+        bounding_box_format: The format of bounding boxes to plot onto the
+            images. Refer
+            [to the keras.io docs](TODO)
+            for more details on supported bounding box formats.
+        class_mapping: Optional. dictionary from class ID to class label.
+        color_mapping: Optional. color mapping to each class ID same number of
+            keys as per the `class_mapping`. Defaults to `80` classes of COCO.
+        line_thickness: Optional. line_thickness for the box and text labels.
+            Defaults to `2`.
+        text_thickness: Optional. the thickness for the text, defaults to
+            `1.0`.
+        font_scale: Optional. scale of font to draw in, defaults to `1.0`.
+
+    Returns:
+        the input `images` with provided bounding boxes plotted on top of them
+    """
     class_mapping = class_mapping or {}
     if len(class_mapping) > 0:
         num_classes = len(class_mapping)
@@ -34,7 +62,7 @@ def draw_bounding_boxes(
         color_mapping = {}
         for i, color in enumerate(_generate_color_palette(num_classes)):
             color_mapping[i] = color
-    thickness = int(thickness)
+    text_thickness = text_thickness or line_thickness
     data_format = data_format or backend.image_data_format()
     images_shape = ops.shape(images)
     if len(images_shape) != 4:
@@ -91,7 +119,7 @@ def draw_bounding_boxes(
             color = color_mapping[c % num_classes]
 
             # Draw bounding box
-            cv2.rectangle(_image, (x1, y1), (x2, y2), color, thickness)
+            cv2.rectangle(_image, (x1, y1), (x2, y2), color, line_thickness)
 
             if c in class_mapping:
                 label = class_mapping[c]
@@ -100,7 +128,7 @@ def draw_bounding_boxes(
                     label = f"{label} | {conf:.2f}"
 
                 font_x1, font_y1 = _find_text_location(
-                    x1, y1, font_scale, thickness
+                    x1, y1, font_scale, text_thickness
                 )
                 cv2.putText(
                     _image,
@@ -109,7 +137,7 @@ def draw_bounding_boxes(
                     cv2.FONT_HERSHEY_SIMPLEX,
                     font_scale,
                     color,
-                    thickness,
+                    text_thickness,
                 )
         result.append(_image)
     return np.stack(result, axis=0)
