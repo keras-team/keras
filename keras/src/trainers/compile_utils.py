@@ -667,7 +667,7 @@ class CompileLoss(losses_module.Loss):
             # y_true is either flat or leaf
             if (
                 not tree.is_nested(y_true)
-                and isinstance(y_pred, (tuple, list))
+                and hasattr(y_pred, "__len__")
                 and len(y_pred) == 1
             ):
                 y_true = [y_true]
