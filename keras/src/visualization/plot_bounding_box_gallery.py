@@ -17,10 +17,10 @@ except ImportError:
 @keras_export("keras.visualization.plot_bounding_box_gallery")
 def plot_bounding_box_gallery(
     images,
-    value_range,
     bounding_box_format,
     y_true=None,
     y_pred=None,
+    value_range=(0, 255),
     true_color=(0, 188, 212),
     pred_color=(255, 235, 59),
     line_thickness=2,
@@ -45,8 +45,6 @@ def plot_bounding_box_gallery(
     Args:
         images: A 4D tensor or NumPy array of images. Shape should be
             `(batch_size, height, width, channels)`.
-        value_range: A tuple specifying the value range of the images
-            (e.g., `(0, 255)` or `(0, 1)`).
         bounding_box_format: The format of the bounding boxes.
             Refer [keras-io](TODO)
         y_true: A dictionary containing the ground truth bounding boxes and
@@ -55,6 +53,8 @@ def plot_bounding_box_gallery(
             Defaults to `None`.
         y_pred: A dictionary containing the predicted bounding boxes and labels.
             Should have the same structure as `y_true`. Defaults to `None`.
+        value_range: A tuple specifying the value range of the images
+            (e.g., `(0, 255)` or `(0, 1)`). Defaults to `(0, 255)`.
         true_color: A tuple of three integers representing the RGB color for the
             ground truth bounding boxes. Defaults to `(0, 188, 212)`.
         pred_color: A tuple of three integers representing the RGB color for the
@@ -126,7 +126,7 @@ def plot_bounding_box_gallery(
         plotted_images = draw_fn(
             plotted_images,
             y_true,
-            true_color,
+            color=true_color,
             class_mapping=ground_truth_mapping,
         )
 
@@ -134,7 +134,7 @@ def plot_bounding_box_gallery(
         plotted_images = draw_fn(
             plotted_images,
             y_pred,
-            pred_color,
+            color=pred_color,
             class_mapping=prediction_mapping,
         )
 
@@ -157,7 +157,7 @@ def plot_bounding_box_gallery(
 
     return plot_image_gallery(
         plotted_images,
-        value_range,
+        value_range=value_range,
         legend_handles=legend_handles,
         rows=rows,
         cols=cols,
