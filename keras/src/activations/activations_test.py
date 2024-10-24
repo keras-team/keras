@@ -582,6 +582,22 @@ class ActivationsTest(testing.TestCase):
         expected = gelu(x, True)
         self.assertAllClose(result, expected, rtol=1e-05)
 
+    def test_celu(self):
+        def celu(x, alpha=1.0):
+            return np.maximum(x, 0.0) + alpha * np.expm1(
+                np.minimum(x, 0.0) / alpha
+            )
+
+        x = np.random.random((2, 5))
+        result = activations.celu(x[np.newaxis, :])[0]
+        expected = celu(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+        x = np.random.random((2, 5))
+        result = activations.celu(x[np.newaxis, :], alpha=0.5)[0]
+        expected = celu(x, True)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
     def test_elu(self):
         x = np.random.random((2, 5))
         result = activations.elu(x[np.newaxis, :])[0]

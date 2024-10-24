@@ -1050,7 +1050,7 @@ class Trainer:
                 )
 
             if data_batch is None:
-                for _, data in iterator.enumerate_epoch():
+                for _, data in iterator:
                     data_batch = data[0]
                     break
             data_batch = tree.map_structure(to_symbolic_input, data_batch)

@@ -7,6 +7,7 @@ since your modifications would be overwritten.
 from keras.src.activations import deserialize
 from keras.src.activations import get
 from keras.src.activations import serialize
+from keras.src.activations.activations import celu
 from keras.src.activations.activations import elu
 from keras.src.activations.activations import exponential
 from keras.src.activations.activations import gelu

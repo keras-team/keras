@@ -3,6 +3,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    convert_format,
+)
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validation import (  # noqa: E501
     densify_bounding_boxes,
 )
@@ -178,11 +181,14 @@ class RandomCrop(BaseImagePreprocessingLayer):
         return labels
 
     def transform_bounding_boxes(
-        self, bounding_boxes, transformation, training=True
+        self,
+        bounding_boxes,
+        transformation,
+        training=True,
     ):
         """
         bounding_boxes = {
-            "boxes": (batch, num_boxes, 4),  # left-top-right-bottom
+            "boxes": (batch, num_boxes, 4),  # left-top-right-bottom (xyxy)
             "labels": (batch, num_boxes, num_classes),
         }
         or
@@ -197,7 +203,16 @@ class RandomCrop(BaseImagePreprocessingLayer):
                 bounding_boxes, backend=self.backend
             )
         boxes = bounding_boxes["boxes"]
-
+        # Convert to a standard xyxy as operations are done xyxy by default.
+        boxes = convert_format(
+            boxes=boxes,
+            source=self.bounding_box_format,
+            target="xyxy",
+            height=self.height,
+            width=self.width,
+        )
+        h_start = self.backend.cast(h_start, boxes.dtype)
+        w_start = self.backend.cast(w_start, boxes.dtype)
         if len(self.backend.shape(boxes)) == 3:
             boxes = self.backend.numpy.stack(
                 [
@@ -218,6 +233,16 @@ class RandomCrop(BaseImagePreprocessingLayer):
                 ],
                 axis=-1,
             )
+
+        # Convert to user defined bounding box format
+        boxes = convert_format(
+            boxes=boxes,
+            source="xyxy",
+            target=self.bounding_box_format,
+            height=self.height,
+            width=self.width,
+        )
+
         return {
             "boxes": boxes,
             "labels": bounding_boxes["labels"],
