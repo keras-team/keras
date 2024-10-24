@@ -355,9 +355,9 @@ class TestCompileLoss(testing.TestCase):
         y_true = {
             "a": {
                 "c": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
-                "d": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+                "d": np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
             },
-            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
         }
         y_pred = {
             "a": {
@@ -366,7 +366,7 @@ class TestCompileLoss(testing.TestCase):
             },
             "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
         }
-        loss = {"a": {"c": "mse", "d": "mae"}}
+        loss = {"a": {"c": "mae", "d": "binary_crossentropy"}}
         compile_loss = CompileLoss(loss=loss, output_names=["c", "d", "b"])
         y_true_symb = tree.map_structure(
             lambda _: backend.KerasTensor((3, 4)), y_true
@@ -376,15 +376,15 @@ class TestCompileLoss(testing.TestCase):
         )
         compile_loss.build(y_true_symb, y_pred_symb)
         value = compile_loss(y_true, y_pred)
-        self.assertAllClose(value, 1.07666, atol=1e-5)
+        self.assertAllClose(value, 1.819558, atol=1e-5)
 
     def test_struct_loss_invalid_weights(self):
         y_true = {
             "a": {
                 "c": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
-                "d": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+                "d": np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
             },
-            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
         }
         y_pred = {
             "a": {
@@ -393,7 +393,7 @@ class TestCompileLoss(testing.TestCase):
             },
             "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
         }
-        loss = {"a": {"c": "mse", "d": "mae"}}
+        loss = {"a": {"c": "mae", "d": "binary_crossentropy"}}
         compile_loss = CompileLoss(
             loss=loss, output_names=["c", "d", "b"], loss_weights=[1]
         )
@@ -412,9 +412,9 @@ class TestCompileLoss(testing.TestCase):
         y_true = {
             "a": (
                 np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
-                np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+                np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
             ),
-            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
         }
         y_pred = {
             "a": (
@@ -423,7 +423,7 @@ class TestCompileLoss(testing.TestCase):
             ),
             "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
         }
-        loss = {"a": ["mse", "mae"]}
+        loss = {"a": ["mae", "binary_crossentropy"]}
         compile_loss = CompileLoss(loss=loss, output_names=["c", "d", "b"])
         y_true_symb = tree.map_structure(
             lambda _: backend.KerasTensor((3, 4)), y_true
@@ -433,16 +433,16 @@ class TestCompileLoss(testing.TestCase):
         )
         compile_loss.build(y_true_symb, y_pred_symb)
         value = compile_loss(y_true, y_pred)
-        self.assertAllClose(value, 1.07666, atol=1e-5)
+        self.assertAllClose(value, 1.819558, atol=1e-5)
 
     def test_struct_loss_namedtuple(self):
         Point = namedtuple("Point", ["x", "y"])
         y_true = {
             "a": Point(
                 np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
-                np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+                np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
             ),
-            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
         }
         y_pred = {
             "a": Point(
@@ -451,7 +451,7 @@ class TestCompileLoss(testing.TestCase):
             ),
             "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
         }
-        loss = {"a": Point("mse", "mae")}
+        loss = {"a": Point("mae", "binary_crossentropy")}
         compile_loss = CompileLoss(loss=loss, output_names=["c", "d", "b"])
         y_true_symb = tree.map_structure(
             lambda _: backend.KerasTensor((3, 4)), y_true
@@ -461,15 +461,15 @@ class TestCompileLoss(testing.TestCase):
         )
         compile_loss.build(y_true_symb, y_pred_symb)
         value = compile_loss(y_true, y_pred)
-        self.assertAllClose(value, 1.07666, atol=1e-5)
+        self.assertAllClose(value, 1.819558, atol=1e-5)
 
     def test_struct_loss_invalid_path(self):
         y_true = {
             "a": {
                 "c": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
-                "d": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+                "d": np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
             },
-            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
         }
         y_pred = {
             "a": {
@@ -478,7 +478,7 @@ class TestCompileLoss(testing.TestCase):
             },
             "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
         }
-        loss = {"a": {"c": "mse"}, "b": {"d": "mae"}}
+        loss = {"a": {"c": "mae"}, "b": {"d": "binary_crossentropy"}}
         compile_loss = CompileLoss(loss=loss, output_names=["c", "d", "b"])
         y_true_symb = tree.map_structure(
             lambda _: backend.KerasTensor((3, 4)), y_true
