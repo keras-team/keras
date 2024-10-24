@@ -35,7 +35,7 @@ def _extract_image_batch(images, num_images, batch_size):
             "`plot_images_gallery()` requires you to "
             "batch your `np.array` samples together."
         )
-    num_samples = min(num_images, batch_size)  # Simplified
+    num_samples = min(num_images, batch_size)
     sample = images[:num_samples, ...]
 
     return sample
@@ -93,13 +93,13 @@ def plot_image_gallery(
             "package. Please install it with `pip install matplotlib`."
         )
 
-    if path is not None and show:  # Corrected logic
+    if path is not None and show:
         raise ValueError(
             "plot_gallery() expects either `path` to be set, or `show` "
             "to be true."
         )
 
-    show = show if show is not None else (path is None)  # Simplified logic
+    show = show if show is not None else (path is None)
     data_format = data_format or backend.image_data_format()
 
     batch_size = ops.shape(images)[0] if len(ops.shape(images)) == 4 else 1
