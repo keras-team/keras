@@ -22,6 +22,7 @@ from keras.src.backend.torch import math
 from keras.src.backend.torch import nn
 from keras.src.backend.torch import numpy
 from keras.src.backend.torch import random
+from keras.src.backend.torch.core import IS_THREAD_SAFE
 from keras.src.backend.torch.core import SUPPORTS_SPARSE_TENSORS
 from keras.src.backend.torch.core import Variable
 from keras.src.backend.torch.core import cast

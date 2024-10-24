@@ -88,6 +88,11 @@ def gelu(x, approximate=True):
     return tnn.gelu(x)
 
 
+def celu(x, alpha=1.0):
+    x = convert_to_tensor(x)
+    return tnn.celu(x, alpha=alpha)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)

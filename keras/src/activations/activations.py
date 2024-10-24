@@ -302,6 +302,27 @@ def gelu(x, approximate=False):
     return ops.gelu(x, approximate=approximate)
 
 
+@keras_export("keras.activations.celu")
+def celu(x, alpha=1.0):
+    """Continuously Differentiable Exponential Linear Unit.
+
+    The CeLU activation function is defined as:
+
+    `celu(x) = alpha * (exp(x / alpha) - 1) for x < 0`,`celu(x) = x for x >= 0`.
+
+    where `alpha` is a scaling parameter that controls the activation's shape.
+
+    Args:
+        x: Input tensor.
+        alpha: The α value for the CeLU formulation. Defaults to `1.0`.
+
+    Reference:
+
+    - [Barron, J. T., 2017](https://arxiv.org/abs/1704.07483)
+    """
+    return ops.celu(x, alpha=alpha)
+
+
 @keras_export("keras.activations.tanh")
 def tanh(x):
     """Hyperbolic tangent activation function.

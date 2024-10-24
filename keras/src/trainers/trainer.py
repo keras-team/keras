@@ -12,6 +12,7 @@ from keras.src.saving import serialization_lib
 from keras.src.trainers.compile_utils import CompileLoss
 from keras.src.trainers.compile_utils import CompileMetrics
 from keras.src.trainers.data_adapters import data_adapter_utils
+from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
 
@@ -508,7 +509,7 @@ class Trainer:
                 return_metrics.update(result)
             else:
                 return_metrics[metric.name] = result
-        return self._pythonify_logs(return_metrics)
+        return python_utils.pythonify_logs(return_metrics)
 
     def fit(
         self,
@@ -965,19 +966,6 @@ class Trainer:
                 f"type {type(validation_freq)}."
             )
 
-    def _pythonify_logs(self, logs):
-        result = {}
-        for key, value in sorted(logs.items()):
-            if isinstance(value, dict):
-                result.update(self._pythonify_logs(value))
-            else:
-                try:
-                    value = float(value)
-                except:
-                    pass
-                result[key] = value
-        return result
-
     def _get_metrics_result_or_logs(self, logs):
         """Returns model metrics as a dict if the keys match with input logs.
 
@@ -1062,7 +1050,7 @@ class Trainer:
                 )
 
             if data_batch is None:
-                for _, data in iterator.enumerate_epoch():
+                for _, data in iterator:
                     data_batch = data[0]
                     break
             data_batch = tree.map_structure(to_symbolic_input, data_batch)

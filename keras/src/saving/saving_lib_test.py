@@ -723,6 +723,18 @@ class SavingTest(testing.TestCase):
             pool.join()
         [r.get() for r in results]  # No error occurs here
 
+    def test_load_model_containing_reused_layer(self):
+        # https://github.com/keras-team/keras/issues/20307
+        inputs = keras.Input((4,))
+        reused_layer = keras.layers.Dense(4)
+        x = reused_layer(inputs)
+        x = keras.layers.Dense(4)(x)
+        outputs = reused_layer(x)
+        model = keras.Model(inputs, outputs)
+
+        self.assertLen(model.layers, 3)  # Input + 2 Dense layers
+        self._test_inference_after_instantiation(model)
+
 
 @pytest.mark.requires_trainable_backend
 class SavingAPITest(testing.TestCase):
@@ -1049,3 +1061,16 @@ class SavingBattleTest(testing.TestCase):
         ref_out = model(x)
         out = new_model(x)
         self.assertAllClose(ref_out, out)
+
+    def test_remove_weights_only_saving_and_loading(self):
+        def is_remote_path(path):
+            return True
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "model.weights.h5")
+
+        with mock.patch(
+            "keras.src.utils.file_utils.is_remote_path", is_remote_path
+        ):
+            model = _get_subclassed_model()
+            model.save_weights(temp_filepath)
+            model.load_weights(temp_filepath)

@@ -498,6 +498,46 @@ def gelu(x, approximate=True):
     return backend.nn.gelu(x, approximate)
 
 
+class Celu(Operation):
+    def __init__(self, alpha=1.0):
+        super().__init__()
+        self.alpha = alpha
+
+    def call(self, x):
+        return backend.nn.celu(x, self.alpha)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.celu", "keras.ops.nn.celu"])
+def celu(x, alpha=1.0):
+    """Continuously-differentiable exponential linear unit.
+
+    It is defined as:
+
+    `f(x) =  alpha * (exp(x / alpha) - 1) for x < 0`, `f(x) = x for x >= 0`.
+
+    Args:
+        x: Input tensor.
+        alpha: the α value for the CELU formulation. Defaults to `1.0`.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1., 0., 1.])
+    >>> x_celu = keras.ops.celu(x)
+    >>> print(x_celu)
+    array([-0.63212056, 0. , 1. ], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Celu(alpha).symbolic_call(x)
+    return backend.nn.celu(x, alpha)
+
+
 class Softmax(Operation):
     def __init__(self, axis=-1):
         super().__init__()

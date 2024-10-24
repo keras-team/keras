@@ -13,10 +13,13 @@ extend-exclude = """
 [tool.isort]
 profile = "black"
 force_single_line = "True"
-known_first_party = ["keras_core", "tests"]
+known_first_party = ["keras", "tests"]
 default_section = "THIRDPARTY"
 line_length = 80
-extend_skip_glob=["examples/*", "guides/*"]
+extend_skip_glob=[
+    "examples/*",
+    "guides/*",
+]
 
 [tool.pytest.ini_options]
 filterwarnings = [
@@ -43,13 +46,13 @@ exclude_lines = [
 ]
 omit = [
     "*/*_test.py",
-    "keras_core/legacy/*",
+    "keras/src/legacy/*",
 ]
 
 [tool.coverage.run]
 branch = true
 omit = [
     "*/*_test.py",
-    "keras_core/legacy/*",
+    "keras/src/legacy/*",
 ]
 
