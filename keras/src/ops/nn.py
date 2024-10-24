@@ -538,6 +538,47 @@ def celu(x, alpha=1.0):
     return backend.nn.celu(x, alpha)
 
 
+class Glu(Operation):
+    def __init__(self, axis=-1):
+        super().__init__()
+        self.axis = axis
+
+    def call(self, x):
+        return backend.nn.glu(x, axis=self.axis)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.glu", "keras.ops.nn.glu"])
+def glu(x, axis=-1):
+    """Gated Linear Unit (GLU) activation function.
+
+    It is defined as:
+
+    `f(x) = a * sigmoid(b)`
+    where `x` is split into `a` and `b` along the given axis.
+
+    Args:
+        x: Input tensor.
+        axis: The axis along which to split the input tensor. Defaults to `-1`.
+
+    Returns:
+        A tensor with the same shape as half of the input.
+
+    Example:
+
+    >>> x = np.array([-1., 0., 1. , 1.])
+    >>> x_glu = keras.ops.glu(x)
+    >>> print(x_glu)
+    array([-0.73105858, 0. ], shape=(2,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Glu(axis).symbolic_call(x)
+    return backend.nn.glu(x, axis=axis)
+
+
 class Softmax(Operation):
     def __init__(self, axis=-1):
         super().__init__()

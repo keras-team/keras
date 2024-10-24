@@ -93,6 +93,11 @@ def celu(x, alpha=1.0):
     return tnn.celu(x, alpha=alpha)
 
 
+def glu(x, axis=-1):
+    x = convert_to_tensor(x)
+    return tnn.glu(x, dim=axis)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
