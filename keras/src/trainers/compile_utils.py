@@ -665,9 +665,20 @@ class CompileLoss(losses_module.Loss):
             tree.assert_same_structure(y_pred, y_true, check_types=False)
         except ValueError:
             # y_true is either flat or leaf
-            if not tree.is_nested(y_true):
+            if (
+                not tree.is_nested(y_true)
+                and isinstance(y_pred, (tuple, list))
+                and len(y_pred) == 1
+            ):
                 y_true = [y_true]
-            y_true = tree.pack_sequence_as(y_pred, y_true)
+            try:
+                y_true = tree.pack_sequence_as(y_pred, y_true)
+            except:
+                raise ValueError(
+                    "y_true and y_pred have different structures.\n"
+                    f"y_true: {y_true}\n"
+                    f"y_pred: {y_pred}\n"
+                )
 
         if not self.built:
             self.build(y_true, y_pred)

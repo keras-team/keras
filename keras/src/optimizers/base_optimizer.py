@@ -723,7 +723,7 @@ class BaseOptimizer(KerasSaveable):
             if filtered_grads[i] is None:
                 filtered_grads.pop(i)
                 v = filtered_vars.pop(i)
-                missing_grad_vars.append(v.name)
+                missing_grad_vars.append(v.path)
 
         if not filtered_grads:
             raise ValueError("No gradients provided for any variable.")
