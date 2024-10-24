@@ -2,6 +2,7 @@ import math
 
 import numpy as np
 
+from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
@@ -42,6 +43,7 @@ def plot_image_gallery(
     transparent=True,
     dpi=60,
     legend_handles=None,
+    data_format=None,
 ):
     """Displays a gallery of images.
 
@@ -63,6 +65,14 @@ def plot_image_gallery(
         legend_handles: (Optional) matplotlib.patches List of legend handles.
             I.e. passing: `[patches.Patch(color='red', label='mylabel')]` will
             produce a legend with a single red patch and the label 'mylabel'.
+        data_format: string, either `"channels_last"` or `"channels_first"`.
+            The ordering of the dimensions in the inputs. `"channels_last"`
+            corresponds to inputs with shape `(batch, height, width, channels)`
+            while `"channels_first"` corresponds to inputs with shape
+            `(batch, channels, height, width)`. It defaults to the
+            `image_data_format` value found in your Keras config file at
+            `~/.keras/keras.json`. If you never set it, then it will be
+            `"channels_last"`.
     """
 
     if path is not None and show:
@@ -72,6 +82,7 @@ def plot_image_gallery(
         )
     # set show to True by default if path is None
     show = True if path is None else False
+    data_format = data_format or backend.image_data_format()
 
     batch_size = (
         ops.shape(images)[0] if len(ops.shape(images)) == 4 else 1
@@ -107,6 +118,8 @@ def plot_image_gallery(
     )
 
     images = ops.convert_to_numpy(images)
+    if data_format == "channels_first":
+        images = images.transpose(0, 3, 1, 2)
 
     for row in range(rows):
         for col in range(cols):

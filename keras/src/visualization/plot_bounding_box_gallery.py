@@ -2,6 +2,7 @@ import functools
 
 import numpy as np
 
+from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.visualization.draw_bounding_boxes import draw_bounding_boxes
@@ -30,8 +31,9 @@ def plot_bounding_box_gallery(
     prediction_mapping=None,
     legend=False,
     legend_handles=None,
-    rows=3,
-    cols=3,
+    rows=None,
+    cols=None,
+    data_format=None,
     **kwargs
 ):
     """
@@ -63,12 +65,25 @@ def plot_bounding_box_gallery(
         font_scale: Font size to draw bounding boxes in.
         legend: Whether to create a legend with the specified colors for
             `y_true` and `y_pred`. Defaults to False.
+        rows: int. Number of rows in the gallery to shows. Required if inputs
+            are unbatched. Defaults to `None`
+        cols: int. Number of columns in the gallery to show. Required if inputs
+            are unbatched.Defaults to `None`
+        data_format: string, either `"channels_last"` or `"channels_first"`.
+            The ordering of the dimensions in the inputs. `"channels_last"`
+            corresponds to inputs with shape `(batch, height, width, channels)`
+            while `"channels_first"` corresponds to inputs with shape
+            `(batch, channels, height, width)`. It defaults to the
+            `image_data_format` value found in your Keras config file at
+            `~/.keras/keras.json`. If you never set it, then it will be
+            `"channels_last"`.
         kwargs: keyword arguments to propagate to
             `keras.visualization.plot_image_gallery()`.
     """
 
     prediction_mapping = prediction_mapping or class_mapping
     ground_truth_mapping = ground_truth_mapping or class_mapping
+    data_format = data_format or backend.image_data_format()
 
     plotted_images = ops.convert_to_numpy(images)
 
@@ -78,6 +93,7 @@ def plot_bounding_box_gallery(
         line_thickness=line_thickness,
         text_thickness=text_thickness,
         font_scale=font_scale,
+        data_format=data_format,
     )
 
     if y_true is not None:
@@ -116,5 +132,6 @@ def plot_bounding_box_gallery(
         legend_handles=legend_handles,
         rows=rows,
         cols=cols,
+        data_format=data_format,
         **kwargs
     )
