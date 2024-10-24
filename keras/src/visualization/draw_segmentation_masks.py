@@ -15,6 +15,40 @@ def draw_segmentation_masks(
     ignore_index=-1,
     data_format=None,
 ):
+    """Draws segmentation masks on images.
+
+    The function overlays segmentation masks on the input images.
+    The masks are blended with the images using the specified alpha value.
+
+    Args:
+        images: A batch of images as a 4D tensor or NumPy array. Shape
+            should be (batch_size, height, width, channels).
+        segmentation_masks: A batch of segmentation masks as a 3D or 4D tensor
+            or NumPy array.  Shape should be (batch_size, height, width) or
+            (batch_size, height, width, 1). The values represent class indices
+            starting from 1 up to `num_classes`. Class 0 is reserved for
+            the background and will be ignored if `ignore_index` is not 0.
+        num_classes: The number of segmentation classes. If `None`, it is
+            inferred from the maximum value in `segmentation_masks`.
+        color_mapping: A dictionary mapping class indices to RGB colors.
+            If `None`, a default color palette is generated. The keys should be
+            integers starting from 1 up to `num_classes`.
+        alpha: The opacity of the segmentation masks. Must be in the range
+            `[0, 1]`.
+        ignore_index: The class index to ignore. Mask pixels with this value
+            will not be drawn.  Defaults to -1.
+        data_format: Image data format, either `"channels_last"` or
+            `"channels_first"`. Defaults to the `image_data_format` value found
+            in your Keras config file at `~/.keras/keras.json`. If you never
+            set it, then it will be `"channels_last"`.
+
+    Returns:
+        A NumPy array of the images with the segmentation masks overlaid.
+
+    Raises:
+        ValueError: If the input `images` is not a 4D tensor or NumPy array.
+        TypeError: If the input `segmentation_masks` is not an integer type.
+    """
     data_format = data_format or backend.image_data_format()
     images_shape = ops.shape(images)
     if len(images_shape) != 4:
@@ -22,6 +56,9 @@ def draw_segmentation_masks(
             "`images` must be batched 4D tensor. "
             f"Received: images.shape={images_shape}"
         )
+    if data_format == "channels_first":
+        images = ops.transpose(images, (0, 2, 3, 1))
+        segmentation_masks = ops.transpose(segmentation_masks, (0, 2, 3, 1))
     images = ops.convert_to_tensor(images, dtype="float32")
     segmentation_masks = ops.convert_to_tensor(segmentation_masks)
 
@@ -65,4 +102,4 @@ def draw_segmentation_masks(
 
 def _generate_color_palette(num_classes: int):
     palette = np.array([2**25 - 1, 2**15 - 1, 2**21 - 1])
-    return [((i * palette) % 255).tolist() for i in range(num_classes)]
+    return [((i * palette) % 255).tolist() for i in range(1, num_classes + 1)]

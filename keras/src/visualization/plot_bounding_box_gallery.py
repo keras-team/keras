@@ -9,8 +9,8 @@ from keras.src.visualization.draw_bounding_boxes import draw_bounding_boxes
 from keras.src.visualization.plot_image_gallery import plot_image_gallery
 
 try:
-    from matplotlib import patches
-except:
+    from matplotlib import patches  # For legend patches
+except ImportError:
     patches = None
 
 
@@ -34,57 +34,84 @@ def plot_bounding_box_gallery(
     rows=None,
     cols=None,
     data_format=None,
-    **kwargs
+    **kwargs,
 ):
-    """
+    """Plots a gallery of images with bounding boxes.
+
+    This function can display both ground truth and predicted bounding boxes on
+    a set of images.  It supports various bounding box formats and can include
+    class labels and a legend.
+
     Args:
-        images: a Tensor or NumPy array containing images to show in the
-            gallery.
-        value_range: Value range of the images. Common examples include
-            `(0, 255)` and `(0, 1)`.
-        bounding_box_format: The bounding_box_format the provided bounding boxes
-            are in.
-        y_true: Bounding box dictionary representing the
-            ground truth bounding boxes and labels. Defaults to `None`
-        y_pred: Bounding box dictionary representing the
-            ground truth bounding boxes and labels. Defaults to `None`
-        pred_color: Three element tuple representing the color to use for
-            plotting predicted bounding boxes.
-        true_color: three element tuple representing the color to use for
-            plotting true bounding boxes.
-        class_mapping: Class mapping from class IDs to strings. Defaults to
-            `None`.
-        ground_truth_mapping: Class mapping from class IDs to
-            strings, defaults to `class_mapping`. Defaults to `None`
-        prediction_mapping: Class mapping from class IDs to strings.
-            Defaults to `class_mapping`.
-        line_thickness: Line thickness for the box and text labels.
-            Defaults to 2.
-        text_thickness: The line thickness for the text, defaults to
-            `1.0`.
-        font_scale: Font size to draw bounding boxes in.
-        legend: Whether to create a legend with the specified colors for
-            `y_true` and `y_pred`. Defaults to False.
-        rows: int. Number of rows in the gallery to shows. Required if inputs
-            are unbatched. Defaults to `None`
-        cols: int. Number of columns in the gallery to show. Required if inputs
-            are unbatched.Defaults to `None`
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, width)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
-            `"channels_last"`.
-        kwargs: keyword arguments to propagate to
-            `keras.visualization.plot_image_gallery()`.
+        images: A 4D tensor or NumPy array of images. Shape should be
+            `(batch_size, height, width, channels)`.
+        value_range: A tuple specifying the value range of the images
+            (e.g., `(0, 255)` or `(0, 1)`).
+        bounding_box_format: The format of the bounding boxes.
+            Refer [keras-io](TODO)
+        y_true: A dictionary containing the ground truth bounding boxes and
+            labels. Should have the same structure as the `bounding_boxes`
+            argument in `keras.visualization.draw_bounding_boxes`.
+            Defaults to `None`.
+        y_pred: A dictionary containing the predicted bounding boxes and labels.
+            Should have the same structure as `y_true`. Defaults to `None`.
+        true_color: A tuple of three integers representing the RGB color for the
+            ground truth bounding boxes. Defaults to `(0, 188, 212)`.
+        pred_color: A tuple of three integers representing the RGB color for the
+            predicted bounding boxes. Defaults to `(255, 235, 59)`.
+        line_thickness: The thickness of the bounding box lines. Defaults to 2.
+        font_scale: The scale of the font used for labels. Defaults to 1.0.
+        text_thickness: The thickness of the bounding box text. Defaults to
+            `line_thickness`.
+        class_mapping: A dictionary mapping class IDs to class names.  Used f
+            or both ground truth and predicted boxes if `ground_truth_mapping`
+            and `prediction_mapping` are not provided. Defaults to `None`.
+        ground_truth_mapping:  A dictionary mapping class IDs to class names
+            specifically for ground truth boxes. Overrides `class_mapping`
+            for ground truth. Defaults to `None`.
+        prediction_mapping: A dictionary mapping class IDs to class names
+            specifically for predicted boxes. Overrides `class_mapping` for
+            predictions. Defaults to `None`.
+        legend: A boolean indicating whether to show a legend.
+            Defaults to `False`.
+        legend_handles: A list of matplotlib `Patch` objects to use for the
+            legend. If this is provided, the `legend` argument will be ignored.
+            Defaults to `None`.
+        rows: The number of rows in the image gallery. Required if the images
+            are not batched. Defaults to `None`.
+        cols: The number of columns in the image gallery. Required if the images
+            are not batched. Defaults to `None`.
+        data_format: The image data format `"channels_last"` or
+            `"channels_first"`. Defaults to the Keras backend data format.
+        kwargs: Additional keyword arguments to be passed to
+            `keras.visualization.plot_image_gallery`.
+
+    Returns:
+       The output of `keras.visualization.plot_image_gallery`.
+
+    Raises:
+        ValueError: If `images` is not a 4D tensor/array or if both `legend` a
+        nd `legend_handles` are specified.
+        ImportError: if matplotlib is not installed
     """
+    if patches is None:
+        raise ImportError(
+            "The `plot_bounding_box_gallery` function requires the "
+            " `matplotlib` package. Please install it with "
+            " `pip install matplotlib`."
+        )
 
     prediction_mapping = prediction_mapping or class_mapping
     ground_truth_mapping = ground_truth_mapping or class_mapping
     data_format = data_format or backend.image_data_format()
-
+    images_shape = ops.shape(images)
+    if len(images_shape) != 4:
+        raise ValueError(
+            "`images` must be batched 4D tensor. "
+            f"Received: images.shape={images_shape}"
+        )
+    if data_format == "channels_first":  # Ensure correct data format
+        images = ops.transpose(images, (0, 2, 3, 1))
     plotted_images = ops.convert_to_numpy(images)
 
     draw_fn = functools.partial(
@@ -93,7 +120,6 @@ def plot_bounding_box_gallery(
         line_thickness=line_thickness,
         text_thickness=text_thickness,
         font_scale=font_scale,
-        data_format=data_format,
     )
 
     if y_true is not None:
@@ -106,22 +132,25 @@ def plot_bounding_box_gallery(
 
     if y_pred is not None:
         plotted_images = draw_fn(
-            plotted_images, y_pred, pred_color, class_mapping=prediction_mapping
+            plotted_images,
+            y_pred,
+            pred_color,
+            class_mapping=prediction_mapping,
         )
 
     if legend:
         if legend_handles:
             raise ValueError(
                 "Only pass `legend` OR `legend_handles` to "
-                "`luketils.visualization.plot_bounding_box_gallery()`."
+                "`keras.visualization.plot_bounding_box_gallery()`."
             )
         legend_handles = [
             patches.Patch(
-                color=np.array(true_color) / 255.0,
+                color=np.array(true_color) / 255.0,  # Normalize color
                 label="Ground Truth",
             ),
             patches.Patch(
-                color=np.array(pred_color) / 255.0,
+                color=np.array(pred_color) / 255.0,  # Normalize color
                 label="Prediction",
             ),
         ]
@@ -132,6 +161,5 @@ def plot_bounding_box_gallery(
         legend_handles=legend_handles,
         rows=rows,
         cols=cols,
-        data_format=data_format,
-        **kwargs
+        **kwargs,
     )

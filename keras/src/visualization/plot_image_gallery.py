@@ -11,21 +11,31 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
 
 try:
     import matplotlib.pyplot as plt
-except:
+except ImportError:
     plt = None
 
 
 def _extract_image_batch(images, num_images, batch_size):
-    num_batches_required = math.ceil(num_images / batch_size)
+    """Extracts a batch of images for plotting.
+
+    Args:
+        images: The 4D tensor or NumPy array of images.
+        num_images: The number of images to extract.
+        batch_size: The original batch size of the images.
+
+    Returns:
+        A 4D tensor or NumPy array containing the extracted images.
+
+    Raises:
+        ValueError: If `images` is not a 4D tensor/array.
+    """
 
     if len(ops.shape(images)) != 4:
         raise ValueError(
             "`plot_images_gallery()` requires you to "
             "batch your `np.array` samples together."
         )
-    num_samples = (
-        num_images if num_images <= batch_size else num_batches_required
-    )
+    num_samples = min(num_images, batch_size)  # Simplified
     sample = images[:num_samples, ...]
 
     return sample
@@ -48,51 +58,61 @@ def plot_image_gallery(
     """Displays a gallery of images.
 
     Args:
-        images: a Tensor or NumPy array containing images to show in the
-            gallery.
-        value_range: value range of the images. Common examples include
-            `(0, 255)` and `(0, 1)`.
-        rows: int. Number of rows in the gallery to shows. Required if inputs
-            are unbatched. Defaults to `None`
-        cols: int. Number of columns in the gallery to show. Required if inputs
-            are unbatched.Defaults to `None`
-        scale: How large to scale the images in the gallery. Defaults to `2`.
-        path: Path to save the resulting gallery to. Defaults to `None`
-        show: Whether to show the gallery of images. Defaults to `True`
-        transparent: Whether to give the image a transparent
+        images: A 4D tensor or NumPy array of images. Shape should be
+           `(batch_size, height, width, channels)`.
+        value_range: A tuple specifying the value range of the images
+            (e.g., `(0, 255)` or `(0, 1)`).
+        rows: The number of rows in the gallery. If `None`, it's calculated
+            based on the number of images and `cols`. Defaults to `None`.
+        cols: The number of columns in the gallery. If `None`, it's calculated
+            based on the number of images and `rows`. Defaults to `None`.
+        scale: A float controlling the size of the displayed images. The images
+            are scaled by this factor. Defaults to `2`.
+        path: The path to save the generated gallery image. If `None`, the
+            image is displayed using `plt.show()`. Defaults to `None`.
+        show: Whether to display the image using `plt.show()`. If `True`, the
+            image is displayed. If `False`, the image is not displayed.
+            Ignored if `path` is not `None`. Defaults to `True` if `path`
+            is `None`, `False` otherwise.
+        transparent:  A boolean, whether to save the figure with a transparent
             background. Defaults to `True`.
-        dpi: The dpi to pass to matplotlib.savefig(). Defaults to `60`.
-        legend_handles: (Optional) matplotlib.patches List of legend handles.
-            I.e. passing: `[patches.Patch(color='red', label='mylabel')]` will
-            produce a legend with a single red patch and the label 'mylabel'.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, width)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
-            `~/.keras/keras.json`. If you never set it, then it will be
-            `"channels_last"`.
-    """
+        dpi: The DPI (dots per inch) for saving the figure. Defaults to 60.
+        legend_handles: A list of matplotlib `Patch` objects to use as legend
+            handles. Defaults to `None`.
+        data_format: The image data format `"channels_last"` or
+            `"channels_first"`. Defaults to the Keras backend data format.
 
-    if path is not None and show:
+    Raises:
+        ValueError: If both `path` and `show` are set to non-`None` values or if
+            `images` is not a 4D tensor or array.
+        ImportError: if matplotlib is not installed.
+    """
+    if plt is None:
+        raise ImportError(
+            "The `plot_image_gallery` function requires the `matplotlib` "
+            "package. Please install it with `pip install matplotlib`."
+        )
+
+    if path is not None and show:  # Corrected logic
         raise ValueError(
             "plot_gallery() expects either `path` to be set, or `show` "
             "to be true."
         )
-    # set show to True by default if path is None
-    show = True if path is None else False
+
+    show = show if show is not None else (path is None)  # Simplified logic
     data_format = data_format or backend.image_data_format()
 
-    batch_size = (
-        ops.shape(images)[0] if len(ops.shape(images)) == 4 else 1
-    )  # batch_size from np.array or single image
+    batch_size = ops.shape(images)[0] if len(ops.shape(images)) == 4 else 1
 
     rows = rows or int(math.ceil(math.sqrt(batch_size)))
     cols = cols or int(math.ceil(batch_size // rows))
     num_images = rows * cols
-    images = _extract_image_batch(images, num_images, batch_size)
 
+    images = _extract_image_batch(images, num_images, batch_size)
+    if (
+        data_format == "channels_first"
+    ):  # Ensure correct data format for plotting
+        images = ops.transpose(images, (0, 2, 3, 1))
     # Generate subplots
     fig, axes = plt.subplots(
         nrows=rows,
@@ -119,7 +139,7 @@ def plot_image_gallery(
 
     images = ops.convert_to_numpy(images)
     if data_format == "channels_first":
-        images = images.transpose(0, 3, 1, 2)
+        images = images.transpose(0, 2, 3, 1)
 
     for row in range(rows):
         for col in range(cols):

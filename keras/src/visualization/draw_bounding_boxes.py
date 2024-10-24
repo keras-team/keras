@@ -25,42 +25,65 @@ def draw_bounding_boxes(
     font_scale=1.0,
     data_format=None,
 ):
-    """Utility to draw bounding boxes on the target image.
+    """Draws bounding boxes on images.
 
-    Accepts a batch of images and batch of bounding boxes. The function draws
-    the bounding boxes onto the image, and returns a new image tensor with the
-    annotated images. This API is intentionally not exported, and is considered
-    an implementation detail.
+    This function draws bounding boxes on a batch of images.  It supports
+    different bounding box formats and can optionally display class labels
+    and confidences.
 
     Args:
-        images: a batch Tensor of images to plot bounding boxes onto.
-        bounding_boxes: a Tensor of batched bounding boxes to plot onto the
-            provided images.
-        bounding_box_format: The format of bounding boxes to plot onto the
-            images. Refer
-            [to the keras.io docs](TODO)
-            for more details on supported bounding box formats.
-        color: the color in which to plot the bounding boxes
-        class_mapping: Dictionary from class ID to class label. Defaults to
-            `None`.
-        line_thickness: Line thicknes for the box and text labels.
-            Defaults to `2`.
-        text_thickness: The thickness for the text. Defaults to `1.0`.
-        font_scale: Scale of font to draw in. Defaults to `1.0`.
-        data_format: string, either `"channels_last"` or `"channels_first"`.
-            The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, height, width, channels)`
-            while `"channels_first"` corresponds to inputs with shape
-            `(batch, channels, height, width)`. It defaults to the
-            `image_data_format` value found in your Keras config file at
+        images: A batch of images as a 4D tensor or NumPy array. Shape should be
+            `(batch_size, height, width, channels)`.
+        bounding_boxes: A dictionary containing bounding box data.  Should have
+            the following keys:
+            - `boxes`: A tensor or array of shape `(batch_size, num_boxes, 4)`
+               containing the bounding box coordinates in the specified format.
+            - `labels`: A tensor or array of shape `(batch_size, num_boxes)`
+              containing the class labels for each bounding box.
+            - `confidences` (Optional): A tensor or array of shape
+               `(batch_size, num_boxes)` containing the confidence scores for
+               each bounding box.
+        color: A tuple or list representing the RGB color of the bounding boxes.
+            For example, `(255, 0, 0)` for red.
+        bounding_box_format: A string specifying the format of the bounding
+            boxes. Refer [keras-io](TODO)
+        class_mapping: A dictionary mapping class IDs (integers) to class labels
+            (strings).  Used to display class labels next to the bounding boxes.
+            Defaults to None (no labels displayed).
+        line_thickness: An integer specifying the thickness of the bounding box
+            lines. Defaults to `2`.
+        text_thickness: An integer specifying the thickness of the text labels.
+            Defaults to `1`.
+        font_scale: A float specifying the scale of the font used for text
+            labels. Defaults to `1.0`.
+        data_format: A string, either `"channels_last"` or `"channels_first"`,
+            specifying the order of dimensions in the input images. Defaults to
+            the `image_data_format` value found in your Keras config file at
             `~/.keras/keras.json`. If you never set it, then it will be
-            `"channels_last"`.
+            "channels_last".
 
     Returns:
-        the input `images` with provided bounding boxes plotted on top of them
+        A NumPy array of the annotated images with the bounding boxes drawn.
+        The array will have the same shape as the input `images`.
+
+    Raises:
+        ValueError: If `images` is not a 4D tensor/array, if `bounding_boxes` is
+            not a dictionary, or if `bounding_boxes` does not contain `"boxes"`
+            and `"labels"` keys.
+        TypeError: If `bounding_boxes` is not a dictionary.
+        ImportError: If `cv2` (OpenCV) is not installed.
     """
+
+    if cv2 is None:
+        raise ImportError(
+            "The `draw_bounding_boxes` function requires the `cv2` package "
+            " (OpenCV). Please install it with `pip install opencv-python`."
+        )
+
     class_mapping = class_mapping or {}
-    text_thickness = text_thickness or line_thickness
+    text_thickness = (
+        text_thickness or line_thickness
+    )  # Default text_thickness if not provided.
     data_format = data_format or backend.image_data_format()
     images_shape = ops.shape(images)
     if len(images_shape) != 4:
