@@ -136,7 +136,7 @@ def hard_tanh(x):
     x = convert_to_tensor(x)
     min_val = np.asarray(-1.0, x.dtype)
     max_val = np.asarray(1.0, x.dtype)
-    return np.clip(x, min_val, max_val)
+    return np.array(np.clip(x, min_val, max_val), dtype=x.dtype)
 
 
 def softmax(x, axis=None):
