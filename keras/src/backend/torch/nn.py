@@ -98,6 +98,11 @@ def glu(x, axis=-1):
     return tnn.glu(x, dim=axis)
 
 
+def hard_tanh(x):
+    x = convert_to_tensor(x)
+    return tnn.hardtanh(x, min_val=-1.0, max_val=1.0)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)

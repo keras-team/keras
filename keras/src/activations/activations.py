@@ -358,6 +358,21 @@ def tanh(x):
     return ops.tanh(x)
 
 
+@keras_export("keras.activations.hard_tanh")
+def hard_tanh(x):
+    """HardTanh activation function.
+
+    It is defined as:
+    `hard_tanh(x) = -1 for x < -1`,
+    `hard_tanh(x) = x for -1 <= x <= 1`,
+    `hard_tanh(x) = 1 for x > 1`.
+
+    Args:
+        x: Input tensor.
+    """
+    return ops.hard_tanh(x)
+
+
 @keras_export("keras.activations.sigmoid")
 def sigmoid(x):
     """Sigmoid activation function.
