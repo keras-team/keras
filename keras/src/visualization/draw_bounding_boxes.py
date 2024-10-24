@@ -17,9 +17,9 @@ except ImportError:
 def draw_bounding_boxes(
     images,
     bounding_boxes,
-    color,
     bounding_box_format,
     class_mapping=None,
+    color=(128, 128, 128),
     line_thickness=2,
     text_thickness=1,
     font_scale=1.0,
@@ -43,13 +43,13 @@ def draw_bounding_boxes(
             - `confidences` (Optional): A tensor or array of shape
                `(batch_size, num_boxes)` containing the confidence scores for
                each bounding box.
-        color: A tuple or list representing the RGB color of the bounding boxes.
-            For example, `(255, 0, 0)` for red.
         bounding_box_format: A string specifying the format of the bounding
             boxes. Refer [keras-io](TODO)
         class_mapping: A dictionary mapping class IDs (integers) to class labels
             (strings).  Used to display class labels next to the bounding boxes.
             Defaults to None (no labels displayed).
+        color: A tuple or list representing the RGB color of the bounding boxes.
+            For example, `(255, 0, 0)` for red. Defaults to `(128, 128, 128)`.
         line_thickness: An integer specifying the thickness of the bounding box
             lines. Defaults to `2`.
         text_thickness: An integer specifying the thickness of the text labels.
@@ -150,13 +150,13 @@ def draw_bounding_boxes(
                     x1, y1, font_scale, text_thickness
                 )
                 cv2.putText(
-                    _image,
-                    label,
-                    (font_x1, font_y1),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    font_scale,
-                    color,
-                    text_thickness,
+                    img=_image,
+                    text=label,
+                    org=(font_x1, font_y1),
+                    fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                    fontScale=font_scale,
+                    color=color,
+                    thickness=text_thickness,
                 )
         result.append(_image)
     return np.stack(result, axis=0)

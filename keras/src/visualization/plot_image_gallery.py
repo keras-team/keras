@@ -44,9 +44,9 @@ def _extract_image_batch(images, num_images, batch_size):
 @keras_export("keras.visualization.plot_image_gallery")
 def plot_image_gallery(
     images,
-    value_range,
     rows=None,
     cols=None,
+    value_range=(0, 255),
     scale=2,
     path=None,
     show=None,
@@ -61,7 +61,7 @@ def plot_image_gallery(
         images: A 4D tensor or NumPy array of images. Shape should be
            `(batch_size, height, width, channels)`.
         value_range: A tuple specifying the value range of the images
-            (e.g., `(0, 255)` or `(0, 1)`).
+            (e.g., `(0, 255)` or `(0, 1)`). Defaults to `(0, 255)`.
         rows: The number of rows in the gallery. If `None`, it's calculated
             based on the number of images and `cols`. Defaults to `None`.
         cols: The number of columns in the gallery. If `None`, it's calculated

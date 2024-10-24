@@ -12,6 +12,7 @@ def draw_segmentation_masks(
     num_classes=None,
     color_mapping=None,
     alpha=0.8,
+    blend=True,
     ignore_index=-1,
     data_format=None,
 ):
@@ -35,6 +36,9 @@ def draw_segmentation_masks(
             integers starting from 1 up to `num_classes`.
         alpha: The opacity of the segmentation masks. Must be in the range
             `[0, 1]`.
+        blend: Whether to blend the masks with the input image using the
+            `alpha` value. If `False`, the masks are drawn directly on the
+            images without blending. Defaults to `True`.
         ignore_index: The class index to ignore. Mask pixels with this value
             will not be drawn.  Defaults to -1.
         data_format: Image data format, either `"channels_last"` or
@@ -90,16 +94,16 @@ def draw_segmentation_masks(
         color = np.array(color, dtype=images_to_draw.dtype)
         images_to_draw[mask, ...] = color[None, :]
     images_to_draw = ops.convert_to_tensor(images_to_draw)
-    images_to_draw = ops.cast(images_to_draw, dtype="float32")
+    outputs = ops.cast(images_to_draw, dtype="float32")
 
-    # Apply blending
-    outputs = images * (1 - alpha) + images_to_draw * alpha
-    outputs = ops.where(valid_masks[..., None], outputs, images)
-    outputs = ops.cast(outputs, dtype="uint8")
-    outputs = ops.convert_to_numpy(outputs)
+    if blend:
+        outputs = images * (1 - alpha) + outputs * alpha
+        outputs = ops.where(valid_masks[..., None], outputs, images)
+        outputs = ops.cast(outputs, dtype="uint8")
+        outputs = ops.convert_to_numpy(outputs)
     return outputs
 
 
 def _generate_color_palette(num_classes: int):
     palette = np.array([2**25 - 1, 2**15 - 1, 2**21 - 1])
-    return [((i * palette) % 255).tolist() for i in range(1, num_classes + 1)]
+    return [((i * palette) % 255).tolist() for i in range(num_classes)]
