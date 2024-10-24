@@ -1,4 +1,5 @@
 from collections import OrderedDict
+
 from keras.src import losses as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import ops
@@ -625,7 +626,7 @@ class CompileLoss(losses_module.Loss):
     @staticmethod
     def _handle_dict_order(dictionary, output_names):
         if output_names:
-            dictionary = {k:dictionary[k] for k in output_names}
+            dictionary = {k:dictionary[k] for k in output_names if k in dictionary}
         return OrderedDict(dictionary)
 
     def __call__(self, y_true, y_pred, sample_weight=None):

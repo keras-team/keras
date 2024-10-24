@@ -339,14 +339,14 @@ class TestCompileLoss(testing.TestCase):
         compile_loss.build(y_true, y_pred)
         y_true = {
             "a": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
-            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
         }
         y_pred = {
             "a": np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]]),
             "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
         }
         value = compile_loss(y_true, y_pred)
-        self.assertAllClose(value, 1.91590, atol=1e-5)
+        self.assertAllClose(value, 1.819558, atol=1e-5)
 
     def test_list_loss_list_output_dict_data(self):
         compile_loss = CompileLoss(loss=["binary_crossentropy", "mae"], output_names=["b", "a"])
@@ -354,7 +354,7 @@ class TestCompileLoss(testing.TestCase):
         y_pred = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
         compile_loss.build(y_true, y_pred)
         y_true = {
-            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
             "a": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
         }
         y_pred = [
@@ -362,7 +362,7 @@ class TestCompileLoss(testing.TestCase):
             np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]]), # a
         ]
         value = compile_loss(y_true, y_pred)
-        self.assertAllClose(value, 1.91590, atol=1e-5)
+        self.assertAllClose(value, 1.819558, atol=1e-5)
 
     def test_dict_loss_list_output_dict_data(self):
         compile_loss = CompileLoss(loss={"b":"binary_crossentropy", "a":"mae"}, output_names=["b", "a"])
@@ -370,7 +370,7 @@ class TestCompileLoss(testing.TestCase):
         y_pred = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
         compile_loss.build(y_true, y_pred)
         y_true = {
-            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.0, 1.0]]),
             "a": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
         }
         y_pred = [
@@ -378,4 +378,4 @@ class TestCompileLoss(testing.TestCase):
             np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]]), # a
         ]
         value = compile_loss(y_true, y_pred)
-        self.assertAllClose(value, 1.91590, atol=1e-5)
+        self.assertAllClose(value, 1.819558, atol=1e-5)
