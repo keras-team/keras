@@ -22,7 +22,7 @@ class Softmax(Layer):
     ```
 
     Example:
-    >>> softmax_layer = keras.layers.activations.Softmax()
+    >>> softmax_layer = keras.layers.Softmax()
     >>> input = np.array([1.0, 2.0, 1.0])
     >>> result = softmax_layer(input)
     >>> result
