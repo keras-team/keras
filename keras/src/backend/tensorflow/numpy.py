@@ -48,7 +48,8 @@ def add(x1, x2):
         # `x2` non-squeezable dimension defined
         and x2_squeeze_shape[0] is not None
         # `x2` non-squeezable dimension match `x1` channel dimension
-        and x2_squeeze_shape[0] in {x1.shape[1], x1.shape[-1]}
+        and x2_squeeze_shape[0]
+        in {x1.shape.as_list()[1], x1.shape.as_list()[-1]}
     ):
         if x1.shape[-1] == x2_squeeze_shape[0]:
             data_format = "NHWC"
