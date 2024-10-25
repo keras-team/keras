@@ -366,7 +366,7 @@ def _get_class_or_fn_config(obj):
     """Return the object's config depending on its type."""
     # Functions / lambdas:
     if isinstance(obj, types.FunctionType):
-        return obj.__name__
+        return object_registration.get_registered_name(obj)
     # All classes:
     if hasattr(obj, "get_config"):
         config = obj.get_config()
@@ -780,15 +780,6 @@ def _retrieve_class_or_fn(
                 )
                 if obj is not None:
                     return obj
-
-            # Retrieval of registered custom function in a package
-            filtered_dict = {
-                k: v
-                for k, v in custom_objects.items()
-                if k.endswith(full_config["config"])
-            }
-            if filtered_dict:
-                return next(iter(filtered_dict.values()))
 
         # Otherwise, attempt to retrieve the class object given the `module`
         # and `class_name`. Import the module, find the class.

@@ -367,7 +367,7 @@ class SavingTest(testing.TestCase):
         )
         self.assertEqual(
             config_dict["compile_config"]["loss"]["config"],
-            "my_mean_squared_error",
+            "my_custom_package>my_mean_squared_error",
         )
 
     @pytest.mark.requires_trainable_backend
