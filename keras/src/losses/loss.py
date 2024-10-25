@@ -25,6 +25,12 @@ class Loss(KerasSaveable):
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
+        normalize_by_sample_weight: Whether to normalize the loss value by the
+            provided `sample_weight`. If set to `True` and `reduction` is
+            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
+            divided by `ops.sum(sample_weight)` instead of the sample size. This
+            approach may help stabilize the range of the loss value. Defaults to
+            `False`.
 
     To be implemented by subclasses:
 
@@ -40,11 +46,18 @@ class Loss(KerasSaveable):
     ```
     """
 
-    def __init__(self, name=None, reduction="sum_over_batch_size", dtype=None):
+    def __init__(
+        self,
+        name=None,
+        reduction="sum_over_batch_size",
+        dtype=None,
+        normalize_by_sample_weight=False,
+    ):
         self.name = name or auto_name(self.__class__.__name__)
         self.reduction = standardize_reduction(reduction)
         self._dtype_policy = dtype_policies.get(dtype or backend.floatx())
         self._dtype = self._dtype_policy.compute_dtype
+        self.normalize_by_sample_weight = bool(normalize_by_sample_weight)
 
     @property
     def dtype(self):
@@ -79,13 +92,18 @@ class Loss(KerasSaveable):
                 mask=mask,
                 reduction=self.reduction,
                 dtype=self.dtype,
+                normalize_by_sample_weight=self.normalize_by_sample_weight,
             )
 
     def call(self, y_true, y_pred):
         raise NotImplementedError
 
     def get_config(self):
-        return {"name": self.name, "reduction": self.reduction}
+        return {
+            "name": self.name,
+            "reduction": self.reduction,
+            "normalize_by_sample_weight": self.normalize_by_sample_weight,
+        }
 
     @classmethod
     def from_config(cls, config):
@@ -127,7 +145,12 @@ def squeeze_or_expand_to_same_rank(x1, x2, expand_rank_1=True):
     return x1, x2
 
 
-def reduce_values(values, reduction="sum_over_batch_size"):
+def reduce_values(
+    values,
+    sample_weight=None,
+    reduction="sum_over_batch_size",
+    normalize_by_sample_weight=False,
+):
     if (
         reduction is None
         or reduction == "none"
@@ -137,10 +160,16 @@ def reduce_values(values, reduction="sum_over_batch_size"):
         return values
     loss = ops.sum(values)
     if reduction in ("mean", "sum_over_batch_size"):
-        loss /= ops.cast(
-            ops.prod(ops.convert_to_tensor(ops.shape(values), dtype="int32")),
-            loss.dtype,
-        )
+        if normalize_by_sample_weight and sample_weight is not None:
+            divisor = ops.cast(ops.sum(sample_weight), loss.dtype)
+        else:
+            divisor = ops.cast(
+                ops.prod(
+                    ops.convert_to_tensor(ops.shape(values), dtype="int32")
+                ),
+                loss.dtype,
+            )
+        loss = ops.divide_no_nan(loss, divisor)
     return loss
 
 
@@ -150,6 +179,7 @@ def reduce_weighted_values(
     mask=None,
     reduction="sum_over_batch_size",
     dtype=None,
+    normalize_by_sample_weight=False,
 ):
     reduction = standardize_reduction(reduction)
 
@@ -173,7 +203,9 @@ def reduce_weighted_values(
         values = values * sample_weight
 
     # Apply reduction function to the individual weighted losses.
-    loss = reduce_values(values, reduction)
+    loss = reduce_values(
+        values, sample_weight, reduction, normalize_by_sample_weight
+    )
     return loss
 
 

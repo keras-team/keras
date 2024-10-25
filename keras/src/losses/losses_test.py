@@ -85,6 +85,16 @@ class MeanSquaredErrorTest(testing.TestCase):
         loss = mse_obj(y_true, y_pred)
         self.assertDType(loss, "bfloat16")
 
+    def test_normalize_by_sample_weight(self):
+        mse_obj = losses.MeanSquaredError(normalize_by_sample_weight=True)
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        sample_weight = np.array([[1.2], [3.4]])
+        loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(
+            loss, (110 / 3 * 1.2 + 187 / 3 * 3.4) / (1.2 + 3.4)
+        )
+
 
 class MeanAbsoluteErrorTest(testing.TestCase):
     def test_config(self):
@@ -160,6 +170,16 @@ class MeanAbsoluteErrorTest(testing.TestCase):
         loss = mae_obj(y_true, y_pred)
         self.assertDType(loss, "bfloat16")
 
+    def test_normalize_by_sample_weight(self):
+        mae_obj = losses.MeanAbsoluteError(normalize_by_sample_weight=True)
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        sample_weight = np.array([[1.2], [3.4]])
+        loss = mae_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(
+            loss, (14 / 3 * 1.2 + 19 / 3 * 3.4) / (1.2 + 3.4)
+        )
+
 
 class MeanAbsolutePercentageErrorTest(testing.TestCase):
     def test_config(self):
@@ -228,6 +248,16 @@ class MeanAbsolutePercentageErrorTest(testing.TestCase):
         loss = mape_obj(y_true, y_pred)
         self.assertDType(loss, "bfloat16")
 
+    def test_normalize_by_sample_weight(self):
+        mape_obj = losses.MeanAbsolutePercentageError(
+            normalize_by_sample_weight=True
+        )
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        sample_weight = np.array([[1.2], [3.4]])
+        loss = mape_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 183.865)
+
 
 class MeanSquaredLogarithmicErrorTest(testing.TestCase):
     def test_config(self):
@@ -282,6 +312,16 @@ class MeanSquaredLogarithmicErrorTest(testing.TestCase):
         y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
         loss = msle_obj(y_true, y_pred, sample_weight=2.3)
         self.assertDType(loss, "bfloat16")
+
+    def test_normalize_by_sample_weight(self):
+        msle_obj = losses.MeanSquaredLogarithmicError(
+            normalize_by_sample_weight=True
+        )
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        sample_weight = np.array([[1.2], [3.4]])
+        loss = msle_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 1.646)
 
 
 class HingeTest(testing.TestCase):
@@ -492,7 +532,14 @@ class CosineSimilarityTest(testing.TestCase):
         self.assertEqual(cosine_obj.name, "cosine_loss")
         self.assertEqual(cosine_obj.reduction, "sum")
         config = cosine_obj.get_config()
-        self.assertEqual(config, {"name": "cosine_loss", "reduction": "sum"})
+        self.assertEqual(
+            config,
+            {
+                "name": "cosine_loss",
+                "reduction": "sum",
+                "normalize_by_sample_weight": False,
+            },
+        )
 
     def test_unweighted(self):
         self.setup()
@@ -584,7 +631,14 @@ class HuberLossTest(testing.TestCase):
         self.assertEqual(h_obj.name, "huber")
         self.assertEqual(h_obj.reduction, "sum")
         config = h_obj.get_config()
-        self.assertEqual(config, {"name": "huber", "reduction": "sum"})
+        self.assertEqual(
+            config,
+            {
+                "name": "huber",
+                "reduction": "sum",
+                "normalize_by_sample_weight": False,
+            },
+        )
 
     def test_all_correct(self):
         self.setup()
@@ -684,7 +738,14 @@ class LogCoshTest(testing.TestCase):
         self.assertEqual(logcosh_obj.name, "logcosh_loss")
         self.assertEqual(logcosh_obj.reduction, "sum")
         config = logcosh_obj.get_config()
-        self.assertEqual(config, {"name": "logcosh_loss", "reduction": "sum"})
+        self.assertEqual(
+            config,
+            {
+                "name": "logcosh_loss",
+                "reduction": "sum",
+                "normalize_by_sample_weight": False,
+            },
+        )
 
     def test_unweighted(self):
         self.setup()
