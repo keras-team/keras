@@ -95,6 +95,11 @@ def glu(x, axis=-1):
     return jnn.glu(x, axis=axis)
 
 
+def hard_tanh(x):
+    x = convert_to_tensor(x)
+    return jnn.hard_tanh(x)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return jnn.softmax(x, axis=axis)

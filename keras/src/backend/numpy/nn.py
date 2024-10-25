@@ -132,6 +132,13 @@ def glu(x, axis=-1):
     return x1 * (1 / (1 + np.exp(-x2)))
 
 
+def hard_tanh(x):
+    x = convert_to_tensor(x)
+    min_val = np.asarray(-1.0, x.dtype)
+    max_val = np.asarray(1.0, x.dtype)
+    return np.array(np.clip(x, min_val, max_val), dtype=x.dtype)
+
+
 def softmax(x, axis=None):
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
