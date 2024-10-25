@@ -864,7 +864,9 @@ class TestTrainer(testing.TestCase):
                 j += 1
                 yield (batch,)
 
-        model = keras.Sequential([keras.layers.Identity()])
+        model = keras.Sequential(
+            [keras.layers.InputLayer(shape=()), keras.layers.Identity()]
+        )
         model.compile(
             loss="mse",
             optimizer="sgd",
@@ -2413,6 +2415,11 @@ class TestTrainer(testing.TestCase):
     @pytest.mark.skipif(
         backend.backend() == "torch",
         reason="`steps_per_execution` not implemented for torch yet",
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "tensorflow",
+        reason="`predict_function` with `steps_per_execution` is not "
+        "optimized for tensorflow yet",
     )
     def test_retracing_predict(self):
         x = np.ones((100, 4))
