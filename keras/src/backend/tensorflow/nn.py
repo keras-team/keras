@@ -92,6 +92,10 @@ def glu(x, axis=-1):
     return x1 * tf.sigmoid(x2)
 
 
+def hard_tanh(x):
+    return tf.clip_by_value(x, clip_value_min=-1.0, clip_value_max=1.0)
+
+
 def softmax(x, axis=-1):
     logits = x
     if axis is None:
