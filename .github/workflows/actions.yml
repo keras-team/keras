@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [ master ]
+    branches: [ jax-tracing-fix ]
   pull_request:
   release:
     types: [created]
