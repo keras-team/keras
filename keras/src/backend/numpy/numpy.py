@@ -1056,7 +1056,9 @@ def divide_no_nan(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
-    return np.where(x2 == 0, 0, np.divide(x1, x2))
+    # No need for the double-where trick since we don't calculate gradients in
+    # numpy backend.
+    return np.where(x2 == 0, np.array(0, dtype=dtype), np.divide(x1, x2))
 
 
 def true_divide(x1, x2):

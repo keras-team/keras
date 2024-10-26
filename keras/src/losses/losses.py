@@ -17,15 +17,9 @@ class LossFunctionWrapper(Loss):
         reduction="sum_over_batch_size",
         name=None,
         dtype=None,
-        normalize_by_sample_weight=False,
         **kwargs,
     ):
-        super().__init__(
-            name=name,
-            reduction=reduction,
-            dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
-        )
+        super().__init__(name=name, reduction=reduction, dtype=dtype)
         self.fn = fn
         self._fn_kwargs = kwargs
 
@@ -62,20 +56,19 @@ class MeanSquaredError(LossFunctionWrapper):
 
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
     """
 
     def __init__(
@@ -83,14 +76,9 @@ class MeanSquaredError(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="mean_squared_error",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
         super().__init__(
-            mean_squared_error,
-            name=name,
-            reduction=reduction,
-            dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
+            mean_squared_error, name=name, reduction=reduction, dtype=dtype
         )
 
     def get_config(self):
@@ -109,20 +97,19 @@ class MeanAbsoluteError(LossFunctionWrapper):
 
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
     """
 
     def __init__(
@@ -130,14 +117,9 @@ class MeanAbsoluteError(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="mean_absolute_error",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
         super().__init__(
-            mean_absolute_error,
-            name=name,
-            reduction=reduction,
-            dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
+            mean_absolute_error, name=name, reduction=reduction, dtype=dtype
         )
 
     def get_config(self):
@@ -156,20 +138,19 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
 
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
     """
 
     def __init__(
@@ -177,14 +158,12 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="mean_absolute_percentage_error",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
         super().__init__(
             mean_absolute_percentage_error,
             name=name,
             reduction=reduction,
             dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
         )
 
     def get_config(self):
@@ -203,20 +182,19 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
 
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
     """
 
     def __init__(
@@ -224,14 +202,12 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="mean_squared_logarithmic_error",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
         super().__init__(
             mean_squared_logarithmic_error,
             name=name,
             reduction=reduction,
             dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
         )
 
     def get_config(self):
@@ -259,20 +235,19 @@ class CosineSimilarity(LossFunctionWrapper):
         axis: The axis along which the cosine similarity is computed
             (the features axis). Defaults to `-1`.
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
     """
 
     def __init__(
@@ -281,14 +256,12 @@ class CosineSimilarity(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="cosine_similarity",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
         super().__init__(
             cosine_similarity,
             name=name,
             reduction=reduction,
             dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
             axis=axis,
         )
 
@@ -316,21 +289,20 @@ class Huber(LossFunctionWrapper):
     Args:
         delta: A float, the point where the Huber loss function changes from a
             quadratic to linear.
-        reduction: Type of reduction to apply to loss. Options are `"sum"`,
-            `"sum_over_batch_size"` or `None`. Defaults to
-            `"sum_over_batch_size"`.
+        reduction: Type of reduction to apply to the loss. In almost all cases
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
     """
 
     def __init__(
@@ -339,14 +311,12 @@ class Huber(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="huber_loss",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
         super().__init__(
             huber,
             name=name,
             reduction=reduction,
             dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
             delta=delta,
         )
 
@@ -367,21 +337,20 @@ class LogCosh(LossFunctionWrapper):
     where x is the error `y_pred - y_true`.
 
     Args:
-        reduction: Type of reduction to apply to loss. Options are `"sum"`,
-            `"sum_over_batch_size"` or `None`. Defaults to
-            `"sum_over_batch_size"`.
+        reduction: Type of reduction to apply to the loss. In almost all cases
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
     """
 
     def __init__(
@@ -389,15 +358,8 @@ class LogCosh(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="log_cosh",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
-        super().__init__(
-            log_cosh,
-            name=name,
-            reduction=reduction,
-            dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
-        )
+        super().__init__(log_cosh, name=name, reduction=reduction, dtype=dtype)
 
     def get_config(self):
         return Loss.get_config(self)
@@ -418,20 +380,19 @@ class Hinge(LossFunctionWrapper):
 
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
     """
 
     def __init__(
@@ -439,15 +400,8 @@ class Hinge(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="hinge",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
-        super().__init__(
-            hinge,
-            name=name,
-            reduction=reduction,
-            dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
-        )
+        super().__init__(hinge, name=name, reduction=reduction, dtype=dtype)
 
     def get_config(self):
         return Loss.get_config(self)
@@ -468,35 +422,26 @@ class SquaredHinge(LossFunctionWrapper):
 
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
     """
 
     def __init__(
-        self,
-        reduction="sum_over_batch_size",
-        name="squared_hinge",
-        dtype=None,
-        normalize_by_sample_weight=False,
+        self, reduction="sum_over_batch_size", name="squared_hinge", dtype=None
     ):
         super().__init__(
-            squared_hinge,
-            name=name,
-            reduction=reduction,
-            dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
+            squared_hinge, name=name, reduction=reduction, dtype=dtype
         )
 
     def get_config(self):
@@ -517,20 +462,19 @@ class CategoricalHinge(LossFunctionWrapper):
 
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
     """
 
     def __init__(
@@ -538,14 +482,9 @@ class CategoricalHinge(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="categorical_hinge",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
         super().__init__(
-            categorical_hinge,
-            name=name,
-            reduction=reduction,
-            dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
+            categorical_hinge, name=name, reduction=reduction, dtype=dtype
         )
 
     def get_config(self):
@@ -568,35 +507,26 @@ class KLDivergence(LossFunctionWrapper):
 
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
     """
 
     def __init__(
-        self,
-        reduction="sum_over_batch_size",
-        name="kl_divergence",
-        dtype=None,
-        normalize_by_sample_weight=False,
+        self, reduction="sum_over_batch_size", name="kl_divergence", dtype=None
     ):
         super().__init__(
-            kl_divergence,
-            name=name,
-            reduction=reduction,
-            dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
+            kl_divergence, name=name, reduction=reduction, dtype=dtype
         )
 
     def get_config(self):
@@ -615,36 +545,25 @@ class Poisson(LossFunctionWrapper):
 
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
     """
 
     def __init__(
-        self,
-        reduction="sum_over_batch_size",
-        name="poisson",
-        dtype=None,
-        normalize_by_sample_weight=False,
+        self, reduction="sum_over_batch_size", name="poisson", dtype=None
     ):
-        super().__init__(
-            poisson,
-            name=name,
-            reduction=reduction,
-            dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
-        )
+        super().__init__(poisson, name=name, reduction=reduction, dtype=dtype)
 
     def get_config(self):
         return Loss.get_config(self)
@@ -676,20 +595,19 @@ class BinaryCrossentropy(LossFunctionWrapper):
         axis: The axis along which to compute crossentropy (the features axis).
             Defaults to `-1`.
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
 
     Examples:
 
@@ -751,14 +669,12 @@ class BinaryCrossentropy(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="binary_crossentropy",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
         super().__init__(
             binary_crossentropy,
             name=name,
             reduction=reduction,
             dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
             from_logits=from_logits,
             label_smoothing=label_smoothing,
             axis=axis,
@@ -823,20 +739,19 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
         axis: The axis along which to compute crossentropy (the features axis).
             Defaults to `-1`.
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
 
     Examples:
 
@@ -933,14 +848,12 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="binary_focal_crossentropy",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
         super().__init__(
             binary_focal_crossentropy,
             name=name,
             reduction=reduction,
             dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
             apply_class_balancing=apply_class_balancing,
             alpha=alpha,
             gamma=gamma,
@@ -991,20 +904,19 @@ class CategoricalCrossentropy(LossFunctionWrapper):
         axis: The axis along which to compute crossentropy (the features
             axis). Defaults to `-1`.
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
 
     Examples:
 
@@ -1049,14 +961,12 @@ class CategoricalCrossentropy(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="categorical_crossentropy",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
         super().__init__(
             categorical_crossentropy,
             name=name,
             reduction=reduction,
             dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
             from_logits=from_logits,
             label_smoothing=label_smoothing,
             axis=axis,
@@ -1139,20 +1049,19 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
         axis: The axis along which to compute crossentropy (the features
             axis). Defaults to `-1`.
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
 
     Examples:
 
@@ -1199,7 +1108,6 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="categorical_focal_crossentropy",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
         """Initializes `CategoricalFocalCrossentropy` instance."""
         super().__init__(
@@ -1207,7 +1115,6 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
             name=name,
             reduction=reduction,
             dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
             alpha=alpha,
             gamma=gamma,
             from_logits=from_logits,
@@ -1254,20 +1161,19 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
         from_logits: Whether `y_pred` is expected to be a logits tensor. By
             default, we assume that `y_pred` encodes a probability distribution.
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
 
     Examples:
 
@@ -1309,14 +1215,12 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="sparse_categorical_crossentropy",
         dtype=None,
-        normalize_by_sample_weight=False,
     ):
         super().__init__(
             sparse_categorical_crossentropy,
             name=name,
             reduction=reduction,
             dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
             from_logits=from_logits,
             ignore_class=ignore_class,
         )
@@ -1331,6 +1235,171 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
                 "ignore_class": self.ignore_class,
             }
         )
+        return config
+
+
+@keras_export("keras.losses.CTC")
+class CTC(LossFunctionWrapper):
+    """CTC (Connectionist Temporal Classification) loss.
+
+    Args:
+        reduction: Type of reduction to apply to the loss. In almost all cases
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
+        name: Optional name for the loss instance.
+        dtype: The dtype of the loss's computations. Defaults to `None`, which
+            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            `"float32"` unless set to different value
+            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            provided, then the `compute_dtype` will be utilized.
+    """
+
+    def __init__(self, reduction="sum_over_batch_size", name="ctc", dtype=None):
+        super().__init__(ctc, name=name, reduction=reduction, dtype=dtype)
+
+    def get_config(self):
+        return Loss.get_config(self)
+
+
+@keras_export("keras.losses.Dice")
+class Dice(LossFunctionWrapper):
+    """Computes the Dice loss value between `y_true` and `y_pred`.
+
+    Formula:
+    ```python
+    loss = 1 - (2 * sum(y_true * y_pred)) / (sum(y_true) + sum(y_pred))
+    ```
+
+    Args:
+        reduction: Type of reduction to apply to the loss. In almost all cases
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
+        name: Optional name for the loss instance.
+        axis: Tuple for which dimensions the loss is calculated. Defaults to
+            `None`.
+        dtype: The dtype of the loss's computations. Defaults to `None`, which
+            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            `"float32"` unless set to different value
+            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            provided, then the `compute_dtype` will be utilized.
+
+    Returns:
+        Dice loss value.
+
+    Example:
+
+    >>> y_true = [[[[1.0], [1.0]], [[0.0], [0.0]]],
+    ...           [[[1.0], [1.0]], [[0.0], [0.0]]]]
+    >>> y_pred = [[[[0.0], [1.0]], [[0.0], [1.0]]],
+    ...           [[[0.4], [0.0]], [[0.0], [0.9]]]]
+    >>> axis = (1, 2, 3)
+    >>> loss = keras.losses.dice(y_true, y_pred, axis=axis)
+    >>> assert loss.shape == (2,)
+    >>> loss
+    array([0.5, 0.75757575], shape=(2,), dtype=float32)
+
+    >>> loss = keras.losses.dice(y_true, y_pred)
+    >>> assert loss.shape == ()
+    >>> loss
+    array(0.6164384, shape=(), dtype=float32)
+
+    >>> y_true = np.array(y_true)
+    >>> y_pred = np.array(y_pred)
+    >>> loss = keras.losses.Dice(axis=axis, reduction=None)(y_true, y_pred)
+    >>> assert loss.shape == (2,)
+    >>> loss
+    array([0.5, 0.75757575], shape=(2,), dtype=float32)
+
+    """
+
+    def __init__(
+        self,
+        reduction="sum_over_batch_size",
+        name="dice",
+        axis=None,
+        dtype=None,
+    ):
+        super().__init__(
+            dice, name=name, reduction=reduction, dtype=dtype, axis=axis
+        )
+        self.axis = axis
+
+    def get_config(self):
+        config = Loss.get_config(self)
+        config.update({"axis": self.axis})
+        return config
+
+
+@keras_export("keras.losses.Tversky")
+class Tversky(LossFunctionWrapper):
+    """Computes the Tversky loss value between `y_true` and `y_pred`.
+
+    This loss function is weighted by the alpha and beta coefficients
+    that penalize false positives and false negatives.
+
+    With `alpha=0.5` and `beta=0.5`, the loss value becomes equivalent to
+    Dice Loss.
+
+    Args:
+        alpha: The coefficient controlling incidence of false positives.
+            Defaults to `0.5`.
+        beta: The coefficient controlling incidence of false negatives.
+            Defaults to `0.5`.
+        reduction: Type of reduction to apply to the loss. In almost all cases
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
+        name: Optional name for the loss instance.
+        dtype: The dtype of the loss's computations. Defaults to `None`, which
+            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            `"float32"` unless set to different value
+            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            provided, then the `compute_dtype` will be utilized.
+
+    Returns:
+        Tversky loss value.
+
+    Reference:
+
+    - [Salehi et al., 2017](https://arxiv.org/abs/1706.05721)
+    """
+
+    def __init__(
+        self,
+        alpha=0.5,
+        beta=0.5,
+        reduction="sum_over_batch_size",
+        name="tversky",
+        dtype=None,
+    ):
+        super().__init__(
+            tversky,
+            name=name,
+            reduction=reduction,
+            dtype=dtype,
+            alpha=alpha,
+            beta=beta,
+        )
+        self.alpha = alpha
+        self.beta = beta
+
+    def get_config(self):
+        config = Loss.get_config(self)
+        config.update({"alpha": self.alpha, "beta": self.beta})
         return config
 
 
@@ -2227,47 +2296,6 @@ def binary_focal_crossentropy(
     return ops.mean(focal_bce, axis=axis)
 
 
-@keras_export("keras.losses.CTC")
-class CTC(LossFunctionWrapper):
-    """CTC (Connectionist Temporal Classification) loss.
-
-    Args:
-        reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
-        name: Optional name for the loss instance.
-        dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
-            `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
-            provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
-    """
-
-    def __init__(
-        self,
-        reduction="sum_over_batch_size",
-        name="ctc",
-        dtype=None,
-        normalize_by_sample_weight=False,
-    ):
-        super().__init__(
-            ctc,
-            name=name,
-            reduction=reduction,
-            dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
-        )
-
-    def get_config(self):
-        return Loss.get_config(self)
-
-
 @keras_export("keras.losses.ctc")
 def ctc(y_true, y_pred):
     """CTC (Connectionist Temporal Classification) loss.
@@ -2306,87 +2334,6 @@ def ctc(y_true, y_pred):
     )
 
 
-@keras_export("keras.losses.Dice")
-class Dice(LossFunctionWrapper):
-    """Computes the Dice loss value between `y_true` and `y_pred`.
-
-    Formula:
-    ```python
-    loss = 1 - (2 * sum(y_true * y_pred)) / (sum(y_true) + sum(y_pred))
-    ```
-
-    Args:
-        reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
-        name: Optional name for the loss instance.
-        axis: Tuple for which dimensions the loss is calculated. Defaults to
-            `None`.
-        dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
-            `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
-            provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
-
-    Returns:
-        Dice loss value.
-
-    Example:
-
-    >>> y_true = [[[[1.0], [1.0]], [[0.0], [0.0]]],
-    ...           [[[1.0], [1.0]], [[0.0], [0.0]]]]
-    >>> y_pred = [[[[0.0], [1.0]], [[0.0], [1.0]]],
-    ...           [[[0.4], [0.0]], [[0.0], [0.9]]]]
-    >>> axis = (1, 2, 3)
-    >>> loss = keras.losses.dice(y_true, y_pred, axis=axis)
-    >>> assert loss.shape == (2,)
-    >>> loss
-    array([0.5, 0.75757575], shape=(2,), dtype=float32)
-
-    >>> loss = keras.losses.dice(y_true, y_pred)
-    >>> assert loss.shape == ()
-    >>> loss
-    array(0.6164384, shape=(), dtype=float32)
-
-    >>> y_true = np.array(y_true)
-    >>> y_pred = np.array(y_pred)
-    >>> loss = keras.losses.Dice(axis=axis, reduction=None)(y_true, y_pred)
-    >>> assert loss.shape == (2,)
-    >>> loss
-    array([0.5, 0.75757575], shape=(2,), dtype=float32)
-
-    """
-
-    def __init__(
-        self,
-        reduction="sum_over_batch_size",
-        name="dice",
-        axis=None,
-        dtype=None,
-        normalize_by_sample_weight=False,
-    ):
-        super().__init__(
-            dice,
-            name=name,
-            reduction=reduction,
-            dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
-            axis=axis,
-        )
-        self.axis = axis
-
-    def get_config(self):
-        config = Loss.get_config(self)
-        config.update({"axis": self.axis})
-        return config
-
-
 @keras_export("keras.losses.dice")
 def dice(y_true, y_pred, axis=None):
     """Computes the Dice loss value between `y_true` and `y_pred`.
@@ -2419,72 +2366,6 @@ def dice(y_true, y_pred, axis=None):
     )
 
     return 1 - dice
-
-
-@keras_export("keras.losses.Tversky")
-class Tversky(LossFunctionWrapper):
-    """Computes the Tversky loss value between `y_true` and `y_pred`.
-
-    This loss function is weighted by the alpha and beta coefficients
-    that penalize false positives and false negatives.
-
-    With `alpha=0.5` and `beta=0.5`, the loss value becomes equivalent to
-    Dice Loss.
-
-    Args:
-        alpha: The coefficient controlling incidence of false positives.
-            Defaults to `0.5`.
-        beta: The coefficient controlling incidence of false negatives.
-            Defaults to `0.5`.
-        reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
-        name: Optional name for the loss instance.
-        dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
-            `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
-            provided, then the `compute_dtype` will be utilized.
-        normalize_by_sample_weight: Whether to normalize the loss value by the
-            provided `sample_weight`. If set to `True` and `reduction` is
-            `"sum_over_batch_size"` or `"mean"`, the final loss value will be
-            divided by `ops.sum(sample_weight)` instead of the sample size. This
-            approach may help stabilize the range of the loss value. Defaults to
-            `False`.
-
-    Returns:
-        Tversky loss value.
-
-    Reference:
-
-    - [Salehi et al., 2017](https://arxiv.org/abs/1706.05721)
-    """
-
-    def __init__(
-        self,
-        alpha=0.5,
-        beta=0.5,
-        reduction="sum_over_batch_size",
-        name="tversky",
-        dtype=None,
-        normalize_by_sample_weight=False,
-    ):
-        super().__init__(
-            tversky,
-            name=name,
-            reduction=reduction,
-            dtype=dtype,
-            normalize_by_sample_weight=normalize_by_sample_weight,
-            alpha=alpha,
-            beta=beta,
-        )
-        self.alpha = alpha
-        self.beta = beta
-
-    def get_config(self):
-        config = Loss.get_config(self)
-        config.update({"alpha": self.alpha, "beta": self.beta})
-        return config
 
 
 @keras_export("keras.losses.tversky")
