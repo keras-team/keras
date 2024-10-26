@@ -78,6 +78,16 @@ class MeanSquaredErrorTest(testing.TestCase):
         loss = mse_obj(y_true, y_pred, sample_weight=2.3)
         self.assertAlmostEqual(loss, 227.69998)
 
+    def test_mean_with_sample_weight_reduction(self):
+        mse_obj = losses.MeanSquaredError(reduction="mean_with_sample_weight")
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        sample_weight = np.array([[1.2], [3.4]])
+        loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(
+            loss, (110 / 3 * 1.2 + 187 / 3 * 3.4) / (1.2 + 3.4)
+        )
+
     def test_dtype_arg(self):
         mse_obj = losses.MeanSquaredError(dtype="bfloat16")
         y_true = np.array([[1, 9, 2], [-5, -2, 6]])
@@ -153,6 +163,16 @@ class MeanAbsoluteErrorTest(testing.TestCase):
         loss = mae_obj(y_true, y_pred, sample_weight=2.3)
         self.assertAlmostEqual(loss, 25.29999)
 
+    def test_mean_with_sample_weight_reduction(self):
+        mae_obj = losses.MeanAbsoluteError(reduction="mean_with_sample_weight")
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        sample_weight = np.array([[1.2], [3.4]])
+        loss = mae_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(
+            loss, (14 / 3 * 1.2 + 19 / 3 * 3.4) / (1.2 + 3.4)
+        )
+
     def test_dtype_arg(self):
         mae_obj = losses.MeanAbsoluteError(dtype="bfloat16")
         y_true = np.array([[1, 9, 2], [-5, -2, 6]])
@@ -221,6 +241,16 @@ class MeanAbsolutePercentageErrorTest(testing.TestCase):
         loss = mape_obj(y_true, y_pred, sample_weight=2.3)
         self.assertAlmostEqual(loss, [621.8518, 352.6666])
 
+    def test_mean_with_sample_weight_reduction(self):
+        mape_obj = losses.MeanAbsolutePercentageError(
+            reduction="mean_with_sample_weight"
+        )
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        sample_weight = np.array([[1.2], [3.4]])
+        loss = mape_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 183.865)
+
     def test_dtype_arg(self):
         mape_obj = losses.MeanAbsolutePercentageError(dtype="bfloat16")
         y_true = np.array([[1, 9, 2], [-5, -2, 6]])
@@ -275,6 +305,16 @@ class MeanSquaredLogarithmicErrorTest(testing.TestCase):
         y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
         loss = msle_obj(y_true, y_pred, sample_weight=0)
         self.assertAlmostEqual(loss, 0.0, 3)
+
+    def test_mean_with_sample_weight_reduction(self):
+        msle_obj = losses.MeanSquaredLogarithmicError(
+            reduction="mean_with_sample_weight"
+        )
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        sample_weight = np.array([[1.2], [3.4]])
+        loss = msle_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 1.646)
 
     def test_dtype_arg(self):
         msle_obj = losses.MeanSquaredLogarithmicError(dtype="bfloat16")

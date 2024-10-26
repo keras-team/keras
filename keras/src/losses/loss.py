@@ -11,14 +11,17 @@ from keras.src.utils.naming import auto_name
 class Loss(KerasSaveable):
     """Loss base class.
 
-    This is the class to subclass in order to create new
-    custom losses.
+    This is the class to subclass in order to create new custom losses.
 
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
-            this should be `"sum_over_batch_size"`.
-            Supported options are `"sum"`, `"sum_over_batch_size"`, `"mean"`
-            or `None`.
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
@@ -96,7 +99,14 @@ class Loss(KerasSaveable):
 
 
 def standardize_reduction(reduction):
-    allowed = {"sum_over_batch_size", "sum", None, "none", "mean"}
+    allowed = {
+        "sum_over_batch_size",
+        "sum",
+        None,
+        "none",
+        "mean",
+        "mean_with_sample_weight",
+    }
     if reduction not in allowed:
         raise ValueError(
             "Invalid value for argument `reduction`. "
@@ -127,7 +137,7 @@ def squeeze_or_expand_to_same_rank(x1, x2, expand_rank_1=True):
     return x1, x2
 
 
-def reduce_values(values, reduction="sum_over_batch_size"):
+def reduce_values(values, sample_weight=None, reduction="sum_over_batch_size"):
     if (
         reduction is None
         or reduction == "none"
@@ -136,11 +146,17 @@ def reduce_values(values, reduction="sum_over_batch_size"):
     ):
         return values
     loss = ops.sum(values)
-    if reduction in ("mean", "sum_over_batch_size"):
-        loss /= ops.cast(
-            ops.prod(ops.convert_to_tensor(ops.shape(values), dtype="int32")),
-            loss.dtype,
-        )
+    if reduction in ("sum_over_batch_size", "mean", "mean_with_sample_weight"):
+        if reduction == "mean_with_sample_weight" and sample_weight is not None:
+            divisor = ops.cast(ops.sum(sample_weight), loss.dtype)
+        else:
+            divisor = ops.cast(
+                ops.prod(
+                    ops.convert_to_tensor(ops.shape(values), dtype="int32")
+                ),
+                loss.dtype,
+            )
+        loss = ops.divide_no_nan(loss, divisor)
     return loss
 
 
@@ -173,7 +189,7 @@ def reduce_weighted_values(
         values = values * sample_weight
 
     # Apply reduction function to the individual weighted losses.
-    loss = reduce_values(values, reduction)
+    loss = reduce_values(values, sample_weight, reduction)
     return loss
 
 
