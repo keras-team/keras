@@ -323,6 +323,27 @@ def celu(x, alpha=1.0):
     return ops.celu(x, alpha=alpha)
 
 
+@keras_export("keras.activations.glu")
+def glu(x, axis=-1):
+    """Gated Linear Unit (GLU) activation function.
+
+    The GLU activation function is defined as:
+
+    `glu(x) = a * sigmoid(b)`,
+
+    where `x` is split into two equal parts `a` and `b` along the given axis.
+
+    Args:
+        x: Input tensor.
+        axis: The axis along which to split the input tensor. Defaults to `-1`.
+
+    Reference:
+
+    - [Dauphin et al., 2017](https://arxiv.org/abs/1612.08083)
+    """
+    return ops.glu(x, axis=axis)
+
+
 @keras_export("keras.activations.tanh")
 def tanh(x):
     """Hyperbolic tangent activation function.
@@ -335,6 +356,21 @@ def tanh(x):
         x: Input tensor.
     """
     return ops.tanh(x)
+
+
+@keras_export("keras.activations.hard_tanh")
+def hard_tanh(x):
+    """HardTanh activation function.
+
+    It is defined as:
+    `hard_tanh(x) = -1 for x < -1`,
+    `hard_tanh(x) = x for -1 <= x <= 1`,
+    `hard_tanh(x) = 1 for x > 1`.
+
+    Args:
+        x: Input tensor.
+    """
+    return ops.hard_tanh(x)
 
 
 @keras_export("keras.activations.sigmoid")

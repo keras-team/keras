@@ -598,6 +598,30 @@ class ActivationsTest(testing.TestCase):
         expected = celu(x, True)
         self.assertAllClose(result, expected, rtol=1e-05)
 
+    def test_glu(self):
+        def glu(x, axis=-1):
+            x1, x2 = np.split(x, 2, axis)
+            return x1 * (1 / (1 + np.exp(-x2)))
+
+        x = np.random.random((2, 4))
+        result = activations.glu(x[np.newaxis, :])[0]
+        expected = glu(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+        x = np.random.random((2, 4))
+        result = activations.glu(x[np.newaxis, :], axis=-2)[0]
+        expected = glu(x, axis=-2)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_hard_tanh(self):
+        def hard_tanh(x):
+            return np.clip(x, -1.0, 1.0)
+
+        x = np.random.random((2, 5))
+        result = activations.hard_tanh(x[np.newaxis, :])[0]
+        expected = hard_tanh(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
     def test_elu(self):
         x = np.random.random((2, 5))
         result = activations.elu(x[np.newaxis, :])[0]

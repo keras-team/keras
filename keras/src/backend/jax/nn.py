@@ -90,6 +90,16 @@ def celu(x, alpha=1.0):
     return jnn.celu(x, alpha=alpha)
 
 
+def glu(x, axis=-1):
+    x = convert_to_tensor(x)
+    return jnn.glu(x, axis=axis)
+
+
+def hard_tanh(x):
+    x = convert_to_tensor(x)
+    return jnn.hard_tanh(x)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return jnn.softmax(x, axis=axis)

@@ -71,9 +71,11 @@ from keras.src.ops.nn import depthwise_conv
 from keras.src.ops.nn import dot_product_attention
 from keras.src.ops.nn import elu
 from keras.src.ops.nn import gelu
+from keras.src.ops.nn import glu
 from keras.src.ops.nn import hard_sigmoid
 from keras.src.ops.nn import hard_silu
 from keras.src.ops.nn import hard_silu as hard_swish
+from keras.src.ops.nn import hard_tanh
 from keras.src.ops.nn import leaky_relu
 from keras.src.ops.nn import log_sigmoid
 from keras.src.ops.nn import log_softmax

@@ -31,6 +31,7 @@ from keras.api import regularizers
 from keras.api import saving
 from keras.api import tree
 from keras.api import utils
+from keras.api import visualization
 from keras.src.backend import Variable
 from keras.src.backend import device
 from keras.src.backend import name_scope

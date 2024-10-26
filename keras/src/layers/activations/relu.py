@@ -17,7 +17,7 @@ class ReLU(Layer):
 
     Example:
     ``` python
-    relu_layer = keras.layers.activations.ReLU(
+    relu_layer = keras.layers.ReLU(
         max_value=10,
         negative_slope=0.5,
         threshold=0,

@@ -15,10 +15,10 @@ class Activation(Layer):
     Example:
 
     >>> layer = keras.layers.Activation('relu')
-    >>> layer([-3.0, -1.0, 0.0, 2.0])
+    >>> layer(np.array([-3.0, -1.0, 0.0, 2.0]))
     [0.0, 0.0, 0.0, 2.0]
     >>> layer = keras.layers.Activation(keras.activations.relu)
-    >>> layer([-3.0, -1.0, 0.0, 2.0])
+    >>> layer(np.array([-3.0, -1.0, 0.0, 2.0]))
     [0.0, 0.0, 0.0, 2.0]
     """
 
