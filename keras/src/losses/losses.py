@@ -32,7 +32,7 @@ class LossFunctionWrapper(Loss):
         return self.fn(y_true, y_pred, **self._fn_kwargs)
 
     def get_config(self):
-        config = Loss.get_config(self)
+        config = super().get_config()
         config.update({"fn": serialization_lib.serialize_keras_object(self.fn)})
         config.update(serialization_lib.serialize_keras_object(self._fn_kwargs))
         return config

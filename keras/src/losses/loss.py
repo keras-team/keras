@@ -43,12 +43,7 @@ class Loss(KerasSaveable):
     ```
     """
 
-    def __init__(
-        self,
-        name=None,
-        reduction="sum_over_batch_size",
-        dtype=None,
-    ):
+    def __init__(self, name=None, reduction="sum_over_batch_size", dtype=None):
         self.name = name or auto_name(self.__class__.__name__)
         self.reduction = standardize_reduction(reduction)
         self._dtype_policy = dtype_policies.get(dtype or backend.floatx())
@@ -93,10 +88,7 @@ class Loss(KerasSaveable):
         raise NotImplementedError
 
     def get_config(self):
-        return {
-            "name": self.name,
-            "reduction": self.reduction,
-        }
+        return {"name": self.name, "reduction": self.reduction}
 
     @classmethod
     def from_config(cls, config):
