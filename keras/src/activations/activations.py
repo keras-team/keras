@@ -433,6 +433,19 @@ def hard_sigmoid(x):
     return ops.hard_sigmoid(x)
 
 
+@keras_export("keras.activations.log_sigmoid")
+def log_sigmoid(x):
+    """Logarithm of the sigmoid activation function.
+
+    It is defined as `f(x) = log(1 / (1 + exp(-x)))`.
+
+    Args:
+        x: Input tensor.
+
+    """
+    return ops.log_sigmoid(x)
+
+
 @keras_export(["keras.activations.hard_silu", "keras.activations.hard_swish"])
 def hard_silu(x):
     """Hard SiLU activation function, also known as Hard Swish.

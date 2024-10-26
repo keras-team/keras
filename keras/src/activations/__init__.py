@@ -10,6 +10,7 @@ from keras.src.activations.activations import hard_silu
 from keras.src.activations.activations import hard_tanh
 from keras.src.activations.activations import leaky_relu
 from keras.src.activations.activations import linear
+from keras.src.activations.activations import log_sigmoid
 from keras.src.activations.activations import log_softmax
 from keras.src.activations.activations import mish
 from keras.src.activations.activations import relu
@@ -47,6 +48,7 @@ ALL_OBJECTS = {
     linear,
     mish,
     log_softmax,
+    log_sigmoid,
 }
 
 ALL_OBJECTS_DICT = {fn.__name__: fn for fn in ALL_OBJECTS}
