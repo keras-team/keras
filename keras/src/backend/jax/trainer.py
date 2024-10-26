@@ -240,7 +240,7 @@ class JAXTrainer(base_trainer.Trainer):
                 if not self.run_eagerly and self.jit_compile:
                     concatenate = jax.jit(concatenate)
 
-                def function(state, iterator):
+                def iterator_step(state, iterator):
                     data = next(iterator)
                     outputs, state = step_function(state, data)
                     outputs = [outputs]
@@ -256,7 +256,7 @@ class JAXTrainer(base_trainer.Trainer):
 
             else:
 
-                def function(state, iterator):
+                def iterator_step(state, iterator):
                     data = next(iterator)
                     outputs, state = step_function(state, data)
                     try:
@@ -269,10 +269,10 @@ class JAXTrainer(base_trainer.Trainer):
 
         else:
 
-            def function(state, iterator):
+            def iterator_step(state, iterator):
                 return step_function(state, next(iterator))
 
-        return function
+        return iterator_step
 
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:
