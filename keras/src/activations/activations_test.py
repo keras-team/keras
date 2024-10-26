@@ -638,7 +638,7 @@ class ActivationsTest(testing.TestCase):
 
         x = np.random.random((2, 5))
         result = activations.celu(x[np.newaxis, :], alpha=0.5)[0]
-        expected = celu(x, True)
+        expected = celu(x, alpha=0.5)
         self.assertAllClose(result, expected, rtol=1e-05)
 
     def test_glu(self):

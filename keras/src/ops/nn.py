@@ -607,7 +607,7 @@ def hard_tanh(x):
 
     Example:
 
-    >>> x = x = np.array([-2., -1., 0., 1., 2.])
+    >>> x = np.array([-2., -1., 0., 1., 2.])
     >>> x_hard_tanh = keras.ops.hard_tanh(x)
     >>> print(x_hard_tanh)
     array([-1. -1.  0.  1.  1.], shape=(5,), dtype=float64)
