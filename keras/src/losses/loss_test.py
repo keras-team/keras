@@ -271,7 +271,7 @@ class LossTest(testing.TestCase):
 
         # `dtype` setter should raise AttributeError
         with self.assertRaises(AttributeError):
-            loss.dtype = "bfloat16"
+            loss_fn.dtype = "bfloat16"
 
     def test_default_dtype(self):
         y_true = np.array([1.0, 0.0, 1.0, 0.0], dtype="float32")
