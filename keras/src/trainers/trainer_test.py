@@ -655,7 +655,11 @@ class TestTrainer(testing.TestCase):
             jit_compile=False,
         )
         dataset = sparse_generator(generator_type)
-        model.predict(dataset)
+        dataset_size = sum(
+            [batch[1].shape[0] for batch in sparse_generator(generator_type)]
+        )
+        y = model.predict(dataset)
+        self.assertEqual(len(y), dataset_size)
 
     @pytest.mark.skipif(
         backend.backend() != "jax",
@@ -781,6 +785,100 @@ class TestTrainer(testing.TestCase):
             model_2.predict(x, batch_size=batch_size),
         )
         self.assertAllClose(model.evaluate(x, y), model_2.evaluate(x, y))
+
+    @parameterized.named_parameters(
+        named_product(
+            steps_per_execution=[1, 50], mode=["eager", "non_jit", "jit"]
+        )
+    )
+    def test_predict_preserve_order(self, steps_per_execution, mode):
+        if steps_per_execution > 1 and backend.backend() == "torch":
+            self.skipTest("`steps_per_execution` not implemented for torch yet")
+
+        def generate_uneven_batches():
+            batch_sizes = [2, 3, 4]
+
+            def gen_i():
+                for i in range(100):
+                    yield i
+
+            iterator = iter(gen_i())
+            j = 0
+            while True:
+                batch_size = batch_sizes[j % len(batch_sizes)]
+                try:
+                    batch = np.array(
+                        [next(iterator) for _ in range(batch_size)]
+                    )
+                except StopIteration:
+                    break
+                j += 1
+                yield batch
+
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        dataset = tf.data.Dataset.from_generator(
+            generate_uneven_batches,
+            output_signature=tf.TensorSpec((None,), dtype=tf.int32),
+        )
+        x = keras.layers.Input(shape=())
+        y = keras.layers.Identity()(x)
+        model = keras.Model(x, y)
+        model.compile(
+            loss="mse",
+            optimizer="sgd",
+            steps_per_execution=steps_per_execution,
+            run_eagerly=(mode == "eager"),
+            jit_compile=(mode == "jit"),
+        )
+
+        preds = model.predict(x=dataset, verbose=0)
+
+        self.assertAllEqual(preds, np.arange(len(preds), dtype=np.float32))
+
+    @parameterized.named_parameters(
+        named_product(
+            steps_per_execution=[1, 50], mode=["eager", "non_jit", "jit"]
+        )
+    )
+    def test_predict_generator(self, steps_per_execution, mode):
+        if steps_per_execution > 1 and backend.backend() == "torch":
+            self.skipTest("`steps_per_execution` not implemented for torch yet")
+
+        batch_size = 2
+
+        def generate_batches():
+            def gen_i():
+                for i in range(10):
+                    yield i
+
+            iterator = iter(gen_i())
+            j = 0
+            while True:
+                try:
+                    batch = np.array(
+                        [next(iterator) for _ in range(batch_size)]
+                    )
+                except StopIteration:
+                    break
+                j += 1
+                yield (batch,)
+
+        model = keras.Sequential(
+            [keras.layers.InputLayer(shape=()), keras.layers.Identity()]
+        )
+        model.compile(
+            loss="mse",
+            optimizer="sgd",
+            steps_per_execution=steps_per_execution,
+            run_eagerly=(mode == "eager"),
+            jit_compile=(mode == "jit"),
+        )
+
+        preds = model.predict(x=generate_batches(), verbose=0)
+        self.assertAllEqual(
+            preds, np.concatenate(list(generate_batches()), axis=1)[0]
+        )
 
     @parameterized.named_parameters(
         named_product(
@@ -2276,6 +2374,79 @@ class TestTrainer(testing.TestCase):
 
         self.assertFalse(model.jit_compile)
         disable_op_determinism()
+
+    @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason="`steps_per_execution` not implemented for torch yet",
+    )
+    def test_retracing(self):
+        x = np.ones((100, 4))
+        y = np.ones((100, 1))
+
+        input = keras.Input(shape=[4])
+        output = keras.layers.Dense(1, activation="relu")(input)
+
+        tracing_count = [0]
+
+        class TracingCounterModel(keras.Model):
+            def train_step(self, *args):
+                tracing_count[0] = tracing_count[0] + 1
+                return super().train_step(*args)
+
+        model = TracingCounterModel(inputs=input, outputs=output)
+        model.compile(
+            loss="mse",
+            optimizer="adam",
+            steps_per_execution=20,
+        )
+
+        epochs = 1
+        model.fit(
+            x=x,
+            y=y,
+            batch_size=1,
+            epochs=epochs,
+            verbose=0,
+        )
+        self.assertLessEqual(tracing_count[0], 2)
+
+    @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason="`steps_per_execution` not implemented for torch yet",
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "tensorflow",
+        reason="`predict_function` with `steps_per_execution` is not "
+        "optimized for tensorflow yet",
+    )
+    def test_retracing_predict(self):
+        x = np.ones((100, 4))
+
+        input = keras.Input(shape=[4])
+        output = keras.layers.Dense(1, activation="relu")(input)
+
+        tracing_count = [0]
+
+        class TracingCounterModel(keras.Model):
+            def predict_step(self, *args):
+                tracing_count[0] = tracing_count[0] + 1
+                return super().predict_step(*args)
+
+        model = TracingCounterModel(inputs=input, outputs=output)
+        model.compile(
+            loss="mse",
+            optimizer="adam",
+            steps_per_execution=20,
+        )
+
+        model.predict(
+            x=x,
+            batch_size=1,
+            verbose=0,
+        )
+        self.assertLessEqual(tracing_count[0], 2)
 
 
 class TrainerDistributeTest(testing.TestCase):

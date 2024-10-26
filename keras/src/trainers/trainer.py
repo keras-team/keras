@@ -1050,8 +1050,11 @@ class Trainer:
                 )
 
             if data_batch is None:
-                for _, data in iterator:
-                    data_batch = data[0]
+                for _, data_or_iterator in iterator:
+                    if isinstance(data_or_iterator, (list, tuple)):
+                        data_batch = data_or_iterator[0]
+                    else:
+                        data_batch = next(data_or_iterator)
                     break
             data_batch = tree.map_structure(to_symbolic_input, data_batch)
             (
