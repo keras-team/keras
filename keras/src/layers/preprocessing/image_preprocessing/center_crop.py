@@ -1,6 +1,10 @@
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    convert_format,
 )
 from keras.src.utils import image_utils
 
@@ -59,7 +63,68 @@ class CenterCrop(BaseImagePreprocessingLayer):
     def transform_bounding_boxes(
         self, bounding_boxes, transformation, training=True
     ):
-        raise NotImplementedError
+        input_height, input_width = transformation
+
+        def _create_multi_channel_bbox_array(shape, bboxes):
+            bboxes = ops.numpy.array(bboxes, dtype="int32")
+            num_channels = len(bboxes)
+            if self.data_format == "channels_first":
+                bbox_array = ops.numpy.zeros(
+                    (num_channels, shape[0], shape[1]), dtype="int32"
+                )
+            else:
+                bbox_array = ops.numpy.zeros(
+                    (shape[0], shape[1], num_channels), dtype="int32"
+                )
+            bbox_array = ops.convert_to_numpy(bbox_array)
+            for i, bbox in enumerate(bboxes):
+                x_min, y_min, x_max, y_max = bbox
+                bbox_array[y_min:y_max, x_min:x_max, i] = 1
+            return bbox_array
+
+        def _extract_bboxes_from_multi_channel_array(bbox_array):
+            bboxes = []
+            height, width, num_channels = bbox_array.shape
+
+            for i in range(num_channels):
+                y_indices, x_indices = ops.numpy.where(bbox_array[:, :, i] > 0)
+                if len(x_indices) > 0 and len(y_indices) > 0:
+                    x_min = ops.numpy.min(x_indices)
+                    x_max = ops.numpy.max(x_indices)
+                    y_min = ops.numpy.min(y_indices)
+                    y_max = ops.numpy.max(y_indices)
+                    bboxes.append((x_min, y_min, x_max, y_max))
+            return bboxes
+
+        if self.bounding_box_format != "xyxy":
+            bounding_boxes = convert_format(
+                bounding_boxes,
+                source=self.bounding_box_format,
+                target="xyxy",
+                height=input_height,
+                width=input_width,
+            )
+
+        multi_channel_array = _create_multi_channel_bbox_array(
+            (input_height, input_width), bounding_boxes["boxes"]
+        )
+        cropped_array = self.transform_images(
+            multi_channel_array, transformation, training
+        )
+        bbox_extracted = _extract_bboxes_from_multi_channel_array(cropped_array)
+        bounding_boxes["boxes"] = ops.core.convert_to_tensor(
+            bbox_extracted, dtype=self.dtype
+        )
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source="xyxy",
+            target=self.bounding_box_format,
+            height=self.height,
+            width=self.width,
+        )
+
+        return bounding_boxes
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
