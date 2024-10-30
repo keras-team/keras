@@ -290,6 +290,8 @@ class PyDatasetAdapter(DataAdapter):
                 self._standardize_batch(self.py_dataset[i])
                 for i in range(num_samples)
             ]
+            if len(batches) == 0:
+                raise ValueError("The PyDataset has length 0")
             self._output_signature = data_adapter_utils.get_tensor_spec(batches)
 
         ds = tf.data.Dataset.from_generator(
