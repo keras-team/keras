@@ -492,9 +492,10 @@ class TestCompileLoss(testing.TestCase):
             compile_loss.build(y_true_symb, y_pred_symb)
 
     def test_different_container_types(self):
-        y_true = [[np.array([[1]]), np.array([[2]]), np.array([[3]])]]
-        y_pred = [(np.array([[1]]), np.array([[2]]), np.array([[3]]))]
-        loss = [["mse", "mse", "mse"]]
+        y1, y2, y3 = np.array([[1]]), np.array([[2]]), np.array([[3]])
+        y_true = ([{"a": y1}, {"b": ([y2], y3)}],)
+        y_pred = [({"a": y1}, {"b": [(y2,), y3]})]
+        loss = "mse"
         compile_loss = CompileLoss(loss=loss, output_names=["a", "b", "c"])
         y_true_symb = tree.map_structure(
             lambda _: backend.KerasTensor((1, 1)), y_true

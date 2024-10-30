@@ -534,7 +534,11 @@ class CompileLoss(losses_module.Loss):
             iterator = enumerate(loss)
 
             def key_check_fn(key, objs):
-                return all([key < len(obj) for obj in objs])
+                try:
+                    [obj[key] for obj in objs]
+                except:
+                    return False
+                return True
 
         else:
             raise TypeError(
@@ -661,17 +665,53 @@ class CompileLoss(losses_module.Loss):
         with ops.name_scope(self.name):
             return self.call(y_true, y_pred, sample_weight)
 
+    @staticmethod
+    def _reconcile_y_true_structure(y_true, y_pred):
+        y_pred_types = []
+        tree.traverse(
+            lambda sub_tree: y_pred_types.append(type(sub_tree)),
+            y_pred,
+            top_down=False,
+        )
+
+        def remap_y_true(sub_tree):
+            if not y_pred_types:
+                raise ValueError(
+                    "`y_true` and `y_pred` have irreconcilable structures."
+                )
+            y_pred_type = y_pred_types.pop(0)
+            if (
+                isinstance(sub_tree, (tuple, list))
+                and issubclass(y_pred_type, (tuple, list))
+                and type(sub_tree) is not y_pred_type
+            ):
+                return y_pred_type(sub_tree)
+
+        y_true = tree.traverse(remap_y_true, y_true, top_down=False)
+        return y_true
+
     def call(self, y_true, y_pred, sample_weight=None):
         try:
             tree.assert_same_structure(y_pred, y_true, check_types=False)
         except ValueError:
-            # y_true is either:
-            #   - flat or leaf
-            #   - has the same structure but uses different (but reconcilable)
-            #     container types, e.g `list` vs `tuple`
-            flat_y_true = tree.flatten(y_true)
             try:
-                y_true = tree.pack_sequence_as(y_pred, flat_y_true)
+                # Check whether y_true is either flat or leaf
+                if (
+                    not tree.is_nested(y_true)
+                    and hasattr(y_pred, "__len__")
+                    and len(y_pred) == 1
+                ):
+                    y_true = [y_true]
+                try:
+                    y_true = tree.pack_sequence_as(y_pred, y_true)
+                except:
+                    # Check whether y_true has the same structure but uses
+                    # different (but reconcilable) container types,
+                    # e.g `list` vs `tuple`.
+                    y_true = self._reconcile_y_true_structure(y_true, y_pred)
+                    tree.assert_same_structure(
+                        y_pred, y_true, check_types=False
+                    )
             except:
                 y_true_struct = tree.map_structure(lambda _: "*", y_true)
                 y_pred_struct = tree.map_structure(lambda _: "*", y_pred)
