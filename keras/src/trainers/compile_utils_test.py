@@ -490,3 +490,35 @@ class TestCompileLoss(testing.TestCase):
             KeyError, "can't be found in the model's output"
         ):
             compile_loss.build(y_true_symb, y_pred_symb)
+
+    def test_different_container_types(self):
+        y_true = [[np.array([[1]]), np.array([[2]]), np.array([[3]])]]
+        y_pred = [(np.array([[1]]), np.array([[2]]), np.array([[3]]))]
+        loss = [["mse", "mse", "mse"]]
+        compile_loss = CompileLoss(loss=loss, output_names=["a", "b", "c"])
+        y_true_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((1, 1)), y_true
+        )
+        y_pred_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((1, 1)), y_pred
+        )
+        compile_loss.build(y_true_symb, y_pred_symb)
+        compile_loss(y_true, y_pred)
+
+    def test_structure_mismatch(self):
+        y_true = [np.array([[1]]), np.array([[1]])]
+        y_pred = [np.array([[1]]), np.array([[1]])]
+        loss = ["mse", "mse"]
+        compile_loss = CompileLoss(loss=loss, output_names=["a", "b"])
+        y_true_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((1, 1)), y_true
+        )
+        y_pred_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((1, 1)), y_pred
+        )
+        compile_loss.build(y_true_symb, y_pred_symb)
+        with self.assertRaisesRegex(
+            ValueError, "y_true and y_pred have different structures."
+        ):
+            wrong_struc_y_true = [np.array([[1]])]
+            compile_loss(wrong_struc_y_true, y_pred)
