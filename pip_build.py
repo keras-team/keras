@@ -30,7 +30,7 @@ import torch  # noqa: F401
 package = "keras"
 build_directory = "tmp_build_dir"
 dist_directory = "dist"
-to_copy = ["pyproject.toml", "README.md", "requirements-common.txt"]
+to_copy = ["pyproject.toml", "README.md"]
 
 
 def export_version_string(version, is_nightly=False, rc_index=None):

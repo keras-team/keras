@@ -33,6 +33,7 @@ Repository = "https://github.com/keras-team/keras"
 [tool.setuptools.dynamic]
 version = {attr = "keras.src.version.__version__"}
 dependencies = {file = "requirements-common.txt"}
+# Run also: pip install -r requirements.txt
 
 [tool.setuptools.packages.find]
 include = ["keras", "keras.*"]
