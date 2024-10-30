@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    convert_format,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 HORIZONTAL = "horizontal"
@@ -93,8 +96,45 @@ class RandomFlip(BaseImagePreprocessingLayer):
         bounding_boxes,
         transformation,
         training=True,
+        input_shape=None,
     ):
-        raise NotImplementedError
+        flips = transformation["flips"][0]
+        input_height, input_width = input_shape
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source=self.bounding_box_format,
+            target="xyxy",
+            height=input_height,
+            width=input_width,
+        )
+
+        x1, y1, x2, y2 = self.backend.numpy.split(
+            bounding_boxes["boxes"], 4, axis=-1
+        )
+        if self.mode in {HORIZONTAL, HORIZONTAL_AND_VERTICAL}:
+            x1 = self.backend.numpy.where(flips, input_width - x1, x1)
+            x2 = self.backend.numpy.where(flips, input_width - x2, x2)
+
+        if self.mode in {VERTICAL, HORIZONTAL_AND_VERTICAL}:
+            y1 = self.backend.numpy.where(flips, input_height - y1, y1)
+            y2 = self.backend.numpy.where(flips, input_height - y2, y2)
+
+        transformed_bounding_boxes = self.backend.numpy.concatenate(
+            [x1, y1, x2, y2], axis=-1
+        )
+
+        bounding_boxes["boxes"] = transformed_bounding_boxes
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source="xyxy",
+            target=self.bounding_box_format,
+            height=input_height,
+            width=input_width,
+        )
+
+        return bounding_boxes
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
