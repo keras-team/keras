@@ -39,6 +39,7 @@ include = ["keras", "keras.*"]
 
 [tool.black]
 line-length = 80
+target-version = []
 
 # black needs this to be a regex
 # to add more exclude expressions
