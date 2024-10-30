@@ -727,7 +727,8 @@ class ModelTest(testing.TestCase):
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
             KeyError,
-            "in the `loss` argument, can't be found in the model's output",
+            "in the `loss` argument, can't be found "
+            "in either the model's output",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
