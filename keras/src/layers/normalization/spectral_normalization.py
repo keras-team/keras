@@ -105,8 +105,8 @@ class SpectralNormalization(Wrapper):
                 ops.matmul(vector_u, ops.transpose(weights)), axis=None
             )
             vector_u = normalize(ops.matmul(vector_v, weights), axis=None)
-        # vector_u = tf.stop_gradient(vector_u)
-        # vector_v = tf.stop_gradient(vector_v)
+        vector_u = ops.stop_gradient(vector_u)
+        vector_v = ops.stop_gradient(vector_v)
         sigma = ops.matmul(
             ops.matmul(vector_v, weights), ops.transpose(vector_u)
         )

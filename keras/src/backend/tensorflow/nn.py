@@ -76,6 +76,26 @@ def gelu(x, approximate=True):
     return tf.nn.gelu(x, approximate=approximate)
 
 
+def celu(x, alpha=1.0):
+    return tf.maximum(x, 0.0) + alpha * tf.math.expm1(
+        tf.minimum(x, 0.0) / alpha
+    )
+
+
+def glu(x, axis=-1):
+    if x.shape[axis] % 2 != 0:
+        raise ValueError(
+            "axis size must be divisible by 2. "
+            f"Received: x.shape={x.shape} with axis={axis}"
+        )
+    x1, x2 = tf.split(x, num_or_size_splits=2, axis=axis)
+    return x1 * tf.sigmoid(x2)
+
+
+def hard_tanh(x):
+    return tf.clip_by_value(x, clip_value_min=-1.0, clip_value_max=1.0)
+
+
 def softmax(x, axis=-1):
     logits = x
     if axis is None:
@@ -911,3 +931,87 @@ def psnr(x1, x2, max_val):
     mse = tf.reduce_mean(tf.square(x1 - x2))
     psnr = 20 * log10(max_val) - 10 * log10(mse)
     return psnr
+
+
+def _get_large_negative(dtype):
+    dtype = backend.standardize_dtype(dtype)
+    val = 65500.0 if dtype == "float16" else 3.38953e38
+    return tf.constant(val * -0.7, dtype=dtype)
+
+
+def _apply_masks(logits, mask, is_causal):
+    if mask is None and not is_causal:
+        return logits
+
+    combined_mask = tf.ones_like(logits, dtype="bool")
+    if mask is not None:
+        combined_mask = tf.logical_and(combined_mask, mask)
+
+    if is_causal:
+        logits_shape = tf.shape(logits)
+        T, S = logits_shape[2], logits_shape[3]
+        mask = tf.linalg.band_part(tf.ones((T, S), "bool"), -1, 0)
+        mask = mask[None, None, :, :]
+        combined_mask = tf.logical_and(combined_mask, mask)
+
+    padded_logits = tf.where(
+        combined_mask, logits, _get_large_negative(logits.dtype)
+    )
+    return padded_logits
+
+
+def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
+    logits_dtype = backend.result_type(query.dtype, "float32")
+    logits = tf.einsum(
+        "BTNH,BSNH->BNTS",
+        tf.cast(query, dtype=logits_dtype),
+        tf.cast(key, dtype=logits_dtype),
+        optimize="optimal",
+    )
+    logits = tf.multiply(logits, tf.cast(logits, logits.dtype))
+
+    if bias is not None:
+        logits = tf.add(logits, tf.cast(bias, logits.dtype))
+
+    padded_logits = _apply_masks(logits, mask, is_causal)
+
+    # Softmax is always carried out in high precision.
+    probs_dtype = backend.result_type(padded_logits.dtype, "float32")
+    probs = tf.cast(
+        tf.nn.softmax(tf.cast(padded_logits, probs_dtype), axis=-1), key.dtype
+    )
+    return tf.einsum("BNTS,BSNH->BTNH", probs, value, optimize="optimal")
+
+
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=False,
+):
+    if flash_attention:
+        raise ValueError(
+            "Flash attention is not supported yet in TensorFlow backend."
+        )
+
+    # Ref: jax.nn.dot_product_attention
+    # https://github.com/jax-ml/jax/blob/jax-v0.4.32/jax/_src/nn/functions.py#L828
+    # Not support `query_seq_lengths` and `key_value_seq_lengths` args
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if len(query.shape) != 4:
+        raise ValueError(
+            "`dot_product_attention` only supports 4D inputs. "
+            f"Received: query.shape={query.shape}, key.shape={key.shape}, "
+            f"value.shape={value.shape}."
+        )
+    H = tf.shape(key)[-1]
+    scale = (1.0 / tf.sqrt(tf.cast(H, "float32"))) if scale is None else scale
+    return _dot_product_attention_xla(
+        query, key, value, bias, mask, is_causal, scale
+    )

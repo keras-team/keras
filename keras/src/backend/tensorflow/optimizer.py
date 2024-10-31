@@ -1,3 +1,12 @@
+"""A class for Tensorflow specific optimizer logic.
+
+The major behavior change for this class is for tf.distribute.
+
+It will override methods from base Keras core Optimizer,
+which provide distribute specific functionality, e.g. variable
+creation, loss reduction, etc.
+"""
+
 import warnings
 
 import tensorflow as tf
@@ -9,14 +18,6 @@ from keras.src.optimizers import base_optimizer
 
 
 class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
-    """A class for Tensorflow specific optimizer logic.
-
-    The major behavior change for this class is for tf.distribute.
-
-    It will override methods from base Keras core Optimizer,
-    which provide distribute specific functionality, e.g. variable
-    creation, loss reduction, etc.
-    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

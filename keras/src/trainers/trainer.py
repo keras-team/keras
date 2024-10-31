@@ -1,4 +1,3 @@
-import concurrent.futures
 import inspect
 import platform
 import warnings
@@ -13,6 +12,7 @@ from keras.src.saving import serialization_lib
 from keras.src.trainers.compile_utils import CompileLoss
 from keras.src.trainers.compile_utils import CompileMetrics
 from keras.src.trainers.data_adapters import data_adapter_utils
+from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
 
@@ -509,7 +509,7 @@ class Trainer:
                 return_metrics.update(result)
             else:
                 return_metrics[metric.name] = result
-        return self._pythonify_logs(return_metrics)
+        return python_utils.pythonify_logs(return_metrics)
 
     def fit(
         self,
@@ -966,24 +966,6 @@ class Trainer:
                 f"type {type(validation_freq)}."
             )
 
-    def _pythonify_logs(self, logs):
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            result = self._pythonify_logs_inner(logs, executor)
-            for key, future_value in result.items():
-                result[key] = future_value.result()
-        return result
-
-    def _pythonify_logs_inner(self, logs, executor):
-        result = {}
-        for key, value in sorted(logs.items()):
-            if isinstance(value, dict):
-                result.update(
-                    self._pythonify_logs_inner(value, executor=executor)
-                )
-            else:
-                result[key] = executor.submit(_async_float_cast, value)
-        return result
-
     def _get_metrics_result_or_logs(self, logs):
         """Returns model metrics as a dict if the keys match with input logs.
 
@@ -1068,8 +1050,11 @@ class Trainer:
                 )
 
             if data_batch is None:
-                for _, data in iterator.enumerate_epoch():
-                    data_batch = data[0]
+                for _, data_or_iterator in iterator:
+                    if isinstance(data_or_iterator, (list, tuple)):
+                        data_batch = data_or_iterator[0]
+                    else:
+                        data_batch = next(data_or_iterator)
                     break
             data_batch = tree.map_structure(to_symbolic_input, data_batch)
             (
@@ -1128,13 +1113,14 @@ def model_supports_jit(model):
                 return False
     # XLA not supported by some layers
     if all(x.supports_jit for x in model._flatten_layers()):
+        if backend.backend() == "tensorflow":
+            from tensorflow.python.framework.config import (
+                is_op_determinism_enabled,
+            )
+
+            if is_op_determinism_enabled():
+                # disable XLA with determinism enabled since not all ops are
+                # supported by XLA with determinism enabled.
+                return False
         return True
     return False
-
-
-def _async_float_cast(value):
-    try:
-        value = float(value)
-    except:
-        pass
-    return value

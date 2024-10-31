@@ -212,7 +212,7 @@ class NumpyTrainer(base_trainer.Trainer):
         self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
-        for step, data in epoch_iterator.enumerate_epoch():
+        for step, data in epoch_iterator:
             callbacks.on_predict_batch_begin(step)
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)
@@ -256,7 +256,7 @@ class NumpyTrainer(base_trainer.Trainer):
 
         if not all(layer.built for layer in self._flatten_layers()):
             # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch():
+            for _, data in epoch_iterator:
                 data_batch = data[0]
                 self._symbolic_build(data_batch)
                 break
@@ -278,10 +278,9 @@ class NumpyTrainer(base_trainer.Trainer):
         callbacks.on_test_begin()
         logs = {}
         self.reset_metrics()
-        for step, data in epoch_iterator.enumerate_epoch():
+        for step, data in epoch_iterator:
             callbacks.on_test_batch_begin(step)
             logs = self.test_function(data)
-            logs = self._pythonify_logs(logs)
             callbacks.on_test_batch_end(step, logs)
             if self.stop_evaluating:
                 break

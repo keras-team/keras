@@ -50,6 +50,7 @@ from keras.api import saving
 from keras.api import tree
 from keras.api import utils
 from keras.api import version
+from keras.api import visualization
 
 # END DO NOT EDIT.
 

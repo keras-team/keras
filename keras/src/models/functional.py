@@ -132,7 +132,7 @@ class Functional(Function, Model):
         if not all(is_input_keras_tensor(t) for t in flat_inputs):
             inputs, outputs = clone_graph_nodes(inputs, outputs)
 
-        Function.__init__(self, inputs, outputs, name=name, **kwargs)
+        Function.__init__(self, inputs, outputs, name=name)
 
         if trainable is not None:
             self.trainable = trainable
@@ -494,8 +494,20 @@ def functional_from_config(cls, config, custom_objects=None):
             # (e.g. a model such as A(B(A(B(x)))))
             add_unprocessed_node(layer, node_data)
 
+    # Extract config used to instantiate Functional model from the config. The
+    # remaining config will be passed as keyword arguments to the Model
+    # constructor.
+    functional_config = {}
+    for key in ["layers", "input_layers", "output_layers"]:
+        functional_config[key] = config.pop(key)
+    for key in ["name", "trainable"]:
+        if key in config:
+            functional_config[key] = config.pop(key)
+        else:
+            functional_config[key] = None
+
     # First, we create all layers and enqueue nodes to be processed
-    for layer_data in config["layers"]:
+    for layer_data in functional_config["layers"]:
         process_layer(layer_data)
 
     # Then we process nodes in order of layer depth.
@@ -503,7 +515,7 @@ def functional_from_config(cls, config, custom_objects=None):
     # does not yet exist) are re-enqueued, and the process
     # is repeated until all nodes are processed.
     while unprocessed_nodes:
-        for layer_data in config["layers"]:
+        for layer_data in functional_config["layers"]:
             layer = created_layers[layer_data["name"]]
 
             # Process all nodes in layer, if not yet processed
@@ -532,8 +544,8 @@ def functional_from_config(cls, config, custom_objects=None):
                     del unprocessed_nodes[layer]
 
     # Create list of input and output tensors and return new class
-    name = config.get("name")
-    trainable = config.get("trainable")
+    name = functional_config["name"]
+    trainable = functional_config["trainable"]
 
     def get_tensor(layer_name, node_index, tensor_index):
         assert layer_name in created_layers
@@ -558,8 +570,8 @@ def functional_from_config(cls, config, custom_objects=None):
             return tuple([map_tensors(v) for v in tensors])
         return [map_tensors(v) for v in tensors]
 
-    input_tensors = map_tensors(config["input_layers"])
-    output_tensors = map_tensors(config["output_layers"])
+    input_tensors = map_tensors(functional_config["input_layers"])
+    output_tensors = map_tensors(functional_config["output_layers"])
     if isinstance(input_tensors, list) and len(input_tensors) == 1:
         input_tensors = input_tensors[0]
     if isinstance(output_tensors, list) and len(output_tensors) == 1:
@@ -570,6 +582,7 @@ def functional_from_config(cls, config, custom_objects=None):
         outputs=output_tensors,
         name=name,
         trainable=trainable,
+        **config,
     )
 
 
@@ -686,7 +699,7 @@ def deserialize_node(node_data, created_layers):
             inbound_node_index = history[1]
             inbound_tensor_index = history[2]
             if len(layer._inbound_nodes) <= inbound_node_index:
-                raise ValueError(
+                raise IndexError(
                     "Layer node index out of bounds.\n"
                     f"inbound_layer = {layer}\n"
                     f"inbound_layer._inbound_nodes = {layer._inbound_nodes}\n"

@@ -128,28 +128,24 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         # get_config roundtrip
         cls = instance.__class__
         config = instance.get_config()
-        config_json = json.dumps(config, sort_keys=True, indent=4)
+        config_json = to_json_with_tuples(config)
         ref_dir = dir(instance)[:]
         with custom_object_scope(custom_objects):
             revived_instance = cls.from_config(config)
         revived_config = revived_instance.get_config()
-        revived_config_json = json.dumps(
-            revived_config, sort_keys=True, indent=4
-        )
+        revived_config_json = to_json_with_tuples(revived_config)
         self.assertEqual(config_json, revived_config_json)
         self.assertEqual(set(ref_dir), set(dir(revived_instance)))
 
         # serialization roundtrip
         serialized = serialize_keras_object(instance)
-        serialized_json = json.dumps(serialized, sort_keys=True, indent=4)
+        serialized_json = to_json_with_tuples(serialized)
         with custom_object_scope(custom_objects):
             revived_instance = deserialize_keras_object(
-                json.loads(serialized_json)
+                from_json_with_tuples(serialized_json)
             )
         revived_config = revived_instance.get_config()
-        revived_config_json = json.dumps(
-            revived_config, sort_keys=True, indent=4
-        )
+        revived_config_json = to_json_with_tuples(revived_config)
         self.assertEqual(config_json, revived_config_json)
         new_dir = dir(revived_instance)[:]
         for lst in [ref_dir, new_dir]:
@@ -769,3 +765,32 @@ def get_seed_generators(layer):
                 seed_generators.append(sg)
                 seen_ids.add(id(sg))
     return seed_generators
+
+
+def to_json_with_tuples(value):
+    def _tuple_encode(obj):
+        if isinstance(obj, tuple):
+            return {"__class__": "tuple", "__value__": list(obj)}
+        if isinstance(obj, list):
+            return [_tuple_encode(e) for e in obj]
+        if isinstance(obj, dict):
+            return {key: _tuple_encode(value) for key, value in obj.items()}
+        return obj
+
+    class _PreserveTupleJsonEncoder(json.JSONEncoder):
+        def encode(self, obj):
+            obj = _tuple_encode(obj)
+            return super().encode(obj)
+
+    return _PreserveTupleJsonEncoder(sort_keys=True, indent=4).encode(value)
+
+
+def from_json_with_tuples(value):
+    def _tuple_decode(obj):
+        if not isinstance(obj, dict):
+            return obj
+        if "__class__" not in obj or "__value__" not in obj:
+            return obj
+        return tuple(obj["__value__"])
+
+    return json.loads(value, object_hook=_tuple_decode)

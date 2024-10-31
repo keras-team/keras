@@ -88,6 +88,21 @@ def gelu(x, approximate=True):
     return tnn.gelu(x)
 
 
+def celu(x, alpha=1.0):
+    x = convert_to_tensor(x)
+    return tnn.celu(x, alpha=alpha)
+
+
+def glu(x, axis=-1):
+    x = convert_to_tensor(x)
+    return tnn.glu(x, dim=axis)
+
+
+def hard_tanh(x):
+    x = convert_to_tensor(x)
+    return tnn.hardtanh(x, min_val=-1.0, max_val=1.0)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
@@ -853,3 +868,93 @@ def psnr(x1, x2, max_val):
     mse = torch.mean((x1 - x2) ** 2)
     psnr = 20 * torch.log10(max_val) - 10 * torch.log10(mse)
     return psnr
+
+
+def _get_large_negative(dtype):
+    dtype = backend.standardize_dtype(dtype)
+    if dtype == "float16":
+        val = 65500.0
+    else:
+        val = 3.38953e38
+    return convert_to_tensor(val * -0.7, dtype=dtype)
+
+
+def is_flash_attention_enabled(query, key, value, mask=None, is_causal=False):
+    params = torch.backends.cuda.SDPAParams(
+        query,
+        key,
+        value,
+        mask,
+        0.0,
+        is_causal,
+    )
+    is_enabled = torch.backends.cuda.can_use_flash_attention(params, False)
+    return is_enabled
+
+
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=False,
+):
+    if bias is not None:
+        raise ValueError(
+            "torch's `dot_product_attention` doesn't support `bias`."
+        )
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if len(query.shape) != 4:
+        raise ValueError(
+            "`dot_product_attention` only supports 3D and 4D inputs. "
+            f"Received: query.shape={query.shape}, key.shape={key.shape}, "
+            f"value.shape={value.shape}."
+        )
+    bias = bias if bias is None else convert_to_tensor(bias)
+    mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
+    if mask is not None:
+        # Explicit set `is_causal` to `False` when `mask` is not `None`.
+        is_causal = False
+        mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
+
+    axis0, axis1 = 1, 2
+    query = torch.transpose(query, axis0, axis1)
+    key = torch.transpose(key, axis0, axis1)
+    value = torch.transpose(value, axis0, axis1)
+
+    if flash_attention:
+        is_enabled = is_flash_attention_enabled(
+            query=query,
+            key=key,
+            value=value,
+            mask=mask,
+            is_causal=is_causal,
+        )
+        if not is_enabled:
+            raise ValueError(
+                "Flash attention is not enabled in `torch` backend. "
+                "The dtype of the inputs should be float16/bfloat16 "
+                "and your GPU should support flash attention implementation."
+            )
+
+        with torch.nn.attention.sdpa_kernel(
+            backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
+        ):
+            attention_output = torch.nn.functional.scaled_dot_product_attention(
+                query,
+                key,
+                value,
+                attn_mask=mask,
+                is_causal=is_causal,
+                scale=scale,
+            )
+    else:
+        attention_output = torch.nn.functional.scaled_dot_product_attention(
+            query, key, value, attn_mask=mask, is_causal=is_causal, scale=scale
+        )
+    return torch.transpose(attention_output, axis1, axis0)

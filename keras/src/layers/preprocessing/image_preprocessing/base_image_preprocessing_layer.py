@@ -64,7 +64,10 @@ class BaseImagePreprocessingLayer(TFDataLayer):
         raise NotImplementedError()
 
     def transform_bounding_boxes(
-        self, bounding_boxes, transformation, training=True
+        self,
+        bounding_boxes,
+        transformation,
+        training=True,
     ):
         raise NotImplementedError()
 
@@ -88,13 +91,19 @@ class BaseImagePreprocessingLayer(TFDataLayer):
         return self.backend.numpy.squeeze(outputs, axis=0)
 
     def transform_single_bounding_box(
-        self, bounding_box, transformation, training=True
+        self,
+        bounding_box,
+        transformation,
+        training=True,
     ):
-        bounding_boxes = self.backend.numpy.expand_dims(bounding_box, axis=0)
+        bounding_boxes = self._format_single_input_bounding_box(bounding_box)
         outputs = self.transform_bounding_boxes(
-            bounding_boxes, transformation=transformation, training=training
+            bounding_boxes,
+            transformation=transformation,
+            training=training,
         )
-        return self.backend.numpy.squeeze(outputs, axis=0)
+        bounding_box = self._format_single_output_bounding_box(outputs)
+        return bounding_box
 
     def transform_single_segmentation_mask(
         self, segmentation_mask, transformation, training=True
@@ -144,8 +153,11 @@ class BaseImagePreprocessingLayer(TFDataLayer):
                         "`bounding_box_format='xyxy'`."
                     )
                 bounding_boxes = densify_bounding_boxes(
-                    data["bounding_boxes"], backend=self.backend
+                    data["bounding_boxes"],
+                    is_batched=is_batched,
+                    backend=self.backend,
                 )
+
                 if is_batched:
                     data["bounding_boxes"] = self.transform_bounding_boxes(
                         bounding_boxes,
@@ -202,6 +214,32 @@ class BaseImagePreprocessingLayer(TFDataLayer):
             transformation=transformation,
             training=training,
         )
+
+    def _format_single_input_bounding_box(self, bounding_box):
+        for key in bounding_box:
+            if key == "labels":
+                bounding_box[key] = self.backend.numpy.expand_dims(
+                    bounding_box[key], axis=0
+                )
+            if key == "boxes":
+                bounding_box[key] = self.backend.numpy.expand_dims(
+                    bounding_box[key], axis=0
+                )
+
+        return bounding_box
+
+    def _format_single_output_bounding_box(self, bounding_boxes):
+        for key in bounding_boxes:
+            if key == "labels":
+                bounding_boxes[key] = self.backend.numpy.squeeze(
+                    bounding_boxes[key], axis=0
+                )
+            if key == "boxes":
+                bounding_boxes[key] = self.backend.numpy.squeeze(
+                    bounding_boxes[key], axis=0
+                )
+
+        return bounding_boxes
 
     def get_config(self):
         config = super().get_config()

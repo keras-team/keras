@@ -1,12 +1,16 @@
 import types
 
+from keras.src.activations.activations import celu
 from keras.src.activations.activations import elu
 from keras.src.activations.activations import exponential
 from keras.src.activations.activations import gelu
+from keras.src.activations.activations import glu
 from keras.src.activations.activations import hard_sigmoid
 from keras.src.activations.activations import hard_silu
+from keras.src.activations.activations import hard_tanh
 from keras.src.activations.activations import leaky_relu
 from keras.src.activations.activations import linear
+from keras.src.activations.activations import log_sigmoid
 from keras.src.activations.activations import log_softmax
 from keras.src.activations.activations import mish
 from keras.src.activations.activations import relu
@@ -27,20 +31,24 @@ ALL_OBJECTS = {
     leaky_relu,
     relu6,
     softmax,
+    celu,
     elu,
     selu,
     softplus,
     softsign,
     silu,
     gelu,
+    glu,
     tanh,
     sigmoid,
     exponential,
     hard_sigmoid,
     hard_silu,
+    hard_tanh,
     linear,
     mish,
     log_softmax,
+    log_sigmoid,
 }
 
 ALL_OBJECTS_DICT = {fn.__name__: fn for fn in ALL_OBJECTS}

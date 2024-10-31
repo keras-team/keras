@@ -20,6 +20,7 @@ from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.config import floatx
 
 SUPPORTS_SPARSE_TENSORS = False
+IS_THREAD_SAFE = True
 
 # Some operators such as 'aten::_foreach_mul_.Scalar'
 # are not currently implemented for the MPS device.
@@ -187,11 +188,7 @@ class Variable(KerasVariable):
 def convert_to_tensor(x, dtype=None, sparse=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with torch backend")
-    if type(x) is Variable:
-        # We cannot use `isinstance(x, Variable)` due to the failure of
-        # TorchDynamo.
-        # torch._dynamo.exc.InternalTorchDynamoError:
-        # GetAttrVariable(SuperVariable(), value) has no type.
+    if isinstance(x, Variable):
         # TorchDynamo has bugs supporting nn.Parameter type check.
         # Return it directly instead of pass it to the rest of the logic in the
         # function.
@@ -645,6 +642,8 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 def stop_gradient(variable):
+    if isinstance(variable, KerasVariable):
+        variable = variable.value
     # We can't use `.requires_grad_(False)` here since it only
     # works when the tensor is a leaf node in the graph.
     return variable.detach()

@@ -62,16 +62,20 @@ from keras.src.ops.nn import average_pool
 from keras.src.ops.nn import batch_normalization
 from keras.src.ops.nn import binary_crossentropy
 from keras.src.ops.nn import categorical_crossentropy
+from keras.src.ops.nn import celu
 from keras.src.ops.nn import conv
 from keras.src.ops.nn import conv_transpose
 from keras.src.ops.nn import ctc_decode
 from keras.src.ops.nn import ctc_loss
 from keras.src.ops.nn import depthwise_conv
+from keras.src.ops.nn import dot_product_attention
 from keras.src.ops.nn import elu
 from keras.src.ops.nn import gelu
+from keras.src.ops.nn import glu
 from keras.src.ops.nn import hard_sigmoid
 from keras.src.ops.nn import hard_silu
 from keras.src.ops.nn import hard_silu as hard_swish
+from keras.src.ops.nn import hard_tanh
 from keras.src.ops.nn import leaky_relu
 from keras.src.ops.nn import log_sigmoid
 from keras.src.ops.nn import log_softmax
@@ -158,6 +162,7 @@ from keras.src.ops.numpy import full_like
 from keras.src.ops.numpy import get_item
 from keras.src.ops.numpy import greater
 from keras.src.ops.numpy import greater_equal
+from keras.src.ops.numpy import histogram
 from keras.src.ops.numpy import hstack
 from keras.src.ops.numpy import identity
 from keras.src.ops.numpy import imag

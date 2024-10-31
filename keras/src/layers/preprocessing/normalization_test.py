@@ -65,6 +65,8 @@ class NormalizationTest(testing.TestCase):
             data = backend.convert_to_tensor(x)
         elif input_type == "tf.data":
             data = tf_data.Dataset.from_tensor_slices(x).batch(8)
+        else:
+            raise NotImplementedError(input_type)
 
         layer = layers.Normalization()
         layer.adapt(data)
@@ -96,12 +98,10 @@ class NormalizationTest(testing.TestCase):
         reason="Test symbolic call for torch meta device.",
     )
     def test_call_on_meta_device_after_built(self):
-        from keras.src.backend.torch import core
-
         layer = layers.Normalization()
         data = np.random.random((32, 4))
         layer.adapt(data)
-        with core.device_scope("meta"):
+        with backend.device("meta"):
             layer(data)
 
     def test_normalization_with_mean_only_raises_error(self):

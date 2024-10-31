@@ -1701,3 +1701,8 @@ def argpartition(x, kth, axis=-1):
     top_ind = torch.topk(proxy, x.shape[-1] - kth - 1)[1]
     out = torch.cat([bottom_ind, top_ind], dim=x.dim() - 1)
     return cast(torch.transpose(out, -1, axis), "int32")
+
+
+def histogram(x, bins, range):
+    hist_result = torch.histogram(x, bins=bins, range=range)
+    return hist_result.hist, hist_result.bin_edges

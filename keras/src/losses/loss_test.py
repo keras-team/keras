@@ -69,7 +69,7 @@ class LossTest(testing.TestCase):
         self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(np.sum((y_true - y_pred) ** 2), loss)
 
-        # sum_over_batch_size
+        # sum_over_batch_size or mean
         loss_fn = ExampleLoss(reduction="sum_over_batch_size")
         loss = loss_fn(y_true, y_pred)
         self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
@@ -271,7 +271,7 @@ class LossTest(testing.TestCase):
 
         # `dtype` setter should raise AttributeError
         with self.assertRaises(AttributeError):
-            loss.dtype = "bfloat16"
+            loss_fn.dtype = "bfloat16"
 
     def test_default_dtype(self):
         y_true = np.array([1.0, 0.0, 1.0, 0.0], dtype="float32")

@@ -1,4 +1,5 @@
 import builtins
+import contextlib
 import functools
 import warnings
 
@@ -14,6 +15,7 @@ from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 
 SUPPORTS_SPARSE_TENSORS = False
+IS_THREAD_SAFE = True
 
 
 class Variable(KerasVariable):
@@ -433,3 +435,8 @@ class custom_gradient:
     def __call__(self, *args, **kwargs):
         outputs, _ = self.fun(*args, **kwargs)
         return outputs
+
+
+@contextlib.contextmanager
+def device_scope(device_name):
+    yield

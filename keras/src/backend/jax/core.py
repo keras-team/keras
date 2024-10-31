@@ -14,6 +14,7 @@ from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
 
 SUPPORTS_SPARSE_TENSORS = True
+IS_THREAD_SAFE = True
 
 
 class Variable(KerasVariable):
@@ -341,6 +342,8 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 def stop_gradient(variable):
+    if isinstance(variable, Variable):
+        variable = variable.value
     return jax.lax.stop_gradient(variable)
 
 

@@ -10,7 +10,10 @@ from keras.src.trainers import epoch_iterator
 
 
 class TestEpochIterator(testing.TestCase):
-    def test_basic_flow(self):
+    @parameterized.named_parameters(
+        [("iterator", "iterator"), ("enumerate_epoch", "enumerate_epoch")]
+    )
+    def test_basic_flow(self, call_type):
         x = np.random.random((100, 16))
         y = np.random.random((100, 4))
         sample_weight = np.random.random((100,))
@@ -24,7 +27,11 @@ class TestEpochIterator(testing.TestCase):
             shuffle=shuffle,
         )
         steps_seen = []
-        for step, batch in iterator.enumerate_epoch():
+        if call_type == "iterator":
+            generator = iterator
+        else:
+            generator = iterator.enumerate_epoch()
+        for step, batch in generator:
             batch = batch[0]
             steps_seen.append(step)
             self.assertEqual(len(batch), 3)
@@ -44,12 +51,12 @@ class TestEpochIterator(testing.TestCase):
             steps_per_epoch=steps_per_epoch,
         )
         steps_seen = []
-        for step, _ in iterator.enumerate_epoch():
-            steps_seen.append(step)
+        with pytest.warns(match="Your input ran out of data"):
+            for step, _ in iterator:
+                steps_seen.append(step)
         self.assertLen(steps_seen, steps_per_epoch - 2)
 
         self.assertIsInstance(iterator, epoch_iterator.EpochIterator)
-        self.assertTrue(iterator._insufficient_data)
 
     def test_unsupported_y_arg_tfdata(self):
         with self.assertRaisesRegex(ValueError, "`y` should not be passed"):
@@ -89,7 +96,7 @@ class TestEpochIterator(testing.TestCase):
             torch_dataset, batch_size=8, shuffle=True
         )
         iterator = epoch_iterator.EpochIterator(torch_dataloader)
-        for _, batch in iterator.enumerate_epoch():
+        for _, batch in iterator:
             batch = batch[0]
             self.assertEqual(batch[0].shape, (8, 2))
             self.assertEqual(batch[1].shape, (8, 1))
@@ -219,7 +226,7 @@ class TestEpochIterator(testing.TestCase):
 
         num_epochs = 5
         for epoch in range(num_epochs):
-            for step, batch in epoch_iter.enumerate_epoch():
+            for step, batch in epoch_iter:
                 pass
 
         self.assertAllEqual(ds.tracker, [1, 2] * num_epochs)

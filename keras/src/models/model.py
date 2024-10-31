@@ -399,6 +399,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
     def build_from_config(self, config):
         if not config:
             return
+        status = False
         if "input_shape" in config:
             # Case: all inputs are in the first arg (possibly nested).
             if utils.is_default(self.build):
@@ -410,7 +411,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     self.build(config["input_shape"])
                     status = True
                 except:
-                    status = False
+                    pass
             self._build_shapes_dict = config
 
         elif "shapes_dict" in config:
@@ -422,7 +423,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     self.build(**config["shapes_dict"])
                     status = True
                 except:
-                    status = False
+                    pass
             self._build_shapes_dict = config["shapes_dict"]
 
         if not status:

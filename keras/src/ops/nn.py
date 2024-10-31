@@ -498,6 +498,126 @@ def gelu(x, approximate=True):
     return backend.nn.gelu(x, approximate)
 
 
+class Celu(Operation):
+    def __init__(self, alpha=1.0):
+        super().__init__()
+        self.alpha = alpha
+
+    def call(self, x):
+        return backend.nn.celu(x, self.alpha)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.celu", "keras.ops.nn.celu"])
+def celu(x, alpha=1.0):
+    """Continuously-differentiable exponential linear unit.
+
+    It is defined as:
+
+    `f(x) =  alpha * (exp(x / alpha) - 1) for x < 0`, `f(x) = x for x >= 0`.
+
+    Args:
+        x: Input tensor.
+        alpha: the α value for the CELU formulation. Defaults to `1.0`.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1., 0., 1.])
+    >>> x_celu = keras.ops.celu(x)
+    >>> print(x_celu)
+    array([-0.63212056, 0. , 1. ], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Celu(alpha).symbolic_call(x)
+    return backend.nn.celu(x, alpha)
+
+
+class Glu(Operation):
+    def __init__(self, axis=-1):
+        super().__init__()
+        self.axis = axis
+
+    def call(self, x):
+        return backend.nn.glu(x, axis=self.axis)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.glu", "keras.ops.nn.glu"])
+def glu(x, axis=-1):
+    """Gated Linear Unit (GLU) activation function.
+
+    It is defined as:
+
+    `f(x) = a * sigmoid(b)`
+    where `x` is split into `a` and `b` along the given axis.
+
+    Args:
+        x: Input tensor.
+        axis: The axis along which to split the input tensor. Defaults to `-1`.
+
+    Returns:
+        A tensor with the same shape as half of the input.
+
+    Example:
+
+    >>> x = np.array([-1., 0., 1. , 1.])
+    >>> x_glu = keras.ops.glu(x)
+    >>> print(x_glu)
+    array([-0.73105858, 0. ], shape=(2,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Glu(axis).symbolic_call(x)
+    return backend.nn.glu(x, axis=axis)
+
+
+class HardTanh(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.nn.hard_tanh(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.hard_tanh", "keras.ops.nn.hard_tanh"])
+def hard_tanh(x):
+    """Applies the HardTanh function element-wise.
+
+    It is defined as:
+
+    `f(x) = -1 for x < -1`, `f(x) = x for -1 <= x <= 1`, `f(x) = 1 for x > 1`.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output tensor of same shape as `x`
+        where values are clamped between -1 and 1.
+
+    Example:
+
+    >>> x = np.array([-2., -1., 0., 1., 2.])
+    >>> x_hard_tanh = keras.ops.hard_tanh(x)
+    >>> print(x_hard_tanh)
+    array([-1. -1.  0.  1.  1.], shape=(5,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return HardTanh().symbolic_call(x)
+    return backend.nn.hard_tanh(x)
+
+
 class Softmax(Operation):
     def __init__(self, axis=-1):
         super().__init__()
@@ -2123,4 +2243,123 @@ def psnr(
         x1,
         x2,
         max_val,
+    )
+
+
+class DotProductAttention(Operation):
+    def __init__(self, is_causal=False):
+        super().__init__()
+        self.is_causal = is_causal
+
+    def call(
+        self,
+        query,
+        key,
+        value,
+        bias=None,
+        mask=None,
+        scale=None,
+        flash_attention=False,
+    ):
+        return backend.nn.dot_product_attention(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            is_causal=self.is_causal,
+            flash_attention=flash_attention,
+        )
+
+    def compute_output_spec(
+        self,
+        query,
+        key,
+        value,
+        bias=None,
+        mask=None,
+        scale=None,
+        flash_attention=False,
+    ):
+        return KerasTensor(query.shape, dtype=query.dtype)
+
+
+@keras_export(
+    ["keras.ops.dot_product_attention", "keras.ops.nn.dot_product_attention"]
+)
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=False,
+):
+    """Scaled dot product attention function.
+
+    Computes the attention function on Q (`query`), K (`key`), and V(`value`):
+    `attention(Q, K, V) = softmax(Q * K / sqrt(d)) * V`. If we define `logits`
+    as the output of `Q * K` and the `probs` as the output of `softmax`.
+
+    Throughout this function, we utilize the following notation to represent the
+    shape of array:
+    - B: batch size
+    - S: length of the key/value
+    - T: length of the query
+    - N: number of attention heads
+    - H: dimensions of each attention head
+    - K: number of key/value heads
+    - G: number of groups, which equals to `N // K`
+
+    Args:
+        query: The query array with the shape of `(B, T, N, H)`.
+        key: The key array with the shape of `(B, S, K, H)`. When `K` equals
+            `N`, multi-headed attention (MHA) is performed. Otherwise, grouped
+            query attention (GQA) is performed if `N` is a multiple of `K`. and
+            multi-query attention (MQA) is performed if `K==1` (a special case
+            of GQA).
+        value: The value array with the same shape of `key`.
+        bias: Optional bias array to be added to logits. The shape must be
+            broadcastable to `(B, N, T, S)`.
+        mask: Optional mask array used to filter out logits. It is a boolean
+            mask where `True` indicates the element should take part in
+            attention. For an additive mask, users should pass it to bias. The
+            shape must be broadcastable to `(B, N, T, S)`.
+        scale: Optional scale for the logits. If `None`, the scale will be set
+            to `1.0 / sqrt(H)`.
+        is_causal: Whether to apply causal mask.
+
+    Returns:
+        An array of the attention output with the same shape of `query`.
+
+    Example:
+
+    >>> query = keras.random.normal((2, 4, 8, 16))
+    >>> key = keras.random.normal((2, 6, 8, 16))
+    >>> value = keras.random.normal((2, 6, 8, 16))
+    >>> keras.ops.nn.dot_product_attention(query, key, value).shape
+    (2, 4, 8, 16)
+    """
+    if any_symbolic_tensors((query, key, value)):
+        return DotProductAttention(is_causal=is_causal).symbolic_call(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            flash_attention=flash_attention,
+        )
+    return backend.nn.dot_product_attention(
+        query,
+        key,
+        value,
+        bias=bias,
+        mask=mask,
+        scale=scale,
+        is_causal=is_causal,
+        flash_attention=flash_attention,
     )

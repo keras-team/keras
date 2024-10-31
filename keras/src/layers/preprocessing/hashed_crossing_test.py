@@ -86,8 +86,7 @@ class HashedCrossingTest(testing.TestCase):
             .batch(5)
             .map(lambda x1, x2: layer((x1, x2)))
         )
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertAllClose(np.array([1, 4, 1, 1, 3]), output)
 
     def test_unsupported_shape_input_fails(self):

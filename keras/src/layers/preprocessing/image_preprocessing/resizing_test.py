@@ -186,8 +186,7 @@ class ResizingTest(testing.TestCase):
         layer = layers.Resizing(8, 9)
         input_data = np.random.random(input_shape)
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertEqual(tuple(output.shape), output_shape)
 
     @pytest.mark.skipif(
@@ -210,8 +209,7 @@ class ResizingTest(testing.TestCase):
             .batch(2)
             .map(Sequential([layer]))
         )
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertEqual(tuple(output.shape), output_shape)
 
     @parameterized.parameters(
@@ -223,3 +221,106 @@ class ResizingTest(testing.TestCase):
             size[0], size[1], data_format=data_format, crop_to_aspect_ratio=True
         )(img)
         self.assertEqual(output.shape, (1, *size, 4))
+
+    @parameterized.named_parameters(
+        (
+            "with_pad_to_aspect_ratio",
+            True,
+            False,
+            [[6.0, 2.0, 10.0, 6.0], [14.0, 8.0, 18.0, 12.0]],
+        ),
+        (
+            "with_crop_to_aspect_ratio",
+            False,
+            True,
+            [[5.0, 0.5, 10.0, 5.5], [15.0, 8.0, 20.0, 13.0]],
+        ),
+        (
+            "boxes_stretch",
+            False,
+            False,
+            [[5.0, 2.0, 10.0, 6.0], [15.0, 8.0, 20.0, 12.0]],
+        ),
+    )
+    def test_resize_bounding_boxes(
+        self, pad_to_aspect_ratio, crop_to_aspect_ratio, expected_boxes
+    ):
+        if backend.config.image_data_format() == "channels_last":
+            image_shape = (10, 8, 3)
+        else:
+            image_shape = (3, 10, 8)
+        input_image = np.random.random(image_shape)
+        bounding_boxes = {
+            "boxes": np.array(
+                [
+                    [2, 1, 4, 3],
+                    [6, 4, 8, 6],
+                ]
+            ),  # Example boxes (normalized)
+            "labels": np.array([[1, 2]]),  # Dummy labels
+        }
+        input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
+        resizing_layer = layers.Resizing(
+            height=20,
+            width=20,
+            pad_to_aspect_ratio=pad_to_aspect_ratio,
+            crop_to_aspect_ratio=crop_to_aspect_ratio,
+            bounding_box_format="xyxy",
+        )
+        output = resizing_layer(input_data)
+        self.assertAllClose(output["bounding_boxes"]["boxes"], expected_boxes)
+
+    @parameterized.named_parameters(
+        (
+            "with_pad_to_aspect_ratio",
+            True,
+            False,
+            [[6.0, 2.0, 10.0, 6.0], [14.0, 8.0, 18.0, 12.0]],
+        ),
+        (
+            "with_crop_to_aspect_ratio",
+            False,
+            True,
+            [[5.0, 0.5, 10.0, 5.5], [15.0, 8.0, 20.0, 13.0]],
+        ),
+        (
+            "boxes_stretch",
+            False,
+            False,
+            [[5.0, 2.0, 10.0, 6.0], [15.0, 8.0, 20.0, 12.0]],
+        ),
+    )
+    def test_resize_tf_data_bounding_boxes(
+        self, pad_to_aspect_ratio, crop_to_aspect_ratio, expected_boxes
+    ):
+        if backend.config.image_data_format() == "channels_last":
+            image_shape = (1, 10, 8, 3)
+        else:
+            image_shape = (1, 3, 10, 8)
+        input_image = np.random.random(image_shape)
+        bounding_boxes = {
+            "boxes": np.array(
+                [
+                    [
+                        [2, 1, 4, 3],
+                        [6, 4, 8, 6],
+                    ]
+                ]
+            ),  # Example boxes (normalized)
+            "labels": np.array([[1, 2]]),  # Dummy labels
+        }
+
+        input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
+
+        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        resizing_layer = layers.Resizing(
+            height=20,
+            width=20,
+            pad_to_aspect_ratio=pad_to_aspect_ratio,
+            crop_to_aspect_ratio=crop_to_aspect_ratio,
+            bounding_box_format="xyxy",
+        )
+        ds = ds.map(resizing_layer)
+        output = next(iter(ds))
+        expected_boxes = np.array(expected_boxes)
+        self.assertAllClose(output["bounding_boxes"]["boxes"], expected_boxes)

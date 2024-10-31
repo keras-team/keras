@@ -35,6 +35,30 @@ def add(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
+
+    # Special case of `tf.add`: `tf.nn.bias_add`
+    # `BiasAdd` can be fused with `MatMul` and `Conv*` kernels
+    # Expecting `x1` to be `inputs` and `x2` to be `bias` (no swapping)
+    x2_squeeze_shape = [d for d in x2.shape.as_list() if d is None or d > 1]
+    if (
+        # `x2` looks like bias (can be squeezed to vector)
+        1 == len(x2_squeeze_shape)
+        # `x1` looks like input tensor (rank >= 2)
+        and len(x1.shape) > 1
+        # `x2` non-squeezable dimension defined
+        and x2_squeeze_shape[0] is not None
+        # `x2` non-squeezable dimension match `x1` channel dimension
+        and x2_squeeze_shape[0]
+        in {x1.shape.as_list()[1], x1.shape.as_list()[-1]}
+    ):
+        if x1.shape[-1] == x2_squeeze_shape[0]:
+            data_format = "NHWC"
+        else:
+            data_format = "NCHW"
+        if len(x2.shape) > 1:
+            x2 = tf.squeeze(x2)
+        return tf.nn.bias_add(x1, x2, data_format=data_format)
+
     return tf.add(x1, x2)
 
 
@@ -2443,29 +2467,17 @@ def sum(x, axis=None, keepdims=False):
 
 def eye(N, M=None, k=0, dtype=None):
     dtype = dtype or config.floatx()
-    if not M:
-        M = N
-    # Making sure N, M and k are `int`
-    N, M, k = int(N), int(M), int(k)
-    if k >= M or -k >= N:
-        # tf.linalg.diag will raise an error in this case
-        return zeros([N, M], dtype=dtype)
-    if k == 0:
+    M = N if M is None else M
+    if isinstance(k, int) and k == 0:
         return tf.eye(N, M, dtype=dtype)
-    # We need the precise length, otherwise tf.linalg.diag will raise an error
-    diag_len = builtins.min(N, M)
-    if k > 0:
-        if N >= M:
-            diag_len -= k
-        elif N + k > M:
-            diag_len = M - k
-    elif k <= 0:
-        if M >= N:
-            diag_len += k
-        elif M - k > N:
-            diag_len = N + k
-    diagonal_ = tf.ones([diag_len], dtype=dtype)
-    return tf.linalg.diag(diagonal=diagonal_, num_rows=N, num_cols=M, k=k)
+    # Create a smaller square eye and pad appropriately.
+    return tf.pad(
+        tf.eye(tf.minimum(M - k, N + k), dtype=dtype),
+        paddings=(
+            (tf.maximum(-k, 0), tf.maximum(N - M + k, 0)),
+            (tf.maximum(k, 0), tf.maximum(M - N - k, 0)),
+        ),
+    )
 
 
 def floor_divide(x1, x2):
@@ -2558,3 +2570,31 @@ def argpartition(x, kth, axis=-1):
 
     out = tf.concat([bottom_ind, top_ind], axis=x.ndim - 1)
     return swapaxes(out, -1, axis)
+
+
+def histogram(x, bins, range):
+    """Computes a histogram of the data tensor `x`.
+
+    Note: the `tf.histogram_fixed_width()` and
+    `tf.histogram_fixed_width_bins()` functions
+    yield slight numerical differences for some edge cases.
+    """
+
+    x = tf.convert_to_tensor(x, dtype=x.dtype)
+
+    # Handle the range argument
+    if range is None:
+        min_val = tf.reduce_min(x)
+        max_val = tf.reduce_max(x)
+    else:
+        min_val, max_val = range
+
+    x = tf.boolean_mask(x, (x >= min_val) & (x <= max_val))
+    bin_edges = tf.linspace(min_val, max_val, bins + 1)
+    bin_edges_list = bin_edges.numpy().tolist()
+    bin_indices = tf.raw_ops.Bucketize(input=x, boundaries=bin_edges_list[1:-1])
+
+    bin_counts = tf.math.bincount(
+        bin_indices, minlength=bins, maxlength=bins, dtype=x.dtype
+    )
+    return bin_counts, bin_edges

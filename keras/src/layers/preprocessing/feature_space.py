@@ -517,8 +517,7 @@ class FeatureSpace(Layer):
             preprocessor = self.preprocessors[name]
             # TODO: consider adding an adapt progress bar.
             # Sample 1 element to check the rank
-            for x in feature_dataset.take(1):
-                pass
+            x = next(iter(feature_dataset))
             if len(x.shape) == 0:
                 # The dataset yields unbatched scalars; batch it.
                 feature_dataset = feature_dataset.batch(32)

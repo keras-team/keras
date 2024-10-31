@@ -55,7 +55,7 @@ jobs:
           pytest integration_tests/torch_workflow_test.py
       - name: Test with pytest
         run: |
-          pytest keras --ignore keras/src/applications --cov=keras
+          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
 
   format:
     name: Check the code format

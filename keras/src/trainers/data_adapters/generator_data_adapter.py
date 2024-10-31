@@ -23,10 +23,10 @@ class GeneratorDataAdapter(DataAdapter):
             )
 
     def get_numpy_iterator(self):
-        return data_adapter_utils.get_numpy_iterator(self.generator)
+        return data_adapter_utils.get_numpy_iterator(self.generator())
 
     def get_jax_iterator(self):
-        return data_adapter_utils.get_jax_iterator(self.generator)
+        return data_adapter_utils.get_jax_iterator(self.generator())
 
     def get_tf_dataset(self):
         from keras.src.utils.module_utils import tensorflow as tf
@@ -49,7 +49,7 @@ class GeneratorDataAdapter(DataAdapter):
             return x
 
         def get_tf_iterator():
-            for batch in self.generator:
+            for batch in self.generator():
                 batch = tree.map_structure(
                     convert_to_tf, batch, self._output_signature
                 )
@@ -67,7 +67,7 @@ class GeneratorDataAdapter(DataAdapter):
         return ds
 
     def get_torch_dataloader(self):
-        return data_adapter_utils.get_torch_dataloader(self.generator)
+        return data_adapter_utils.get_torch_dataloader(self.generator())
 
     @property
     def num_batches(self):
@@ -84,4 +84,4 @@ def peek_and_restore(generator):
             generator, data_adapter_utils.NUM_BATCHES_FOR_TENSOR_SPEC
         )
     )
-    return batches, itertools.chain(batches, generator)
+    return batches, lambda: itertools.chain(batches, generator)
