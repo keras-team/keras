@@ -440,6 +440,27 @@ class SparseTopKCategoricalAccuracyTest(testing.TestCase):
         self.assertEqual(len(sp_top_k_cat_acc_obj2.variables), 2)
         self.assertEqual(sp_top_k_cat_acc_obj2._dtype, "float32")
         self.assertEqual(sp_top_k_cat_acc_obj2.k, 1)
+        self.assertFalse(sp_top_k_cat_acc_obj2.from_sorted_ids)
+
+    def test_config_from_sorted_ids(self):
+        sp_top_k_cat_acc_obj = accuracy_metrics.SparseTopKCategoricalAccuracy(
+            k=1,
+            name="sparse_top_k_categorical_accuracy",
+            dtype="float32",
+            from_sorted_ids=True,
+        )
+
+        # Test get_config
+        sp_top_k_cat_acc_obj_config = sp_top_k_cat_acc_obj.get_config()
+        self.assertTrue(sp_top_k_cat_acc_obj_config["from_sorted_ids"])
+
+        # Check save and restore config
+        sp_top_k_cat_acc_obj2 = (
+            accuracy_metrics.SparseTopKCategoricalAccuracy.from_config(
+                sp_top_k_cat_acc_obj_config
+            )
+        )
+        self.assertTrue(sp_top_k_cat_acc_obj2.from_sorted_ids)
 
     def test_unweighted(self):
         sp_top_k_cat_acc_obj = accuracy_metrics.SparseTopKCategoricalAccuracy(
@@ -457,6 +478,35 @@ class SparseTopKCategoricalAccuracyTest(testing.TestCase):
         )
         y_true = np.array([2, 1])
         y_pred = np.array([[0.1, 0.9, 0.8], [0.05, 0.95, 0]], dtype="float32")
+        sample_weight = np.array([0.7, 0.3])
+        sp_top_k_cat_acc_obj.update_state(
+            y_true, y_pred, sample_weight=sample_weight
+        )
+        result = sp_top_k_cat_acc_obj.result()
+        self.assertAllClose(result, 0.3, atol=1e-3)
+
+    def test_from_sorted_ids_unweighted(self):
+        sp_top_k_cat_acc_obj = accuracy_metrics.SparseTopKCategoricalAccuracy(
+            k=1,
+            name="sparse_top_k_categorical_accuracy",
+            dtype="float32",
+            from_sorted_ids=True,
+        )
+        y_true = np.array([2, 1])
+        y_pred = np.array([[1, 0, 3], [1, 2, 3]])
+        sp_top_k_cat_acc_obj.update_state(y_true, y_pred)
+        result = sp_top_k_cat_acc_obj.result()
+        self.assertAllClose(result, 0.5, atol=1e-3)
+
+    def test_from_sorted_ids_weighted(self):
+        sp_top_k_cat_acc_obj = accuracy_metrics.SparseTopKCategoricalAccuracy(
+            k=1,
+            name="sparse_top_k_categorical_accuracy",
+            dtype="float32",
+            from_sorted_ids=True,
+        )
+        y_true = np.array([2, 1])
+        y_pred = np.array([[1, 0, 3], [1, 2, 3]])
         sample_weight = np.array([0.7, 0.3])
         sp_top_k_cat_acc_obj.update_state(
             y_true, y_pred, sample_weight=sample_weight
