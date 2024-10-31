@@ -39,7 +39,7 @@ def add(x1, x2):
     # Special case of `tf.add`: `tf.nn.bias_add`
     # `BiasAdd` can be fused with `MatMul` and `Conv*` kernels
     # Expecting `x1` to be `inputs` and `x2` to be `bias` (no swapping)
-    x2_squeeze_shape = [d for d in x2.shape if d is None or d > 1]
+    x2_squeeze_shape = [d for d in x2.shape.as_list() if d is None or d > 1]
     if (
         # `x2` looks like bias (can be squeezed to vector)
         1 == len(x2_squeeze_shape)
