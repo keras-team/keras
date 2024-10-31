@@ -80,6 +80,14 @@ def flatten(structure):
     return leaves
 
 
+def flatten_with_path(structure):
+    paths, leaves, _ = optree.tree_flatten_with_path(
+        structure, none_is_leaf=True, namespace="keras"
+    )
+    leaves_with_path = list(zip(paths, leaves))
+    return leaves_with_path
+
+
 def map_structure(func, *structures):
     if not callable(func):
         raise TypeError(f"`func` must be callable. Received: func={func}")
@@ -123,6 +131,21 @@ def assert_same_structure(a, b, check_types=True):
             raise TypeError(
                 "The type of the leaves of `a` and `b` doesn't match."
             )
+
+
+def assert_same_paths(a, b):
+    a_paths = set(optree.tree_paths(a, none_is_leaf=True, namespace="keras"))
+    b_paths = set(optree.tree_paths(b, none_is_leaf=True, namespace="keras"))
+
+    if a_paths != b_paths:
+        msg = "`a` and `b` don't have the same paths."
+        a_diff = a_paths.difference(b_paths)
+        if a_diff:
+            msg += f"\nPaths in `a` missing in `b`:\n{a_diff}"
+        b_diff = b_paths.difference(a_paths)
+        if b_diff:
+            msg += f"\nPaths in `b` missing in `a`:\n{b_diff}"
+        raise ValueError(msg)
 
 
 def pack_sequence_as(structure, flat_sequence, sequence_fn=None):
