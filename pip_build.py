@@ -22,7 +22,6 @@ import os
 import pathlib
 import re
 import shutil
-from pathlib import Path
 
 # Needed because importing torch after TF causes the runtime to crash
 import torch  # noqa: F401
@@ -39,7 +38,7 @@ def export_version_string(version, is_nightly=False, rc_index=None):
         date = datetime.datetime.now()
         version += f".dev{date:%Y%m%d%H}"
         # Update `name = "keras"` with "keras-nightly"
-        pyproj_pth = Path("pyproject.toml")
+        pyproj_pth = pathlib.Path("pyproject.toml")
         pyproj_str = pyproj_pth.read_text().replace(
             'name = "keras"', 'name = "keras-nightly"'
         )
