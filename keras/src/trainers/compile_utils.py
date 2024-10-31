@@ -534,7 +534,11 @@ class CompileLoss(losses_module.Loss):
             iterator = enumerate(loss)
 
             def key_check_fn(key, objs):
-                return all([key < len(obj) for obj in objs])
+                try:
+                    [obj[key] for obj in objs]
+                except:
+                    return False
+                return True
 
         else:
             raise TypeError(
@@ -547,7 +551,8 @@ class CompileLoss(losses_module.Loss):
                 raise KeyError(
                     f"The path: {current_path + (key,)} in "
                     "the `loss` argument, can't be found in "
-                    "the model's output (`y_pred`)."
+                    "either the model's output (`y_pred`) or in the "
+                    "labels (`y_true`)."
                 )
 
             self._build_nested(
@@ -664,20 +669,29 @@ class CompileLoss(losses_module.Loss):
         try:
             tree.assert_same_structure(y_pred, y_true, check_types=False)
         except ValueError:
-            # y_true is either flat or leaf
-            if (
-                not tree.is_nested(y_true)
-                and hasattr(y_pred, "__len__")
-                and len(y_pred) == 1
-            ):
-                y_true = [y_true]
             try:
-                y_true = tree.pack_sequence_as(y_pred, y_true)
+                # Check case where y_true is either flat or leaf
+                if (
+                    not tree.is_nested(y_true)
+                    and hasattr(y_pred, "__len__")
+                    and len(y_pred) == 1
+                ):
+                    y_true = [y_true]
+                try:
+                    y_true = tree.pack_sequence_as(y_pred, y_true)
+                except:
+                    # Check case where y_true has the same structure but uses
+                    # different (but reconcilable) container types,
+                    # e.g `list` vs `tuple`.
+                    tree.assert_same_paths(y_true, y_pred)
+                    y_true = tree.pack_sequence_as(y_pred, tree.flatten(y_true))
             except:
+                y_true_struct = tree.map_structure(lambda _: "*", y_true)
+                y_pred_struct = tree.map_structure(lambda _: "*", y_pred)
                 raise ValueError(
                     "y_true and y_pred have different structures.\n"
-                    f"y_true: {y_true}\n"
-                    f"y_pred: {y_pred}\n"
+                    f"y_true: {y_true_struct}\n"
+                    f"y_pred: {y_pred_struct}\n"
                 )
 
         if not self.built:
