@@ -11,6 +11,7 @@ description = "Multi-backend Keras"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "Apache License 2.0"}
+dynamic = ["version"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
@@ -24,7 +25,17 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Software Development",
 ]
-dynamic = ["version", "dependencies"]
+dependencies = [
+    "absl-py",
+    "numpy",
+    "rich",
+    "namex",
+    "h5py",
+    "optree",
+    "ml-dtypes",
+    "packaging",
+]
+# Run also: pip install -r requirements.txt
 
 [project.urls]
 Home = "https://keras.io/"
@@ -32,8 +43,6 @@ Repository = "https://github.com/keras-team/keras"
 
 [tool.setuptools.dynamic]
 version = {attr = "keras.src.version.__version__"}
-dependencies = {file = "requirements-common.txt"}
-# Run also: pip install -r requirements.txt
 
 [tool.setuptools.packages.find]
 include = ["keras", "keras.*"]
