@@ -323,7 +323,7 @@ def istft(
             )
 
     if sequence_length == fft_length and center is True and win is not None:
-        # can be falled back to torch.istft
+        # can be fallen back to torch.istft
         need_unpack = False
         *batch_shape, num_sequences, fft_unique_bins = complex_input.shape
         if len(complex_input.shape) > 3:

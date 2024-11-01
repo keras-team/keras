@@ -296,7 +296,7 @@ def norm(x, ord=None, axis=None, keepdims=False):
         dtype = dtypes.result_type(x.dtype, float)
     x = cast(x, dtype)
 
-    # Fast path to utilze `tf.linalg.norm`
+    # Fast path to utilize `tf.linalg.norm`
     if (num_axes == 1 and ord in ("euclidean", 1, 2, float("inf"))) or (
         num_axes == 2 and ord in ("euclidean", "fro", 1, 2, float("inf"))
     ):

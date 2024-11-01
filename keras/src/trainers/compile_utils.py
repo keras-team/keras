@@ -586,7 +586,7 @@ class CompileLoss(losses_module.Loss):
                     raise ValueError(
                         f"`loss_weights` must match the number of losses, "
                         f"got {len(tree.flatten(loss))} losses "
-                        f"and {len(loss_weights)} weigths."
+                        f"and {len(loss_weights)} weights."
                     )
                 loss_weights = tree.pack_sequence_as(loss, flat_loss_weights)
             loss = tree.map_structure(

@@ -192,7 +192,7 @@ class JaxLayer(Layer):
         call_fn: The function to call the model. See description above for the
             list of arguments it takes and the outputs it returns.
         init_fn: the function to call to initialize the model. See description
-            above for the list of arguments it takes and the ouputs it returns.
+            above for the list of arguments it takes and the outputs it returns.
             If `None`, then `params` and/or `state` must be provided.
       params: A `PyTree` containing all the model trainable parameters. This
             allows passing trained parameters or controlling the initialization.

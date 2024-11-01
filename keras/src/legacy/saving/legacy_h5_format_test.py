@@ -16,7 +16,7 @@ from keras.src.saving import serialization_lib
 # on exact weight ordering for each layer, so we need
 # to test across all types of layers.
 
-# TODO: reenable tests after tf_keras is available.
+# TODO: re-enable tests after tf_keras is available.
 tf_keras = None
 
 
