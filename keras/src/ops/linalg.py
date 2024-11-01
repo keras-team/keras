@@ -466,7 +466,7 @@ def solve(a, b):
 
     Args:
         a: A tensor of shape `(..., M, M)` representing the coefficients matrix.
-        b: A tensor of shape `(..., M)` or `(..., M, N)` represeting the
+        b: A tensor of shape `(..., M)` or `(..., M, N)` representing the
         right-hand side or "dependent variable" matrix.
 
     Returns:
@@ -514,7 +514,7 @@ def solve_triangular(a, b, lower=False):
 
     Args:
         a: A tensor of shape `(..., M, M)` representing the coefficients matrix.
-        b: A tensor of shape `(..., M)` or `(..., M, N)` represeting the
+        b: A tensor of shape `(..., M)` or `(..., M, N)` representing the
         right-hand side or "dependent variable" matrix.
 
     Returns:

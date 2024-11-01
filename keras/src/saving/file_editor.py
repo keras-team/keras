@@ -279,13 +279,13 @@ class KerasFileEditor:
                     count += 1
                 return count
 
-            occurences = count_occurences(self.weights_dict, source_name)
-            if occurences > 1:
+            occurrences = count_occurences(self.weights_dict, source_name)
+            if occurrences > 1:
                 raise ValueError(
                     f"Name '{source_name}' occurs more than once in the model; "
                     "try passing a complete path"
                 )
-            if occurences == 0:
+            if occurrences == 0:
                 raise ValueError(
                     f"Source name '{source_name}' does not appear in the "
                     "model. Use `editor.weights_summary()` "
