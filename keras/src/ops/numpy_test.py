@@ -3992,8 +3992,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # 5D (pad arbitrary dimensions)
         if backend.backend() == "torch" and mode != "constant":
             self.skipTest(
-                "reflect and symmetric padding for arbitrary dimensions are not "
-                "supported by torch"
+                "reflect and symmetric padding for arbitrary dimensions "
+                "are not supported by torch"
             )
         x = np.ones([2, 3, 4, 5, 6], dtype=dtype)
         pad_width = ((1, 1), (2, 1), (3, 2), (4, 3), (5, 4))

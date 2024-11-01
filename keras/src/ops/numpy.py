@@ -4533,9 +4533,9 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
     Returns:
         The quantile(s). If `q` is a single probability and `axis=None`, then
-        the result is a scalar. If multiple probabilities levels are given, first
-        axis of the result corresponds to the quantiles. The other axes are the
-        axes that remain after the reduction of `x`.
+        the result is a scalar. If multiple probabilities levels are given,
+        first axis of the result corresponds to the quantiles. The other axes
+        are the axes that remain after the reduction of `x`.
     """
     if any_symbolic_tensors((x, q)):
         return Quantile(
