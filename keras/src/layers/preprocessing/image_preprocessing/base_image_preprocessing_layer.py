@@ -331,42 +331,56 @@ class BaseImagePreprocessingLayer(TFDataLayer):
         height,
         width,
     ):
+        """
+        #       Scaling          Shear           Rotation
+        #     [sx  0   0]    [1   shx  0]   [cos(θ)  -sin(θ)  0]
+        # M = [0   sy  0] *  [shy  1   0] * [sin(θ)   cos(θ)  0]
+        #     [0   0   1]    [0    0   1]   [0        0       1]
+
+        # a0 = sx * (cos(θ) + shx * sin(θ))
+        # a1 = sx * (-sin(θ) + shx * cos(θ))
+        # a2 = tx + cx - cx * a0 - cy * a1
+        # b0 = sy * (shy * cos(θ) + sin(θ))
+        # b1 = sy * (shy * -sin(θ) + cos(θ))
+        # b2 = ty + cy - cx * b0 - cy * b1
+        """
         ops = self.backend
+
+        degree_to_radian_factor = ops.convert_to_tensor(math.pi / 180.0)
+
+        angle = angle * degree_to_radian_factor
+        shear_x = shear_x * degree_to_radian_factor
+        shear_y = shear_y * degree_to_radian_factor
+
         batch_size = ops.shape(angle)[0]
         dtype = angle.dtype
         width = ops.cast(width, dtype)
         height = ops.cast(height, dtype)
-        cx = center_x * width
-        cy = center_y * height
-        degree_to_radian_factor = math.pi / 180.0
-        rot = ops.numpy.multiply(angle, degree_to_radian_factor)
-        tx = -translate_x * width
-        ty = -translate_y * height
-        sx = ops.numpy.multiply(shear_x, degree_to_radian_factor)
-        sy = ops.numpy.multiply(shear_y, degree_to_radian_factor)
+        cx = center_x * (width - 1)
+        cy = center_y * (height - 1)
 
-        # Compute rotation & scaling & shear & translation matrix
-        # cv2.getRotationMatrix2D
-        # Ref : https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html#gafbbc470ce83812914a70abfb604f4326  # noqa: E501
-        alpha = ops.numpy.cos(rot) / scale
-        beta = ops.numpy.sin(rot) / scale
-        matrix = ops.numpy.stack(
+        cos_theta = ops.numpy.cos(angle)
+        sin_theta = ops.numpy.sin(angle)
+        shear_x = ops.numpy.tan(shear_x)
+        shear_y = ops.numpy.tan(shear_y)
+
+        a0 = scale * (cos_theta + shear_x * sin_theta)
+        a1 = scale * (-sin_theta + shear_x * cos_theta)
+        a2 = translate_x + cx - cx * a0 - cy * a1
+        b0 = scale * (shear_y * cos_theta + sin_theta)
+        b1 = scale * (shear_y * -sin_theta + cos_theta)
+        b2 = translate_y + cy - cx * b0 - cy * b1
+        affine_matrix = ops.numpy.concatenate(
             [
-                alpha,
-                # + sx (shear)
-                beta + sx,
-                # - cx * sx (shear) + tx (translate)
-                (1.0 - alpha) * cx - beta * cy - cx * sx + tx,
-                # + sy (shear)
-                -beta + sy,
-                alpha,
-                # - cy * sy (shear) + ty (translate)
-                beta * cx + (1.0 - alpha) * cy - cy * sy + ty,
-                ops.numpy.zeros([batch_size], dtype),
-                ops.numpy.zeros([batch_size], dtype),
-                ops.numpy.ones([batch_size], dtype),
+                a0[:, None],
+                a1[:, None],
+                a2[:, None],
+                b0[:, None],
+                b1[:, None],
+                b2[:, None],
+                ops.numpy.zeros((batch_size, 2)),
             ],
-            axis=-1,
+            axis=1,
         )
-        matrix = ops.numpy.reshape(matrix, [batch_size, 3, 3])
-        return matrix
+
+        return affine_matrix

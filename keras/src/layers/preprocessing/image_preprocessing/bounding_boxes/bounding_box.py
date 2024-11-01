@@ -118,6 +118,10 @@ class BoundingBox:
 
         ops = self.backend
         boxes, labels = bounding_boxes["boxes"], bounding_boxes["labels"]
+        if width is not None:
+            width = ops.cast(width, boxes.dtype)
+        if height is not None:
+            height = ops.cast(height, boxes.dtype)
 
         if bounding_box_format == "xyxy":
             x1, y1, x2, y2 = ops.numpy.split(boxes, 4, axis=-1)
@@ -170,7 +174,6 @@ class BoundingBox:
             center_x = 0.5
         if center_y is None:
             center_y = 0.5
-
         matrix = self._compute_inverse_affine_matrix(
             center_x,
             center_y,
@@ -183,6 +186,7 @@ class BoundingBox:
             height,
             width,
         )
+        boxes = ops.cast(boxes, dtype=matrix.dtype)
         transposed_matrix = ops.numpy.transpose(matrix[:, :2, :], [0, 2, 1])
         points = boxes  # [B, N, 4]
         points = ops.numpy.stack(
