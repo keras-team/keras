@@ -137,6 +137,15 @@ class RandomRotation(BaseImagePreprocessingLayer):
         width = transformation["image_width"]
         batch_size = transformation["batch_size"]
         rotation_matrix = transformation["rotation_matrix"]
+        boxes = ops.cast(boxes, rotation_matrix.dtype)
+        rotation_matrix = ops.numpy.stack(
+            [
+                rotation_matrix,
+                ops.numpy.ones([batch_size], rotation_matrix.dtype),
+            ],
+            aixs=-1,
+        )
+        rotation_matrix = ops.numpy.reshape(rotation_matrix, [batch_size, 3, 3])
         bounding_boxes = converters.convert_format(
             boxes=bounding_boxes,
             source=self.bounding_box_format,
