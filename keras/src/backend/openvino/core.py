@@ -12,6 +12,7 @@ from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
 
 SUPPORTS_SPARSE_TENSORS = False
+IS_THREAD_SAFE = True
 
 OPENVINO_DTYPES = {
     "float16": ov.Type.f16,
@@ -116,6 +117,8 @@ def convert_to_numpy(x):
 
 
 def is_tensor(x):
+    if isinstance(x, (ov.runtime.Output)):
+        return False
     if isinstance(x, ov.Tensor):
         return True
     return False

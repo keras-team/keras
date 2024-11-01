@@ -71,6 +71,7 @@ class OpenVINOTrainer(base_trainer.Trainer):
         # prepare compiled model from scratch
         del self.ov_compiled_model
         ov_inputs = []
+        parameters = []
         for _input in self._inputs:
             ov_type = OPENVINO_DTYPES[_input.dtype]
             ov_shape = _input.shape
@@ -79,13 +80,14 @@ class OpenVINOTrainer(base_trainer.Trainer):
                 if ov_shape[i] is None:
                     ov_shape[i] = -1
             param = ov_opset.parameter(shape=ov_shape, dtype=ov_type)
-            ov_inputs.append(param)
+            parameters.append(param)
+            ov_inputs.append(param.output(0))
         # build OpenVINO graph ov.Model
         ov_outputs = self._run_through_graph(
             ov_inputs, operation_fn=lambda op: op
         )
         ov_outputs = tree.flatten(ov_outputs)
-        ov_model = ov.Model(results=ov_outputs, parameters=ov_inputs)
+        ov_model = ov.Model(results=ov_outputs, parameters=parameters)
         self.ov_compiled_model = ov.compile_model(ov_model, get_device())
         self.ov_device = get_device()
         return self.ov_compiled_model

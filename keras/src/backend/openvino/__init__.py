@@ -1,3 +1,4 @@
+from keras.src.backend.common.name_scope import name_scope
 from keras.src.backend.openvino import core
 from keras.src.backend.openvino import image
 from keras.src.backend.openvino import linalg
@@ -5,6 +6,7 @@ from keras.src.backend.openvino import math
 from keras.src.backend.openvino import nn
 from keras.src.backend.openvino import numpy
 from keras.src.backend.openvino import random
+from keras.src.backend.openvino.core import IS_THREAD_SAFE
 from keras.src.backend.openvino.core import SUPPORTS_SPARSE_TENSORS
 from keras.src.backend.openvino.core import Variable
 from keras.src.backend.openvino.core import cast
