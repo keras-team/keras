@@ -1,5 +1,55 @@
+[build-system]
+requires = ["setuptools >=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "keras"
+authors = [
+    {name = "Keras team", email = "keras-users@googlegroups.com"},
+]
+description = "Multi-backend Keras"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "Apache License 2.0"}
+dynamic = ["version"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development",
+]
+dependencies = [
+    "absl-py",
+    "numpy",
+    "rich",
+    "namex",
+    "h5py",
+    "optree",
+    "ml-dtypes",
+    "packaging",
+]
+# Run also: pip install -r requirements.txt
+
+[project.urls]
+Home = "https://keras.io/"
+Repository = "https://github.com/keras-team/keras"
+
+[tool.setuptools.dynamic]
+version = {attr = "keras.src.version.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["keras", "keras.*"]
+
 [tool.black]
 line-length = 80
+target-version = []
 
 # black needs this to be a regex
 # to add more exclude expressions
