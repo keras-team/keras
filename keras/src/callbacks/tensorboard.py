@@ -74,7 +74,7 @@ class TensorBoard(Callback):
             Batch-level summary writing is also available via `train_step`
             override. Please see
             [TensorBoard Scalars tutorial](
-                https://www.tensorflow.org/tensorboard/scalars_and_keras#batch-level_logging)  # noqa: E501
+                https://www.tensorflow.org/tensorboard/scalars_and_keras#batch-level_logging)
             for more details.
         profile_batch: (Not supported at this time)
             Profile the batch(es) to sample compute characteristics.
@@ -152,7 +152,7 @@ class TensorBoard(Callback):
         log_dir='./logs', profile_batch=(10,20))
     model.fit(x_train, y_train, epochs=2, callbacks=[tensorboard_callback])
     ```
-    """
+    """  # noqa: E501
 
     def __init__(
         self,
