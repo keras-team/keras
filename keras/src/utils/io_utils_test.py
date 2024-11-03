@@ -1,4 +1,5 @@
 import sys
+import tempfile
 from unittest.mock import patch
 
 from keras.src.testing import test_case
@@ -57,11 +58,12 @@ class TestIoUtils(test_case.TestCase):
     def test_ask_to_proceed_with_overwrite_invalid_then_no(self, _):
         self.assertFalse(io_utils.ask_to_proceed_with_overwrite("test_path"))
 
-    @patch("sys.stdout.write")
-    def test_print_msg_with_different_encoding(self, mock_write):
+    def test_print_msg_with_different_encoding(self):
         # https://github.com/keras-team/keras/issues/19386
-        ori_encoding = sys.stdout.encoding
-        sys.stdout.reconfigure(encoding="cp1252")
-        io_utils.print_msg("━━━━━")
-        mock_write.assert_called_once_with("━━━━━\n")
-        sys.stdout.reconfigure(encoding=ori_encoding)
+        io_utils.enable_interactive_logging()
+        self.assertTrue(io_utils.is_interactive_logging_enabled())
+        ori_stdout = sys.stdout
+        with tempfile.TemporaryFile(mode="w", encoding="cp1251") as tmp:
+            sys.stdout = tmp
+            io_utils.print_msg("━")
+        sys.stdout = ori_stdout
