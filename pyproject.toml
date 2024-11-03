@@ -71,7 +71,6 @@ select = [
 ]
 ignore = [
     "E722",  # do not use bare 'except'
-    "E721",  # use `is` and `is not` for type comparisons
     "E741",  # ambiguous variable name
     "E731",  # do not assign a `lambda` expression, use a `def`
 ]
