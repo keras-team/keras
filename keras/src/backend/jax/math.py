@@ -124,12 +124,9 @@ def fft2(x):
 
 
 def ifft2(x):
-    real, imag = x
-    H = cast(jnp.shape(real)[-2], "float32")
-    W = cast(jnp.shape(real)[-1], "float32")
-    real_conj, imag_conj = real, -imag
-    fft_real, fft_imag = fft2((real_conj, imag_conj))
-    return fft_real / (H * W), -fft_imag / (H * W)
+    complex_input = _get_complex_tensor_from_tuple(x)
+    complex_output = jnp.fft.ifft2(complex_input)
+    return jnp.real(complex_output), jnp.imag(complex_output)
 
 
 def rfft(x, fft_length=None):

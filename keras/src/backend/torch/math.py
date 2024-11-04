@@ -204,12 +204,9 @@ def fft2(x):
 
 
 def ifft2(x):
-    real, imag = x
-    H = cast(torch.tensor(real.shape[-2]), "float32")
-    W = cast(torch.tensor(real.shape[-1]), "float32")
-    real_conj, imag_conj = real, -imag
-    fft_real, fft_imag = fft2((real_conj, imag_conj))
-    return fft_real / (H * W), -fft_imag / (H * W)
+    complex_input = _get_complex_tensor_from_tuple(x)
+    complex_output = torch.fft.ifft2(complex_input)
+    return complex_output.real, complex_output.imag
 
 
 def rfft(x, fft_length=None):
