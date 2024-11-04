@@ -47,6 +47,7 @@ from keras.src.ops.math import erfinv
 from keras.src.ops.math import extract_sequences
 from keras.src.ops.math import fft
 from keras.src.ops.math import fft2
+from keras.src.ops.math import ifft2
 from keras.src.ops.math import in_top_k
 from keras.src.ops.math import irfft
 from keras.src.ops.math import istft

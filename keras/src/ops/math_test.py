@@ -735,8 +735,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(imag_ref, imag_output)
 
     def test_ifft2(self):
-        real = np.random.random((2, 4, 3))
-        imag = np.random.random((2, 4, 3))
+        real = np.random.random((2, 4, 3)).astype(np.float32)
+        imag = np.random.random((2, 4, 3)).astype(np.float32)
         complex_arr = real + 1j * imag
 
         real_output, imag_output = kmath.ifft2((real, imag))
