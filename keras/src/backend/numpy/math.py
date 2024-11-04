@@ -144,6 +144,15 @@ def fft2(x):
     return np.array(real), np.array(imag)
 
 
+def ifft2(x):
+    real, imag = x
+    H = np.float32(real.shape[-2])
+    W = np.float32(real.shape[-1])
+    real_conj, imag_conj = real, -imag
+    fft_real, fft_imag = fft2((real_conj, imag_conj))
+    return fft_real / (H * W), -fft_imag / (H * W)
+
+
 def rfft(x, fft_length=None):
     complex_output = np.fft.rfft(x, n=fft_length, axis=-1, norm="backward")
     # numpy always outputs complex128, so we need to recast the dtype

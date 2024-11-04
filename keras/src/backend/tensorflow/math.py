@@ -113,6 +113,15 @@ def fft2(x):
     return tf.math.real(complex_output), tf.math.imag(complex_output)
 
 
+def ifft2(x):
+    real, imag = x
+    H = cast(tf.shape(real)[-2], "float32")
+    W = cast(tf.shape(real)[-1], "float32")
+    real_conj, imag_conj = real, -imag
+    fft_real, fft_imag = fft2((real_conj, imag_conj))
+    return fft_real / (H * W), -fft_imag / (H * W)
+
+
 def rfft(x, fft_length=None):
     if fft_length is not None:
         fft_length = [fft_length]
