@@ -767,11 +767,11 @@ def inject_functional_model_class(cls):
     """Inject `Functional` into the hierarchy of this class if needed."""
     from keras.src.models import functional
 
-    if cls == Model:
+    if cls is Model:
         return functional.Functional
     # In case there is any multiple inheritance, we stop injecting the
     # class if keras model is not in its class hierarchy.
-    if cls == object:
+    if cls is object:
         return object
 
     cls.__bases__ = tuple(

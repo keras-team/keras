@@ -60,16 +60,30 @@ extend-exclude = """
 )
 """
 
-[tool.isort]
-profile = "black"
-force_single_line = "True"
-known_first_party = ["keras", "tests"]
-default_section = "THIRDPARTY"
-line_length = 80
-extend_skip_glob=[
-    "examples/*",
-    "guides/*",
+[tool.ruff]
+line-length = 80
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle error
+    "F",  # Pyflakes
+    "I",  # isort
 ]
+ignore = [
+    "E722",  # do not use bare 'except'
+    "E741",  # ambiguous variable name
+    "E731",  # do not assign a `lambda` expression, use a `def`
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["E501", "F401"]  # lines too long; imported but unused
+"**/random.py" = ["F401"]  # imported but unused
+"examples/*" = ["I", "E"]
+"guides/*" = ["I", "E", "F"]
+
+[tool.ruff.lint.isort]
+force-single-line = true
+known-first-party = ["keras"]
 
 [tool.pytest.ini_options]
 filterwarnings = [
