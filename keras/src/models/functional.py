@@ -221,7 +221,7 @@ class Functional(Function, Model):
             model_inputs_struct = tree.map_structure(
                 lambda x: x.name, self._inputs_struct
             )
-            inputs_struct = tree.map_structure(lambda x: "*", inputs)
+            inputs_struct = tree.map_structure(lambda x: f"type({x})", inputs)
             warnings.warn(
                 "The structure of `inputs` doesn't match the expected "
                 f"structure: {model_inputs_struct}. "
