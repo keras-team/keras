@@ -1999,7 +1999,6 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_callbacks_can_update_state_at_batch_boundary(self):
-
         class CounterModel(keras.Model):
             def __init__(self):
                 super().__init__()
@@ -2176,7 +2175,6 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_compute_loss_no_training_backwards_compatibility(self):
-
         class MyModel(keras.Model):
             def __init__(self):
                 super().__init__()

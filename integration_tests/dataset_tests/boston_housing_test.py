@@ -3,7 +3,6 @@ from keras.src.datasets import boston_housing
 
 
 class BostonHousingTest(testing.TestCase):
-
     def test_load_data(self):
         (x_train, y_train), (x_test, y_test) = boston_housing.load_data()
         self.assertEqual(x_train.shape[1], 13)

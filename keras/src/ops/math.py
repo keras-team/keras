@@ -43,7 +43,6 @@ class SegmentReduction(Operation):
 
 
 class SegmentSum(SegmentReduction):
-
     def call(self, data, segment_ids):
         _segment_reduce_validation(data, segment_ids)
         return backend.math.segment_sum(
@@ -90,7 +89,6 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
 
 
 class SegmentMax(SegmentReduction):
-
     def call(self, data, segment_ids):
         _segment_reduce_validation(data, segment_ids)
         return backend.math.segment_max(

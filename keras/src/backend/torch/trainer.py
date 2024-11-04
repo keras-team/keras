@@ -195,10 +195,9 @@ class TorchTrainer(base_trainer.Trainer):
             # for TF/numpy/jax arrays.
             # TODO: Support torch tensors for validation data.
             (
-                x,
-                y,
-                sample_weight,
-            ), validation_data = array_slicing.train_validation_split(
+                (x, y, sample_weight),
+                validation_data,
+            ) = array_slicing.train_validation_split(
                 (x, y, sample_weight), validation_split=validation_split
             )
 

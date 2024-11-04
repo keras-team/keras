@@ -10,7 +10,7 @@
                     "source.organizeImports": true
                 },
                 "[python]": {
-                    "editor.defaultFormatter": "ms-python.black-formatter"
+                    "editor.defaultFormatter": "charliermarsh.ruff"
                 },
                 "editor.rulers": [
                     80
@@ -18,8 +18,7 @@
             },
             "extensions": [
                 "charliermarsh.ruff",
-                "ms-python.python",
-                "ms-python.black-formatter"
+                "ms-python.python"
             ]
         }
     },

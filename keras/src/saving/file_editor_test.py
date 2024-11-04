@@ -26,7 +26,6 @@ def get_target_model():
 
 
 class SavingTest(testing.TestCase):
-
     def test_basics(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
 

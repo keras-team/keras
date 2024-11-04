@@ -121,7 +121,6 @@ def _get_model_multi_outputs_dict_with_single_tensor():
 
 
 def _get_model_with_custom_compute_loss():
-
     class MyModel(Model):
         def __init__(self):
             inputs = Input(shape=(3,), name="inputs")
@@ -166,7 +165,6 @@ def _get_variable_value_by_path(variables, path):
 
 @pytest.mark.requires_trainable_backend
 class ModelTest(testing.TestCase):
-
     def test_functional_rerouting(self):
         model = _get_model()
         self.assertIsInstance(model, Functional)
@@ -1000,9 +998,8 @@ class ModelTest(testing.TestCase):
                 structure,
                 y_pred,
             )
-            flat_y_pred, flat_y_true = tree.flatten(y_pred), tree.flatten(
-                y_true
-            )
+            flat_y_pred = tree.flatten(y_pred)
+            flat_y_true = tree.flatten(y_true)
             diff = 0
             for y_p, y_t in zip(flat_y_pred, flat_y_true):
                 diff += losses.mean_absolute_error(y_t, y_p)

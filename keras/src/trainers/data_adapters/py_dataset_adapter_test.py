@@ -24,7 +24,7 @@ class ExamplePyDataset(py_dataset_adapter.PyDataset):
         batch_size=32,
         delay=0,
         infinite=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.x, self.y = x_set, y_set
@@ -80,7 +80,6 @@ class DictPyDataset(py_dataset_adapter.PyDataset):
 
 
 class ExceptionPyDataset(py_dataset_adapter.PyDataset):
-
     @property
     def num_batches(self):
         return 4
@@ -285,7 +284,6 @@ class PyDatasetAdapterTest(testing.TestCase):
             self.assertEqual(tuple(by.shape), (4, 2))
 
     def test_with_different_shapes(self):
-
         class TestPyDataset(py_dataset_adapter.PyDataset):
             @property
             def num_batches(self):

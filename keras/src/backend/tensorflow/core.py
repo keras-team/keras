@@ -499,7 +499,6 @@ def associative_scan(f, elems, reverse=False, axis=0):
             )
 
         def _recursive_case():
-
             odd_elems = _scan(reduced_elems)
 
             def _even_length_case():
