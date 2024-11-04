@@ -18,6 +18,7 @@ from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.callbacks.callback import Callback
 from keras.src.optimizers.rmsprop import RMSprop
 from keras.src.testing.test_utils import named_product
+from keras.src.trainers.data_adapters import py_dataset_adapter
 
 if backend.backend() == "jax":
     from keras.src.backend.jax.trainer import JAXTrainer as Trainer
@@ -139,6 +140,82 @@ class TrainingTestingLayer(Trainer, layers.Layer):
         if training:
             return x
         return x * 0
+
+
+class TestPyDataset(py_dataset_adapter.PyDataset):
+    def __init__(self, infinite=False, **kwargs):
+        super().__init__(**kwargs)
+        self.infinite = infinite
+
+    @property
+    def num_batches(self):
+        return None if self.infinite else 20
+
+    def __getitem__(self, idx):
+        CPU_DEVICES = {
+            "tensorflow": "CPU:0",
+            "jax": "cpu:0",
+            "torch": "cpu",
+        }
+        with backend.device(CPU_DEVICES[backend.backend()]):
+            return ops.ones((5, 4)), ops.zeros((5, 3))
+
+
+def create_dataset(dataset_type, dataset_kwargs):
+    if dataset_type == "np_array":
+        return np.ones((100, 4)), np.zeros((100, 3))
+    elif dataset_type == "native_array":
+        return ops.ones((100, 4)), ops.zeros((100, 3))
+    elif dataset_type == "py_dataset":
+        return TestPyDataset(**dataset_kwargs), None
+    elif dataset_type == "tf_dataset":
+        import tensorflow as tf
+
+        dataset = tf.data.Dataset.from_tensor_slices(
+            (tf.ones((100, 4)), tf.zeros((100, 3)))
+        ).batch(5)
+        if dataset_kwargs.get("infinite", False):
+            dataset = dataset.repeat()
+        return dataset, None
+    elif dataset_type == "torch_dataloader":
+        import torch
+
+        class TestIterableDataset(torch.utils.data.IterableDataset):
+            def __iter__(self):
+                for _ in range(20):
+                    yield torch.ones((5, 4)), torch.zeros((5, 3))
+
+        class TestIterableDatasetWithLen(TestIterableDataset):
+            def __len__(self):
+                return 20
+
+        if dataset_kwargs.get("iterable", False):
+            if dataset_kwargs.get("has_len", False):
+                dataset = TestIterableDatasetWithLen()
+            else:
+                dataset = TestIterableDataset()
+            return torch.utils.data.DataLoader(dataset), None
+        else:
+            dataset = torch.utils.data.TensorDataset(
+                torch.ones((100, 4)), torch.zeros((100, 3))
+            )
+            return torch.utils.data.DataLoader(dataset, batch_size=5), None
+    elif dataset_type == "generator":
+
+        def generate_finite():
+            for _ in range(20):
+                yield ops.ones((5, 4)), ops.zeros((5, 3))
+
+        def generate_infinite():
+            while True:
+                yield ops.ones((5, 4)), ops.zeros((5, 3))
+
+        if dataset_kwargs.get("infinite", False):
+            return generate_infinite(), None
+        else:
+            return generate_finite(), None
+    else:
+        raise ValueError(f"Invalid dataset type {dataset_type}")
 
 
 def sparse_generator(generator_type):
@@ -396,6 +473,111 @@ class TestTrainer(testing.TestCase):
             [14.5, 11.5, 8.5],
             atol=1.0,  # TODO: results vary across backends
         )
+
+    @parameterized.named_parameters(
+        [
+            {
+                "testcase_name": "np_array",
+                "dataset_type": "np_array",
+                "fit_kwargs": {"batch_size": 5},
+            },
+            {
+                "testcase_name": "native_array",
+                "dataset_type": "native_array",
+                "fit_kwargs": {"batch_size": 5},
+            },
+            {
+                "testcase_name": "py_dataset",
+                "dataset_type": "py_dataset",
+            },
+            {
+                "testcase_name": "py_dataset_infinite",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {"infinite": True},
+                "fit_kwargs": {"steps_per_epoch": 20},
+            },
+            {
+                "testcase_name": "py_dataset_multithreading",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {"workers": 2},
+            },
+            {
+                "testcase_name": "py_dataset_multithreading_infinite",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {"infinite": True, "workers": 2},
+                "fit_kwargs": {"steps_per_epoch": 20},
+            },
+            {
+                "testcase_name": "py_dataset_multiprocessing",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {"workers": 2, "use_multiprocessing": True},
+            },
+            {
+                "testcase_name": "py_dataset_multiprocessing_infinite",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {
+                    "infinite": True,
+                    "workers": 2,
+                    "use_multiprocessing": True,
+                },
+                "fit_kwargs": {"steps_per_epoch": 20},
+            },
+            {
+                "testcase_name": "tf_dataset",
+                "dataset_type": "tf_dataset",
+            },
+            {
+                "testcase_name": "tf_dataset_infinite",
+                "dataset_type": "tf_dataset",
+                "dataset_kwargs": {"infinite": True},
+                "fit_kwargs": {"steps_per_epoch": 20},
+            },
+            {
+                "testcase_name": "torch_dataloader_tensor",
+                "dataset_type": "torch_dataloader",
+            },
+            {
+                "testcase_name": "torch_dataloader_iterable",
+                "dataset_type": "torch_dataloader",
+                "dataset_kwargs": {"iterable": True, "has_len": False},
+            },
+            {
+                "testcase_name": "torch_dataloader_iterable_with_len",
+                "dataset_type": "torch_dataloader",
+                "dataset_kwargs": {"iterable": True, "has_len": True},
+            },
+            {
+                "testcase_name": "generator",
+                "dataset_type": "generator",
+            },
+            {
+                "testcase_name": "generator_infinite",
+                "dataset_type": "generator",
+                "dataset_kwargs": {"infinite": True},
+                "fit_kwargs": {"steps_per_epoch": 20},
+            },
+        ]
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_fit_with_data_adapter(
+        self, dataset_type, dataset_kwargs={}, fit_kwargs={}
+    ):
+        if (
+            dataset_kwargs.get("use_multiprocessing", False)
+            and backend.backend() == "jax"
+        ):
+            pytest.skip("Multiprocessing not supported with JAX backend")
+
+        model = ExampleModel(units=3)
+        optimizer = optimizers.Adagrad()
+        model.compile(
+            optimizer=optimizer,
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            jit_compile=True,
+        )
+        x, y = create_dataset(dataset_type, dataset_kwargs)
+        model.fit(x, y, epochs=3, **fit_kwargs)
 
     @parameterized.named_parameters(
         [
