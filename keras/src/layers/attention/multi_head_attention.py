@@ -10,6 +10,7 @@ from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.activations.softmax import Softmax
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.layer import Layer
@@ -392,7 +393,13 @@ class MultiHeadAttention(Layer):
         return self._softmax(attention_scores, mask=attention_mask)
 
     def _compute_attention(
-        self, query, key, value, attention_mask=None, training=None
+        self,
+        query,
+        key,
+        value,
+        return_attention_scores,
+        attention_mask=None,
+        training=None,
     ):
         """Applies Dot-product attention with query, key, value tensors.
 
@@ -415,9 +422,28 @@ class MultiHeadAttention(Layer):
           attention_output: Multi-headed outputs of attention computation.
           attention_scores: Multi-headed attention weights.
         """
-        # Note: Applying scalar multiply at the smaller end of einsum improves
-        # XLA performance, but may introduce slight numeric differences in
-        # the Transformer attention head.
+        if config.is_flash_attention_enabled() and return_attention_scores:
+            raise ValueError(
+                "Returning attention scores is not supported when flash "
+                "attention is enabled. Please disable flash attention to access"
+                " attention scores."
+            )
+        if config.is_flash_attention_enabled():
+            # Directly compute the attention output using flash attention
+            attention_output = ops.dot_product_attention(
+                query=query,
+                key=key,
+                value=value,
+                mask=attention_mask,
+                scale=self._inverse_sqrt_key_dim,
+                is_causal=bool(self._attention_axes),
+            )
+            # Return only the attention output, as scores are not separately
+            # available
+            return attention_output, None
+
+        # Default behavior without flash attention, with explicit attention
+        # scores
         query = ops.multiply(
             query, ops.cast(self._inverse_sqrt_key_dim, query.dtype)
         )
@@ -483,7 +509,7 @@ class MultiHeadAttention(Layer):
         value = self._value_dense(value)
 
         attention_output, attention_scores = self._compute_attention(
-            query, key, value, attention_mask, training
+            query, key, value, return_attention_scores, attention_mask, training
         )
         attention_output = self._output_dense(attention_output)
 

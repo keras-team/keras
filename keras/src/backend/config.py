@@ -15,6 +15,8 @@ _IMAGE_DATA_FORMAT = "channels_last"
 # Default backend: TensorFlow.
 _BACKEND = "tensorflow"
 
+_ENABLE_FLASH_ATTENTION = False
+
 
 @keras_export(["keras.config.floatx", "keras.backend.floatx"])
 def floatx():
@@ -274,3 +276,23 @@ def backend():
 
     """
     return _BACKEND
+
+
+@keras_export("keras.config.enable_flash_attention")
+def enable_flash_attention(value):
+    """Enable flash attention.
+
+    Flash attention offers performance optimization for attention layers,
+    making it especially useful for large language models (LLMs) that
+    benefit from faster and more memory-efficient attention computations.
+
+    Once enabled, supported layers like `MultiHeadAttention` will
+    use flash attention for faster computations.
+    """
+    global _ENABLE_FLASH_ATTENTION
+    _ENABLE_FLASH_ATTENTION = value
+
+
+@keras_export("keras.config.is_flash_attention_enabled")
+def is_flash_attention_enabled():
+    return _ENABLE_FLASH_ATTENTION
