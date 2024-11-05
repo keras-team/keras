@@ -1416,11 +1416,14 @@ class Circle(LossFunctionWrapper):
     followed by UnitNormalization layer to ensure unit-norm embeddings.
 
     Args:
-        gamma: Scaling factor that determines the largest scale of each similarity score. Defaults to `80`.
+        gamma: Scaling factor that determines the largest scale of each
+            similarity score. Defaults to `80`.
         margin: The relaxation factor, below this distance, negatives are
         up weighted and positives are down weighted. Similarly, above this
-        distance negatives are down weighted and positive are up weighted. Defaults to `0.4`.
-        remove_diagonal: Boolean indicating whether to remove self-similarities from the positive mask. Defaults to `True`.
+        distance negatives are down weighted and positive are up weighted.
+            Defaults to `0.4`.
+        remove_diagonal: Boolean, whether to remove self-similarities from the
+            positive mask. Defaults to `True`.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`. Supported options are
             `"sum"`, `"sum_over_batch_size"`, `"mean"`,
@@ -1444,7 +1447,7 @@ class Circle(LossFunctionWrapper):
         keras.layers.Input(shape=(224, 224, 3)),
         keras.layers.Conv2D(16, (3, 3), activation='relu'),
         keras.layers.Flatten(),
-        keras.layers.Dense(64, activation=None),  # Dense layer with no activation
+        keras.layers.Dense(64, activation=None),  # No activation
         keras.layers.UnitNormalization()  # L2 normalization
     ])
 
@@ -2504,20 +2507,20 @@ def circle(
     gamma=80,
     margin=0.4,
 ):
-    """Computes the Circle loss between `y_true` and `y_pred`.
+    """Computes the Circle loss
 
-    It is designed to minimize within-class distances and maximize between-class distances in embedding
-    space.
+    It is designed to minimize within-class distances and maximize between-class
+        distances in embedding space.
 
     Args:
-        y_true: Tensor of shape `[batch_size]` with ground truth labels in integer format. Can also be treated as query labels.
-        y_pred: Tensor of shape `[batch_size, embedding_dim]` with predicted L2 normalized embeddings. Can also be treated as query embeddings
-        ref_labels: Optional integer tensor with labels for reference embeddings.
-            If `None`, defaults to `y_true`.
+        y_true: Tensor with ground truth labels in integer format.
+        y_pred: Tensor with predicted L2 normalized embeddings.
+        ref_labels: Optional integer tensor with labels for reference
+            embeddings. If `None`, defaults to `y_true`.
         ref_embeddings: Optional tensor with L2 normalized reference embeddings.
             If `None`, defaults to `y_pred`.
-        remove_diagonal: Boolean, whether to remove self-similarities from positive mask.
-            Defaults to `True`.
+        remove_diagonal: Boolean, whether to remove self-similarities from
+            positive mask. Defaults to `True`.
         gamma: Float, scaling factor for the loss. Defaults to `80`.
         margin: Float, relaxation factor for the loss. Defaults to `0.4`.
 

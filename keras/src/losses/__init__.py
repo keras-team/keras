@@ -8,6 +8,7 @@ from keras.src.losses.losses import BinaryFocalCrossentropy
 from keras.src.losses.losses import CategoricalCrossentropy
 from keras.src.losses.losses import CategoricalFocalCrossentropy
 from keras.src.losses.losses import CategoricalHinge
+from keras.src.losses.losses import Circle
 from keras.src.losses.losses import CosineSimilarity
 from keras.src.losses.losses import Dice
 from keras.src.losses.losses import Hinge
@@ -23,12 +24,12 @@ from keras.src.losses.losses import Poisson
 from keras.src.losses.losses import SparseCategoricalCrossentropy
 from keras.src.losses.losses import SquaredHinge
 from keras.src.losses.losses import Tversky
-from keras.src.losses.losses import Circle
 from keras.src.losses.losses import binary_crossentropy
 from keras.src.losses.losses import binary_focal_crossentropy
 from keras.src.losses.losses import categorical_crossentropy
 from keras.src.losses.losses import categorical_focal_crossentropy
 from keras.src.losses.losses import categorical_hinge
+from keras.src.losses.losses import circle
 from keras.src.losses.losses import cosine_similarity
 from keras.src.losses.losses import ctc
 from keras.src.losses.losses import dice
@@ -44,7 +45,6 @@ from keras.src.losses.losses import poisson
 from keras.src.losses.losses import sparse_categorical_crossentropy
 from keras.src.losses.losses import squared_hinge
 from keras.src.losses.losses import tversky
-from keras.src.losses.losses import circle
 from keras.src.saving import serialization_lib
 
 ALL_OBJECTS = {
