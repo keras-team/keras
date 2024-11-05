@@ -11,7 +11,8 @@ from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.layers.activations.softmax import Softmax
-from keras.src.layers.attention import attention
+from keras.src.layers.attention.attention import enable_flash_attention
+from keras.src.layers.attention.attention import is_flash_attention_enabled
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.layer import Layer
 from keras.src.layers.regularization.dropout import Dropout
@@ -53,6 +54,8 @@ class MultiHeadAttention(Layer):
             feature dim (the query input's last dimension).
         attention_axes: axes over which the attention is applied. `None` means
             attention over all axes, but batch, heads, and features.
+        flash_attention: Set to True to enable flash attention. Default value
+            is set to True.
         kernel_initializer: Initializer for dense layer kernels.
         bias_initializer: Initializer for dense layer biases.
         kernel_regularizer: Regularizer for dense layer kernels.
@@ -105,7 +108,7 @@ class MultiHeadAttention(Layer):
         use_bias=True,
         output_shape=None,
         attention_axes=None,
-        use_flash_attention=None,
+        flash_attention=None,
         kernel_initializer="glorot_uniform",
         bias_initializer="zeros",
         kernel_regularizer=None,
@@ -125,6 +128,7 @@ class MultiHeadAttention(Layer):
         self._value_dim = value_dim if value_dim else key_dim
         self._dropout = dropout
         self._use_bias = use_bias
+        self._flash_attention = flash_attention
         self._output_shape = output_shape
         self._kernel_initializer = initializers.get(kernel_initializer)
         self._bias_initializer = initializers.get(bias_initializer)
@@ -133,11 +137,11 @@ class MultiHeadAttention(Layer):
         self._activity_regularizer = regularizers.get(activity_regularizer)
         self._kernel_constraint = constraints.get(kernel_constraint)
         self._bias_constraint = constraints.get(bias_constraint)
-        if attention.is_flash_attention_enabled is None:
-            if use_flash_attention is not None:
-                attention.enable_flash_attention(use_flash_attention)
+        if is_flash_attention_enabled is None:
+            if flash_attention is not None:
+                enable_flash_attention(flash_attention)
             else:
-                attention.enable_flash_attention(True)
+                enable_flash_attention(True)
 
         if isinstance(attention_axes, int):
             attention_axes = (attention_axes,)
@@ -430,13 +434,15 @@ class MultiHeadAttention(Layer):
           attention_output: Multi-headed outputs of attention computation.
           attention_scores: Multi-headed attention weights.
         """
-        if attention.is_flash_attention_enabled() and return_attention_scores:
+        if self._flash_attention and return_attention_scores:
             raise ValueError(
                 "Returning attention scores is not supported when flash "
                 "attention is enabled. Please disable flash attention to access"
                 " attention scores."
             )
-        if attention.is_flash_attention_enabled():
+        if self._flash_attention:
+            enable_flash_attention(True)
+        if is_flash_attention_enabled():
             # Directly compute the attention output using flash attention
             attention_output = ops.dot_product_attention(
                 query=query,
@@ -445,7 +451,7 @@ class MultiHeadAttention(Layer):
                 mask=attention_mask,
                 scale=self._inverse_sqrt_key_dim,
                 is_causal=use_causal_mask,
-                flash_attention=False,
+                flash_attention=self._flash_attention,
             )
             # Return only the attention output, as scores are not separately
             # available
