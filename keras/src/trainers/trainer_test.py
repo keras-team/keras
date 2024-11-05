@@ -787,6 +787,75 @@ class TestTrainer(testing.TestCase):
         self.assertAllClose(model.evaluate(x, y), model_2.evaluate(x, y))
 
     @parameterized.named_parameters(
+        named_product(steps_per_execution=[3, 8, 32])
+    )
+    @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="`unrolled_steps_per_execution` is only "
+        "available with the tensorflow backend.",
+    )
+    def test_steps_per_execution_unrolled_steps_steps_count(
+        self, steps_per_execution
+    ):
+        data_size = 100
+        batch_size = 16
+        epochs = 2
+        unrolled_steps_per_execution = 8
+
+        batches_indices = list(
+            range(0, data_size, steps_per_execution * batch_size)
+        )
+
+        x = np.ones((data_size, 4))
+        y = np.ones((data_size, 1))
+
+        model = ExampleModel(units=1)
+        model.compile(
+            loss="mse",
+            optimizer="sgd",
+            steps_per_execution=steps_per_execution,
+            jit_compile=True,
+        )
+        step_count = StepCount(batches_indices, batch_size)
+        model.unrolled_steps_per_execution = unrolled_steps_per_execution
+        history = model.fit(
+            x=x,
+            y=y,
+            batch_size=batch_size,
+            epochs=epochs,
+            callbacks=[step_count],
+            verbose=0,
+        )
+
+        self.assertEqual(step_count.begin_count, len(batches_indices))
+        self.assertEqual(step_count.end_count, step_count.begin_count)
+        self.assertEqual(step_count.epoch_begin_count, epochs)
+        self.assertEqual(
+            step_count.epoch_end_count, step_count.epoch_begin_count
+        )
+
+        model_2 = ExampleModel(units=1)
+        model_2.compile(
+            loss="mse",
+            optimizer="sgd",
+            steps_per_execution=steps_per_execution,
+            jit_compile=True,
+        )
+        model_2.unrolled_steps_per_execution = unrolled_steps_per_execution
+        history_2 = model_2.fit(
+            x=x, y=y, batch_size=batch_size, epochs=epochs, verbose=0
+        )
+
+        self.assertAllClose(history.history["loss"], history_2.history["loss"])
+        self.assertAllClose(model.get_weights(), model_2.get_weights())
+        self.assertAllClose(
+            model.predict(x, batch_size=batch_size),
+            model_2.predict(x, batch_size=batch_size),
+        )
+        self.assertAllClose(model.evaluate(x, y), model_2.evaluate(x, y))
+
+    @parameterized.named_parameters(
         named_product(
             steps_per_execution=[1, 50], mode=["eager", "non_jit", "jit"]
         )
