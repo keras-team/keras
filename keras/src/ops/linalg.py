@@ -47,7 +47,6 @@ def _cholesky(x):
 
 
 class Det(Operation):
-
     def __init__(self):
         super().__init__()
 
@@ -84,7 +83,6 @@ def _det(x):
 
 
 class Eig(Operation):
-
     def __init__(self):
         super().__init__()
 
@@ -124,7 +122,6 @@ def _eig(x):
 
 
 class Eigh(Operation):
-
     def __init__(self):
         super().__init__()
 
@@ -165,7 +162,6 @@ def _eigh(x):
 
 
 class Inv(Operation):
-
     def __init__(self):
         super().__init__()
 
@@ -202,7 +198,6 @@ def _inv(x):
 
 
 class LuFactor(Operation):
-
     def __init__(self):
         super().__init__()
 
@@ -445,7 +440,6 @@ def qr(x, mode="reduced"):
 
 
 class Solve(Operation):
-
     def __init__(self):
         super().__init__()
 
@@ -490,7 +484,6 @@ def _solve(a, b):
 
 
 class SolveTriangular(Operation):
-
     def __init__(self, lower=False):
         super().__init__()
         self.lower = lower
@@ -538,7 +531,6 @@ def _solve_triangular(a, b, lower=False):
 
 
 class SVD(Operation):
-
     def __init__(self, full_matrices=True, compute_uv=True):
         super().__init__()
         self.full_matrices = full_matrices

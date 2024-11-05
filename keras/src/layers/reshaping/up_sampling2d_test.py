@@ -106,8 +106,8 @@ class UpSampling2dTest(testing.TestCase):
     def test_upsampling_2d_correctness(self):
         input_shape = (2, 2, 1, 3)
         x = np.arange(np.prod(input_shape)).reshape(input_shape)
+        # fmt: off
         expected_output = np.array(
-            # fmt: off
             [[[[ 0.,  1.,  2.],
                [ 0.,  1.,  2.]],
               [[ 3.,  4.,  5.],
@@ -116,8 +116,8 @@ class UpSampling2dTest(testing.TestCase):
                [ 6.,  7.,  8.]],
               [[ 9., 10., 11.],
                [ 9., 10., 11.]]]]
-            # fmt: on
         )
+        # fmt: on
         if backend.config.image_data_format() == "channels_first":
             expected_output = expected_output.transpose((0, 3, 1, 2))
             x = x.transpose((0, 3, 1, 2))

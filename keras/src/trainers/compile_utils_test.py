@@ -20,9 +20,8 @@ class TestCompileMetrics(testing.TestCase):
             weighted_metrics=[metrics_module.MeanSquaredError()],
         )
         # Test symbolic build
-        y_true, y_pred = backend.KerasTensor((3, 4)), backend.KerasTensor(
-            (3, 4)
-        )
+        y_true = backend.KerasTensor((3, 4))
+        y_pred = backend.KerasTensor((3, 4))
         compile_metrics.build(y_true, y_pred)
         # Test eager build
         y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
@@ -243,9 +242,8 @@ class TestCompileLoss(testing.TestCase):
             loss=losses_module.MeanSquaredError(),
         )
         # Test symbolic build
-        y_true, y_pred = backend.KerasTensor((3, 4)), backend.KerasTensor(
-            (3, 4)
-        )
+        y_true = backend.KerasTensor((3, 4))
+        y_pred = backend.KerasTensor((3, 4))
         compile_loss.build(y_true, y_pred)
         # Test eager build
         y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
@@ -258,9 +256,8 @@ class TestCompileLoss(testing.TestCase):
         compile_loss = CompileLoss(loss="crossentropy")
 
         # Test symbolic build
-        y_true, y_pred = backend.KerasTensor((3, 4)), backend.KerasTensor(
-            (3, 4)
-        )
+        y_true = backend.KerasTensor((3, 4))
+        y_pred = backend.KerasTensor((3, 4))
         compile_loss.build(y_true, y_pred)
         # Test eager build
         y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])

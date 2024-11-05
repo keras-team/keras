@@ -145,7 +145,6 @@ def _max_reduce(left, right):
 
 
 class MathOpsDynamicShapeTest(testing.TestCase):
-
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
         # 1D case
@@ -418,7 +417,6 @@ class MathOpsStaticShapeTest(testing.TestCase):
 
 
 class MathOpsCorrectnessTest(testing.TestCase):
-
     def run_segment_reduce_test(
         self,
         segment_reduce_op,
@@ -1345,7 +1343,6 @@ class ISTFTTest(testing.TestCase):
 
 
 class TestMathErrors(testing.TestCase):
-
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
         backend.backend() != "jax", reason="Testing Jax errors only"

@@ -99,7 +99,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return y_pred
 
     def _make_function(self, step_function):
-
         @tf.autograph.experimental.do_not_convert
         def one_step_on_data(data):
             """Runs a single training step on a batch of data."""
@@ -271,10 +270,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             # Create the validation data using the training data. Only supported
             # for TF/numpy/jax arrays.
             (
-                x,
-                y,
-                sample_weight,
-            ), validation_data = array_slicing.train_validation_split(
+                (x, y, sample_weight),
+                validation_data,
+            ) = array_slicing.train_validation_split(
                 (x, y, sample_weight), validation_split=validation_split
             )
 

@@ -352,7 +352,7 @@ class MyDense(keras.layers.Layer):
         *,
         kernel_regularizer=None,
         kernel_initializer=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self._units = units
@@ -364,7 +364,7 @@ class MyDense(keras.layers.Layer):
             units=self._units,
             kernel_initializer=self._kernel_initializer,
             kernel_regularizer=self._kernel_regularizer,
-            **super().get_config()
+            **super().get_config(),
         )
 
     def build(self, input_shape):

@@ -552,7 +552,6 @@ class KerasFileEditor:
         self._print_weights_structure(self.weights_dict, prefix=" " * 2)
 
     def _weights_summary_interactive(self):
-
         def _generate_html_weights(dictionary, margin_left=0, font_size=1):
             html = ""
             for key, value in dictionary.items():

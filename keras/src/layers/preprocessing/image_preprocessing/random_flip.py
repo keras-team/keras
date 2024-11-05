@@ -48,7 +48,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
         mode=HORIZONTAL_AND_VERTICAL,
         seed=None,
         data_format=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(data_format=data_format, **kwargs)
         self.seed = seed

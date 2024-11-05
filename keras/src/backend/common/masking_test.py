@@ -6,7 +6,6 @@ from keras.src.backend.common.masking import set_keras_mask
 
 
 class MaskingTest(testing.TestCase):
-
     def test_mask_on_eager_tensor(self):
         x = ops.zeros((2, 3))
         self.assertIsNone(get_keras_mask(x))
@@ -25,7 +24,6 @@ class MaskingTest(testing.TestCase):
         self.assertIsNone(get_keras_mask(x))
 
     def test_mask_on_tracer_tensor(self):
-
         def fn(x):
             self.assertIsNone(get_keras_mask(x))
 

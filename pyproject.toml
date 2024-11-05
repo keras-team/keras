@@ -47,19 +47,6 @@ version = {attr = "keras.src.version.__version__"}
 [tool.setuptools.packages.find]
 include = ["keras", "keras.*"]
 
-[tool.black]
-line-length = 80
-target-version = []
-
-# black needs this to be a regex
-# to add more exclude expressions
-# append `| <regex-expr>` (e.g. `| .*_test\\.py`) to this list
-extend-exclude = """
-(
-  examples/
-)
-"""
-
 [tool.ruff]
 line-length = 80
 
