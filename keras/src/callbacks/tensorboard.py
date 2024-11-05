@@ -176,8 +176,8 @@ class TensorBoard(Callback):
         self.embeddings_freq = embeddings_freq
         self.embeddings_metadata = embeddings_metadata
         if profile_batch:
-            if backend.backend() == "torch":
-                # TODO: profiling not available in torch
+            if backend.backend() not in ("jax", "tensorflow"):
+                # TODO: profiling not available in torch, numpy
                 raise ValueError(
                     "Profiling is not yet available with the "
                     f"{backend.backend()} backend. Please open a PR "

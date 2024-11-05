@@ -737,7 +737,7 @@ class TestTensorBoardV2(testing.TestCase):
         pass
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        backend.backend() not in ("jax", "tensorflow"),
         reason="The profiling test can only run with TF and JAX backends.",
     )
     def test_TensorBoard_auto_trace(self):
