@@ -37,7 +37,7 @@ class PReLU(Layer):
         alpha_regularizer=None,
         alpha_constraint=None,
         shared_axes=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.supports_masking = True

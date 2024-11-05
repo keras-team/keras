@@ -273,7 +273,7 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
 def beta(shape, alpha, beta, dtype=None, seed=None):
     """Draw samples from a Beta distribution.
 
-    The values are drawm from a Beta distribution parametrized
+    The values are drawn from a Beta distribution parametrized
     by alpha and beta.
 
     Args:

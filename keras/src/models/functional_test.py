@@ -192,7 +192,7 @@ class FunctionalTest(testing.TestCase):
         x = layers.Dense(5)(inputs)
         output_a = layers.Dense(4)(x)
         output_b = layers.Dense(5)(x)
-        if dict == out_type:
+        if out_type is dict:
             outputs = {"a": output_a, "b": output_b}
         else:
             outputs = out_type([output_a, output_b])

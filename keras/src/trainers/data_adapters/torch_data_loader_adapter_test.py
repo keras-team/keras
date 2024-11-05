@@ -57,7 +57,6 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
         named_product(batch_size=[None, 3], implements_len=[True, False])
     )
     def test_dataloader_iterable_dataset(self, batch_size, implements_len):
-
         class TestIterableDataset(torch.utils.data.IterableDataset):
             def __init__(self):
                 self.x = torch.normal(2, 3, size=(16, 4))

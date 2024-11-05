@@ -408,7 +408,7 @@ def convert_to_sliceable(arrays, target_backend=None):
         # Step 2. Normalize floats to floatx.
         def is_non_floatx_float(dtype):
             return (
-                not dtype == object
+                dtype is not object
                 and backend.is_float_dtype(dtype)
                 and not backend.standardize_dtype(dtype) == backend.floatx()
             )

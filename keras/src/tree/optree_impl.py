@@ -198,7 +198,6 @@ def pack_sequence_as(structure, flat_sequence, sequence_fn=None):
 
 
 def lists_to_tuples(structure):
-
     def sequence_fn(instance, args):
         if isinstance(instance, list):
             return tuple(args)
@@ -210,7 +209,6 @@ def lists_to_tuples(structure):
 
 
 def map_shape_structure(func, structure):
-
     def is_shape_tuple(x):
         return isinstance(x, (list, tuple)) and all(
             isinstance(e, (int, type(None))) for e in x

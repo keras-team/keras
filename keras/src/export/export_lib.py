@@ -166,7 +166,6 @@ class ExportArchive:
             # Variables in the lists below are actually part of the trackables
             # that get saved, because the lists are created in __init__.
             if backend.backend() == "jax":
-
                 trainable_variables = tree.flatten(resource.trainable_variables)
                 non_trainable_variables = tree.flatten(
                     resource.non_trainable_variables
@@ -328,7 +327,6 @@ class ExportArchive:
                     fn, input_signature=input_signature, autograph=False
                 )
             else:  # JAX backend
-
                 # 1. Create a stateless wrapper for `fn`
                 # 2. jax2tf the stateless wrapper
                 # 3. Create a stateful function that binds the variables with

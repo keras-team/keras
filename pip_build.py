@@ -29,22 +29,20 @@ import torch  # noqa: F401
 package = "keras"
 build_directory = "tmp_build_dir"
 dist_directory = "dist"
-to_copy = ["setup.py", "README.md"]
+to_copy = ["pyproject.toml", "README.md"]
 
 
 def export_version_string(version, is_nightly=False, rc_index=None):
     """Export Version and Package Name."""
     if is_nightly:
         date = datetime.datetime.now()
-        version += f".dev{date.strftime('%Y%m%d%H')}"
-        # Replaces `name="keras"` string in `setup.py` with `keras-nightly`
-        with open("setup.py") as f:
-            setup_contents = f.read()
-        with open("setup.py", "w") as f:
-            setup_contents = setup_contents.replace(
-                'name="keras"', 'name="keras-nightly"'
-            )
-            f.write(setup_contents)
+        version += f".dev{date:%Y%m%d%H}"
+        # Update `name = "keras"` with "keras-nightly"
+        pyproj_pth = pathlib.Path("pyproject.toml")
+        pyproj_str = pyproj_pth.read_text().replace(
+            'name = "keras"', 'name = "keras-nightly"'
+        )
+        pyproj_pth.write_text(pyproj_str)
     elif rc_index is not None:
         version += "rc" + str(rc_index)
 

@@ -167,7 +167,7 @@ class STFTInitializer(Initializer):
     `hamming` windowing functions. This layer supports periodic windows and
     scaling-based normalization.
 
-    This is primarly intended for use in the `STFTSpectrogram` layer.
+    This is primarily intended for use in the `STFTSpectrogram` layer.
 
     Examples:
 

@@ -890,7 +890,7 @@ class Argmin(Operation):
 
 @keras_export(["keras.ops.argmin", "keras.ops.numpy.argmin"])
 def argmin(x, axis=None, keepdims=False):
-    """Returns the indices of the minium values along an axis.
+    """Returns the indices of the minimum values along an axis.
 
     Args:
         x: Input tensor.
@@ -1057,7 +1057,7 @@ def average(x, axis=None, weights=None):
         axis: Integer along which to average `x`. The default, `axis=None`,
             will average over all of the elements of the input tensor. If axis
             is negative it counts from the last to the first axis.
-        weights: Tensor of wieghts associated with the values in `x`. Each
+        weights: Tensor of weights associated with the values in `x`. Each
             value in `x` contributes to the average according to its
             associated weight. The weights array can either be 1-D (in which
             case its length must be the size of a along the given axis) or of
@@ -2870,12 +2870,12 @@ class GetItem(Operation):
             remaining_key = key.copy()
         else:
             raise ValueError(
-                f"Unsupported key type for array slice. Recieved: `{key}`"
+                f"Unsupported key type for array slice. Received: `{key}`"
             )
         num_ellipses = remaining_key.count(Ellipsis)
         if num_ellipses > 1:
             raise ValueError(
-                f"Slice should only have one ellipsis. Recieved: `{key}`"
+                f"Slice should only have one ellipsis. Received: `{key}`"
             )
         elif num_ellipses == 0:
             # Add an implicit final ellipsis.
@@ -4214,7 +4214,7 @@ def not_equal(x1, x2):
         x2: Second input tensor.
 
     Returns:
-        Output tensor, element-wise comparsion of `x1` and `x2`.
+        Output tensor, element-wise comparison of `x1` and `x2`.
     """
     if any_symbolic_tensors((x1, x2)):
         return NotEqual().symbolic_call(x1, x2)
@@ -4533,9 +4533,9 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
     Returns:
         The quantile(s). If `q` is a single probability and `axis=None`, then
-        the result is a scalar. If multiple probabilies levels are given, first
-        axis of the result corresponds to the quantiles. The other axes are the
-        axes that remain after the reduction of `x`.
+        the result is a scalar. If multiple probabilities levels are given,
+        first axis of the result corresponds to the quantiles. The other axes
+        are the axes that remain after the reduction of `x`.
     """
     if any_symbolic_tensors((x, q)):
         return Quantile(

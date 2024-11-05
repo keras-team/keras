@@ -125,7 +125,7 @@ def list_summaries(logdir):
 class TestTensorBoardV2(testing.TestCase):
     def _get_log_dirs(self):
         logdir = os.path.join(
-            self.get_temp_dir(), str(random.randint(1, 1e7)), "tb"
+            self.get_temp_dir(), str(random.randint(1, int(1e7))), "tb"
         )
         train_dir = os.path.join(logdir, "train")
         validation_dir = os.path.join(logdir, "validation")

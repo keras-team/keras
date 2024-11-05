@@ -401,7 +401,8 @@ class ModelCheckpointTest(testing.TestCase):
         self.assertTrue(os.path.exists(filepath))
         os.remove(filepath)
 
-        # Case 13: ModelCheckpoint doesnt save model if loss was minimum earlier
+        # Case 13: ModelCheckpoint doesn't save model if loss was minimum
+        # earlier
         mode = "min"
         monitor = "val_loss"
         initial_value_threshold = 0
@@ -426,7 +427,7 @@ class ModelCheckpointTest(testing.TestCase):
         )
         self.assertFalse(os.path.exists(filepath))
 
-        # Case 14: ModelCheckpoint doesnt save model if loss was min earlier in
+        # Case 14: ModelCheckpoint doesn't save model if loss was min earlier in
         # auto mode
         mode = "auto"
         monitor = "val_loss"

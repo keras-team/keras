@@ -1799,7 +1799,8 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
         nan_batch_members = tf.reshape(
             nan_batch_members, shape=right_rank_matched_shape
         )
-        gathered_y = tf.where(nan_batch_members, float("NaN"), gathered_y)
+        nan_value = tf.constant(float("NaN"), dtype=x.dtype)
+        gathered_y = tf.where(nan_batch_members, nan_value, gathered_y)
 
     # Expand dimensions if requested
     if keepdims:

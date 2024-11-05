@@ -644,7 +644,11 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
                 if inputs is not None:
                     yield inputs
             except queue.Empty:
-                pass
+                warnings.warn(
+                    "Generator ran out of batches before reaching `num_batches`"
+                )
+                self.stop()
+                return
             except Exception as e:
                 self.stop(drain_queue_and_join=True)
                 raise e
@@ -653,7 +657,7 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
         # which may happen before the first `on_epoch_begin`. But it's not ok to
         # poll after `on_epoch_end`.
         raise ValueError(
-            "Iterator called after `on_epoch_end` and before `on_epoch_begin`."
+            "Iterator called after `on_epoch_end` or before `on_epoch_begin`."
         )
 
 
