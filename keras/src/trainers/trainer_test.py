@@ -842,7 +842,7 @@ class TestTrainer(testing.TestCase):
             steps_per_execution=steps_per_execution,
             jit_compile=True,
         )
-        model_2.unrolled_steps_per_execution = unrolled_steps_per_execution
+        model_2.unrolled_steps_per_execution = 1
         history_2 = model_2.fit(
             x=x, y=y, batch_size=batch_size, epochs=epochs, verbose=0
         )
