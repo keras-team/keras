@@ -293,9 +293,6 @@ def enable_flash_attention(value):
     making it especially useful for large language models (LLMs) that
     benefit from faster and more memory-efficient attention computations.
 
-    See also `keras.config.disable_flash_attention()` and
-    `keras.config.is_flash_attention_enabled()`.
-
     Once enabled, supported layers like `MultiHeadAttention` will
     use flash attention for faster computations.
     """
