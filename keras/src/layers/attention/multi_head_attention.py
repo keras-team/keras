@@ -53,8 +53,9 @@ class MultiHeadAttention(Layer):
             feature dim (the query input's last dimension).
         attention_axes: axes over which the attention is applied. `None` means
             attention over all axes, but batch, heads, and features.
-        flash_attention: Set to True to enable flash attention. Default value
-            is set to True.
+        flash_attention: If unspecified, defaults to the global flash attention
+            configuration setting (which can be set via
+            `keras.config.enable_flash_attention().
         kernel_initializer: Initializer for dense layer kernels.
         bias_initializer: Initializer for dense layer biases.
         kernel_regularizer: Regularizer for dense layer kernels.
@@ -127,7 +128,6 @@ class MultiHeadAttention(Layer):
         self._value_dim = value_dim if value_dim else key_dim
         self._dropout = dropout
         self._use_bias = use_bias
-        self._flash_attention = flash_attention
         self._output_shape = output_shape
         self._kernel_initializer = initializers.get(kernel_initializer)
         self._bias_initializer = initializers.get(bias_initializer)
@@ -435,7 +435,18 @@ class MultiHeadAttention(Layer):
                 "attention is enabled. Please disable flash attention to access"
                 " attention scores."
             )
-        if self._flash_attention:
+        if self._flash_attention and self._dropout > 0.0:
+            raise ValueError(
+                "Dropout is not supported when flash "
+                "attention is enabled. Please set dropout to 0.0 to use "
+                "flash attention."
+            )
+        use_dot_product_attention = not (
+            self._dropout > 0.0
+            or return_attention_scores
+            or (len(query.shape) != 4)
+        )
+        if use_dot_product_attention:
             # Directly compute the attention output using flash attention
             attention_output = ops.dot_product_attention(
                 query=query,

@@ -286,7 +286,7 @@ class Attention(Layer):
 
 
 @keras_export("keras.config.enable_flash_attention")
-def enable_flash_attention(value):
+def enable_flash_attention():
     """Enable flash attention.
 
     Flash attention offers performance optimization for attention layers,
@@ -296,7 +296,7 @@ def enable_flash_attention(value):
     Once enabled, supported layers like `MultiHeadAttention` will
     use flash attention for faster computations.
     """
-    global_state.set_global_attribute("flash_attention", value)
+    global_state.set_global_attribute("flash_attention", True)
 
 
 @keras_export("keras.config.is_flash_attention_enabled")

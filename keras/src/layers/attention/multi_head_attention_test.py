@@ -251,7 +251,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
         query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
         masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
-        value = np.array([[5, 4, 0], [3, 0, 0], [2, 1, 1]])
+        value = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
         masked_value = layers.Embedding(6, 8, mask_zero=True)(value)
         output = layer(
             query=masked_query,
