@@ -3,6 +3,9 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
     BaseImagePreprocessingLayer,
 )
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    clip_to_image_size,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     convert_format,
 )
 from keras.src.random.seed_generator import SeedGenerator
@@ -80,7 +83,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
         flips = self.backend.numpy.less_equal(
             self.backend.random.uniform(shape=flips_shape, seed=seed), 0.5
         )
-        return {"flips": flips}
+        return {"flips": flips, "input_shape": shape}
 
     def transform_images(self, images, transformation, training=True):
         images = self.backend.cast(images, self.compute_dtype)
@@ -96,39 +99,61 @@ class RandomFlip(BaseImagePreprocessingLayer):
         bounding_boxes,
         transformation,
         training=True,
-        input_shape=None,
     ):
-        flips = transformation["flips"][0]
-        input_height, input_width = input_shape
+        def _flip_boxes_horizontal(boxes):
+            x1, x2, x3, x4 = self.backend.numpy.split(boxes, 4, axis=-1)
+            outputs = self.backend.numpy.concatenate(
+                [1 - x3, x2, 1 - x1, x4], axis=-1
+            )
+            return outputs
+
+        def _flip_boxes_vertical(boxes):
+            x1, x2, x3, x4 = self.backend.numpy.split(boxes, 4, axis=-1)
+            outputs = self.backend.numpy.concatenate(
+                [x1, 1 - x4, x3, 1 - x2], axis=-1
+            )
+            return outputs
+
+        flips = self.backend.numpy.squeeze(transformation["flips"], axis=-1)
+        input_height, input_width = (
+            transformation["input_shape"][-3],
+            transformation["input_shape"][-2],
+        )
 
         bounding_boxes = convert_format(
             bounding_boxes,
             source=self.bounding_box_format,
-            target="xyxy",
+            target="rel_xyxy",
             height=input_height,
             width=input_width,
         )
 
-        x1, y1, x2, y2 = self.backend.numpy.split(
-            bounding_boxes["boxes"], 4, axis=-1
-        )
+        bboxes = bounding_boxes["boxes"]
         if self.mode in {HORIZONTAL, HORIZONTAL_AND_VERTICAL}:
-            x1 = self.backend.numpy.where(flips, input_width - x1, x1)
-            x2 = self.backend.numpy.where(flips, input_width - x2, x2)
-
+            bboxes = self.backend.numpy.where(
+                flips,
+                _flip_boxes_horizontal(bboxes),
+                bboxes,
+            )
         if self.mode in {VERTICAL, HORIZONTAL_AND_VERTICAL}:
-            y1 = self.backend.numpy.where(flips, input_height - y1, y1)
-            y2 = self.backend.numpy.where(flips, input_height - y2, y2)
+            bboxes = self.backend.numpy.where(
+                flips,
+                _flip_boxes_vertical(bboxes),
+                bboxes,
+            )
 
-        transformed_bounding_boxes = self.backend.numpy.concatenate(
-            [x1, y1, x2, y2], axis=-1
+        bounding_boxes["boxes"] = bboxes
+
+        bounding_boxes = clip_to_image_size(
+            bounding_boxes=bounding_boxes,
+            height=input_height,
+            width=input_width,
+            format="xyxy",
         )
-
-        bounding_boxes["boxes"] = transformed_bounding_boxes
 
         bounding_boxes = convert_format(
             bounding_boxes,
-            source="xyxy",
+            source="rel_xyxy",
             target=self.bounding_box_format,
             height=input_height,
             width=input_width,
