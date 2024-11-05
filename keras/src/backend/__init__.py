@@ -24,11 +24,9 @@ from keras.src.backend.common.variables import is_float_dtype
 from keras.src.backend.common.variables import is_int_dtype
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.common.variables import standardize_shape
-from keras.src.backend.config import enable_flash_attention
 from keras.src.backend.config import epsilon
 from keras.src.backend.config import floatx
 from keras.src.backend.config import image_data_format
-from keras.src.backend.config import is_flash_attention_enabled
 from keras.src.backend.config import set_epsilon
 from keras.src.backend.config import set_floatx
 from keras.src.backend.config import set_image_data_format

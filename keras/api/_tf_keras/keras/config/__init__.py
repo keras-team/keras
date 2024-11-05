@@ -5,16 +5,16 @@ since your modifications would be overwritten.
 """
 
 from keras.src.backend.config import backend
-from keras.src.backend.config import enable_flash_attention
 from keras.src.backend.config import epsilon
 from keras.src.backend.config import floatx
 from keras.src.backend.config import image_data_format
-from keras.src.backend.config import is_flash_attention_enabled
 from keras.src.backend.config import set_epsilon
 from keras.src.backend.config import set_floatx
 from keras.src.backend.config import set_image_data_format
 from keras.src.dtype_policies.dtype_policy import dtype_policy
 from keras.src.dtype_policies.dtype_policy import set_dtype_policy
+from keras.src.layers.attention.attention import enable_flash_attention
+from keras.src.layers.attention.attention import is_flash_attention_enabled
 from keras.src.saving.serialization_lib import enable_unsafe_deserialization
 from keras.src.utils.backend_utils import set_backend
 from keras.src.utils.io_utils import disable_interactive_logging

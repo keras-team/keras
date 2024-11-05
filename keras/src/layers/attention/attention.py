@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common import global_state
 from keras.src.layers.layer import Layer
 
 
@@ -282,3 +283,25 @@ class Attention(Layer):
             "dropout": self.dropout,
         }
         return {**base_config, **config}
+
+
+@keras_export("keras.config.enable_flash_attention")
+def enable_flash_attention(value):
+    """Enable flash attention.
+
+    Flash attention offers performance optimization for attention layers,
+    making it especially useful for large language models (LLMs) that
+    benefit from faster and more memory-efficient attention computations.
+
+    See also `keras.config.disable_flash_attention()` and
+    `keras.config.is_flash_attention_enabled()`.
+
+    Once enabled, supported layers like `MultiHeadAttention` will
+    use flash attention for faster computations.
+    """
+    global_state.set_global_attribute("flash_attention", value)
+
+
+@keras_export("keras.config.is_flash_attention_enabled")
+def is_flash_attention_enabled():
+    return global_state.get_global_attribute("flash_attention", default=False)

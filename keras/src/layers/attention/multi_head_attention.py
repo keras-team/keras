@@ -10,8 +10,8 @@ from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
-from keras.src.backend import config
 from keras.src.layers.activations.softmax import Softmax
+from keras.src.layers.attention import attention
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.layer import Layer
 from keras.src.layers.regularization.dropout import Dropout
@@ -105,6 +105,7 @@ class MultiHeadAttention(Layer):
         use_bias=True,
         output_shape=None,
         attention_axes=None,
+        use_flash_attention=None,
         kernel_initializer="glorot_uniform",
         bias_initializer="zeros",
         kernel_regularizer=None,
@@ -132,6 +133,12 @@ class MultiHeadAttention(Layer):
         self._activity_regularizer = regularizers.get(activity_regularizer)
         self._kernel_constraint = constraints.get(kernel_constraint)
         self._bias_constraint = constraints.get(bias_constraint)
+        if attention.is_flash_attention_enabled is None:
+            if use_flash_attention is not None:
+                attention.enable_flash_attention(use_flash_attention)
+            else:
+                attention.enable_flash_attention(True)
+
         if isinstance(attention_axes, int):
             attention_axes = (attention_axes,)
         elif attention_axes and not isinstance(attention_axes, (list, tuple)):
@@ -422,13 +429,14 @@ class MultiHeadAttention(Layer):
           attention_output: Multi-headed outputs of attention computation.
           attention_scores: Multi-headed attention weights.
         """
-        if config.is_flash_attention_enabled() and return_attention_scores:
+        print("### in compute ", attention.is_flash_attention_enabled())
+        if attention.is_flash_attention_enabled() and return_attention_scores:
             raise ValueError(
                 "Returning attention scores is not supported when flash "
                 "attention is enabled. Please disable flash attention to access"
                 " attention scores."
             )
-        if config.is_flash_attention_enabled():
+        if attention.is_flash_attention_enabled():
             # Directly compute the attention output using flash attention
             attention_output = ops.dot_product_attention(
                 query=query,

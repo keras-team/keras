@@ -12,12 +12,12 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
-from keras.src.backend import config
+from keras.src.layers.attention import attention
 
 
 class MultiHeadAttentionTest(testing.TestCase):
     def test_basics(self):
-        config.enable_flash_attention(True)
+        attention.enable_flash_attention(True)
         self.run_layer_test(
             layers.MultiHeadAttention,
             init_kwargs={
@@ -52,7 +52,7 @@ class MultiHeadAttentionTest(testing.TestCase):
             supports_masking=True,
             run_training_check=False,
         )
-        config.enable_flash_attention(False)
+        attention.enable_flash_attention(False)
 
     @parameterized.named_parameters(
         ("4d_inputs_1freebatch_mask2", (3, 4), (3, 2), (4, 2), (2,)),
@@ -255,7 +255,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         bias = np.zeros((2, 2))
         output_bias = np.zeros((2,))
         layer.set_weights([kernel, bias] * 3 + [kernel, output_bias])
-        config.enable_flash_attention(False)
+        attention.enable_flash_attention(False)
         # Call layer and assert output.
         output, scores = layer(
             query=query,
@@ -381,7 +381,7 @@ class MultiHeadAttentionTest(testing.TestCase):
 
     @parameterized.parameters([((1, 2, 3),), ((2, 3, 5),)])
     def test_symbolic_return_attention_scores(self, shape):
-        config.enable_flash_attention(False)
+        attention.enable_flash_attention(False)
         mha = layers.MultiHeadAttention(num_heads=4, key_dim=2)
         x = layers.Input(batch_shape=shape)
         y = layers.Input(batch_shape=shape)
@@ -420,8 +420,8 @@ class MultiHeadAttentionTest(testing.TestCase):
 
     def test_flash_attention_with_attention_scores_error(self):
         # Enable flash attention globally
-        config.enable_flash_attention(True)
-
+        attention.enable_flash_attention(True)
+        print("###", attention.is_flash_attention_enabled())
         # Setup layer with required parameters
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
 
@@ -438,4 +438,4 @@ class MultiHeadAttentionTest(testing.TestCase):
         ):
             layer(query=query, value=value, return_attention_scores=True)
 
-        config.enable_flash_attention(False)
+        attention.enable_flash_attention(False)
