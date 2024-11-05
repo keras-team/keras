@@ -143,18 +143,23 @@ class PyDatasetAdapterTest(testing.TestCase):
     ):
         if use_multiprocessing and shuffle:
             pytest.skip("Starting processes is slow, test fewer variants")
-        if testing.tensorflow_uses_gpu():
-            pytest.skip("This test is flaky with TF on GPU")
 
         set_random_seed(1337)
         x = np.random.random((64, 4)).astype("float32")
         y = np.array([[i, i] for i in range(64)], dtype="float32")
-        if dataset_type == "tf":
-            x, y = tf.constant(x), tf.constant(y)
-        elif dataset_type == "jax":
-            x, y = jax.numpy.array(x), jax.numpy.array(y)
-        elif dataset_type == "torch":
-            x, y = torch.as_tensor(x), torch.as_tensor(y)
+        CPU_DEVICES = {
+            "tensorflow": "CPU:0",
+            "jax": "cpu:0",
+            "torch": "cpu",
+            "numpy": "cpu",
+        }
+        with backend.device(CPU_DEVICES[backend.backend()]):
+            if dataset_type == "tf":
+                x, y = tf.constant(x), tf.constant(y)
+            elif dataset_type == "jax":
+                x, y = jax.numpy.array(x), jax.numpy.array(y)
+            elif dataset_type == "torch":
+                x, y = torch.as_tensor(x), torch.as_tensor(y)
         py_dataset = ExamplePyDataset(
             x,
             y,
