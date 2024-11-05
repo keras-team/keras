@@ -23,6 +23,7 @@ from keras.src.losses.losses import Poisson
 from keras.src.losses.losses import SparseCategoricalCrossentropy
 from keras.src.losses.losses import SquaredHinge
 from keras.src.losses.losses import Tversky
+from keras.src.losses.losses import Circle
 from keras.src.losses.losses import binary_crossentropy
 from keras.src.losses.losses import binary_focal_crossentropy
 from keras.src.losses.losses import categorical_crossentropy
@@ -43,6 +44,7 @@ from keras.src.losses.losses import poisson
 from keras.src.losses.losses import sparse_categorical_crossentropy
 from keras.src.losses.losses import squared_hinge
 from keras.src.losses.losses import tversky
+from keras.src.losses.losses import circle
 from keras.src.saving import serialization_lib
 
 ALL_OBJECTS = {
@@ -72,6 +74,8 @@ ALL_OBJECTS = {
     # Image segmentation
     Dice,
     Tversky,
+    # Similarity
+    Circle,
     # Sequence
     CTC,
     # Probabilistic
@@ -97,6 +101,8 @@ ALL_OBJECTS = {
     # Image segmentation
     dice,
     tversky,
+    # Similarity
+    circle,
     # Sequence
     ctc,
 }
