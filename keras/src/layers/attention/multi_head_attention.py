@@ -137,7 +137,7 @@ class MultiHeadAttention(Layer):
         self._activity_regularizer = regularizers.get(activity_regularizer)
         self._kernel_constraint = constraints.get(kernel_constraint)
         self._bias_constraint = constraints.get(bias_constraint)
-        self.use_flash_attention = flash_attention or is_flash_attention_enabled()
+        self._flash_attention = flash_attention or is_flash_attention_enabled()
 
         if isinstance(attention_axes, int):
             attention_axes = (attention_axes,)
@@ -430,6 +430,8 @@ class MultiHeadAttention(Layer):
           attention_output: Multi-headed outputs of attention computation.
           attention_scores: Multi-headed attention weights.
         """
+        print("### compute attention", self._flash_attention)
+        print("### compute attention", is_flash_attention_enabled())
         if self._flash_attention and return_attention_scores:
             raise ValueError(
                 "Returning attention scores is not supported when flash "
