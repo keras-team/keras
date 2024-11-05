@@ -1406,10 +1406,12 @@ class Tversky(LossFunctionWrapper):
 
 @keras_export("keras.losses.Circle")
 class Circle(LossFunctionWrapper):
-    """Computes Circle Loss, a metric learning loss designed to minimize
-    within-class distance and maximize between-class distance in a flexible
-    manner by dynamically adjusting the penalty strength based on optimization
-    status of each similarity score.
+    """Computes Circle Loss between integer labels and L2-normalized embeddings.
+
+    This is a metric learning loss designed to minimize within-class distance
+    and maximize between-class distance in a flexible manner by dynamically
+    adjusting the penalty strength based on optimization status of each
+    similarity score.
 
     To use Circle Loss effectively, the model should output embeddings without
     an activation function (such as a `Dense` layer with `activation=None`)
@@ -1455,7 +1457,8 @@ class Circle(LossFunctionWrapper):
     ```
 
     Reference:
-        [Yifan Sun et al., 2020](https://arxiv.org/abs/2002.10857)
+    - [Yifan Sun et al., 2020](https://arxiv.org/abs/2002.10857)
+
     """
 
     def __init__(
@@ -2507,10 +2510,10 @@ def circle(
     gamma=80,
     margin=0.4,
 ):
-    """Computes the Circle loss
+    """Computes the Circle loss.
 
     It is designed to minimize within-class distances and maximize between-class
-        distances in embedding space.
+    distances in L2 normalized embedding space.
 
     Args:
         y_true: Tensor with ground truth labels in integer format.
