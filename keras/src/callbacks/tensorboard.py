@@ -76,8 +76,7 @@ class TensorBoard(Callback):
             [TensorBoard Scalars tutorial](
                 https://www.tensorflow.org/tensorboard/scalars_and_keras#batch-level_logging)
             for more details.
-        profile_batch: (Not supported at this time)
-            Profile the batch(es) to sample compute characteristics.
+        profile_batch: Profile the batch(es) to sample compute characteristics.
             profile_batch must be a non-negative integer or a tuple of integers.
             A pair of positive integers signify a range of batches to profile.
             By default, profiling is disabled.
