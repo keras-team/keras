@@ -407,6 +407,7 @@ class MultiHeadAttention(Layer):
         return_attention_scores,
         attention_mask=None,
         training=None,
+        use_causal_mask=False,
     ):
         """Applies Dot-product attention with query, key, value tensors.
 
@@ -443,7 +444,8 @@ class MultiHeadAttention(Layer):
                 value=value,
                 mask=attention_mask,
                 scale=self._inverse_sqrt_key_dim,
-                flash_attention=True,
+                is_causal=use_causal_mask,
+                flash_attention=False,
             )
             # Return only the attention output, as scores are not separately
             # available
@@ -516,7 +518,13 @@ class MultiHeadAttention(Layer):
         value = self._value_dense(value)
 
         attention_output, attention_scores = self._compute_attention(
-            query, key, value, return_attention_scores, attention_mask, training
+            query,
+            key,
+            value,
+            return_attention_scores,
+            attention_mask,
+            training,
+            use_causal_mask,
         )
         attention_output = self._output_dense(attention_output)
 
