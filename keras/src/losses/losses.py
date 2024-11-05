@@ -2579,8 +2579,6 @@ def circle(
         ops.where(negative_mask, neg_wdists, float("-inf")),
         axis=1,
     )
-    p_loss = ops.where(ops.isnan(p_loss), float("-inf"), p_loss)
-    n_loss = ops.where(ops.isnan(n_loss), float("-inf"), n_loss)
 
     circle_loss = ops.softplus(p_loss + n_loss)
     backend.set_keras_mask(circle_loss, circle_loss > 0)
