@@ -203,6 +203,12 @@ def fft2(x):
     return complex_output.real, complex_output.imag
 
 
+def ifft2(x):
+    complex_input = _get_complex_tensor_from_tuple(x)
+    complex_output = torch.fft.ifft2(complex_input)
+    return complex_output.real, complex_output.imag
+
+
 def rfft(x, fft_length=None):
     x = convert_to_tensor(x)
     complex_output = torch.fft.rfft(x, n=fft_length, dim=-1, norm="backward")

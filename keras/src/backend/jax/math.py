@@ -123,6 +123,12 @@ def fft2(x):
     return jnp.real(complex_output), jnp.imag(complex_output)
 
 
+def ifft2(x):
+    complex_input = _get_complex_tensor_from_tuple(x)
+    complex_output = jnp.fft.ifft2(complex_input)
+    return jnp.real(complex_output), jnp.imag(complex_output)
+
+
 def rfft(x, fft_length=None):
     complex_output = jnp.fft.rfft(x, n=fft_length, axis=-1, norm="backward")
     return jnp.real(complex_output), jnp.imag(complex_output)

@@ -218,6 +218,15 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(real_output.shape, ref_shape)
         self.assertEqual(imag_output.shape, ref_shape)
 
+    def test_ifft2(self):
+        real = KerasTensor((None, 4, 3), dtype="float32")
+        imag = KerasTensor((None, 4, 3), dtype="float32")
+        real_output, imag_output = kmath.ifft2((real, imag))
+        ref = np.fft.ifft2(np.ones((2, 4, 3)))
+        ref_shape = (None,) + ref.shape[1:]
+        self.assertEqual(real_output.shape, ref_shape)
+        self.assertEqual(imag_output.shape, ref_shape)
+
     @parameterized.parameters([(None,), (1,), (5,)])
     def test_rfft(self, fft_length):
         x = KerasTensor((None, 4, 3), dtype="float32")
@@ -351,6 +360,14 @@ class MathOpsStaticShapeTest(testing.TestCase):
         imag = KerasTensor((2, 4, 3), dtype="float32")
         real_output, imag_output = kmath.fft2((real, imag))
         ref = np.fft.fft2(np.ones((2, 4, 3)))
+        self.assertEqual(real_output.shape, ref.shape)
+        self.assertEqual(imag_output.shape, ref.shape)
+
+    def test_ifft2(self):
+        real = KerasTensor((2, 4, 3), dtype="float32")
+        imag = KerasTensor((2, 4, 3), dtype="float32")
+        real_output, imag_output = kmath.ifft2((real, imag))
+        ref = np.fft.ifft2(np.ones((2, 4, 3)))
         self.assertEqual(real_output.shape, ref.shape)
         self.assertEqual(imag_output.shape, ref.shape)
 
@@ -710,6 +727,18 @@ class MathOpsCorrectnessTest(testing.TestCase):
 
         real_output, imag_output = kmath.fft2((real, imag))
         ref = np.fft.fft2(complex_arr)
+        real_ref = np.real(ref)
+        imag_ref = np.imag(ref)
+        self.assertAllClose(real_ref, real_output)
+        self.assertAllClose(imag_ref, imag_output)
+
+    def test_ifft2(self):
+        real = np.random.random((2, 4, 3)).astype(np.float32)
+        imag = np.random.random((2, 4, 3)).astype(np.float32)
+        complex_arr = real + 1j * imag
+
+        real_output, imag_output = kmath.ifft2((real, imag))
+        ref = np.fft.ifft2(complex_arr)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
         self.assertAllClose(real_ref, real_output)
