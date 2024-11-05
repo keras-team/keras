@@ -11,7 +11,6 @@ from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.layers.activations.softmax import Softmax
-from keras.src.layers.attention.attention import enable_flash_attention
 from keras.src.layers.attention.attention import is_flash_attention_enabled
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.layer import Layer
@@ -430,17 +429,13 @@ class MultiHeadAttention(Layer):
           attention_output: Multi-headed outputs of attention computation.
           attention_scores: Multi-headed attention weights.
         """
-        print("### compute attention", self._flash_attention)
-        print("### compute attention", is_flash_attention_enabled())
         if self._flash_attention and return_attention_scores:
             raise ValueError(
                 "Returning attention scores is not supported when flash "
                 "attention is enabled. Please disable flash attention to access"
                 " attention scores."
             )
-        if self._flash_attention:
-            enable_flash_attention(True)
-        if is_flash_attention_enabled():
+        if not return_attention_scores:
             # Directly compute the attention output using flash attention
             attention_output = ops.dot_product_attention(
                 query=query,
