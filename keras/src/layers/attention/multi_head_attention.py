@@ -137,11 +137,7 @@ class MultiHeadAttention(Layer):
         self._activity_regularizer = regularizers.get(activity_regularizer)
         self._kernel_constraint = constraints.get(kernel_constraint)
         self._bias_constraint = constraints.get(bias_constraint)
-        if is_flash_attention_enabled is None:
-            if flash_attention is not None:
-                enable_flash_attention(flash_attention)
-            else:
-                enable_flash_attention(True)
+        self.use_flash_attention = flash_attention or is_flash_attention_enabled()
 
         if isinstance(attention_axes, int):
             attention_axes = (attention_axes,)
