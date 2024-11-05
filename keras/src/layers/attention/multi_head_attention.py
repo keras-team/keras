@@ -435,7 +435,7 @@ class MultiHeadAttention(Layer):
                 "attention is enabled. Please disable flash attention to access"
                 " attention scores."
             )
-        if not return_attention_scores:
+        if self._flash_attention:
             # Directly compute the attention output using flash attention
             attention_output = ops.dot_product_attention(
                 query=query,
