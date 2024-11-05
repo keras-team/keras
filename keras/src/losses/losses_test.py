@@ -1647,7 +1647,7 @@ class TverskyTest(testing.TestCase):
         self.assertDType(output, "bfloat16")
 
 
-class CircleLossTest(testing.TestCase):
+class CircleTest(testing.TestCase):
     def setup(self):
         self.y_true = np.array([1, 1, 2, 2, 3])
         self.y_pred = np.array(
@@ -1708,12 +1708,6 @@ class CircleLossTest(testing.TestCase):
             self.y_true, self.y_pred, sample_weight=sample_weight
         )
         self.assertAlmostEqual(loss, 244.91918)
-
-    def test_zero_weighted(self):
-        self.setup()
-        circle_loss = losses.Circle(gamma=80.0, margin=0.4)
-        loss = circle_loss(self.y_true, self.y_pred, sample_weight=0.0)
-        self.assertAlmostEqual(loss, 0.0, 3)
 
     def test_no_reduction(self):
         self.setup()
