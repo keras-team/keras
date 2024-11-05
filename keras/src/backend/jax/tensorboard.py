@@ -1,17 +1,19 @@
-from keras.src.utils.module_utils import tensorflow as tf
+from keras.src.utils.module_utils import jax
 
 
 def start_trace(logdir):
-    tf.profiler.experimental.start(logdir=logdir)
+    if logdir:
+        jax.profiler.start_trace(logdir)
 
 
 def stop_trace(save):
-    tf.profiler.experimental.stop(save=save)
+    if save:
+        jax.profiler.stop_trace()
 
 
 def start_batch_trace(batch):
-    batch_trace_context = tf.profiler.experimental.Trace(
-        "Profiled batch", step_num=batch
+    batch_trace_context = jax.profiler.TraceAnnotation(
+        f"Profiled batch {batch}"
     )
     batch_trace_context.__enter__()
     return batch_trace_context
