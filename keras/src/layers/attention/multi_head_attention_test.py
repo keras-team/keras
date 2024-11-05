@@ -421,7 +421,6 @@ class MultiHeadAttentionTest(testing.TestCase):
     def test_flash_attention_with_attention_scores_error(self):
         # Enable flash attention globally
         attention.enable_flash_attention(True)
-        print("###", attention.is_flash_attention_enabled())
         # Setup layer with required parameters
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
 
@@ -439,3 +438,26 @@ class MultiHeadAttentionTest(testing.TestCase):
             layer(query=query, value=value, return_attention_scores=True)
 
         attention.enable_flash_attention(False)
+
+
+    def test_flash_attention_numerical_correctness(self):
+        # Create sample input data
+        # Define sample input
+        query = np.random.random((2, 4, 8))
+        value = np.random.random((2, 4, 8))
+        
+        # Initialize MultiHeadAttention layer
+        mha_layer = layers.MultiHeadAttention(
+            num_heads=2,
+            key_dim=2,
+        )
+
+        # Run with flash attention enabled
+        attention.enable_flash_attention(True)
+        output_with_flash = mha_layer(query=query, value=value, training=False)
+
+        # Run with flash attention disabled
+        attention.enable_flash_attention(False)
+        output_without_flash = mha_layer(query=query, value=value, training=False)
+
+        self.assertAllClose(output_with_flash, output_without_flash)

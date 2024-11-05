@@ -429,7 +429,6 @@ class MultiHeadAttention(Layer):
           attention_output: Multi-headed outputs of attention computation.
           attention_scores: Multi-headed attention weights.
         """
-        print("### in compute ", attention.is_flash_attention_enabled())
         if attention.is_flash_attention_enabled() and return_attention_scores:
             raise ValueError(
                 "Returning attention scores is not supported when flash "
@@ -444,7 +443,7 @@ class MultiHeadAttention(Layer):
                 value=value,
                 mask=attention_mask,
                 scale=self._inverse_sqrt_key_dim,
-                is_causal=bool(self._attention_axes),
+                flash_attention=True,
             )
             # Return only the attention output, as scores are not separately
             # available
