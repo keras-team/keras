@@ -13,6 +13,9 @@ from keras.src.backend.config import set_floatx
 from keras.src.backend.config import set_image_data_format
 from keras.src.dtype_policies.dtype_policy import dtype_policy
 from keras.src.dtype_policies.dtype_policy import set_dtype_policy
+from keras.src.layers.attention.attention import (
+    disable_flash_attention as enable_flash_attention,
+)
 from keras.src.layers.attention.attention import enable_flash_attention
 from keras.src.layers.attention.attention import is_flash_attention_enabled
 from keras.src.saving.serialization_lib import enable_unsafe_deserialization
