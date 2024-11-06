@@ -455,8 +455,8 @@ class MultiHeadAttention(Layer):
             if attention_mask is not None:
                 # Ensure attention_mask has the correct shape for broadcasting
                 # Expected shape: [batch_size, num_heads, query_seq_len,
-                # key_seq_len]. This is because masked_softmax is not supported in
-                # JAX.
+                # key_seq_len]. This is because masked_softmax is not supported
+                # in JAX.
                 while len(attention_mask.shape) < 4:
                     attention_mask = ops.expand_dims(
                         attention_mask, axis=1
