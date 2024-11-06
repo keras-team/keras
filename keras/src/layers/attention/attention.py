@@ -299,7 +299,7 @@ def enable_flash_attention():
     global_state.set_global_attribute("flash_attention", True)
 
 
-@keras_export("keras.config.enable_flash_attention")
+@keras_export("keras.config.disable_flash_attention")
 def disable_flash_attention():
     """Disable flash attention.
 
