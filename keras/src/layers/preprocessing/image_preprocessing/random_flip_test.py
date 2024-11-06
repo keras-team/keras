@@ -18,9 +18,9 @@ class MockedRandomFlip(layers.RandomFlip):
             (batch_size, 1, 1, 1), 0.1, dtype="float32"
         )
         with unittest.mock.patch.object(
-                self.backend.random,
-                "uniform",
-                return_value=mocked_value,
+            self.backend.random,
+            "uniform",
+            return_value=mocked_value,
         ):
             out = super().call(inputs, training=training)
         return out
@@ -171,22 +171,22 @@ class RandomFlipTest(testing.TestCase):
 
     @parameterized.named_parameters(
         (
-                "with_horizontal",
-                "horizontal",
-                [[4, 1, 6, 3], [0, 4, 2, 6]],
+            "with_horizontal",
+            "horizontal",
+            [[4, 1, 6, 3], [0, 4, 2, 6]],
         ),
         (
-                "with_vertical",
-                "vertical",
-                [[2, 7, 4, 9], [6, 4, 8, 6]],
+            "with_vertical",
+            "vertical",
+            [[2, 7, 4, 9], [6, 4, 8, 6]],
         ),
         (
-                "with_horizontal_and_vertical",
-                "horizontal_and_vertical",
-                [[4, 7, 6, 9], [0, 4, 2, 6]],
+            "with_horizontal_and_vertical",
+            "horizontal_and_vertical",
+            [[4, 7, 6, 9], [0, 4, 2, 6]],
         ),
     )
-    def test_resize_bounding_boxes(self, mode, expected_boxes):
+    def test_random_flip_bounding_boxes(self, mode, expected_boxes):
         if backend.config.image_data_format() == "channels_last":
             image_shape = (10, 8, 3)
         else:
