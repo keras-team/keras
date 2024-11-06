@@ -11,7 +11,6 @@ from keras.src import testing
 
 
 class TestSpectrogram(testing.TestCase):
-
     DTYPE = "float32" if backend.backend() == "torch" else "float64"
 
     @staticmethod
@@ -106,7 +105,6 @@ class TestSpectrogram(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_spectrogram_channels_first(self):
-
         rnd = np.random.RandomState(41)
         audio = rnd.uniform(-1, 1, size=(3, 16000, 7))
 

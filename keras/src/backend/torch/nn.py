@@ -758,7 +758,7 @@ def ctc_loss(
     target_length = convert_to_tensor(target_length)
     output_length = convert_to_tensor(output_length)
 
-    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
     dtype = backend.result_type(output.dtype, "float32")
     output = cast(output, dtype)
 

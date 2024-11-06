@@ -91,7 +91,7 @@ class Tokenizer:
         char_level=False,
         oov_token=None,
         analyzer=None,
-        **kwargs
+        **kwargs,
     ):
         # Legacy support
         if "nb_words" in kwargs:

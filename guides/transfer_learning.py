@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 **Transfer learning** consists of taking features learned on one problem, and
 leveraging them on a new, similar problem. For instance, features from a model that has
-learned to identify racoons may be useful to kick-start a model meant to identify
+learned to identify raccoons may be useful to kick-start a model meant to identify
  tanukis.
 
 Transfer learning is usually done for tasks where your dataset has too little data to

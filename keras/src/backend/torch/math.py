@@ -203,6 +203,12 @@ def fft2(x):
     return complex_output.real, complex_output.imag
 
 
+def ifft2(x):
+    complex_input = _get_complex_tensor_from_tuple(x)
+    complex_output = torch.fft.ifft2(complex_input)
+    return complex_output.real, complex_output.imag
+
+
 def rfft(x, fft_length=None):
     x = convert_to_tensor(x)
     complex_output = torch.fft.rfft(x, n=fft_length, dim=-1, norm="backward")
@@ -323,7 +329,7 @@ def istft(
             )
 
     if sequence_length == fft_length and center is True and win is not None:
-        # can be falled back to torch.istft
+        # can be fallen back to torch.istft
         need_unpack = False
         *batch_shape, num_sequences, fft_unique_bins = complex_input.shape
         if len(complex_input.shape) > 3:

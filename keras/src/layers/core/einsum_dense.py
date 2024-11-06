@@ -877,7 +877,6 @@ def _analyze_split_string(
 
 
 def _analyze_quantization_info(equation, input_shape):
-
     def get_specs(equation, input_shape):
         possible_labels = string.ascii_letters
         dot_replaced_string = re.sub(r"\.\.\.", "0", equation)

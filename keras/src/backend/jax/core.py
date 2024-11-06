@@ -153,7 +153,6 @@ def compute_output_spec(fn, *args, **kwargs):
             return x
 
         def wrapped_fn(*args, **kwargs):
-
             # Turn inputs that are sparse to BCOO tensors
             def to_bcoo_if_sparse(x, maybe_symbolic_x):
                 if (

@@ -113,6 +113,15 @@ def fft2(x):
     return tf.math.real(complex_output), tf.math.imag(complex_output)
 
 
+def ifft2(x):
+    real, imag = x
+    h = cast(tf.shape(real)[-2], "float32")
+    w = cast(tf.shape(real)[-1], "float32")
+    real_conj, imag_conj = real, -imag
+    fft_real, fft_imag = fft2((real_conj, imag_conj))
+    return fft_real / (h * w), -fft_imag / (h * w)
+
+
 def rfft(x, fft_length=None):
     if fft_length is not None:
         fft_length = [fft_length]
@@ -296,7 +305,7 @@ def norm(x, ord=None, axis=None, keepdims=False):
         dtype = dtypes.result_type(x.dtype, float)
     x = cast(x, dtype)
 
-    # Fast path to utilze `tf.linalg.norm`
+    # Fast path to utilize `tf.linalg.norm`
     if (num_axes == 1 and ord in ("euclidean", 1, 2, float("inf"))) or (
         num_axes == 2 and ord in ("euclidean", "fro", 1, 2, float("inf"))
     ):

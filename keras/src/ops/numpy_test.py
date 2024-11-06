@@ -3295,7 +3295,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertTrue(backend.is_tensor(knp.array(x)))
         self.assertTrue(backend.is_tensor(knp.Array()(x)))
 
-        # Check dtype convertion.
+        # Check dtype conversion.
         x = [[1, 0, 1], [1, 1, 0]]
         output = knp.array(x, dtype="int32")
         self.assertEqual(standardize_dtype(output.dtype), "int32")
@@ -3746,7 +3746,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.isfinite(x), np.isfinite(x))
         self.assertAllClose(knp.Isfinite()(x), np.isfinite(x))
 
-    # TODO: fix and reenable
+    # TODO: fix and re-enable
     def DISABLED_test_isinf(self):
         x = np.array([[1, 2, np.inf], [np.nan, np.nan, np.nan]])
         self.assertAllClose(knp.isinf(x), np.isinf(x))
@@ -3992,8 +3992,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # 5D (pad arbitrary dimensions)
         if backend.backend() == "torch" and mode != "constant":
             self.skipTest(
-                "reflect and symmetric padding for arbitary dimensions are not "
-                "supported by torch"
+                "reflect and symmetric padding for arbitrary dimensions "
+                "are not supported by torch"
             )
         x = np.ones([2, 3, 4, 5, 6], dtype=dtype)
         pad_width = ((1, 1), (2, 1), (3, 2), (4, 3), (5, 4))

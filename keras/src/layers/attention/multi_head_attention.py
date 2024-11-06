@@ -642,7 +642,7 @@ class MultiHeadAttention(Layer):
 
 
 def _index_to_einsum_variable(i):
-    """Coverts an index to a einsum variable name.
+    """Converts an index to a einsum variable name.
 
     We simply map indices to lowercase characters, e.g. 0 -> 'a', 1 -> 'b'.
     """

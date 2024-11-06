@@ -657,7 +657,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                     [255, 255, 255, 255],
                 ]
                 if "torch" == backend.backend()
-                else
                 # Resize without `round` and `saturate_cast` - differences in
                 # 16 points
                 # [
@@ -669,7 +668,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                 #
                 # Resize with `round` and `saturate_cast` - differences in
                 # 8 points
-                [
+                else [
                     [0, 0, 0, 0],
                     [53, 53, 53, 54],
                     [201, 202, 202, 202],

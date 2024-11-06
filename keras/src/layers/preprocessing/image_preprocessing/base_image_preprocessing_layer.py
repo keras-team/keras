@@ -6,7 +6,6 @@ from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
 
 
 class BaseImagePreprocessingLayer(TFDataLayer):
-
     _USE_BASE_FACTOR = True
     _FACTOR_BOUNDS = (-1, 1)
 

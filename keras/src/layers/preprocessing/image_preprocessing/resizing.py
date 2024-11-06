@@ -125,7 +125,6 @@ class Resizing(BaseImagePreprocessingLayer):
         return labels
 
     def get_random_transformation(self, data, training=True, seed=None):
-
         if isinstance(data, dict):
             input_shape = self.backend.shape(data["images"])
         else:

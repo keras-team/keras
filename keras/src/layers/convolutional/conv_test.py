@@ -717,7 +717,6 @@ class ConvBasicTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_lora_weight_name(self):
-
         class MyModel(models.Model):
             def __init__(self):
                 super().__init__(name="mymodel")

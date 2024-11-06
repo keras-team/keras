@@ -198,7 +198,6 @@ class ArrayDataAdapter(DataAdapter):
             )
 
             def grab_batch(i, data):
-
                 def grab_one(x):
                     if isinstance(x, array_slicing.TensorflowSparseWrapper):
                         return array_slicing.slice_tensorflow_sparse_wrapper(

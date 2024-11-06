@@ -20,9 +20,8 @@ class TestCompileMetrics(testing.TestCase):
             weighted_metrics=[metrics_module.MeanSquaredError()],
         )
         # Test symbolic build
-        y_true, y_pred = backend.KerasTensor((3, 4)), backend.KerasTensor(
-            (3, 4)
-        )
+        y_true = backend.KerasTensor((3, 4))
+        y_pred = backend.KerasTensor((3, 4))
         compile_metrics.build(y_true, y_pred)
         # Test eager build
         y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
@@ -243,9 +242,8 @@ class TestCompileLoss(testing.TestCase):
             loss=losses_module.MeanSquaredError(),
         )
         # Test symbolic build
-        y_true, y_pred = backend.KerasTensor((3, 4)), backend.KerasTensor(
-            (3, 4)
-        )
+        y_true = backend.KerasTensor((3, 4))
+        y_pred = backend.KerasTensor((3, 4))
         compile_loss.build(y_true, y_pred)
         # Test eager build
         y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
@@ -258,9 +256,8 @@ class TestCompileLoss(testing.TestCase):
         compile_loss = CompileLoss(loss="crossentropy")
 
         # Test symbolic build
-        y_true, y_pred = backend.KerasTensor((3, 4)), backend.KerasTensor(
-            (3, 4)
-        )
+        y_true = backend.KerasTensor((3, 4))
+        y_pred = backend.KerasTensor((3, 4))
         compile_loss.build(y_true, y_pred)
         # Test eager build
         y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
@@ -490,3 +487,36 @@ class TestCompileLoss(testing.TestCase):
             KeyError, "can't be found in the model's output"
         ):
             compile_loss.build(y_true_symb, y_pred_symb)
+
+    def test_different_container_types(self):
+        y1, y2, y3 = np.array([[1]]), np.array([[2]]), np.array([[3]])
+        y_true = ([{"a": y1}, {"b": ([y2], y3)}],)
+        y_pred = [({"a": y1}, {"b": [(y2,), y3]})]
+        loss = "mse"
+        compile_loss = CompileLoss(loss=loss, output_names=["a", "b", "c"])
+        y_true_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((1, 1)), y_true
+        )
+        y_pred_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((1, 1)), y_pred
+        )
+        compile_loss.build(y_true_symb, y_pred_symb)
+        compile_loss(y_true, y_pred)
+
+    def test_structure_mismatch(self):
+        y_true = [np.array([[1]]), np.array([[1]])]
+        y_pred = [np.array([[1]]), np.array([[1]])]
+        loss = ["mse", "mse"]
+        compile_loss = CompileLoss(loss=loss, output_names=["a", "b"])
+        y_true_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((1, 1)), y_true
+        )
+        y_pred_symb = tree.map_structure(
+            lambda _: backend.KerasTensor((1, 1)), y_pred
+        )
+        compile_loss.build(y_true_symb, y_pred_symb)
+        with self.assertRaisesRegex(
+            ValueError, "y_true and y_pred have different structures."
+        ):
+            wrong_struc_y_true = [np.array([[1]])]
+            compile_loss(wrong_struc_y_true, y_pred)

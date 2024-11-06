@@ -144,6 +144,12 @@ def fft2(x):
     return np.array(real), np.array(imag)
 
 
+def ifft2(x):
+    complex_input = _get_complex_tensor_from_tuple(x)
+    complex_output = np.fft.ifft2(complex_input)
+    return np.real(complex_output), np.imag(complex_output)
+
+
 def rfft(x, fft_length=None):
     complex_output = np.fft.rfft(x, n=fft_length, axis=-1, norm="backward")
     # numpy always outputs complex128, so we need to recast the dtype

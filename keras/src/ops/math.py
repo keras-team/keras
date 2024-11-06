@@ -43,7 +43,6 @@ class SegmentReduction(Operation):
 
 
 class SegmentSum(SegmentReduction):
-
     def call(self, data, segment_ids):
         _segment_reduce_validation(data, segment_ids)
         return backend.math.segment_sum(
@@ -90,7 +89,6 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
 
 
 class SegmentMax(SegmentReduction):
-
     def call(self, data, segment_ids):
         _segment_reduce_validation(data, segment_ids)
         return backend.math.segment_max(
@@ -473,6 +471,81 @@ def fft2(x):
     if any_symbolic_tensors(x):
         return FFT2().symbolic_call(x)
     return backend.math.fft2(x)
+
+
+class IFFT2(Operation):
+    def __init__(self):
+        super().__init__()
+        self.axes = (-2, -1)
+
+    def compute_output_spec(self, x):
+        if not isinstance(x, (tuple, list)) or len(x) != 2:
+            raise ValueError(
+                "Input `x` should be a tuple of two tensors - real and "
+                f"imaginary. Received: x={x}"
+            )
+
+        real, imag = x
+        # Both real and imaginary parts should have the same shape.
+        if real.shape != imag.shape:
+            raise ValueError(
+                "Input `x` should be a tuple of two tensors - real and "
+                "imaginary. Both the real and imaginary parts should have the "
+                f"same shape. Received: x[0].shape = {real.shape}, "
+                f"x[1].shape = {imag.shape}"
+            )
+        # We are calculating 2D IFFT. Hence, rank >= 2.
+        if len(real.shape) < 2:
+            raise ValueError(
+                f"Input should have rank >= 2. "
+                f"Received: input.shape = {real.shape}"
+            )
+
+        # The axes along which we are calculating IFFT should be fully-defined.
+        m = real.shape[self.axes[0]]
+        n = real.shape[self.axes[1]]
+        if m is None or n is None:
+            raise ValueError(
+                f"Input should have its {self.axes} axes fully-defined. "
+                f"Received: input.shape = {real.shape}"
+            )
+
+        return (
+            KerasTensor(shape=real.shape, dtype=real.dtype),
+            KerasTensor(shape=imag.shape, dtype=imag.dtype),
+        )
+
+    def call(self, x):
+        return backend.math.ifft2(x)
+
+
+@keras_export("keras.ops.ifft2")
+def ifft2(x):
+    """Computes the 2D Inverse Fast Fourier Transform along the last two axes of
+        input.
+
+    Args:
+        x: Tuple of the real and imaginary parts of the input tensor. Both
+            tensors in the tuple should be of floating type.
+
+    Returns:
+        A tuple containing two tensors - the real and imaginary parts of the
+        output.
+
+    Example:
+
+    >>> x = (
+    ...     keras.ops.convert_to_tensor([[1., 2.], [2., 1.]]),
+    ...     keras.ops.convert_to_tensor([[0., 1.], [1., 0.]]),
+    ... )
+    >>> ifft2(x)
+    (array([[ 6.,  0.],
+        [ 0., -2.]], dtype=float32), array([[ 2.,  0.],
+        [ 0., -2.]], dtype=float32))
+    """
+    if any_symbolic_tensors(x):
+        return IFFT2().symbolic_call(x)
+    return backend.math.ifft2(x)
 
 
 class RFFT(Operation):

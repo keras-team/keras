@@ -121,6 +121,32 @@ def flatten(structure):
     return tree_impl.flatten(structure)
 
 
+@keras_export("keras.tree.flatten_with_path")
+def flatten_with_path(structure):
+    """Flattens a possibly nested structure into a list.
+
+    This is a variant of flattens() which produces a
+    list of pairs: `(path, item)`. A path is a tuple of indices and/or keys
+    which uniquely identifies the position of the corresponding item.
+
+    Dictionaries with non-sortable keys cannot be flattened.
+
+    Examples:
+
+    >>> keras.flatten_with_path([{"foo": 42}])
+    [((0, 'foo'), 42)]
+
+
+    Args:
+        structure: An arbitrarily nested structure.
+
+    Returns:
+        A list of `(path, item)` pairs corresponding to the flattened
+        version of the input `structure`.
+    """
+    return tree_impl.flatten_with_path(structure)
+
+
 @keras_export("keras.tree.map_structure")
 def map_structure(func, *structures):
     """Maps `func` through given structures.
@@ -203,6 +229,32 @@ def assert_same_structure(a, b, check_types=True):
         check_types: if `True` (default) types of leaves are checked as well.
     """
     return tree_impl.assert_same_structure(a, b, check_types=check_types)
+
+
+@keras_export("keras.tree.assert_same_paths")
+def assert_same_paths(a, b):
+    """Asserts that two structures have identical paths in their tree structure.
+
+    This function verifies that two nested structures have the same paths.
+    Unlike `assert_same_structure`, this function only checks the paths
+    and ignores the nodes' types.
+
+    Examples:
+    >>> keras.tree.assert_same_paths([0, 1], (2, 3))
+    >>> Point1 = collections.namedtuple('Point1', ['x', 'y'])
+    >>> Point2 = collections.namedtuple('Point2', ['x', 'y'])
+    >>> keras.tree.assert_same_paths(Point1(0, 1), Point2(2, 3))
+
+    Args:
+        a: an arbitrarily nested structure.
+        b: an arbitrarily nested structure.
+
+    Raises:
+        `ValueError`: If the paths in structure `a` don't match the paths
+        in structure `b`. The error message will include the specific
+        paths that differ.
+    """
+    return tree_impl.assert_same_paths(a, b)
 
 
 @keras_export("keras.tree.pack_sequence_as")

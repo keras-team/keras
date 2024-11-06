@@ -193,6 +193,7 @@ class PyDatasetAdapter(DataAdapter):
         self.enqueuer = None
         self.shuffle = shuffle
         self._output_signature = None
+        self._within_epoch = False
 
         workers = self.py_dataset.workers
         use_multiprocessing = self.py_dataset.use_multiprocessing
@@ -290,6 +291,8 @@ class PyDatasetAdapter(DataAdapter):
                 self._standardize_batch(self.py_dataset[i])
                 for i in range(num_samples)
             ]
+            if len(batches) == 0:
+                raise ValueError("The PyDataset has length 0")
             self._output_signature = data_adapter_utils.get_tensor_spec(batches)
 
         ds = tf.data.Dataset.from_generator(
@@ -312,6 +315,12 @@ class PyDatasetAdapter(DataAdapter):
         return data_adapter_utils.get_torch_dataloader(self._get_iterator())
 
     def on_epoch_begin(self):
+        if self._within_epoch:
+            raise ValueError(
+                "`on_epoch_begin` was called twice without `on_epoch_end` "
+                "having been called."
+            )
+        self._within_epoch = True
         if self.enqueuer:
             self.enqueuer.start()
         self.py_dataset.on_epoch_begin()
@@ -320,6 +329,7 @@ class PyDatasetAdapter(DataAdapter):
         if self.enqueuer:
             self.enqueuer.stop()
         self.py_dataset.on_epoch_end()
+        self._within_epoch = False
 
     @property
     def num_batches(self):
@@ -458,7 +468,7 @@ class PyDatasetEnqueuer:
                 return
             self.running = True
             self.run_thread = threading.Thread(target=self._run)
-            self.run_thread.name = f"Worker_{self.uid}"  # TODO remove
+            self.run_thread.name = f"Worker_{self.uid}"
             self.run_thread.daemon = True
             self.run_thread.start()
 
@@ -651,7 +661,7 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
         # which may happen before the first `on_epoch_begin`. But it's not ok to
         # poll after `on_epoch_end`.
         raise ValueError(
-            "Iterator called after `on_epoch_end` and before `on_epoch_begin`."
+            "Iterator called after `on_epoch_end` or before `on_epoch_begin`."
         )
 
 

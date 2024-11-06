@@ -110,7 +110,7 @@ class Conv2DTranspose(BaseConvTranspose):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             rank=2,
@@ -129,5 +129,5 @@ class Conv2DTranspose(BaseConvTranspose):
             activity_regularizer=activity_regularizer,
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
-            **kwargs
+            **kwargs,
         )

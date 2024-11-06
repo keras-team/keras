@@ -357,7 +357,7 @@ def ConvNeXt(
             won't be used.
         default_size: Default input image size.
         name: An optional name for the model.
-        include_preprocessing: boolean denoting whther to
+        include_preprocessing: boolean denoting whether to
             include preprocessing in the model.
             When `weights="imagenet"` this should always be `True`.
             But for other models (e.g., randomly initialized) you should set it
