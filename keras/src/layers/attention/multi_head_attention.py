@@ -429,7 +429,6 @@ class MultiHeadAttention(Layer):
           attention_scores: Multi-headed attention weights.
         """
 
-
         # Check for flash attention constraints
         if self._flash_attention and return_attention_scores:
             raise ValueError(
