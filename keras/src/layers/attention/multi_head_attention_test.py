@@ -12,6 +12,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
+from keras.src.layers.attention.attention import disable_flash_attention
 from keras.src.layers.attention.attention import enable_flash_attention
 
 
@@ -53,12 +54,12 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
 
     def test_basics_with_flash_attention(self):
-        if backend.backend() == "numpy" or "tensorflow":
+        if backend.backend() == "numpy" or backend.backend() == "tensorflow":
             pytest.skip(
                 reason="Flash attention is not supported on Tensorflow"
                 " and numpy."
             )
-        enable_flash_attention(True)
+        enable_flash_attention()
         self.run_layer_test(
             layers.MultiHeadAttention,
             init_kwargs={
@@ -93,7 +94,7 @@ class MultiHeadAttentionTest(testing.TestCase):
             supports_masking=True,
             run_training_check=False,
         )
-        enable_flash_attention(False)
+        disable_flash_attention()
 
     @parameterized.named_parameters(
         ("4d_inputs_1freebatch_mask2", (3, 4), (3, 2), (4, 2), (2,)),
@@ -296,7 +297,6 @@ class MultiHeadAttentionTest(testing.TestCase):
         bias = np.zeros((2, 2))
         output_bias = np.zeros((2,))
         layer.set_weights([kernel, bias] * 3 + [kernel, output_bias])
-        enable_flash_attention(False)
         # Call layer and assert output.
         output, scores = layer(
             query=query,
@@ -422,7 +422,6 @@ class MultiHeadAttentionTest(testing.TestCase):
 
     @parameterized.parameters([((1, 2, 3),), ((2, 3, 5),)])
     def test_symbolic_return_attention_scores(self, shape):
-        enable_flash_attention(False)
         mha = layers.MultiHeadAttention(num_heads=4, key_dim=2)
         x = layers.Input(batch_shape=shape)
         y = layers.Input(batch_shape=shape)
@@ -466,7 +465,6 @@ class MultiHeadAttentionTest(testing.TestCase):
                 reason="Flash attention is not supported on Tensorflow"
                 "and numpy."
             )
-        enable_flash_attention(True)
         # Setup layer with required parameters
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
 
@@ -483,12 +481,10 @@ class MultiHeadAttentionTest(testing.TestCase):
         ):
             layer(query=query, value=value, return_attention_scores=True)
 
-        enable_flash_attention(False)
-
     def test_flash_attention_numerical_correctness(self):
-        if backend.backend() == "numpy" or "tensorflow":
+        if backend.backend() == "numpy" or backend.backend() == "tensorflow":
             pytest.skip(
-                reason="Flash attention is not supported on Tensorflow"
+                reason="Flash attention is not supported on Tensorflow "
                 "and numpy."
             )
         # Create sample input data
@@ -503,11 +499,11 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
 
         # Run with flash attention enabled
-        enable_flash_attention(True)
+        enable_flash_attention()
         output_with_flash = mha_layer(query=query, value=value, training=False)
 
+        disable_flash_attention()
         # Run with flash attention disabled
-        enable_flash_attention(False)
         output_without_flash = mha_layer(
             query=query, value=value, training=False
         )

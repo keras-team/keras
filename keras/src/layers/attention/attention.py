@@ -299,6 +299,20 @@ def enable_flash_attention():
     global_state.set_global_attribute("flash_attention", True)
 
 
+@keras_export("keras.config.enable_flash_attention")
+def disable_flash_attention():
+    """Disable flash attention.
+
+    Flash attention offers performance optimization for attention layers,
+    making it especially useful for large language models (LLMs) that
+    benefit from faster and more memory-efficient attention computations.
+
+    Once disabled, supported layers like `MultiHeadAttention` will not
+    use flash attention for faster computations.
+    """
+    global_state.set_global_attribute("flash_attention", False)
+
+
 @keras_export("keras.config.is_flash_attention_enabled")
 def is_flash_attention_enabled():
     """Checks whether flash attention is globally enabled in Keras.
