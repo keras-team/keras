@@ -238,7 +238,7 @@ class RandomFlipTest(testing.TestCase):
             [[4, 7, 6, 9], [0, 4, 2, 6]],
         ),
     )
-    def test_resize_tf_data_bounding_boxes(self, mode, expected_boxes):
+    def test_random_flip_tf_data_bounding_boxes(self, mode, expected_boxes):
         if backend.config.image_data_format() == "channels_last":
             image_shape = (1, 10, 8, 3)
         else:

@@ -115,12 +115,12 @@ class RandomFlip(BaseImagePreprocessingLayer):
             )
             return outputs
 
-        def _transform_xyxy(bounding_boxes, flips):
+        def _transform_xyxy(boxes, flips):
 
             if backend_utils.in_tf_graph():
                 self.backend.set_backend("tensorflow")
 
-            bboxes = bounding_boxes["boxes"]
+            bboxes = boxes["boxes"]
             if self.mode in {HORIZONTAL, HORIZONTAL_AND_VERTICAL}:
                 bboxes = self.backend.numpy.where(
                     flips,
