@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import numpy as np
 import pytest
@@ -503,12 +504,18 @@ class FunctionalTest(testing.TestCase):
         model = Model({"i1": i1, "i2": i2}, outputs)
 
         with pytest.warns() as record:
-            model([np.ones((2, 2)), np.zeros((2, 2))])
+            model.predict([np.ones((2, 2)), np.zeros((2, 2))], verbose=0)
         self.assertLen(record, 1)
         self.assertStartsWith(
             str(record[0].message),
             r"The structure of `inputs` doesn't match the expected structure:",
         )
+
+        # No warning for mismatched tuples and lists.
+        model = Model([i1, i2], outputs)
+        with warnings.catch_warnings(record=True) as warning_logs:
+            model.predict((np.ones((2, 2)), np.zeros((2, 2))), verbose=0)
+            self.assertLen(warning_logs, 0)
 
     def test_for_functional_in_sequential(self):
         # Test for a v3.4.1 regression.
