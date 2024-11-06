@@ -214,8 +214,12 @@ class Functional(Function, Model):
 
     def _maybe_warn_inputs_struct_mismatch(self, inputs):
         try:
+            # We first normalize to tuples before performing the check to
+            # suppress warnings when encountering mismatched tuples and lists.
             tree.assert_same_structure(
-                inputs, self._inputs_struct, check_types=False
+                tree.lists_to_tuples(inputs),
+                tree.lists_to_tuples(self._inputs_struct),
+                check_types=False,
             )
         except:
             model_inputs_struct = tree.map_structure(
