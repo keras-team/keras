@@ -396,7 +396,6 @@ class BoundingBox:
         heights = y2 - y1
         return widths * heights
 
-    # Affine
     def _compute_inverse_affine_matrix(
         self,
         center_x,
@@ -421,11 +420,11 @@ class BoundingBox:
         shear_x = -shear_x
         shear_y = -shear_y
 
-        cx = center_x * width
-        cy = center_y * height
+        cx = center_x * (width - 1)
+        cy = center_y * (height - 1)
         rot = ops.numpy.multiply(angle, 1.0 / 180.0 * math.pi)
-        tx = -translate_x * width
-        ty = -translate_y * height
+        tx = -translate_x * (width - 1)
+        ty = -translate_y * (height - 1)
         sx = ops.numpy.multiply(shear_x, 1.0 / 180.0 * math.pi)
         sy = ops.numpy.multiply(shear_y, 1.0 / 180.0 * math.pi)
 
@@ -438,8 +437,8 @@ class BoundingBox:
 
         # Rotate Scale Shear (RSS) without scaling
         a = ops.numpy.cos(rot_minus_sy) / cos_sy
-        b = -(a * tan_sx + ops.numpy.sin(rot))
-        c = ops.numpy.sin(rot_minus_sy) / cos_sy
+        b = a * tan_sx + ops.numpy.sin(rot)
+        c = -ops.numpy.sin(rot_minus_sy) / cos_sy
         d = ops.numpy.cos(rot) - c * tan_sx
 
         # Inverted rotation matrix with scale and shear

@@ -136,54 +136,19 @@ class RandomRotation(BaseImagePreprocessingLayer):
         height = transformation["image_height"]
         width = transformation["image_width"]
         batch_size = transformation["batch_size"]
-        rotation_matrix = transformation["rotation_matrix"]
-        boxes = ops.cast(boxes, rotation_matrix.dtype)
-        rotation_matrix = ops.numpy.stack(
-            [
-                rotation_matrix,
-                ops.numpy.ones([batch_size], rotation_matrix.dtype),
-            ],
-            aixs=-1,
-        )
-        rotation_matrix = ops.numpy.reshape(rotation_matrix, [batch_size, 3, 3])
-        bounding_boxes = converters.convert_format(
-            boxes=bounding_boxes,
-            source=self.bounding_box_format,
-            target="xyxy",
+        boxes = converters.affine_transform(
+            boxes=boxes,
+            angle=transformation["angle"],
+            translate_x=ops.numpy.zeros([batch_size]),
+            translate_y=ops.numpy.zeros([batch_size]),
+            scale=ops.numpy.ones([batch_size]),
+            shear_x=ops.numpy.zeros([batch_size]),
+            shear_y=ops.numpy.zeros([batch_size]),
             height=height,
             width=width,
         )
-        boxes_shape = ops.shape(boxes)
-        n_boxes = boxes_shape[1]
-        points = boxes
-        points = ops.numpy.stack(
-            [
-                points[..., 0],  # x1
-                points[..., 1],  # y1
-                points[..., 2],  # x2
-                points[..., 1],  # y1
-                points[..., 2],  # x2
-                points[..., 3],  # y2
-                points[..., 0],  # x1
-                points[..., 3],  # y2
-            ],
-            axis=-1,
-        )
-        points = ops.numpy.reshape(points, [batch_size, n_boxes, 4, 2])
-        points = ops.numpy.concatenate(
-            [
-                points,
-                ops.numpy.ones([batch_size, n_boxes, 4, 1], points.dtype),
-            ],
-            axis=-1,
-        )
-        transformed_points = ops.numpy.einsum(
-            "bnxy,byz->bnxz", points, rotation_matrix
-        )
-        boxes_min = ops.numpy.amin(transformed_points, axis=2)
-        boxes_max = ops.numpy.amax(transformed_points, axis=2)
-        outputs = ops.numpy.concatenate([boxes_min, boxes_max], axis=-1)
-        bounding_boxes["boxes"] = outputs
+
+        bounding_boxes["boxes"] = boxes
         bounding_boxes = converters.clip_to_image_size(
             bounding_boxes,
             height=height,
@@ -261,6 +226,7 @@ class RandomRotation(BaseImagePreprocessingLayer):
                 rotation_matrix, axis=0
             )
         return {
+            "angle": angle,
             "rotation_matrix": rotation_matrix,
             "image_height": image_height,
             "image_width": image_width,
