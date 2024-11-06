@@ -210,7 +210,7 @@ class RandomFlipTest(testing.TestCase):
         )
 
         transformation = {
-            "flips": np.asarray([[[True]]]),
+            "flips": np.asarray([[True]]),
             "input_shape": input_image.shape,
         }
         output = random_flip_layer.transform_bounding_boxes(
@@ -267,7 +267,7 @@ class RandomFlipTest(testing.TestCase):
         )
 
         transformation = {
-            "flips": np.asarray([[[True]]]),
+            "flips": np.asarray([[True]]),
             "input_shape": input_image.shape,
         }
         ds = ds.map(
@@ -277,6 +277,7 @@ class RandomFlipTest(testing.TestCase):
                 training=True,
             )
         )
+
         output = next(iter(ds))
         expected_boxes = np.array(expected_boxes)
         self.assertAllClose(output["boxes"], expected_boxes)
