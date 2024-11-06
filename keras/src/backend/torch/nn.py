@@ -946,8 +946,8 @@ def dot_product_attention(
             backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
         ):
             attention_output = torch.nn.functional.scaled_dot_product_attention(
-                query,
-                key,
+                query.contiguous(),
+                key.contiguous(),
                 value,
                 attn_mask=mask,
                 is_causal=is_causal,
@@ -955,7 +955,7 @@ def dot_product_attention(
             )
     else:
         attention_output = torch.nn.functional.scaled_dot_product_attention(
-            query,
+            query.contiguous(),
             key.contiguous(),
             value,
             attn_mask=mask,
