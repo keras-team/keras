@@ -33,11 +33,12 @@ class TorchModuleWrapper(Layer):
     PyTorch modules.
 
     ```python
+    import torch
     import torch.nn as nn
     import torch.nn.functional as F
 
     import keras
-    from keras.src.layers import TorchModuleWrapper
+    from keras.layers import TorchModuleWrapper
 
     class Classifier(keras.Model):
         def __init__(self, **kwargs):

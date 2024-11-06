@@ -1442,6 +1442,7 @@ class Circle(LossFunctionWrapper):
             provided, then the `compute_dtype` will be utilized.
 
     Examples:
+
     Usage with the `compile()` API:
 
     ```python
@@ -1453,7 +1454,7 @@ class Circle(LossFunctionWrapper):
         keras.layers.UnitNormalization()  # L2 normalization
     ])
 
-    model.compile(optimizer="adam", loss=losses.Circle()
+    model.compile(optimizer="adam", loss=keras.losses.Circle())
     ```
 
     Reference:
