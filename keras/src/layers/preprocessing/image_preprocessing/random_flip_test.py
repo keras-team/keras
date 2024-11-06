@@ -209,7 +209,10 @@ class RandomFlipTest(testing.TestCase):
             bounding_box_format="xyxy",
         )
 
-        transformation = {"flips": [[[True]]], "input_shape": input_image.shape}
+        transformation = {
+            "flips": np.asarray([[[True]]]),
+            "input_shape": input_image.shape,
+        }
         output = random_flip_layer.transform_bounding_boxes(
             input_data["bounding_boxes"],
             transformation=transformation,
@@ -263,7 +266,10 @@ class RandomFlipTest(testing.TestCase):
             bounding_box_format="xyxy",
         )
 
-        transformation = {"flips": [[[True]]], "input_shape": input_image.shape}
+        transformation = {
+            "flips": np.asarray([[[True]]]),
+            "input_shape": input_image.shape,
+        }
         ds = ds.map(
             lambda x: random_flip_layer.transform_bounding_boxes(
                 x["bounding_boxes"],
