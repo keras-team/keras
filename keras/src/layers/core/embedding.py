@@ -358,10 +358,7 @@ class Embedding(Layer):
             del self._embeddings
             # Utilize a lambda expression as an initializer to prevent adding a
             # large constant to the computation graph.
-            self._int8_build(
-                lambda shape, dtype: embeddings_value,
-                lambda shape, dtype: embeddings_scale,
-            )
+            self._int8_build(embeddings_value, embeddings_scale)
         else:
             raise self._quantization_mode_error(mode)
 

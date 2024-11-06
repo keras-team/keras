@@ -162,6 +162,21 @@ class InitializersTest(testing.TestCase):
         with self.assertRaises(ValueError):
             initializers.get("typo")
 
+    def test_get_method_with_tensor(self):
+        shape = (5, 5)
+
+        # Test backend tensor
+        tensor = random.uniform(shape=shape)
+        initializer = initializers.get(tensor)
+        values = initializer(shape=shape)
+        self.assertAllClose(values, tensor)
+
+        # Test numpy array
+        tensor = np.random.uniform(size=shape).astype("float32")
+        initializer = initializers.get(tensor)
+        values = initializer(shape=shape)
+        self.assertAllClose(values, tensor)
+
     def test_variance_scaling_invalid_scale(self):
         seed = 1234
 

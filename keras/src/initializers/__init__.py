@@ -1,5 +1,9 @@
 import inspect
 
+import numpy as np
+
+from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.initializers.constant_initializers import Constant
 from keras.src.initializers.constant_initializers import Identity
@@ -110,6 +114,12 @@ def get(identifier):
     elif isinstance(identifier, str):
         config = {"class_name": str(identifier), "config": {}}
         obj = deserialize(config)
+    elif ops.is_tensor(identifier) or isinstance(
+        identifier, (np.generic, np.ndarray)
+    ):
+        obj = lambda shape, dtype=None: ops.reshape(
+            ops.cast(identifier, backend.standardize_dtype(dtype)), shape
+        )
     else:
         obj = identifier
 
