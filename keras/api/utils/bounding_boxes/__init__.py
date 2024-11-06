@@ -19,3 +19,9 @@ from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converter
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (
     pad,
 )
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.iou import (
+    compute_ciou,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.iou import (
+    compute_iou,
+)
