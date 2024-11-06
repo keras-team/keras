@@ -52,11 +52,7 @@ def in_top_k(targets, predictions, k):
 
 
 def logsumexp(x, axis=None, keepdims=False):
-    max_x = jnp.max(x, axis=axis, keepdims=True)
-    result = (
-        jnp.log(jnp.sum(jnp.exp(x - max_x), axis=axis, keepdims=True)) + max_x
-    )
-    return jnp.squeeze(result) if not keepdims else result
+    return jax.scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
 def qr(x, mode="reduced"):

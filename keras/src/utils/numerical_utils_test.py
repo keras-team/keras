@@ -72,3 +72,80 @@ class TestNumericalUtils(testing.TestCase):
         out = numerical_utils.normalize(xb, axis=-1, order=order)
         self.assertTrue(backend.is_tensor(out))
         self.assertAllClose(backend.convert_to_numpy(out), expected)
+
+    def test_build_pos_neg_masks(self):
+        query_labels = np.array([0, 1, 2, 2, 0])
+        key_labels = np.array([0, 1, 2, 0, 2])
+        expected_shape = (len(query_labels), len(key_labels))
+
+        positive_mask, negative_mask = numerical_utils.build_pos_neg_masks(
+            query_labels, key_labels, remove_diagonal=False
+        )
+
+        positive_mask = backend.convert_to_numpy(positive_mask)
+        negative_mask = backend.convert_to_numpy(negative_mask)
+        self.assertEqual(positive_mask.shape, expected_shape)
+        self.assertEqual(negative_mask.shape, expected_shape)
+        self.assertTrue(
+            np.all(np.logical_not(np.logical_and(positive_mask, negative_mask)))
+        )
+
+        expected_positive_mask_keep_diag = np.array(
+            [
+                [1, 0, 0, 1, 0],
+                [0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 1],
+                [0, 0, 1, 0, 1],
+                [1, 0, 0, 1, 0],
+            ],
+            dtype="bool",
+        )
+        self.assertTrue(
+            np.all(positive_mask == expected_positive_mask_keep_diag)
+        )
+        self.assertTrue(
+            np.all(
+                negative_mask
+                == np.logical_not(expected_positive_mask_keep_diag)
+            )
+        )
+
+        positive_mask, negative_mask = numerical_utils.build_pos_neg_masks(
+            query_labels, key_labels, remove_diagonal=True
+        )
+        positive_mask = backend.convert_to_numpy(positive_mask)
+        negative_mask = backend.convert_to_numpy(negative_mask)
+        self.assertEqual(positive_mask.shape, expected_shape)
+        self.assertEqual(negative_mask.shape, expected_shape)
+        self.assertTrue(
+            np.all(np.logical_not(np.logical_and(positive_mask, negative_mask)))
+        )
+
+        expected_positive_mask_with_remove_diag = np.array(
+            [
+                [0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1],
+                [0, 0, 1, 0, 1],
+                [1, 0, 0, 1, 0],
+            ],
+            dtype="bool",
+        )
+        self.assertTrue(
+            np.all(positive_mask == expected_positive_mask_with_remove_diag)
+        )
+
+        query_labels = np.array([1, 2, 3])
+        key_labels = np.array([1, 2, 3, 1])
+
+        positive_mask, negative_mask = numerical_utils.build_pos_neg_masks(
+            query_labels, key_labels, remove_diagonal=True
+        )
+        positive_mask = backend.convert_to_numpy(positive_mask)
+        negative_mask = backend.convert_to_numpy(negative_mask)
+        expected_shape_diff_sizes = (len(query_labels), len(key_labels))
+        self.assertEqual(positive_mask.shape, expected_shape_diff_sizes)
+        self.assertEqual(negative_mask.shape, expected_shape_diff_sizes)
+        self.assertTrue(
+            np.all(np.logical_not(np.logical_and(positive_mask, negative_mask)))
+        )
