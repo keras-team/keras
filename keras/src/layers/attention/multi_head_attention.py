@@ -429,6 +429,21 @@ class MultiHeadAttention(Layer):
           attention_output: Multi-headed outputs of attention computation.
           attention_scores: Multi-headed attention weights.
         """
+        if attention_mask is not None:
+            # Ensure attention_mask has the correct shape for broadcasting
+            # Expected shape: [batch_size, num_heads, query_seq_len, 
+            # key_seq_len]. This is because masked_softmax is not supported in 
+            # JAX.
+            while len(attention_mask.shape) < 4:
+                attention_mask = ops.expand_dims(
+                    attention_mask, axis=1
+                )  # Add dimension for num_heads
+            if attention_mask.shape[1] != self._num_heads:
+                attention_mask = ops.tile(
+                    attention_mask, [1, self._num_heads, 1, 1]
+                )
+
+        # Check for flash attention constraints
         if self._flash_attention and return_attention_scores:
             raise ValueError(
                 "Returning attention scores is not supported when flash "
@@ -441,13 +456,16 @@ class MultiHeadAttention(Layer):
                 "attention is enabled. Please set dropout to 0.0 to use "
                 "flash attention."
             )
+
+        # Determine whether to use dot-product attention
         use_dot_product_attention = not (
             self._dropout > 0.0
             or return_attention_scores
             or (len(query.shape) != 4)
         )
+
         if use_dot_product_attention:
-            # Directly compute the attention output using flash attention
+            # Directly compute the attention output using dot-product attention
             attention_output = ops.dot_product_attention(
                 query=query,
                 key=key,
@@ -457,8 +475,6 @@ class MultiHeadAttention(Layer):
                 is_causal=use_causal_mask,
                 flash_attention=self._flash_attention,
             )
-            # Return only the attention output, as scores are not separately
-            # available
             return attention_output, None
 
         # Default behavior without flash attention, with explicit attention
@@ -471,13 +487,13 @@ class MultiHeadAttention(Layer):
         # attention scores.
         attention_scores = ops.einsum(self._dot_product_equation, key, query)
 
+        # Apply the mask using the custom masked softmax
         attention_scores = self._masked_softmax(
             attention_scores, attention_mask
         )
 
-        # This is actually dropping out entire tokens to attend to, which might
-        # seem a bit unusual, but is taken from the original Transformer paper.
-        if self.dropout:
+        # Apply dropout to the attention scores if needed
+        if self._dropout > 0.0:
             final_attn_scores = self._dropout_layer(
                 attention_scores, training=training
             )
@@ -506,31 +522,35 @@ class MultiHeadAttention(Layer):
         if key is None:
             key = value
 
-        attention_mask = self._compute_attention_mask(
-            query,
-            value,
-            query_mask=query_mask,
-            value_mask=value_mask,
-            key_mask=key_mask,
-            attention_mask=attention_mask,
-            use_causal_mask=use_causal_mask,
-        )
-
         #   N = `num_attention_heads`
         #   H = `size_per_head`
         # `query` = [B, T, N ,H]
-        query = self._query_dense(query)
+        query_dense = self._query_dense(query)
 
         # `key` = [B, S, N, H]
-        key = self._key_dense(key)
+        key_dense = self._key_dense(key)
 
         # `value` = [B, S, N, H]
-        value = self._value_dense(value)
-
+        value_dense = self._value_dense(value)
+        compute_mask = (
+            return_attention_scores
+            or self._dropout > 0.0
+            or (len(query_dense.shape) != 4)
+        )
+        if compute_mask:
+            attention_mask = self._compute_attention_mask(
+                query,
+                value,
+                query_mask=query_mask,
+                value_mask=value_mask,
+                key_mask=key_mask,
+                attention_mask=attention_mask,
+                use_causal_mask=use_causal_mask,
+            )
         attention_output, attention_scores = self._compute_attention(
-            query,
-            key,
-            value,
+            query_dense,
+            key_dense,
+            value_dense,
             return_attention_scores,
             attention_mask,
             training,
