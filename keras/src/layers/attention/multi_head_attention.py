@@ -406,7 +406,6 @@ class MultiHeadAttention(Layer):
         return_attention_scores,
         attention_mask=None,
         training=None,
-        use_causal_mask=False,
     ):
         """Applies Dot-product attention with query, key, value tensors.
 
@@ -431,8 +430,8 @@ class MultiHeadAttention(Layer):
         """
         if attention_mask is not None:
             # Ensure attention_mask has the correct shape for broadcasting
-            # Expected shape: [batch_size, num_heads, query_seq_len, 
-            # key_seq_len]. This is because masked_softmax is not supported in 
+            # Expected shape: [batch_size, num_heads, query_seq_len,
+            # key_seq_len]. This is because masked_softmax is not supported in
             # JAX.
             while len(attention_mask.shape) < 4:
                 attention_mask = ops.expand_dims(
@@ -472,7 +471,7 @@ class MultiHeadAttention(Layer):
                 value=value,
                 mask=attention_mask,
                 scale=self._inverse_sqrt_key_dim,
-                is_causal=use_causal_mask,
+                is_causal=False,
                 flash_attention=self._flash_attention,
             )
             return attention_output, None
@@ -532,21 +531,16 @@ class MultiHeadAttention(Layer):
 
         # `value` = [B, S, N, H]
         value_dense = self._value_dense(value)
-        compute_mask = (
-            return_attention_scores
-            or self._dropout > 0.0
-            or (len(query_dense.shape) != 4)
+
+        attention_mask = self._compute_attention_mask(
+            query,
+            value,
+            query_mask=query_mask,
+            value_mask=value_mask,
+            key_mask=key_mask,
+            attention_mask=attention_mask,
+            use_causal_mask=use_causal_mask,
         )
-        if compute_mask:
-            attention_mask = self._compute_attention_mask(
-                query,
-                value,
-                query_mask=query_mask,
-                value_mask=value_mask,
-                key_mask=key_mask,
-                attention_mask=attention_mask,
-                use_causal_mask=use_causal_mask,
-            )
         attention_output, attention_scores = self._compute_attention(
             query_dense,
             key_dense,
@@ -554,7 +548,6 @@ class MultiHeadAttention(Layer):
             return_attention_scores,
             attention_mask,
             training,
-            use_causal_mask,
         )
         attention_output = self._output_dense(attention_output)
 
