@@ -51,11 +51,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
     _USE_BASE_FACTOR = False
 
     def __init__(
-        self,
-        mode=HORIZONTAL_AND_VERTICAL,
-        seed=None,
-        data_format=None,
-        **kwargs
+        self, mode=HORIZONTAL_AND_VERTICAL, seed=None, data_format=None, **kwargs
     ):
         super().__init__(data_format=data_format, **kwargs)
         self.seed = seed
@@ -103,16 +99,12 @@ class RandomFlip(BaseImagePreprocessingLayer):
     ):
         def _flip_boxes_horizontal(boxes):
             x1, x2, x3, x4 = self.backend.numpy.split(boxes, 4, axis=-1)
-            outputs = self.backend.numpy.concatenate(
-                [1 - x3, x2, 1 - x1, x4], axis=-1
-            )
+            outputs = self.backend.numpy.concatenate([1 - x3, x2, 1 - x1, x4], axis=-1)
             return outputs
 
         def _flip_boxes_vertical(boxes):
             x1, x2, x3, x4 = self.backend.numpy.split(boxes, 4, axis=-1)
-            outputs = self.backend.numpy.concatenate(
-                [x1, 1 - x4, x3, 1 - x2], axis=-1
-            )
+            outputs = self.backend.numpy.concatenate([x1, 1 - x4, x3, 1 - x2], axis=-1)
             return outputs
 
         def _transform_xyxy(boxes, box_flips):
@@ -208,9 +200,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
                 flipped_outputs,
             )
         if unbatched:
-            flipped_outputs = self.backend.numpy.squeeze(
-                flipped_outputs, axis=0
-            )
+            flipped_outputs = self.backend.numpy.squeeze(flipped_outputs, axis=0)
         return flipped_outputs
 
     def compute_output_shape(self, input_shape):
