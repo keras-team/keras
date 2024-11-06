@@ -1,5 +1,4 @@
 namex>=0.0.8
-black>=22
 ruff
 pytest
 numpy

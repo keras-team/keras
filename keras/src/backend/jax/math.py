@@ -52,11 +52,7 @@ def in_top_k(targets, predictions, k):
 
 
 def logsumexp(x, axis=None, keepdims=False):
-    max_x = jnp.max(x, axis=axis, keepdims=True)
-    result = (
-        jnp.log(jnp.sum(jnp.exp(x - max_x), axis=axis, keepdims=True)) + max_x
-    )
-    return jnp.squeeze(result) if not keepdims else result
+    return jax.scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
 def qr(x, mode="reduced"):
@@ -120,6 +116,12 @@ def fft(x):
 def fft2(x):
     complex_input = _get_complex_tensor_from_tuple(x)
     complex_output = jnp.fft.fft2(complex_input)
+    return jnp.real(complex_output), jnp.imag(complex_output)
+
+
+def ifft2(x):
+    complex_input = _get_complex_tensor_from_tuple(x)
+    complex_output = jnp.fft.ifft2(complex_input)
     return jnp.real(complex_output), jnp.imag(complex_output)
 
 

@@ -818,7 +818,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         reason=f"{backend.backend()} doesn't support `custom_gradient`.",
     )
     def test_custom_gradient(self):
-
         # function to test custom_gradient on
         @ops.custom_gradient
         def log1pexp(x):

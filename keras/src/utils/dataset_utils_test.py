@@ -11,7 +11,6 @@ from keras.src.utils.module_utils import tensorflow as tf
 
 
 class MyTorchDataset(TorchDataset):
-
     def __init__(self, x, y):
         self.x = x
         self.y = y

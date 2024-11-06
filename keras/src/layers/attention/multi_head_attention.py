@@ -541,6 +541,7 @@ class MultiHeadAttention(Layer):
             attention_mask=attention_mask,
             use_causal_mask=use_causal_mask,
         )
+
         attention_output, attention_scores = self._compute_attention(
             query_dense,
             key_dense,
@@ -549,7 +550,7 @@ class MultiHeadAttention(Layer):
             attention_mask,
             training,
         )
-        attention_output = self._output_dense(attention_output)
+        attention_output = self._output_dense.call(attention_output)
 
         if return_attention_scores:
             return attention_output, attention_scores

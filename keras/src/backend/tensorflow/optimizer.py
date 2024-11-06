@@ -18,7 +18,6 @@ from keras.src.optimizers import base_optimizer
 
 
 class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._distribution_strategy = tf.distribute.get_strategy()

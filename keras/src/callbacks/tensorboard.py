@@ -76,8 +76,7 @@ class TensorBoard(Callback):
             [TensorBoard Scalars tutorial](
                 https://www.tensorflow.org/tensorboard/scalars_and_keras#batch-level_logging)
             for more details.
-        profile_batch: (Not supported at this time)
-            Profile the batch(es) to sample compute characteristics.
+        profile_batch: Profile the batch(es) to sample compute characteristics.
             profile_batch must be a non-negative integer or a tuple of integers.
             A pair of positive integers signify a range of batches to profile.
             By default, profiling is disabled.
@@ -176,14 +175,23 @@ class TensorBoard(Callback):
         self.update_freq = 1 if update_freq == "batch" else update_freq
         self.embeddings_freq = embeddings_freq
         self.embeddings_metadata = embeddings_metadata
-        if profile_batch and backend.backend() != "tensorflow":
-            # TODO: profiling not available in JAX/torch
-            raise ValueError(
-                "Profiling is not yet available with the "
-                f"{backend.backend()} backend. Please open a PR "
-                "if you'd like to add this feature. Received: "
-                f"profile_batch={profile_batch} (must be 0)"
-            )
+        if profile_batch:
+            if backend.backend() not in ("jax", "tensorflow"):
+                # TODO: profiling not available in torch, numpy
+                raise ValueError(
+                    "Profiling is not yet available with the "
+                    f"{backend.backend()} backend. Please open a PR "
+                    "if you'd like to add this feature. Received: "
+                    f"profile_batch={profile_batch} (must be 0)"
+                )
+            elif backend.backend() == "jax":
+                if sys.version_info[1] < 12:
+                    warnings.warn(
+                        "Profiling with the "
+                        f"{backend.backend()} backend requires python >= 3.12."
+                    )
+                    profile_batch = 0
+
         self._init_profile_batch(profile_batch)
         self._global_train_batch = 0
         self._previous_epoch_iterations = 0
@@ -384,6 +392,8 @@ class TensorBoard(Callback):
         # We track the status here to make sure callbacks do not interfere with
         # each other. The callback will only stop the profiler it started.
         self._profiler_started = False
+        self._batch_trace_context = None
+
         if self._start_batch > 0:
             # Warm up and improve the profiling accuracy.
             self._start_profiler(logdir="")
@@ -437,6 +447,10 @@ class TensorBoard(Callback):
 
         if self._global_train_batch == self._start_batch:
             self._start_trace()
+        if self._profiler_started:
+            self._batch_trace_context = backend.tensorboard.start_batch_trace(
+                batch
+            )
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_write_train_graph:
@@ -460,8 +474,12 @@ class TensorBoard(Callback):
         if not self._should_trace:
             return
 
-        if self._is_tracing and self._global_train_batch >= self._stop_batch:
-            self._stop_trace()
+        if self._is_tracing:
+            if self._profiler_started and self._batch_trace_context is not None:
+                backend.tensorboard.stop_batch_trace(self._batch_trace_context)
+                self._batch_trace_context = None
+            if self._global_train_batch >= self._stop_batch:
+                self._stop_trace()
 
     def on_epoch_begin(self, epoch, logs=None):
         # Keeps track of epoch for profiling.
@@ -483,7 +501,7 @@ class TensorBoard(Callback):
 
     def _start_trace(self):
         self.summary.trace_on(graph=True, profiler=False)
-        self._start_profiler(logdir=self.log_dir)
+        self._start_profiler(logdir=self._train_dir)
         self._is_tracing = True
 
     def _stop_trace(self, batch=None):

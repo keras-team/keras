@@ -38,7 +38,6 @@ if optree.available:
 
 @parameterized.named_parameters(TEST_CASES)
 class TreeTest(testing.TestCase):
-
     def test_is_nested(self, tree_impl, is_optree):
         self.assertFalse(tree_impl.is_nested("1234"))
         self.assertFalse(tree_impl.is_nested(b"1234"))

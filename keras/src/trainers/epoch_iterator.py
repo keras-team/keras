@@ -91,6 +91,7 @@ class EpochIterator:
         self._num_batches = self.data_adapter.num_batches
         self._steps_seen = 0
         self._epoch_iterator = None
+        self.data_adapter.on_epoch_end()
 
     def _enumerate_iterator(self):
         self.data_adapter.on_epoch_begin()

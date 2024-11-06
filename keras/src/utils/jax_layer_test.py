@@ -207,7 +207,6 @@ class TestJaxLayer(testing.TestCase):
             return count
 
         def verify_weights_and_params(layer):
-
             self.assertEqual(trainable_weights, len(layer.trainable_weights))
             self.assertEqual(
                 trainable_params,
@@ -329,7 +328,6 @@ class TestJaxLayer(testing.TestCase):
 
         # test subclass model building without a build method
         class TestModel(models.Model):
-
             def __init__(self, layer):
                 super().__init__()
                 self._layer = layer

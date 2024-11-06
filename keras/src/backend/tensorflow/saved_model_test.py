@@ -150,22 +150,18 @@ class SavedModelTest(testing.TestCase):
         named_product(struct_type=["tuple", "array", "dict"])
     )
     def test_model_with_input_structure(self, struct_type):
-
         class TupleModel(models.Model):
-
             def call(self, inputs):
                 x, y = inputs
                 return x + ops.mean(y, axis=1)
 
         class ArrayModel(models.Model):
-
             def call(self, inputs):
                 x = inputs[0]
                 y = inputs[1]
                 return x + ops.mean(y, axis=1)
 
         class DictModel(models.Model):
-
             def call(self, inputs):
                 x = inputs["x"]
                 y = inputs["y"]

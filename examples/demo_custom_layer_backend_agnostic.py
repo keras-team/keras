@@ -47,9 +47,7 @@ class MyDropout(layers.Layer):
 
     def call(self, inputs):
         # Use `keras.random` for random ops.
-        return keras.random.dropout(
-            inputs, self.rate, seed=self.seed_generator
-        )
+        return keras.random.dropout(inputs, self.rate, seed=self.seed_generator)
 
 
 class MyModel(Model):
