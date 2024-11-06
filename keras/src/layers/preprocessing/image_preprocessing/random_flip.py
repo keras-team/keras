@@ -9,6 +9,7 @@ from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converter
     convert_format,
 )
 from keras.src.random.seed_generator import SeedGenerator
+from keras.src.utils import backend_utils
 
 HORIZONTAL = "horizontal"
 VERTICAL = "vertical"
@@ -114,6 +115,29 @@ class RandomFlip(BaseImagePreprocessingLayer):
             )
             return outputs
 
+        def _transform_xyxy(bounding_boxes, flips):
+
+            if backend_utils.in_tf_graph():
+                self.backend.set_backend("tensorflow")
+
+            bboxes = bounding_boxes["boxes"]
+            if self.mode in {HORIZONTAL, HORIZONTAL_AND_VERTICAL}:
+                bboxes = self.backend.numpy.where(
+                    flips,
+                    _flip_boxes_horizontal(bboxes),
+                    bboxes,
+                )
+            if self.mode in {VERTICAL, HORIZONTAL_AND_VERTICAL}:
+                bboxes = self.backend.numpy.where(
+                    flips,
+                    _flip_boxes_vertical(bboxes),
+                    bboxes,
+                )
+
+                self.backend.reset()
+
+            return bboxes
+
         flips = self.backend.numpy.squeeze(transformation["flips"], axis=-1)
         input_height, input_width = (
             transformation["input_shape"][-3],
@@ -128,21 +152,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
             width=input_width,
         )
 
-        bboxes = bounding_boxes["boxes"]
-        if self.mode in {HORIZONTAL, HORIZONTAL_AND_VERTICAL}:
-            bboxes = self.backend.numpy.where(
-                flips,
-                _flip_boxes_horizontal(bboxes),
-                bboxes,
-            )
-        if self.mode in {VERTICAL, HORIZONTAL_AND_VERTICAL}:
-            bboxes = self.backend.numpy.where(
-                flips,
-                _flip_boxes_vertical(bboxes),
-                bboxes,
-            )
-
-        bounding_boxes["boxes"] = bboxes
+        bounding_boxes["boxes"] = _transform_xyxy(bounding_boxes, flips)
 
         bounding_boxes = clip_to_image_size(
             bounding_boxes=bounding_boxes,
