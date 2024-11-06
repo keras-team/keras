@@ -428,19 +428,7 @@ class MultiHeadAttention(Layer):
           attention_output: Multi-headed outputs of attention computation.
           attention_scores: Multi-headed attention weights.
         """
-        if attention_mask is not None:
-            # Ensure attention_mask has the correct shape for broadcasting
-            # Expected shape: [batch_size, num_heads, query_seq_len,
-            # key_seq_len]. This is because masked_softmax is not supported in
-            # JAX.
-            while len(attention_mask.shape) < 4:
-                attention_mask = ops.expand_dims(
-                    attention_mask, axis=1
-                )  # Add dimension for num_heads
-            if attention_mask.shape[1] != self._num_heads:
-                attention_mask = ops.tile(
-                    attention_mask, [1, self._num_heads, 1, 1]
-                )
+
 
         # Check for flash attention constraints
         if self._flash_attention and return_attention_scores:
@@ -464,6 +452,19 @@ class MultiHeadAttention(Layer):
         )
 
         if use_dot_product_attention:
+            if attention_mask is not None:
+                # Ensure attention_mask has the correct shape for broadcasting
+                # Expected shape: [batch_size, num_heads, query_seq_len,
+                # key_seq_len]. This is because masked_softmax is not supported in
+                # JAX.
+                while len(attention_mask.shape) < 4:
+                    attention_mask = ops.expand_dims(
+                        attention_mask, axis=1
+                    )  # Add dimension for num_heads
+                if attention_mask.shape[1] != self._num_heads:
+                    attention_mask = ops.tile(
+                        attention_mask, [1, self._num_heads, 1, 1]
+                    )
             # Directly compute the attention output using dot-product attention
             attention_output = ops.dot_product_attention(
                 query=query,
