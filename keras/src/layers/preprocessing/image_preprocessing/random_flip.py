@@ -116,7 +116,6 @@ class RandomFlip(BaseImagePreprocessingLayer):
             return outputs
 
         def _transform_xyxy(boxes, box_flips):
-
             if backend_utils.in_tf_graph():
                 self.backend.set_backend("tensorflow")
 
