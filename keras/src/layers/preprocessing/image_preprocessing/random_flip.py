@@ -134,7 +134,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
                     bboxes,
                 )
 
-                self.backend.reset()
+            self.backend.reset()
 
             return bboxes
 
