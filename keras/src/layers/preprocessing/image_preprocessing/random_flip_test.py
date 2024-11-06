@@ -208,10 +208,15 @@ class RandomFlipTest(testing.TestCase):
             seed=42,
             bounding_box_format="xyxy",
         )
-        output = random_flip_layer(input_data)
 
-        print(output["bounding_boxes"]["boxes"])
-        self.assertAllClose(output["bounding_boxes"]["boxes"], expected_boxes)
+        transformation = {"flips": [[[True]]], "input_shape": input_image.shape}
+        output = random_flip_layer.transform_bounding_boxes(
+            input_data["bounding_boxes"],
+            transformation=transformation,
+            training=True,
+        )
+
+        self.assertAllClose(output["boxes"], expected_boxes)
 
     @parameterized.named_parameters(
         (
@@ -244,8 +249,8 @@ class RandomFlipTest(testing.TestCase):
                         [6, 4, 8, 6],
                     ]
                 ]
-            ),  # Example boxes (normalized)
-            "labels": np.array([[1, 2]]),  # Dummy labels
+            ),
+            "labels": np.array([[1, 2]]),
         }
 
         input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
@@ -257,7 +262,15 @@ class RandomFlipTest(testing.TestCase):
             seed=42,
             bounding_box_format="xyxy",
         )
-        ds = ds.map(random_flip_layer)
+
+        transformation = {"flips": [[[True]]], "input_shape": input_image.shape}
+        ds = ds.map(
+            lambda x: random_flip_layer.transform_bounding_boxes(
+                x["bounding_boxes"],
+                transformation=transformation,
+                training=True,
+            )
+        )
         output = next(iter(ds))
         expected_boxes = np.array(expected_boxes)
-        self.assertAllClose(output["bounding_boxes"]["boxes"], expected_boxes)
+        self.assertAllClose(output["boxes"], expected_boxes)
