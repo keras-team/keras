@@ -954,7 +954,14 @@ def dot_product_attention(
                 scale=scale,
             )
     else:
+        if mask is not None:
+            mask = mask.contiguous()
         attention_output = torch.nn.functional.scaled_dot_product_attention(
-            query, key, value, attn_mask=mask, is_causal=is_causal, scale=scale
+            query.contiguous(),
+            key.contiguous(),
+            value.contiguous(),
+            attn_mask=mask,
+            is_causal=is_causal,
+            scale=scale,
         )
     return torch.transpose(attention_output, axis1, axis0)

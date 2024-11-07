@@ -11,6 +11,7 @@ from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.layers.activations.softmax import Softmax
+from keras.src.layers.attention.attention import is_flash_attention_enabled
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.layer import Layer
 from keras.src.layers.regularization.dropout import Dropout
@@ -52,6 +53,9 @@ class MultiHeadAttention(Layer):
             feature dim (the query input's last dimension).
         attention_axes: axes over which the attention is applied. `None` means
             attention over all axes, but batch, heads, and features.
+        flash_attention: If unspecified, defaults to the global flash attention
+            configuration setting (which can be set via
+            `keras.config.enable_flash_attention().
         kernel_initializer: Initializer for dense layer kernels.
         bias_initializer: Initializer for dense layer biases.
         kernel_regularizer: Regularizer for dense layer kernels.
@@ -104,6 +108,7 @@ class MultiHeadAttention(Layer):
         use_bias=True,
         output_shape=None,
         attention_axes=None,
+        flash_attention=None,
         kernel_initializer="glorot_uniform",
         bias_initializer="zeros",
         kernel_regularizer=None,
@@ -131,6 +136,8 @@ class MultiHeadAttention(Layer):
         self._activity_regularizer = regularizers.get(activity_regularizer)
         self._kernel_constraint = constraints.get(kernel_constraint)
         self._bias_constraint = constraints.get(bias_constraint)
+        self._flash_attention = flash_attention or is_flash_attention_enabled()
+
         if isinstance(attention_axes, int):
             attention_axes = (attention_axes,)
         elif attention_axes and not isinstance(attention_axes, (list, tuple)):
@@ -392,7 +399,13 @@ class MultiHeadAttention(Layer):
         return self._softmax(attention_scores, mask=attention_mask)
 
     def _compute_attention(
-        self, query, key, value, attention_mask=None, training=None
+        self,
+        query,
+        key,
+        value,
+        return_attention_scores,
+        attention_mask=None,
+        training=None,
     ):
         """Applies Dot-product attention with query, key, value tensors.
 
@@ -415,9 +428,57 @@ class MultiHeadAttention(Layer):
           attention_output: Multi-headed outputs of attention computation.
           attention_scores: Multi-headed attention weights.
         """
-        # Note: Applying scalar multiply at the smaller end of einsum improves
-        # XLA performance, but may introduce slight numeric differences in
-        # the Transformer attention head.
+
+        # Check for flash attention constraints
+        if self._flash_attention and return_attention_scores:
+            raise ValueError(
+                "Returning attention scores is not supported when flash "
+                "attention is enabled. Please disable flash attention to access"
+                " attention scores."
+            )
+        if self._flash_attention and self._dropout > 0.0:
+            raise ValueError(
+                "Dropout is not supported when flash "
+                "attention is enabled. Please set dropout to 0.0 to use "
+                "flash attention."
+            )
+
+        # Determine whether to use dot-product attention
+        use_dot_product_attention = not (
+            self._dropout > 0.0
+            or return_attention_scores
+            or (len(query.shape) != 4)
+        )
+
+        if use_dot_product_attention:
+            if attention_mask is not None:
+                # Ensure attention_mask has the correct shape for broadcasting
+                # Expected shape: [batch_size, num_heads, query_seq_len,
+                # key_seq_len]. This is because masked_softmax is not supported
+                # in JAX.
+                while len(attention_mask.shape) < 4:
+                    attention_mask = ops.expand_dims(
+                        attention_mask, axis=1
+                    )  # Add dimension for num_heads
+                if attention_mask.shape[1] != self._num_heads:
+                    attention_mask = ops.tile(
+                        attention_mask, [1, self._num_heads, 1, 1]
+                    )
+            # Directly compute the attention output using dot-product attention
+            attention_output = ops.dot_product_attention(
+                query=query,
+                key=key,
+                value=value,
+                bias=None,
+                mask=attention_mask,
+                scale=self._inverse_sqrt_key_dim,
+                is_causal=False,
+                flash_attention=self._flash_attention,
+            )
+            return attention_output, None
+
+        # Default behavior without flash attention, with explicit attention
+        # scores
         query = ops.multiply(
             query, ops.cast(self._inverse_sqrt_key_dim, query.dtype)
         )
@@ -426,13 +487,13 @@ class MultiHeadAttention(Layer):
         # attention scores.
         attention_scores = ops.einsum(self._dot_product_equation, key, query)
 
+        # Apply the mask using the custom masked softmax
         attention_scores = self._masked_softmax(
             attention_scores, attention_mask
         )
 
-        # This is actually dropping out entire tokens to attend to, which might
-        # seem a bit unusual, but is taken from the original Transformer paper.
-        if self.dropout:
+        # Apply dropout to the attention scores if needed
+        if self._dropout > 0.0:
             final_attn_scores = self._dropout_layer(
                 attention_scores, training=training
             )
@@ -460,7 +521,6 @@ class MultiHeadAttention(Layer):
     ):
         if key is None:
             key = value
-
         attention_mask = self._compute_attention_mask(
             query,
             value,
@@ -470,9 +530,9 @@ class MultiHeadAttention(Layer):
             attention_mask=attention_mask,
             use_causal_mask=use_causal_mask,
         )
-
         #   N = `num_attention_heads`
         #   H = `size_per_head`
+
         # `query` = [B, T, N ,H]
         query = self._query_dense.call(query)
 
@@ -481,9 +541,13 @@ class MultiHeadAttention(Layer):
 
         # `value` = [B, S, N, H]
         value = self._value_dense.call(value)
-
         attention_output, attention_scores = self._compute_attention(
-            query, key, value, attention_mask, training
+            query,
+            key,
+            value,
+            return_attention_scores,
+            attention_mask,
+            training,
         )
         attention_output = self._output_dense.call(attention_output)
 

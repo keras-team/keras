@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common import global_state
 from keras.src.layers.layer import Layer
 
 
@@ -282,3 +283,49 @@ class Attention(Layer):
             "dropout": self.dropout,
         }
         return {**base_config, **config}
+
+
+@keras_export("keras.config.enable_flash_attention")
+def enable_flash_attention():
+    """Enable flash attention.
+
+    Flash attention offers performance optimization for attention layers,
+    making it especially useful for large language models (LLMs) that
+    benefit from faster and more memory-efficient attention computations.
+
+    Once enabled, supported layers like `MultiHeadAttention` will
+    use flash attention for faster computations.
+    """
+    global_state.set_global_attribute("flash_attention", True)
+
+
+@keras_export("keras.config.disable_flash_attention")
+def disable_flash_attention():
+    """Disable flash attention.
+
+    Flash attention offers performance optimization for attention layers,
+    making it especially useful for large language models (LLMs) that
+    benefit from faster and more memory-efficient attention computations.
+
+    Once disabled, supported layers like `MultiHeadAttention` will not
+    use flash attention for faster computations.
+    """
+    global_state.set_global_attribute("flash_attention", False)
+
+
+@keras_export("keras.config.is_flash_attention_enabled")
+def is_flash_attention_enabled():
+    """Checks whether flash attention is globally enabled in Keras.
+
+    Flash attention is a performance-optimized method for computing attention
+    in large models, such as transformers, allowing for faster and more
+    memory-efficient operations. This function checks the global Keras
+    configuration to determine if flash attention is enabled for compatible
+    layers (e.g., `MultiHeadAttention`).
+
+    Returns:
+        bool or None: Returns `True` if flash attention is enabled,
+                      `False` if it is disabled, and `None` if the global
+                      setting has not been defined.
+    """
+    return global_state.get_global_attribute("flash_attention", default=None)
