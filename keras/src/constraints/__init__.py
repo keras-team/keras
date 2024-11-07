@@ -30,7 +30,16 @@ def serialize(constraint):
 
 @keras_export("keras.constraints.deserialize")
 def deserialize(config, custom_objects=None):
-    """Return a Keras constraint object via its config."""
+    """ This function deserializes a constraint configuration dictionary into a Constraint instance. 
+        It's primarily used for loading models that were saved with constraints.
+    
+    Args:
+       Type: `dict`
+         This is a dictionary that specifies the serialized configuration of a constraint. It typically contains two keys:
+           * class_name: A string that indicates the name of the constraint class (e.g., 'MaxNorm', 'MinMaxNorm', 'NonNeg', etc.).
+           * config: A dictionary containing the parameters specific to the constraint class, which may vary depending on the constraint being used.
+        
+    Return a Keras constraint object via its config."""
     return serialization_lib.deserialize_keras_object(
         config,
         module_objects=ALL_OBJECTS_DICT,
