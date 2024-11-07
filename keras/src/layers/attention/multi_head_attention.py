@@ -531,7 +531,7 @@ class MultiHeadAttention(Layer):
         )
         #   N = `num_attention_heads`
         #   H = `size_per_head`
-        
+
         # `query` = [B, T, N ,H]
         query = self._query_dense.call(query)
 
