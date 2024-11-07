@@ -111,13 +111,11 @@ class BackupAndRestore(Callback):
             if not file_utils.exists(self._prev_weights_path):
                 raise e
             file_utils.copy(self._prev_weights_path, self._weights_path)
-            file_utils.remove(self._prev_weights_path)
             if file_utils.exists(self._prev_training_metadata_path):
                 file_utils.copy(
                     self._prev_training_metadata_path,
                     self._training_metadata_path,
                 )
-                file_utils.remove(self._prev_training_metadata_path)
             elif file_utils.exists(self._training_metadata_path):
                 file_utils.remove(self._training_metadata_path)
             self._load_model()
