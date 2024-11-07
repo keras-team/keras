@@ -177,6 +177,10 @@ class InitializersTest(testing.TestCase):
         values = initializer(shape=shape)
         self.assertAllClose(values, tensor)
 
+        # Test bad `shape` argument
+        with self.assertRaisesRegex(ValueError, r"Expected `shape` to be"):
+            initializer(shape=(10, 10))
+
     def test_variance_scaling_invalid_scale(self):
         seed = 1234
 
