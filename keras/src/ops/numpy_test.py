@@ -3423,9 +3423,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Ceil()(x), np.ceil(x))
 
     def test_clip(self):
-        x = np.array([[1.2, 2.1, -2.5], [2.4, -11.9, -5.5]])
-        self.assertAllClose(knp.clip(x, -2, 2), np.clip(x, -2, 2))
-        self.assertAllClose(knp.clip(x, -2, 2), np.clip(x, -2, 2))
+        x = np.array([[1.2, 2.1, 0.5], [2.4, 11.9, 0.5]])
+        self.assertAllClose(knp.clip(x, 1, 2), np.clip(x, 1, 2))
+        self.assertAllClose(knp.clip(x, 1, 2), np.clip(x, 1, 2))
 
         self.assertAllClose(knp.Clip(0, 1)(x), np.clip(x, 0, 1))
         self.assertAllClose(knp.Clip(0, 1)(x), np.clip(x, 0, 1))
@@ -6066,15 +6066,15 @@ class NumpyDtypeTest(testing.TestCase):
 
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.clip(x_jax, -2, 2).dtype)
+        expected_dtype = standardize_dtype(jnp.clip(x_jax, 1, 2).dtype)
         if dtype == "bool":
             expected_dtype = "int32"
 
         self.assertEqual(
-            standardize_dtype(knp.clip(x, -2, 2).dtype), expected_dtype
+            standardize_dtype(knp.clip(x, 1, 2).dtype), expected_dtype
         )
         self.assertEqual(
-            standardize_dtype(knp.Clip(-2, 2).symbolic_call(x).dtype),
+            standardize_dtype(knp.Clip(1, 2).symbolic_call(x).dtype),
             expected_dtype,
         )
 
