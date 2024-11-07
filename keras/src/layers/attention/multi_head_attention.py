@@ -469,6 +469,7 @@ class MultiHeadAttention(Layer):
                 query=query,
                 key=key,
                 value=value,
+                bias=None,
                 mask=attention_mask,
                 scale=self._inverse_sqrt_key_dim,
                 is_causal=False,
