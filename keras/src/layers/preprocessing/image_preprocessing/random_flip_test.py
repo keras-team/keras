@@ -97,7 +97,9 @@ class RandomFlipTest(testing.TestCase):
                 "seed": 42,
             },
             input_data=np.asarray([[[2, 3, 4]], [[5, 6, 7]]]),
-            expected_output=backend.convert_to_tensor([[[5, 6, 7]], [[2, 3, 4]]]),
+            expected_output=backend.convert_to_tensor(
+                [[[5, 6, 7]], [[2, 3, 4]]]
+            ),
             supports_masking=False,
             run_training_check=run_training_check,
         )
@@ -133,14 +135,18 @@ class RandomFlipTest(testing.TestCase):
 
     def test_tf_data_compatibility(self):
         # Test 3D input: shape (2, 1, 3)
-        layer = layers.RandomFlip("vertical", data_format="channels_last", seed=42)
+        layer = layers.RandomFlip(
+            "vertical", data_format="channels_last", seed=42
+        )
         input_data = np.array([[[2, 3, 4]], [[5, 6, 7]]])
         expected_output = np.array([[[5, 6, 7]], [[2, 3, 4]]])
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         output = next(iter(ds)).numpy()
         self.assertAllClose(output, expected_output)
         # Test 4D input: shape (2, 2, 1, 3)
-        layer = layers.RandomFlip("vertical", data_format="channels_last", seed=42)
+        layer = layers.RandomFlip(
+            "vertical", data_format="channels_last", seed=42
+        )
         input_data = np.array(
             [
                 [
