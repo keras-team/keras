@@ -138,9 +138,17 @@ class RandomFlip(BaseImagePreprocessingLayer):
             return bboxes
 
         flips = self.backend.numpy.squeeze(transformation["flips"], axis=-1)
+
+        if self.data_format == "channels_first":
+            height_axis = -2
+            width_axis = -1
+        else:
+            height_axis = -3
+            width_axis = -2
+
         input_height, input_width = (
-            transformation["input_shape"][-3],
-            transformation["input_shape"][-2],
+            transformation["input_shape"][height_axis],
+            transformation["input_shape"][width_axis],
         )
 
         bounding_boxes = convert_format(
