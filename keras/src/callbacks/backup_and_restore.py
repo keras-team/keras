@@ -90,6 +90,12 @@ class BackupAndRestore(Callback):
         self._training_metadata_path = file_utils.join(
             backup_dir, "training_metadata.json"
         )
+        self._prev_weights_path = file_utils.join(
+            backup_dir, "_latest.weights.h5"
+        )
+        self._prev_training_metadata_path = file_utils.join(
+            backup_dir, "_training_metadata.json"
+        )
         if save_freq != "epoch" and not isinstance(save_freq, int):
             raise ValueError(
                 "Invalid value for argument `save_freq`. "
@@ -98,6 +104,25 @@ class BackupAndRestore(Callback):
             )
 
     def on_train_begin(self, logs=None):
+        try:
+            self._load_model()
+        except OSError as e:
+            # Weights are be corrupted. Trying to load previous one.
+            if not file_utils.exists(self._prev_weights_path):
+                raise e
+            file_utils.copy(self._prev_weights_path, self._weights_path)
+            file_utils.remove(self._prev_weights_path)
+            if file_utils.exists(self._prev_training_metadata_path):
+                file_utils.copy(
+                    self._prev_training_metadata_path,
+                    self._training_metadata_path,
+                )
+                file_utils.remove(self._prev_training_metadata_path)
+            elif file_utils.exists(self._training_metadata_path):
+                file_utils.remove(self._training_metadata_path)
+            self._load_model()
+
+    def _load_model(self):
         """Get training state from temporary file and restore it."""
         if not self.model.built:
             raise ValueError(
@@ -143,6 +168,12 @@ class BackupAndRestore(Callback):
         # Create host directory if it doesn't exist.
         if not file_utils.exists(self.backup_dir):
             file_utils.makedirs(self.backup_dir)
+        if file_utils.exists(self._weights_path):
+            file_utils.copy(self._weights_path, self._prev_weights_path)
+        if file_utils.exists(self._training_metadata_path):
+            file_utils.copy(
+                self._training_metadata_path, self._prev_training_metadata_path
+            )
         self.model.save_weights(filepath=self._weights_path, overwrite=True)
         with file_utils.File(self._training_metadata_path, "w") as f:
             training_metadata = {
