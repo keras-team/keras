@@ -194,6 +194,7 @@ class TensorBoard(Callback):
 
         self._init_profile_batch(profile_batch)
         self._global_train_batch = 0
+        self._global_test_batch = 0
         self._previous_epoch_iterations = 0
         self._train_accumulated_time = 0
         self._batch_start_time = 0
@@ -212,11 +213,7 @@ class TensorBoard(Callback):
         self._log_write_dir = self.log_dir
 
         self._train_dir = os.path.join(self._log_write_dir, "train")
-        self._train_step = 0
-
         self._val_dir = os.path.join(self._log_write_dir, "validation")
-        self._val_step = 0
-
         self._writers = {}  # Resets writers.
 
         self._should_write_train_graph = False
@@ -409,7 +406,7 @@ class TensorBoard(Callback):
     def on_train_begin(self, logs=None):
         self._global_train_batch = 0
         self._previous_epoch_iterations = 0
-        self._push_writer(self._train_writer, self._train_step)
+        self._push_writer(self._train_writer, self._global_train_batch)
 
     def on_train_end(self, logs=None):
         self._pop_writer()
@@ -420,7 +417,7 @@ class TensorBoard(Callback):
         self._close_writers()
 
     def on_test_begin(self, logs=None):
-        self._push_writer(self._val_writer, self._val_step)
+        self._push_writer(self._val_writer, self._global_test_batch)
 
     def on_test_end(self, logs=None):
         if self.model.optimizer and hasattr(self.model.optimizer, "iterations"):
@@ -432,11 +429,6 @@ class TensorBoard(Callback):
                         step=self.model.optimizer.iterations,
                     )
         self._pop_writer()
-
-    def _implements_train_batch_hooks(self):
-        # Only call batch hooks when tracing or write_steps_per_second are
-        # enabled
-        return self._should_trace or self.write_steps_per_second
 
     def on_train_batch_begin(self, batch, logs=None):
         self._global_train_batch += 1
@@ -461,14 +453,14 @@ class TensorBoard(Callback):
             self.summary.scalar(
                 "batch_steps_per_second",
                 1.0 / batch_run_time,
-                step=self._train_step,
+                step=self._global_train_batch,
             )
 
         # `logs` isn't necessarily always a dict
         if isinstance(logs, dict):
             for name, value in logs.items():
                 self.summary.scalar(
-                    "batch_" + name, value, step=self._train_step
+                    "batch_" + name, value, step=self._global_train_batch
                 )
 
         if not self._should_trace:
@@ -480,6 +472,9 @@ class TensorBoard(Callback):
                 self._batch_trace_context = None
             if self._global_train_batch >= self._stop_batch:
                 self._stop_trace()
+
+    def on_test_batch_begin(self, batch, logs=None):
+        self._global_test_batch += 1
 
     def on_epoch_begin(self, epoch, logs=None):
         # Keeps track of epoch for profiling.
