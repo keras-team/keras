@@ -187,10 +187,8 @@ class RandomFlipTest(testing.TestCase):
         ),
     )
     def test_random_flip_bounding_boxes(self, mode, expected_boxes):
-        if backend.config.image_data_format() == "channels_last":
-            image_shape = (10, 8, 3)
-        else:
-            image_shape = (3, 10, 8)
+        data_format = "channels_last"
+        image_shape = (10, 8, 3)
         input_image = np.random.random(image_shape)
         bounding_boxes = {
             "boxes": np.array(
@@ -204,7 +202,7 @@ class RandomFlipTest(testing.TestCase):
         input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
         random_flip_layer = layers.RandomFlip(
             mode,
-            data_format="channels_last",
+            data_format=data_format,
             seed=42,
             bounding_box_format="xyxy",
         )
@@ -239,10 +237,8 @@ class RandomFlipTest(testing.TestCase):
         ),
     )
     def test_random_flip_tf_data_bounding_boxes(self, mode, expected_boxes):
-        if backend.config.image_data_format() == "channels_last":
-            image_shape = (1, 10, 8, 3)
-        else:
-            image_shape = (1, 3, 10, 8)
+        data_format = "channels_last"
+        image_shape = (1, 10, 8, 3)
         input_image = np.random.random(image_shape)
         bounding_boxes = {
             "boxes": np.array(
@@ -261,7 +257,7 @@ class RandomFlipTest(testing.TestCase):
         ds = tf_data.Dataset.from_tensor_slices(input_data)
         random_flip_layer = layers.RandomFlip(
             mode,
-            data_format="channels_last",
+            data_format=data_format,
             seed=42,
             bounding_box_format="xyxy",
         )
