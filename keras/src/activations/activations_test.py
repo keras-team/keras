@@ -665,6 +665,15 @@ class ActivationsTest(testing.TestCase):
         expected = hard_tanh(x)
         self.assertAllClose(result, expected, rtol=1e-05)
 
+    def test_hard_shrink(self):
+        def hard_shrink(x):
+            return np.where(np.abs(x) > 0.5, x, 0.0)
+
+        x = np.random.random((2, 5))
+        result = activations.hard_shrink(x[np.newaxis, :])[0]
+        expected = hard_shrink(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
     def test_elu(self):
         x = np.random.random((2, 5))
         result = activations.elu(x[np.newaxis, :])[0]

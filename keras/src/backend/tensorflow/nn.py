@@ -96,6 +96,10 @@ def hard_tanh(x):
     return tf.clip_by_value(x, clip_value_min=-1.0, clip_value_max=1.0)
 
 
+def hard_shrink(x, lambd=0.5):
+    return tf.where(tf.abs(x) > lambd, x, tf.zeros_like(x))
+
+
 def softmax(x, axis=-1):
     logits = x
     if axis is None:

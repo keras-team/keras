@@ -618,6 +618,46 @@ def hard_tanh(x):
     return backend.nn.hard_tanh(x)
 
 
+class HardShrink(Operation):
+    def __init__(self, lambd=0.5):
+        super().__init__()
+        self.lambd = lambd
+
+    def call(self, x):
+        return backend.nn.hard_shrink(x, self.lambd)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.hard_shrink", "keras.ops.nn.hard_shrink"])
+def hard_shrink(x, lambd=0.5):
+    """Hard Shrink activation function.
+
+    The Hard Shrink function is a thresholding operation defined as:
+
+    `f(x) = x if |x| > lambd`, `f(x) = 0 otherwise`.
+
+    Args:
+        x: Input tensor.
+        lambd: Threshold value. Defaults to `0.5`.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-0.5, 0., 1.])
+    >>> x_hard_shrink = keras.ops.hard_shrink(x)
+    >>> print(x_hard_shrink)
+    array([0. 0. 1.], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return HardShrink(lambd).symbolic_call(x)
+    return backend.nn.hard_shrink(x, lambd)
+
+
 class Softmax(Operation):
     def __init__(self, axis=-1):
         super().__init__()
