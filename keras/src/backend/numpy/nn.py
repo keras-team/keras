@@ -142,7 +142,10 @@ def hard_tanh(x):
 def hard_shrink(x, lambd=0.5):
     x = convert_to_tensor(x)
     lambd = np.asarray(lambd, x.dtype)
-    return np.array(np.where(np.abs(x) > lambd, x, 0.0), dtype=x.dtype)
+    return np.array(
+        np.where(np.abs(x) > lambd, x, np.array(0.0, dtype=x.dtype)),
+        dtype=x.dtype,
+    )
 
 
 def softmax(x, axis=None):
