@@ -140,7 +140,6 @@ class Trainer:
                 wrapped in a `LossScaleOptimizer`, which will dynamically
                 scale the loss to prevent underflow.
         """
-        self._clear_previous_trainer_metrics()
         optimizer = optimizers.get(optimizer)
         self.optimizer = optimizer
         if (
