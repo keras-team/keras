@@ -5,6 +5,8 @@ import tree
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import layers
+from keras.src import models
 from keras.src import metrics as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import ops
@@ -520,3 +522,16 @@ class TestCompileLoss(testing.TestCase):
         ):
             wrong_struc_y_true = [np.array([[1]])]
             compile_loss(wrong_struc_y_true, y_pred)
+
+    def test_multi_output_model_single_loss(self):
+        inputs = layers.Input((2,))
+        x = layers.Dense(3, kernel_initializer="ones", use_bias=False)(inputs)
+        model = models.Model(inputs, [x, x, x])
+        model.compile(loss=["mse", None, None])
+        # model.fit(x=np.ones((320, 2)), y=[np.zeros((320, 3)), np.zeros((320, 3)), np.zeros((320, 3))])
+        # out = model.evaluate(x=np.ones((320, 2)), y=[np.zeros((320, 3)), np.zeros((320, 3)), np.zeros((320, 3))])
+
+        model.fit(x=np.ones((320, 2)), y=np.zeros((320, 3)))
+        out = model.evaluate(x=np.ones((320, 2)), y=np.zeros((320, 3)))
+
+        self.assertAllClose(out, 3.862943)

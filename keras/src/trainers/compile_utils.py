@@ -408,6 +408,19 @@ class CompileMetrics(metrics_module.Metric):
         raise NotImplementedError
 
 
+def nicer_assert_same_structure(x, y, x_name, y_name):
+    try:
+        tree.assert_same_structure(x, y, check_types=False)
+    except ValueError:
+        x_struct = tree.map_structure(lambda _: "*", x)
+        y_struct = tree.map_structure(lambda _: "*", y)
+        raise ValueError(
+            f"{x_name} and {y_name} have different structures.\n"
+            f"x_name: {x_struct}\n"
+            f"y_name: {y_struct}\n"
+        )
+
+
 class CompileLoss(losses_module.Loss):
     Loss = namedtuple("Loss", ["path", "loss", "loss_weights", "name"])
 
@@ -428,10 +441,13 @@ class CompileLoss(losses_module.Loss):
                 f"Received instead: loss_weights={loss_weights} "
                 f"of type {type(loss_weights)}"
             )
+        if loss_weights is not None:
+            nicer_assert_same_structure(loss, loss_weights, "loss", "loss_weights")
 
         self._user_loss = loss
         self._user_loss_weights = loss_weights
         self.built = False
+
         self.output_names = output_names
         super().__init__(name="compile_loss", reduction=reduction)
 
@@ -666,6 +682,25 @@ class CompileLoss(losses_module.Loss):
             return self.call(y_true, y_pred, sample_weight)
 
     def call(self, y_true, y_pred, sample_weight=None):
+
+        if not tree.is_nested(y_true) and not tree.is_nested(y_pred):
+            # Fast path: single output case / no loss-tracking metric.
+            if not self.built:
+                self.build(y_true, y_pred)
+            loss_values = []
+            for _, loss_fn, loss_weight, _ in self._flat_losses:
+                loss_value = ops.cast(
+                    loss_fn(y_true, y_pred, sample_weight), dtype=self.dtype
+                )
+                if loss_weight is not None:
+                    loss_value = ops.multiply(loss_value, loss_weight)
+                loss_values.append(loss_value)
+
+            if loss_values:
+                total_loss = sum(loss_values)
+                return total_loss
+            return None
+
         try:
             tree.assert_same_structure(y_pred, y_true, check_types=False)
         except ValueError:
@@ -686,6 +721,7 @@ class CompileLoss(losses_module.Loss):
                     tree.assert_same_paths(y_true, y_pred)
                     y_true = tree.pack_sequence_as(y_pred, tree.flatten(y_true))
             except:
+
                 y_true_struct = tree.map_structure(lambda _: "*", y_true)
                 y_pred_struct = tree.map_structure(lambda _: "*", y_pred)
                 raise ValueError(
@@ -720,7 +756,7 @@ class CompileLoss(losses_module.Loss):
                 object = object[_path]
             return object
 
-        for (path, loss_fn, loss_weight, name), metric in zip(
+        for (path, loss_fn, loss_weight, _), metric in zip(
             self._flat_losses, metrics
         ):
             y_t, y_p = resolve_path(path, y_true), resolve_path(path, y_pred)
