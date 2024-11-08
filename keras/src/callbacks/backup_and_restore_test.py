@@ -158,7 +158,7 @@ class BackupAndRestoreCallbackTest(testing.TestCase):
         model = self.make_model()
         self.assertEqual(int(model.layers[0].counter.value), 0)
         cbk = callbacks.BackupAndRestore(
-            backup_dir=backup_dir, save_freq="epoch"
+            backup_dir=backup_dir, save_freq="epoch", double_checkpoint=True
         )
 
         x_train = np.random.random((10, 3))
