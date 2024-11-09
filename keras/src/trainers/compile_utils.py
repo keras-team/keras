@@ -581,7 +581,7 @@ class CompileLoss(losses_module.Loss):
                     raise ValueError(
                         f"`loss_weights` must match the number of losses, "
                         f"got {len(tree.flatten(loss))} losses "
-                        f"and {len(loss_weights)} weigths."
+                        f"and {len(loss_weights)} weights."
                     )
                 loss_weights = tree.pack_sequence_as(loss, flat_loss_weights)
             loss = tree.map_structure(
@@ -717,14 +717,14 @@ class CompileLoss(losses_module.Loss):
             value = ops.cast(
                 loss_fn(y_t, y_p, _sample_weight), dtype=self.dtype
             )
-            if loss_weight is not None:
-                value = ops.multiply(value, loss_weight)
-            loss_values.append(value)
-            # Record individual losses.
+            # Record *unweighted* individual losses.
             if metric:
                 metric.update_state(
                     value, sample_weight=tree.flatten(y_p)[0].shape[0]
                 )
+            if loss_weight is not None:
+                value = ops.multiply(value, loss_weight)
+            loss_values.append(value)
 
         if loss_values:
             total_loss = sum(loss_values)
