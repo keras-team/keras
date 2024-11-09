@@ -2544,6 +2544,23 @@ class TestTrainer(testing.TestCase):
             atol=1e-3,
         )
 
+    @pytest.mark.requires_trainable_backend
+    def test_partial_loss_partial_label(self):
+        inputs = keras.Input((2,))
+        x = keras.layers.Dense(3, kernel_initializer="ones")(inputs)
+        partial_model = keras.Model(inputs, [x, x, x])
+        partial_model.compile(loss=["mse", None, None])
+        full_model = keras.Model(inputs, [x, x, x])
+        full_model.compile(loss=["mse", "mse", "mse"])
+
+        eval_x = np.ones((32, 2))
+        eval_y = np.ones((32, 3))
+
+        partial_logs = partial_model.evaluate(eval_x, eval_y, return_dict=True)
+        logs = full_model.evaluate(eval_x, [eval_y] * 3, return_dict=True)
+
+        self.assertAlmostEqual(partial_logs["loss"] * 3, logs["loss"])
+
     def test_symbolic_build(self):
         class ExampleModelWithTrainingArgs(Trainer, layers.Layer):
             def __init__(self, units):

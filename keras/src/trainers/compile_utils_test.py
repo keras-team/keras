@@ -522,8 +522,10 @@ class TestCompileLoss(testing.TestCase):
             compile_loss(wrong_struc_y_true, y_pred)
 
     def test_y_true_partial_y_pred_span(self):
-        y_pred = [np.random.random((320, 3))] * 3
-        y_true = np.random.random((320, 3))
+        ones = np.ones((320, 3))
+        zeros = np.zeros((320, 3))
+        y_pred = [ones, zeros, zeros]
+        y_true = ones
 
         compile_loss = CompileLoss(
             loss=["mse", None, None], output_names=["a", "b", "c"]
@@ -531,4 +533,5 @@ class TestCompileLoss(testing.TestCase):
         # build call
         compile_loss(y_true, y_pred)
         # built call
-        compile_loss(y_true, y_pred)
+        loss = compile_loss(y_true, y_pred)
+        self.assertEqual(loss, 0.0)
