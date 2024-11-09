@@ -101,6 +101,9 @@ class RandomFlip(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
+        if backend_utils.in_tf_graph():
+            self.backend.set_backend("tensorflow")
+
         def _flip_boxes_horizontal(boxes):
             x1, x2, x3, x4 = self.backend.numpy.split(boxes, 4, axis=-1)
             outputs = self.backend.numpy.concatenate(
@@ -116,9 +119,6 @@ class RandomFlip(BaseImagePreprocessingLayer):
             return outputs
 
         def _transform_xyxy(boxes, box_flips):
-            if backend_utils.in_tf_graph():
-                self.backend.set_backend("tensorflow")
-
             bboxes = boxes["boxes"]
             if self.mode in {HORIZONTAL, HORIZONTAL_AND_VERTICAL}:
                 bboxes = self.backend.numpy.where(
@@ -132,9 +132,6 @@ class RandomFlip(BaseImagePreprocessingLayer):
                     _flip_boxes_vertical(bboxes),
                     bboxes,
                 )
-
-            self.backend.reset()
-
             return bboxes
 
         flips = self.backend.numpy.squeeze(transformation["flips"], axis=-1)
@@ -175,6 +172,8 @@ class RandomFlip(BaseImagePreprocessingLayer):
             height=input_height,
             width=input_width,
         )
+
+        self.backend.reset()
 
         return bounding_boxes
 
