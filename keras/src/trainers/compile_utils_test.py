@@ -375,6 +375,33 @@ class TestCompileLoss(testing.TestCase):
         value = compile_loss(y_true, y_pred)
         self.assertAllClose(value, 1.07666, atol=1e-5)
 
+    def test_struct_loss_valid_weights(self):
+        y_true = {
+            "a": np.array([1, 2]),
+            "b": np.array([1, 2]),
+        }
+        y_pred = {
+            "a": np.array([3, 4]),
+            "b": np.array([3, 4]),
+        }
+        loss = {"a": "mse", "b": "mse"}
+        compile_loss = CompileLoss(
+            loss=loss,
+            output_names=["a", "b"],
+            loss_weights={
+                "a": np.ones((2,)),
+                "b": np.zeros((2,)),
+            },
+        )
+        compile_loss.build(y_true, y_pred)
+        value = compile_loss(y_true, y_pred)
+        self.assertAllClose(value, 4)
+
+        # Metrics still report unweighted loss.
+        a_loss_mean, b_loss_mean = compile_loss.metrics
+        self.assertEqual(a_loss_mean.result(), 4)
+        self.assertEqual(b_loss_mean.result(), 4)
+
     def test_struct_loss_invalid_weights(self):
         y_true = {
             "a": {
