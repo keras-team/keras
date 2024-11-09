@@ -29,7 +29,7 @@ class OptimizerTest(testing.TestCase):
         v = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
         grads = None
         optimizer = optimizers.SGD(learning_rate=1.0)
-        with self.assertRaisesRegexp(
+        with self.assertRaisesRegex(
             ValueError, "No gradients provided for any variable."
         ):
             optimizer.apply_gradients([(grads, v)])

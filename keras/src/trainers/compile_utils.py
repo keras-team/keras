@@ -676,6 +676,18 @@ class CompileLoss(losses_module.Loss):
             return self.call(y_true, y_pred, sample_weight)
 
     def call(self, y_true, y_pred, sample_weight=None):
+        if not tree.is_nested(y_true) and not tree.is_nested(y_pred):
+            # Fast path: single output case / no loss-tracking metric.
+            if not self.built:
+                self.build(y_true, y_pred)
+            _, loss_fn, loss_weight, _ = self._flat_losses[0]
+            loss_value = ops.cast(
+                loss_fn(y_true, y_pred, sample_weight), dtype=self.dtype
+            )
+            if loss_weight is not None:
+                loss_value = ops.multiply(loss_value, loss_weight)
+            return loss_value
+
         try:
             tree.assert_same_structure(y_pred, y_true, check_types=False)
         except ValueError:
@@ -749,7 +761,7 @@ class CompileLoss(losses_module.Loss):
                 object = object[_path]
             return object
 
-        for (path, loss_fn, loss_weight, name), metric in zip(
+        for (path, loss_fn, loss_weight, _), metric in zip(
             self._flat_losses, metrics
         ):
             y_t, y_p = resolve_path(path, y_true), resolve_path(path, y_pred)

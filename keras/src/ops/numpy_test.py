@@ -2975,7 +2975,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.where(x > 1), np.where(x > 1))
         self.assertAllClose(knp.Where()(x > 1), np.where(x > 1))
 
-        with self.assertRaisesRegexp(
+        with self.assertRaisesRegex(
             ValueError, "`x1` and `x2` either both should be `None`"
         ):
             knp.where(x > 1, x, None)
@@ -4898,10 +4898,10 @@ class SparseTest(testing.TestCase):
     ]
 
     def assertSameSparseness(self, x, y):
-        self.assertEquals(sparseness(x), sparseness(y))
+        self.assertEqual(sparseness(x), sparseness(y))
 
     def assertSparseness(self, x, expected_sparseness):
-        self.assertEquals(sparseness(x), expected_sparseness)
+        self.assertEqual(sparseness(x), expected_sparseness)
 
     @parameterized.named_parameters(ELEMENTWISE_UNARY_OPS_TESTS)
     def test_elementwise_unary_symbolic_static_shape(
