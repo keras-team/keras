@@ -374,19 +374,19 @@ def hard_tanh(x):
 
 
 @keras_export("keras.activations.hard_shrink")
-def hard_shrink(x, lambd=0.5):
+def hard_shrink(x, threshold=0.5):
     """Hard Shrink activation function.
 
     It is defined as:
 
-    `hard_shrink(x) = x if |x| > lambd`, `hard_shrink(x) = 0 otherwise`.
+    `hard_shrink(x) = x if |x| > threshold`, `hard_shrink(x) = 0 otherwise`.
 
     Args:
         x: Input tensor.
-        lambd: Threshold value. Defaults to `0.5`.
+        threshold: Threshold value. Defaults to `0.5`.
 
     """
-    return ops.hard_shrink(x, lambd=lambd)
+    return ops.hard_shrink(x, threshold=threshold)
 
 
 @keras_export("keras.activations.sigmoid")

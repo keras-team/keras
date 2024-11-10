@@ -139,11 +139,11 @@ def hard_tanh(x):
     return np.array(np.clip(x, min_val, max_val), dtype=x.dtype)
 
 
-def hard_shrink(x, lambd=0.5):
+def hard_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
-    lambd = np.asarray(lambd, x.dtype)
+    threshold = np.asarray(threshold, x.dtype)
     return np.array(
-        np.where(np.abs(x) > lambd, x, np.array(0.0, dtype=x.dtype)),
+        np.where(np.abs(x) > threshold, x, np.array(0.0, dtype=x.dtype)),
         dtype=x.dtype,
     )
 

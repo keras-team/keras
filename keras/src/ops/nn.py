@@ -631,16 +631,16 @@ class HardShrink(Operation):
 
 
 @keras_export(["keras.ops.hard_shrink", "keras.ops.nn.hard_shrink"])
-def hard_shrink(x, lambd=0.5):
+def hard_shrink(x, threshold=0.5):
     """Hard Shrink activation function.
 
     The Hard Shrink function is a thresholding operation defined as:
 
-    `f(x) = x if |x| > lambd`, `f(x) = 0 otherwise`.
+    `f(x) = x if |x| > threshold`, `f(x) = 0 otherwise`.
 
     Args:
         x: Input tensor.
-        lambd: Threshold value. Defaults to `0.5`.
+        threshold: Threshold value. Defaults to `0.5`.
 
     Returns:
         A tensor with the same shape as `x`.
@@ -654,8 +654,8 @@ def hard_shrink(x, lambd=0.5):
 
     """
     if any_symbolic_tensors((x,)):
-        return HardShrink(lambd).symbolic_call(x)
-    return backend.nn.hard_shrink(x, lambd)
+        return HardShrink(threshold).symbolic_call(x)
+    return backend.nn.hard_shrink(x, threshold)
 
 
 class Softmax(Operation):
