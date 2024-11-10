@@ -373,6 +373,22 @@ def hard_tanh(x):
     return ops.hard_tanh(x)
 
 
+@keras_export("keras.activations.hard_shrink")
+def hard_shrink(x, threshold=0.5):
+    """Hard Shrink activation function.
+
+    It is defined as:
+
+    `hard_shrink(x) = x if |x| > threshold`, `hard_shrink(x) = 0 otherwise`.
+
+    Args:
+        x: Input tensor.
+        threshold: Threshold value. Defaults to `0.5`.
+
+    """
+    return ops.hard_shrink(x, threshold=threshold)
+
+
 @keras_export("keras.activations.sigmoid")
 def sigmoid(x):
     """Sigmoid activation function.

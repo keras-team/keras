@@ -139,6 +139,15 @@ def hard_tanh(x):
     return np.array(np.clip(x, min_val, max_val), dtype=x.dtype)
 
 
+def hard_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    threshold = np.asarray(threshold, x.dtype)
+    return np.array(
+        np.where(np.abs(x) > threshold, x, np.array(0.0, dtype=x.dtype)),
+        dtype=x.dtype,
+    )
+
+
 def softmax(x, axis=None):
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)

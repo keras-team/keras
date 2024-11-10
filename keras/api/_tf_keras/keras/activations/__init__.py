@@ -12,6 +12,7 @@ from keras.src.activations.activations import elu
 from keras.src.activations.activations import exponential
 from keras.src.activations.activations import gelu
 from keras.src.activations.activations import glu
+from keras.src.activations.activations import hard_shrink
 from keras.src.activations.activations import hard_sigmoid
 from keras.src.activations.activations import hard_silu
 from keras.src.activations.activations import hard_silu as hard_swish

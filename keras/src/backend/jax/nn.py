@@ -103,6 +103,11 @@ def hard_tanh(x):
     return jnn.hard_tanh(x)
 
 
+def hard_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return jnp.where(jnp.abs(x) > threshold, x, 0.0)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return jnn.softmax(x, axis=axis)

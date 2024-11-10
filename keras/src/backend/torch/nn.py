@@ -103,6 +103,11 @@ def hard_tanh(x):
     return tnn.hardtanh(x, min_val=-1.0, max_val=1.0)
 
 
+def hard_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return tnn.hardshrink(x, lambd=threshold)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
