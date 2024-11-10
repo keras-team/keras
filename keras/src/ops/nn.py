@@ -619,12 +619,12 @@ def hard_tanh(x):
 
 
 class HardShrink(Operation):
-    def __init__(self, lambd=0.5):
+    def __init__(self, threshold=0.5):
         super().__init__()
-        self.lambd = lambd
+        self.threshold = threshold
 
     def call(self, x):
-        return backend.nn.hard_shrink(x, self.lambd)
+        return backend.nn.hard_shrink(x, self.threshold)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
