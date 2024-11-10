@@ -636,11 +636,12 @@ def hard_shrink(x, threshold=0.5):
 
     The Hard Shrink function is a thresholding operation defined as:
 
-    `f(x) = x if |x| > threshold`, `f(x) = 0 otherwise`.
+    `f(x) = x` if `|x| > threshold`,
+    `f(x) = 0` otherwise.
 
     Args:
         x: Input tensor.
-        threshold: Threshold value. Defaults to `0.5`.
+        threshold: Threshold value. Defaults to 0.5.
 
     Returns:
         A tensor with the same shape as `x`.

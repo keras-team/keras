@@ -379,11 +379,12 @@ def hard_shrink(x, threshold=0.5):
 
     It is defined as:
 
-    `hard_shrink(x) = x if |x| > threshold`, `hard_shrink(x) = 0 otherwise`.
+    `hard_shrink(x) = x` if `|x| > threshold`,
+    `hard_shrink(x) = 0` otherwise.
 
     Args:
         x: Input tensor.
-        threshold: Threshold value. Defaults to `0.5`.
+        threshold: Threshold value. Defaults to 0.5.
 
     """
     return ops.hard_shrink(x, threshold=threshold)
