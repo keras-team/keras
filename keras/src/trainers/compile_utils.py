@@ -715,12 +715,17 @@ class CompileLoss(losses_module.Loss):
                         flat_y_true = tree.flatten(y_true)
                         flat_loss = tree.flatten(self._user_loss)
                         flat_loss_non_nones = [
-                            loss for loss in flat_loss if loss is not None
+                            (i, loss)
+                            for i, loss in enumerate(flat_loss)
+                            if loss is not None
                         ]
                         assert len(flat_y_true) == len(flat_loss_non_nones)
-                        if not tree.is_nested(y_true):
-                            y_true = flat_y_true
-
+                        y_true = [None] * len(flat_loss)
+                        for y_t, (i, loss) in zip(
+                            flat_y_true, flat_loss_non_nones
+                        ):
+                            y_true[i] = y_t
+                        y_true = tree.pack_sequence_as(self._user_loss, y_true)
             except:
                 y_true_struct = tree.map_structure(lambda _: "*", y_true)
                 y_pred_struct = tree.map_structure(lambda _: "*", y_pred)
