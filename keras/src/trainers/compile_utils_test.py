@@ -548,15 +548,22 @@ class TestCompileLoss(testing.TestCase):
             wrong_struc_y_true = [np.array([[1]])]
             compile_loss(wrong_struc_y_true, y_pred)
 
-    def test_y_true_partial_y_pred_span(self):
+    @parameterized.parameters(
+        ["mse", None, None],
+        [None, "mse", None],
+        [None, None, "mse"],
+        [None, "mse", "mse"],
+        ["mse", None, "mse"],
+    )
+    def test_y_true_partial_y_pred_span(self, *loss_conf):
+        loss_conf = list(loss_conf)
         ones = np.ones((320, 3))
         zeros = np.zeros((320, 3))
-        y_pred = [ones, zeros, zeros]
-        y_true = ones
-
-        compile_loss = CompileLoss(
-            loss=["mse", None, None], output_names=["a", "b", "c"]
-        )
+        twos = np.ones((320, 3)) * 2
+        y_pred = [zeros, ones, twos]
+        y_true = [y for y, loss in zip(y_pred, loss_conf) if loss is not None]
+        y_true = y_true[0] if len(y_true) == 1 else y_true
+        compile_loss = CompileLoss(loss=loss_conf, output_names=["a", "b", "c"])
         # build call
         compile_loss(y_true, y_pred)
         # built call
