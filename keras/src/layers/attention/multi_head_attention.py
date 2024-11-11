@@ -137,6 +137,7 @@ class MultiHeadAttention(Layer):
         self._kernel_constraint = constraints.get(kernel_constraint)
         self._bias_constraint = constraints.get(bias_constraint)
         self._flash_attention = flash_attention or is_flash_attention_enabled()
+        self._return_attention_scores = False
 
         if isinstance(attention_axes, int):
             attention_axes = (attention_axes,)
@@ -403,7 +404,6 @@ class MultiHeadAttention(Layer):
         query,
         key,
         value,
-        return_attention_scores,
         attention_mask=None,
         training=None,
     ):
@@ -430,7 +430,7 @@ class MultiHeadAttention(Layer):
         """
 
         # Check for flash attention constraints
-        if self._flash_attention and return_attention_scores:
+        if self._flash_attention and self._return_attention_scores:
             raise ValueError(
                 "Returning attention scores is not supported when flash "
                 "attention is enabled. Please disable flash attention to access"
@@ -446,7 +446,7 @@ class MultiHeadAttention(Layer):
         # Determine whether to use dot-product attention
         use_dot_product_attention = not (
             self._dropout > 0.0
-            or return_attention_scores
+            or self._return_attention_scores
             or (len(query.shape) != 4)
         )
 
@@ -519,6 +519,7 @@ class MultiHeadAttention(Layer):
         training=None,
         use_causal_mask=False,
     ):
+        self._return_attention_scores = return_attention_scores
         if key is None:
             key = value
         attention_mask = self._compute_attention_mask(
@@ -545,7 +546,6 @@ class MultiHeadAttention(Layer):
             query,
             key,
             value,
-            return_attention_scores,
             attention_mask,
             training,
         )
