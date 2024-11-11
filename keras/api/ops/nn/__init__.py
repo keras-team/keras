@@ -43,3 +43,4 @@ from keras.src.ops.nn import softmax
 from keras.src.ops.nn import softplus
 from keras.src.ops.nn import softsign
 from keras.src.ops.nn import sparse_categorical_crossentropy
+from keras.src.ops.nn import tanh_shrink

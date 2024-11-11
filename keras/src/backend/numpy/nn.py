@@ -35,6 +35,11 @@ def tanh(x):
     return np.tanh(x)
 
 
+def tanh_shrink(x):
+    x = convert_to_tensor(x)
+    return x - np.tanh(x)
+
+
 def softplus(x):
     x = convert_to_tensor(x)
     return np.logaddexp(x, np.array(0.0, x.dtype))
