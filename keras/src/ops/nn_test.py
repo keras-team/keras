@@ -149,6 +149,10 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.glu(x).shape, (None, 2, 3))
 
+    def test_tanh_shrink(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.tanh_shrink(x).shape, (None, 2, 3))
+
     def test_hard_tanh(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_tanh(x).shape, (None, 2, 3))
@@ -810,6 +814,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.glu(x).shape, (1, 2, 3))
 
+    def test_tanh_shrink(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.tanh_shrink(x).shape, (1, 2, 3))
+
     def test_hard_tanh(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.hard_tanh(x).shape, (1, 2, 3))
@@ -1336,6 +1344,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knn.glu(x),
             [-0.8807971, 0.0, 0.98201376],
+        )
+
+    def test_tanh_shrink(self):
+        x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.tanh_shrink(x),
+            [-0.238406, 0.0, 0.238406, 1.035972, 2.004945],
         )
 
     def test_hard_tanh(self):
@@ -2438,6 +2453,24 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.Celu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_tanh_shrink(self, dtype):
+        import torch
+        import torch.nn.functional as tnn
+
+        x = knp.ones((1), dtype=dtype)
+        x_torch = torch.ones(1, dtype=getattr(torch, dtype))
+        expected_dtype = standardize_dtype(tnn.tanhshrink(x_torch).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.tanh_shrink(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.TanhShrink().symbolic_call(x).dtype),
             expected_dtype,
         )
 

@@ -358,6 +358,20 @@ def tanh(x):
     return ops.tanh(x)
 
 
+@keras_export("keras.activations.tanh_shrink")
+def tanh_shrink(x):
+    """Tanh shrink activation function.
+
+    It is defined as:
+
+    `f(x) = x - tanh(x)`.
+
+    Args:
+        x: Input tensor.
+    """
+    return ops.tanh_shrink(x)
+
+
 @keras_export("keras.activations.hard_tanh")
 def hard_tanh(x):
     """HardTanh activation function.

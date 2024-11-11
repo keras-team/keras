@@ -656,6 +656,15 @@ class ActivationsTest(testing.TestCase):
         expected = glu(x, axis=-2)
         self.assertAllClose(result, expected, rtol=1e-05)
 
+    def test_tanh_shrink(self):
+        def tanh_shrink(x):
+            return x - np.tanh(x)
+
+        x = np.random.random((2, 5))
+        result = activations.tanh_shrink(x[np.newaxis, :])[0]
+        expected = tanh_shrink(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
     def test_hard_tanh(self):
         def hard_tanh(x):
             return np.clip(x, -1.0, 1.0)

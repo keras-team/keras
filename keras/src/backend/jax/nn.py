@@ -38,6 +38,11 @@ def tanh(x):
     return jnn.tanh(x)
 
 
+def tanh_shrink(x):
+    x = convert_to_tensor(x)
+    return x - jnp.tanh(x)
+
+
 def softplus(x):
     x = convert_to_tensor(x)
     return jnn.softplus(x)

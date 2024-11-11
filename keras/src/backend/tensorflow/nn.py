@@ -30,6 +30,10 @@ def tanh(x):
     return tf.nn.tanh(x)
 
 
+def tanh_shrink(x):
+    return x - tf.math.tanh(x)
+
+
 def softplus(x):
     return tf.math.softplus(x)
 

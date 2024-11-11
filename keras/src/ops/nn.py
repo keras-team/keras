@@ -579,6 +579,45 @@ def glu(x, axis=-1):
     return backend.nn.glu(x, axis=axis)
 
 
+class TanhShrink(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.nn.tanh_shrink(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.tanh_shrink", "keras.ops.nn.tanh_shrink"])
+def tanh_shrink(x):
+    """Applies the tanh shrink function element-wise.
+
+    It is defined as:
+
+    `f(x) = x - tanh(x)`.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output tensor of the same shape as `x`, where each element is
+        transformed according to the tanh shrink operation.
+
+    Example:
+
+    >>> x = np.array([ -1., 0., 1.])
+    >>> x_tanh_shrink = keras.ops.tanh_shrink(x)
+    >>> print(x_tanh_shrink)
+    array([-0.23840584  0.  0.23840584], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return TanhShrink().symbolic_call(x)
+    return backend.nn.tanh_shrink(x)
+
+
 class HardTanh(Operation):
     def __init__(self):
         super().__init__()
