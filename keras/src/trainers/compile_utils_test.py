@@ -1,7 +1,6 @@
 from collections import namedtuple
 
 import numpy as np
-import tree
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -9,6 +8,7 @@ from keras.src import metrics as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import testing
+from keras.src import tree
 from keras.src.trainers.compile_utils import CompileLoss
 from keras.src.trainers.compile_utils import CompileMetrics
 

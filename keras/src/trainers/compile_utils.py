@@ -600,9 +600,7 @@ class CompileLoss(losses_module.Loss):
         # pack the losses and the weights together
         if loss_weights is not None:
             try:
-                tree.assert_same_structure(
-                    loss, loss_weights, check_types=False
-                )
+                tree.assert_same_structure(loss, loss_weights)
             except ValueError:
                 flat_loss_weights = tree.flatten(loss_weights)
                 if len(tree.flatten(loss)) != len(flat_loss_weights):
@@ -705,7 +703,7 @@ class CompileLoss(losses_module.Loss):
             return loss_value
 
         try:
-            tree.assert_same_structure(y_pred, y_true, check_types=False)
+            tree.assert_same_structure(y_pred, y_true)
         except ValueError:
             # Check case where y_true is either flat or leaf
             if (
@@ -763,17 +761,13 @@ class CompileLoss(losses_module.Loss):
             self.build(y_true, y_pred)
 
         try:
-            tree.assert_same_structure(
-                self._y_pred_build_structure, y_pred, check_types=False
-            )
+            tree.assert_same_structure(self._y_pred_build_structure, y_pred)
         except ValueError:
             y_pred = tree.pack_sequence_as(
                 self._y_pred_build_structure, tree.flatten(y_pred)
             )
         try:
-            tree.assert_same_structure(
-                self._y_true_build_structure, y_true, check_types=False
-            )
+            tree.assert_same_structure(self._y_true_build_structure, y_true)
         except ValueError:
             y_true = tree.pack_sequence_as(
                 self._y_true_build_structure, tree.flatten(y_true)
