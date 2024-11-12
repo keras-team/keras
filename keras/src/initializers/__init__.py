@@ -5,10 +5,10 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.initializers.constant_initializers import STFT
 from keras.src.initializers.constant_initializers import Constant
 from keras.src.initializers.constant_initializers import Identity
 from keras.src.initializers.constant_initializers import Ones
-from keras.src.initializers.constant_initializers import STFTInitializer
 from keras.src.initializers.constant_initializers import Zeros
 from keras.src.initializers.initializer import Initializer
 from keras.src.initializers.random_initializers import GlorotNormal
@@ -30,7 +30,7 @@ ALL_OBJECTS = {
     Constant,
     Identity,
     Ones,
-    STFTInitializer,
+    STFT,
     Zeros,
     GlorotNormal,
     GlorotUniform,
@@ -55,6 +55,7 @@ ALL_OBJECTS_DICT.update(
         "IdentityInitializer": Identity,  # For compatibility
         "normal": RandomNormal,
         "one": Ones,
+        "STFTInitializer": STFT,  # For compatibility
         "OrthogonalInitializer": Orthogonal,  # For compatibility
         "uniform": RandomUniform,
         "zero": Zeros,
