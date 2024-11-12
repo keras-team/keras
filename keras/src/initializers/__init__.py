@@ -5,10 +5,10 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.initializers.constant_initializers import STFT
 from keras.src.initializers.constant_initializers import Constant
 from keras.src.initializers.constant_initializers import Identity
 from keras.src.initializers.constant_initializers import Ones
-from keras.src.initializers.constant_initializers import STFTInitializer
 from keras.src.initializers.constant_initializers import Zeros
 from keras.src.initializers.initializer import Initializer
 from keras.src.initializers.random_initializers import GlorotNormal
@@ -17,7 +17,7 @@ from keras.src.initializers.random_initializers import HeNormal
 from keras.src.initializers.random_initializers import HeUniform
 from keras.src.initializers.random_initializers import LecunNormal
 from keras.src.initializers.random_initializers import LecunUniform
-from keras.src.initializers.random_initializers import OrthogonalInitializer
+from keras.src.initializers.random_initializers import Orthogonal
 from keras.src.initializers.random_initializers import RandomNormal
 from keras.src.initializers.random_initializers import RandomUniform
 from keras.src.initializers.random_initializers import TruncatedNormal
@@ -30,7 +30,7 @@ ALL_OBJECTS = {
     Constant,
     Identity,
     Ones,
-    STFTInitializer,
+    STFT,
     Zeros,
     GlorotNormal,
     GlorotUniform,
@@ -38,11 +38,11 @@ ALL_OBJECTS = {
     HeUniform,
     LecunNormal,
     LecunUniform,
+    Orthogonal,
     RandomNormal,
-    TruncatedNormal,
     RandomUniform,
+    TruncatedNormal,
     VarianceScaling,
-    OrthogonalInitializer,
 }
 
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
@@ -52,11 +52,12 @@ ALL_OBJECTS_DICT.update(
 # Aliases
 ALL_OBJECTS_DICT.update(
     {
-        "uniform": RandomUniform,
+        "IdentityInitializer": Identity,  # For compatibility
         "normal": RandomNormal,
-        "orthogonal": OrthogonalInitializer,
-        "Orthogonal": OrthogonalInitializer,  # Legacy
         "one": Ones,
+        "STFTInitializer": STFT,  # For compatibility
+        "OrthogonalInitializer": Orthogonal,  # For compatibility
+        "uniform": RandomUniform,
         "zero": Zeros,
     }
 )

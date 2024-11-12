@@ -7,6 +7,9 @@ since your modifications would be overwritten.
 from keras.src.initializers import deserialize
 from keras.src.initializers import get
 from keras.src.initializers import serialize
+from keras.src.initializers.constant_initializers import STFT
+from keras.src.initializers.constant_initializers import STFT as STFTInitializer
+from keras.src.initializers.constant_initializers import STFT as stft
 from keras.src.initializers.constant_initializers import Constant
 from keras.src.initializers.constant_initializers import Constant as constant
 from keras.src.initializers.constant_initializers import Identity
@@ -16,7 +19,6 @@ from keras.src.initializers.constant_initializers import (
 from keras.src.initializers.constant_initializers import Identity as identity
 from keras.src.initializers.constant_initializers import Ones
 from keras.src.initializers.constant_initializers import Ones as ones
-from keras.src.initializers.constant_initializers import STFTInitializer
 from keras.src.initializers.constant_initializers import Zeros
 from keras.src.initializers.constant_initializers import Zeros as zeros
 from keras.src.initializers.initializer import Initializer
@@ -40,13 +42,11 @@ from keras.src.initializers.random_initializers import LecunUniform
 from keras.src.initializers.random_initializers import (
     LecunUniform as lecun_uniform,
 )
-from keras.src.initializers.random_initializers import OrthogonalInitializer
+from keras.src.initializers.random_initializers import Orthogonal
 from keras.src.initializers.random_initializers import (
-    OrthogonalInitializer as Orthogonal,
+    Orthogonal as OrthogonalInitializer,
 )
-from keras.src.initializers.random_initializers import (
-    OrthogonalInitializer as orthogonal,
-)
+from keras.src.initializers.random_initializers import Orthogonal as orthogonal
 from keras.src.initializers.random_initializers import RandomNormal
 from keras.src.initializers.random_initializers import (
     RandomNormal as random_normal,
