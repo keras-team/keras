@@ -17,7 +17,7 @@ from keras.src.initializers.random_initializers import HeNormal
 from keras.src.initializers.random_initializers import HeUniform
 from keras.src.initializers.random_initializers import LecunNormal
 from keras.src.initializers.random_initializers import LecunUniform
-from keras.src.initializers.random_initializers import OrthogonalInitializer
+from keras.src.initializers.random_initializers import Orthogonal
 from keras.src.initializers.random_initializers import RandomNormal
 from keras.src.initializers.random_initializers import RandomUniform
 from keras.src.initializers.random_initializers import TruncatedNormal
@@ -38,11 +38,11 @@ ALL_OBJECTS = {
     HeUniform,
     LecunNormal,
     LecunUniform,
+    Orthogonal,
     RandomNormal,
-    TruncatedNormal,
     RandomUniform,
+    TruncatedNormal,
     VarianceScaling,
-    OrthogonalInitializer,
 }
 
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
@@ -52,11 +52,11 @@ ALL_OBJECTS_DICT.update(
 # Aliases
 ALL_OBJECTS_DICT.update(
     {
-        "uniform": RandomUniform,
+        "IdentityInitializer": Identity,  # For compatibility
         "normal": RandomNormal,
-        "orthogonal": OrthogonalInitializer,
-        "Orthogonal": OrthogonalInitializer,  # Legacy
         "one": Ones,
+        "OrthogonalInitializer": Orthogonal,  # For compatibility
+        "uniform": RandomUniform,
         "zero": Zeros,
     }
 )

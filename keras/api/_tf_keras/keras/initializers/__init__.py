@@ -40,13 +40,11 @@ from keras.src.initializers.random_initializers import LecunUniform
 from keras.src.initializers.random_initializers import (
     LecunUniform as lecun_uniform,
 )
-from keras.src.initializers.random_initializers import OrthogonalInitializer
+from keras.src.initializers.random_initializers import Orthogonal
 from keras.src.initializers.random_initializers import (
-    OrthogonalInitializer as Orthogonal,
+    Orthogonal as OrthogonalInitializer,
 )
-from keras.src.initializers.random_initializers import (
-    OrthogonalInitializer as orthogonal,
-)
+from keras.src.initializers.random_initializers import Orthogonal as orthogonal
 from keras.src.initializers.random_initializers import RandomNormal
 from keras.src.initializers.random_initializers import (
     RandomNormal as random_normal,

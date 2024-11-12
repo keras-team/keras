@@ -639,12 +639,12 @@ def compute_fans(shape):
 
 @keras_export(
     [
-        "keras.initializers.OrthogonalInitializer",
         "keras.initializers.Orthogonal",
         "keras.initializers.orthogonal",
+        "keras.initializers.OrthogonalInitializer",
     ]
 )
-class OrthogonalInitializer(RandomInitializer):
+class Orthogonal(RandomInitializer):
     """Initializer that generates an orthogonal matrix.
 
     If the shape of the tensor to initialize is two-dimensional, it is

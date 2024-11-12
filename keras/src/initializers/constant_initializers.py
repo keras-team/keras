@@ -108,9 +108,9 @@ class Ones(Initializer):
 
 @keras_export(
     [
-        "keras.initializers.IdentityInitializer",
         "keras.initializers.Identity",
         "keras.initializers.identity",
+        "keras.initializers.IdentityInitializer",
     ]
 )
 class Identity(Initializer):

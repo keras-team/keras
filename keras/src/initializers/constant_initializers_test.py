@@ -69,6 +69,10 @@ class ConstantInitializersTest(testing.TestCase):
 
         self.run_class_serialization_test(initializer)
 
+        # Test compatible class_name
+        initializer = initializers.get("IdentityInitializer")
+        self.assertIsInstance(initializer, initializers.Identity)
+
     def test_stft_initializer(self):
         shape = (256, 1, 513)
         time_range = np.arange(256).reshape((-1, 1, 1))
