@@ -954,22 +954,22 @@ def dot_product_attention(
         flash_attention = _can_use_flash_attention(
             query=query, key=key, value=value, mask=mask, is_causal=is_causal
         )
-    elif flash_attention is True:
-        if (
-            _can_use_flash_attention(
-                query=query,
-                key=key,
-                value=value,
-                mask=mask,
-                is_causal=is_causal,
-                debug=True,
-            )
-            is False
-        ):
-            raise ValueError(
-                "Flash attention is not supported with the provided inputs. "
-                "Please check the warnings for more details."
-            )
+    elif (
+        flash_attention is True
+        and _can_use_flash_attention(
+            query=query,
+            key=key,
+            value=value,
+            mask=mask,
+            is_causal=is_causal,
+            debug=True,
+        )
+        is False
+    ):
+        raise ValueError(
+            "Flash attention is not supported with the provided inputs. "
+            "Please check the warnings for more details."
+        )
     if flash_attention:
         with torch.nn.attention.sdpa_kernel(
             backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
