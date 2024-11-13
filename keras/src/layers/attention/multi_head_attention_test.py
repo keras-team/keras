@@ -10,6 +10,8 @@ from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src import layers
 from keras.src import models
+from keras.src import ops
+from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src.layers.attention.attention import disable_flash_attention
@@ -550,3 +552,77 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
 
         self.assertAllClose(output_with_flash, output_without_flash)
+
+    def test_cached_multi_head_attention_correctness(self):
+        # `CachedMultiHeadAttention` is from KerasHub
+        class CachedMultiHeadAttention(layers.MultiHeadAttention):
+            def call(
+                self,
+                query,
+                value,
+                key=None,
+                attention_mask=None,
+                cache=None,
+                cache_update_index=None,
+                training=None,
+            ):
+                if key is None:
+                    key = value
+                query = self._query_dense(query)
+                key_cache = cache[:, 0, ...]
+                value_cache = cache[:, 1, ...]
+                key_update = self._key_dense(key)
+                value_update = self._value_dense(value)
+                start = [0, cache_update_index, 0, 0]
+                key = ops.slice_update(key_cache, start, key_update)
+                value = ops.slice_update(value_cache, start, value_update)
+                cache = ops.stack((key, value), axis=1)
+                attention_output, _ = self._compute_attention(
+                    query=query,
+                    key=key,
+                    value=value,
+                    attention_mask=attention_mask,
+                    training=training,
+                )
+                attention_output = self._output_dense(attention_output)
+                return attention_output, cache
+
+        batch_size = 2
+        seq_len = 5
+        num_heads = 2
+        key_dim = 4
+        hidden_dim = num_heads * key_dim
+        x = random.uniform(shape=(batch_size, seq_len, hidden_dim))
+        input_cache = ops.zeros((batch_size, 2, seq_len, num_heads, key_dim))
+        mask = ops.tril(ops.ones((seq_len, seq_len)))
+        outputs = ops.zeros_like(x)
+        layer = CachedMultiHeadAttention(num_heads=num_heads, key_dim=key_dim)
+
+        def loop_body(i, outputs, cache):
+            next_input = ops.slice(x, (0, i, 0), (batch_size, 1, hidden_dim))
+            next_mask = ops.slice(mask, (i, 0), (1, seq_len))
+            next_output, cache = layer(
+                query=next_input,
+                value=next_input,
+                cache=cache,
+                cache_update_index=i,
+                attention_mask=next_mask,
+            )
+            outputs = ops.slice_update(outputs, [0, i, 0], next_output)
+            return i + 1, outputs, cache
+
+        def call(outputs, cache):
+            _, outputs, cache = ops.while_loop(
+                cond=lambda i, outputs, cache: i < seq_len,
+                body=loop_body,
+                loop_vars=[0, outputs, cache],
+            )
+            return outputs, cache
+
+        no_loop_outputs, no_loop_cache = layer(
+            x, x, cache=input_cache, cache_update_index=0, attention_mask=mask
+        )
+        output, output_cache = call(outputs, input_cache)
+
+        self.assertAllClose(output, no_loop_outputs, atol=1e-3)
+        self.assertAllClose(output_cache, no_loop_cache, atol=1e-3)
