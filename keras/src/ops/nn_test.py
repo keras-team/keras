@@ -2291,57 +2291,58 @@ class NNOpsCorrectnessTest(testing.TestCase):
         mask, is_causal = mask_and_is_causal
         query_shape = (2, 3, 4, 8)
         key_shape = (2, 3, 4, 8)
-        mask_shape = (3, 3)
+        bias_shape = (2, 4, 3, 3)
         query = np.arange(math.prod(query_shape), dtype=float).reshape(
             query_shape
         )
         key = np.arange(math.prod(key_shape), dtype=float).reshape(key_shape)
         value = np.arange(math.prod(key_shape), dtype=float).reshape(key_shape)
         if mask is not None:
-            mask = np.arange(math.prod(mask_shape)).reshape(mask_shape)
-            mask = (mask > 1).astype("bool")
+            mask = np.tril(np.ones((3, 3))).astype("bool")
+            mask = mask[None, None, ...]
+            mask = np.tile(mask, (2, 4, 1, 1))
         if bias is not None:
             if backend.backend() == "torch":
                 self.skipTest(
                     "torch does not support `bias` with `dot_product_attention`"
                 )
-            bias = np.arange(math.prod(mask_shape), dtype=float).reshape(
-                mask_shape
+            bias = np.arange(math.prod(bias_shape), dtype=float).reshape(
+                bias_shape
             )
-
-        if flash_attention and backend.backend() in ["tensorflow", "numpy"]:
-            self.skipTest(
-                "Flash attention is not supported in tensorflow and numpy "
-                "backends."
-            )
-        if flash_attention and backend.backend() == "torch":
-            import torch
-
-            if mask is not None:
-                self.skipTest(
-                    "Flash attention doesn't support `mask=None` in torch "
-                    "backend."
-                )
-            if not torch.cuda.is_available():
-                self.skipTest(
-                    "Flash attention must be run on CUDA in torch backend."
-                )
-        if flash_attention and backend.backend() == "jax":
-            import jax
-
-            if jax.devices()[0].platform != "gpu":
-                self.skipTest(
-                    "Flash attention must be run on CUDA in jax backend."
-                )
 
         if flash_attention:
+            if backend.backend() in ("tensorflow", "numpy"):
+                self.skipTest(
+                    "Flash attention is not supported in tensorflow and numpy "
+                    "backends."
+                )
+            elif backend.backend() == "torch":
+                import torch
+
+                if mask is not None:
+                    self.skipTest(
+                        "Flash attention doesn't support `mask=None` in torch "
+                        "backend."
+                    )
+                if not torch.cuda.is_available():
+                    self.skipTest(
+                        "Flash attention must be run on CUDA in torch backend."
+                    )
+            elif backend.backend() == "jax":
+                import jax
+
+                if jax.devices()[0].platform != "gpu":
+                    self.skipTest(
+                        "Flash attention must be run on CUDA in jax backend."
+                    )
+
             # Flash attention only supports float16 and bfloat16. We multiply
-            # 0.005 to avoid overflow.
-            query = (query * 0.005).astype("float16")
-            key = (key * 0.005).astype("float16")
-            value = (value * 0.005).astype("float16")
+            # 0.1 to avoid overflow.
+            query = (query * 0.1).astype("float16")
+            key = (key * 0.1).astype("float16")
+            value = (value * 0.1).astype("float16")
             if bias is not None:
-                bias = (bias * 0.005).astype("float16")
+                bias = (bias * 0.1).astype("float16")
 
         outputs = knn.dot_product_attention(
             query,
@@ -2363,12 +2364,9 @@ class NNOpsCorrectnessTest(testing.TestCase):
             scale=scale,
             is_causal=is_causal,
         )
-        if flash_attention:
-            outputs = ops.where(ops.isnan(outputs), 0.0, outputs)
-            expected = ops.where(ops.isnan(outputs), 0.0, expected)
-            self.assertAllClose(outputs, expected, atol=0.01)
-        else:
-            self.assertAllClose(outputs, expected)
+        self.assertAllClose(
+            outputs, expected, atol=1e-3 if flash_attention else 1e-6
+        )
 
 
 class NNOpsDtypeTest(testing.TestCase):

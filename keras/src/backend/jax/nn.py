@@ -972,7 +972,7 @@ def psnr(x1, x2, max_val):
     return psnr
 
 
-def _can_use_flash_attention(query, key, value, bias):
+def _can_use_flash_attention(query, key, value, bias, raise_error=False):
     # Ref: https://github.com/jax-ml/jax/blob/main/jax/_src/cudnn/fused_attention_stablehlo.py
     from jax._src.cudnn.fused_attention_stablehlo import _normalize_layout
     from jax._src.cudnn.fused_attention_stablehlo import (
@@ -1003,6 +1003,8 @@ def _can_use_flash_attention(query, key, value, bias):
         )
         return True
     except:
+        if raise_error:
+            raise
         return False
 
 
@@ -1068,6 +1070,10 @@ def dot_product_attention(
         )
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(query, key, value, bias)
+    elif flash_attention is True:
+        # Use `raise_error=True` to provide more details if the inputs failed to
+        # use flash attention
+        _can_use_flash_attention(query, key, value, bias, raise_error=True)
     if jax.devices()[0].platform == "tpu" and flash_attention:
         # Use TPU-optimized flash attention from Pallas
         return flash_attention_tpu(
