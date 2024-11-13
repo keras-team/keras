@@ -75,7 +75,6 @@ def _dot_product_attention(
         exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
         return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
-    dtype = query.dtype
     _, _, _, H = key.shape
     scale = (1.0 / np.sqrt(H)) if scale is None else scale
     logits = np.einsum("BTNH,BSNH->BNTS", query, key)
@@ -85,8 +84,7 @@ def _dot_product_attention(
     padded_logits = _apply_masks(logits, mask, is_causal)
     padded_logits = padded_logits.astype(np.float32)
     probs = softmax(padded_logits, axis=-1).astype(key.dtype)
-    encoded = np.einsum("BNTS,BSNH->BTNH", probs, value)
-    return encoded.astype(dtype)
+    return np.einsum("BNTS,BSNH->BTNH", probs, value)
 
 
 class NNOpsDynamicShapeTest(testing.TestCase):
@@ -2293,13 +2291,15 @@ class NNOpsCorrectnessTest(testing.TestCase):
         mask, is_causal = mask_and_is_causal
         query_shape = (2, 3, 4, 8)
         key_shape = (2, 3, 4, 8)
-        mask_shape = (2, 4, 3, 3)
-        query = np.random.uniform(low=-1.0, high=1.0, size=query_shape)
-        key = np.random.uniform(low=-1.0, high=1.0, size=key_shape)
-        value = np.random.uniform(low=-1.0, high=1.0, size=key_shape)
+        mask_shape = (3, 3)
+        query = np.arange(math.prod(query_shape), dtype=float).reshape(
+            query_shape
+        )
+        key = np.arange(math.prod(key_shape), dtype=float).reshape(key_shape)
+        value = np.arange(math.prod(key_shape), dtype=float).reshape(key_shape)
         if mask is not None:
-            mask = np.random.uniform(low=-1.0, high=1.0, size=mask_shape)
-            mask = (mask > 0.0).astype("bool")
+            mask = np.arange(math.prod(mask_shape)).reshape(mask_shape)
+            mask = (mask > 1).astype("bool")
         if bias is not None:
             if backend.backend() == "torch":
                 self.skipTest(
@@ -2340,6 +2340,8 @@ class NNOpsCorrectnessTest(testing.TestCase):
             query = (query * 0.005).astype("float16")
             key = (key * 0.005).astype("float16")
             value = (value * 0.005).astype("float16")
+            if bias is not None:
+                bias = (bias * 0.005).astype("float16")
 
         outputs = knn.dot_product_attention(
             query,

@@ -892,14 +892,26 @@ def _get_large_negative(dtype):
 def _can_use_flash_attention(
     query, key, value, mask=None, is_causal=False, debug=False
 ):
-    spda_params = torch.backends.cuda.SDPAParams(
-        query,
-        key,
-        value,
-        mask,
-        0.0,
-        is_causal,
-    )
+    try:
+        spda_params = torch.backends.cuda.SDPAParams(
+            query,
+            key,
+            value,
+            mask,
+            0.0,  # dropout_p
+            is_causal,
+        )
+    except TypeError:
+        # The signature changed in newer version of torch.
+        spda_params = torch.backends.cuda.SDPAParams(
+            query,
+            key,
+            value,
+            mask,
+            0.0,  # dropout_p
+            is_causal,
+            False,  # enable_gqa
+        )
     return torch.backends.cuda.can_use_flash_attention(spda_params, debug)
 
 
