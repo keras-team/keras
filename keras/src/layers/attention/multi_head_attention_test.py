@@ -10,6 +10,8 @@ from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src import layers
 from keras.src import models
+from keras.src import ops
+from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src.layers.attention.attention import disable_flash_attention
@@ -315,6 +317,21 @@ class MultiHeadAttentionTest(testing.TestCase):
             query=masked_query, value=masked_value, attention_mask=mask
         )
         self.assertAllClose(output, output_with_manual_mask)
+
+    def test_masking_with_different_shapes(self):
+        x = random.uniform(shape=(2, 5, 8))
+        mask = ops.tril(ops.ones((5, 5)))  # (5, 5)
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        output_1 = layer(query=x, value=x, attention_mask=mask)
+
+        mask = ops.tile(mask[None, ...], (2, 1, 1))  # (2, 5, 5)
+        output_2 = layer(query=x, value=x, attention_mask=mask)
+
+        mask = ops.tile(mask[:, None, ...], (1, 2, 1, 1))  # (2, 2, 5, 5)
+        output_3 = layer(query=x, value=x, attention_mask=mask)
+
+        self.assertAllClose(output_1, output_2)
+        self.assertAllClose(output_1, output_3)
 
     def test_correctness(self):
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]])

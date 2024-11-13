@@ -454,16 +454,16 @@ class MultiHeadAttention(Layer):
             if attention_mask is not None:
                 # Ensure attention_mask has the correct shape for broadcasting
                 # Expected shape: [batch_size, num_heads, query_seq_len,
-                # key_seq_len]. This is because masked_softmax is not supported
-                # in JAX.
-                while len(attention_mask.shape) < 4:
+                # key_seq_len].
+                mask_expansion_axis = -len(self._attention_axes) * 2 - 1
+                len_attention_scores_shape = 4  # Only accepts 4D inputs
+                for _ in range(
+                    len_attention_scores_shape - len(attention_mask.shape)
+                ):
                     attention_mask = ops.expand_dims(
-                        attention_mask, axis=1
-                    )  # Add dimension for num_heads
-                if attention_mask.shape[1] != self._num_heads:
-                    attention_mask = ops.tile(
-                        attention_mask, [1, self._num_heads, 1, 1]
+                        attention_mask, axis=mask_expansion_axis
                     )
+                attention_mask = ops.cast(attention_mask, dtype="bool")
             # Directly compute the attention output using dot-product attention
             attention_output = ops.dot_product_attention(
                 query=query,
