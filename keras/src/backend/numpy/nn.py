@@ -1080,10 +1080,13 @@ def dot_product_attention(
     mask=None,
     scale=None,
     is_causal=False,
-    flash_attention=False,
+    flash_attention=None,
 ):
+    if flash_attention is None:
+        flash_attention = False
     if flash_attention:
-        raise ValueError("Flash attention is not implemented in NumPy.")
+        raise ValueError("Flash attention is not supported in numpy backend.")
+
     # Ref: jax.nn.dot_product_attention
     # https://github.com/jax-ml/jax/blob/jax-v0.4.32/jax/_src/nn/functions.py#L828
     # Not support `query_seq_lengths` and `key_value_seq_lengths` args

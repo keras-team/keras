@@ -999,11 +999,13 @@ def dot_product_attention(
     mask=None,
     scale=None,
     is_causal=False,
-    flash_attention=False,
+    flash_attention=None,
 ):
+    if flash_attention is None:
+        flash_attention = False
     if flash_attention:
         raise ValueError(
-            "Flash attention is not supported yet in TensorFlow backend."
+            "Flash attention is not supported in tensorflow backend."
         )
 
     # Ref: jax.nn.dot_product_attention

@@ -889,8 +889,10 @@ def _get_large_negative(dtype):
     return convert_to_tensor(val * -0.7, dtype=dtype)
 
 
-def is_flash_attention_enabled(query, key, value, mask=None, is_causal=False):
-    params = torch.backends.cuda.SDPAParams(
+def _can_use_flash_attention(
+    query, key, value, mask=None, is_causal=False, debug=False
+):
+    spda_params = torch.backends.cuda.SDPAParams(
         query,
         key,
         value,
@@ -898,8 +900,7 @@ def is_flash_attention_enabled(query, key, value, mask=None, is_causal=False):
         0.0,
         is_causal,
     )
-    is_enabled = torch.backends.cuda.can_use_flash_attention(params, False)
-    return is_enabled
+    return torch.backends.cuda.can_use_flash_attention(spda_params, debug)
 
 
 def dot_product_attention(
@@ -910,7 +911,7 @@ def dot_product_attention(
     mask=None,
     scale=None,
     is_causal=False,
-    flash_attention=False,
+    flash_attention=None,
 ):
     if bias is not None:
         raise ValueError(
@@ -919,9 +920,9 @@ def dot_product_attention(
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
-    if len(query.shape) != 4:
+    if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
         raise ValueError(
-            "`dot_product_attention` only supports 3D and 4D inputs. "
+            "`dot_product_attention` only supports 4D inputs. "
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
@@ -937,21 +938,27 @@ def dot_product_attention(
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
 
-    if flash_attention:
-        is_enabled = is_flash_attention_enabled(
-            query=query,
-            key=key,
-            value=value,
-            mask=mask,
-            is_causal=is_causal,
+    if flash_attention is None:
+        flash_attention = _can_use_flash_attention(
+            query=query, key=key, value=value, mask=mask, is_causal=is_causal
         )
-        if not is_enabled:
-            raise ValueError(
-                "Flash attention is not enabled in `torch` backend. "
-                "The dtype of the inputs should be float16/bfloat16 "
-                "and your GPU should support flash attention implementation."
+    elif flash_attention is True:
+        if (
+            _can_use_flash_attention(
+                query=query,
+                key=key,
+                value=value,
+                mask=mask,
+                is_causal=is_causal,
+                debug=True,
             )
-
+            is False
+        ):
+            raise ValueError(
+                "Flash attention is not supported with the provided inputs. "
+                "Please check the warnings for more details."
+            )
+    if flash_attention:
         with torch.nn.attention.sdpa_kernel(
             backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
         ):
