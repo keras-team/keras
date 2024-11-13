@@ -984,7 +984,11 @@ def _can_use_flash_attention(query, key, value, bias, raise_error=False):
     try:
         # `dot_product_attention` is only available in jax>=0.4.31
         if not hasattr(jax.nn, "dot_product_attention"):
-            raise NotImplementedError
+            raise ValueError(
+                "Flash attention is not supported in your "
+                "current JAX version. Please update it "
+                "using `pip install -U jax jaxlib`."
+            )
         # Check if cuDNN is installed and raise RuntimeError if cuDNN is not
         # detected
         check_cudnn_version()
