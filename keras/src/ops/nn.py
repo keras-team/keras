@@ -174,6 +174,48 @@ def softsign(x):
     return backend.nn.softsign(x)
 
 
+class SoftShrink(Operation):
+    def __init__(self, threshold=0.5):
+        super().__init__()
+        self.threshold = threshold
+
+    def call(self, x):
+        return backend.nn.soft_shrink(x, self.threshold)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.soft_shrink", "keras.ops.nn.soft_shrink"])
+def soft_shrink(x, threshold=0.5):
+    """Soft Shrink activation function.
+
+    It is defined as
+
+    `f(x) = x - threshold` if `x > threshold`,
+    `f(x) = x + threshold` if `x < -threshold`,
+    `f(x) = 0` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: Threshold value. Defaults to 0.5.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1.0, 0.0, 1.0])
+    >>> x_soft_shrink = keras.ops.soft_shrink(x)
+    >>> print(x_soft_shrink)
+    array([-0.5  0.   0.5], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return SoftShrink(threshold).symbolic_call(x)
+    return backend.nn.soft_shrink(x, threshold)
+
+
 class Silu(Operation):
     def call(self, x):
         return backend.nn.silu(x)

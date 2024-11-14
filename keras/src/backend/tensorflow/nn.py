@@ -42,6 +42,14 @@ def softsign(x):
     return tf.nn.softsign(x)
 
 
+def soft_shrink(x, threshold=0.5):
+    return tf.where(
+        x > threshold,
+        x - threshold,
+        tf.where(x < -threshold, x + threshold, tf.zeros_like(x)),
+    )
+
+
 def silu(x):
     return tf.nn.silu(x)
 

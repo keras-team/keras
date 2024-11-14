@@ -50,6 +50,18 @@ def softsign(x):
     return x / (np.array(1.0, x.dtype) + np.abs(x))
 
 
+def soft_shrink(x, threshold=0.5):
+    return np.where(
+        x > threshold,
+        np.array(x - threshold, dtype=x.dtype),
+        np.where(
+            x < -threshold,
+            np.array(x + threshold, dtype=x.dtype),
+            np.array(0.0, dtype=x.dtype),
+        ),
+    )
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return x * sigmoid(x)

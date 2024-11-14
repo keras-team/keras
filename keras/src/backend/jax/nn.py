@@ -53,6 +53,15 @@ def softsign(x):
     return jnn.soft_sign(x)
 
 
+def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return jnp.where(
+        x > threshold,
+        x - threshold,
+        jnp.where(x < -threshold, x + threshold, 0.0),
+    )
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return jnn.silu(x)
