@@ -2328,12 +2328,30 @@ class NNOpsCorrectnessTest(testing.TestCase):
                     self.skipTest(
                         "Flash attention must be run on CUDA in torch backend."
                     )
+                cuda_compute_capability = tuple(
+                    int(x) for x in torch.cuda.get_device_capability()
+                )
+                if cuda_compute_capability < (8, 0):
+                    self.skipTest(
+                        "Flash attention must be run on CUDA compute "
+                        "capability >= 8.0 in torch backend."
+                    )
             elif backend.backend() == "jax":
                 import jax
+                from jax._src import xla_bridge
 
-                if jax.devices()[0].platform != "gpu":
+                if "cuda" not in xla_bridge.get_backend().platform_version:
                     self.skipTest(
                         "Flash attention must be run on CUDA in jax backend."
+                    )
+                d, *_ = jax.local_devices(backend="gpu")
+                cuda_compute_capability = tuple(
+                    int(x) for x in d.compute_capability.split(".")
+                )
+                if cuda_compute_capability < (8, 0):
+                    self.skipTest(
+                        "Flash attention must be run on CUDA compute "
+                        "capability >= 8.0 in jax backend."
                     )
 
             # Flash attention only supports float16 and bfloat16. We multiply

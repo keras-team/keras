@@ -975,11 +975,18 @@ def psnr(x1, x2, max_val):
 def _can_use_flash_attention(query, key, value, bias, raise_error=False):
     # Ref: https://github.com/jax-ml/jax/blob/main/jax/_src/cudnn/fused_attention_stablehlo.py
     from jax._src.cudnn.fused_attention_stablehlo import _normalize_layout
-    from jax._src.cudnn.fused_attention_stablehlo import (
-        check_compute_capability,
-    )
     from jax._src.cudnn.fused_attention_stablehlo import check_cudnn_version
     from jax._src.cudnn.fused_attention_stablehlo import check_layout
+
+    try:
+        # The older version of jax doesn't have `check_compute_capability`
+        from jax._src.cudnn.fused_attention_stablehlo import (
+            check_compute_capability,
+        )
+    except ImportError:
+        if raise_error:
+            raise
+        return False
 
     try:
         # `dot_product_attention` is only available in jax>=0.4.31
