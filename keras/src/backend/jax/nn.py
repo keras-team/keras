@@ -1106,7 +1106,7 @@ def dot_product_attention(
         )
 
     if flash_attention:
-        raise ValueError(
+        raise RuntimeError(
             "Flash attention is not supported in your current JAX version. "
             "Please update it by following the official guide: "
             "https://jax.readthedocs.io/en/latest/installation.html"

@@ -85,10 +85,18 @@ class MultiHeadAttentionTest(testing.TestCase):
                     run_training_check=False,
                 )
                 disable_flash_attention()
-            except ValueError as e:
+            except RuntimeError as e:
                 self.assertStartsWith(
                     e.args[0],
                     "Flash attention is not supported with the provided inputs",
+                )
+            except ImportError as e:
+                self.assertStartsWith(
+                    e.args[0],
+                    (
+                        "Flash attention is not supported in your current "
+                        "PyTorch version."
+                    ),
                 )
         elif backend.backend() == "jax":
             try:
@@ -113,7 +121,7 @@ class MultiHeadAttentionTest(testing.TestCase):
                     run_training_check=False,
                 )
                 disable_flash_attention()
-            except ValueError as e:
+            except ImportError as e:
                 self.assertStartsWith(
                     e.args[0],
                     (
@@ -127,6 +135,14 @@ class MultiHeadAttentionTest(testing.TestCase):
                 elif str(e.args[0]).startswith("Require at least"):
                     self.assertStartsWith(
                         e.args[0], "Require at least Ampere arch to run"
+                    )
+                elif str(e.args[0]).startswith("Flash attention"):
+                    self.assertStartsWith(
+                        e.args[0],
+                        (
+                            "Flash attention is not supported in your current "
+                            "JAX version."
+                        ),
                     )
 
     @parameterized.named_parameters(
