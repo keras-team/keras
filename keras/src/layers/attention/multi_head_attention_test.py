@@ -120,9 +120,9 @@ class MultiHeadAttentionTest(testing.TestCase):
                     ),
                 )
             except RuntimeError as e:
-                try:
+                if str(e.args[0]).startswith("cuDNN"):
                     self.assertStartsWith(e.args[0], "cuDNN is not detected.")
-                except:
+                elif str(e.args[0]).startswith("Require at least"):
                     self.assertStartsWith(
                         e.args[0], "Require at least Ampere arch to run"
                     )
