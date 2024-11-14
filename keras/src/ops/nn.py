@@ -2376,7 +2376,7 @@ def dot_product_attention(
     mask=None,
     scale=None,
     is_causal=False,
-    flash_attention=False,
+    flash_attention=None,
 ):
     """Scaled dot product attention function.
 
@@ -2411,6 +2411,10 @@ def dot_product_attention(
         scale: Optional scale for the logits. If `None`, the scale will be set
             to `1.0 / sqrt(H)`.
         is_causal: Whether to apply causal mask.
+        flash_attention: Whether to use flash attention. If `None`, it will
+            attempt to use flash attention if the required conditions are met.
+            Typically, the inputs must be in float16 and bfloat16 dtype and the
+            input layout requirements may vary depending on the backend.
 
     Returns:
         An array of the attention output with the same shape of `query`.

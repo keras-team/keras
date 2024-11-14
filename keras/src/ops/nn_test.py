@@ -84,8 +84,7 @@ def _dot_product_attention(
     padded_logits = _apply_masks(logits, mask, is_causal)
     padded_logits = padded_logits.astype(np.float32)
     probs = softmax(padded_logits, axis=-1).astype(key.dtype)
-    encoded = np.einsum("BNTS,BSNH->BTNH", probs, value)
-    return encoded
+    return np.einsum("BNTS,BSNH->BTNH", probs, value)
 
 
 class NNOpsDynamicShapeTest(testing.TestCase):
@@ -2283,83 +2282,96 @@ class NNOpsCorrectnessTest(testing.TestCase):
             bias=(None, True),
             scale=(None, 1.0),
             mask_and_is_causal=((None, False), (True, False), (None, True)),
-            flash_attention=(True, False),
+            flash_attention=(None, True, False),
         )
     )
     def test_dot_product_attention(
         self, bias, scale, mask_and_is_causal, flash_attention
     ):
         mask, is_causal = mask_and_is_causal
-        query_shape = (2, 3, 4, 5)
-        key_shape = (2, 6, 4, 5)
-        mask_shape = (2, 4, 3, 6)
+        query_shape = (2, 3, 4, 8)
+        key_shape = (2, 3, 4, 8)
+        bias_shape = (2, 4, 3, 3)
         query = np.arange(math.prod(query_shape), dtype=float).reshape(
             query_shape
         )
         key = np.arange(math.prod(key_shape), dtype=float).reshape(key_shape)
         value = np.arange(math.prod(key_shape), dtype=float).reshape(key_shape)
         if mask is not None:
-            mask = np.arange(math.prod(mask_shape)).reshape(mask_shape)
-            mask = (mask > 10).astype("bool")
+            mask = np.tril(np.ones((3, 3))).astype("bool")
+            mask = mask[None, None, ...]
+            mask = np.tile(mask, (2, 4, 1, 1))
         if bias is not None:
             if backend.backend() == "torch":
                 self.skipTest(
                     "torch does not support `bias` with `dot_product_attention`"
                 )
-            bias = np.arange(math.prod(mask_shape), dtype=float).reshape(
-                mask_shape
+            bias = np.arange(math.prod(bias_shape), dtype=float).reshape(
+                bias_shape
             )
 
-        if flash_attention and backend.backend() in [
-            "torch",
-            "tensorflow",
-            "numpy",
-        ]:
-            self.skipTest(
-                "Not supported in TF and NumPy and supported for "
-                "PyTorch with specific requirements."
-            )
-
-        if flash_attention and backend.backend() == "jax":
-            try:
-                outputs = knn.dot_product_attention(
-                    query,
-                    key,
-                    value,
-                    bias=bias,
-                    mask=mask,
-                    scale=scale,
-                    is_causal=is_causal,
-                    flash_attention=flash_attention,
+        if flash_attention:
+            if backend.backend() in ("tensorflow", "numpy"):
+                self.skipTest(
+                    "Flash attention is not supported in tensorflow and numpy "
+                    "backends."
                 )
-            except ValueError as e:
-                if e.args[0].startswith(
-                    "Flash attention is not supported in your "
-                    "current JAX version"
-                ):
+            elif backend.backend() == "torch":
+                import torch
+
+                if mask is not None:
                     self.skipTest(
-                        "JAX version does not have "
-                        "`dot_product_attention` function."
+                        "Flash attention doesn't support `mask=None` in torch "
+                        "backend."
                     )
-            except RuntimeError as e:
-                if e.args[0] == "cuDNN is not detected.":
-                    self.skipTest("No CuDNN to run flash attention for JAX.")
-                elif e.args[0] == "Require at least Ampere arch to run":
+                if not torch.cuda.is_available():
                     self.skipTest(
-                        "Requires at least Ampere arch to run flash attention "
-                        "for JAX."
+                        "Flash attention must be run on CUDA in torch backend."
                     )
-        else:
-            outputs = knn.dot_product_attention(
-                query,
-                key,
-                value,
-                bias=bias,
-                mask=mask,
-                scale=scale,
-                is_causal=is_causal,
-                flash_attention=flash_attention,
-            )
+                cuda_compute_capability = tuple(
+                    int(x) for x in torch.cuda.get_device_capability()
+                )
+                if cuda_compute_capability < (8, 0):
+                    self.skipTest(
+                        "Flash attention must be run on CUDA compute "
+                        "capability >= 8.0 in torch backend."
+                    )
+            elif backend.backend() == "jax":
+                import jax
+                from jax._src import xla_bridge
+
+                if "cuda" not in xla_bridge.get_backend().platform_version:
+                    self.skipTest(
+                        "Flash attention must be run on CUDA in jax backend."
+                    )
+                d, *_ = jax.local_devices(backend="gpu")
+                cuda_compute_capability = tuple(
+                    int(x) for x in d.compute_capability.split(".")
+                )
+                if cuda_compute_capability < (8, 0):
+                    self.skipTest(
+                        "Flash attention must be run on CUDA compute "
+                        "capability >= 8.0 in jax backend."
+                    )
+
+            # Flash attention only supports float16 and bfloat16. We multiply
+            # 0.1 to avoid overflow.
+            query = (query * 0.1).astype("float16")
+            key = (key * 0.1).astype("float16")
+            value = (value * 0.1).astype("float16")
+            if bias is not None:
+                bias = (bias * 0.1).astype("float16")
+
+        outputs = knn.dot_product_attention(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            is_causal=is_causal,
+            flash_attention=flash_attention,
+        )
 
         expected = _dot_product_attention(
             query,
@@ -2370,7 +2382,9 @@ class NNOpsCorrectnessTest(testing.TestCase):
             scale=scale,
             is_causal=is_causal,
         )
-        self.assertAllClose(outputs, expected)
+        self.assertAllClose(
+            outputs, expected, atol=1e-3 if flash_attention else 1e-6
+        )
 
 
 class NNOpsDtypeTest(testing.TestCase):
@@ -2831,9 +2845,9 @@ class NNOpsDtypeTest(testing.TestCase):
     def test_dot_product_attention(self, dtype):
         # TODO: Get expected output from jax if `jax.nn.dot_product_attention`
         # is available.
-        query = knp.ones((2, 3, 3, 4), dtype=dtype)
-        key = knp.ones((2, 3, 3, 4), dtype=dtype)
-        value = knp.ones((2, 3, 3, 4), dtype=dtype)
+        query = knp.ones((2, 3, 3, 8), dtype=dtype)
+        key = knp.ones((2, 3, 3, 8), dtype=dtype)
+        value = knp.ones((2, 3, 3, 8), dtype=dtype)
         expected_dtype = dtype
 
         self.assertDType(

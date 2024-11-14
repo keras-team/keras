@@ -56,17 +56,13 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
 
     def test_basics_with_flash_attention(self):
-        if backend.backend() in [
-            "torch",
-            "tensorflow",
-            "numpy",
-        ]:
+        if backend.backend() in ("tensorflow", "numpy"):
             self.skipTest(
-                "Not supported in TF and NumPy and supported for "
-                "PyTorch with specific requirements."
+                "Flash attention is not supported in tensorflow and numpy "
+                "backends."
             )
 
-        if backend.backend() == "jax":
+        elif backend.backend() == "torch":
             try:
                 enable_flash_attention()
                 self.run_layer_test(
@@ -74,6 +70,7 @@ class MultiHeadAttentionTest(testing.TestCase):
                     init_kwargs={
                         "num_heads": 2,
                         "key_dim": 2,
+                        "dtype": "float16",
                     },
                     input_shape={
                         "query_shape": (2, 8, 16),
@@ -87,45 +84,49 @@ class MultiHeadAttentionTest(testing.TestCase):
                     supports_masking=True,
                     run_training_check=False,
                 )
-
+                disable_flash_attention()
+            except ValueError as e:
+                self.assertStartsWith(
+                    e.args[0],
+                    "Flash attention is not supported with the provided inputs",
+                )
+        elif backend.backend() == "jax":
+            try:
+                enable_flash_attention()
                 self.run_layer_test(
                     layers.MultiHeadAttention,
                     init_kwargs={
                         "num_heads": 2,
-                        "key_dim": 2,
-                        "value_dim": 4,
-                        "use_bias": False,
-                        "dropout": 0.5,
+                        "key_dim": 8,  # key_dim % 8 == 0
+                        "dtype": "float16",
                     },
                     input_shape={
                         "query_shape": (2, 8, 16),
                         "value_shape": (2, 4, 16),
                     },
                     expected_output_shape=(2, 8, 16),
-                    expected_num_trainable_weights=4,
+                    expected_num_trainable_weights=8,
                     expected_num_non_trainable_weights=0,
-                    expected_num_seed_generators=1,
+                    expected_num_seed_generators=0,
                     expected_num_losses=0,
                     supports_masking=True,
                     run_training_check=False,
                 )
                 disable_flash_attention()
             except ValueError as e:
-                if e.args[0].startswith(
-                    "Flash attention is not supported in your "
-                    "current JAX version"
-                ):
-                    self.skipTest(
-                        "JAX version does not have "
-                        "`dot_product_attention` function."
-                    )
+                self.assertStartsWith(
+                    e.args[0],
+                    (
+                        "Flash attention is not supported in your current JAX "
+                        "version."
+                    ),
+                )
             except RuntimeError as e:
-                if e.args[0] == "cuDNN is not detected.":
-                    self.skipTest("No CuDNN to run flash attention for JAX.")
-                elif e.args[0] == "Require at least Ampere arch to run":
-                    self.skipTest(
-                        "Requires at least Ampere arch to run flash attention "
-                        "for JAX."
+                if str(e.args[0]).startswith("cuDNN"):
+                    self.assertStartsWith(e.args[0], "cuDNN is not detected.")
+                elif str(e.args[0]).startswith("Require at least"):
+                    self.assertStartsWith(
+                        e.args[0], "Require at least Ampere arch to run"
                     )
 
     @parameterized.named_parameters(

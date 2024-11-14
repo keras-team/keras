@@ -972,6 +972,53 @@ def psnr(x1, x2, max_val):
     return psnr
 
 
+def _can_use_flash_attention(query, key, value, bias, raise_error=False):
+    # Ref: https://github.com/jax-ml/jax/blob/main/jax/_src/cudnn/fused_attention_stablehlo.py
+    from jax._src.cudnn.fused_attention_stablehlo import _normalize_layout
+    from jax._src.cudnn.fused_attention_stablehlo import check_cudnn_version
+    from jax._src.cudnn.fused_attention_stablehlo import check_layout
+
+    try:
+        # The older version of jax doesn't have `check_compute_capability`
+        from jax._src.cudnn.fused_attention_stablehlo import (
+            check_compute_capability,
+        )
+    except ImportError:
+        if raise_error:
+            raise
+        return False
+
+    try:
+        # `dot_product_attention` is only available in jax>=0.4.31
+        if not hasattr(jax.nn, "dot_product_attention"):
+            raise ValueError(
+                "Flash attention is not supported in your "
+                "current JAX version. Please update it "
+                "using `pip install -U jax jaxlib`."
+            )
+        # Check if cuDNN is installed and raise RuntimeError if cuDNN is not
+        # detected
+        check_cudnn_version()
+        # Only support at least Ampere
+        if not check_compute_capability("8.0"):
+            raise RuntimeError("Require at least Ampere arch to run")
+        # Check inputs layout
+        check_layout(
+            query,
+            key,
+            value,
+            bias,
+            q_seqlen=None,
+            kv_seqlen=None,
+            layout=_normalize_layout("BTNH"),
+        )
+        return True
+    except:
+        if raise_error:
+            raise
+        return False
+
+
 def _apply_masks(logits, mask, is_causal):
     if mask is None and not is_causal:
         return logits
@@ -1021,19 +1068,24 @@ def dot_product_attention(
     mask=None,
     scale=None,
     is_causal=False,
-    flash_attention=False,
+    flash_attention=None,
 ):
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
-    if len(query.shape) != 4:
+    if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
         raise ValueError(
             "`dot_product_attention` only supports 4D inputs. "
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
-    is_tpu = jax.devices()[0].platform == "tpu"
-    if is_tpu and flash_attention:
+    if flash_attention is None:
+        flash_attention = _can_use_flash_attention(query, key, value, bias)
+    elif flash_attention is True:
+        # Use `raise_error=True` to provide more details if the inputs failed to
+        # use flash attention
+        _can_use_flash_attention(query, key, value, bias, raise_error=True)
+    if jax.devices()[0].platform == "tpu" and flash_attention:
         # Use TPU-optimized flash attention from Pallas
         return flash_attention_tpu(
             query,
@@ -1046,7 +1098,6 @@ def dot_product_attention(
         )
     # `dot_product_attention` is only available in jax>=0.4.31
     if hasattr(jax.nn, "dot_product_attention"):
-        implementation = "cudnn" if flash_attention else "xla"
         return jax.nn.dot_product_attention(
             query,
             key,
@@ -1055,7 +1106,7 @@ def dot_product_attention(
             mask=mask,
             scale=scale,
             is_causal=is_causal,
-            implementation=implementation,
+            implementation="cudnn" if flash_attention else "xla",
         )
 
     if flash_attention:
