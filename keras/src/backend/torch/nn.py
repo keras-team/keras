@@ -50,6 +50,11 @@ def softsign(x):
     return tnn.softsign(x)
 
 
+def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return tnn.softshrink(x, lambd=threshold)
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return tnn.silu(x)

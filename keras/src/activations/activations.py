@@ -259,6 +259,24 @@ def softsign(x):
     return ops.softsign(x)
 
 
+@keras_export("keras.activations.soft_shrink")
+def soft_shrink(x, threshold=0.5):
+    """Soft Shrink activation function.
+
+    It is defined as:
+
+    `soft_shrink(x) = x - threshold` if `x > threshold`,
+    `soft_shrink(x) = x + threshold` if `x < -threshold`,
+    `soft_shrink(x) = 0` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: Threshold value. Defaults to 0.5.
+
+    """
+    return ops.soft_shrink(x, threshold=threshold)
+
+
 @keras_export(["keras.activations.silu", "keras.activations.swish"])
 def silu(x):
     """Swish (or Silu) activation function.

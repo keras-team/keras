@@ -94,6 +94,7 @@ from keras.src.ops.nn import separable_conv
 from keras.src.ops.nn import sigmoid
 from keras.src.ops.nn import silu
 from keras.src.ops.nn import silu as swish
+from keras.src.ops.nn import soft_shrink
 from keras.src.ops.nn import softmax
 from keras.src.ops.nn import softplus
 from keras.src.ops.nn import softsign

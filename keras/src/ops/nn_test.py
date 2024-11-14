@@ -160,6 +160,10 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_shrink(x).shape, (None, 2, 3))
 
+    def test_soft_shrink(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.soft_shrink(x).shape, (None, 2, 3))
+
     def test_softmax(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.softmax(x).shape, (None, 2, 3))
@@ -825,6 +829,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.hard_shrink(x).shape, (1, 2, 3))
 
+    def test_soft_shrink(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.soft_shrink(x).shape, (1, 2, 3))
+
     def test_softmax(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.softmax(x).shape, (1, 2, 3))
@@ -1364,6 +1372,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knn.hard_shrink(x),
             [0.0, 0.0, 1.0, 2.0, 3.0],
+        )
+
+    def test_soft_shrink(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.soft_shrink(x),
+            [0.0, 0.0, 0.5, 1.5, 2.5],
         )
 
     def test_softmax(self):
@@ -2521,6 +2536,24 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.HardShrink().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_soft_shrink(self, dtype):
+        import torch
+        import torch.nn.functional as tnn
+
+        x = knp.ones((1), dtype=dtype)
+        x_torch = torch.ones(1, dtype=getattr(torch, dtype))
+        expected_dtype = standardize_dtype(tnn.softshrink(x_torch).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.soft_shrink(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.SoftShrink().symbolic_call(x).dtype),
             expected_dtype,
         )
 

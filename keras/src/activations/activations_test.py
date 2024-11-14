@@ -683,6 +683,19 @@ class ActivationsTest(testing.TestCase):
         expected = hard_shrink(x)
         self.assertAllClose(result, expected, rtol=1e-05)
 
+    def test_soft_shrink(self):
+        def soft_shrink(x, threshold=0.5):
+            return np.where(
+                x > threshold,
+                x - threshold,
+                np.where(x < -threshold, x + threshold, 0.0),
+            )
+
+        x = np.random.random((2, 5))
+        result = activations.soft_shrink(x[np.newaxis, :])[0]
+        expected = soft_shrink(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
     def test_elu(self):
         x = np.random.random((2, 5))
         result = activations.elu(x[np.newaxis, :])[0]
