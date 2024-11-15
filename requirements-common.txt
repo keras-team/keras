@@ -18,6 +18,4 @@ pytest-cov
 packaging
 # for tree_test.py
 dm_tree
-# TODO: Don't pin coverage version. Higher version causes issues:
-# https://github.com/nedbat/coveragepy/issues/1891
-coverage==7.6.1
+coverage!=7.6.5  # 7.6.5 breaks CI
