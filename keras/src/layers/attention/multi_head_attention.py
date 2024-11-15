@@ -661,12 +661,12 @@ class MultiHeadAttention(Layer):
         if key_shape is None:
             key_shape = value_shape
 
-        if value_shape[1:-1] != key_shape[1:-1]:
-            raise ValueError(
-                "All dimensions of `value` and `key`, except the last one, "
-                f"must be equal. Received: value_shape={value_shape} and "
-                f"key_shape={key_shape}"
-            )
+        # if value_shape[1:-1] != key_shape[1:-1]:
+        #     raise ValueError(
+        #         "All dimensions of `value` and `key`, except the last one, "
+        #         f"must be equal. Received: value_shape={value_shape} and "
+        #         f"key_shape={key_shape}"
+        #     )
 
         if self._output_shape:
             return query_shape[:-1] + self._output_shape
