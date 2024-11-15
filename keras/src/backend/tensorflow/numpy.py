@@ -1238,6 +1238,14 @@ def exp(x):
         x = tf.cast(x, config.floatx())
     return tf.exp(x)
 
+@sparse.densifying_unary(1)
+def exp2(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = tf.cast(x, config.floatx())
+    return tf.experimental.numpy.exp2(x)
+
 
 def expand_dims(x, axis):
     x = convert_to_tensor(x)

@@ -2668,6 +2668,30 @@ def exp(x):
         return Exp().symbolic_call(x)
     return backend.numpy.exp(x)
 
+class Exp2(Operation):
+    def call(self, x):
+        return backend.numpy.exp2(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if "int" in dtype or dtype == "bool":
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.exp2", "keras.ops.numpy.exp2"])
+def exp2(x):
+    """Calculate the exponential of all elements in the input tensor.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output tensor, element-wise exponential of `x`.
+    """
+    if any_symbolic_tensors((x,)):
+        return Exp().symbolic_call(x)
+    return backend.numpy.exp2(x)
 
 class ExpandDims(Operation):
     def __init__(self, axis):
