@@ -982,29 +982,25 @@ def psnr(x1, x2, max_val):
 
 
 def _can_use_flash_attention(query, key, value, bias, raise_error=False):
-    # Ref: https://github.com/jax-ml/jax/blob/main/jax/_src/cudnn/fused_attention_stablehlo.py
-    from jax._src.cudnn.fused_attention_stablehlo import _normalize_layout
-    from jax._src.cudnn.fused_attention_stablehlo import check_cudnn_version
-    from jax._src.cudnn.fused_attention_stablehlo import check_layout
-
+    """Verify the availability of flash attention."""
     try:
-        # The older version of jax doesn't have `check_compute_capability`
+        from jax._src.cudnn.fused_attention_stablehlo import _normalize_layout
         from jax._src.cudnn.fused_attention_stablehlo import (
             check_compute_capability,
         )
+        from jax._src.cudnn.fused_attention_stablehlo import check_cudnn_version
+        from jax._src.cudnn.fused_attention_stablehlo import check_layout
+        from jax.nn import dot_product_attention as dot_product_attention
     except ImportError:
         if raise_error:
-            raise
+            raise ImportError(
+                "Flash attention is not supported in your current JAX version. "
+                "Please update it by following the official guide: "
+                "https://jax.readthedocs.io/en/latest/installation.html"
+            )
         return False
 
     try:
-        # `dot_product_attention` is only available in jax>=0.4.31
-        if not hasattr(jax.nn, "dot_product_attention"):
-            raise ValueError(
-                "Flash attention is not supported in your "
-                "current JAX version. Please update it "
-                "using `pip install -U jax jaxlib`."
-            )
         # Check if cuDNN is installed and raise RuntimeError if cuDNN is not
         # detected
         check_cudnn_version()
@@ -1119,10 +1115,10 @@ def dot_product_attention(
         )
 
     if flash_attention:
-        raise ValueError(
-            "Flash attention is not supported in your "
-            "current JAX version. Please update it "
-            "using `pip install -U jax jaxlib`."
+        raise RuntimeError(
+            "Flash attention is not supported in your current JAX version. "
+            "Please update it by following the official guide: "
+            "https://jax.readthedocs.io/en/latest/installation.html"
         )
     # Ref: jax.nn.dot_product_attention
     # https://github.com/jax-ml/jax/blob/jax-v0.4.33/jax/_src/nn/functions.py#L886

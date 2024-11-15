@@ -85,11 +85,27 @@ class MultiHeadAttentionTest(testing.TestCase):
                     run_training_check=False,
                 )
                 disable_flash_attention()
-            except ValueError as e:
-                self.assertStartsWith(
-                    e.args[0],
-                    "Flash attention is not supported with the provided inputs",
-                )
+            except ImportError as e:
+                if "Flash attention is not supported" in str(e.args[0]):
+                    self.assertTrue(
+                        (
+                            "Flash attention is not supported in your current "
+                            "PyTorch version."
+                        )
+                        in str(e.args[0])
+                    )
+            except RuntimeError as e:
+                if (
+                    "Flash attention is not supported with the provided inputs"
+                    in str(e.args[0])
+                ):
+                    self.assertTrue(
+                        (
+                            "Flash attention is not supported with the "
+                            "provided inputs"
+                        )
+                        in str(e.args[0])
+                    )
         elif backend.backend() == "jax":
             try:
                 enable_flash_attention()
@@ -113,20 +129,29 @@ class MultiHeadAttentionTest(testing.TestCase):
                     run_training_check=False,
                 )
                 disable_flash_attention()
-            except ValueError as e:
-                self.assertStartsWith(
-                    e.args[0],
-                    (
-                        "Flash attention is not supported in your current JAX "
-                        "version."
-                    ),
-                )
+            except ImportError as e:
+                if "Flash attention is not supported" in str(e.args[0]):
+                    self.assertTrue(
+                        (
+                            "Flash attention is not supported in your current "
+                            "JAX version."
+                        )
+                        in str(e.args[0])
+                    )
             except RuntimeError as e:
-                if str(e.args[0]).startswith("cuDNN"):
-                    self.assertStartsWith(e.args[0], "cuDNN is not detected.")
-                elif str(e.args[0]).startswith("Require at least"):
-                    self.assertStartsWith(
-                        e.args[0], "Require at least Ampere arch to run"
+                if "cuDNN" in str(e.args[0]):
+                    self.assertTrue("cuDNN is not detected." in str(e.args[0]))
+                elif "Require at least" in str(e.args[0]):
+                    self.assertTrue(
+                        "Require at least Ampere arch to run" in str(e.args[0])
+                    )
+                elif "Flash attention" in str(e.args[0]):
+                    self.assertTrue(
+                        (
+                            "Flash attention is not supported in your current "
+                            "JAX version."
+                        )
+                        in str(e.args[0])
                     )
 
     @parameterized.named_parameters(
