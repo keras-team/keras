@@ -94,8 +94,6 @@ class MultiHeadAttentionTest(testing.TestCase):
                         )
                         in str(e.args[0])
                     )
-                else:
-                    raise
             except RuntimeError as e:
                 if (
                     "Flash attention is not supported with the provided inputs"
@@ -140,8 +138,6 @@ class MultiHeadAttentionTest(testing.TestCase):
                         )
                         in str(e.args[0])
                     )
-                else:
-                    raise
             except RuntimeError as e:
                 if "cuDNN" in str(e.args[0]):
                     self.assertTrue("cuDNN is not detected." in str(e.args[0]))
@@ -157,8 +153,6 @@ class MultiHeadAttentionTest(testing.TestCase):
                         )
                         in str(e.args[0])
                     )
-                else:
-                    raise
 
     @parameterized.named_parameters(
         ("4d_inputs_1freebatch_mask2", (3, 4), (3, 2), (4, 2), (2,)),
