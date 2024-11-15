@@ -122,28 +122,33 @@ class MultiHeadAttentionTest(testing.TestCase):
                 )
                 disable_flash_attention()
             except ImportError as e:
-                self.assertStartsWith(
-                    e.args[0],
-                    (
-                        "Flash attention is not supported in your current JAX "
-                        "version."
-                    ),
-                )
-            except RuntimeError as e:
-                if str(e.args[0]).startswith("cuDNN"):
-                    self.assertStartsWith(e.args[0], "cuDNN is not detected.")
-                elif str(e.args[0]).startswith("Require at least"):
-                    self.assertStartsWith(
-                        e.args[0], "Require at least Ampere arch to run"
-                    )
-                elif str(e.args[0]).startswith("Flash attention"):
-                    self.assertStartsWith(
-                        e.args[0],
+                if "Flash attention is not supported" in str(e.args[0]):
+                    self.assertTrue(
                         (
                             "Flash attention is not supported in your current "
                             "JAX version."
-                        ),
+                        )
+                        in str(e.args[0])
                     )
+                else:
+                    raise
+            except RuntimeError as e:
+                if "cuDNN" in str(e.args[0]):
+                    self.assertTrue("cuDNN is not detected." in str(e.args[0]))
+                elif "Require at least" in str(e.args[0]):
+                    self.assertTrue(
+                        "Require at least Ampere arch to run" in str(e.args[0])
+                    )
+                elif "Flash attention" in str(e.args[0]):
+                    self.assertTrue(
+                        (
+                            "Flash attention is not supported in your current "
+                            "JAX version."
+                        )
+                        in str(e.args[0])
+                    )
+                else:
+                    raise
 
     @parameterized.named_parameters(
         ("4d_inputs_1freebatch_mask2", (3, 4), (3, 2), (4, 2), (2,)),
