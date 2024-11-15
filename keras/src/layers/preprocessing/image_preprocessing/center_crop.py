@@ -2,6 +2,12 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    clip_to_image_size,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    convert_format,
+)
 from keras.src.utils import image_utils
 
 
@@ -53,13 +59,120 @@ class CenterCrop(BaseImagePreprocessingLayer):
         self.height = height
         self.width = width
 
+    def get_random_transformation(self, data, training=True, seed=None):
+        if isinstance(data, dict):
+            images = data["images"]
+        else:
+            images = data
+        shape = self.backend.core.shape(images)
+        return {"input_shape": shape}
+
     def transform_labels(self, labels, transformation, training=True):
         return labels
 
     def transform_bounding_boxes(
         self, bounding_boxes, transformation, training=True
     ):
-        raise NotImplementedError
+        def _get_height_width(input_shape):
+            if self.data_format == "channels_first":
+                input_height = input_shape[-2]
+                input_width = input_shape[-1]
+            else:
+                input_height = input_shape[-3]
+                input_width = input_shape[-2]
+            return input_height, input_width
+
+        def _get_clipped_bbox(bounding_boxes, h_end, h_start, w_end, w_start):
+            bboxes = bounding_boxes["boxes"]
+            x1, y1, x2, y2 = self.backend.numpy.split(bboxes, 4, axis=-1)
+            x1 = self.backend.numpy.clip(x1, w_start, w_end) - w_start
+            y1 = self.backend.numpy.clip(y1, h_start, h_end) - h_start
+            x2 = self.backend.numpy.clip(x2, w_start, w_end) - w_start
+            y2 = self.backend.numpy.clip(y2, h_start, h_end) - h_start
+            bounding_boxes["boxes"] = self.backend.numpy.concatenate(
+                [x1, y1, x2, y2], axis=-1
+            )
+            return bounding_boxes
+
+        input_shape = transformation["input_shape"]
+
+        init_height, init_width = _get_height_width(input_shape)
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source=self.bounding_box_format,
+            target="xyxy",
+            height=init_height,
+            width=init_width,
+        )
+
+        h_diff = init_height - self.height
+        w_diff = init_width - self.width
+
+        if h_diff >= 0 and w_diff >= 0:
+            h_start = int(h_diff / 2)
+            w_start = int(w_diff / 2)
+
+            h_end = h_start + self.height
+            w_end = w_start + self.width
+
+            bounding_boxes = _get_clipped_bbox(
+                bounding_boxes, h_end, h_start, w_end, w_start
+            )
+        else:
+            width = init_width
+            height = init_height
+            target_height = self.height
+            target_width = self.width
+
+            crop_height = int(float(width * target_height) / target_width)
+            crop_height = max(min(height, crop_height), 1)
+            crop_width = int(float(height * target_width) / target_height)
+            crop_width = max(min(width, crop_width), 1)
+            crop_box_hstart = int(float(height - crop_height) / 2)
+            crop_box_wstart = int(float(width - crop_width) / 2)
+
+            h_start = crop_box_hstart
+            w_start = crop_box_wstart
+
+            h_end = crop_box_hstart + crop_height
+            w_end = crop_box_wstart + crop_width
+            bounding_boxes = _get_clipped_bbox(
+                bounding_boxes, h_end, h_start, w_end, w_start
+            )
+
+            bounding_boxes = convert_format(
+                bounding_boxes,
+                source="xyxy",
+                target="rel_xyxy",
+                height=crop_height,
+                width=crop_width,
+            )
+
+            bounding_boxes = convert_format(
+                bounding_boxes,
+                source="rel_xyxy",
+                target="xyxy",
+                height=self.height,
+                width=self.width,
+            )
+
+        bounding_boxes = clip_to_image_size(
+            bounding_boxes=bounding_boxes,
+            height=self.height,
+            width=self.width,
+            format="xyxy",
+        )
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source="xyxy",
+            target=self.bounding_box_format,
+            height=self.height,
+            width=self.width,
+        )
+
+        return bounding_boxes
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
