@@ -283,7 +283,9 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         else:
 
             def bincount_fn(arr_w):
-                return np.bincount(arr_w[0], weights=arr_w[1], minlength=minlength)
+                return np.bincount(
+                    arr_w[0], weights=arr_w[1], minlength=minlength
+                )
 
             bincounts = list(map(bincount_fn, zip(x, weights)))
 
@@ -365,7 +367,9 @@ def concatenate(xs, axis=0):
     dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        xs = tree.map_structure(lambda x: convert_to_tensor(x).astype(dtype), xs)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
     return np.concatenate(xs, axis=axis)
 
 
@@ -543,7 +547,9 @@ def hstack(xs):
     dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        xs = tree.map_structure(lambda x: convert_to_tensor(x).astype(dtype), xs)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
     return np.hstack(xs)
 
 
@@ -580,7 +586,9 @@ def less_equal(x1, x2):
     return np.less_equal(x1, x2)
 
 
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):
+def linspace(
+    start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
+):
     axis = standardize_axis_for_numpy(axis)
     if dtype is None:
         dtypes_to_resolve = [
@@ -807,7 +815,9 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return np.quantile(x, q, axis=axis, method=method, keepdims=keepdims).astype(dtype)
+    return np.quantile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
 
 
 def ravel(x):
@@ -842,7 +852,9 @@ def searchsorted(sorted_sequence, values, side="left"):
             "to extend it to N-D sequences. Received: "
             f"sorted_sequence.shape={sorted_sequence.shape}"
         )
-    out_type = "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+    out_type = (
+        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+    )
     return np.searchsorted(sorted_sequence, values, side=side).astype(out_type)
 
 
@@ -998,7 +1010,9 @@ def vstack(xs):
     dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        xs = tree.map_structure(lambda x: convert_to_tensor(x).astype(dtype), xs)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
     return np.vstack(xs)
 
 

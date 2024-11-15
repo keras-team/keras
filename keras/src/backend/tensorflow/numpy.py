@@ -48,7 +48,8 @@ def add(x1, x2):
         # `x2` non-squeezable dimension defined
         and x2_squeeze_shape[0] is not None
         # `x2` non-squeezable dimension match `x1` channel dimension
-        and x2_squeeze_shape[0] in {x1.shape.as_list()[1], x1.shape.as_list()[-1]}
+        and x2_squeeze_shape[0]
+        in {x1.shape.as_list()[1], x1.shape.as_list()[-1]}
     ):
         if x1.shape[-1] == x2_squeeze_shape[0]:
             data_format = "NHWC"
@@ -339,13 +340,17 @@ def einsum(subscripts, *operands, **kwargs):
         # output_type="int32"
         if "int" in compute_dtype and output_type is None:
             compute_dtype = config.floatx()
-        operands = tree.map_structure(lambda x: tf.cast(x, compute_dtype), operands)
+        operands = tree.map_structure(
+            lambda x: tf.cast(x, compute_dtype), operands
+        )
         result = use_custom_ops(subscripts, *operands, output_type=output_type)
     else:
         # TODO: tf.einsum doesn't support integer dtype with gpu
         if "int" in compute_dtype:
             compute_dtype = config.floatx()
-        operands = tree.map_structure(lambda x: tf.cast(x, compute_dtype), operands)
+        operands = tree.map_structure(
+            lambda x: tf.cast(x, compute_dtype), operands
+        )
         result = tf.einsum(subscripts, *operands, **kwargs)
     return tf.cast(result, result_dtype)
 
@@ -401,9 +406,17 @@ def matmul(x1, x2):
         batch_shape = b.shape[:-2] if b_sparse else a.shape[:-2]
         batch_size = math.prod(batch_shape)
         a3d_shape = [batch_size] + a.shape[-2:]
-        a_3d = tf.sparse.reshape(a, a3d_shape) if a_sparse else tf.reshape(a, a3d_shape)
+        a_3d = (
+            tf.sparse.reshape(a, a3d_shape)
+            if a_sparse
+            else tf.reshape(a, a3d_shape)
+        )
         b3d_shape = [batch_size] + b.shape[-2:]
-        b_3d = tf.sparse.reshape(b, b3d_shape) if b_sparse else tf.reshape(b, b3d_shape)
+        b_3d = (
+            tf.sparse.reshape(b, b3d_shape)
+            if b_sparse
+            else tf.reshape(b, b3d_shape)
+        )
         result_3d = fn_3d(a_3d, b_3d)
         return (
             tf.sparse.reshape(result_3d, output_shape)
@@ -581,7 +594,9 @@ def mean(x, axis=None, keepdims=False):
         result_dtype = compute_dtype
     else:
         result_dtype = ori_dtype
-    output = tf.reduce_mean(tf.cast(x, compute_dtype), axis=axis, keepdims=keepdims)
+    output = tf.reduce_mean(
+        tf.cast(x, compute_dtype), axis=axis, keepdims=keepdims
+    )
     return tf.cast(output, result_dtype)
 
 
@@ -1025,7 +1040,9 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
                 return pad_zeros(x)
             return x
 
-        return tf.cond(tf.equal(size_of_last_dim, 2), lambda: pad_zeros(x), lambda: x)
+        return tf.cond(
+            tf.equal(size_of_last_dim, 2), lambda: pad_zeros(x), lambda: x
+        )
 
     x1_dim = shape_op(x1)[-1]
     x2_dim = shape_op(x2)[-1]
@@ -1387,9 +1404,13 @@ def less_equal(x1, x2):
     return tf.less_equal(x1, x2)
 
 
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):
+def linspace(
+    start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
+):
     if num < 0:
-        raise ValueError(f"`num` must be a non-negative integer. Received: num={num}")
+        raise ValueError(
+            f"`num` must be a non-negative integer. Received: num={num}"
+        )
     if dtype is None:
         dtypes_to_resolve = [
             getattr(start, "dtype", type(start)),
@@ -1751,7 +1772,9 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
             indices = tf.round((d - 1) * q)
         # d - 1 will be distinct from d in int32, but not necessarily double.
         # So clip to avoid out of bounds errors.
-        return tf.clip_by_value(tf.cast(indices, "int32"), 0, tf.shape(y)[-1] - 1)
+        return tf.clip_by_value(
+            tf.cast(indices, "int32"), 0, tf.shape(y)[-1] - 1
+        )
 
     if method in ["nearest", "lower", "higher"]:
         gathered_y = tf.gather(sorted_y, _get_indices(method), axis=-1)
@@ -1853,7 +1876,9 @@ def reshape(x, newshape):
     if isinstance(x, tf.SparseTensor):
         from keras.src.ops.operation_utils import compute_reshape_output_shape
 
-        output_shape = compute_reshape_output_shape(x.shape, newshape, "newshape")
+        output_shape = compute_reshape_output_shape(
+            x.shape, newshape, "newshape"
+        )
         output = tf.sparse.reshape(x, newshape)
         output.set_shape(output_shape)
         return output
@@ -1879,8 +1904,12 @@ def searchsorted(sorted_sequence, values, side="left"):
             "to extend it to N-D sequences. Received: "
             f"sorted_sequence.shape={sorted_sequence.shape}"
         )
-    out_type = "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
-    return tf.searchsorted(sorted_sequence, values, side=side, out_type=out_type)
+    out_type = (
+        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+    )
+    return tf.searchsorted(
+        sorted_sequence, values, side=side, out_type=out_type
+    )
 
 
 @sparse.elementwise_unary
@@ -1966,7 +1995,11 @@ def std(x, axis=None, keepdims=False):
 def swapaxes(x, axis1, axis2):
     x = convert_to_tensor(x)
 
-    if x.shape.rank is not None and isinstance(axis1, int) and isinstance(axis2, int):
+    if (
+        x.shape.rank is not None
+        and isinstance(axis1, int)
+        and isinstance(axis2, int)
+    ):
         # This branch makes sure `perm` is statically known, to avoid a
         # not-compile-time-constant XLA error.
         axis1 = canonicalize_axis(axis1, x.ndim)
@@ -1984,7 +2017,9 @@ def swapaxes(x, axis1, axis2):
         axis1 = tf.where(axis1 < 0, tf.add(axis1, x_rank), axis1)
         axis2 = tf.where(axis2 < 0, tf.add(axis2, x_rank), axis2)
         perm = tf.range(x_rank)
-        perm = tf.tensor_scatter_nd_update(perm, [[axis1], [axis2]], [axis2, axis1])
+        perm = tf.tensor_scatter_nd_update(
+            perm, [[axis1], [axis2]], [axis2, axis1]
+        )
     return tf.transpose(x, perm)
 
 
@@ -2057,7 +2092,9 @@ def take_along_axis(x, indices, axis=None):
     x_shape_original = tf.shape(x, out_type=indices.dtype)
     indices_shape_original = tf.shape(indices, out_type=indices.dtype)
     x_shape = tf.tensor_scatter_nd_update(x_shape_original, [[axis]], [1])
-    indices_shape = tf.tensor_scatter_nd_update(indices_shape_original, [[axis]], [1])
+    indices_shape = tf.tensor_scatter_nd_update(
+        indices_shape_original, [[axis]], [1]
+    )
     broadcasted_shape = tf.broadcast_dynamic_shape(x_shape, indices_shape)
     x_shape = tf.tensor_scatter_nd_update(
         broadcasted_shape, [[axis]], [x_shape_original[axis]]
@@ -2186,7 +2223,9 @@ def tri(N, M=None, k=0, dtype=None):
             r = tf.zeros([N, M], dtype=dtype)
         else:
             o = tf.ones([N, M], dtype="bool")
-            r = tf.cast(tf.logical_not(tf.linalg.band_part(o, lower, -1)), dtype=dtype)
+            r = tf.cast(
+                tf.logical_not(tf.linalg.band_part(o, lower, -1)), dtype=dtype
+            )
     else:
         o = tf.ones([N, M], dtype=dtype)
         if k > M:
@@ -2206,7 +2245,9 @@ def tril(x, k=0):
         mask = i >= j - k
         return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
-    return tf.cond(k >= 0, lambda: tf.linalg.band_part(x, -1, k), _negative_k_branch)
+    return tf.cond(
+        k >= 0, lambda: tf.linalg.band_part(x, -1, k), _negative_k_branch
+    )
 
 
 def triu(x, k=0):
@@ -2219,7 +2260,9 @@ def triu(x, k=0):
         mask = i <= j - k
         return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
-    return tf.cond(k <= 0, lambda: tf.linalg.band_part(x, -k, -1), _positive_k_branch)
+    return tf.cond(
+        k <= 0, lambda: tf.linalg.band_part(x, -k, -1), _positive_k_branch
+    )
 
 
 def trunc(x):
@@ -2264,7 +2307,9 @@ def _vmap_fn(fn, in_axes=0):
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):
-    return vectorize_impl(pyfunc, _vmap_fn, excluded=excluded, signature=signature)
+    return vectorize_impl(
+        pyfunc, _vmap_fn, excluded=excluded, signature=signature
+    )
 
 
 def where(condition, x1, x2):
@@ -2376,7 +2421,8 @@ def squeeze(x, axis=None):
         for a in axis:
             if static_shape[a] != 1:
                 raise ValueError(
-                    f"Cannot squeeze axis={a}, because the " "dimension is not 1."
+                    f"Cannot squeeze axis={a}, because the "
+                    "dimension is not 1."
                 )
         axis = sorted([canonicalize_axis(a, len(static_shape)) for a in axis])
     if isinstance(x, tf.SparseTensor):
@@ -2488,8 +2534,12 @@ def correlate(x1, x2, mode="valid"):
         x1_pad = (full_len - x1_len) / 2
         x2_pad = (full_len - x2_len) / 2
 
-        x1 = tf.pad(x1, paddings=[[tf.math.floor(x1_pad), tf.math.ceil(x1_pad)]])
-        x2 = tf.pad(x2, paddings=[[tf.math.floor(x2_pad), tf.math.ceil(x2_pad)]])
+        x1 = tf.pad(
+            x1, paddings=[[tf.math.floor(x1_pad), tf.math.ceil(x1_pad)]]
+        )
+        x2 = tf.pad(
+            x2, paddings=[[tf.math.floor(x2_pad), tf.math.ceil(x2_pad)]]
+        )
 
         x1 = tf.reshape(x1, (1, full_len, 1))
         x2 = tf.reshape(x2, (full_len, 1, 1))

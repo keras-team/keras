@@ -60,7 +60,9 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         else:
 
             def bincount_fn(arr_w):
-                return jnp.bincount(arr_w[0], weights=arr_w[1], minlength=minlength)
+                return jnp.bincount(
+                    arr_w[0], weights=arr_w[1], minlength=minlength
+                )
 
             bincounts = list(map(bincount_fn, zip(x, weights)))
 
@@ -99,7 +101,9 @@ def matmul(x1, x2):
         preferred_element_type = "int32"
     else:
         preferred_element_type = None
-    if isinstance(x1, jax_sparse.JAXSparse) or isinstance(x2, jax_sparse.JAXSparse):
+    if isinstance(x1, jax_sparse.JAXSparse) or isinstance(
+        x2, jax_sparse.JAXSparse
+    ):
         if not hasattr(matmul, "sparse_matmul"):
             matmul.sparse_matmul = jax_sparse.sparsify(jnp.matmul)
         if isinstance(x1, jax_sparse.BCOO):
@@ -442,7 +446,10 @@ def concatenate(xs, axis=0):
             axis = canonicalize_axis(axis, len(xs[0].shape))
             return jax_sparse.bcoo_concatenate(xs, dimension=axis)
         else:
-            xs = [x.todense() if isinstance(x, jax_sparse.JAXSparse) else x for x in xs]
+            xs = [
+                x.todense() if isinstance(x, jax_sparse.JAXSparse) else x
+                for x in xs
+            ]
     return jnp.concatenate(xs, axis=axis)
 
 
@@ -582,7 +589,9 @@ def expand_dims(x, axis):
             _,
             result_shape,
             broadcast_dimensions,
-        ) = sparse.axis_shape_dims_for_broadcast_in_dim(axis, x.shape, insert_dims=True)
+        ) = sparse.axis_shape_dims_for_broadcast_in_dim(
+            axis, x.shape, insert_dims=True
+        )
         return jax_sparse.bcoo_broadcast_in_dim(
             x, shape=result_shape, broadcast_dimensions=broadcast_dimensions
         )
@@ -685,7 +694,9 @@ def less_equal(x1, x2):
     return jnp.less_equal(x1, x2)
 
 
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):
+def linspace(
+    start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
+):
     return jnp.linspace(
         start,
         stop,
