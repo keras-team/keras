@@ -176,9 +176,7 @@ def max(x, axis=None, keepdims=False, initial=None):
     if initial is not None:
         dtype = to_torch_dtype(result.dtype)
         initial = convert_to_tensor(initial, dtype=dtype)
-        return torch.maximum(
-            result, torch.full(result.shape, initial, dtype=dtype)
-        )
+        return torch.maximum(result, torch.full(result.shape, initial, dtype=dtype))
     return result
 
 
@@ -275,9 +273,7 @@ def arange(start, stop=None, step=1, dtype=None):
     dtype = to_torch_dtype(dtype)
     if stop is None:
         return torch.arange(end=start, dtype=dtype, device=get_device())
-    return torch.arange(
-        start, stop, step=step, dtype=dtype, device=get_device()
-    )
+    return torch.arange(start, stop, step=step, dtype=dtype, device=get_device())
 
 
 def arccos(x):
@@ -374,9 +370,7 @@ def average(x, axis=None, weights=None):
         # Torch handles the empty axis case differently from numpy.
         return x
     if weights is not None:
-        return torch.sum(torch.mul(x, weights), dim=axis) / torch.sum(
-            weights, dim=-1
-        )
+        return torch.sum(torch.mul(x, weights), dim=axis) / torch.sum(weights, dim=-1)
     return torch.mean(x, axis)
 
 
@@ -401,9 +395,7 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         else:
 
             def bincount_fn(arr_w):
-                return torch.bincount(
-                    arr_w[0], weights=arr_w[1], minlength=minlength
-                )
+                return torch.bincount(arr_w[0], weights=arr_w[1], minlength=minlength)
 
             bincounts = list(map(bincount_fn, zip(x, weights)))
 
@@ -656,12 +648,14 @@ def exp(x):
         x = cast(x, config.floatx())
     return torch.exp(x)
 
+
 def exp2(x):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
     if "int" in ori_dtype or ori_dtype == "bool":
         x = cast(x, config.floatx())
     return torch.exp2(x)
+
 
 def expand_dims(x, axis):
     x = convert_to_tensor(x)
@@ -785,9 +779,7 @@ def less_equal(x1, x2):
     return torch.less_equal(x1, x2)
 
 
-def linspace(
-    start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
-):
+def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):
     if axis != 0:
         raise ValueError(
             "torch.linspace does not support an `axis` argument. "
@@ -957,9 +949,7 @@ def median(x, axis=None, keepdims=False):
     if axis is None and keepdims is False:
         return cast(torch.median(x), result_dtype)
     elif isinstance(axis, int):
-        return cast(
-            torch.median(x, dim=axis, keepdim=keepdims)[0], result_dtype
-        )
+        return cast(torch.median(x, dim=axis, keepdim=keepdims)[0], result_dtype)
 
     # support multiple axes
     if axis is None:
@@ -1151,9 +1141,7 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     for a in axis:
         # `torch.prod` does not handle multiple axes.
         x = cast(
-            torch.prod(
-                x, dim=a, keepdim=keepdims, dtype=to_torch_dtype(compute_dtype)
-            ),
+            torch.prod(x, dim=a, keepdim=keepdims, dtype=to_torch_dtype(compute_dtype)),
             dtype,
         )
     return x
@@ -1257,9 +1245,7 @@ def searchsorted(sorted_sequence, values, side="left"):
             f"sorted_sequence.shape={sorted_sequence.shape}"
         )
     out_int32 = len(sorted_sequence) <= np.iinfo(np.int32).max
-    return torch.searchsorted(
-        sorted_sequence, values, side=side, out_int32=out_int32
-    )
+    return torch.searchsorted(sorted_sequence, values, side=side, out_int32=out_int32)
 
 
 def sign(x):
@@ -1491,9 +1477,7 @@ def vstack(xs):
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):
-    return vectorize_impl(
-        pyfunc, torch.vmap, excluded=excluded, signature=signature
-    )
+    return vectorize_impl(pyfunc, torch.vmap, excluded=excluded, signature=signature)
 
 
 def where(condition, x1, x2):
@@ -1573,9 +1557,7 @@ def var(x, axis=None, keepdims=False):
         return zeros_like(x, result_dtype)
     # Bessel correction removed for numpy compatibility
     x = cast(x, compute_dtype)
-    return cast(
-        torch.var(x, dim=axis, keepdim=keepdims, correction=0), result_dtype
-    )
+    return cast(torch.var(x, dim=axis, keepdim=keepdims, correction=0), result_dtype)
 
 
 def sum(x, axis=None, keepdims=False):
@@ -1603,9 +1585,7 @@ def eye(N, M=None, k=None, dtype=None):
         # TODO: torch.eye doesn't support bfloat16 with cpu
         if get_device() == "cpu" and dtype == torch.bfloat16:
             return cast(
-                torch.eye(
-                    N, M, dtype=to_torch_dtype("float32"), device=get_device()
-                ),
+                torch.eye(N, M, dtype=to_torch_dtype("float32"), device=get_device()),
                 dtype,
             )
         return torch.eye(N, M, dtype=dtype, device=get_device())
@@ -1665,9 +1645,7 @@ def correlate(x1, x2, mode="valid"):
     result = output.reshape(output_shape)
 
     if mode == "valid":
-        target_length = (
-            builtins.max(x1_len, x2_len) - builtins.min(x1_len, x2_len) + 1
-        )
+        target_length = builtins.max(x1_len, x2_len) - builtins.min(x1_len, x2_len) + 1
         start_idx = (result.size(-1) - target_length) // 2
         result = result[..., start_idx : start_idx + target_length]
 
