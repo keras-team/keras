@@ -85,19 +85,29 @@ class MultiHeadAttentionTest(testing.TestCase):
                     run_training_check=False,
                 )
                 disable_flash_attention()
-            except RuntimeError as e:
-                self.assertStartsWith(
-                    e.args[0],
-                    "Flash attention is not supported with the provided inputs",
-                )
             except ImportError as e:
-                self.assertStartsWith(
-                    e.args[0],
-                    (
-                        "Flash attention is not supported in your current "
-                        "PyTorch version."
-                    ),
-                )
+                if "Flash attention is not supported" in str(e.args[0]):
+                    self.assertTrue(
+                        (
+                            "Flash attention is not supported in your current "
+                            "PyTorch version."
+                        )
+                        in str(e.args[0])
+                    )
+                else:
+                    raise
+            except RuntimeError as e:
+                if (
+                    "Flash attention is not supported with the provided inputs"
+                    in str(e.args[0])
+                ):
+                    self.assertTrue(
+                        (
+                            "Flash attention is not supported with the "
+                            "provided inputs"
+                        )
+                        in str(e.args[0])
+                    )
         elif backend.backend() == "jax":
             try:
                 enable_flash_attention()
