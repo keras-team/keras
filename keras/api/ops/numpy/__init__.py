@@ -59,6 +59,7 @@ from keras.src.ops.numpy import einsum
 from keras.src.ops.numpy import empty
 from keras.src.ops.numpy import equal
 from keras.src.ops.numpy import exp
+from keras.src.ops.numpy import exp2
 from keras.src.ops.numpy import expand_dims
 from keras.src.ops.numpy import expm1
 from keras.src.ops.numpy import eye
