@@ -1253,6 +1253,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.exp(x).shape, (None, 3))
 
+    def test_exp2(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.exp2(x).shape, (None, 3))
+
     def test_expand_dims(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.expand_dims(x, -1).shape, (None, 3, 1))
@@ -1801,6 +1805,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_exp(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.exp(x).shape, (2, 3))
+
+    def test_exp2(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.exp2(x).shape, (2, 3))
 
     def test_expand_dims(self):
         x = KerasTensor((2, 3, 4))
@@ -3673,6 +3681,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.exp(x), np.exp(x))
         self.assertAllClose(knp.Exp()(x), np.exp(x))
+
+    def test_exp2(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(knp.exp2(x), np.exp2(x))
+        self.assertAllClose(knp.Exp2()(x), np.exp2(x))
 
     def test_expand_dims(self):
         x = np.ones([2, 3, 4])
@@ -6549,6 +6562,21 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(knp.exp(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Exp().symbolic_call(x).dtype), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_exp2(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.exp2(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.exp2(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Exp2().symbolic_call(x).dtype), expected_dtype
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
