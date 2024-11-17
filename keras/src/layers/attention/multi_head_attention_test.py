@@ -601,12 +601,10 @@ class MultiHeadAttentionTest(testing.TestCase):
 def test_multi_head_attention_output_shape_as_int():
     """Test MultiHeadAttention with output_shape as an int."""
     mha = MultiHeadAttention(num_heads=2, key_dim=16, output_shape=8)
-    # Batch size 2, sequence length 4, feature size 16
     query = random.uniform((2, 4, 16))
     value = random.uniform((2, 4, 16))
     output = mha(query=query, value=value)
 
-    # Assert output shape
     assert output.shape == (2, 4, 8), (f"Expected shape (2, 4, 8),"
                                        f" got {output.shape}")
 
@@ -614,11 +612,9 @@ def test_multi_head_attention_output_shape_as_int():
 def test_multi_head_attention_output_shape_as_tuple():
     """Test MultiHeadAttention with output_shape as a tuple."""
     mha = MultiHeadAttention(num_heads=2, key_dim=16, output_shape=(8, 8))
-    # Batch size 2, sequence length 4, feature size 16
     query = random.uniform((2, 4, 16))
     value = random.uniform((2, 4, 16))
     output = mha(query=query, value=value)
 
-    # Assert output shape
     assert output.shape == (2, 4, 8, 8), (f"Expected shape (2, 4, 8, 8),"
                                           f" got {output.shape}")
