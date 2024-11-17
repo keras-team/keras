@@ -16,6 +16,7 @@ from keras.src import saving
 from keras.src import testing
 from keras.src.layers.attention.attention import disable_flash_attention
 from keras.src.layers.attention.attention import enable_flash_attention
+from keras.src.layers.attention.multi_head_attention import MultiHeadAttention
 
 
 class MultiHeadAttentionTest(testing.TestCase):
@@ -593,3 +594,27 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
 
         self.assertAllClose(output_with_flash, output_without_flash)
+
+
+
+
+def test_multi_head_attention_output_shape_as_int():
+    """Test MultiHeadAttention with output_shape as an int."""
+    mha = MultiHeadAttention(num_heads=2, key_dim=16, output_shape=8)
+    query = random.uniform((2, 4, 16))  # Batch size 2, sequence length 4, feature size 16
+    value = random.uniform((2, 4, 16))  # Batch size 2, sequence length 4, feature size 16
+    output = mha(query=query, value=value)
+
+    # Assert output shape
+    assert output.shape == (2, 4, 8), f"Expected shape (2, 4, 8), got {output.shape}"
+
+
+def test_multi_head_attention_output_shape_as_tuple():
+    """Test MultiHeadAttention with output_shape as a tuple."""
+    mha = MultiHeadAttention(num_heads=2, key_dim=16, output_shape=(8, 8))
+    query = random.uniform((2, 4, 16))  # Batch size 2, sequence length 4, feature size 16
+    value = random.uniform((2, 4, 16))  # Batch size 2, sequence length 4, feature size 16
+    output = mha(query=query, value=value)
+
+    # Assert output shape
+    assert output.shape == (2, 4, 8, 8), f"Expected shape (2, 4, 8, 8), got {output.shape}"
