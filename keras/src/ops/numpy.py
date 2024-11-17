@@ -2682,16 +2682,16 @@ class Exp2(Operation):
 
 @keras_export(["keras.ops.exp2", "keras.ops.numpy.exp2"])
 def exp2(x):
-    """Calculate the exponential of all elements in the input tensor.
+    """Calculate the base-2 exponential of all elements in the input tensor.
 
     Args:
         x: Input tensor.
 
     Returns:
-        Output tensor, element-wise exponential of `x`.
+        Output tensor, element-wise base-2 exponential of `x`.
     """
     if any_symbolic_tensors((x,)):
-        return Exp().symbolic_call(x)
+        return Exp2().symbolic_call(x)
     return backend.numpy.exp2(x)
 
 
