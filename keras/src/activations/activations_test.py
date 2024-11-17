@@ -683,6 +683,16 @@ class ActivationsTest(testing.TestCase):
         expected = hard_shrink(x)
         self.assertAllClose(result, expected, rtol=1e-05)
 
+    def test_squareplus(self):
+        def squareplus(x, b=4):
+            y = x + np.sqrt(x**2 + b)
+            return y / 2
+
+        x = np.random.random((2, 5))
+        result = activations.squareplus(x[np.newaxis, :])[0]
+        expected = squareplus(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
     def test_soft_shrink(self):
         def soft_shrink(x, threshold=0.5):
             return np.where(

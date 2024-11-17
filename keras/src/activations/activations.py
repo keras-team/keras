@@ -297,6 +297,27 @@ def silu(x):
     return ops.silu(x)
 
 
+@keras_export("keras.activations.squareplus")
+def squareplus(x, b=4):
+    """SquarePlus activation function.
+
+    The SquarePlus activation function is defined as:
+
+    `f(x) = (x + sqrt(x^2 + b)) / 2`
+
+    Where `b` is a smoothness parameter.
+
+    Args:
+        x: Input tensor.
+        b: Smoothness parameter. Defaults to 4.
+
+    Reference:
+
+    - [Ramachandran et al., 2021](https://arxiv.org/abs/2112.11687)
+    """
+    return ops.squareplus(x, b=b)
+
+
 @keras_export("keras.activations.gelu")
 def gelu(x, approximate=False):
     """Gaussian error linear unit (GELU) activation function.

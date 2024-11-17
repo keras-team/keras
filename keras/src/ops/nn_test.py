@@ -160,6 +160,10 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_shrink(x).shape, (None, 2, 3))
 
+    def test_squareplus(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.squareplus(x).shape, (None, 2, 3))
+
     def test_soft_shrink(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.soft_shrink(x).shape, (None, 2, 3))
@@ -829,6 +833,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.hard_shrink(x).shape, (1, 2, 3))
 
+    def test_squareplus(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.squareplus(x).shape, (1, 2, 3))
+
     def test_soft_shrink(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.soft_shrink(x).shape, (1, 2, 3))
@@ -1372,6 +1380,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knn.hard_shrink(x),
             [0.0, 0.0, 1.0, 2.0, 3.0],
+        )
+
+    def test_squareplus(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.squareplus(x),
+            [0.780776, 1.0, 1.618034, 2.414214, 3.302776],
         )
 
     def test_soft_shrink(self):
@@ -2575,6 +2590,27 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.Glu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_squareplus(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        if dtype == "bfloat16":
+            self.skipTest("Weirdness with numpy")
+
+        x = knp.ones((2), dtype=dtype)
+        x_jax = jnp.ones((2), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.squareplus(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.squareplus(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Squareplus().symbolic_call(x).dtype),
             expected_dtype,
         )
 
