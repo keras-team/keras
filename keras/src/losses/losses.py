@@ -1385,6 +1385,7 @@ class Tversky(LossFunctionWrapper):
         beta=0.5,
         reduction="sum_over_batch_size",
         name="tversky",
+        axis=None,
         dtype=None,
     ):
         super().__init__(
@@ -1394,13 +1395,15 @@ class Tversky(LossFunctionWrapper):
             dtype=dtype,
             alpha=alpha,
             beta=beta,
+            axis=axis,
         )
         self.alpha = alpha
         self.beta = beta
+        self.axis = axis
 
     def get_config(self):
         config = Loss.get_config(self)
-        config.update({"alpha": self.alpha, "beta": self.beta})
+        config.update({"alpha": self.alpha, "beta": self.beta, "axis": self.axis})
         return config
 
 
@@ -2462,7 +2465,7 @@ def dice(y_true, y_pred, axis=None):
 
 
 @keras_export("keras.losses.tversky")
-def tversky(y_true, y_pred, alpha=0.5, beta=0.5):
+def tversky(y_true, y_pred, alpha=0.5, beta=0.5, axis=None):
     """Computes the Tversky loss value between `y_true` and `y_pred`.
 
     This loss function is weighted by the alpha and beta coefficients
@@ -2476,6 +2479,7 @@ def tversky(y_true, y_pred, alpha=0.5, beta=0.5):
         y_pred: tensor of predicted targets.
         alpha: coefficient controlling incidence of false positives.
         beta: coefficient controlling incidence of false negatives.
+        axis: tuple for which dimensions the loss is calculated.
 
     Returns:
         Tversky loss value.
@@ -2487,12 +2491,13 @@ def tversky(y_true, y_pred, alpha=0.5, beta=0.5):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    inputs = ops.reshape(y_true, [-1])
-    targets = ops.reshape(y_pred, [-1])
+    inputs = y_true
+    targets = y_pred
 
-    intersection = ops.sum(inputs * targets)
-    fp = ops.sum((1 - targets) * inputs)
-    fn = ops.sum(targets * (1 - inputs))
+    intersection = ops.sum(inputs * targets, axis=axis)
+    fp = ops.sum((1 - targets) * inputs, axis=axis)
+    fn = ops.sum(targets * (1 - inputs), axis=axis)
+
     tversky = ops.divide(
         intersection,
         intersection + fp * alpha + fn * beta + backend.epsilon(),
