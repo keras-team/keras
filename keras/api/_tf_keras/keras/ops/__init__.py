@@ -94,10 +94,12 @@ from keras.src.ops.nn import separable_conv
 from keras.src.ops.nn import sigmoid
 from keras.src.ops.nn import silu
 from keras.src.ops.nn import silu as swish
+from keras.src.ops.nn import soft_shrink
 from keras.src.ops.nn import softmax
 from keras.src.ops.nn import softplus
 from keras.src.ops.nn import softsign
 from keras.src.ops.nn import sparse_categorical_crossentropy
+from keras.src.ops.nn import squareplus
 from keras.src.ops.nn import tanh_shrink
 from keras.src.ops.numpy import abs
 from keras.src.ops.numpy import absolute
@@ -154,6 +156,7 @@ from keras.src.ops.numpy import einsum
 from keras.src.ops.numpy import empty
 from keras.src.ops.numpy import equal
 from keras.src.ops.numpy import exp
+from keras.src.ops.numpy import exp2
 from keras.src.ops.numpy import expand_dims
 from keras.src.ops.numpy import expm1
 from keras.src.ops.numpy import eye

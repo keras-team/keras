@@ -28,8 +28,10 @@ from keras.src.activations.activations import selu
 from keras.src.activations.activations import sigmoid
 from keras.src.activations.activations import silu
 from keras.src.activations.activations import silu as swish
+from keras.src.activations.activations import soft_shrink
 from keras.src.activations.activations import softmax
 from keras.src.activations.activations import softplus
 from keras.src.activations.activations import softsign
+from keras.src.activations.activations import squareplus
 from keras.src.activations.activations import tanh
 from keras.src.activations.activations import tanh_shrink

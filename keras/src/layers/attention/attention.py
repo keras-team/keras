@@ -293,10 +293,15 @@ def enable_flash_attention():
     making it especially useful for large language models (LLMs) that
     benefit from faster and more memory-efficient attention computations.
 
-    Once enabled, supported layers like `MultiHeadAttention` will
-    use flash attention for faster computations.
+    Once enabled, supported layers like `MultiHeadAttention` will **attempt** to
+    use flash attention for faster computations. By default, this feature is
+    enabled.
+
+    Note that enabling flash attention does not guarantee it will always be
+    used. Typically, the inputs must be in `float16` or `bfloat16` dtype, and
+    input layout requirements may vary depending on the backend.
     """
-    global_state.set_global_attribute("flash_attention", True)
+    global_state.set_global_attribute("flash_attention", None)
 
 
 @keras_export("keras.config.disable_flash_attention")
@@ -323,9 +328,11 @@ def is_flash_attention_enabled():
     configuration to determine if flash attention is enabled for compatible
     layers (e.g., `MultiHeadAttention`).
 
+    Note that enabling flash attention does not guarantee it will always be
+    used. Typically, the inputs must be in `float16` or `bfloat16` dtype, and
+    input layout requirements may vary depending on the backend.
+
     Returns:
-        bool or None: Returns `True` if flash attention is enabled,
-                      `False` if it is disabled, and `None` if the global
-                      setting has not been defined.
+        `False` if disabled; otherwise, it indicates that it is enabled.
     """
     return global_state.get_global_attribute("flash_attention", default=None)

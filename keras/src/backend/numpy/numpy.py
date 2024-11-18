@@ -489,6 +489,14 @@ def exp(x):
     return np.exp(x)
 
 
+def exp2(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    return np.exp2(x)
+
+
 def expand_dims(x, axis):
     axis = standardize_axis_for_numpy(axis)
     return np.expand_dims(x, axis)

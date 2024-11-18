@@ -50,9 +50,21 @@ def softsign(x):
     return tnn.softsign(x)
 
 
+def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return tnn.softshrink(x, lambd=threshold)
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return tnn.silu(x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b)
+    y = x + torch.sqrt(x**2 + b)
+    return y / 2
 
 
 def log_sigmoid(x):
@@ -889,17 +901,48 @@ def _get_large_negative(dtype):
     return convert_to_tensor(val * -0.7, dtype=dtype)
 
 
-def is_flash_attention_enabled(query, key, value, mask=None, is_causal=False):
-    params = torch.backends.cuda.SDPAParams(
-        query,
-        key,
-        value,
-        mask,
-        0.0,
-        is_causal,
-    )
-    is_enabled = torch.backends.cuda.can_use_flash_attention(params, False)
-    return is_enabled
+def _can_use_flash_attention(
+    query, key, value, mask=None, is_causal=False, raise_error=False
+):
+    """Verify the availability of flash attention."""
+    try:
+        from torch.backends.cuda import SDPAParams
+        from torch.backends.cuda import can_use_flash_attention
+    except ImportError:
+        if raise_error:
+            raise ImportError(
+                "Flash attention is not supported in your current PyTorch "
+                "version. Please update it by following the official guide: "
+                "https://pytorch.org/get-started/locally/"
+            )
+        return False
+
+    try:
+        spda_params = SDPAParams(
+            query,
+            key,
+            value,
+            mask,
+            0.0,  # dropout_p
+            is_causal,
+            False,  # enable_gqa
+        )
+    except TypeError:
+        # The old function signature for the older version of PyTorch
+        spda_params = SDPAParams(
+            query,
+            key,
+            value,
+            mask,
+            0.0,  # dropout_p
+            is_causal,
+        )
+    if raise_error and can_use_flash_attention(spda_params, True) is False:
+        raise RuntimeError(
+            "Flash attention is not supported with the provided inputs. "
+            "Please check the warnings for more details."
+        )
+    return can_use_flash_attention(spda_params, False)
 
 
 def dot_product_attention(
@@ -910,7 +953,7 @@ def dot_product_attention(
     mask=None,
     scale=None,
     is_causal=False,
-    flash_attention=False,
+    flash_attention=None,
 ):
     if bias is not None:
         raise ValueError(
@@ -919,13 +962,12 @@ def dot_product_attention(
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
-    if len(query.shape) != 4:
+    if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
         raise ValueError(
-            "`dot_product_attention` only supports 3D and 4D inputs. "
+            "`dot_product_attention` only supports 4D inputs. "
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
-    bias = bias if bias is None else convert_to_tensor(bias)
     mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
     if mask is not None:
         # Explicit set `is_causal` to `False` when `mask` is not `None`.
@@ -937,21 +979,17 @@ def dot_product_attention(
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
 
-    if flash_attention:
-        is_enabled = is_flash_attention_enabled(
-            query=query,
-            key=key,
-            value=value,
-            mask=mask,
-            is_causal=is_causal,
+    if flash_attention is None:
+        flash_attention = _can_use_flash_attention(
+            query, key, value, mask, is_causal
         )
-        if not is_enabled:
-            raise ValueError(
-                "Flash attention is not enabled in `torch` backend. "
-                "The dtype of the inputs should be float16/bfloat16 "
-                "and your GPU should support flash attention implementation."
-            )
-
+    elif flash_attention is True:
+        # Use `raise_error=True` to provide more details if the inputs failed to
+        # use flash attention
+        _can_use_flash_attention(
+            query, key, value, mask, is_causal, raise_error=True
+        )
+    if flash_attention:
         with torch.nn.attention.sdpa_kernel(
             backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
         ):

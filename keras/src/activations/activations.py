@@ -259,6 +259,24 @@ def softsign(x):
     return ops.softsign(x)
 
 
+@keras_export("keras.activations.soft_shrink")
+def soft_shrink(x, threshold=0.5):
+    """Soft Shrink activation function.
+
+    It is defined as:
+
+    `soft_shrink(x) = x - threshold` if `x > threshold`,
+    `soft_shrink(x) = x + threshold` if `x < -threshold`,
+    `soft_shrink(x) = 0` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: Threshold value. Defaults to 0.5.
+
+    """
+    return ops.soft_shrink(x, threshold=threshold)
+
+
 @keras_export(["keras.activations.silu", "keras.activations.swish"])
 def silu(x):
     """Swish (or Silu) activation function.
@@ -277,6 +295,27 @@ def silu(x):
     - [Ramachandran et al., 2017](https://arxiv.org/abs/1710.05941)
     """
     return ops.silu(x)
+
+
+@keras_export("keras.activations.squareplus")
+def squareplus(x, b=4):
+    """Squareplus activation function.
+
+    The Squareplus activation function is defined as:
+
+    `f(x) = (x + sqrt(x^2 + b)) / 2`
+
+    Where `b` is a smoothness parameter.
+
+    Args:
+        x: Input tensor.
+        b: Smoothness parameter. Defaults to 4.
+
+    Reference:
+
+    - [Ramachandran et al., 2021](https://arxiv.org/abs/2112.11687)
+    """
+    return ops.squareplus(x, b=b)
 
 
 @keras_export("keras.activations.gelu")

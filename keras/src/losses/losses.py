@@ -769,8 +769,8 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
     As a standalone function:
 
     >>> # Example 1: (batch_size = 1, number of samples = 4)
-    >>> y_true = [0, 1, 0, 0]
-    >>> y_pred = [-18.6, 0.51, 2.94, -12.8]
+    >>> y_true = np.array([0, 1, 0, 0])
+    >>> y_pred = np.array([-18.6, 0.51, 2.94, -12.8])
     >>> loss = keras.losses.BinaryFocalCrossentropy(
     ...    gamma=2, from_logits=True)
     >>> loss(y_true, y_pred)
@@ -783,8 +783,8 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
     0.51
 
     >>> # Example 2: (batch_size = 2, number of samples = 4)
-    >>> y_true = [[0, 1], [0, 0]]
-    >>> y_pred = [[-18.6, 0.51], [2.94, -12.8]]
+    >>> y_true = np.array([[0, 1], [0, 0]])
+    >>> y_pred = np.array([[-18.6, 0.51], [2.94, -12.8]])
     >>> # Using default 'auto'/'sum_over_batch_size' reduction type.
     >>> loss = keras.losses.BinaryFocalCrossentropy(
     ...     gamma=3, from_logits=True)
