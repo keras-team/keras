@@ -1,4 +1,3 @@
-import collections
 import math
 import string
 
@@ -344,10 +343,14 @@ class MultiHeadAttention(Layer):
         """
         query_rank = len(query_shape)
         if self._output_shape:
-            if not isinstance(self._output_shape, collections.abc.Sized):
+            if isinstance(self._output_shape, (tuple, list)):
+                output_shape = self._output_shape
+            elif isinstance(self._output_shape, int):
                 output_shape = [self._output_shape]
             else:
-                output_shape = self._output_shape
+                raise ValueError(
+                    f"Invalid output_shape type: {self._output_shape}"
+                )
         else:
             output_shape = [query_shape[-1]]
         einsum_equation, bias_axes, output_rank = _build_proj_equation(
@@ -669,7 +672,14 @@ class MultiHeadAttention(Layer):
             )
 
         if self._output_shape:
-            return query_shape[:-1] + self._output_shape
+            if isinstance(self._output_shape, (tuple, list)):
+                return query_shape[:-1] + tuple(self._output_shape)
+            elif isinstance(self._output_shape, int):
+                return query_shape[:-1] + (self._output_shape,)
+            else:
+                raise ValueError(
+                    f"Invalid output_shape type: {self._output_shape}"
+                )
 
         return query_shape
 
