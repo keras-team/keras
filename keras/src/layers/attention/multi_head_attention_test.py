@@ -596,8 +596,6 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertAllClose(output_with_flash, output_without_flash)
 
 
-
-
 def test_multi_head_attention_output_shape_as_int():
     """Test MultiHeadAttention with output_shape as an int."""
     mha = MultiHeadAttention(num_heads=2, key_dim=16, output_shape=8)
@@ -605,8 +603,9 @@ def test_multi_head_attention_output_shape_as_int():
     value = random.uniform((2, 4, 16))
     output = mha(query=query, value=value)
 
-    assert output.shape == (2, 4, 8), (f"Expected shape (2, 4, 8),"
-                                       f" got {output.shape}")
+    assert output.shape == (2, 4, 8), (
+        f"Expected shape (2, 4, 8)," f" got {output.shape}"
+    )
 
 
 def test_multi_head_attention_output_shape_as_tuple():
@@ -616,5 +615,6 @@ def test_multi_head_attention_output_shape_as_tuple():
     value = random.uniform((2, 4, 16))
     output = mha(query=query, value=value)
 
-    assert output.shape == (2, 4, 8, 8), (f"Expected shape (2, 4, 8, 8),"
-                                          f" got {output.shape}")
+    assert output.shape == (2, 4, 8, 8), (
+        f"Expected shape (2, 4, 8, 8)," f" got {output.shape}"
+    )
