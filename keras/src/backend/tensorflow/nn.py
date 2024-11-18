@@ -54,6 +54,13 @@ def silu(x):
     return tf.nn.silu(x)
 
 
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b, dtype=x.dtype)
+    y = x + tf.sqrt(tf.square(x) + b)
+    return y / 2
+
+
 def log_sigmoid(x):
     return tf.math.log_sigmoid(x)
 

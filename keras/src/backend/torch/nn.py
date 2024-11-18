@@ -60,6 +60,13 @@ def silu(x):
     return tnn.silu(x)
 
 
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b)
+    y = x + torch.sqrt(x**2 + b)
+    return y / 2
+
+
 def log_sigmoid(x):
     x = convert_to_tensor(x)
     return tnn.logsigmoid(x)

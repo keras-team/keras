@@ -258,6 +258,46 @@ def silu(x):
     return backend.nn.silu(x)
 
 
+class Squareplus(Operation):
+    def __init__(self, b=4):
+        super().__init__()
+        self.b = b
+
+    def call(self, x):
+        return backend.nn.squareplus(x, self.b)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.squareplus", "keras.ops.nn.squareplus"])
+def squareplus(x, b=4):
+    """SquarePlus activation function.
+
+    The SquarePlus activation function is defined as:
+
+    `f(x) = (x + sqrt(x^2 + b)) / 2`
+
+    Args:
+        x: Input tensor.
+        b: Smoothness parameter. Defaults to 4.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1.0, 0.0, 1.0])
+    >>> x_squareplus = keras.ops.squareplus(x)
+    >>> print(x_squareplus)
+    array([0.6180, 1.0000, 1.6180], dtype=float32)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Squareplus(b).symbolic_call(x)
+    return backend.nn.squareplus(x, b)
+
+
 class LogSigmoid(Operation):
     def call(self, x):
         return backend.nn.log_sigmoid(x)

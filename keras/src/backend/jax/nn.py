@@ -67,6 +67,11 @@ def silu(x):
     return jnn.silu(x)
 
 
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    return jnn.squareplus(x, b=b)
+
+
 def log_sigmoid(x):
     x = convert_to_tensor(x)
     return jnn.log_sigmoid(x)

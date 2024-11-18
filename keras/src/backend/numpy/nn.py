@@ -67,6 +67,13 @@ def silu(x):
     return x * sigmoid(x)
 
 
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b, dtype=x.dtype)
+    y = x + np.sqrt(x**2 + b)
+    return y / 2
+
+
 def log_sigmoid(x):
     x = convert_to_tensor(x)
     return -softplus(-x)
