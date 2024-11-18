@@ -61,6 +61,15 @@ def get_sequential_model(explicit_input=True):
     return model
 
 
+def get_cnn_sequential_model(explicit_input=True):
+    model = models.Sequential()
+    if explicit_input:
+        model.add(layers.Input(shape=(7, 3)))
+    model.add(layers.Conv1D(2, 2, padding="same"))
+    model.add(layers.Conv1D(2, 2, padding="same"))
+    return model
+
+
 def get_subclassed_model():
     class ExampleModel(models.Model):
         def __init__(self, **kwargs):
@@ -123,6 +132,18 @@ class CloneModelTest(testing.TestCase):
         for l1, l2 in zip(model.layers, new_model.layers):
             if not isinstance(l1, layers.InputLayer):
                 self.assertEqual(l2.name, l1.name + "_custom")
+
+    @parameterized.named_parameters(
+        ("cnn_functional", get_cnn_functional_model),
+        ("cnn_sequential", get_cnn_sequential_model),
+    )
+    def test_input_tensors(self, model_fn):
+        model = model_fn()
+        # model.inputs doesn't work for Sequential, model.input doesn't work for Functional, only model.inputs[0] works for both
+        input_tensor = model.inputs[0]
+        new_model = clone_model(model, input_tensors=input_tensor)
+        tree.assert_same_structure(model.inputs, new_model.inputs)
+        tree.assert_same_structure(model.outputs, new_model.outputs)
 
     def test_shared_layers_cloning(self):
         model = get_mlp_functional_model(shared_layers=True)
