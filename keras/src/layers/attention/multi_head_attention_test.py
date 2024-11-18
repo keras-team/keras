@@ -16,10 +16,22 @@ from keras.src import saving
 from keras.src import testing
 from keras.src.layers.attention.attention import disable_flash_attention
 from keras.src.layers.attention.attention import enable_flash_attention
+from keras.src.layers.attention.attention import is_flash_attention_enabled
 
 
 class MultiHeadAttentionTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        # Flash attention is a newly introduced feature. We need to disable it
+        # for testing purposes.
+        disable_flash_attention()
+
+    def tearDown(self):
+        enable_flash_attention()
+        return super().tearDown()
+
     def test_basics(self):
+        self.assertFalse(is_flash_attention_enabled())
         self.run_layer_test(
             layers.MultiHeadAttention,
             init_kwargs={
@@ -56,20 +68,19 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
 
     def test_basics_with_flash_attention(self):
+        enable_flash_attention()
         if backend.backend() in ("tensorflow", "numpy"):
             self.skipTest(
                 "Flash attention is not supported in tensorflow and numpy "
                 "backends."
             )
-
         elif backend.backend() == "torch":
             try:
-                enable_flash_attention()
                 self.run_layer_test(
                     layers.MultiHeadAttention,
                     init_kwargs={
                         "num_heads": 2,
-                        "key_dim": 2,
+                        "key_dim": 8,
                         "dtype": "float16",
                     },
                     input_shape={
@@ -84,7 +95,6 @@ class MultiHeadAttentionTest(testing.TestCase):
                     supports_masking=True,
                     run_training_check=False,
                 )
-                disable_flash_attention()
             except ImportError as e:
                 if "Flash attention is not supported" in str(e.args[0]):
                     self.assertTrue(
@@ -108,12 +118,11 @@ class MultiHeadAttentionTest(testing.TestCase):
                     )
         elif backend.backend() == "jax":
             try:
-                enable_flash_attention()
                 self.run_layer_test(
                     layers.MultiHeadAttention,
                     init_kwargs={
                         "num_heads": 2,
-                        "key_dim": 8,  # key_dim % 8 == 0
+                        "key_dim": 8,
                         "dtype": "float16",
                     },
                     input_shape={
@@ -128,7 +137,6 @@ class MultiHeadAttentionTest(testing.TestCase):
                     supports_masking=True,
                     run_training_check=False,
                 )
-                disable_flash_attention()
             except ImportError as e:
                 if "Flash attention is not supported" in str(e.args[0]):
                     self.assertTrue(
@@ -359,17 +367,28 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertAllClose(output_1, output_2)
         self.assertAllClose(output_1, output_3)
 
-    def test_correctness(self):
-        query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
-        key = np.array([[[0.0, 1.0], [1.0, 0.0]]])
-        value = np.array([[[1.0, 2.0], [3.0, 4.0]]])
+    @parameterized.named_parameters(
+        ("disable_flash_attention", False), ("enable_flash_attention", True)
+    )
+    def test_correctness(self, flash_attention):
+        if flash_attention:
+            # Let the backend decide whether to use flase attention
+            enable_flash_attention()
+        dtype = "float16"  # Flash attention only accepts float16/bfloat16
+
+        num_heads = 8
+        key_dim = 8  # key_dim % 8 == 0 to enable flash attention
+
+        query = np.identity(key_dim)[np.newaxis, ...]
+        key = np.identity(key_dim)[np.newaxis, ...]
+        value = (
+            np.reshape(np.arange(key_dim * key_dim), (1, key_dim, key_dim))
+            / 100.0  # Prevent overflow/underflow
+        )
 
         # Setup layer.
-        num_heads = 2
-        key_dim = 2
         layer = layers.MultiHeadAttention(
-            num_heads=num_heads,
-            key_dim=key_dim,
+            num_heads=num_heads, key_dim=key_dim, dtype=dtype
         )
         layer.build(query.shape, key.shape, value.shape)
 
@@ -378,22 +397,43 @@ class MultiHeadAttentionTest(testing.TestCase):
         # To get an identity kernel we need to add a head dim and repeat on it.
         kernel = np.repeat(kernel[:, np.newaxis, :], num_heads, axis=1)
         # Zeros for all biases.
-        bias = np.zeros((2, 2))
-        output_bias = np.zeros((2,))
+        bias = np.zeros((num_heads, key_dim))
+        output_bias = np.zeros((key_dim,))
         layer.set_weights([kernel, bias] * 3 + [kernel, output_bias])
         # Call layer and assert output.
-        output, scores = layer(
-            query=query,
-            value=value,
-            key=key,
-            return_attention_scores=True,
+        expected_output = np.array(
+            [2.406, 2.440, 2.473, 2.504, 2.535, 2.568, 2.602, 2.633]
         )
-        self.assertAllClose(output, [[[5.679, 5.679], [4.32, 4.32]]], atol=1e-3)
-        self.assertAllClose(
-            scores,
-            [[[[0.33, 0.67], [0.67, 0.33]], [[0.33, 0.67], [0.67, 0.33]]]],
-            atol=1e-3,
+        expected_output = np.tile(
+            expected_output[np.newaxis, :, np.newaxis], (1, 1, key_dim)
         )
+        expected_score = np.array(
+            [
+                [0.1187] * 0 + [0.1691] + [0.1187] * 7,
+                [0.1187] * 1 + [0.1691] + [0.1187] * 6,
+                [0.1187] * 2 + [0.1691] + [0.1187] * 5,
+                [0.1187] * 3 + [0.1691] + [0.1187] * 4,
+                [0.1187] * 4 + [0.1691] + [0.1187] * 3,
+                [0.1187] * 5 + [0.1691] + [0.1187] * 2,
+                [0.1187] * 6 + [0.1691] + [0.1187] * 1,
+                [0.1187] * 7 + [0.1691] + [0.1187] * 0,
+            ]
+        )
+        expected_score = np.tile(
+            expected_score[np.newaxis, np.newaxis, ...], (1, key_dim, 1, 1)
+        )
+        if flash_attention:
+            output = layer(query=query, value=value, key=key)
+            self.assertAllClose(output, expected_output, atol=1e-2)
+        else:
+            output, scores = layer(
+                query=query,
+                value=value,
+                key=key,
+                return_attention_scores=True,
+            )
+            self.assertAllClose(output, expected_output, atol=1e-2)
+            self.assertAllClose(scores, expected_score, atol=1e-2)
 
     def test_mha_constraints(self):
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
@@ -542,21 +582,29 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertDType(layer._key_dense._kernel, "int8")
         self.assertDType(layer._value_dense._kernel, "int8")
 
-    def test_flash_attention_with_attention_scores_error(self):
-        # Enable flash attention globally
-        if backend.backend() == "numpy" or "tensorflow":
+    def test_flash_attention_with_errors(self):
+        if backend.backend() in ("numpy", "tensorflow"):
             pytest.skip(
-                reason="Flash attention is not supported on Tensorflow"
-                "and numpy."
+                reason=(
+                    "Flash attention is not supported on tensorflow and numpy."
+                )
             )
-        # Setup layer with required parameters
-        layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
+        # Check `flash_attention=True` and `dropout=0.1`
+        with self.assertRaisesRegex(
+            ValueError,
+            "Dropout is not supported when flash attention is enabled.",
+        ):
+            layer = layers.MultiHeadAttention(
+                num_heads=2, key_dim=2, flash_attention=True, dropout=0.1
+            )
 
-        # Define sample input
+        # Check `flash_attention=True` and `return_attention_scores=True`
+        layer = layers.MultiHeadAttention(
+            num_heads=2, key_dim=2, flash_attention=True
+        )
+        self.assertTrue(layer._flash_attention)
         query = np.random.random((2, 4, 8))
         value = np.random.random((2, 4, 8))
-
-        # Check if ValueError is raised when return_attention_scores=True
         with self.assertRaisesRegex(
             ValueError,
             "Returning attention scores is not supported when flash "
@@ -564,32 +612,3 @@ class MultiHeadAttentionTest(testing.TestCase):
             " attention scores.",
         ):
             layer(query=query, value=value, return_attention_scores=True)
-
-    def test_flash_attention_numerical_correctness(self):
-        if backend.backend() == "numpy" or backend.backend() == "tensorflow":
-            pytest.skip(
-                reason="Flash attention is not supported on Tensorflow "
-                "and numpy."
-            )
-        # Create sample input data
-        # Define sample input
-        query = np.random.random((2, 4, 8))
-        value = np.random.random((2, 4, 8))
-
-        # Initialize MultiHeadAttention layer
-        mha_layer = layers.MultiHeadAttention(
-            num_heads=2,
-            key_dim=2,
-        )
-
-        # Run with flash attention enabled
-        enable_flash_attention()
-        output_with_flash = mha_layer(query=query, value=value, training=False)
-
-        disable_flash_attention()
-        # Run with flash attention disabled
-        output_without_flash = mha_layer(
-            query=query, value=value, training=False
-        )
-
-        self.assertAllClose(output_with_flash, output_without_flash)

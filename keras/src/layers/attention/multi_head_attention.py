@@ -53,9 +53,11 @@ class MultiHeadAttention(Layer):
             feature dim (the query input's last dimension).
         attention_axes: axes over which the attention is applied. `None` means
             attention over all axes, but batch, heads, and features.
-        flash_attention: If unspecified, defaults to the global flash attention
-            configuration setting (which can be set via
-            `keras.config.enable_flash_attention().
+        flash_attention: If `None`, the layer attempts to use flash
+            attention for faster and more memory-efficient attention
+            computations when possible. This behavior can be configured using
+            `keras.config.enable_flash_attention()` or
+            `keras.config.disable_flash_attention()`.
         kernel_initializer: Initializer for dense layer kernels.
         bias_initializer: Initializer for dense layer biases.
         kernel_regularizer: Regularizer for dense layer kernels.
@@ -123,12 +125,11 @@ class MultiHeadAttention(Layer):
         self.supports_masking = True
         self._num_heads = num_heads
         self._key_dim = key_dim
-        # Cache 1.0 / math.sqrt(self._key_dim).
-        self._inverse_sqrt_key_dim = None
         self._value_dim = value_dim if value_dim else key_dim
         self._dropout = dropout
         self._use_bias = use_bias
         self._output_shape = output_shape
+        self._flash_attention = flash_attention or is_flash_attention_enabled()
         self._kernel_initializer = initializers.get(kernel_initializer)
         self._bias_initializer = initializers.get(bias_initializer)
         self._kernel_regularizer = regularizers.get(kernel_regularizer)
@@ -136,9 +137,6 @@ class MultiHeadAttention(Layer):
         self._activity_regularizer = regularizers.get(activity_regularizer)
         self._kernel_constraint = constraints.get(kernel_constraint)
         self._bias_constraint = constraints.get(bias_constraint)
-        self._flash_attention = flash_attention or is_flash_attention_enabled()
-        self._return_attention_scores = False
-
         if isinstance(attention_axes, int):
             attention_axes = (attention_axes,)
         elif attention_axes and not isinstance(attention_axes, (list, tuple)):
@@ -148,6 +146,16 @@ class MultiHeadAttention(Layer):
             )
         self._attention_axes = attention_axes
         self.seed = seed
+
+        self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
+        self._return_attention_scores = False
+
+        # Check for flash attention constraints
+        if self._flash_attention and self._dropout > 0.0:
+            raise ValueError(
+                "Dropout is not supported when flash attention is enabled. "
+                "Please set dropout to 0.0 to use flash attention."
+            )
 
     @property
     def num_heads(self):
@@ -381,7 +389,6 @@ class MultiHeadAttention(Layer):
         self._dropout_layer = Dropout(
             rate=self._dropout, dtype=self.dtype_policy, seed=self.seed
         )
-        self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
 
     def _masked_softmax(self, attention_scores, attention_mask=None):
         # Normalize the attention scores to probabilities.
@@ -428,19 +435,12 @@ class MultiHeadAttention(Layer):
           attention_output: Multi-headed outputs of attention computation.
           attention_scores: Multi-headed attention weights.
         """
-
         # Check for flash attention constraints
         if self._flash_attention and self._return_attention_scores:
             raise ValueError(
                 "Returning attention scores is not supported when flash "
                 "attention is enabled. Please disable flash attention to access"
                 " attention scores."
-            )
-        if self._flash_attention and self._dropout > 0.0:
-            raise ValueError(
-                "Dropout is not supported when flash "
-                "attention is enabled. Please set dropout to 0.0 to use "
-                "flash attention."
             )
 
         # Determine whether to use dot-product attention

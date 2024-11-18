@@ -984,7 +984,7 @@ def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
         tf.cast(key, dtype=logits_dtype),
         optimize="optimal",
     )
-    logits = tf.multiply(logits, tf.cast(logits, logits.dtype))
+    logits = tf.multiply(logits, tf.cast(scale, logits.dtype))
 
     if bias is not None:
         logits = tf.add(logits, tf.cast(bias, logits.dtype))
