@@ -2381,7 +2381,7 @@ class DotProductAttention(Operation):
         bias=None,
         mask=None,
         scale=None,
-        flash_attention=False,
+        flash_attention=None,
     ):
         return backend.nn.dot_product_attention(
             query,
@@ -2402,7 +2402,7 @@ class DotProductAttention(Operation):
         bias=None,
         mask=None,
         scale=None,
-        flash_attention=False,
+        flash_attention=None,
     ):
         return KerasTensor(query.shape, dtype=query.dtype)
 
