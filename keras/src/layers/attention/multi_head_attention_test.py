@@ -218,11 +218,9 @@ class MultiHeadAttentionTest(testing.TestCase):
             [[[1, 1, 0]] * 3 + [[0, 0, 0]] * 2]
             + [[[1, 0, 0]] * 5]
             + [[[1, 1, 1]] + [[0, 0, 0]] * 4]
-        ).astype(bool)
+        )
         if use_causal_mask:
-            mask = mask & np.array(
-                [[[1, 0, 0], [1, 1, 0]] + [[1, 1, 1]] * 3]
-            ).astype(bool)
+            mask = mask & np.array([[[1, 0, 0], [1, 1, 0]] + [[1, 1, 1]] * 3])
         del masked_query._keras_mask
         del masked_value._keras_mask
         output_with_manual_mask = layer(

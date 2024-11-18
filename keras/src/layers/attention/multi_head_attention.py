@@ -550,12 +550,15 @@ class MultiHeadAttention(Layer):
             # the shape of the causal mask is [1, T, S]
             mask = self._compute_causal_mask(query, value)
             auto_mask = mask if auto_mask is None else auto_mask & mask
+
+        if attention_mask is not None:
+            attention_mask = ops.cast(attention_mask, "bool")
         if auto_mask is not None:
             # merge attention_mask & automatic mask, to shape [B, T, S]
             attention_mask = (
                 auto_mask
                 if attention_mask is None
-                else ops.cast(attention_mask, bool) & auto_mask
+                else attention_mask & auto_mask
             )
         return attention_mask
 
