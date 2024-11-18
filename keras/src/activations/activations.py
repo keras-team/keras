@@ -299,7 +299,7 @@ def silu(x):
 
 @keras_export("keras.activations.squareplus")
 def squareplus(x, b=4):
-    """SquarePlus activation function.
+    """Squareplus activation function.
 
     The SquarePlus activation function is defined as:
 
