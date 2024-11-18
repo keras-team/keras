@@ -669,7 +669,10 @@ class MultiHeadAttention(Layer):
             )
 
         if self._output_shape:
-            return query_shape[:-1] + self._output_shape
+            if isinstance(self._output_shape, tuple):
+                return query_shape[:-1] + self._output_shape
+            else:
+                return query_shape[:-1] + (self._output_shape,)
 
         return query_shape
 
