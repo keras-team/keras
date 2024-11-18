@@ -301,7 +301,7 @@ def silu(x):
 def squareplus(x, b=4):
     """Squareplus activation function.
 
-    The SquarePlus activation function is defined as:
+    The Squareplus activation function is defined as:
 
     `f(x) = (x + sqrt(x^2 + b)) / 2`
 

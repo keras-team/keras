@@ -272,9 +272,9 @@ class Squareplus(Operation):
 
 @keras_export(["keras.ops.squareplus", "keras.ops.nn.squareplus"])
 def squareplus(x, b=4):
-    """SquarePlus activation function.
+    """Squareplus activation function.
 
-    The SquarePlus activation function is defined as:
+    The Squareplus activation function is defined as:
 
     `f(x) = (x + sqrt(x^2 + b)) / 2`
 
