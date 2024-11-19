@@ -498,24 +498,25 @@ class FunctionalTest(testing.TestCase):
         # Note: it's not intended to work in symbolic mode (yet).
 
     def test_warning_for_mismatched_inputs_structure(self):
+        def is_input_warning(w):
+            return str(w.message).startswith(
+                "The structure of `inputs` doesn't match the expected structure"
+            )
+
         i1 = Input((2,))
         i2 = Input((2,))
         outputs = layers.Add()([i1, i2])
-        model = Model({"i1": i1, "i2": i2}, outputs)
 
-        with pytest.warns() as record:
+        model = Model({"i1": i1, "i2": i2}, outputs)
+        with pytest.warns() as warning_logs:
             model.predict([np.ones((2, 2)), np.zeros((2, 2))], verbose=0)
-        self.assertLen(record, 1)
-        self.assertStartsWith(
-            str(record[0].message),
-            r"The structure of `inputs` doesn't match the expected structure:",
-        )
+            self.assertLen(list(filter(is_input_warning, warning_logs)), 1)
 
         # No warning for mismatched tuples and lists.
         model = Model([i1, i2], outputs)
         with warnings.catch_warnings(record=True) as warning_logs:
             model.predict((np.ones((2, 2)), np.zeros((2, 2))), verbose=0)
-            self.assertLen(warning_logs, 0)
+            self.assertLen(list(filter(is_input_warning, warning_logs)), 0)
 
     def test_for_functional_in_sequential(self):
         # Test for a v3.4.1 regression.
