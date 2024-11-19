@@ -7209,8 +7209,7 @@ class NumpyDtypeTest(testing.TestCase):
                 ],
             ],
             num=[0, 1, 5],
-            dtype=FLOAT_DTYPES
-            + (None,),
+            dtype=FLOAT_DTYPES + (None,),
         )
     )
     def test_geomspace(self, start_and_stop, num, dtype):
