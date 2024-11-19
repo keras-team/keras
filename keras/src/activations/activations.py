@@ -495,6 +495,14 @@ def hard_sigmoid(x):
 
     Args:
         x: Input tensor.
+        
+    Example:
+
+    ```
+    x = tf.constant([-0.2, -0.1, 0.0, 1.0, 2.0], )
+    y = tf.keras.activations.hard_sigmoid(x)
+    print(y.numpy())
+    ```
 
     Reference:
 
