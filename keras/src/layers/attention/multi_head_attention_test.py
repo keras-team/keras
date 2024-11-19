@@ -14,9 +14,9 @@ from keras.src import ops
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
-from keras.src.layers.attention.attention import disable_flash_attention
-from keras.src.layers.attention.attention import enable_flash_attention
-from keras.src.layers.attention.attention import is_flash_attention_enabled
+from keras.src.backend.config import disable_flash_attention
+from keras.src.backend.config import enable_flash_attention
+from keras.src.backend.config import is_flash_attention_enabled
 
 
 class MultiHeadAttentionTest(testing.TestCase):

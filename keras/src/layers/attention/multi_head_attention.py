@@ -9,8 +9,8 @@ from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend.config import is_flash_attention_enabled
 from keras.src.layers.activations.softmax import Softmax
-from keras.src.layers.attention.attention import is_flash_attention_enabled
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.layer import Layer
 from keras.src.layers.regularization.dropout import Dropout
