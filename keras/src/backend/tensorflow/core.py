@@ -7,6 +7,7 @@ from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
+from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.keras_tensor import KerasTensor
@@ -119,9 +120,10 @@ def convert_to_tensor(x, dtype=None, sparse=None):
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if not tf.is_tensor(x):
-        if dtype == "bool":
-            # TensorFlow boolean conversion is stricter than other backends.
-            # It does not allow ints. We convert without dtype and cast instead.
+        if dtype == "bool" or is_int_dtype(dtype):
+            # TensorFlow conversion is stricter than other backends, it does not
+            # allow ints for bools or floats for ints. We convert without dtype
+            # and cast instead.
             x = tf.convert_to_tensor(x)
             return tf.cast(x, dtype)
         return tf.convert_to_tensor(x, dtype=dtype)
