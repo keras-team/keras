@@ -936,6 +936,56 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     return logspace
 
 
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    if axis != 0:
+        raise ValueError(
+            "torch.logspace does not support an `axis` argument. "
+            f"Received axis={axis}"
+        )
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    dtype = to_torch_dtype(dtype)
+
+    start = convert_to_tensor(start, dtype=dtype)
+    stop = convert_to_tensor(stop, dtype=dtype)
+
+    # Ensure no zeros in start
+    if torch.any(start == 0):
+        raise ValueError("`start` cannot contain zeros for geomspace.")
+
+    out_sign = torch.sign(start)
+    start_abs = start / out_sign
+    stop_abs = stop / out_sign
+
+    log_start = torch.log10(start_abs)
+    log_stop = torch.log10(stop_abs)
+
+    if start == 1 and torch.log10(stop).item().is_integer():
+        powers = torch.arange(int(torch.log10(stop).item()) + 1, dtype=dtype)
+        result = torch.pow(10.0, powers)
+    else:
+        result = torch.logspace(
+            log_start, log_stop, steps=num, base=10.0, dtype=dtype
+        )
+
+        if num > 0:
+            result[0] = start
+            if num > 1 and endpoint:
+                result[-1] = stop
+
+    result *= out_sign
+
+    if axis != 0:
+        result = result.moveaxis(0, axis)
+
+    return result
+
+
 def maximum(x1, x2):
     if not isinstance(x1, (int, float)):
         x1 = convert_to_tensor(x1)

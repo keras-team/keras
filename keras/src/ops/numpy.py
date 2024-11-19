@@ -3712,6 +3712,65 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     )
 
 
+class Geomspace(Operation):
+    def __init__(self, num=50, endpoint=True, dtype=float, axis=0):
+        super().__init__()
+        self.num = num
+        self.endpoint = endpoint
+        self.dtype = dtype
+        self.axis = axis
+
+    def call(self, start, stop):
+        return backend.numpy.geomspace(
+            start,
+            stop,
+            num=self.num,
+            endpoint=self.endpoint,
+            dtype=self.dtype,
+            axis=self.axis,
+        )
+
+    def compute_output_spec(self, start, stop):
+        start_shape = getattr(start, "shape", [])
+        stop_shape = getattr(stop, "shape", [])
+        output_shape = broadcast_shapes(start_shape, stop_shape)
+        if self.axis == -1:
+            output_shape = output_shape + [self.num]
+        elif self.axis >= 0:
+            output_shape = (
+                output_shape[: self.axis]
+                + [self.num]
+                + output_shape[self.axis :]
+            )
+        else:
+            output_shape = (
+                output_shape[: self.axis + 1]
+                + [self.num]
+                + output_shape[self.axis + 1 :]
+            )
+        dtype = (
+            self.dtype
+            if self.dtype is not None
+            else getattr(start, "dtype", type(start))
+        )
+        dtype = backend.result_type(dtype, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.geomspace", "keras.ops.numpy.geomspace"])
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    if any_symbolic_tensors((start, stop)):
+        return Geomspace(num, endpoint, dtype, axis)(start, stop)
+    return backend.numpy.geomspace(
+        start,
+        stop,
+        num=num,
+        endpoint=endpoint,
+        dtype=dtype,
+        axis=axis,
+    )
+
+
 class Matmul(Operation):
     def call(self, x1, x2):
         return backend.numpy.matmul(x1, x2)

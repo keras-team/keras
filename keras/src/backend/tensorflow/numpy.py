@@ -1538,6 +1538,37 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     return tf.pow(tf.cast(base, result.dtype), result)
 
 
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    if dtype is None:
+        dtype = tf.float32
+    computation_dtype = tf.float32
+
+    start = tf.cast(start, computation_dtype)
+    stop = tf.cast(stop, computation_dtype)
+
+    if tf.reduce_any(tf.equal(start, 0)):
+        raise ValueError("`start` cannot contain zeros for geomspace.")
+
+    start_real = tf.math.real(start)
+    stop_real = tf.math.real(stop)
+    start_sign = 1 - tf.sign(start_real)
+    stop_sign = 1 - tf.sign(stop_real)
+    signflip = 1 - start_sign * stop_sign // 2
+
+    res = signflip * logspace(
+        log10(signflip * start),
+        log10(signflip * stop),
+        num,
+        endpoint=endpoint,
+        base=10.0,
+        dtype=computation_dtype,
+    )
+    if axis != 0:
+        res = moveaxis(res, 0, axis)
+
+    return tf.cast(res, dtype)
+
+
 @sparse.elementwise_binary_union(tf.sparse.maximum, densify_mixed=True)
 def maximum(x1, x2):
     if not isinstance(x1, (int, float)):

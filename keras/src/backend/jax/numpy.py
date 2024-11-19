@@ -778,6 +778,17 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     )
 
 
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    return jnp.geomspace(
+        start,
+        stop,
+        num=num,
+        endpoint=endpoint,
+        dtype=dtype,
+        axis=axis,
+    )
+
+
 @sparse.elementwise_binary_union(linear=False, use_sparsify=False)
 def maximum(x1, x2):
     x1 = convert_to_tensor(x1)

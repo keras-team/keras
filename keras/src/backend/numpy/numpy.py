@@ -688,6 +688,24 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     )
 
 
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    return np.geomspace(
+        start,
+        stop,
+        num=num,
+        endpoint=endpoint,
+        dtype=dtype,
+        axis=axis,
+    )
+
+
 def maximum(x1, x2):
     if not isinstance(x1, (int, float)):
         x1 = convert_to_tensor(x1)
