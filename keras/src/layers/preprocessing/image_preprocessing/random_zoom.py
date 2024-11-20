@@ -3,6 +3,12 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    clip_to_image_size,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    convert_format,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
@@ -181,7 +187,112 @@ class RandomZoom(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
-        raise NotImplementedError
+        def _get_transformed_x_y(x, y, transform):
+            a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.numpy.split(
+                transform, 8, axis=-1
+            )
+
+            k = c0 * x + c1 * y + 1
+            x_transformed = (a0 * x + a1 * y + a2) / k
+            y_transformed = (b0 * x + b1 * y + b2) / k
+            return x_transformed, y_transformed
+
+        def _get_clipped_bbox(bounding_boxes, h_end, h_start, w_end, w_start):
+            h_end = self.backend.numpy.expand_dims(h_end, -1)
+            h_start = self.backend.numpy.expand_dims(h_start, -1)
+            w_end = self.backend.numpy.expand_dims(w_end, -1)
+            w_start = self.backend.numpy.expand_dims(w_start, -1)
+
+            bboxes = bounding_boxes["boxes"]
+            x1, y1, x2, y2 = self.backend.numpy.split(bboxes, 4, axis=-1)
+
+            x1 = self.backend.numpy.clip(x1, w_start, w_end) - w_start
+            y1 = self.backend.numpy.clip(y1, h_start, h_end) - h_start
+            x2 = self.backend.numpy.clip(x2, w_start, w_end) - w_start
+            y2 = self.backend.numpy.clip(y2, h_start, h_end) - h_start
+            bounding_boxes["boxes"] = self.backend.numpy.concatenate(
+                [x1, y1, x2, y2], axis=-1
+            )
+            return bounding_boxes
+
+        width_zoom = transformation["width_zoom"]
+        height_zoom = transformation["height_zoom"]
+        inputs_shape = transformation["input_shape"]
+
+        if self.data_format == "channels_first":
+            height = inputs_shape[-2]
+            width = inputs_shape[-1]
+        else:
+            height = inputs_shape[-3]
+            width = inputs_shape[-2]
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source=self.bounding_box_format,
+            target="xyxy",
+            height=height,
+            width=width,
+        )
+
+        zooms = self.backend.cast(
+            self.backend.numpy.concatenate([width_zoom, height_zoom], axis=1),
+            dtype="float32",
+        )
+        transform = self._get_zoom_matrix(zooms, height, width)
+
+        w_start, h_start = _get_transformed_x_y(
+            self.backend.numpy.zeros(bounding_boxes["boxes"].shape[:-1]),
+            self.backend.numpy.zeros(bounding_boxes["boxes"].shape[:-1]),
+            transform,
+        )
+
+        w_end, h_end = _get_transformed_x_y(
+            self.backend.numpy.tile(
+                self.backend.convert_to_tensor(width, dtype="float32"),
+                bounding_boxes["boxes"].shape[:-1],
+            ),
+            self.backend.numpy.tile(
+                self.backend.convert_to_tensor(height, dtype="float32"),
+                bounding_boxes["boxes"].shape[:-1],
+            ),
+            transform,
+        )
+
+        bounding_boxes = _get_clipped_bbox(
+            bounding_boxes, h_end, h_start, w_end, w_start
+        )
+
+        height_transformed = self.backend.numpy.expand_dims(
+            (h_end - h_start), -1
+        )
+        width_transformed = self.backend.numpy.expand_dims(
+            (w_end - w_start), -1
+        )
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source="xyxy",
+            target="rel_xyxy",
+            height=height_transformed,
+            width=width_transformed,
+        )
+
+        bounding_boxes = clip_to_image_size(
+            bounding_boxes=bounding_boxes,
+            height=height_transformed,
+            width=width_transformed,
+            format="rel_xyxy",
+        )
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source="rel_xyxy",
+            target=self.bounding_box_format,
+            height=height,
+            width=width,
+        )
+
+        return bounding_boxes
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
@@ -229,6 +340,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
         return {
             "height_zoom": height_zoom,
             "width_zoom": width_zoom,
+            "input_shape": images_shape,
         }
 
     def _zoom_inputs(self, inputs, transformation):
