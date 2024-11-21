@@ -1,3 +1,4 @@
+import ml_dtypes
 import numpy as np
 
 from keras.src import backend
@@ -870,10 +871,23 @@ def saturate_cast(x, dtype):
 
 def _saturate_cast(x, dtype, backend_module=None):
     backend_module = backend_module or backend
+
+    def get_dtype_min_max(dtype):
+        if "bool" == dtype:
+            dtype_min = 0
+            dtype_max = 1
+        elif "int" in dtype:
+            dtype_min = ml_dtypes.iinfo(dtype).min
+            dtype_max = ml_dtypes.iinfo(dtype).max
+        else:
+            dtype_min = ml_dtypes.finfo(dtype).min
+            dtype_max = ml_dtypes.finfo(dtype).max
+        return dtype_min, dtype_max
+
     dtype = backend.standardize_dtype(dtype)
     in_dtype = backend.standardize_dtype(x.dtype)
-    in_info = np.iinfo(in_dtype) if "int" in in_dtype else np.finfo(in_dtype)
-    out_info = np.iinfo(dtype) if "int" in dtype else np.finfo(dtype)
+    in_min, in_max = get_dtype_min_max(in_dtype)
+    out_min, out_max = get_dtype_min_max(dtype)
 
     # The output min/max may not actually be representable in the
     # in_dtype (e.g. casting float32 to uint32).  This can lead to undefined
@@ -882,11 +896,11 @@ def _saturate_cast(x, dtype, backend_module=None):
     # the valid output range. The catch is that we may actually saturate
     # to a value less than the true saturation limit, but this is the best we
     # can do in order to avoid UB without backend op.
-    min_limit = np.maximum(in_info.min, out_info.min).astype(in_dtype)
-    if min_limit < out_info.min:
+    min_limit = np.maximum(in_min, out_min).astype(in_dtype)
+    if min_limit < out_min:
         min_limit = np.nextafter(min_limit, 0, dtype=in_dtype)
-    max_limit = np.minimum(in_info.max, out_info.max).astype(in_dtype)
-    if max_limit > out_info.max:
+    max_limit = np.minimum(in_max, out_max).astype(in_dtype)
+    if max_limit > out_max:
         max_limit = np.nextafter(max_limit, 0, dtype=in_dtype)
 
     # Unconditionally apply `clip` to fix `inf` behavior.
