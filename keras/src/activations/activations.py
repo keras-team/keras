@@ -551,13 +551,11 @@ def linear(x):
 
     Example :
     
-    ```
     >>> x = tf.constant([[1.0, 2.0], [3.0, 4.0]])
     >>> output = tf.keras.activations.linear(x)
     >>> print(output)
     tf.Tensor([[1. 2.][3. 4.]], shape=(2, 2), dtype=float32)
-    
-    ```
+
     """
     return x
 
