@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import tensorflow as tf
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
@@ -148,3 +149,117 @@ class RandomZoomTest(testing.TestCase):
 
         model.compile(loss="mse")
         model.fit(np.random.random((2, 2, 2, 1)), y=np.random.random((2,)))
+
+    @parameterized.named_parameters(
+        (
+            "with_zoom_in",
+            [[[0.1]], [[0.1]]],
+            [[0.0, 0.0, 8.0, 0.0], [8.0, 0.0, 8.0, 10.0]],
+        ),
+        (
+            "with_zoom_out",
+            [[[1.9]], [[1.9]]],
+            [
+                [2.710526, 2.657895, 3.763158, 3.710526],
+                [4.815789, 4.236842, 5.868421, 5.289474],
+            ],
+        ),
+    )
+    def test_random_flip_bounding_boxes(self, zoom, expected_boxes):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            image_shape = (10, 8, 3)
+        else:
+            image_shape = (3, 10, 8)
+        input_image = np.random.random(image_shape)
+        bounding_boxes = {
+            "boxes": np.array(
+                [
+                    [2, 1, 4, 3],
+                    [6, 4, 8, 6],
+                ]
+            ),
+            "labels": np.array([[1, 2]]),
+        }
+        input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
+        random_zoom_layer = layers.RandomZoom(
+            height_factor=(0.5, 0.5),
+            data_format=data_format,
+            seed=42,
+            bounding_box_format="xyxy",
+        )
+
+        transformation = {
+            "height_zoom": zoom[0],
+            "width_zoom": zoom[1],
+            "input_shape": image_shape,
+        }
+        output = random_zoom_layer.transform_bounding_boxes(
+            input_data["bounding_boxes"],
+            transformation=transformation,
+            training=True,
+        )
+
+        self.assertAllClose(output["boxes"], expected_boxes)
+
+    @parameterized.named_parameters(
+        (
+            "with_zoom_in",
+            [[[0.1]], [[0.1]]],
+            [[0.0, 0.0, 8.0, 0.0], [8.0, 0.0, 8.0, 10.0]],
+        ),
+        (
+            "with_zoom_out",
+            [[[1.9]], [[1.9]]],
+            [
+                [2.710526, 2.657895, 3.763158, 3.710526],
+                [4.815789, 4.236842, 5.868421, 5.289474],
+            ],
+        ),
+    )
+    def test_random_flip_tf_data_bounding_boxes(self, zoom, expected_boxes):
+        data_format = backend.config.image_data_format()
+        if backend.config.image_data_format() == "channels_last":
+            image_shape = (1, 10, 8, 3)
+        else:
+            image_shape = (1, 3, 10, 8)
+        input_image = np.random.random(image_shape)
+        bounding_boxes = {
+            "boxes": np.array(
+                [
+                    [
+                        [2, 1, 4, 3],
+                        [6, 4, 8, 6],
+                    ]
+                ]
+            ),
+            "labels": np.array([[1, 2]]),
+        }
+
+        input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
+
+        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        random_zoom_layer = layers.RandomZoom(
+            height_factor=0.5,
+            data_format=data_format,
+            seed=42,
+            bounding_box_format="xyxy",
+        )
+
+        transformation = {
+            "height_zoom": tf.constant(zoom[0]),
+            "width_zoom": tf.constant(zoom[1]),
+            "input_shape": image_shape,
+        }
+
+        ds = ds.map(
+            lambda x: random_zoom_layer.transform_bounding_boxes(
+                x["bounding_boxes"],
+                transformation=transformation,
+                training=True,
+            )
+        )
+
+        output = next(iter(ds))
+        expected_boxes = np.array(expected_boxes)
+        self.assertAllClose(output["boxes"], expected_boxes)
