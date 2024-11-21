@@ -548,6 +548,15 @@ def linear(x):
 
     Args:
         x: Input tensor.
+
+    Example :
+    
+    ```
+    x = tf.constant([[1.0, 2.0], [3.0, 4.0]])
+    output = tf.keras.activations.linear(x)
+    print(output)
+    
+    ```
     """
     return x
 
