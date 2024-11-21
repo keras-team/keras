@@ -10,6 +10,7 @@ from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converter
     convert_format,
 )
 from keras.src.random.seed_generator import SeedGenerator
+from keras.src.utils import backend_utils
 
 
 @keras_export("keras.layers.RandomZoom")
@@ -187,6 +188,9 @@ class RandomZoom(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
+        if backend_utils.in_tf_graph():
+            self.backend.set_backend("tensorflow")
+
         def _get_transformed_x_y(x, y, transform):
             a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.numpy.split(
                 transform, 8, axis=-1
@@ -198,13 +202,14 @@ class RandomZoom(BaseImagePreprocessingLayer):
             return x_transformed, y_transformed
 
         def _get_clipped_bbox(bounding_boxes, h_end, h_start, w_end, w_start):
-            h_end = self.backend.numpy.expand_dims(h_end, -1)
-            h_start = self.backend.numpy.expand_dims(h_start, -1)
-            w_end = self.backend.numpy.expand_dims(w_end, -1)
-            w_start = self.backend.numpy.expand_dims(w_start, -1)
-
             bboxes = bounding_boxes["boxes"]
             x1, y1, x2, y2 = self.backend.numpy.split(bboxes, 4, axis=-1)
+
+            if len(bboxes.shape) == 3:
+                h_end = self.backend.numpy.expand_dims(h_end, -1)
+                h_start = self.backend.numpy.expand_dims(h_start, -1)
+                w_end = self.backend.numpy.expand_dims(w_end, -1)
+                w_start = self.backend.numpy.expand_dims(w_start, -1)
 
             x1 = self.backend.numpy.clip(x1, w_start, w_end) - w_start
             y1 = self.backend.numpy.clip(y1, h_start, h_end) - h_start
@@ -241,20 +246,14 @@ class RandomZoom(BaseImagePreprocessingLayer):
         transform = self._get_zoom_matrix(zooms, height, width)
 
         w_start, h_start = _get_transformed_x_y(
-            self.backend.numpy.zeros(bounding_boxes["boxes"].shape[:-1]),
-            self.backend.numpy.zeros(bounding_boxes["boxes"].shape[:-1]),
+            0,
+            0,
             transform,
         )
 
         w_end, h_end = _get_transformed_x_y(
-            self.backend.numpy.tile(
-                self.backend.convert_to_tensor(width, dtype="float32"),
-                bounding_boxes["boxes"].shape[:-1],
-            ),
-            self.backend.numpy.tile(
-                self.backend.convert_to_tensor(height, dtype="float32"),
-                bounding_boxes["boxes"].shape[:-1],
-            ),
+            width,
+            height,
             transform,
         )
 
@@ -262,11 +261,14 @@ class RandomZoom(BaseImagePreprocessingLayer):
             bounding_boxes, h_end, h_start, w_end, w_start
         )
 
+        height_transformed = h_end - h_start
+        width_transformed = w_end - w_start
+
         height_transformed = self.backend.numpy.expand_dims(
-            (h_end - h_start), -1
+            height_transformed, -1
         )
         width_transformed = self.backend.numpy.expand_dims(
-            (w_end - w_start), -1
+            width_transformed, -1
         )
 
         bounding_boxes = convert_format(
@@ -291,6 +293,8 @@ class RandomZoom(BaseImagePreprocessingLayer):
             height=height,
             width=width,
         )
+
+        self.backend.reset()
 
         return bounding_boxes
 
