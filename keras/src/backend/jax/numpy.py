@@ -1102,6 +1102,12 @@ def vdot(x1, x2):
     return jnp.vdot(x1, x2)
 
 
+def inner(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.inner(x1, x2)
+
+
 def vstack(xs):
     return jnp.vstack(xs)
 

@@ -5678,6 +5678,41 @@ def vdot(x1, x2):
     return backend.numpy.vdot(x1, x2)
 
 
+class Inner(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.inner(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        return KerasTensor([], dtype=dtype)
+
+
+@keras_export(["keras.ops.inner", "keras.ops.numpy.inner"])
+def inner(x1, x2):
+    """Return the inner product of two tensors.
+
+    Ordinary inner product of vectors for 1-D tensors (without complex conjugation),
+    in higher dimensions a sum product over the last axes.
+
+    Multidimensional arrays are treated as vectors by flattening all but their
+    last axes. The resulting dot product is performed over their last axes.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor. The last dimension of x1 and x2 must match.
+
+    Returns:
+        Output tensor. The shape of the output is determined by broadcasting the
+        shapes of x1 and x2 after removing their last axes.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Inner().symbolic_call(x1, x2)
+    return backend.numpy.inner(x1, x2)
+
+
 @keras_export(["keras.ops.vectorize", "keras.ops.numpy.vectorize"])
 def vectorize(pyfunc, *, excluded=None, signature=None):
     """Turn a function into a vectorized function.
