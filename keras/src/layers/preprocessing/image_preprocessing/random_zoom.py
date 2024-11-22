@@ -182,6 +182,35 @@ class RandomZoom(BaseImagePreprocessingLayer):
     def transform_labels(self, labels, transformation, training=True):
         return labels
 
+    def get_transformed_x_y(self, x, y, transform):
+        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.numpy.split(
+            transform, 8, axis=-1
+        )
+
+        k = c0 * x + c1 * y + 1
+        x_transformed = (a0 * x + a1 * y + a2) / k
+        y_transformed = (b0 * x + b1 * y + b2) / k
+        return x_transformed, y_transformed
+
+    def get_clipped_bbox(self, bounding_boxes, h_end, h_start, w_end, w_start):
+        bboxes = bounding_boxes["boxes"]
+        x1, y1, x2, y2 = self.backend.numpy.split(bboxes, 4, axis=-1)
+
+        if len(bboxes.shape) == 3:
+            h_end = self.backend.numpy.expand_dims(h_end, -1)
+            h_start = self.backend.numpy.expand_dims(h_start, -1)
+            w_end = self.backend.numpy.expand_dims(w_end, -1)
+            w_start = self.backend.numpy.expand_dims(w_start, -1)
+
+        x1 = self.backend.numpy.clip(x1, w_start, w_end) - w_start
+        y1 = self.backend.numpy.clip(y1, h_start, h_end) - h_start
+        x2 = self.backend.numpy.clip(x2, w_start, w_end) - w_start
+        y2 = self.backend.numpy.clip(y2, h_start, h_end) - h_start
+        bounding_boxes["boxes"] = self.backend.numpy.concatenate(
+            [x1, y1, x2, y2], axis=-1
+        )
+        return bounding_boxes
+
     def transform_bounding_boxes(
         self,
         bounding_boxes,
@@ -190,35 +219,6 @@ class RandomZoom(BaseImagePreprocessingLayer):
     ):
         if backend_utils.in_tf_graph():
             self.backend.set_backend("tensorflow")
-
-        def _get_transformed_x_y(x, y, transform):
-            a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.numpy.split(
-                transform, 8, axis=-1
-            )
-
-            k = c0 * x + c1 * y + 1
-            x_transformed = (a0 * x + a1 * y + a2) / k
-            y_transformed = (b0 * x + b1 * y + b2) / k
-            return x_transformed, y_transformed
-
-        def _get_clipped_bbox(bounding_boxes, h_end, h_start, w_end, w_start):
-            bboxes = bounding_boxes["boxes"]
-            x1, y1, x2, y2 = self.backend.numpy.split(bboxes, 4, axis=-1)
-
-            if len(bboxes.shape) == 3:
-                h_end = self.backend.numpy.expand_dims(h_end, -1)
-                h_start = self.backend.numpy.expand_dims(h_start, -1)
-                w_end = self.backend.numpy.expand_dims(w_end, -1)
-                w_start = self.backend.numpy.expand_dims(w_start, -1)
-
-            x1 = self.backend.numpy.clip(x1, w_start, w_end) - w_start
-            y1 = self.backend.numpy.clip(y1, h_start, h_end) - h_start
-            x2 = self.backend.numpy.clip(x2, w_start, w_end) - w_start
-            y2 = self.backend.numpy.clip(y2, h_start, h_end) - h_start
-            bounding_boxes["boxes"] = self.backend.numpy.concatenate(
-                [x1, y1, x2, y2], axis=-1
-            )
-            return bounding_boxes
 
         width_zoom = transformation["width_zoom"]
         height_zoom = transformation["height_zoom"]
@@ -245,19 +245,19 @@ class RandomZoom(BaseImagePreprocessingLayer):
         )
         transform = self._get_zoom_matrix(zooms, height, width)
 
-        w_start, h_start = _get_transformed_x_y(
+        w_start, h_start = self.get_transformed_x_y(
             0,
             0,
             transform,
         )
 
-        w_end, h_end = _get_transformed_x_y(
+        w_end, h_end = self.get_transformed_x_y(
             width,
             height,
             transform,
         )
 
-        bounding_boxes = _get_clipped_bbox(
+        bounding_boxes = self.get_clipped_bbox(
             bounding_boxes, h_end, h_start, w_end, w_start
         )
 
