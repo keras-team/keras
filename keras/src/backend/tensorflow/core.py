@@ -36,7 +36,11 @@ class Variable(
 
     def _initialize(self, value):
         self._value = tf.Variable(
-            value, dtype=self._dtype, trainable=self.trainable, name=self.name
+            value,
+            dtype=self._dtype,
+            trainable=self.trainable,
+            name=self.name,
+            aggregation=self._map_aggregation(self.aggregation),
         )
 
     def _initialize_with_initializer(self, initializer):
@@ -45,6 +49,7 @@ class Variable(
             dtype=self._dtype,
             trainable=self.trainable,
             name=self.name,
+            aggregation=self._map_aggregation(self.aggregation),
         )
 
     def _deferred_initialize(self):
@@ -112,6 +117,14 @@ class Variable(
 
     def _write_object_proto(self, proto, options):
         return self.value._write_object_proto(proto, options)
+
+    def _map_aggregation(self, aggregation):
+        mapping = {
+            "sum": tf.VariableAggregation.SUM,
+            "mean": tf.VariableAggregation.MEAN,
+            "only_first_replica": tf.VariableAggregation.ONLY_FIRST_REPLICA,
+        }
+        return mapping.get(aggregation, tf.VariableAggregation.NONE)
 
 
 def convert_to_tensor(x, dtype=None, sparse=None):
