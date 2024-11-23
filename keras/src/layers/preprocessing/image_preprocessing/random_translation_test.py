@@ -5,6 +5,7 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.utils import backend_utils
 
 
 class RandomTranslationTest(testing.TestCase):
@@ -328,3 +329,117 @@ class RandomTranslationTest(testing.TestCase):
         input_data = np.random.random((1, 4, 4, 3))
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(1).map(layer)
         next(iter(ds)).numpy()
+
+    @parameterized.named_parameters(
+        (
+            "with_positive_shift",
+            [[1.0, 2.0]],
+            [[3.0, 3.0, 5.0, 5.0], [7.0, 6.0, 8.0, 8.0]],
+        ),
+        (
+            "with_negative_shift",
+            [[-1.0, -2.0]],
+            [[1.0, 0.0, 3.0, 1.0], [5.0, 2.0, 7.0, 4.0]],
+        ),
+    )
+    def test_random_flip_bounding_boxes(self, translation, expected_boxes):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            image_shape = (10, 8, 3)
+        else:
+            image_shape = (3, 10, 8)
+        input_image = np.random.random(image_shape)
+        bounding_boxes = {
+            "boxes": np.array(
+                [
+                    [2, 1, 4, 3],
+                    [6, 4, 8, 6],
+                ]
+            ),
+            "labels": np.array([[1, 2]]),
+        }
+        input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
+        random_translation_layer = layers.RandomTranslation(
+            height_factor=0.5,
+            width_factor=0.5,
+            data_format=data_format,
+            seed=42,
+            bounding_box_format="xyxy",
+        )
+
+        transformation = {
+            "translations": backend_utils.convert_tf_tensor(
+                np.array(translation)
+            ),
+            "input_shape": image_shape,
+        }
+        output = random_translation_layer.transform_bounding_boxes(
+            input_data["bounding_boxes"],
+            transformation=transformation,
+            training=True,
+        )
+
+        self.assertAllClose(output["boxes"], expected_boxes)
+
+    @parameterized.named_parameters(
+        (
+            "with_positive_shift",
+            [[1.0, 2.0]],
+            [[3.0, 3.0, 5.0, 5.0], [7.0, 6.0, 8.0, 8.0]],
+        ),
+        (
+            "with_negative_shift",
+            [[-1.0, -2.0]],
+            [[1.0, 0.0, 3.0, 1.0], [5.0, 2.0, 7.0, 4.0]],
+        ),
+    )
+    def test_random_flip_tf_data_bounding_boxes(
+        self, translation, expected_boxes
+    ):
+        data_format = backend.config.image_data_format()
+        if backend.config.image_data_format() == "channels_last":
+            image_shape = (1, 10, 8, 3)
+        else:
+            image_shape = (1, 3, 10, 8)
+        input_image = np.random.random(image_shape)
+        bounding_boxes = {
+            "boxes": np.array(
+                [
+                    [
+                        [2, 1, 4, 3],
+                        [6, 4, 8, 6],
+                    ]
+                ]
+            ),
+            "labels": np.array([[1, 2]]),
+        }
+
+        input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
+
+        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        random_translation_layer = layers.RandomTranslation(
+            height_factor=0.5,
+            width_factor=0.5,
+            data_format=data_format,
+            seed=42,
+            bounding_box_format="xyxy",
+        )
+
+        transformation = {
+            "translations": backend_utils.convert_tf_tensor(
+                np.array(translation)
+            ),
+            "input_shape": image_shape,
+        }
+
+        ds = ds.map(
+            lambda x: random_translation_layer.transform_bounding_boxes(
+                x["bounding_boxes"],
+                transformation=transformation,
+                training=True,
+            )
+        )
+
+        output = next(iter(ds))
+        expected_boxes = np.array(expected_boxes)
+        self.assertAllClose(output["boxes"], expected_boxes)
