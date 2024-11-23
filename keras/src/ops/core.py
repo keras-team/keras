@@ -909,26 +909,47 @@ def _saturate_cast(x, dtype, backend_module=None):
     return backend_module.cast(x, dtype)
 
 
+class ConvertToTensor(Operation):
+    def __init__(self, dtype, sparse):
+        super().__init__()
+        self.dtype = backend.standardize_dtype(dtype)
+        self.sparse = sparse
+
+    def call(self, x):
+        return backend.core.convert_to_tensor(
+            x, dtype=self.dtype, sparse=self.sparse
+        )
+
+    def compute_output_spec(self, x):
+        dtype = x.dtype if self.dtype is None else self.dtype
+        sparse = (
+            False if self.sparse is not None and not self.sparse else x.sparse
+        )
+        return backend.KerasTensor(shape=x.shape, dtype=dtype, sparse=sparse)
+
+
 @keras_export("keras.ops.convert_to_tensor")
 def convert_to_tensor(x, dtype=None, sparse=None):
     """Convert a NumPy array to a tensor.
 
     Args:
-        x: A NumPy array.
-        dtype: The target type.
+        x: A NumPy array, Python array (can be nested) or a backend tensor.
+        dtype: The target type. If `None`, the type of `x` is used.
         sparse: Whether to keep sparse tensors. `False` will cause sparse
             tensors to be densified. The default value of `None` means that
             sparse tensors are kept only if the backend supports them.
 
     Returns:
-        A tensor of the specified `dtype`.
+        A backend tensor of the specified `dtype` and sparseness.
 
     Example:
 
     >>> x = np.array([1, 2, 3])
     >>> y = keras.ops.convert_to_tensor(x)
     """
-    return backend.convert_to_tensor(x, dtype=dtype, sparse=sparse)
+    if any_symbolic_tensors((x,)):
+        return ConvertToTensor(dtype=dtype, sparse=sparse)(x)
+    return backend.core.convert_to_tensor(x, dtype=dtype, sparse=sparse)
 
 
 @keras_export("keras.ops.convert_to_numpy")
