@@ -95,10 +95,10 @@ class KerasVariable:
                 "cannot contain character `/`. "
                 f"Received: name={name}"
             )
-        if aggregation not in ("mean", "sum", "only_first_replica"):
+        if aggregation not in ("none", "mean", "sum", "only_first_replica"):
             raise ValueError(
                 "Invalid valid for argument `aggregation`. Expected "
-                "one of {'mean', 'sum', 'only_first_replica'}. "
+                "one of {'none', 'mean', 'sum', 'only_first_replica'}. "
                 f"Received: aggregation={aggregation}"
             )
         self.name = name

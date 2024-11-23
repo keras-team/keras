@@ -120,11 +120,12 @@ class Variable(
 
     def _map_aggregation(self, aggregation):
         mapping = {
+            "none": tf.VariableAggregation.NONE,
             "sum": tf.VariableAggregation.SUM,
             "mean": tf.VariableAggregation.MEAN,
             "only_first_replica": tf.VariableAggregation.ONLY_FIRST_REPLICA,
         }
-        return mapping.get(aggregation, tf.VariableAggregation.NONE)
+        return mapping[aggregation]
 
 
 def convert_to_tensor(x, dtype=None, sparse=None):
