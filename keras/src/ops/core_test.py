@@ -144,6 +144,29 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         ):
             core.unstack(x, axis=axis)
 
+    def test_convert_to_tensor(self):
+        x = KerasTensor((2, 3))
+        out = core.convert_to_tensor(x)
+        self.assertEqual(out.shape, x.shape)
+        self.assertEqual(out.dtype, x.dtype)
+        self.assertFalse(out.sparse)
+
+        out = core.convert_to_tensor(x, dtype="int32")
+        self.assertEqual(out.dtype, "int32")
+
+        out = core.convert_to_tensor(x, sparse=True)
+        self.assertFalse(out.sparse)
+
+        x = KerasTensor((2, 3), sparse=True)
+        out = core.convert_to_tensor(x)
+        self.assertTrue(out.sparse)
+
+        out = core.convert_to_tensor(x, sparse=True)
+        self.assertTrue(out.sparse)
+
+        out = core.convert_to_tensor(x, sparse=False)
+        self.assertFalse(out.sparse)
+
 
 class CoreOpsCorrectnessTest(testing.TestCase):
     def test_map(self):
@@ -650,9 +673,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         # Partially converted.
         x = ops.convert_to_tensor((1, ops.array(2), 3))
         self.assertAllEqual(x, (1, 2, 3))
-
-        with self.assertRaises(ValueError):
-            ops.convert_to_numpy(KerasTensor((2,)))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
@@ -1261,6 +1281,9 @@ class CoreOpsBehaviorTests(testing.TestCase):
         self.assertIsInstance(y, np.ndarray)
         # Test assignment -- should not fail.
         y[0] = 1.0
+
+        with self.assertRaises(ValueError):
+            ops.convert_to_numpy(KerasTensor((2,)))
 
     def test_scan_invalid_arguments(self):
         def cumsum(carry, xs):
