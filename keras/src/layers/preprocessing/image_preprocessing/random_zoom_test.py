@@ -251,8 +251,8 @@ class RandomZoomTest(testing.TestCase):
         )
 
         transformation = {
-            "height_zoom": backend_utils.convert_tf_tensor(np.array(zoom[0])),
-            "width_zoom": backend_utils.convert_tf_tensor(np.array(zoom[1])),
+            "height_zoom": np.array(zoom[0]),
+            "width_zoom": np.array(zoom[1]),
             "input_shape": image_shape,
         }
 

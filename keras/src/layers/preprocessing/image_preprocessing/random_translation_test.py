@@ -426,9 +426,7 @@ class RandomTranslationTest(testing.TestCase):
         )
 
         transformation = {
-            "translations": backend_utils.convert_tf_tensor(
-                np.array(translation)
-            ),
+            "translations": np.array(translation),
             "input_shape": image_shape,
         }
 
