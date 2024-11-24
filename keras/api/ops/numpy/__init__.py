@@ -75,6 +75,7 @@ from keras.src.ops.numpy import histogram
 from keras.src.ops.numpy import hstack
 from keras.src.ops.numpy import identity
 from keras.src.ops.numpy import imag
+from keras.src.ops.numpy import inner
 from keras.src.ops.numpy import isclose
 from keras.src.ops.numpy import isfinite
 from keras.src.ops.numpy import isinf
