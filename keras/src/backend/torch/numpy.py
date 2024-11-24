@@ -1487,6 +1487,20 @@ def vdot(x1, x2):
     return cast(torch.vdot(x1, x2), result_dtype)
 
 
+def inner(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, float)
+
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
+
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+    return cast(torch.inner(x1, x2), result_dtype)
+
+
 def vstack(xs):
     xs = [convert_to_tensor(x) for x in xs]
     return torch.vstack(xs)
