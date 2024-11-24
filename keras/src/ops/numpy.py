@@ -5694,19 +5694,23 @@ class Inner(Operation):
 def inner(x1, x2):
     """Return the inner product of two tensors.
 
-    Ordinary inner product of vectors for 1-D tensors (without complex conjugation),
-    in higher dimensions a sum product over the last axes.
+    Ordinary inner product of vectors for 1-D tensors
+    (without complex conjugation), in higher dimensions
+    a sum product over the last axes.
 
-    Multidimensional arrays are treated as vectors by flattening all but their
-    last axes. The resulting dot product is performed over their last axes.
+    Multidimensional arrays are treated as vectors by flattening
+    all but their last axes. The resulting dot product is performed
+    over their last axes.
 
     Args:
         x1: First input tensor.
-        x2: Second input tensor. The last dimension of `x1` and `x2` must match.
+        x2: Second input tensor. The last dimension of `x1` and `x2`
+            must match.
 
     Returns:
-        Output tensor. The shape of the output is determined by broadcasting the
-        shapes of `x1` and `x2` after removing their last axes.
+        Output tensor. The shape of the output is determined by 
+        broadcasting the shapes of `x1` and `x2` after removing 
+        their last axes.
     """
     if any_symbolic_tensors((x1, x2)):
         return Inner().symbolic_call(x1, x2)
