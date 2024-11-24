@@ -5706,7 +5706,7 @@ def inner(x1, x2):
 
     Returns:
         Output tensor. The shape of the output is determined by broadcasting the
-        shapes of x1 and x2 after removing their last axes.
+        shapes of `x1` and `x2` after removing their last axes.
     """
     if any_symbolic_tensors((x1, x2)):
         return Inner().symbolic_call(x1, x2)
