@@ -5708,8 +5708,8 @@ def inner(x1, x2):
             must match.
 
     Returns:
-        Output tensor. The shape of the output is determined by 
-        broadcasting the shapes of `x1` and `x2` after removing 
+        Output tensor. The shape of the output is determined by
+        broadcasting the shapes of `x1` and `x2` after removing
         their last axes.
     """
     if any_symbolic_tensors((x1, x2)):
