@@ -5702,7 +5702,7 @@ def inner(x1, x2):
 
     Args:
         x1: First input tensor.
-        x2: Second input tensor. The last dimension of x1 and x2 must match.
+        x2: Second input tensor. The last dimension of `x1` and `x2` must match.
 
     Returns:
         Output tensor. The shape of the output is determined by broadcasting the
