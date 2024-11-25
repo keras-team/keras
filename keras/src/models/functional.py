@@ -212,7 +212,7 @@ class Functional(Function, Model):
     def _assert_input_compatibility(self, *args):
         return super(Model, self)._assert_input_compatibility(*args)
 
-    def _maybe_warn_inputs_struct_mismatch(self, inputs):
+    def _maybe_warn_inputs_struct_mismatch(self, inputs, raise_exception=False):
         try:
             # We first normalize to tuples before performing the check to
             # suppress warnings when encountering mismatched tuples and lists.
@@ -225,12 +225,17 @@ class Functional(Function, Model):
             model_inputs_struct = tree.map_structure(
                 lambda x: x.name, self._inputs_struct
             )
-            inputs_struct = tree.map_structure(lambda x: f"type({x})", inputs)
-            warnings.warn(
-                "The structure of `inputs` doesn't match the expected "
-                f"structure: {model_inputs_struct}. "
-                f"Received: the structure of inputs={inputs_struct}"
+            inputs_struct = tree.map_structure(
+                lambda x: f"Tensor(shape={x.shape})", inputs
             )
+            msg = (
+                "The structure of `inputs` doesn't match the expected "
+                f"structure.\nExpected: {model_inputs_struct}\n"
+                f"Received: inputs={inputs_struct}"
+            )
+            if raise_exception:
+                raise ValueError(msg)
+            warnings.warn(msg)
 
     def _convert_inputs_to_tensors(self, flat_inputs):
         converted = []
@@ -279,7 +284,33 @@ class Functional(Function, Model):
         return adjusted
 
     def _standardize_inputs(self, inputs):
-        self._maybe_warn_inputs_struct_mismatch(inputs)
+        raise_exception = False
+        if isinstance(inputs, dict) and not isinstance(
+            self._inputs_struct, dict
+        ):
+            # This is to avoid warning
+            # when we have reconciable dict/list structs
+            if hasattr(self._inputs_struct, "__len__") and all(
+                isinstance(i, backend.KerasTensor) for i in self._inputs_struct
+            ):
+                expected_keys = set(i.name for i in self._inputs_struct)
+                keys = set(inputs.keys())
+                if expected_keys.issubset(keys):
+                    inputs = [inputs[i.name] for i in self._inputs_struct]
+                else:
+                    raise_exception = True
+            elif isinstance(self._inputs_struct, backend.KerasTensor):
+                if self._inputs_struct.name in inputs:
+                    inputs = [inputs[self._inputs_struct.name]]
+                else:
+                    raise_exception = True
+            else:
+                raise_exception = True
+
+        self._maybe_warn_inputs_struct_mismatch(
+            inputs, raise_exception=raise_exception
+        )
+
         flat_inputs = tree.flatten(inputs)
         flat_inputs = self._convert_inputs_to_tensors(flat_inputs)
         return self._adjust_input_rank(flat_inputs)

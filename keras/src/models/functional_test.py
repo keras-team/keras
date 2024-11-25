@@ -137,10 +137,10 @@ class FunctionalTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_named_input_dict_io(self):
+        # Single input
         input_a = Input(shape=(3,), batch_size=2, name="a")
         x = layers.Dense(5)(input_a)
         outputs = layers.Dense(4)(x)
-
         model = Functional(input_a, outputs)
 
         # Eager call
@@ -151,6 +151,27 @@ class FunctionalTest(testing.TestCase):
         # Symbolic call
         input_a_2 = Input(shape=(3,), batch_size=2)
         in_val = {"a": input_a_2}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 4))
+
+        # Two inputs
+        input_a = Input(shape=(3,), batch_size=2, name="a")
+        input_b = Input(shape=(4,), batch_size=2, name="b")
+        a = layers.Dense(5)(input_a)
+        b = layers.Dense(5)(input_b)
+        x = layers.Concatenate()([a, b])
+        outputs = layers.Dense(4)(x)
+        model = Functional([input_a, input_b], outputs)
+
+        # Eager call
+        in_val = {"a": np.random.random((2, 3)), "b": np.random.random((2, 4))}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 4))
+
+        # Symbolic call
+        input_a_2 = Input(shape=(3,), batch_size=2)
+        input_b_2 = Input(shape=(4,), batch_size=2)
+        in_val = {"a": input_a_2, "b": input_b_2}
         out_val = model(in_val)
         self.assertEqual(out_val.shape, (2, 4))
 
@@ -180,7 +201,7 @@ class FunctionalTest(testing.TestCase):
         self.assertLen(record, 1)
         self.assertStartsWith(
             str(record[0].message),
-            r"The structure of `inputs` doesn't match the expected structure:",
+            r"The structure of `inputs` doesn't match the expected structure",
         )
 
     @parameterized.named_parameters(
@@ -547,3 +568,92 @@ class FunctionalTest(testing.TestCase):
             AttributeError, "`Model.layers` attribute is reserved"
         ):
             model.layers = [layers.Dense(4)]
+
+    def test_dict_input_to_list_model(self):
+        vocabulary_size = 100
+        num_tags = 10
+        num_departments = 3
+        num_samples = 128
+
+        title = layers.Input(shape=(vocabulary_size,), name="title")
+        text_body = layers.Input(shape=(vocabulary_size,), name="text_body")
+        tags = layers.Input(shape=(num_tags,), name="tags")
+        features = layers.Concatenate()([title, text_body, tags])
+        features = layers.Dense(64, activation="relu")(features)
+        priority = layers.Dense(1, activation="sigmoid", name="priority")(
+            features
+        )
+        department = layers.Dense(
+            num_departments, activation="softmax", name="department"
+        )(features)
+        model = Functional(
+            inputs=[title, text_body, tags], outputs=[priority, department]
+        )
+
+        title_data = np.random.randint(
+            0, 2, size=(num_samples, vocabulary_size)
+        )
+        text_body_data = np.random.randint(
+            0, 2, size=(num_samples, vocabulary_size)
+        )
+        tags_data = np.random.randint(0, 2, size=(num_samples, num_tags))
+        priority_data = np.random.random(size=(num_samples, 1))
+        department_data = np.random.randint(
+            0, 2, size=(num_samples, num_departments)
+        )
+
+        # List style fit
+        model.compile(
+            optimizer="adam",
+            loss=["mean_squared_error", "categorical_crossentropy"],
+            metrics=[["mean_absolute_error"], ["accuracy"]],
+        )
+        model.fit(
+            [title_data, text_body_data, tags_data],
+            [priority_data, department_data],
+            epochs=1,
+        )
+        model.evaluate(
+            [title_data, text_body_data, tags_data],
+            [priority_data, department_data],
+        )
+        priority_preds, department_preds = model.predict(
+            [title_data, text_body_data, tags_data]
+        )
+
+        # Dict style fit
+        model.compile(
+            optimizer="adam",
+            loss={
+                "priority": "mean_squared_error",
+                "department": "categorical_crossentropy",
+            },
+            metrics={
+                "priority": ["mean_absolute_error"],
+                "department": ["accuracy"],
+            },
+        )
+        model.fit(
+            {
+                "title": title_data,
+                "text_body": text_body_data,
+                "tags": tags_data,
+            },
+            {"priority": priority_data, "department": department_data},
+            epochs=1,
+        )
+        model.evaluate(
+            {
+                "title": title_data,
+                "text_body": text_body_data,
+                "tags": tags_data,
+            },
+            {"priority": priority_data, "department": department_data},
+        )
+        priority_preds, department_preds = model.predict(
+            {
+                "title": title_data,
+                "text_body": text_body_data,
+                "tags": tags_data,
+            }
+        )
