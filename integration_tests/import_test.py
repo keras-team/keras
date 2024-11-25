@@ -68,10 +68,16 @@ def manage_venv_installs(whl_path):
 
 
 def run_keras_flow():
-    test_script = [
-        # Runs the example script
-        "python -m pytest integration_tests/basic_full_flow.py",
-    ]
+    if backend.backend() == "openvino":
+        test_script = [
+            # Runs the example script
+            "python -m pytest integration_tests/openvino/basic_full_flow.py",
+        ]
+    else:
+        test_script = [
+            # Runs the example script
+            "python -m pytest integration_tests/basic_full_flow.py",
+        ]
     run_commands_venv(test_script)
 
 
