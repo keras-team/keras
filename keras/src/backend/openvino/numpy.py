@@ -597,12 +597,11 @@ def pad(x, pad_width, mode="constant", constant_values=None):
                 "provided when `mode == 'constant'`. "
                 f"Received: mode={mode}"
             )
-        if isinstance(constant_values, int):
-            pad_value = constant_values
-        else:
-            raise ValueError(
-                "`pad` operation supports only scalar pad value in constant mode"
-            )
+        assert isinstance(constant_values, int), (
+            "`pad` operation supports only scalar pad value "
+            "in constant mode by openvino backend"
+        )
+        pad_value = constant_values
 
     # split pad_width into two tensors pads_begin and pads_end
     pads_begin = []
