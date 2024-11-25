@@ -107,14 +107,11 @@ class SummaryUtilsTest(testing.TestCase):
                 super().__init__()
                 self.mha = layers.MultiHeadAttention(2, 2, output_shape=(4,))
 
-            def build(self, input_shape):
-                self.mha.build(input_shape, input_shape, input_shape)
-
             def call(self, inputs):
                 return self.mha(inputs, inputs, inputs)
 
         model = MyModel()
-        model.build((None, 2, 2))
+        model(np.ones((1, 2, 2)))
 
         summary_content = []
 
@@ -123,7 +120,7 @@ class SummaryUtilsTest(testing.TestCase):
 
         summary_utils.print_summary(model, print_fn=print_to_variable)
         summary_content = "\n".join(summary_content)
-        self.assertIn("(None, 2, 4)", summary_content)  # mha
+        self.assertIn("(1, 2, 4)", summary_content)  # mha
         self.assertIn("Total params: 56", summary_content)
         self.assertIn("Trainable params: 56", summary_content)
         self.assertIn("Non-trainable params: 0", summary_content)
