@@ -107,11 +107,14 @@ class SummaryUtilsTest(testing.TestCase):
                 super().__init__()
                 self.mha = layers.MultiHeadAttention(2, 2, output_shape=(4,))
 
+            def build(self, input_shape):
+                self.mha.build(input_shape, input_shape, input_shape)
+
             def call(self, inputs):
                 return self.mha(inputs, inputs, inputs)
 
         model = MyModel()
-        model(layers.Input((2, 2)))
+        model.build((None, 2, 2))
 
         summary_content = []
 
