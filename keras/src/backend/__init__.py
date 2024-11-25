@@ -55,7 +55,7 @@ else:
 
 
 @keras_export("keras.Variable")
-class Variable(BackendVariable, Variable):
+class Variable(BackendVariable):  # noqa: F811
     pass
 
 
