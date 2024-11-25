@@ -38,7 +38,6 @@ if optree.available:
 
 @parameterized.named_parameters(TEST_CASES)
 class TreeTest(testing.TestCase):
-
     def test_is_nested(self, tree_impl, is_optree):
         self.assertFalse(tree_impl.is_nested("1234"))
         self.assertFalse(tree_impl.is_nested(b"1234"))
@@ -55,7 +54,6 @@ class TreeTest(testing.TestCase):
 
     def test_flatten(self, tree_impl, is_optree):
         structure = ((3, 4), 5, (6, 7, (9, 10), 8))
-        flat = ["a", "b", "c", "d", "e", "f", "g", "h"]
 
         self.assertEqual(
             tree_impl.flatten(structure), [3, 4, 5, 6, 7, 9, 10, 8]
@@ -67,6 +65,48 @@ class TreeTest(testing.TestCase):
 
         self.assertEqual([5], tree_impl.flatten(5))
         self.assertEqual([np.array([5])], tree_impl.flatten(np.array([5])))
+
+    def test_flatten_with_path(self, tree_impl, is_optree):
+        structure = {"b": (0, 1), "a": [2, 3]}
+        flat_with_path = tree_impl.flatten_with_path(structure)
+
+        self.assertEqual(
+            tree_impl.flatten(flat_with_path),
+            tree_impl.flatten(
+                [(("a", 0), 2), (("a", 1), 3), (("b", 0), 0), (("b", 1), 1)]
+            ),
+        )
+        point = collections.namedtuple("Point", ["x", "y", "z"])
+        structure = point(x=(0, 1), y=[2, 3], z={"a": 4})
+        flat_with_path = tree_impl.flatten_with_path(structure)
+
+        if is_optree:
+            # optree doesn't return namedtuple's field name, but the index
+            self.assertEqual(
+                tree_impl.flatten(flat_with_path),
+                tree_impl.flatten(
+                    [
+                        ((0, 0), 0),
+                        ((0, 1), 1),
+                        ((1, 0), 2),
+                        ((1, 1), 3),
+                        ((2, "a"), 4),
+                    ]
+                ),
+            )
+        else:
+            self.assertEqual(
+                tree_impl.flatten(flat_with_path),
+                tree_impl.flatten(
+                    [
+                        (("x", 0), 0),
+                        (("x", 1), 1),
+                        (("y", 0), 2),
+                        (("y", 1), 3),
+                        (("z", "a"), 4),
+                    ]
+                ),
+            )
 
     def test_flatten_dict_order(self, tree_impl, is_optree):
         ordered = collections.OrderedDict(
@@ -224,6 +264,32 @@ class TreeTest(testing.TestCase):
             tree_impl.assert_same_structure(
                 STRUCTURE1, structure1_list, check_types=False
             )
+
+    def test_assert_same_paths(self, tree_impl, is_optree):
+        assertion_message = "don't have the same paths"
+
+        tree_impl.assert_same_paths([0, 1], (0, 1))
+        Point1 = collections.namedtuple("Point1", ["x", "y"])
+        Point2 = collections.namedtuple("Point2", ["x", "y"])
+        tree_impl.assert_same_paths(Point1(0, 1), Point2(0, 1))
+
+        with self.assertRaisesRegex(ValueError, assertion_message):
+            tree_impl.assert_same_paths(
+                STRUCTURE1, STRUCTURE_DIFFERENT_NUM_ELEMENTS
+            )
+        with self.assertRaisesRegex(ValueError, assertion_message):
+            tree_impl.assert_same_paths([0, 1], np.array([0, 1]))
+        with self.assertRaisesRegex(ValueError, assertion_message):
+            tree_impl.assert_same_paths(0, [0, 1])
+        with self.assertRaisesRegex(ValueError, assertion_message):
+            tree_impl.assert_same_paths(STRUCTURE1, STRUCTURE_DIFFERENT_NESTING)
+        with self.assertRaisesRegex(ValueError, assertion_message):
+            tree_impl.assert_same_paths([[3], 4], [3, [4]])
+        with self.assertRaisesRegex(ValueError, assertion_message):
+            tree_impl.assert_same_paths({"a": 1}, {"b": 1})
+        structure1_list = [[[1, 2], 3], 4, [5, 6]]
+        tree_impl.assert_same_paths(STRUCTURE1, structure1_list)
+        tree_impl.assert_same_paths(STRUCTURE1, STRUCTURE2)
 
     def test_pack_sequence_as(self, tree_impl, is_optree):
         structure = {"key3": "", "key1": "", "key2": ""}

@@ -23,6 +23,11 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self.test_function = None
         self.predict_function = None
 
+        # Specifies how many steps of the step_per_execution loop to unroll.
+        # Increasing this value can reduce kernel launch overhead,
+        # but will increase memory usage and compilation time.
+        self.unrolled_steps_per_execution = 1
+
         # Model must be created under scope of DistStrat it will be trained
         # with.
         if tf.distribute.has_strategy():
@@ -99,7 +104,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return y_pred
 
     def _make_function(self, step_function):
-
         @tf.autograph.experimental.do_not_convert
         def one_step_on_data(data):
             """Runs a single training step on a batch of data."""
@@ -134,11 +138,31 @@ class TensorFlowTrainer(base_trainer.Trainer):
                     next_optional_inputs.has_value(),
                 )
 
-            def body(execution_step, optional_outputs, next_optional_inputs):
-                next_optional_outputs = tf.experimental.Optional.from_value(
-                    one_step_on_data(next_optional_inputs.get_value())
+            def inner_body(
+                execution_step, optional_outputs, next_optional_inputs
+            ):
+                def has_next():
+                    next_optional_outputs = tf.experimental.Optional.from_value(
+                        one_step_on_data(next_optional_inputs.get_value())
+                    )
+                    empty_outputs._element_spec = (
+                        next_optional_outputs.element_spec
+                    )
+                    return next_optional_outputs
+
+                def no_has_next():
+                    optional_outputs._element_spec = empty_outputs._element_spec
+                    return optional_outputs
+
+                next_optional_outputs = tf.cond(
+                    tf.logical_and(
+                        tf.less(execution_step, self.steps_per_execution),
+                        next_optional_inputs.has_value(),
+                    ),
+                    has_next,
+                    no_has_next,
                 )
-                empty_outputs._element_spec = next_optional_outputs.element_spec
+
                 return (
                     execution_step + 1,
                     next_optional_outputs,
@@ -150,6 +174,23 @@ class TensorFlowTrainer(base_trainer.Trainer):
                         lambda: next_optional_inputs,
                     ),
                 )
+
+            def body(execution_step, optional_outputs, next_optional_inputs):
+                for _ in range(
+                    min(
+                        self.unrolled_steps_per_execution,
+                        self.steps_per_execution,
+                    )
+                ):
+                    execution_step, optional_outputs, next_optional_inputs = (
+                        inner_body(
+                            execution_step,
+                            optional_outputs,
+                            next_optional_inputs,
+                        )
+                    )
+
+                return (execution_step, optional_outputs, next_optional_inputs)
 
             execution_step = tf.constant(0)
             next_optional_inputs = iterator.get_next_as_optional()
@@ -271,10 +312,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             # Create the validation data using the training data. Only supported
             # for TF/numpy/jax arrays.
             (
-                x,
-                y,
-                sample_weight,
-            ), validation_data = array_slicing.train_validation_split(
+                (x, y, sample_weight),
+                validation_data,
+            ) = array_slicing.train_validation_split(
                 (x, y, sample_weight), validation_split=validation_split
             )
 

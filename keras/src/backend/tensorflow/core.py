@@ -7,6 +7,7 @@ from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
+from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.keras_tensor import KerasTensor
@@ -35,7 +36,11 @@ class Variable(
 
     def _initialize(self, value):
         self._value = tf.Variable(
-            value, dtype=self._dtype, trainable=self.trainable, name=self.name
+            value,
+            dtype=self._dtype,
+            trainable=self.trainable,
+            name=self.name,
+            aggregation=self._map_aggregation(self.aggregation),
         )
 
     def _initialize_with_initializer(self, initializer):
@@ -44,6 +49,7 @@ class Variable(
             dtype=self._dtype,
             trainable=self.trainable,
             name=self.name,
+            aggregation=self._map_aggregation(self.aggregation),
         )
 
     def _deferred_initialize(self):
@@ -112,6 +118,15 @@ class Variable(
     def _write_object_proto(self, proto, options):
         return self.value._write_object_proto(proto, options)
 
+    def _map_aggregation(self, aggregation):
+        mapping = {
+            "none": tf.VariableAggregation.NONE,
+            "sum": tf.VariableAggregation.SUM,
+            "mean": tf.VariableAggregation.MEAN,
+            "only_first_replica": tf.VariableAggregation.ONLY_FIRST_REPLICA,
+        }
+        return mapping[aggregation]
+
 
 def convert_to_tensor(x, dtype=None, sparse=None):
     if isinstance(x, tf.SparseTensor) and sparse is not None and not sparse:
@@ -119,9 +134,10 @@ def convert_to_tensor(x, dtype=None, sparse=None):
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if not tf.is_tensor(x):
-        if dtype == "bool":
-            # TensorFlow boolean conversion is stricter than other backends.
-            # It does not allow ints. We convert without dtype and cast instead.
+        if dtype == "bool" or is_int_dtype(dtype):
+            # TensorFlow conversion is stricter than other backends, it does not
+            # allow ints for bools or floats for ints. We convert without dtype
+            # and cast instead.
             x = tf.convert_to_tensor(x)
             return tf.cast(x, dtype)
         return tf.convert_to_tensor(x, dtype=dtype)
@@ -499,7 +515,6 @@ def associative_scan(f, elems, reverse=False, axis=0):
             )
 
         def _recursive_case():
-
             odd_elems = _scan(reduced_elems)
 
             def _even_length_case():

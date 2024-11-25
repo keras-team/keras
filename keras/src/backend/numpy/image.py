@@ -1,4 +1,5 @@
 import jax
+import ml_dtypes
 import numpy as np
 
 from keras.src import backend
@@ -39,7 +40,7 @@ def rgb_to_grayscale(images, data_format=None):
 def rgb_to_hsv(images, data_format=None):
     # Ref: dm_pix
     images = convert_to_tensor(images)
-    dtype = images.dtype
+    dtype = backend.standardize_dtype(images.dtype)
     data_format = backend.standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
@@ -51,9 +52,9 @@ def rgb_to_hsv(images, data_format=None):
     if not backend.is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={dtype}"
         )
-    eps = np.finfo(dtype).eps
+    eps = ml_dtypes.finfo(dtype).eps
     images = np.where(np.abs(images) < eps, 0.0, images)
     red, green, blue = np.split(images, 3, channels_axis)
     red = np.squeeze(red, channels_axis)

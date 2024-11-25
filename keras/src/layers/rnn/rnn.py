@@ -63,7 +63,7 @@ class RNN(Layer):
             merging bidirectional RNNs.
 
     Call arguments:
-        inputs: Input tensor.
+        sequences: A 3-D tensor with shape `(batch_size, timesteps, features)`.
         initial_state: List of initial state tensors to be passed to the first
             call of the cell.
         mask: Binary tensor of shape `[batch_size, timesteps]`
@@ -75,9 +75,6 @@ class RNN(Layer):
             training mode or in inference mode. This argument is passed
             to the cell when calling it.
             This is for use with cells that use dropout.
-
-    Input shape:
-        3-D tensor with shape `(batch_size, timesteps, features)`.
 
     Output shape:
 

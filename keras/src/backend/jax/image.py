@@ -464,7 +464,7 @@ def affine_transform(
     # transform the indices
     coordinates = jnp.einsum("Bhwij, Bjk -> Bhwik", indices, transform)
     coordinates = jnp.moveaxis(coordinates, source=-1, destination=1)
-    coordinates += jnp.reshape(a=offset, newshape=(*offset.shape, 1, 1, 1))
+    coordinates += jnp.reshape(a=offset, shape=(*offset.shape, 1, 1, 1))
 
     # apply affine transformation
     _map_coordinates = functools.partial(

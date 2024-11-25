@@ -12,6 +12,7 @@ from keras.src.activations.activations import elu
 from keras.src.activations.activations import exponential
 from keras.src.activations.activations import gelu
 from keras.src.activations.activations import glu
+from keras.src.activations.activations import hard_shrink
 from keras.src.activations.activations import hard_sigmoid
 from keras.src.activations.activations import hard_silu
 from keras.src.activations.activations import hard_silu as hard_swish
@@ -27,7 +28,10 @@ from keras.src.activations.activations import selu
 from keras.src.activations.activations import sigmoid
 from keras.src.activations.activations import silu
 from keras.src.activations.activations import silu as swish
+from keras.src.activations.activations import soft_shrink
 from keras.src.activations.activations import softmax
 from keras.src.activations.activations import softplus
 from keras.src.activations.activations import softsign
+from keras.src.activations.activations import squareplus
 from keras.src.activations.activations import tanh
+from keras.src.activations.activations import tanh_shrink

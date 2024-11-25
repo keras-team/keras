@@ -1239,6 +1239,15 @@ def exp(x):
     return tf.exp(x)
 
 
+@sparse.densifying_unary(1)
+def exp2(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = tf.cast(x, config.floatx())
+    return tf.math.pow(2.0, x)
+
+
 def expand_dims(x, axis):
     x = convert_to_tensor(x)
     axis = to_tuple_or_list(axis)
@@ -1799,7 +1808,8 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
         nan_batch_members = tf.reshape(
             nan_batch_members, shape=right_rank_matched_shape
         )
-        gathered_y = tf.where(nan_batch_members, float("NaN"), gathered_y)
+        nan_value = tf.constant(float("NaN"), dtype=x.dtype)
+        gathered_y = tf.where(nan_batch_members, nan_value, gathered_y)
 
     # Expand dimensions if requested
     if keepdims:
@@ -2273,6 +2283,24 @@ def vdot(x1, x2):
     x1 = tf.reshape(x1, [-1])
     x2 = tf.reshape(x2, [-1])
     return tf.cast(dot(x1, x2), result_dtype)
+
+
+def inner(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, float)
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
+    x = tf.cond(
+        tf.math.logical_or(
+            tf.math.equal(tf.rank(x1), 0),
+            tf.math.equal(tf.rank(x2), 0),
+        ),
+        lambda: x1 * x2,
+        lambda: tf.tensordot(x1, x2, axes=[[-1], [-1]]),
+    )
+    return tf.cast(x, result_dtype)
 
 
 def vstack(xs):

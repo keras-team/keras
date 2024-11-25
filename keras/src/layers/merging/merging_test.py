@@ -5,6 +5,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
+from keras.src import ops
 from keras.src import testing
 
 
@@ -338,6 +339,35 @@ class MergingLayersTest(testing.TestCase):
             [[[0, 0, 0, 0], [1, 2, 0, 0], [0, 0, 1, 2], [3, 4, 3, 4]]],
         )
         self.assertAllClose(output._keras_mask, [[1, 1, 1, 1]])
+
+    def test_concatenate_errors(self):
+        # This should work
+        x1 = np.ones((1, 1, 1, 1, 5))
+        x2 = np.ones((1, 1, 1, 1, 4))
+        out = layers.Concatenate(axis=-1)([x1, x2])
+        self.assertEqual(ops.shape(out), (1, 1, 1, 1, 9))
+
+        # This won't
+        x1 = np.ones((1, 2, 1, 1, 5))
+        x2 = np.ones((1, 1, 1, 1, 4))
+        with self.assertRaisesRegex(
+            ValueError,
+            (
+                "requires inputs with matching shapes "
+                "except for the concatenation axis"
+            ),
+        ):
+            out = layers.Concatenate(axis=-1)([x1, x2])
+        x1 = np.ones((1, 2, 1, 2, 1))
+        x2 = np.ones((1, 1, 1, 3, 1))
+        with self.assertRaisesRegex(
+            ValueError,
+            (
+                "requires inputs with matching shapes "
+                "except for the concatenation axis"
+            ),
+        ):
+            out = layers.Concatenate(axis=1)([x1, x2])
 
     @parameterized.named_parameters(TEST_PARAMETERS)
     @pytest.mark.skipif(

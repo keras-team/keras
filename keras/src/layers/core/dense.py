@@ -524,11 +524,7 @@ class Dense(Layer):
             del self._kernel
             # Utilize a lambda expression as an initializer to prevent adding a
             # large constant to the computation graph.
-            self._int8_build(
-                kernel_shape,
-                lambda shape, dtype: kernel_value,
-                lambda shape, dtype: kernel_scale,
-            )
+            self._int8_build(kernel_shape, kernel_value, kernel_scale)
         elif mode == "float8":
             self._float8_build()
         else:

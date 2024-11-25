@@ -81,16 +81,8 @@ def in_top_k(targets, predictions, k):
 
 def logsumexp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if axis is None:
-        max_x = torch.max(x)
-        return torch.log(torch.sum(torch.exp(x - max_x))) + max_x
-
-    max_x = torch.amax(x, dim=axis, keepdim=True)
-    result = (
-        torch.log(torch.sum(torch.exp(x - max_x), dim=axis, keepdim=True))
-        + max_x
-    )
-    return torch.squeeze(result, dim=axis) if not keepdims else result
+    axis = tuple(range(x.dim())) if axis is None else axis
+    return torch.logsumexp(x, dim=axis, keepdim=keepdims)
 
 
 def qr(x, mode="reduced"):
@@ -200,6 +192,12 @@ def fft(x):
 def fft2(x):
     complex_input = _get_complex_tensor_from_tuple(x)
     complex_output = torch.fft.fft2(complex_input)
+    return complex_output.real, complex_output.imag
+
+
+def ifft2(x):
+    complex_input = _get_complex_tensor_from_tuple(x)
+    complex_output = torch.fft.ifft2(complex_input)
     return complex_output.real, complex_output.imag
 
 
@@ -323,7 +321,7 @@ def istft(
             )
 
     if sequence_length == fft_length and center is True and win is not None:
-        # can be falled back to torch.istft
+        # can be fallen back to torch.istft
         need_unpack = False
         *batch_shape, num_sequences, fft_unique_bins = complex_input.shape
         if len(complex_input.shape) > 3:

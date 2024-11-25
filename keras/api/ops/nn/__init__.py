@@ -18,6 +18,7 @@ from keras.src.ops.nn import dot_product_attention
 from keras.src.ops.nn import elu
 from keras.src.ops.nn import gelu
 from keras.src.ops.nn import glu
+from keras.src.ops.nn import hard_shrink
 from keras.src.ops.nn import hard_sigmoid
 from keras.src.ops.nn import hard_silu
 from keras.src.ops.nn import hard_silu as hard_swish
@@ -38,7 +39,10 @@ from keras.src.ops.nn import separable_conv
 from keras.src.ops.nn import sigmoid
 from keras.src.ops.nn import silu
 from keras.src.ops.nn import silu as swish
+from keras.src.ops.nn import soft_shrink
 from keras.src.ops.nn import softmax
 from keras.src.ops.nn import softplus
 from keras.src.ops.nn import softsign
 from keras.src.ops.nn import sparse_categorical_crossentropy
+from keras.src.ops.nn import squareplus
+from keras.src.ops.nn import tanh_shrink

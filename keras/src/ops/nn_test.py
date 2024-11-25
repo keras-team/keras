@@ -84,8 +84,7 @@ def _dot_product_attention(
     padded_logits = _apply_masks(logits, mask, is_causal)
     padded_logits = padded_logits.astype(np.float32)
     probs = softmax(padded_logits, axis=-1).astype(key.dtype)
-    encoded = np.einsum("BNTS,BSNH->BTNH", probs, value)
-    return encoded
+    return np.einsum("BNTS,BSNH->BTNH", probs, value)
 
 
 class NNOpsDynamicShapeTest(testing.TestCase):
@@ -149,9 +148,25 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.glu(x).shape, (None, 2, 3))
 
+    def test_tanh_shrink(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.tanh_shrink(x).shape, (None, 2, 3))
+
     def test_hard_tanh(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_tanh(x).shape, (None, 2, 3))
+
+    def test_hard_shrink(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.hard_shrink(x).shape, (None, 2, 3))
+
+    def test_squareplus(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.squareplus(x).shape, (None, 2, 3))
+
+    def test_soft_shrink(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.soft_shrink(x).shape, (None, 2, 3))
 
     def test_softmax(self):
         x = KerasTensor([None, 2, 3])
@@ -806,9 +821,25 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.glu(x).shape, (1, 2, 3))
 
+    def test_tanh_shrink(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.tanh_shrink(x).shape, (1, 2, 3))
+
     def test_hard_tanh(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.hard_tanh(x).shape, (1, 2, 3))
+
+    def test_hard_shrink(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.hard_shrink(x).shape, (1, 2, 3))
+
+    def test_squareplus(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.squareplus(x).shape, (1, 2, 3))
+
+    def test_soft_shrink(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.soft_shrink(x).shape, (1, 2, 3))
 
     def test_softmax(self):
         x = KerasTensor([1, 2, 3])
@@ -1330,11 +1361,39 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [-0.8807971, 0.0, 0.98201376],
         )
 
+    def test_tanh_shrink(self):
+        x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.tanh_shrink(x),
+            [-0.238406, 0.0, 0.238406, 1.035972, 2.004945],
+        )
+
     def test_hard_tanh(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
             knn.hard_tanh(x),
             [-1.0, 0.0, 1.0, 1.0, 1.0],
+        )
+
+    def test_hard_shrink(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.hard_shrink(x),
+            [0.0, 0.0, 1.0, 2.0, 3.0],
+        )
+
+    def test_squareplus(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.squareplus(x),
+            [0.780776, 1.0, 1.618034, 2.414214, 3.302776],
+        )
+
+    def test_soft_shrink(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.soft_shrink(x),
+            [0.0, 0.0, 0.5, 1.5, 2.5],
         )
 
     def test_softmax(self):
@@ -2253,83 +2312,96 @@ class NNOpsCorrectnessTest(testing.TestCase):
             bias=(None, True),
             scale=(None, 1.0),
             mask_and_is_causal=((None, False), (True, False), (None, True)),
-            flash_attention=(True, False),
+            flash_attention=(None, True, False),
         )
     )
     def test_dot_product_attention(
         self, bias, scale, mask_and_is_causal, flash_attention
     ):
         mask, is_causal = mask_and_is_causal
-        query_shape = (2, 3, 4, 5)
-        key_shape = (2, 6, 4, 5)
-        mask_shape = (2, 4, 3, 6)
+        query_shape = (2, 3, 4, 8)
+        key_shape = (2, 3, 4, 8)
+        bias_shape = (2, 4, 3, 3)
         query = np.arange(math.prod(query_shape), dtype=float).reshape(
             query_shape
         )
         key = np.arange(math.prod(key_shape), dtype=float).reshape(key_shape)
         value = np.arange(math.prod(key_shape), dtype=float).reshape(key_shape)
         if mask is not None:
-            mask = np.arange(math.prod(mask_shape)).reshape(mask_shape)
-            mask = (mask > 10).astype("bool")
+            mask = np.tril(np.ones((3, 3))).astype("bool")
+            mask = mask[None, None, ...]
+            mask = np.tile(mask, (2, 4, 1, 1))
         if bias is not None:
             if backend.backend() == "torch":
                 self.skipTest(
                     "torch does not support `bias` with `dot_product_attention`"
                 )
-            bias = np.arange(math.prod(mask_shape), dtype=float).reshape(
-                mask_shape
+            bias = np.arange(math.prod(bias_shape), dtype=float).reshape(
+                bias_shape
             )
 
-        if flash_attention and backend.backend() in [
-            "torch",
-            "tensorflow",
-            "numpy",
-        ]:
-            self.skipTest(
-                "Not supported in TF and NumPy and supported for "
-                "PyTorch with specific requirements."
-            )
-
-        if flash_attention and backend.backend() == "jax":
-            try:
-                outputs = knn.dot_product_attention(
-                    query,
-                    key,
-                    value,
-                    bias=bias,
-                    mask=mask,
-                    scale=scale,
-                    is_causal=is_causal,
-                    flash_attention=flash_attention,
+        if flash_attention:
+            if backend.backend() in ("tensorflow", "numpy"):
+                self.skipTest(
+                    "Flash attention is not supported in tensorflow and numpy "
+                    "backends."
                 )
-            except ValueError as e:
-                if e.args[0].startswith(
-                    "Flash attention is not supported in your "
-                    "current JAX version"
-                ):
+            elif backend.backend() == "torch":
+                import torch
+
+                if mask is not None:
                     self.skipTest(
-                        "JAX version does not have "
-                        "`dot_product_attention` function."
+                        "Flash attention doesn't support `mask=None` in torch "
+                        "backend."
                     )
-            except RuntimeError as e:
-                if e.args[0] == "cuDNN is not detected.":
-                    self.skipTest("No CuDNN to run flash attention for JAX.")
-                elif e.args[0] == "Require at least Ampere arch to run":
+                if not torch.cuda.is_available():
                     self.skipTest(
-                        "Requires at least Ampere arch to run flash attention "
-                        "for JAX."
+                        "Flash attention must be run on CUDA in torch backend."
                     )
-        else:
-            outputs = knn.dot_product_attention(
-                query,
-                key,
-                value,
-                bias=bias,
-                mask=mask,
-                scale=scale,
-                is_causal=is_causal,
-                flash_attention=flash_attention,
-            )
+                cuda_compute_capability = tuple(
+                    int(x) for x in torch.cuda.get_device_capability()
+                )
+                if cuda_compute_capability < (8, 0):
+                    self.skipTest(
+                        "Flash attention must be run on CUDA compute "
+                        "capability >= 8.0 in torch backend."
+                    )
+            elif backend.backend() == "jax":
+                import jax
+                from jax._src import xla_bridge
+
+                if "cuda" not in xla_bridge.get_backend().platform_version:
+                    self.skipTest(
+                        "Flash attention must be run on CUDA in jax backend."
+                    )
+                d, *_ = jax.local_devices(backend="gpu")
+                cuda_compute_capability = tuple(
+                    int(x) for x in d.compute_capability.split(".")
+                )
+                if cuda_compute_capability < (8, 0):
+                    self.skipTest(
+                        "Flash attention must be run on CUDA compute "
+                        "capability >= 8.0 in jax backend."
+                    )
+
+            # Flash attention only supports float16 and bfloat16. We multiply
+            # 0.1 to avoid overflow.
+            query = (query * 0.1).astype("float16")
+            key = (key * 0.1).astype("float16")
+            value = (value * 0.1).astype("float16")
+            if bias is not None:
+                bias = (bias * 0.1).astype("float16")
+
+        outputs = knn.dot_product_attention(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            is_causal=is_causal,
+            flash_attention=flash_attention,
+        )
 
         expected = _dot_product_attention(
             query,
@@ -2340,7 +2412,9 @@ class NNOpsCorrectnessTest(testing.TestCase):
             scale=scale,
             is_causal=is_causal,
         )
-        self.assertAllClose(outputs, expected)
+        self.assertAllClose(
+            outputs, expected, atol=1e-3 if flash_attention else 1e-6
+        )
 
 
 class NNOpsDtypeTest(testing.TestCase):
@@ -2427,6 +2501,24 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_tanh_shrink(self, dtype):
+        import torch
+        import torch.nn.functional as tnn
+
+        x = knp.ones((1), dtype=dtype)
+        x_torch = torch.ones(1, dtype=getattr(torch, dtype))
+        expected_dtype = standardize_dtype(tnn.tanhshrink(x_torch).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.tanh_shrink(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.TanhShrink().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_hard_tanh(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2445,9 +2537,48 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_hard_shrink(self, dtype):
+        import torch
+        import torch.nn.functional as tnn
+
+        x = knp.ones((1), dtype=dtype)
+        x_torch = torch.ones(1, dtype=getattr(torch, dtype))
+        expected_dtype = standardize_dtype(tnn.hardshrink(x_torch).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.hard_shrink(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.HardShrink().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_soft_shrink(self, dtype):
+        import torch
+        import torch.nn.functional as tnn
+
+        x = knp.ones((1), dtype=dtype)
+        x_torch = torch.ones(1, dtype=getattr(torch, dtype))
+        expected_dtype = standardize_dtype(tnn.softshrink(x_torch).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.soft_shrink(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.SoftShrink().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_glu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
+
+        if dtype == "bfloat16":
+            self.skipTest("Weirdness with numpy")
 
         x = knp.ones((2), dtype=dtype)
         x_jax = jnp.ones((2), dtype=dtype)
@@ -2459,6 +2590,27 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.Glu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_squareplus(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        if dtype == "bfloat16":
+            self.skipTest("Weirdness with numpy")
+
+        x = knp.ones((2), dtype=dtype)
+        x_jax = jnp.ones((2), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.squareplus(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.squareplus(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Squareplus().symbolic_call(x).dtype),
             expected_dtype,
         )
 
@@ -2762,9 +2914,9 @@ class NNOpsDtypeTest(testing.TestCase):
     def test_dot_product_attention(self, dtype):
         # TODO: Get expected output from jax if `jax.nn.dot_product_attention`
         # is available.
-        query = knp.ones((2, 3, 3, 4), dtype=dtype)
-        key = knp.ones((2, 3, 3, 4), dtype=dtype)
-        value = knp.ones((2, 3, 3, 4), dtype=dtype)
+        query = knp.ones((2, 3, 3, 8), dtype=dtype)
+        key = knp.ones((2, 3, 3, 8), dtype=dtype)
+        value = knp.ones((2, 3, 3, 8), dtype=dtype)
         expected_dtype = dtype
 
         self.assertDType(

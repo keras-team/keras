@@ -74,7 +74,6 @@ class ExportArchiveTest(testing.TestCase):
         named_product(model_type=["sequential", "functional", "subclass"])
     )
     def test_model_with_rng_export(self, model_type):
-
         class RandomLayer(layers.Layer):
             def __init__(self):
                 super().__init__()
@@ -104,7 +103,6 @@ class ExportArchiveTest(testing.TestCase):
         named_product(model_type=["sequential", "functional", "subclass"])
     )
     def test_model_with_non_trainable_state_export(self, model_type):
-
         class StateLayer(layers.Layer):
             def __init__(self):
                 super().__init__()
@@ -151,22 +149,18 @@ class ExportArchiveTest(testing.TestCase):
         named_product(struct_type=["tuple", "array", "dict"])
     )
     def test_model_with_input_structure(self, struct_type):
-
         class TupleModel(models.Model):
-
             def call(self, inputs):
                 x, y = inputs
                 return ops.add(x, y)
 
         class ArrayModel(models.Model):
-
             def call(self, inputs):
                 x = inputs[0]
                 y = inputs[1]
                 return ops.add(x, y)
 
         class DictModel(models.Model):
-
             def call(self, inputs):
                 x = inputs["x"]
                 y = inputs["y"]
@@ -214,7 +208,6 @@ class ExportArchiveTest(testing.TestCase):
         export_lib.export_model(revived_model, self.get_temp_dir())
 
     def test_model_with_multiple_inputs(self):
-
         class TwoInputsModel(models.Model):
             def call(self, x, y):
                 return x + y
@@ -302,7 +295,6 @@ class ExportArchiveTest(testing.TestCase):
         named_product(model_type=["sequential", "functional", "subclass"])
     )
     def test_low_level_model_export_with_dynamic_dims(self, model_type):
-
         class ReductionLayer(layers.Layer):
             def call(self, inputs):
                 return ops.max(inputs, axis=1)
@@ -382,7 +374,6 @@ class ExportArchiveTest(testing.TestCase):
         reason="This test is only for the JAX backend.",
     )
     def test_low_level_model_export_with_jax2tf_polymorphic_shapes(self):
-
         class SquareLayer(layers.Layer):
             def call(self, inputs):
                 return ops.matmul(inputs, inputs)

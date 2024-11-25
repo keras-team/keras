@@ -41,7 +41,6 @@ def get_edge_dict(dot):
 
 
 class ModelVisualizationTest(testing.TestCase):
-
     def test_plot_sequential_model(self):
         model = keras.Sequential(
             [

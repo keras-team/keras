@@ -76,7 +76,6 @@ def get_subclassed_model():
 
 @pytest.mark.requires_trainable_backend
 class CloneModelTest(testing.TestCase):
-
     def assert_models_equal(self, model1, model2, ref_input):
         result1 = model1(ref_input)
         result2 = model2(ref_input)

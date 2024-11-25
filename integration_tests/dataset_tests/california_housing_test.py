@@ -3,7 +3,6 @@ from keras.src.datasets import california_housing
 
 
 class CaliforniaHousingTest(testing.TestCase):
-
     def test_load_data_large(self):
         (x_train, y_train), (x_test, y_test) = california_housing.load_data(
             version="large"

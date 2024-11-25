@@ -656,6 +656,15 @@ class ActivationsTest(testing.TestCase):
         expected = glu(x, axis=-2)
         self.assertAllClose(result, expected, rtol=1e-05)
 
+    def test_tanh_shrink(self):
+        def tanh_shrink(x):
+            return x - np.tanh(x)
+
+        x = np.random.random((2, 5))
+        result = activations.tanh_shrink(x[np.newaxis, :])[0]
+        expected = tanh_shrink(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
     def test_hard_tanh(self):
         def hard_tanh(x):
             return np.clip(x, -1.0, 1.0)
@@ -663,6 +672,38 @@ class ActivationsTest(testing.TestCase):
         x = np.random.random((2, 5))
         result = activations.hard_tanh(x[np.newaxis, :])[0]
         expected = hard_tanh(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_hard_shrink(self):
+        def hard_shrink(x):
+            return np.where(np.abs(x) > 0.5, x, 0.0)
+
+        x = np.random.random((2, 5))
+        result = activations.hard_shrink(x[np.newaxis, :])[0]
+        expected = hard_shrink(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_squareplus(self):
+        def squareplus(x, b=4):
+            y = x + np.sqrt(x**2 + b)
+            return y / 2
+
+        x = np.random.random((2, 5))
+        result = activations.squareplus(x[np.newaxis, :])[0]
+        expected = squareplus(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_soft_shrink(self):
+        def soft_shrink(x, threshold=0.5):
+            return np.where(
+                x > threshold,
+                x - threshold,
+                np.where(x < -threshold, x + threshold, 0.0),
+            )
+
+        x = np.random.random((2, 5))
+        result = activations.soft_shrink(x[np.newaxis, :])[0]
+        expected = soft_shrink(x)
         self.assertAllClose(result, expected, rtol=1e-05)
 
     def test_elu(self):

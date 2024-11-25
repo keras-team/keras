@@ -206,21 +206,29 @@ class OptimizerSparseTest(testing.TestCase):
         # patch "_apply_weight_decay" to exclude this special case.
         # patch the optimizer "assign" methods to detect sparse updates.
         # patch the tf.Variable "assign" methods to detect direct assign calls.
-        with mock.patch.object(
-            optimizer_to_patch, "_apply_weight_decay", autospec=True
-        ), mock.patch.object(
-            optimizer_to_patch, "assign", autospec=True
-        ) as optimizer_assign, mock.patch.object(
-            optimizer_to_patch, "assign_add", autospec=True
-        ) as optimizer_assign_add, mock.patch.object(
-            optimizer_to_patch, "assign_sub", autospec=True
-        ) as optimizer_assign_sub, mock.patch.object(
-            variable_class, "assign", autospec=True
-        ) as variable_assign, mock.patch.object(
-            variable_class, "assign_add", autospec=True
-        ) as variable_assign_add, mock.patch.object(
-            variable_class, "assign_sub", autospec=True
-        ) as variable_assign_sub:
+        with (
+            mock.patch.object(
+                optimizer_to_patch, "_apply_weight_decay", autospec=True
+            ),
+            mock.patch.object(
+                optimizer_to_patch, "assign", autospec=True
+            ) as optimizer_assign,
+            mock.patch.object(
+                optimizer_to_patch, "assign_add", autospec=True
+            ) as optimizer_assign_add,
+            mock.patch.object(
+                optimizer_to_patch, "assign_sub", autospec=True
+            ) as optimizer_assign_sub,
+            mock.patch.object(
+                variable_class, "assign", autospec=True
+            ) as variable_assign,
+            mock.patch.object(
+                variable_class, "assign_add", autospec=True
+            ) as variable_assign_add,
+            mock.patch.object(
+                variable_class, "assign_sub", autospec=True
+            ) as variable_assign_sub,
+        ):
             optimizer_assign.side_effect = mock_optimizer_assign
             optimizer_assign_add.side_effect = mock_optimizer_assign
             optimizer_assign_sub.side_effect = mock_optimizer_assign

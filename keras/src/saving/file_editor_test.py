@@ -26,7 +26,6 @@ def get_target_model():
 
 
 class SavingTest(testing.TestCase):
-
     def test_basics(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
 
@@ -98,14 +97,16 @@ class SavingTest(testing.TestCase):
         model.add(keras.layers.Dense(1, activation="sigmoid", name="my_dense"))
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
         model.fit(np.array([[1]]), np.array([[1]]), verbose=0)
-        model.save("model.keras")
-        model.save_weights("model.weights.h5")
+        model_fpath = os.path.join(self.get_temp_dir(), "model.keras")
+        weights_fpath = os.path.join(self.get_temp_dir(), "model.weights.h5")
+        model.save(model_fpath)
+        model.save_weights(weights_fpath)
 
-        model_editor = KerasFileEditor("model.keras")
+        model_editor = KerasFileEditor(model_fpath)
         self.assertEqual(
             len(keras.src.tree.flatten(model_editor.weights_dict)), 8
         )
-        model_weights_editor = KerasFileEditor("model.weights.h5")
+        model_weights_editor = KerasFileEditor(weights_fpath)
         self.assertEqual(
             len(keras.src.tree.flatten(model_weights_editor.weights_dict)), 8
         )

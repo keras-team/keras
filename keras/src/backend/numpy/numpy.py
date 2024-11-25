@@ -489,6 +489,14 @@ def exp(x):
     return np.exp(x)
 
 
+def exp2(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    return np.exp2(x)
+
+
 def expand_dims(x, axis):
     axis = standardize_axis_for_numpy(axis)
     return np.expand_dims(x, axis)
@@ -996,6 +1004,15 @@ def vdot(x1, x2):
     x1 = x1.astype(dtype)
     x2 = x2.astype(dtype)
     return np.vdot(x1, x2)
+
+
+def inner(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
+    return np.inner(x1, x2)
 
 
 def vstack(xs):

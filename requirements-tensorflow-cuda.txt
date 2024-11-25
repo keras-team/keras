@@ -1,5 +1,5 @@
 # Tensorflow with cuda support.
-tensorflow[and-cuda]~=2.17.0  # Pin to TF 2.16
+tensorflow[and-cuda]~=2.18.0  # Pin to TF 2.16
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu

@@ -76,9 +76,7 @@ def in_top_k(targets, predictions, k):
 
 
 def logsumexp(x, axis=None, keepdims=False):
-    max_x = np.max(x, axis=axis, keepdims=True)
-    result = np.log(np.sum(np.exp(x - max_x), axis=axis, keepdims=True)) + max_x
-    return np.squeeze(result) if not keepdims else result
+    return scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
 def qr(x, mode="reduced"):
@@ -142,6 +140,12 @@ def fft(x):
 def fft2(x):
     real, imag = jax_fft2(x)
     return np.array(real), np.array(imag)
+
+
+def ifft2(x):
+    complex_input = _get_complex_tensor_from_tuple(x)
+    complex_output = np.fft.ifft2(complex_input)
+    return np.real(complex_output), np.imag(complex_output)
 
 
 def rfft(x, fft_length=None):

@@ -35,6 +35,11 @@ def tanh(x):
     return np.tanh(x)
 
 
+def tanh_shrink(x):
+    x = convert_to_tensor(x)
+    return x - np.tanh(x)
+
+
 def softplus(x):
     x = convert_to_tensor(x)
     return np.logaddexp(x, np.array(0.0, x.dtype))
@@ -45,9 +50,28 @@ def softsign(x):
     return x / (np.array(1.0, x.dtype) + np.abs(x))
 
 
+def soft_shrink(x, threshold=0.5):
+    return np.where(
+        x > threshold,
+        np.array(x - threshold, dtype=x.dtype),
+        np.where(
+            x < -threshold,
+            np.array(x + threshold, dtype=x.dtype),
+            np.array(0.0, dtype=x.dtype),
+        ),
+    )
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return x * sigmoid(x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b, dtype=x.dtype)
+    y = x + np.sqrt(x**2 + b)
+    return y / 2
 
 
 def log_sigmoid(x):
@@ -137,6 +161,15 @@ def hard_tanh(x):
     min_val = np.asarray(-1.0, x.dtype)
     max_val = np.asarray(1.0, x.dtype)
     return np.array(np.clip(x, min_val, max_val), dtype=x.dtype)
+
+
+def hard_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    threshold = np.asarray(threshold, x.dtype)
+    return np.array(
+        np.where(np.abs(x) > threshold, x, np.array(0.0, dtype=x.dtype)),
+        dtype=x.dtype,
+    )
 
 
 def softmax(x, axis=None):
@@ -647,7 +680,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     batch_size, max_label_length = target.shape
     log_epsilon = -1e5
 
-    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
     dtype = backend.result_type(output.dtype, "float32")
     output = output.astype(dtype)
 
@@ -1066,10 +1099,13 @@ def dot_product_attention(
     mask=None,
     scale=None,
     is_causal=False,
-    flash_attention=False,
+    flash_attention=None,
 ):
+    if flash_attention is None:
+        flash_attention = False
     if flash_attention:
-        raise ValueError("Flash attention is not implemented in NumPy.")
+        raise ValueError("Flash attention is not supported in numpy backend.")
+
     # Ref: jax.nn.dot_product_attention
     # https://github.com/jax-ml/jax/blob/jax-v0.4.32/jax/_src/nn/functions.py#L828
     # Not support `query_seq_lengths` and `key_value_seq_lengths` args

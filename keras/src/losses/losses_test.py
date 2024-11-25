@@ -1645,3 +1645,99 @@ class TverskyTest(testing.TestCase):
         y_pred = np.array(([[4, 1], [6, 1]]))
         output = losses.Tversky(dtype="bfloat16")(y_true, y_pred)
         self.assertDType(output, "bfloat16")
+
+
+class CircleTest(testing.TestCase):
+    def setup(self):
+        self.y_true = np.array([1, 1, 2, 2, 3])
+        self.y_pred = np.array(
+            [
+                [0.70014004, -0.42008403, 0.14002801, 0.56011203],
+                [0.17609018, 0.70436073, -0.52827054, 0.44022545],
+                [-0.34050261, 0.25537696, -0.68100522, 0.59587957],
+                [0.32163376, -0.75047877, 0.53605627, -0.21442251],
+                [0.51261459, -0.34174306, 0.17087153, 0.76892189],
+            ]
+        )
+        self.ref_labels = np.array([1, 1, 2, 2, 3, 4])
+        self.ref_embeddings = np.array(
+            [
+                [0.40824829, -0.54433105, 0.27216553, 0.68041382],
+                [0.76376261, 0.10910895, -0.54554473, 0.32732684],
+                [-0.74420841, 0.24806947, 0.49613894, -0.3721042],
+                [0.52981294, -0.13245324, 0.79471941, -0.26490647],
+                [0.54554473, -0.32732684, 0.10910895, 0.76376261],
+                [-0.27216553, 0.68041382, 0.40824829, -0.54433105],
+            ]
+        )
+
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.Circle(name="mycircle", gamma=80.0, margin=0.4)
+        )
+
+    def test_correctness(self):
+        self.setup()
+        circle_loss = losses.Circle(gamma=80.0, margin=0.4)
+        loss = circle_loss(self.y_true, self.y_pred)
+        self.assertAlmostEqual(loss, 188.3883)
+
+        circle_loss = losses.Circle(gamma=256, margin=0.25)
+        loss = circle_loss(self.y_true, self.y_pred)
+        self.assertAlmostEqual(loss, 652.7617)
+
+        loss = losses.circle(
+            self.y_true,
+            self.y_pred,
+            ref_labels=self.ref_labels,
+            ref_embeddings=self.ref_embeddings,
+            gamma=80.0,
+            margin=0.4,
+            remove_diagonal=False,
+        )
+
+        self.assertAllClose(
+            loss, (61.5844, 94.3465, 276.9344, 90.9873, 48.8963)
+        )
+
+    def test_correctness_weighted(self):
+        self.setup()
+        sample_weight = np.array([2.0, 2.0, 1.0, 1.0, 0.5])
+        circle_loss = losses.Circle(gamma=80.0, margin=0.4)
+        loss = circle_loss(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+        self.assertAlmostEqual(loss, 244.91918)
+
+    def test_no_reduction(self):
+        self.setup()
+        circle_loss = losses.Circle(gamma=80.0, margin=0.4, reduction=None)
+        loss = circle_loss(self.ref_labels, self.ref_embeddings)
+
+        self.assertAllClose(
+            loss, [82.9116, 36.7942, 92.4590, 52.6798, 0.0, 0.0]
+        )
+
+    def test_sum_reduction(self):
+        self.setup()
+        circle_loss = losses.Circle(gamma=80.0, margin=0.4, reduction="sum")
+        loss = circle_loss(self.ref_labels, self.ref_embeddings)
+
+        self.assertAlmostEqual(loss, 264.845)
+
+    def test_mean_with_sample_weight_reduction(self):
+        self.setup()
+        sample_weight = np.array([2.0, 2.0, 1.0, 1.0, 0.5])
+        circle_loss = losses.Circle(
+            gamma=80.0, margin=0.4, reduction="mean_with_sample_weight"
+        )
+        loss = circle_loss(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+        self.assertAlmostEqual(loss, 163.27948)
+
+    def test_dtype_arg(self):
+        self.setup()
+        circle_loss = losses.Circle(dtype="bfloat16")
+        loss = circle_loss(self.y_true, self.y_pred)
+        self.assertDType(loss, "bfloat16")

@@ -174,6 +174,48 @@ def softsign(x):
     return backend.nn.softsign(x)
 
 
+class SoftShrink(Operation):
+    def __init__(self, threshold=0.5):
+        super().__init__()
+        self.threshold = threshold
+
+    def call(self, x):
+        return backend.nn.soft_shrink(x, self.threshold)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.soft_shrink", "keras.ops.nn.soft_shrink"])
+def soft_shrink(x, threshold=0.5):
+    """Soft Shrink activation function.
+
+    It is defined as
+
+    `f(x) = x - threshold` if `x > threshold`,
+    `f(x) = x + threshold` if `x < -threshold`,
+    `f(x) = 0` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: Threshold value. Defaults to 0.5.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1.0, 0.0, 1.0])
+    >>> x_soft_shrink = keras.ops.soft_shrink(x)
+    >>> print(x_soft_shrink)
+    array([-0.5  0.   0.5], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return SoftShrink(threshold).symbolic_call(x)
+    return backend.nn.soft_shrink(x, threshold)
+
+
 class Silu(Operation):
     def call(self, x):
         return backend.nn.silu(x)
@@ -214,6 +256,46 @@ def silu(x):
     if any_symbolic_tensors((x,)):
         return Silu().symbolic_call(x)
     return backend.nn.silu(x)
+
+
+class Squareplus(Operation):
+    def __init__(self, b=4):
+        super().__init__()
+        self.b = b
+
+    def call(self, x):
+        return backend.nn.squareplus(x, self.b)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.squareplus", "keras.ops.nn.squareplus"])
+def squareplus(x, b=4):
+    """Squareplus activation function.
+
+    The Squareplus activation function is defined as:
+
+    `f(x) = (x + sqrt(x^2 + b)) / 2`
+
+    Args:
+        x: Input tensor.
+        b: Smoothness parameter. Defaults to 4.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1.0, 0.0, 1.0])
+    >>> x_squareplus = keras.ops.squareplus(x)
+    >>> print(x_squareplus)
+    array([0.6180, 1.0000, 1.6180], dtype=float32)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Squareplus(b).symbolic_call(x)
+    return backend.nn.squareplus(x, b)
 
 
 class LogSigmoid(Operation):
@@ -579,6 +661,45 @@ def glu(x, axis=-1):
     return backend.nn.glu(x, axis=axis)
 
 
+class TanhShrink(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.nn.tanh_shrink(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.tanh_shrink", "keras.ops.nn.tanh_shrink"])
+def tanh_shrink(x):
+    """Applies the tanh shrink function element-wise.
+
+    It is defined as:
+
+    `f(x) = x - tanh(x)`.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output tensor of the same shape as `x`, where each element is
+        transformed according to the tanh shrink operation.
+
+    Example:
+
+    >>> x = np.array([ -1., 0., 1.])
+    >>> x_tanh_shrink = keras.ops.tanh_shrink(x)
+    >>> print(x_tanh_shrink)
+    array([-0.23840584  0.  0.23840584], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return TanhShrink().symbolic_call(x)
+    return backend.nn.tanh_shrink(x)
+
+
 class HardTanh(Operation):
     def __init__(self):
         super().__init__()
@@ -616,6 +737,47 @@ def hard_tanh(x):
     if any_symbolic_tensors((x,)):
         return HardTanh().symbolic_call(x)
     return backend.nn.hard_tanh(x)
+
+
+class HardShrink(Operation):
+    def __init__(self, threshold=0.5):
+        super().__init__()
+        self.threshold = threshold
+
+    def call(self, x):
+        return backend.nn.hard_shrink(x, self.threshold)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.hard_shrink", "keras.ops.nn.hard_shrink"])
+def hard_shrink(x, threshold=0.5):
+    """Hard Shrink activation function.
+
+    The Hard Shrink function is a thresholding operation defined as:
+
+    `f(x) = x` if `|x| > threshold`,
+    `f(x) = 0` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: Threshold value. Defaults to 0.5.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-0.5, 0., 1.])
+    >>> x_hard_shrink = keras.ops.hard_shrink(x)
+    >>> print(x_hard_shrink)
+    array([0. 0. 1.], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return HardShrink(threshold).symbolic_call(x)
+    return backend.nn.hard_shrink(x, threshold)
 
 
 class Softmax(Operation):
@@ -2259,7 +2421,7 @@ class DotProductAttention(Operation):
         bias=None,
         mask=None,
         scale=None,
-        flash_attention=False,
+        flash_attention=None,
     ):
         return backend.nn.dot_product_attention(
             query,
@@ -2280,7 +2442,7 @@ class DotProductAttention(Operation):
         bias=None,
         mask=None,
         scale=None,
-        flash_attention=False,
+        flash_attention=None,
     ):
         return KerasTensor(query.shape, dtype=query.dtype)
 
@@ -2296,7 +2458,7 @@ def dot_product_attention(
     mask=None,
     scale=None,
     is_causal=False,
-    flash_attention=False,
+    flash_attention=None,
 ):
     """Scaled dot product attention function.
 
@@ -2331,6 +2493,10 @@ def dot_product_attention(
         scale: Optional scale for the logits. If `None`, the scale will be set
             to `1.0 / sqrt(H)`.
         is_causal: Whether to apply causal mask.
+        flash_attention: Whether to use flash attention. If `None`, it will
+            attempt to use flash attention if the required conditions are met.
+            Typically, the inputs must be in float16 and bfloat16 dtype and the
+            input layout requirements may vary depending on the backend.
 
     Returns:
         An array of the attention output with the same shape of `query`.

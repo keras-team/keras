@@ -1,5 +1,7 @@
+from keras.src.tree.tree_api import assert_same_paths
 from keras.src.tree.tree_api import assert_same_structure
 from keras.src.tree.tree_api import flatten
+from keras.src.tree.tree_api import flatten_with_path
 from keras.src.tree.tree_api import is_nested
 from keras.src.tree.tree_api import lists_to_tuples
 from keras.src.tree.tree_api import map_shape_structure

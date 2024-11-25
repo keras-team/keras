@@ -63,6 +63,12 @@ class BackupAndRestore(Callback):
           When set to an integer, the callback saves the checkpoint every
           `save_freq` batches. Set `save_freq=False` only if using
           preemption checkpointing (i.e. with `save_before_preemption=True`).
+        double_checkpoint: Boolean. If enabled, `BackupAndRestore` callback
+          will save 2 last training states (current and previous). After
+          interruption if current state can't be loaded due to IO error
+          (e.g. file corrupted) it will try to restore previous one. Such
+          behaviour will consume twice more space on disk, but increase fault
+          tolerance. Defaults to `False`.
         delete_checkpoint: Boolean. This `BackupAndRestore`
           callback works by saving a checkpoint to back up the training state.
           If `delete_checkpoint=True`, the checkpoint will be deleted after
@@ -74,10 +80,12 @@ class BackupAndRestore(Callback):
         self,
         backup_dir,
         save_freq="epoch",
+        double_checkpoint=False,
         delete_checkpoint=True,
     ):
         super().__init__()
         self.save_freq = save_freq
+        self.double_checkpoint = double_checkpoint
         self.delete_checkpoint = delete_checkpoint
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
@@ -90,6 +98,10 @@ class BackupAndRestore(Callback):
         self._training_metadata_path = file_utils.join(
             backup_dir, "training_metadata.json"
         )
+        self._prev_weights_path = self._weights_path + ".bkp"
+        self._prev_training_metadata_path = (
+            self._training_metadata_path + ".bkp"
+        )
         if save_freq != "epoch" and not isinstance(save_freq, int):
             raise ValueError(
                 "Invalid value for argument `save_freq`. "
@@ -98,6 +110,23 @@ class BackupAndRestore(Callback):
             )
 
     def on_train_begin(self, logs=None):
+        try:
+            self._load_model()
+        except OSError as e:
+            # Weights may be corrupted. Trying to load previous one.
+            if not file_utils.exists(self._prev_weights_path):
+                raise e
+            file_utils.copy(self._prev_weights_path, self._weights_path)
+            if file_utils.exists(self._prev_training_metadata_path):
+                file_utils.copy(
+                    self._prev_training_metadata_path,
+                    self._training_metadata_path,
+                )
+            elif file_utils.exists(self._training_metadata_path):
+                file_utils.remove(self._training_metadata_path)
+            self._load_model()
+
+    def _load_model(self):
         """Get training state from temporary file and restore it."""
         if not self.model.built:
             raise ValueError(
@@ -143,6 +172,14 @@ class BackupAndRestore(Callback):
         # Create host directory if it doesn't exist.
         if not file_utils.exists(self.backup_dir):
             file_utils.makedirs(self.backup_dir)
+        if self.double_checkpoint and file_utils.exists(self._weights_path):
+            file_utils.copy(self._weights_path, self._prev_weights_path)
+        if self.double_checkpoint and file_utils.exists(
+            self._training_metadata_path
+        ):
+            file_utils.copy(
+                self._training_metadata_path, self._prev_training_metadata_path
+            )
         self.model.save_weights(filepath=self._weights_path, overwrite=True)
         with file_utils.File(self._training_metadata_path, "w") as f:
             training_metadata = {

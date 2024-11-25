@@ -115,7 +115,7 @@ class DepthwiseConv2D(BaseDepthwiseConv):
         activity_regularizer=None,
         depthwise_constraint=None,
         bias_constraint=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             rank=2,
@@ -134,5 +134,5 @@ class DepthwiseConv2D(BaseDepthwiseConv):
             activity_regularizer=activity_regularizer,
             depthwise_constraint=depthwise_constraint,
             bias_constraint=bias_constraint,
-            **kwargs
+            **kwargs,
         )

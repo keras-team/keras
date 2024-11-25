@@ -259,6 +259,24 @@ def softsign(x):
     return ops.softsign(x)
 
 
+@keras_export("keras.activations.soft_shrink")
+def soft_shrink(x, threshold=0.5):
+    """Soft Shrink activation function.
+
+    It is defined as:
+
+    `soft_shrink(x) = x - threshold` if `x > threshold`,
+    `soft_shrink(x) = x + threshold` if `x < -threshold`,
+    `soft_shrink(x) = 0` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: Threshold value. Defaults to 0.5.
+
+    """
+    return ops.soft_shrink(x, threshold=threshold)
+
+
 @keras_export(["keras.activations.silu", "keras.activations.swish"])
 def silu(x):
     """Swish (or Silu) activation function.
@@ -277,6 +295,27 @@ def silu(x):
     - [Ramachandran et al., 2017](https://arxiv.org/abs/1710.05941)
     """
     return ops.silu(x)
+
+
+@keras_export("keras.activations.squareplus")
+def squareplus(x, b=4):
+    """Squareplus activation function.
+
+    The Squareplus activation function is defined as:
+
+    `f(x) = (x + sqrt(x^2 + b)) / 2`
+
+    Where `b` is a smoothness parameter.
+
+    Args:
+        x: Input tensor.
+        b: Smoothness parameter. Defaults to 4.
+
+    Reference:
+
+    - [Ramachandran et al., 2021](https://arxiv.org/abs/2112.11687)
+    """
+    return ops.squareplus(x, b=b)
 
 
 @keras_export("keras.activations.gelu")
@@ -358,6 +397,20 @@ def tanh(x):
     return ops.tanh(x)
 
 
+@keras_export("keras.activations.tanh_shrink")
+def tanh_shrink(x):
+    """Tanh shrink activation function.
+
+    It is defined as:
+
+    `f(x) = x - tanh(x)`.
+
+    Args:
+        x: Input tensor.
+    """
+    return ops.tanh_shrink(x)
+
+
 @keras_export("keras.activations.hard_tanh")
 def hard_tanh(x):
     """HardTanh activation function.
@@ -371,6 +424,23 @@ def hard_tanh(x):
         x: Input tensor.
     """
     return ops.hard_tanh(x)
+
+
+@keras_export("keras.activations.hard_shrink")
+def hard_shrink(x, threshold=0.5):
+    """Hard Shrink activation function.
+
+    It is defined as:
+
+    `hard_shrink(x) = x` if `|x| > threshold`,
+    `hard_shrink(x) = 0` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: Threshold value. Defaults to 0.5.
+
+    """
+    return ops.hard_shrink(x, threshold=threshold)
 
 
 @keras_export("keras.activations.sigmoid")

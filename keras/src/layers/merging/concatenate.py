@@ -1,3 +1,5 @@
+import copy
+
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.merging.base_merge import Merge
@@ -50,15 +52,15 @@ class Concatenate(Merge):
             return
 
         reduced_inputs_shapes = [list(shape) for shape in input_shape]
+        reduced_inputs_shapes_copy = copy.copy(reduced_inputs_shapes)
         shape_set = set()
-
-        for i in range(len(reduced_inputs_shapes)):
+        for i in range(len(reduced_inputs_shapes_copy)):
             # Convert self.axis to positive axis for each input
             # in case self.axis is a negative number
-            concat_axis = self.axis % len(reduced_inputs_shapes[i])
+            concat_axis = self.axis % len(reduced_inputs_shapes_copy[i])
             #  Skip batch axis.
             for axis, axis_value in enumerate(
-                reduced_inputs_shapes[i][1:], start=1
+                reduced_inputs_shapes_copy, start=1
             ):
                 # Remove squeezable axes (axes with value of 1)
                 # if not in the axis that will be used for concatenation

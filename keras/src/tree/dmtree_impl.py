@@ -17,6 +17,10 @@ def flatten(structure):
     return dmtree.flatten(structure)
 
 
+def flatten_with_path(structure):
+    return dmtree.flatten_with_path(structure)
+
+
 def map_structure(func, *structures):
     return dmtree.map_structure(func, *structures)
 
@@ -27,6 +31,21 @@ def map_structure_up_to(shallow_structure, func, *structures):
 
 def assert_same_structure(a, b, check_types=True):
     return dmtree.assert_same_structure(a, b, check_types=check_types)
+
+
+def assert_same_paths(a, b):
+    a_paths = set([path for path, leaf in dmtree.flatten_with_path(a)])
+    b_paths = set([path for path, leaf in dmtree.flatten_with_path(b)])
+
+    if a_paths != b_paths:
+        msg = "`a` and `b` don't have the same paths."
+        a_diff = a_paths.difference(b_paths)
+        if a_diff:
+            msg += f"\nPaths in `a` missing in `b`:\n{a_diff}"
+        b_diff = b_paths.difference(a_paths)
+        if b_diff:
+            msg += f"\nPaths in `b` missing in `a`:\n{b_diff}"
+        raise ValueError(msg)
 
 
 def pack_sequence_as(structure, flat_sequence, sequence_fn=None):

@@ -109,8 +109,7 @@ section of the README.
 
 ## Code style
 
-Keras uses [Black](https://black.readthedocs.io/en/stable/) and
-[isort](https://pycqa.github.io/isort/) to format the code. Please refer to
+Keras uses [Ruff](https://docs.astral.sh/ruff/) to format the code. Please refer to
 [requirements-common.txt](https://github.com/keras-team/keras/blob/master/requirements-common.txt)
 for the required versions. Run the following command **at the root directory of
 the repo** to format your code.

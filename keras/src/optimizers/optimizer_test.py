@@ -29,7 +29,7 @@ class OptimizerTest(testing.TestCase):
         v = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
         grads = None
         optimizer = optimizers.SGD(learning_rate=1.0)
-        with self.assertRaisesRegexp(
+        with self.assertRaisesRegex(
             ValueError, "No gradients provided for any variable."
         ):
             optimizer.apply_gradients([(grads, v)])
@@ -401,3 +401,25 @@ class OptimizerTest(testing.TestCase):
         reloaded = pickle.loads(pickle.dumps(optimizer))
 
         self.assertEqual(optimizer.get_config(), reloaded.get_config())
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="The tf.Variable test can only run with TensorFlow backend.",
+    )
+    def test_mixed_with_tf_variables(self):
+        import tensorflow as tf
+
+        v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        tf_v = tf.Variable([[1.0, 2.0], [3.0, 4.0]])
+        tf_grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        optimizer = optimizers.Adam(learning_rate=1.0)
+        optimizer.apply_gradients([(grads, v), (tf_grads, tf_v)])
+        self.assertAllClose(optimizer.iterations, 1)
+
+        # Test with no grads
+        with self.assertWarnsRegex(
+            UserWarning, "Gradients do not exist for variables"
+        ):
+            optimizer.apply_gradients([(grads, v), (None, tf_v)])
+            self.assertAllClose(optimizer.iterations, 2)

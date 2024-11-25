@@ -1,7 +1,5 @@
 namex>=0.0.8
-black>=22
-flake8
-isort
+ruff
 pytest
 numpy
 scipy
@@ -20,3 +18,4 @@ pytest-cov
 packaging
 # for tree_test.py
 dm_tree
+coverage!=7.6.5  # 7.6.5 breaks CI

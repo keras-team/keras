@@ -1,3 +1,4 @@
+import ml_dtypes
 import numpy as np
 
 from keras.src import backend
@@ -870,10 +871,23 @@ def saturate_cast(x, dtype):
 
 def _saturate_cast(x, dtype, backend_module=None):
     backend_module = backend_module or backend
+
+    def get_dtype_min_max(dtype):
+        if "bool" == dtype:
+            dtype_min = 0
+            dtype_max = 1
+        elif "int" in dtype:
+            dtype_min = ml_dtypes.iinfo(dtype).min
+            dtype_max = ml_dtypes.iinfo(dtype).max
+        else:
+            dtype_min = ml_dtypes.finfo(dtype).min
+            dtype_max = ml_dtypes.finfo(dtype).max
+        return dtype_min, dtype_max
+
     dtype = backend.standardize_dtype(dtype)
     in_dtype = backend.standardize_dtype(x.dtype)
-    in_info = np.iinfo(in_dtype) if "int" in in_dtype else np.finfo(in_dtype)
-    out_info = np.iinfo(dtype) if "int" in dtype else np.finfo(dtype)
+    in_min, in_max = get_dtype_min_max(in_dtype)
+    out_min, out_max = get_dtype_min_max(dtype)
 
     # The output min/max may not actually be representable in the
     # in_dtype (e.g. casting float32 to uint32).  This can lead to undefined
@@ -882,11 +896,11 @@ def _saturate_cast(x, dtype, backend_module=None):
     # the valid output range. The catch is that we may actually saturate
     # to a value less than the true saturation limit, but this is the best we
     # can do in order to avoid UB without backend op.
-    min_limit = np.maximum(in_info.min, out_info.min).astype(in_dtype)
-    if min_limit < out_info.min:
+    min_limit = np.maximum(in_min, out_min).astype(in_dtype)
+    if min_limit < out_min:
         min_limit = np.nextafter(min_limit, 0, dtype=in_dtype)
-    max_limit = np.minimum(in_info.max, out_info.max).astype(in_dtype)
-    if max_limit > out_info.max:
+    max_limit = np.minimum(in_max, out_max).astype(in_dtype)
+    if max_limit > out_max:
         max_limit = np.nextafter(max_limit, 0, dtype=in_dtype)
 
     # Unconditionally apply `clip` to fix `inf` behavior.
@@ -895,26 +909,47 @@ def _saturate_cast(x, dtype, backend_module=None):
     return backend_module.cast(x, dtype)
 
 
+class ConvertToTensor(Operation):
+    def __init__(self, dtype, sparse):
+        super().__init__()
+        self.dtype = backend.standardize_dtype(dtype)
+        self.sparse = sparse
+
+    def call(self, x):
+        return backend.core.convert_to_tensor(
+            x, dtype=self.dtype, sparse=self.sparse
+        )
+
+    def compute_output_spec(self, x):
+        dtype = x.dtype if self.dtype is None else self.dtype
+        sparse = (
+            False if self.sparse is not None and not self.sparse else x.sparse
+        )
+        return backend.KerasTensor(shape=x.shape, dtype=dtype, sparse=sparse)
+
+
 @keras_export("keras.ops.convert_to_tensor")
 def convert_to_tensor(x, dtype=None, sparse=None):
     """Convert a NumPy array to a tensor.
 
     Args:
-        x: A NumPy array.
-        dtype: The target type.
+        x: A NumPy array, Python array (can be nested) or a backend tensor.
+        dtype: The target type. If `None`, the type of `x` is used.
         sparse: Whether to keep sparse tensors. `False` will cause sparse
             tensors to be densified. The default value of `None` means that
             sparse tensors are kept only if the backend supports them.
 
     Returns:
-        A tensor of the specified `dtype`.
+        A backend tensor of the specified `dtype` and sparseness.
 
     Example:
 
     >>> x = np.array([1, 2, 3])
     >>> y = keras.ops.convert_to_tensor(x)
     """
-    return backend.convert_to_tensor(x, dtype=dtype, sparse=sparse)
+    if any_symbolic_tensors((x,)):
+        return ConvertToTensor(dtype=dtype, sparse=sparse)(x)
+    return backend.core.convert_to_tensor(x, dtype=dtype, sparse=sparse)
 
 
 @keras_export("keras.ops.convert_to_numpy")

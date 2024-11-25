@@ -30,6 +30,10 @@ def tanh(x):
     return tf.nn.tanh(x)
 
 
+def tanh_shrink(x):
+    return x - tf.math.tanh(x)
+
+
 def softplus(x):
     return tf.math.softplus(x)
 
@@ -38,8 +42,23 @@ def softsign(x):
     return tf.nn.softsign(x)
 
 
+def soft_shrink(x, threshold=0.5):
+    return tf.where(
+        x > threshold,
+        x - threshold,
+        tf.where(x < -threshold, x + threshold, tf.zeros_like(x)),
+    )
+
+
 def silu(x):
     return tf.nn.silu(x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b, dtype=x.dtype)
+    y = x + tf.sqrt(tf.square(x) + b)
+    return y / 2
 
 
 def log_sigmoid(x):
@@ -94,6 +113,10 @@ def glu(x, axis=-1):
 
 def hard_tanh(x):
     return tf.clip_by_value(x, clip_value_min=-1.0, clip_value_max=1.0)
+
+
+def hard_shrink(x, threshold=0.5):
+    return tf.where(tf.abs(x) > threshold, x, tf.zeros_like(x))
 
 
 def softmax(x, axis=-1):
@@ -968,7 +991,7 @@ def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
         tf.cast(key, dtype=logits_dtype),
         optimize="optimal",
     )
-    logits = tf.multiply(logits, tf.cast(logits, logits.dtype))
+    logits = tf.multiply(logits, tf.cast(scale, logits.dtype))
 
     if bias is not None:
         logits = tf.add(logits, tf.cast(bias, logits.dtype))
@@ -991,11 +1014,13 @@ def dot_product_attention(
     mask=None,
     scale=None,
     is_causal=False,
-    flash_attention=False,
+    flash_attention=None,
 ):
+    if flash_attention is None:
+        flash_attention = False
     if flash_attention:
         raise ValueError(
-            "Flash attention is not supported yet in TensorFlow backend."
+            "Flash attention is not supported in tensorflow backend."
         )
 
     # Ref: jax.nn.dot_product_attention

@@ -6,6 +6,9 @@ import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 from jax import lax
 from jax import nn as jnn
+from jax.experimental.pallas.ops.tpu import (
+    flash_attention as flash_attention_tpu,
+)
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
@@ -35,6 +38,11 @@ def tanh(x):
     return jnn.tanh(x)
 
 
+def tanh_shrink(x):
+    x = convert_to_tensor(x)
+    return x - jnp.tanh(x)
+
+
 def softplus(x):
     x = convert_to_tensor(x)
     return jnn.softplus(x)
@@ -45,9 +53,23 @@ def softsign(x):
     return jnn.soft_sign(x)
 
 
+def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return jnp.where(
+        x > threshold,
+        x - threshold,
+        jnp.where(x < -threshold, x + threshold, 0.0),
+    )
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return jnn.silu(x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    return jnn.squareplus(x, b=b)
 
 
 def log_sigmoid(x):
@@ -98,6 +120,11 @@ def glu(x, axis=-1):
 def hard_tanh(x):
     x = convert_to_tensor(x)
     return jnn.hard_tanh(x)
+
+
+def hard_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return jnp.where(jnp.abs(x) > threshold, x, 0.0)
 
 
 def softmax(x, axis=-1):
@@ -614,7 +641,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     batch_size, max_label_length = target.shape
     log_epsilon = -1e5
 
-    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
     dtype = backend.result_type(output.dtype, "float32")
     output = cast(output, dtype)
 
@@ -959,6 +986,60 @@ def psnr(x1, x2, max_val):
     return psnr
 
 
+def _can_use_flash_attention(query, key, value, bias, raise_error=False):
+    """Verify the availability of flash attention."""
+    try:
+        from jax._src.cudnn.fused_attention_stablehlo import _normalize_layout
+        from jax._src.cudnn.fused_attention_stablehlo import (
+            check_compute_capability,
+        )
+        from jax._src.cudnn.fused_attention_stablehlo import check_cudnn_version
+        from jax._src.cudnn.fused_attention_stablehlo import (
+            check_is_flash_attention,
+        )
+        from jax._src.cudnn.fused_attention_stablehlo import check_layout
+        from jax.nn import dot_product_attention as dot_product_attention
+    except ImportError:
+        if raise_error:
+            raise ImportError(
+                "Flash attention is not supported in your current JAX version. "
+                "Please update it by following the official guide: "
+                "https://jax.readthedocs.io/en/latest/installation.html"
+            )
+        return False
+
+    try:
+        # Check if cuDNN is installed and raise RuntimeError if cuDNN is not
+        # detected
+        cudnn_version = check_cudnn_version()
+        # Only support at least Ampere
+        if not check_compute_capability("8.0"):
+            raise RuntimeError("Require at least Ampere arch to run")
+        # Check inputs layout
+        check_layout(
+            query,
+            key,
+            value,
+            bias,
+            q_seqlen=None,
+            kv_seqlen=None,
+            layout=_normalize_layout("BTNH"),
+        )
+        check_is_flash_attention(
+            query,
+            key,
+            _normalize_layout("BTNH"),
+            cudnn_version,
+            bias is not None,
+            is_training=False,
+        )
+        return True
+    except:
+        if raise_error:
+            raise
+        return False
+
+
 def _apply_masks(logits, mask, is_causal):
     if mask is None and not is_causal:
         return logits
@@ -1008,21 +1089,36 @@ def dot_product_attention(
     mask=None,
     scale=None,
     is_causal=False,
-    flash_attention=False,
+    flash_attention=None,
 ):
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
-    if len(query.shape) != 4:
+    if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
         raise ValueError(
             "`dot_product_attention` only supports 4D inputs. "
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
-
+    if flash_attention is None:
+        flash_attention = _can_use_flash_attention(query, key, value, bias)
+    elif flash_attention is True:
+        # Use `raise_error=True` to provide more details if the inputs failed to
+        # use flash attention
+        _can_use_flash_attention(query, key, value, bias, raise_error=True)
+    if jax.devices()[0].platform == "tpu" and flash_attention:
+        # Use TPU-optimized flash attention from Pallas
+        return flash_attention_tpu(
+            query,
+            key,
+            value,
+            ab=bias,
+            segment_ids=mask,
+            causal=is_causal,
+            sm_scale=scale,
+        )
     # `dot_product_attention` is only available in jax>=0.4.31
     if hasattr(jax.nn, "dot_product_attention"):
-        implementation = "cudnn" if flash_attention else "xla"
         return jax.nn.dot_product_attention(
             query,
             key,
@@ -1031,16 +1127,15 @@ def dot_product_attention(
             mask=mask,
             scale=scale,
             is_causal=is_causal,
-            implementation=implementation,
+            implementation="cudnn" if flash_attention else "xla",
         )
 
     if flash_attention:
-        raise ValueError(
-            "Flash attention is not supported in your "
-            "current JAX version. Please update it "
-            "using `pip install -U jax jaxlib`."
+        raise RuntimeError(
+            "Flash attention is not supported in your current JAX version. "
+            "Please update it by following the official guide: "
+            "https://jax.readthedocs.io/en/latest/installation.html"
         )
-
     # Ref: jax.nn.dot_product_attention
     # https://github.com/jax-ml/jax/blob/jax-v0.4.33/jax/_src/nn/functions.py#L886
     # Not support `query_seq_lengths` and `key_value_seq_lengths` args

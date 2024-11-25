@@ -1,6 +1,6 @@
 # Tensorflow.
-tensorflow-cpu~=2.17.0;sys_platform != 'darwin'  # Pin to TF 2.16
-tensorflow~=2.17.0;sys_platform == 'darwin'
+tensorflow-cpu~=2.18.0;sys_platform != 'darwin'  # Pin to TF 2.16
+tensorflow~=2.18.0;sys_platform == 'darwin'
 tf_keras
 
 # Torch.

@@ -18,6 +18,7 @@ from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.callbacks.callback import Callback
 from keras.src.optimizers.rmsprop import RMSprop
 from keras.src.testing.test_utils import named_product
+from keras.src.trainers.data_adapters import py_dataset_adapter
 
 if backend.backend() == "jax":
     from keras.src.backend.jax.trainer import JAXTrainer as Trainer
@@ -139,6 +140,82 @@ class TrainingTestingLayer(Trainer, layers.Layer):
         if training:
             return x
         return x * 0
+
+
+class TestPyDataset(py_dataset_adapter.PyDataset):
+    def __init__(self, infinite=False, **kwargs):
+        super().__init__(**kwargs)
+        self.infinite = infinite
+
+    @property
+    def num_batches(self):
+        return None if self.infinite else 20
+
+    def __getitem__(self, idx):
+        CPU_DEVICES = {
+            "tensorflow": "CPU:0",
+            "jax": "cpu:0",
+            "torch": "cpu",
+        }
+        with backend.device(CPU_DEVICES[backend.backend()]):
+            return ops.ones((5, 4)), ops.zeros((5, 3))
+
+
+def create_dataset(dataset_type, dataset_kwargs):
+    if dataset_type == "np_array":
+        return np.ones((100, 4)), np.zeros((100, 3))
+    elif dataset_type == "native_array":
+        return ops.ones((100, 4)), ops.zeros((100, 3))
+    elif dataset_type == "py_dataset":
+        return TestPyDataset(**dataset_kwargs), None
+    elif dataset_type == "tf_dataset":
+        import tensorflow as tf
+
+        dataset = tf.data.Dataset.from_tensor_slices(
+            (tf.ones((100, 4)), tf.zeros((100, 3)))
+        ).batch(5)
+        if dataset_kwargs.get("infinite", False):
+            dataset = dataset.repeat()
+        return dataset, None
+    elif dataset_type == "torch_dataloader":
+        import torch
+
+        class TestIterableDataset(torch.utils.data.IterableDataset):
+            def __iter__(self):
+                for _ in range(20):
+                    yield torch.ones((5, 4)), torch.zeros((5, 3))
+
+        class TestIterableDatasetWithLen(TestIterableDataset):
+            def __len__(self):
+                return 20
+
+        if dataset_kwargs.get("iterable", False):
+            if dataset_kwargs.get("has_len", False):
+                dataset = TestIterableDatasetWithLen()
+            else:
+                dataset = TestIterableDataset()
+            return torch.utils.data.DataLoader(dataset), None
+        else:
+            dataset = torch.utils.data.TensorDataset(
+                torch.ones((100, 4)), torch.zeros((100, 3))
+            )
+            return torch.utils.data.DataLoader(dataset, batch_size=5), None
+    elif dataset_type == "generator":
+
+        def generate_finite():
+            for _ in range(20):
+                yield ops.ones((5, 4)), ops.zeros((5, 3))
+
+        def generate_infinite():
+            while True:
+                yield ops.ones((5, 4)), ops.zeros((5, 3))
+
+        if dataset_kwargs.get("infinite", False):
+            return generate_infinite(), None
+        else:
+            return generate_finite(), None
+    else:
+        raise ValueError(f"Invalid dataset type {dataset_type}")
 
 
 def sparse_generator(generator_type):
@@ -396,6 +473,111 @@ class TestTrainer(testing.TestCase):
             [14.5, 11.5, 8.5],
             atol=1.0,  # TODO: results vary across backends
         )
+
+    @parameterized.named_parameters(
+        [
+            {
+                "testcase_name": "np_array",
+                "dataset_type": "np_array",
+                "fit_kwargs": {"batch_size": 5},
+            },
+            {
+                "testcase_name": "native_array",
+                "dataset_type": "native_array",
+                "fit_kwargs": {"batch_size": 5},
+            },
+            {
+                "testcase_name": "py_dataset",
+                "dataset_type": "py_dataset",
+            },
+            {
+                "testcase_name": "py_dataset_infinite",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {"infinite": True},
+                "fit_kwargs": {"steps_per_epoch": 20},
+            },
+            {
+                "testcase_name": "py_dataset_multithreading",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {"workers": 2},
+            },
+            {
+                "testcase_name": "py_dataset_multithreading_infinite",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {"infinite": True, "workers": 2},
+                "fit_kwargs": {"steps_per_epoch": 20},
+            },
+            {
+                "testcase_name": "py_dataset_multiprocessing",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {"workers": 2, "use_multiprocessing": True},
+            },
+            {
+                "testcase_name": "py_dataset_multiprocessing_infinite",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {
+                    "infinite": True,
+                    "workers": 2,
+                    "use_multiprocessing": True,
+                },
+                "fit_kwargs": {"steps_per_epoch": 20},
+            },
+            {
+                "testcase_name": "tf_dataset",
+                "dataset_type": "tf_dataset",
+            },
+            {
+                "testcase_name": "tf_dataset_infinite",
+                "dataset_type": "tf_dataset",
+                "dataset_kwargs": {"infinite": True},
+                "fit_kwargs": {"steps_per_epoch": 20},
+            },
+            {
+                "testcase_name": "torch_dataloader_tensor",
+                "dataset_type": "torch_dataloader",
+            },
+            {
+                "testcase_name": "torch_dataloader_iterable",
+                "dataset_type": "torch_dataloader",
+                "dataset_kwargs": {"iterable": True, "has_len": False},
+            },
+            {
+                "testcase_name": "torch_dataloader_iterable_with_len",
+                "dataset_type": "torch_dataloader",
+                "dataset_kwargs": {"iterable": True, "has_len": True},
+            },
+            {
+                "testcase_name": "generator",
+                "dataset_type": "generator",
+            },
+            {
+                "testcase_name": "generator_infinite",
+                "dataset_type": "generator",
+                "dataset_kwargs": {"infinite": True},
+                "fit_kwargs": {"steps_per_epoch": 20},
+            },
+        ]
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_fit_with_data_adapter(
+        self, dataset_type, dataset_kwargs={}, fit_kwargs={}
+    ):
+        if (
+            dataset_kwargs.get("use_multiprocessing", False)
+            and backend.backend() == "jax"
+        ):
+            pytest.skip("Multiprocessing not supported with JAX backend")
+
+        model = ExampleModel(units=3)
+        optimizer = optimizers.Adagrad()
+        model.compile(
+            optimizer=optimizer,
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            jit_compile=True,
+        )
+        x, y = create_dataset(dataset_type, dataset_kwargs)
+        model.fit(x, y, epochs=3, **fit_kwargs)
 
     @parameterized.named_parameters(
         [
@@ -774,6 +956,75 @@ class TestTrainer(testing.TestCase):
             run_eagerly=(mode == "eager"),
             jit_compile=(mode == "jit"),
         )
+        history_2 = model_2.fit(
+            x=x, y=y, batch_size=batch_size, epochs=epochs, verbose=0
+        )
+
+        self.assertAllClose(history.history["loss"], history_2.history["loss"])
+        self.assertAllClose(model.get_weights(), model_2.get_weights())
+        self.assertAllClose(
+            model.predict(x, batch_size=batch_size),
+            model_2.predict(x, batch_size=batch_size),
+        )
+        self.assertAllClose(model.evaluate(x, y), model_2.evaluate(x, y))
+
+    @parameterized.named_parameters(
+        named_product(steps_per_execution=[3, 8, 32])
+    )
+    @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="`unrolled_steps_per_execution` is only "
+        "available with the tensorflow backend.",
+    )
+    def test_steps_per_execution_unrolled_steps_steps_count(
+        self, steps_per_execution
+    ):
+        data_size = 100
+        batch_size = 16
+        epochs = 2
+        unrolled_steps_per_execution = 8
+
+        batches_indices = list(
+            range(0, data_size, steps_per_execution * batch_size)
+        )
+
+        x = np.ones((data_size, 4))
+        y = np.ones((data_size, 1))
+
+        model = ExampleModel(units=1)
+        model.compile(
+            loss="mse",
+            optimizer="sgd",
+            steps_per_execution=steps_per_execution,
+            jit_compile=True,
+        )
+        step_count = StepCount(batches_indices, batch_size)
+        model.unrolled_steps_per_execution = unrolled_steps_per_execution
+        history = model.fit(
+            x=x,
+            y=y,
+            batch_size=batch_size,
+            epochs=epochs,
+            callbacks=[step_count],
+            verbose=0,
+        )
+
+        self.assertEqual(step_count.begin_count, len(batches_indices))
+        self.assertEqual(step_count.end_count, step_count.begin_count)
+        self.assertEqual(step_count.epoch_begin_count, epochs)
+        self.assertEqual(
+            step_count.epoch_end_count, step_count.epoch_begin_count
+        )
+
+        model_2 = ExampleModel(units=1)
+        model_2.compile(
+            loss="mse",
+            optimizer="sgd",
+            steps_per_execution=steps_per_execution,
+            jit_compile=True,
+        )
+        model_2.unrolled_steps_per_execution = 1
         history_2 = model_2.fit(
             x=x, y=y, batch_size=batch_size, epochs=epochs, verbose=0
         )
@@ -1999,7 +2250,6 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_callbacks_can_update_state_at_batch_boundary(self):
-
         class CounterModel(keras.Model):
             def __init__(self):
                 super().__init__()
@@ -2176,7 +2426,6 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_compute_loss_no_training_backwards_compatibility(self):
-
         class MyModel(keras.Model):
             def __init__(self):
                 super().__init__()
@@ -2294,6 +2543,23 @@ class TestTrainer(testing.TestCase):
             [4.778718, 4.694403, 4.611693],
             atol=1e-3,
         )
+
+    @pytest.mark.requires_trainable_backend
+    def test_partial_loss_partial_label(self):
+        inputs = keras.Input((2,))
+        x = keras.layers.Dense(3, kernel_initializer="ones")(inputs)
+        partial_model = keras.Model(inputs, [x, x, x])
+        partial_model.compile(loss=["mse", None, None])
+        full_model = keras.Model(inputs, [x, x, x])
+        full_model.compile(loss=["mse", "mse", "mse"])
+
+        eval_x = np.ones((32, 2))
+        eval_y = np.ones((32, 3))
+
+        partial_logs = partial_model.evaluate(eval_x, eval_y, return_dict=True)
+        logs = full_model.evaluate(eval_x, [eval_y] * 3, return_dict=True)
+
+        self.assertAlmostEqual(partial_logs["loss"] * 3, logs["loss"])
 
     def test_symbolic_build(self):
         class ExampleModelWithTrainingArgs(Trainer, layers.Layer):

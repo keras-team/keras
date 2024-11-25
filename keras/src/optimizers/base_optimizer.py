@@ -468,7 +468,7 @@ class BaseOptimizer(KerasSaveable):
             grads = self._clip_gradients(grads)
             self._apply_weight_decay(trainable_variables)
 
-            # Run udpate step.
+            # Run update step.
             self._backend_update_step(
                 grads, trainable_variables, self.learning_rate
             )
@@ -672,7 +672,7 @@ class BaseOptimizer(KerasSaveable):
         """
         # Shortcut for `tf.Variable` because it doesn't have a
         # `overwrite_with_gradient` attr
-        if not hasattr(vars[0], "overwrite_with_gradient"):
+        if any(not hasattr(v, "overwrite_with_gradient") for v in vars):
             return grads, vars
 
         # Shallow copies
@@ -723,7 +723,11 @@ class BaseOptimizer(KerasSaveable):
             if filtered_grads[i] is None:
                 filtered_grads.pop(i)
                 v = filtered_vars.pop(i)
-                missing_grad_vars.append(v.path)
+                try:
+                    missing_grad_vars.append(v.path)
+                except AttributeError:
+                    # `tf.Variable` doesn't have `path` attr.
+                    missing_grad_vars.append(v.name)
 
         if not filtered_grads:
             raise ValueError("No gradients provided for any variable.")
@@ -766,7 +770,7 @@ class BaseOptimizer(KerasSaveable):
         """
         if hasattr(self, "_built") and self._built:
             raise ValueError(
-                "`exclude_from_weight_decay()` can only be configued before "
+                "`exclude_from_weight_decay()` can only be configured before "
                 "the optimizer is built."
             )
 

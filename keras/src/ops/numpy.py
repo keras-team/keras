@@ -890,7 +890,7 @@ class Argmin(Operation):
 
 @keras_export(["keras.ops.argmin", "keras.ops.numpy.argmin"])
 def argmin(x, axis=None, keepdims=False):
-    """Returns the indices of the minium values along an axis.
+    """Returns the indices of the minimum values along an axis.
 
     Args:
         x: Input tensor.
@@ -1057,7 +1057,7 @@ def average(x, axis=None, weights=None):
         axis: Integer along which to average `x`. The default, `axis=None`,
             will average over all of the elements of the input tensor. If axis
             is negative it counts from the last to the first axis.
-        weights: Tensor of wieghts associated with the values in `x`. Each
+        weights: Tensor of weights associated with the values in `x`. Each
             value in `x` contributes to the average according to its
             associated weight. The weights array can either be 1-D (in which
             case its length must be the size of a along the given axis) or of
@@ -2669,6 +2669,32 @@ def exp(x):
     return backend.numpy.exp(x)
 
 
+class Exp2(Operation):
+    def call(self, x):
+        return backend.numpy.exp2(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if "int" in dtype or dtype == "bool":
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.exp2", "keras.ops.numpy.exp2"])
+def exp2(x):
+    """Calculate the base-2 exponential of all elements in the input tensor.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output tensor, element-wise base-2 exponential of `x`.
+    """
+    if any_symbolic_tensors((x,)):
+        return Exp2().symbolic_call(x)
+    return backend.numpy.exp2(x)
+
+
 class ExpandDims(Operation):
     def __init__(self, axis):
         super().__init__()
@@ -2870,12 +2896,12 @@ class GetItem(Operation):
             remaining_key = key.copy()
         else:
             raise ValueError(
-                f"Unsupported key type for array slice. Recieved: `{key}`"
+                f"Unsupported key type for array slice. Received: `{key}`"
             )
         num_ellipses = remaining_key.count(Ellipsis)
         if num_ellipses > 1:
             raise ValueError(
-                f"Slice should only have one ellipsis. Recieved: `{key}`"
+                f"Slice should only have one ellipsis. Received: `{key}`"
             )
         elif num_ellipses == 0:
             # Add an implicit final ellipsis.
@@ -4214,7 +4240,7 @@ def not_equal(x1, x2):
         x2: Second input tensor.
 
     Returns:
-        Output tensor, element-wise comparsion of `x1` and `x2`.
+        Output tensor, element-wise comparison of `x1` and `x2`.
     """
     if any_symbolic_tensors((x1, x2)):
         return NotEqual().symbolic_call(x1, x2)
@@ -4533,9 +4559,9 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
     Returns:
         The quantile(s). If `q` is a single probability and `axis=None`, then
-        the result is a scalar. If multiple probabilies levels are given, first
-        axis of the result corresponds to the quantiles. The other axes are the
-        axes that remain after the reduction of `x`.
+        the result is a scalar. If multiple probabilities levels are given,
+        first axis of the result corresponds to the quantiles. The other axes
+        are the axes that remain after the reduction of `x`.
     """
     if any_symbolic_tensors((x, q)):
         return Quantile(
@@ -5650,6 +5676,45 @@ def vdot(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Vdot().symbolic_call(x1, x2)
     return backend.numpy.vdot(x1, x2)
+
+
+class Inner(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.inner(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        return KerasTensor([], dtype=dtype)
+
+
+@keras_export(["keras.ops.inner", "keras.ops.numpy.inner"])
+def inner(x1, x2):
+    """Return the inner product of two tensors.
+
+    Ordinary inner product of vectors for 1-D tensors
+    (without complex conjugation), in higher dimensions
+    a sum product over the last axes.
+
+    Multidimensional arrays are treated as vectors by flattening
+    all but their last axes. The resulting dot product is performed
+    over their last axes.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor. The last dimension of `x1` and `x2`
+            must match.
+
+    Returns:
+        Output tensor. The shape of the output is determined by
+        broadcasting the shapes of `x1` and `x2` after removing
+        their last axes.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Inner().symbolic_call(x1, x2)
+    return backend.numpy.inner(x1, x2)
 
 
 @keras_export(["keras.ops.vectorize", "keras.ops.numpy.vectorize"])

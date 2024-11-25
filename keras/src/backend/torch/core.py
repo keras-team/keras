@@ -29,6 +29,8 @@ if torch.backends.mps.is_available():
     DEFAULT_DEVICE = "mps"
 elif torch.cuda.is_available():
     DEFAULT_DEVICE = "cuda"
+elif hasattr(torch, "xpu") and torch.xpu.is_available():
+    DEFAULT_DEVICE = "xpu"
 else:
     DEFAULT_DEVICE = "cpu"
 

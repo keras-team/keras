@@ -108,9 +108,9 @@ class Ones(Initializer):
 
 @keras_export(
     [
-        "keras.initializers.IdentityInitializer",
         "keras.initializers.Identity",
         "keras.initializers.identity",
+        "keras.initializers.IdentityInitializer",
     ]
 )
 class Identity(Initializer):
@@ -154,8 +154,14 @@ class Identity(Initializer):
         return self.gain * ops.eye(*shape, dtype=dtype)
 
 
-@keras_export(["keras.initializers.STFTInitializer"])
-class STFTInitializer(Initializer):
+@keras_export(
+    [
+        "keras.initializers.STFT",
+        "keras.initializers.stft",
+        "keras.initializers.STFTInitializer",
+    ]
+)
+class STFT(Initializer):
     """Initializer of Conv kernels for Short-term Fourier Transformation (STFT).
 
     Since the formula involves complex numbers, this class compute either the
@@ -167,7 +173,7 @@ class STFTInitializer(Initializer):
     `hamming` windowing functions. This layer supports periodic windows and
     scaling-based normalization.
 
-    This is primarly intended for use in the `STFTSpectrogram` layer.
+    This is primarily intended for use in the `STFTSpectrogram` layer.
 
     Examples:
 
@@ -177,7 +183,8 @@ class STFTInitializer(Initializer):
 
     Args:
         side: String, `"real"` or `"imag"` deciding if the kernel will compute
-            the real side or the imaginary side of the output.
+            the real side or the imaginary side of the output. Defaults to
+            `"real"`.
         window: String for the name of the windowing function in the
             `scipy.signal.windows` module, or array_like for the window values,
             or `None` for no windowing.
@@ -188,7 +195,9 @@ class STFTInitializer(Initializer):
             periodic. Defaults to `False`.
     """
 
-    def __init__(self, side, window="hann", scaling="density", periodic=False):
+    def __init__(
+        self, side="real", window="hann", scaling="density", periodic=False
+    ):
         if side not in ["real", "imag"]:
             raise ValueError(f"side should be 'real' or 'imag', not {side}")
         if isinstance(window, str):
