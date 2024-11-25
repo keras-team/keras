@@ -66,7 +66,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
       - name: Test integrations
-        if: ${{ matrix.backend != 'numpy'}}
+        if: ${{ matrix.backend != 'numpy' && matrix.backend != 'openvino' }}
         run: |
           python integration_tests/import_test.py
           python integration_tests/numerical_test.py
@@ -84,7 +84,12 @@ jobs:
         run: |
           pytest integration_tests/torch_workflow_test.py
           python integration_tests/torch_custom_fit_test.py
+      - name: Test OpenVINO-specific integrations
+        if: ${{ matrix.backend == 'openvino' }}
+        run: |
+          python integration_tests/import_test.py
       - name: Test with pytest
+        if: ${{ matrix.backend != 'openvino'}}
         run: |
           pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
           coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
