@@ -98,3 +98,29 @@ class SummaryUtilsTest(testing.TestCase):
         self.assertIn("Total params: 12", summary_content)
         self.assertIn("Trainable params: 12", summary_content)
         self.assertIn("Non-trainable params: 0", summary_content)
+
+    def test_print_model_summary_with_mha(self):
+        # In Keras <= 3.6, MHA exposes `output_shape` property which breaks this
+        # test.
+        class MyModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.mha = layers.MultiHeadAttention(2, 2, output_shape=(4,))
+
+            def call(self, inputs):
+                return self.mha(inputs, inputs, inputs)
+
+        model = MyModel()
+        model(np.ones((1, 2, 2)))
+
+        summary_content = []
+
+        def print_to_variable(text, line_break=False):
+            summary_content.append(text)
+
+        summary_utils.print_summary(model, print_fn=print_to_variable)
+        summary_content = "\n".join(summary_content)
+        self.assertIn("(1, 2, 4)", summary_content)  # mha
+        self.assertIn("Total params: 56", summary_content)
+        self.assertIn("Trainable params: 56", summary_content)
+        self.assertIn("Non-trainable params: 0", summary_content)
