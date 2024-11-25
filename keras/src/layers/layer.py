@@ -313,9 +313,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         self._convert_input_args = True
         # Whether to allow non-tensors as positional arguments in `call()`.
         self._allow_non_tensor_positional_args = False
-        if backend.backend() == "openvino":
-            self._allow_non_tensor_positional_args = True
-
         # Dict of shapes that were used to call `build()`.
         self._build_shapes_dict = None
         # Parent path
