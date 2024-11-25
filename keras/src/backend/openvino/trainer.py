@@ -7,6 +7,7 @@ from keras.src import callbacks as callbacks_module
 from keras.src import tree
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import get_device
+from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
@@ -33,8 +34,8 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
-        ov_compiled_model = self._get_compiled_model()
         flatten_x = tree.flatten(x)
+        ov_compiled_model = self._get_compiled_model(flatten_x)
         y_pred = ov_compiled_model(flatten_x)
         y_pred = self._unpack_singleton(
             tree.pack_sequence_as(self._outputs_struct, y_pred.to_tuple())
@@ -61,7 +62,7 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
         self.test_function = test_step
 
-    def _get_compiled_model(self):
+    def _get_compiled_model(self, flatten_data):
         if (
             self.ov_compiled_model is not None
             and get_device() == self.ov_device
@@ -72,22 +73,21 @@ class OpenVINOTrainer(base_trainer.Trainer):
         del self.ov_compiled_model
         ov_inputs = []
         parameters = []
-        for _input in self._inputs:
+        for idx, _input in enumerate(self._inputs):
             ov_type = OPENVINO_DTYPES[_input.dtype]
-            ov_shape = _input.shape
-            ov_shape = list(ov_shape)
-            for i in range(len(ov_shape)):
-                if ov_shape[i] is None:
-                    ov_shape[i] = -1
+            ov_shape = list(flatten_data[idx].shape)
             param = ov_opset.parameter(shape=ov_shape, dtype=ov_type)
             parameters.append(param)
-            ov_inputs.append(param.output(0))
+            ov_inputs.append(OpenVINOKerasTensor(param.output(0)))
         # build OpenVINO graph ov.Model
         ov_outputs = self._run_through_graph(
             ov_inputs, operation_fn=lambda op: op
         )
         ov_outputs = tree.flatten(ov_outputs)
-        ov_model = ov.Model(results=ov_outputs, parameters=parameters)
+        results = []
+        for ov_output in ov_outputs:
+            results.append(ov_opset.result(ov_output.output))
+        ov_model = ov.Model(results=results, parameters=parameters)
         self.ov_compiled_model = ov.compile_model(ov_model, get_device())
         self.ov_device = get_device()
         return self.ov_compiled_model

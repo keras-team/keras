@@ -1,3 +1,12 @@
+import openvino.runtime.opset14 as ov_opset
+from keras.src import backend
+from keras.src.backend.openvino.core import get_ov_output
+from keras.src.backend.openvino.core import OpenVINOKerasTensor
+from keras.src.backend.common import KerasVariable
+from openvino import Type
+from openvino import Tensor
+
+
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     raise NotImplementedError(
         "`segment_sum` is not supported with openvino backend"
@@ -71,11 +80,16 @@ def istft(
 
 
 def rsqrt(x):
-    raise NotImplementedError("`rsqrt` is not supported with openvino backend")
+    x = get_ov_output(x)
+    const_one = ov_opset.constant(1, x.get_element_type()).output(0)
+    sqrt = ov_opset.sqrt(x).output(0)
+    return OpenVINOKerasTensor(ov_opset.divide(const_one, sqrt).output(0))
 
 
 def erf(x):
-    raise NotImplementedError("`erf` is not supported with openvino backend")
+    x = get_ov_output(x)
+    erf = ov_opset.erf(x).output(0)
+    return OpenVINOKerasTensor(erf)
 
 
 def erfinv(x):

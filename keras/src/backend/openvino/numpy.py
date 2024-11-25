@@ -1,9 +1,16 @@
-from openvino.runtime import opset14
+import numpy as np
 
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import OpenVINOKerasTensor
+from keras.src.backend.common import KerasVariable
+import openvino.runtime.opset14 as ov_opset
+from keras.src.backend.openvino.core import get_ov_output
+from openvino import Type
+from openvino import Tensor
 
 
 def _align_operand_types(x1, x2, op_name):
@@ -19,37 +26,77 @@ def _align_operand_types(x1, x2, op_name):
     result_type = dtypes.result_type(x1_type, x2_type)
     result_type = OPENVINO_DTYPES[result_type]
     if x1_type != result_type:
-        x1 = opset14.convert(x1, result_type)
+        x1 = ov_opset.convert(x1, result_type)
     if x2_type != result_type:
-        x2 = opset14.convert(x2, result_type)
+        x2 = ov_opset.convert(x2, result_type)
     return x1, x2
 
 
 def add(x1, x2):
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    assert element_type is not None
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "add()")
-    return opset14.add(x1, x2)
+    return OpenVINOKerasTensor(ov_opset.add(x1, x2).output(0))
 
 
 def einsum(subscripts, *operands, **kwargs):
-    raise NotImplementedError("`einsum` is not supported with openvino backend")
+    inputs = []
+    for operand in operands:
+        operand = get_ov_output(operand)
+        inputs.append(operand)
+    return OpenVINOKerasTensor(ov_opset.einsum(inputs, subscripts).output(0))
 
 
 def subtract(x1, x2):
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    assert element_type is not None
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "subtract()")
-    return opset14.subtract(x1, x2)
+    return OpenVINOKerasTensor(ov_opset.subtract(x1, x2).output(0))
 
 
 def matmul(x1, x2):
-    raise NotImplementedError("`matmul` is not supported with openvino backend")
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    assert element_type is not None
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "matmul()")
+    return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
 
 
 def multiply(x1, x2):
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    assert element_type is not None
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "multiply()")
-    return opset14.multiply(x1, x2)
+    return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
 
 
 def mean(x, axis=None, keepdims=False):
-    raise NotImplementedError("`mean` is not supported with openvino backend")
+    x = get_ov_output(x)
+    axis_const = ov_opset.constant(axis, dtype=Type.i32)
+    mean_ops = ov_opset.reduce_mean(x, axis_const, keepdims)
+    return OpenVINOKerasTensor(mean_ops.output(0))
 
 
 def max(x, axis=None, keepdims=False, initial=None):
@@ -57,19 +104,31 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 
 def ones(shape, dtype=None):
-    raise NotImplementedError("`ones` is not supported with openvino backend")
+    dtype = dtype or config.floatx()
+    ov_type = OPENVINO_DTYPES[dtype]
+    const_one = ov_opset.constant(1, dtype=ov_type).output(0)
+    output_shape = ov_opset.constant(shape, dtype=Type.i32).output(0)
+    ones = ov_opset.broadcast(const_one, output_shape)
+    return OpenVINOKerasTensor(ones.output(0))
 
 
 def zeros(shape, dtype=None):
-    raise NotImplementedError("`zeros` is not supported with openvino backend")
+    dtype = dtype or config.floatx()
+    ov_type = OPENVINO_DTYPES[dtype]
+    const_zero = ov_opset.constant(0, dtype=ov_type).output(0)
+    output_shape = ov_opset.constant(shape, dtype=Type.i32).output(0)
+    zeros = ov_opset.broadcast(const_zero, output_shape)
+    return OpenVINOKerasTensor(zeros.output(0))
 
 
 def absolute(x):
-    return opset14.absolute(x)
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.absolute(x).output(0))
 
 
 def abs(x):
-    return opset14.absolute(x)
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.absolute(x).output(0))
 
 
 def all(x, axis=None, keepdims=False):
@@ -97,27 +156,28 @@ def arange(start, stop=None, step=None, dtype=None):
 
 
 def arccos(x):
-    raise NotImplementedError("`arccos` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.acos(x).output(0))
 
 
 def arccosh(x):
-    raise NotImplementedError(
-        "`arccosh` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.acosh(x).output(0))
 
 
 def arcsin(x):
-    raise NotImplementedError("`arcsin` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.asin(x).output(0))
 
 
 def arcsinh(x):
-    raise NotImplementedError(
-        "`arcsinh` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.asinh(x).output(0))
 
 
 def arctan(x):
-    raise NotImplementedError("`arctan` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.atan(x).output(0))
 
 
 def arctan2(x1, x2):
@@ -127,9 +187,8 @@ def arctan2(x1, x2):
 
 
 def arctanh(x):
-    raise NotImplementedError(
-        "`arctanh` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.atanh(x).output(0))
 
 
 def argmax(x, axis=None, keepdims=False):
@@ -163,13 +222,15 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 
 
 def broadcast_to(x, shape):
-    raise NotImplementedError(
-        "`broadcast_to` is not supported with openvino backend"
-    )
+    assert isinstance(shape, (tuple, list)), "`broadcast_to` is supported only for tuple and list `shape`"
+    target_shape = ov_opset.constant(list(shape), Type.i32).output(0)
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.broadcast(x, target_shape).output(0))
 
 
 def ceil(x):
-    raise NotImplementedError("`ceil` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.ceil(x).output(0))
 
 
 def clip(x, x_min, x_max):
@@ -193,15 +254,17 @@ def conj(x):
 
 
 def copy(x):
-    raise NotImplementedError("`copy` is not supported with openvino backend")
+    return x
 
 
 def cos(x):
-    raise NotImplementedError("`cos` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.cos(x).output(0))
 
 
 def cosh(x):
-    raise NotImplementedError("`cosh` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.cosh(x).output(0))
 
 
 def count_nonzero(x, axis=None):
@@ -253,17 +316,30 @@ def empty(shape, dtype=None):
 
 
 def equal(x1, x2):
-    raise NotImplementedError("`equal` is not supported with openvino backend")
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    assert element_type is not None
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "equal()")
+    return OpenVINOKerasTensor(ov_opset.equal(x1, x2).output(0))
 
 
 def exp(x):
-    raise NotImplementedError("`exp` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.exp(x).output(0))
 
 
 def expand_dims(x, axis):
-    raise NotImplementedError(
-        "`expand_dims` is not supported with openvino backend"
-    )
+    if isinstance(x, OpenVINOKerasTensor):
+        x = x.output
+    else:
+        assert False
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.unsqueeze(x, axis).output(0))
 
 
 def expm1(x):
@@ -275,7 +351,8 @@ def flip(x, axis=None):
 
 
 def floor(x):
-    raise NotImplementedError("`floor` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.floor(x).output(0))
 
 
 def full(shape, fill_value, dtype=None):
@@ -289,15 +366,29 @@ def full_like(x, fill_value, dtype=None):
 
 
 def greater(x1, x2):
-    raise NotImplementedError(
-        "`greater` is not supported with openvino backend"
-    )
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    assert element_type is not None
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "greater()")
+    return OpenVINOKerasTensor(ov_opset.greater(x1, x2).output(0))
 
 
 def greater_equal(x1, x2):
-    raise NotImplementedError(
-        "`greater_equal` is not supported with openvino backend"
-    )
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    assert element_type is not None
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "greater_equal()")
+    return OpenVINOKerasTensor(ov_opset.greater_equal(x1, x2).output(0))
 
 
 def hstack(xs):
@@ -321,27 +412,44 @@ def isclose(x1, x2):
 
 
 def isfinite(x):
-    raise NotImplementedError(
-        "`isfinite` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.is_finite(x).output(0))
 
 
 def isinf(x):
-    raise NotImplementedError("`isinf` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.is_inf(x).output(0))
 
 
 def isnan(x):
-    raise NotImplementedError("`isnan` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.is_nan(x).output(0))
 
 
 def less(x1, x2):
-    raise NotImplementedError("`less` is not supported with openvino backend")
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    assert element_type is not None
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "less()")
+    return OpenVINOKerasTensor(ov_opset.less(x1, x2).output(0))
 
 
 def less_equal(x1, x2):
-    raise NotImplementedError(
-        "`less_equal` is not supported with openvino backend"
-    )
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    assert element_type is not None
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "less_equal()")
+    return OpenVINOKerasTensor(ov_opset.less_equal(x1, x2).output(0))
 
 
 def linspace(
@@ -353,7 +461,8 @@ def linspace(
 
 
 def log(x):
-    raise NotImplementedError("`log` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.log(x).output(0))
 
 
 def log10(x):
@@ -451,9 +560,16 @@ def nonzero(x):
 
 
 def not_equal(x1, x2):
-    raise NotImplementedError(
-        "`not_equal` is not supported with openvino backend"
-    )
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    assert element_type is not None
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "not_equal()")
+    return OpenVINOKerasTensor(ov_opset.not_equal(x1, x2).output(0))
 
 
 def zeros_like(x, dtype=None):
@@ -473,7 +589,31 @@ def outer(x1, x2):
 
 
 def pad(x, pad_width, mode="constant", constant_values=None):
-    raise NotImplementedError("`pad` is not supported with openvino backend")
+    x = get_ov_output(x)
+    pad_value = None
+    if constant_values is not None:
+        if mode != "constant":
+            raise ValueError(
+                "Argument `constant_values` can only be "
+                "provided when `mode == 'constant'`. "
+                f"Received: mode={mode}"
+            )
+        if isinstance(constant_values, int):
+            pad_value = constant_values
+        else:
+            raise ValueError(
+                "`pad` operation supports only scalar pad value in constant mode"
+            )
+
+    # split pad_width into two tensors pads_begin and pads_end
+    pads_begin = []
+    pads_end = []
+    for pads_pair in pad_width:
+        pads_begin.append(pads_pair[0])
+        pads_end.append(pads_pair[1])
+    pads_begin = ov_opset.constant(pads_begin, Type.i32).output(0)
+    pads_end = ov_opset.constant(pads_end, Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.pad(x, pads_begin, pads_end, mode, pad_value).output(0))
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
@@ -505,9 +645,9 @@ def repeat(x, repeats, axis=None):
 
 
 def reshape(x, newshape):
-    raise NotImplementedError(
-        "`reshape` is not supported with openvino backend"
-    )
+    x = get_ov_output(x.value)
+    newshape = ov_opset.constant(newshape, Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.reshape(x, newshape, False).output(0))
 
 
 def roll(x, shift, axis=None):
@@ -515,15 +655,18 @@ def roll(x, shift, axis=None):
 
 
 def sign(x):
-    raise NotImplementedError("`sign` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.sign(x).output(0))
 
 
 def sin(x):
-    raise NotImplementedError("`sin` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.sin(x).output(0))
 
 
 def sinh(x):
-    raise NotImplementedError("`sinh` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.sinh(x).output(0))
 
 
 def size(x):
@@ -553,7 +696,15 @@ def swapaxes(x, axis1, axis2):
 
 
 def take(x, indices, axis=None):
-    raise NotImplementedError("`take` is not supported with openvino backend")
+    x = get_ov_output(x)
+    indices = get_ov_output(indices)
+    if axis is None:
+        target_shape = ov_opset.constant([-1], dtype=Type.i32).output(0)
+        x = ov_opset.reshape(x, target_shape).output(0)
+        axis = ov_opset.constant(0, dtype=Type.i32).output(0)
+    else:
+        axis = ov_opset.constant(axis, dtype=Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.gather(x, indices, axis).output(0))
 
 
 def take_along_axis(x, indices, axis=None):
@@ -563,11 +714,13 @@ def take_along_axis(x, indices, axis=None):
 
 
 def tan(x):
-    raise NotImplementedError("`tan` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.tan(x).output(0))
 
 
 def tanh(x):
-    raise NotImplementedError("`tanh` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.tanh(x).output(0))
 
 
 def tensordot(x1, x2, axes=2):
@@ -619,8 +772,16 @@ def where(condition, x1, x2):
 
 
 def divide(x1, x2):
-    x1, x2 = _align_operand_types(x1, x2)
-    return opset14.divide(x1, x2)
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    assert element_type is not None
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "divide()")
+    return OpenVINOKerasTensor(ov_opset.divide(x1, x2).output(0))
 
 
 def divide_no_nan(x1, x2):
@@ -634,12 +795,21 @@ def true_divide(x1, x2):
 
 
 def power(x1, x2):
-    x1, x2 = _align_operand_types(x1, x2)
-    return opset14.power(x1, x2)
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    assert element_type is not None
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "power()")
+    return OpenVINOKerasTensor(ov_opset.power(x1, x2).output(0))
 
 
 def negative(x):
-    return opset14.negative(x)
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.negative(x).output(0))
 
 
 def square(x):
@@ -647,7 +817,8 @@ def square(x):
 
 
 def sqrt(x):
-    raise NotImplementedError("`sqrt` is not supported with openvino backend")
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.sqrt(x).output(0))
 
 
 def squeeze(x, axis=None):
@@ -681,7 +852,9 @@ def floor_divide(x1, x2):
 
 
 def logical_xor(x1, x2):
-    return opset14.logical_xor(x1, x2)
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    return OpenVINOKerasTensor(ov_opset.logical_xor(x1, x2).output(0))
 
 
 def correlate(x1, x2, mode="valid"):
