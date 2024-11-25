@@ -181,9 +181,7 @@ def arctan(x):
 
 
 def arctan2(x1, x2):
-    raise NotImplementedError(
-        "`arctan2` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`arctan2` is not supported with openvino backend")
 
 
 def arctanh(x):
@@ -200,9 +198,7 @@ def argmin(x, axis=None, keepdims=False):
 
 
 def argsort(x, axis=-1):
-    raise NotImplementedError(
-        "`argsort` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`argsort` is not supported with openvino backend")
 
 
 def array(x, dtype=None):
@@ -210,19 +206,17 @@ def array(x, dtype=None):
 
 
 def average(x, axis=None, weights=None):
-    raise NotImplementedError(
-        "`average` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`average` is not supported with openvino backend")
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
-    raise NotImplementedError(
-        "`bincount` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`bincount` is not supported with openvino backend")
 
 
 def broadcast_to(x, shape):
-    assert isinstance(shape, (tuple, list)), "`broadcast_to` is supported only for tuple and list `shape`"
+    assert isinstance(
+        shape, (tuple, list)
+    ), "`broadcast_to` is supported only for tuple and list `shape`"
     target_shape = ov_opset.constant(list(shape), Type.i32).output(0)
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.broadcast(x, target_shape).output(0))
@@ -238,15 +232,11 @@ def clip(x, x_min, x_max):
 
 
 def concatenate(xs, axis=0):
-    raise NotImplementedError(
-        "`concatenate` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`concatenate` is not supported with openvino backend")
 
 
 def conjugate(x):
-    raise NotImplementedError(
-        "`conjugate` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`conjugate` is not supported with openvino backend")
 
 
 def conj(x):
@@ -268,9 +258,7 @@ def cosh(x):
 
 
 def count_nonzero(x, axis=None):
-    raise NotImplementedError(
-        "`count_nonzero` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`count_nonzero` is not supported with openvino backend")
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
@@ -278,9 +266,7 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 
 def cumprod(x, axis=None, dtype=None):
-    raise NotImplementedError(
-        "`cumprod` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`cumprod` is not supported with openvino backend")
 
 
 def cumsum(x, axis=None, dtype=None):
@@ -292,9 +278,7 @@ def diag(x, k=0):
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
-    raise NotImplementedError(
-        "`diagonal` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`diagonal` is not supported with openvino backend")
 
 
 def diff(a, n=1, axis=-1):
@@ -302,9 +286,7 @@ def diff(a, n=1, axis=-1):
 
 
 def digitize(x, bins):
-    raise NotImplementedError(
-        "`digitize` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`digitize` is not supported with openvino backend")
 
 
 def dot(x, y):
@@ -360,9 +342,7 @@ def full(shape, fill_value, dtype=None):
 
 
 def full_like(x, fill_value, dtype=None):
-    raise NotImplementedError(
-        "`full_like` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`full_like` is not supported with openvino backend")
 
 
 def greater(x1, x2):
@@ -396,9 +376,7 @@ def hstack(xs):
 
 
 def identity(n, dtype=None):
-    raise NotImplementedError(
-        "`identity` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`identity` is not supported with openvino backend")
 
 
 def imag(x):
@@ -406,9 +384,7 @@ def imag(x):
 
 
 def isclose(x1, x2):
-    raise NotImplementedError(
-        "`isclose` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`isclose` is not supported with openvino backend")
 
 
 def isfinite(x):
@@ -452,12 +428,8 @@ def less_equal(x1, x2):
     return OpenVINOKerasTensor(ov_opset.less_equal(x1, x2).output(0))
 
 
-def linspace(
-    start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
-):
-    raise NotImplementedError(
-        "`linspace` is not supported with openvino backend"
-    )
+def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):
+    raise NotImplementedError("`linspace` is not supported with openvino backend")
 
 
 def log(x):
@@ -478,39 +450,27 @@ def log2(x):
 
 
 def logaddexp(x1, x2):
-    raise NotImplementedError(
-        "`logaddexp` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`logaddexp` is not supported with openvino backend")
 
 
 def logical_and(x1, x2):
-    raise NotImplementedError(
-        "`logical_and` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`logical_and` is not supported with openvino backend")
 
 
 def logical_not(x):
-    raise NotImplementedError(
-        "`logical_not` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`logical_not` is not supported with openvino backend")
 
 
 def logical_or(x1, x2):
-    raise NotImplementedError(
-        "`logical_or` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`logical_or` is not supported with openvino backend")
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
-    raise NotImplementedError(
-        "`logspace` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`logspace` is not supported with openvino backend")
 
 
 def maximum(x1, x2):
-    raise NotImplementedError(
-        "`maximum` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`maximum` is not supported with openvino backend")
 
 
 def median(x, axis=None, keepdims=False):
@@ -518,9 +478,7 @@ def median(x, axis=None, keepdims=False):
 
 
 def meshgrid(*x, indexing="xy"):
-    raise NotImplementedError(
-        "`meshgrid` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`meshgrid` is not supported with openvino backend")
 
 
 def min(x, axis=None, keepdims=False, initial=None):
@@ -528,9 +486,7 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
-    raise NotImplementedError(
-        "`minimum` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`minimum` is not supported with openvino backend")
 
 
 def mod(x1, x2):
@@ -538,15 +494,11 @@ def mod(x1, x2):
 
 
 def moveaxis(x, source, destination):
-    raise NotImplementedError(
-        "`moveaxis` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`moveaxis` is not supported with openvino backend")
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
-    raise NotImplementedError(
-        "`nan_to_num` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`nan_to_num` is not supported with openvino backend")
 
 
 def ndim(x):
@@ -554,9 +506,7 @@ def ndim(x):
 
 
 def nonzero(x):
-    raise NotImplementedError(
-        "`nonzero` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`nonzero` is not supported with openvino backend")
 
 
 def not_equal(x1, x2):
@@ -573,15 +523,11 @@ def not_equal(x1, x2):
 
 
 def zeros_like(x, dtype=None):
-    raise NotImplementedError(
-        "`zeros_like` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`zeros_like` is not supported with openvino backend")
 
 
 def ones_like(x, dtype=None):
-    raise NotImplementedError(
-        "`ones_like` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`ones_like` is not supported with openvino backend")
 
 
 def outer(x1, x2):
@@ -613,7 +559,9 @@ def pad(x, pad_width, mode="constant", constant_values=None):
         pads_end.append(pads_pair[1])
     pads_begin = ov_opset.constant(pads_begin, Type.i32).output(0)
     pads_end = ov_opset.constant(pads_end, Type.i32).output(0)
-    return OpenVINOKerasTensor(ov_opset.pad(x, pads_begin, pads_end, mode, pad_value).output(0))
+    return OpenVINOKerasTensor(
+        ov_opset.pad(x, pads_begin, pads_end, mode, pad_value).output(0)
+    )
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
@@ -621,9 +569,7 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
-    raise NotImplementedError(
-        "`quantile` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`quantile` is not supported with openvino backend")
 
 
 def ravel(x):
@@ -635,9 +581,7 @@ def real(x):
 
 
 def reciprocal(x):
-    raise NotImplementedError(
-        "`reciprocal` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`reciprocal` is not supported with openvino backend")
 
 
 def repeat(x, repeats, axis=None):
@@ -690,9 +634,7 @@ def std(x, axis=None, keepdims=False):
 
 
 def swapaxes(x, axis1, axis2):
-    raise NotImplementedError(
-        "`swapaxes` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`swapaxes` is not supported with openvino backend")
 
 
 def take(x, indices, axis=None):
@@ -724,9 +666,7 @@ def tanh(x):
 
 
 def tensordot(x1, x2, axes=2):
-    raise NotImplementedError(
-        "`tensordot` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`tensordot` is not supported with openvino backend")
 
 
 def round(x, decimals=0):
@@ -762,9 +702,7 @@ def vstack(xs):
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):
-    raise NotImplementedError(
-        "`vectorize` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`vectorize` is not supported with openvino backend")
 
 
 def where(condition, x1, x2):
@@ -785,9 +723,7 @@ def divide(x1, x2):
 
 
 def divide_no_nan(x1, x2):
-    raise NotImplementedError(
-        "`divide_no_nan` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`divide_no_nan` is not supported with openvino backend")
 
 
 def true_divide(x1, x2):
@@ -822,15 +758,11 @@ def sqrt(x):
 
 
 def squeeze(x, axis=None):
-    raise NotImplementedError(
-        "`squeeze` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`squeeze` is not supported with openvino backend")
 
 
 def transpose(x, axes=None):
-    raise NotImplementedError(
-        "`transpose` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`transpose` is not supported with openvino backend")
 
 
 def var(x, axis=None, keepdims=False):
@@ -846,9 +778,7 @@ def eye(N, M=None, k=0, dtype=None):
 
 
 def floor_divide(x1, x2):
-    raise NotImplementedError(
-        "`floor_divide` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`floor_divide` is not supported with openvino backend")
 
 
 def logical_xor(x1, x2):
@@ -858,9 +788,7 @@ def logical_xor(x1, x2):
 
 
 def correlate(x1, x2, mode="valid"):
-    raise NotImplementedError(
-        "`correlate` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`correlate` is not supported with openvino backend")
 
 
 def select(condlist, choicelist, default=0):
@@ -868,12 +796,8 @@ def select(condlist, choicelist, default=0):
 
 
 def slogdet(x):
-    raise NotImplementedError(
-        "`slogdet` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`slogdet` is not supported with openvino backend")
 
 
 def argpartition(x, kth, axis=-1):
-    raise NotImplementedError(
-        "`argpartition` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`argpartition` is not supported with openvino backend")

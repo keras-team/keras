@@ -40,7 +40,9 @@ OPENVINO_DTYPES = {
 # for different input `x`
 def get_ov_output(x, ov_type=None):
     if isinstance(x, (float, int)):
-        assert ov_type is not None, "no type is specified for creation of ov.Output for scalar"
+        assert (
+            ov_type is not None
+        ), "no type is specified for creation of ov.Output for scalar"
         x = ov_opset.constant(x, ov_type).output(0)
     elif isinstance(x, KerasVariable):
         x = ov_opset.constant(x.value.data).output(0)
@@ -49,8 +51,11 @@ def get_ov_output(x, ov_type=None):
     elif isinstance(x, Tensor):
         x = ov_opset.constant(x.data).output(0)
     else:
-        raise ValueError("unsupported type of `x` to create ov.Output: {}".format(type(x)))
+        raise ValueError(
+            "unsupported type of `x` to create ov.Output: {}".format(type(x))
+        )
     return x
+
 
 # wrapper for OpenVINO symbolic tensor ov.Output
 # that provides interface similar to KerasTensor
@@ -61,7 +66,9 @@ class OpenVINOKerasTensor:
         if x_shape.rank.is_dynamic:
             x_keras_shape = None
         else:
-            x_keras_shape = [None if dim.is_dynamic else dim.get_length() for dim in list(x_shape)]
+            x_keras_shape = [
+                None if dim.is_dynamic else dim.get_length() for dim in list(x_shape)
+            ]
         x_type = x.get_element_type()
         x_keras_type = ov_to_keras_type(x_type)
         self.output = x
@@ -184,7 +191,9 @@ class Variable(KerasVariable):
         if isinstance(value, OpenVINOKerasTensor):
             self._value = value
         elif isinstance(value, Tensor):
-            value_const = ov_opset.constant(value.data, dtype=OPENVINO_DTYPES[self._dtype])
+            value_const = ov_opset.constant(
+                value.data, dtype=OPENVINO_DTYPES[self._dtype]
+            )
             self._value = OpenVINOKerasTensor(value_const.output(0))
         else:
             value_const = ov_opset.constant(value, dtype=OPENVINO_DTYPES[self._dtype])
@@ -250,14 +259,13 @@ def cond(pred, true_fn, false_fn):
 
 
 def vectorized_map(function, elements):
-    raise NotImplementedError(
-        "`vectorized_map` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`vectorized_map` is not supported with openvino backend")
 
 
 # Shape / dtype inference util
 def compute_output_spec(fn, *args, **kwargs):
     with StatelessScope():
+
         def convert_keras_tensor_to_openvino(x):
             if isinstance(x, KerasTensor):
                 x_shape = list(x.shape)
@@ -295,23 +303,23 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
 
 
 def scatter(indices, values, shape):
-    raise NotImplementedError(
-        "`scatter` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`scatter` is not supported with openvino backend")
 
 
 def scatter_update(inputs, indices, updates):
-    raise NotImplementedError(
-        "`scatter_update` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`scatter_update` is not supported with openvino backend")
 
 
 def slice(inputs, start_indices, lengths):
     inputs = get_ov_output(inputs)
-    assert isinstance(start_indices, tuple), "`slice` is not supported by openvino backend" \
-                  " for `start_indices` of type {}".format(type(lengths))
-    assert isinstance(lengths, tuple), "`slice` is not supported by openvino backend" \
-                  " for `lengths` of type {}".format(type(lengths))
+    assert isinstance(start_indices, tuple), (
+        "`slice` is not supported by openvino backend"
+        " for `start_indices` of type {}".format(type(lengths))
+    )
+    assert isinstance(lengths, tuple), (
+        "`slice` is not supported by openvino backend"
+        " for `lengths` of type {}".format(type(lengths))
+    )
 
     axes = []
     start = []
@@ -330,13 +338,13 @@ def slice(inputs, start_indices, lengths):
     start = ov_opset.constant(start, Type.i32).output(0)
     stop = ov_opset.constant(stop, Type.i32).output(0)
     axes = ov_opset.constant(axes, Type.i32).output(0)
-    return OpenVINOKerasTensor(ov_opset.slice(inputs, start, stop, step, axes).output(0))
+    return OpenVINOKerasTensor(
+        ov_opset.slice(inputs, start, stop, step, axes).output(0)
+    )
 
 
 def slice_update(inputs, start_indices, updates):
-    raise NotImplementedError(
-        "`slice_update` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`slice_update` is not supported with openvino backend")
 
 
 def while_loop(
@@ -345,15 +353,11 @@ def while_loop(
     loop_vars,
     maximum_iterations=None,
 ):
-    raise NotImplementedError(
-        "`while_loop` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`while_loop` is not supported with openvino backend")
 
 
 def fori_loop(lower, upper, body_fun, init_val):
-    raise NotImplementedError(
-        "`fori_loop` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`fori_loop` is not supported with openvino backend")
 
 
 def stop_gradient(x):
@@ -361,9 +365,7 @@ def stop_gradient(x):
 
 
 def unstack(x, num=None, axis=0):
-    raise NotImplementedError(
-        "`unstack` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`unstack` is not supported with openvino backend")
 
 
 def random_seed_dtype():

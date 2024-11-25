@@ -7,6 +7,7 @@ from keras.src.backend.common import KerasVariable
 from openvino import Type
 from openvino import Tensor
 
+
 def relu(x):
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.relu(x).output(0))
@@ -43,15 +44,11 @@ def silu(x):
 
 
 def log_sigmoid(x):
-    raise NotImplementedError(
-        "`log_sigmoid` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`log_sigmoid` is not supported with openvino backend")
 
 
 def leaky_relu(x, negative_slope=0.2):
-    raise NotImplementedError(
-        "`leaky_relu` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`leaky_relu` is not supported with openvino backend")
 
 
 def hard_sigmoid(x):
@@ -105,9 +102,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    raise NotImplementedError(
-        "`max_pool` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`max_pool` is not supported with openvino backend")
 
 
 def average_pool(
@@ -117,71 +112,57 @@ def average_pool(
     padding,
     data_format=None,
 ):
-    raise NotImplementedError(
-        "`average_pool` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`average_pool` is not supported with openvino backend")
 
 
 def _adjust_strides_dilation(
-        x,
-        num_spatial_dims,
+    x,
+    num_spatial_dims,
 ):
     # Helper function that converts an operand to a spatial operand.
     x = (x,) * num_spatial_dims if isinstance(x, int) else x
     # OpenVINO expects input in NCHW layout
-    #x = [1, 1] + list(x)
+    # x = [1, 1] + list(x)
     x = list(x)
     return x
 
 
 def _adjust_padding(
-        padding,
+    padding,
 ):
     padding = padding.lower() if isinstance(padding, str) else padding
-    if padding == 'same':
-        return 'SAME_UPPER', [], []
-    elif padding == 'same_lower':
-        return 'SAME_LOWER', [], []
-    elif padding == 'valid':
-        return 'VALID', [], []
+    if padding == "same":
+        return "SAME_UPPER", [], []
+    elif padding == "same_lower":
+        return "SAME_LOWER", [], []
+    elif padding == "valid":
+        return "VALID", [], []
     pads_begin = []
     pads_end = []
     for padding_pair in padding:
         pads_begin.append(padding_pair[0])
         pads_end.append(padding_pair[1])
-    return 'EXPLICIT', pads_begin, pads_end
+    return "EXPLICIT", pads_begin, pads_end
 
 
-def _adjust_input(
-        inputs,
-        num_spatial_dims,
-        data_format
-):
-    if data_format == 'channels_first':
+def _adjust_input(inputs, num_spatial_dims, data_format):
+    if data_format == "channels_first":
         return inputs
     permutation = [0, 3, 1, 2] if num_spatial_dims == 2 else [0, 4, 1, 2, 3]
     permutation = ov_opset.constant(permutation, Type.i32)
     return ov_opset.transpose(inputs, permutation).output(0)
 
 
-def _adjust_kernel(
-        kernel,
-        num_spatial_dims,
-        data_format
-):
-    if data_format == 'channels_first':
+def _adjust_kernel(kernel, num_spatial_dims, data_format):
+    if data_format == "channels_first":
         return kernel
     permutation = [3, 2, 0, 1] if num_spatial_dims == 2 else [4, 3, 0, 1, 2]
     permutation = ov_opset.constant(permutation, Type.i32)
     return ov_opset.transpose(kernel, permutation).output(0)
 
 
-def _adjust_outputs(
-        outputs,
-        num_spatial_dims,
-        data_format
-):
-    if data_format == 'channels_first':
+def _adjust_outputs(outputs, num_spatial_dims, data_format):
+    if data_format == "channels_first":
         return outputs
     # convert a tensor from NCHW to NHWC layout
     permutation = [0, 2, 3, 1] if num_spatial_dims == 2 else [0, 2, 3, 4, 1]
@@ -204,16 +185,21 @@ def conv(
     num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
 
     kernel_in_channels = kernel.get_partial_shape()[-2]
-    inputs_in_channels = inputs.get_partial_shape()[2 + num_spatial_dims-1]
-    assert kernel_in_channels == inputs_in_channels, \
-        'not equal inputs and kernel channels: {}, {}'.format(inputs_in_channels, kernel_in_channels)
+    inputs_in_channels = inputs.get_partial_shape()[2 + num_spatial_dims - 1]
+    assert (
+        kernel_in_channels == inputs_in_channels
+    ), "not equal inputs and kernel channels: {}, {}".format(
+        inputs_in_channels, kernel_in_channels
+    )
 
     strides = _adjust_strides_dilation(strides, num_spatial_dims)
     dilation_rate = _adjust_strides_dilation(dilation_rate, num_spatial_dims)
     pad_mode, pads_begin, pads_end = _adjust_padding(padding)
     inputs = _adjust_input(inputs, num_spatial_dims, data_format)
     kernel = _adjust_kernel(kernel, num_spatial_dims, data_format)
-    conv = ov_opset.convolution(inputs, kernel, strides, pads_begin, pads_end, dilation_rate, pad_mode)
+    conv = ov_opset.convolution(
+        inputs, kernel, strides, pads_begin, pads_end, dilation_rate, pad_mode
+    )
     conv = _adjust_outputs(conv.output(0), num_spatial_dims, data_format)
     return OpenVINOKerasTensor(conv)
 
@@ -232,7 +218,9 @@ def depthwise_conv(
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
 
-    assert data_format == 'channels_last', "`depthwise_conv` is supported only for channels_last data_format"
+    assert (
+        data_format == "channels_last"
+    ), "`depthwise_conv` is supported only for channels_last data_format"
 
     strides = _adjust_strides_dilation(strides, num_spatial_dims)
     dilation_rate = _adjust_strides_dilation(dilation_rate, num_spatial_dims)
@@ -245,7 +233,9 @@ def depthwise_conv(
     perm = ov_opset.constant([2, 4, 3, 0, 1], Type.i32)
     kernel = ov_opset.transpose(kernel, perm)
 
-    group_conv = ov_opset.group_convolution(inputs, kernel, strides, pads_begin, pads_end, dilation_rate, pad_mode)
+    group_conv = ov_opset.group_convolution(
+        inputs, kernel, strides, pads_begin, pads_end, dilation_rate, pad_mode
+    )
     group_conv = _adjust_outputs(group_conv.output(0), num_spatial_dims, data_format)
     return OpenVINOKerasTensor(group_conv)
 
@@ -259,9 +249,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    raise NotImplementedError(
-        "`separable_conv` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`separable_conv` is not supported with openvino backend")
 
 
 def conv_transpose(
@@ -273,21 +261,15 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    raise NotImplementedError(
-        "`conv_transpose` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`conv_transpose` is not supported with openvino backend")
 
 
 def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
-    raise NotImplementedError(
-        "`one_hot` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`one_hot` is not supported with openvino backend")
 
 
 def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
-    raise NotImplementedError(
-        "`multi_hot` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`multi_hot` is not supported with openvino backend")
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
@@ -298,8 +280,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     raise NotImplementedError(
-        "`sparse_categorical_crossentropy` is not supported "
-        "with openvino backend"
+        "`sparse_categorical_crossentropy` is not supported " "with openvino backend"
     )
 
 
@@ -320,13 +301,13 @@ def moments(x, axes, keepdims=False, synchronized=False):
     squared_mean = ov_opset.power(mean, const_two).output(0)
     squared_x_mean = ov_opset.reduce_mean(squared_x, axes, keepdims)
     mean = OpenVINOKerasTensor(mean)
-    variance = OpenVINOKerasTensor(ov_opset.subtract(squared_x_mean, squared_mean).output(0))
+    variance = OpenVINOKerasTensor(
+        ov_opset.subtract(squared_x_mean, squared_mean).output(0)
+    )
     return mean, variance
 
 
-def batch_normalization(
-    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
-):
+def batch_normalization(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
     x = get_ov_output(x)
     mean = get_ov_output(mean)
     variance = get_ov_output(variance)
@@ -355,7 +336,9 @@ def batch_normalization(
         perm_vector[axis] = 1
         perm_vector = ov_opset.constant(perm_vector, Type.i32).output(0)
         x = ov_opset.transpose(x, perm_vector).output(0)
-    batch_norm = ov_opset.batch_norm_inference(x, scale, offset, mean, variance, epsilon).output(0)
+    batch_norm = ov_opset.batch_norm_inference(
+        x, scale, offset, mean, variance, epsilon
+    ).output(0)
     if axis != 1:
         perm_vector = list(range(0, x_rank))
         perm_vector[1] = axis
@@ -366,9 +349,7 @@ def batch_normalization(
 
 
 def ctc_loss(target, output, target_length, output_length, mask_index=0):
-    raise NotImplementedError(
-        "`ctc_loss` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`ctc_loss` is not supported with openvino backend")
 
 
 def ctc_decode(
@@ -380,9 +361,7 @@ def ctc_decode(
     merge_repeated=True,
     mask_index=0,
 ):
-    raise NotImplementedError(
-        "`ctc_decode` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`ctc_decode` is not supported with openvino backend")
 
 
 def psnr(x1, x2, max_val):
