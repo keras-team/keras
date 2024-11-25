@@ -6,8 +6,8 @@ from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import tree
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
-from keras.src.backend.openvino.core import get_device
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
+from keras.src.backend.openvino.core import get_device
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
@@ -28,7 +28,9 @@ class OpenVINOTrainer(base_trainer.Trainer):
         return x
 
     def test_step(self, data):
-        raise NotImplementedError("`test_step` is not supported with openvino backend")
+        raise NotImplementedError(
+            "`test_step` is not supported with openvino backend"
+        )
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
@@ -61,7 +63,10 @@ class OpenVINOTrainer(base_trainer.Trainer):
         self.test_function = test_step
 
     def _get_compiled_model(self, flatten_data):
-        if self.ov_compiled_model is not None and get_device() == self.ov_device:
+        if (
+            self.ov_compiled_model is not None
+            and get_device() == self.ov_device
+        ):
             return self.ov_compiled_model
 
         # prepare compiled model from scratch
@@ -75,7 +80,9 @@ class OpenVINOTrainer(base_trainer.Trainer):
             parameters.append(param)
             ov_inputs.append(OpenVINOKerasTensor(param.output(0)))
         # build OpenVINO graph ov.Model
-        ov_outputs = self._run_through_graph(ov_inputs, operation_fn=lambda op: op)
+        ov_outputs = self._run_through_graph(
+            ov_inputs, operation_fn=lambda op: op
+        )
         ov_outputs = tree.flatten(ov_outputs)
         results = []
         for ov_output in ov_outputs:
@@ -131,10 +138,14 @@ class OpenVINOTrainer(base_trainer.Trainer):
         validation_batch_size=None,
         validation_freq=1,
     ):
-        raise NotImplementedError("`fit` is not supported with openvino backend")
+        raise NotImplementedError(
+            "`fit` is not supported with openvino backend"
+        )
 
     @traceback_utils.filter_traceback
-    def predict(self, x, batch_size=None, verbose="auto", steps=None, callbacks=None):
+    def predict(
+        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
+    ):
         # Create an iterator that yields batches of input data.
         epoch_iterator = EpochIterator(
             x=x,
@@ -198,7 +209,9 @@ class OpenVINOTrainer(base_trainer.Trainer):
         return_dict=False,
         **kwargs,
     ):
-        raise NotImplementedError("`evaluate` is not supported with openvino backend")
+        raise NotImplementedError(
+            "`evaluate` is not supported with openvino backend"
+        )
 
     def train_on_batch(
         self,
@@ -226,5 +239,7 @@ class OpenVINOTrainer(base_trainer.Trainer):
     def predict_on_batch(self, x):
         self.make_predict_function()
         batch_outputs = self.predict_function([(x,)])
-        batch_outputs = tree.map_structure(backend.convert_to_numpy, batch_outputs)
+        batch_outputs = tree.map_structure(
+            backend.convert_to_numpy, batch_outputs
+        )
         return batch_outputs

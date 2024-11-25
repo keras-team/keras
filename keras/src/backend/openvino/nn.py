@@ -1,11 +1,10 @@
 import numpy as np
 import openvino.runtime.opset14 as ov_opset
+from openvino import Type
+
 from keras.src import backend
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
-from keras.src.backend.common import KerasVariable
-from openvino import Type
-from openvino import Tensor
 
 
 def relu(x):
@@ -40,15 +39,21 @@ def softsign(x):
 
 def silu(x):
     x = get_ov_output(x)
-    return OpenVINOKerasTensor(ov_opset.multiply(x, ov_opset.sigmoid(x)).output(0))
+    return OpenVINOKerasTensor(
+        ov_opset.multiply(x, ov_opset.sigmoid(x)).output(0)
+    )
 
 
 def log_sigmoid(x):
-    raise NotImplementedError("`log_sigmoid` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`log_sigmoid` is not supported with openvino backend"
+    )
 
 
 def leaky_relu(x, negative_slope=0.2):
-    raise NotImplementedError("`leaky_relu` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`leaky_relu` is not supported with openvino backend"
+    )
 
 
 def hard_sigmoid(x):
@@ -102,7 +107,9 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    raise NotImplementedError("`max_pool` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`max_pool` is not supported with openvino backend"
+    )
 
 
 def average_pool(
@@ -112,7 +119,9 @@ def average_pool(
     padding,
     data_format=None,
 ):
-    raise NotImplementedError("`average_pool` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`average_pool` is not supported with openvino backend"
+    )
 
 
 def _adjust_strides_dilation(
@@ -236,7 +245,9 @@ def depthwise_conv(
     group_conv = ov_opset.group_convolution(
         inputs, kernel, strides, pads_begin, pads_end, dilation_rate, pad_mode
     )
-    group_conv = _adjust_outputs(group_conv.output(0), num_spatial_dims, data_format)
+    group_conv = _adjust_outputs(
+        group_conv.output(0), num_spatial_dims, data_format
+    )
     return OpenVINOKerasTensor(group_conv)
 
 
@@ -249,7 +260,9 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    raise NotImplementedError("`separable_conv` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`separable_conv` is not supported with openvino backend"
+    )
 
 
 def conv_transpose(
@@ -261,15 +274,21 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    raise NotImplementedError("`conv_transpose` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`conv_transpose` is not supported with openvino backend"
+    )
 
 
 def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
-    raise NotImplementedError("`one_hot` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`one_hot` is not supported with openvino backend"
+    )
 
 
 def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
-    raise NotImplementedError("`multi_hot` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`multi_hot` is not supported with openvino backend"
+    )
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
@@ -280,7 +299,8 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     raise NotImplementedError(
-        "`sparse_categorical_crossentropy` is not supported " "with openvino backend"
+        "`sparse_categorical_crossentropy` is not supported "
+        "with openvino backend"
     )
 
 
@@ -307,7 +327,9 @@ def moments(x, axes, keepdims=False, synchronized=False):
     return mean, variance
 
 
-def batch_normalization(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
     x = get_ov_output(x)
     mean = get_ov_output(mean)
     variance = get_ov_output(variance)
@@ -349,7 +371,9 @@ def batch_normalization(x, mean, variance, axis, offset=None, scale=None, epsilo
 
 
 def ctc_loss(target, output, target_length, output_length, mask_index=0):
-    raise NotImplementedError("`ctc_loss` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`ctc_loss` is not supported with openvino backend"
+    )
 
 
 def ctc_decode(
@@ -361,7 +385,9 @@ def ctc_decode(
     merge_repeated=True,
     mask_index=0,
 ):
-    raise NotImplementedError("`ctc_decode` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`ctc_decode` is not supported with openvino backend"
+    )
 
 
 def psnr(x1, x2, max_val):

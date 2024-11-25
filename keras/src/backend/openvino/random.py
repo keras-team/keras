@@ -1,11 +1,13 @@
+import openvino.runtime.opset14 as ov_opset
+from openvino import Type
+
 from keras.src.backend.config import floatx
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
-import openvino.runtime.opset14 as ov_opset
-from openvino import Type
+
 
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     raise NotImplementedError("`normal` is not supported with openvino backend")
@@ -18,7 +20,9 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     minval_const = ov_opset.constant(minval, dtype=dtype)
     maxval_const = ov_opset.constant(maxval, dtype=dtype)
     output_shape_const = ov_opset.constant(shape, dtype=Type.i32)
-    random_uniform = ov_opset.random_uniform(output_shape_const, minval_const, maxval_const, ov_type, seed1, seed2)
+    random_uniform = ov_opset.random_uniform(
+        output_shape_const, minval_const, maxval_const, ov_type, seed1, seed2
+    )
     return OpenVINOKerasTensor(random_uniform.output(0))
 
 
@@ -36,6 +40,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     import numpy as np
+
     dtype = dtype or floatx()
     seed = draw_seed(seed)
     rng = np.random.default_rng(seed.data)

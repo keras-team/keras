@@ -1,18 +1,19 @@
 import openvino.runtime.opset14 as ov_opset
-from keras.src import backend
-from keras.src.backend.openvino.core import get_ov_output
+
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
-from keras.src.backend.common import KerasVariable
-from openvino import Type
-from openvino import Tensor
+from keras.src.backend.openvino.core import get_ov_output
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
-    raise NotImplementedError("`segment_sum` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`segment_sum` is not supported with openvino backend"
+    )
 
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
-    raise NotImplementedError("`segment_max` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`segment_max` is not supported with openvino backend"
+    )
 
 
 def top_k(x, k, sorted=False):
@@ -20,11 +21,15 @@ def top_k(x, k, sorted=False):
 
 
 def in_top_k(targets, predictions, k):
-    raise NotImplementedError("`in_top_k` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`in_top_k` is not supported with openvino backend"
+    )
 
 
 def logsumexp(x, axis=None, keepdims=False):
-    raise NotImplementedError("`logsumexp` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`logsumexp` is not supported with openvino backend"
+    )
 
 
 def qr(x, mode="reduced"):
@@ -53,7 +58,9 @@ def irfft(x, fft_length=None):
     raise NotImplementedError("`irfft` is not supported with openvino backend")
 
 
-def stft(x, sequence_length, sequence_stride, fft_length, window="hann", center=True):
+def stft(
+    x, sequence_length, sequence_stride, fft_length, window="hann", center=True
+):
     raise NotImplementedError("`stft` is not supported with openvino backend")
 
 

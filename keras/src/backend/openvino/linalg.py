@@ -1,5 +1,7 @@
 def cholesky(a):
-    raise NotImplementedError("`cholesky` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`cholesky` is not supported with openvino backend"
+    )
 
 
 def det(a):
@@ -19,7 +21,9 @@ def inv(a):
 
 
 def lu_factor(a):
-    raise NotImplementedError("`lu_factor` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`lu_factor` is not supported with openvino backend"
+    )
 
 
 def norm(x, ord=None, axis=None, keepdims=False):

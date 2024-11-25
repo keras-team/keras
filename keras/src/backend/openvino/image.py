@@ -31,7 +31,9 @@ def affine_transform(
     )
 
 
-def map_coordinates(input, coordinates, order, fill_mode="constant", fill_value=0.0):
+def map_coordinates(
+    input, coordinates, order, fill_mode="constant", fill_value=0.0
+):
     raise NotImplementedError(
         "`map_coordinates` is not supported with openvino backend"
     )

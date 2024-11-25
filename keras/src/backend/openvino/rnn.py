@@ -23,11 +23,15 @@ def gru(*args, **kwargs):
 
 
 def unstack(x, axis=0):
-    raise NotImplementedError("`unstack` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`unstack` is not supported with openvino backend"
+    )
 
 
 def numpy_scan(f, init, xs, reverse=False, mask=None):
-    raise NotImplementedError("`numpy_scan` is not supported with openvino backend")
+    raise NotImplementedError(
+        "`numpy_scan` is not supported with openvino backend"
+    )
 
 
 def cudnn_ok(*args, **kwargs):
