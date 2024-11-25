@@ -88,7 +88,6 @@ jobs:
         if: ${{ matrix.backend == 'openvino' }}
         run: |
           python integration_tests/import_test.py
-          coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Test with pytest
         if: ${{ matrix.backend != 'openvino'}}
         run: |
