@@ -64,7 +64,9 @@ def soft_shrink(x, threshold=0.5):
 
 def sparse_plus(x):
     return np.where(
-        x <= -1, np.zeros_like(x), np.where(x < 1, (1 / 4) * (x + 1) ** 2, x)
+        x <= -1,
+        np.zeros_like(x, dtype=x.dtype),
+        np.where(x < 1, np.array((1 / 4) * (x + 1) ** 2, dtype=x.dtype), x),
     )
 
 

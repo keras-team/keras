@@ -56,6 +56,7 @@ def soft_shrink(x, threshold=0.5):
 
 
 def sparse_plus(x):
+    x = convert_to_tensor(x)
     return torch.where(
         x <= -1,
         torch.zeros_like(x),
