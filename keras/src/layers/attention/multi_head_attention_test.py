@@ -642,3 +642,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         assert output.shape == (2, 4, 8, 8), (
             f"Expected shape (2, 4, 8, 8)," f" got {output.shape}"
         )
+
+    def test_multi_head_attention_output_shape_error(self):
+        with self.assertRaisesRegex(ValueError, r"Invalid `output_shape`"):
+            layers.MultiHeadAttention(num_heads=2, key_dim=16, output_shape=8.0)
