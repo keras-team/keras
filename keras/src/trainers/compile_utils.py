@@ -565,22 +565,26 @@ class CompileLoss(losses_module.Loss):
             )
 
     def build(self, y_true, y_pred):
+        loss = self._user_loss
+        loss_weights = self._user_loss_weights
+        flat_output_names = self.output_names
         if (
             self.output_names
             and isinstance(self._user_loss, dict)
             and not isinstance(y_pred, dict)
         ):
-            loss = [self._user_loss[name] for name in self.output_names]
-            if isinstance(self._user_loss_weights, dict):
-                loss_weights = [
-                    self._user_loss_weights[name] for name in self.output_names
-                ]
+            if set(self.output_names) == set(self._user_loss.keys()):
+                loss = [self._user_loss[name] for name in self.output_names]
+                if isinstance(self._user_loss_weights, dict):
+                    loss_weights = [
+                        self._user_loss_weights[name]
+                        for name in self.output_names
+                    ]
             else:
-                loss_weights = self._user_loss_weights
-        else:
-            loss = self._user_loss
-            loss_weights = self._user_loss_weights
-        flat_output_names = self.output_names
+                raise ValueError(
+                    f"Expected keys {self.output_names} in loss dict, but found "
+                    f"loss.keys()={list(self._user_loss.keys())}"
+                )
 
         # Pytree leaf container
         class WeightedLoss:

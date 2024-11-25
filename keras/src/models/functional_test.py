@@ -154,7 +154,8 @@ class FunctionalTest(testing.TestCase):
         out_val = model(in_val)
         self.assertEqual(out_val.shape, (2, 4))
 
-        # Two inputs
+        # ----
+        # Two inputs, input is list
         input_a = Input(shape=(3,), batch_size=2, name="a")
         input_b = Input(shape=(4,), batch_size=2, name="b")
         a = layers.Dense(5)(input_a)
@@ -174,6 +175,46 @@ class FunctionalTest(testing.TestCase):
         in_val = {"a": input_a_2, "b": input_b_2}
         out_val = model(in_val)
         self.assertEqual(out_val.shape, (2, 4))
+
+        # ----
+        # Two inputs, input is dict
+        model = Functional({"a": input_a, "b": input_b}, outputs)
+
+        # Eager call
+        in_val = {"a": np.random.random((2, 3)), "b": np.random.random((2, 4))}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 4))
+
+        # Symbolic call
+        input_a_2 = Input(shape=(3,), batch_size=2)
+        input_b_2 = Input(shape=(4,), batch_size=2)
+        in_val = {"a": input_a_2, "b": input_b_2}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 4))
+
+        # ----
+        # Two inputs, input is dict with incorrect names
+        model = Functional({"c": input_a, "d": input_b}, outputs)
+
+        # Eager call
+        in_val = {"c": np.random.random((2, 3)), "d": np.random.random((2, 4))}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 4))
+
+        # Symbolic call
+        input_a_2 = Input(shape=(3,), batch_size=2)
+        input_b_2 = Input(shape=(4,), batch_size=2)
+        in_val = {"c": input_a_2, "d": input_b_2}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 4))
+
+        # Now we can't use the input names:
+        with self.assertRaises(ValueError):
+            in_val = {
+                "a": np.random.random((2, 3)),
+                "b": np.random.random((2, 4)),
+            }
+            out_val = model(in_val)
 
     @pytest.mark.requires_trainable_backend
     def test_input_dict_with_extra_field(self):
@@ -560,6 +601,7 @@ class FunctionalTest(testing.TestCase):
         # TODO
         pass
 
+    @pytest.mark.requires_trainable_backend
     def test_layers_setter(self):
         inputs = Input(shape=(3,), batch_size=2, name="input")
         outputs = layers.Dense(5)(inputs)
