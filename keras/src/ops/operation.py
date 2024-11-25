@@ -10,10 +10,13 @@ from keras.src.ops.node import Node
 from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils.naming import auto_name
+from flax import nnx
 
 
 @keras_export("keras.Operation")
 class Operation:
+    def __init_subclass__(cls):
+        super().__init_subclass__()
     def __init__(self, dtype=None, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
@@ -97,6 +100,7 @@ class Operation:
         to manually implement `get_config()`.
         """
         instance = super(Operation, cls).__new__(cls)
+        vars(instance)['_object__state'] = nnx.object.ObjectState()
 
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
