@@ -12,6 +12,7 @@ BACKEND_REQ = {
         "--extra-index-url https://download.pytorch.org/whl/cpu ",
     ),
     "jax": ("jax[cpu]", ""),
+    "openvino": ("openvino", ""),
 }
 
 
@@ -58,6 +59,8 @@ def manage_venv_installs(whl_path):
         + BACKEND_REQ[other_backends[0]][0]
         + " "
         + BACKEND_REQ[other_backends[1]][0],
+        + " "
+        + BACKEND_REQ[other_backends[2]][0],
         # Install `.whl` package
         "pip install " + whl_path,
     ]
