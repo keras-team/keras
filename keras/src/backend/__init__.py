@@ -19,6 +19,7 @@ from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.common.variables import AutocastScope
+from keras.src.backend.common.variables import Variable
 from keras.src.backend.common.variables import get_autocast_scope
 from keras.src.backend.common.variables import is_float_dtype
 from keras.src.backend.common.variables import is_int_dtype
@@ -35,25 +36,26 @@ from keras.src.backend.config import standardize_data_format
 # Import backend functions.
 if backend() == "tensorflow":
     from keras.src.backend.tensorflow import *  # noqa: F403
+    from keras.src.backend.tensorflow.core import Variable as BackendVariable
 elif backend() == "jax":
     from keras.src.backend.jax import *  # noqa: F403
+    from keras.src.backend.jax.core import Variable as BackendVariable
 elif backend() == "torch":
     from keras.src.backend.torch import *  # noqa: F403
+    from keras.src.backend.torch.core import Variable as BackendVariable
 
     distribution_lib = None
 elif backend() == "numpy":
     from keras.src.backend.numpy import *  # noqa: F403
+    from keras.src.backend.numpy.core import Variable as BackendVariable
 
     distribution_lib = None
 else:
     raise ValueError(f"Unable to import backend : {backend()}")
 
 
-BackendVariable = Variable  # noqa: F405
-
-
 @keras_export("keras.Variable")
-class Variable(BackendVariable):
+class Variable(BackendVariable, Variable):
     pass
 
 

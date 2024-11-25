@@ -9,7 +9,6 @@ from keras.src.backend.tensorflow import random
 from keras.src.backend.tensorflow import tensorboard
 from keras.src.backend.tensorflow.core import IS_THREAD_SAFE
 from keras.src.backend.tensorflow.core import SUPPORTS_SPARSE_TENSORS
-from keras.src.backend.tensorflow.core import Variable
 from keras.src.backend.tensorflow.core import cast
 from keras.src.backend.tensorflow.core import compute_output_spec
 from keras.src.backend.tensorflow.core import cond

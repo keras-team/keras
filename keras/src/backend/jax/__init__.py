@@ -10,7 +10,6 @@ from keras.src.backend.jax import random
 from keras.src.backend.jax import tensorboard
 from keras.src.backend.jax.core import IS_THREAD_SAFE
 from keras.src.backend.jax.core import SUPPORTS_SPARSE_TENSORS
-from keras.src.backend.jax.core import Variable
 from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import compute_output_spec
 from keras.src.backend.jax.core import cond
