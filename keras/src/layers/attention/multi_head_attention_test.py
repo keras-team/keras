@@ -247,6 +247,14 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
         self.assertEqual(output.shape, comp_output_shape)
 
+        # Test shapes as lists.
+        comp_output_shape = layer.compute_output_shape(
+            list(query_shape),
+            list(value_shape),
+            list(key_shape) if key_shape is not None else None,
+        )
+        self.assertEqual(output.shape, comp_output_shape)
+
     @parameterized.named_parameters(
         ("query_value_dim_mismatch", (2, 4, 8), (2, 2, 7), (2,)),
         ("key_value_dim_mismatch", (2, 4, 8), (2, 2, 8), (2, 1, 7)),

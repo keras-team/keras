@@ -103,7 +103,7 @@ def format_layer_shape(layer):
     else:
         try:
             if hasattr(layer, "output_shape"):
-                output_shapes = layer.output_shape
+                output_shapes = format_shape(layer.output_shape)
             else:
                 outputs = layer.compute_output_shape(**layer._build_shapes_dict)
                 output_shapes = tree.map_shape_structure(
