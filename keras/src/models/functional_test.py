@@ -601,7 +601,6 @@ class FunctionalTest(testing.TestCase):
         # TODO
         pass
 
-    @pytest.mark.requires_trainable_backend
     def test_layers_setter(self):
         inputs = Input(shape=(3,), batch_size=2, name="input")
         outputs = layers.Dense(5)(inputs)
@@ -611,6 +610,7 @@ class FunctionalTest(testing.TestCase):
         ):
             model.layers = [layers.Dense(4)]
 
+    @pytest.mark.requires_trainable_backend
     def test_dict_input_to_list_model(self):
         vocabulary_size = 100
         num_tags = 10

@@ -582,8 +582,8 @@ class CompileLoss(losses_module.Loss):
                     ]
             else:
                 raise ValueError(
-                    f"Expected keys {self.output_names} in loss dict, but found "
-                    f"loss.keys()={list(self._user_loss.keys())}"
+                    f"Expected keys {self.output_names} in loss dict, but "
+                    f"found loss.keys()={list(self._user_loss.keys())}"
                 )
 
         # Pytree leaf container
