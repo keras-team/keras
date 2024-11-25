@@ -88,12 +88,14 @@ jobs:
         if: ${{ matrix.backend == 'openvino' }}
         run: |
           python integration_tests/import_test.py
+          coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Test with pytest
         if: ${{ matrix.backend != 'openvino'}}
         run: |
           pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
           coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Codecov keras
+        if: ${{ matrix.backend != 'openvino'}}
         uses: codecov/codecov-action@v4
         with:
           env_vars: PYTHON,KERAS_HOME
