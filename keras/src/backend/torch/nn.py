@@ -55,6 +55,14 @@ def soft_shrink(x, threshold=0.5):
     return tnn.softshrink(x, lambd=threshold)
 
 
+def sparse_plus(x):
+    return torch.where(
+        x <= -1,
+        torch.zeros_like(x),
+        torch.where(x < 1, (1 / 4) * (x + 1) ** 2, x),
+    )
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return tnn.silu(x)

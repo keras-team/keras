@@ -50,6 +50,14 @@ def soft_shrink(x, threshold=0.5):
     )
 
 
+def sparse_plus(x):
+    return tf.where(
+        x <= -1,
+        tf.zeros_like(x),
+        tf.where(x < 1, (1 / 4) * tf.pow(x + 1, 2), x),
+    )
+
+
 def silu(x):
     return tf.nn.silu(x)
 
