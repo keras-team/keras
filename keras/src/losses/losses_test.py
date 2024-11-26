@@ -1630,6 +1630,16 @@ class TverskyTest(testing.TestCase):
         output = losses.Tversky()(y_true, y_pred)
         self.assertAllClose(output, 0.77777773)
 
+    def test_binary_segmentation_with_axis(self):
+        y_true = np.array(
+            [[[[1.0], [1.0]], [[0.0], [0.0]]], [[[1.0], [1.0]], [[0.0], [0.0]]]]
+        )
+        y_pred = np.array(
+            [[[[0.0], [1.0]], [[0.0], [1.0]]], [[[0.4], [0.0]], [[0.0], [0.9]]]]
+        )
+        output = losses.Tversky(axis=(1, 2, 3), reduction=None)(y_true, y_pred)
+        self.assertAllClose(output, [0.5, 0.75757575])
+
     def test_binary_segmentation_custom_coefficients(self):
         y_true = np.array(
             ([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])
@@ -1639,6 +1649,16 @@ class TverskyTest(testing.TestCase):
         )
         output = losses.Tversky(alpha=0.2, beta=0.8)(y_true, y_pred)
         self.assertAllClose(output, 0.7916667)
+
+    def test_binary_segmentation_custom_coefficients_with_axis(self):
+        y_true = np.array(
+            [[[[1.0], [1.0]], [[0.0], [0.0]]], [[[1.0], [1.0]], [[0.0], [0.0]]]]
+        )
+        y_pred = np.array(
+            [[[[0.0], [1.0]], [[0.0], [1.0]]], [[[0.4], [0.0]], [[0.0], [0.9]]]]
+        )
+        output = losses.Tversky(alpha=0.2, beta=0.8, axis=(1, 2, 3), reduction=None)(y_true, y_pred)
+        self.assertAllClose(output, [0.5, 0.7222222])
 
     def test_dtype_arg(self):
         y_true = np.array(([[1, 2], [1, 2]]))
