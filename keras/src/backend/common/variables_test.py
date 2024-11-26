@@ -8,7 +8,6 @@ from keras.src import backend
 from keras.src import initializers
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.variables import AutocastScope
-from keras.src.backend.common.variables import KerasVariable
 from keras.src.backend.common.variables import shape_equal
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.common.variables import standardize_shape
@@ -17,7 +16,7 @@ from keras.src.testing.test_utils import named_product
 
 
 class VariableInitializationTest(test_case.TestCase):
-    """Tests for KerasVariable.__init__()"""
+    """Tests for Variable.__init__()"""
 
     def test_deferred_initialization(self):
         """Tests deferred initialization of variables."""
@@ -73,17 +72,16 @@ class VariableInitializationTest(test_case.TestCase):
         self.assertAllClose(v.value, init_value)
 
     def test_variable_without_shape_from_callable_initializer(self):
-        """Test that KerasVariable raises error
+        """Test that Variable raises error
         if shape is not provided for callable initializer."""
         with self.assertRaisesRegex(
             ValueError, "When creating a Variable from an initializer"
         ):
-            KerasVariable(initializer=lambda: np.ones((2, 2)))
+            backend.Variable(initializer=lambda: np.ones((2, 2)))
 
 
 class VariablePropertiesTest(test_case.TestCase):
-    """Tests for KerasVariable._deferred_initialize
-    KerasVariable._maybe_autocast"""
+    """Tests for Variable._deferred_initialize Variable._maybe_autocast"""
 
     def test_deferred_assignment(self):
         """Tests deferred assignment to variables."""
@@ -204,10 +202,12 @@ class VariablePropertiesTest(test_case.TestCase):
         with self.assertRaisesRegex(
             ValueError, "Argument `name` must be a string"
         ):
-            KerasVariable(initializer=initializers.RandomNormal(), name=12345)
+            backend.Variable(
+                initializer=initializers.RandomNormal(), name=12345
+            )
 
         with self.assertRaisesRegex(ValueError, "cannot contain character `/`"):
-            KerasVariable(
+            backend.Variable(
                 initializer=initializers.RandomNormal(), name="invalid/name"
             )
 
@@ -272,8 +272,7 @@ class VariablePropertiesTest(test_case.TestCase):
 
 
 class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
-    """tests for KerasVariable.numpy(), KerasVariable.value()
-    and KerasVariable.assign()"""
+    """tests for Variable.numpy(), Variable.value() and Variable.assign()"""
 
     def test_variable_numpy(self):
         """Test retrieving the value of a variable as a numpy array."""
@@ -373,9 +372,20 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
         """Test the string representation of a variable."""
         v = backend.Variable(initializer=np.array([1, 2, 3]), name="test_var")
         expected_repr = (
-            "<KerasVariable shape=(3,), dtype=float32, path=test_var>"
+            "<Variable path=test_var, shape=(3,), dtype=float32, "
+            "value=[1. 2. 3.]>"
         )
         self.assertEqual(repr(v), expected_repr)
+
+        # Test with `backend.StatelessScope()`
+        with backend.StatelessScope():
+            v = backend.Variable(
+                initializer="zeros", shape=(3,), name="test_var"
+            )
+            expected_repr = (
+                "<Variable path=test_var, shape=(3,), dtype=float32>"
+            )
+            self.assertEqual(repr(v), expected_repr)
 
     def test_variable_getitem(self):
         """Test getting an item from a variable."""
@@ -408,7 +418,7 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
 
 
 class VariableOpsCorrectnessTest(test_case.TestCase):
-    """Tests for operations on KerasVariable."""
+    """Tests for operations on Variable."""
 
     def test_int(self):
         v = backend.Variable(initializer=np.array(-1.1))
