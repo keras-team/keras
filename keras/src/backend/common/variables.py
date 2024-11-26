@@ -34,12 +34,21 @@ class Variable:
             autocasting. If `True`, the layer may first convert the variable
             to the compute data type when accessed. Defaults to `True`.
         aggregation: Optional. String specifying how a distributed variable will
-            be aggregated. This argument is specific to TensorFlow. For more
-            details, please refer to
-            https://www.tensorflow.org/api_docs/python/tf/VariableAggregation.
-            Defaults to `"mean"`.
+            be aggregated. This serves as a semantic annotation, to be taken
+            into account by downstream backends or users. Defaults to `"mean"`.
         name: Optional. A unique name for the variable. Automatically generated
             if not set.
+
+    Attributes:
+        shape: The shape of the variable (tuple of integers).
+        ndim: The number of dimensions of the variable (integer).
+        dtype: The data type of the variable (string).
+        trainable: Whether the variable is trainable (boolean).
+        autocast: Whether the variable supports autocasting (boolean).
+        aggregation: How a distributed variable will be aggregated (string).
+        value: The current value of the variable (NumPy array or tensor).
+        name: The name of the variable (string).
+        path: The path of the variable within the Keras model or layer (string).
 
     Examples:
 
