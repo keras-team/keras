@@ -515,6 +515,13 @@ def save_weights_only(model, filepath, objects_to_skip=None):
 
     Supports both `.weights.h5` and `.keras`.
     """
+    if not model.built:
+        raise ValueError(
+            "You are saving a model that has not yet been built. "
+            "Try building the model first by calling it on some data or "
+            "by using `build()`."
+        )
+
     filepath = str(filepath)
     tmp_dir = None
     remote_filepath = None
@@ -556,6 +563,13 @@ def load_weights_only(
 
     Note: only supports h5 for now.
     """
+    if not model.built:
+        raise ValueError(
+            "You are loading weights into a model that has not yet been built. "
+            "Try building the model first by calling it on some data or "
+            "by using `build()`."
+        )
+
     archive = None
     tmp_dir = None
     filepath = str(filepath)

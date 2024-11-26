@@ -299,6 +299,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((None, 3, 3))
         self.assertEqual(knp.vdot(x, y).shape, ())
 
+    def test_inner(self):
+        x = KerasTensor((None,))
+        y = KerasTensor((3,))
+        self.assertEqual(knp.inner(x, y).shape, ())
+
     def test_where(self):
         condition = KerasTensor((2, None, 1))
         x = KerasTensor((None, 1))
@@ -874,6 +879,11 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.vdot(x, y).shape, ())
+
+    def test_inner(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.inner(x, y).shape, ())
 
     def test_where(self):
         condition = KerasTensor((2, 3))
@@ -2974,6 +2984,12 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y = np.array([4.0, 5.0, 6.0])
         self.assertAllClose(knp.vdot(x, y), np.vdot(x, y))
         self.assertAllClose(knp.Vdot()(x, y), np.vdot(x, y))
+
+    def test_inner(self):
+        x = np.array([1.0, 2.0, 3.0])
+        y = np.array([4.0, 5.0, 6.0])
+        self.assertAllClose(knp.inner(x, y), np.inner(x, y))
+        self.assertAllClose(knp.Inner()(x, y), np.inner(x, y))
 
     def test_where(self):
         x = np.array([1, 2, 3])
@@ -8248,6 +8264,26 @@ class NumpyDtypeTest(testing.TestCase):
             standardize_dtype(knp.vdot(x1, x2).dtype), expected_dtype
         )
         self.assertEqual(knp.Vdot().symbolic_call(x1, x2).dtype, expected_dtype)
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_inner(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.inner(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.inner(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            knp.Inner().symbolic_call(x1, x2).dtype, expected_dtype
+        )
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))

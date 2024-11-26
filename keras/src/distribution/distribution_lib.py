@@ -308,7 +308,7 @@ class Distribution:
         """Retrieve the `TensorLayout` for the variable.
 
         Args:
-            variable: A `KerasVariable` instance.
+            variable: A `Variable` instance.
 
         return:
             The `TensorLayout` for the variable, which can be used by

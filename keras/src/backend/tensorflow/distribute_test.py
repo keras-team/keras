@@ -122,3 +122,16 @@ class DistributeTest(testing.TestCase):
                 self.assertEqual(y.values[0].shape, [2, 4])
                 self.assertEqual(sample_weight.values[0].shape, [2])
         self.assertEqual(steps_seen, [0, 1, 2, 3, 4, 5, 6])
+
+    def test_variable_aggregation(self):
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
+
+        with strategy.scope():
+            x = np.random.random((4, 4))
+            v1 = backend.Variable(x, dtype="float32")
+            self.assertEqual(v1.aggregation, "mean")
+            self.assertEqual(v1.value.aggregation, tf.VariableAggregation.MEAN)
+
+            v2 = backend.Variable(x, dtype="float32", aggregation="sum")
+            self.assertEqual(v2.aggregation, "sum")
+            self.assertEqual(v2.value.aggregation, tf.VariableAggregation.SUM)
