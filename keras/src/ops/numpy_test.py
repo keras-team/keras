@@ -1233,6 +1233,19 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             x = KerasTensor((2, 3, 4))
             knp.diag(x)
 
+    def test_diagflat(self):
+        x = KerasTensor((3,))
+        self.assertEqual(knp.diagflat(x).shape, (3, 3))
+        self.assertEqual(knp.diagflat(x, k=1).shape, (4, 4))
+        self.assertEqual(knp.diagflat(x, k=-1).shape, (4, 4))
+
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.diagflat(x).shape, (6, 6))
+        self.assertEqual(knp.diagflat(x, k=2).shape, (8, 8))
+
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.diagflat(x).shape, (None, None))
+
     def test_diagonal(self):
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.diagonal(x).shape, (3, None))
@@ -1771,6 +1784,23 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             x = KerasTensor((2, 3, 4))
             knp.diag(x)
+
+    def test_diagflat(self):
+        x = KerasTensor((3,))
+        self.assertEqual(knp.diagflat(x).shape, (3, 3))
+        self.assertEqual(knp.diagflat(x, k=1).shape, (4, 4))
+        self.assertEqual(knp.diagflat(x, k=-1).shape, (4, 4))
+
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.diagflat(x).shape, (6, 6))
+        self.assertEqual(knp.diagflat(x, k=1).shape, (7, 7))
+        self.assertEqual(knp.diagflat(x, k=-1).shape, (7, 7))
+
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.diagflat(x).shape, (None, None))
+
+        x = KerasTensor(())
+        self.assertEqual(knp.diagflat(x).shape, (1, 1))
 
     def test_diagonal(self):
         x = KerasTensor((3, 3))
@@ -3636,6 +3666,33 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Diag()(x), np.diag(x))
         self.assertAllClose(knp.Diag(k=1)(x), np.diag(x, k=1))
         self.assertAllClose(knp.Diag(k=-1)(x), np.diag(x, k=-1))
+
+    def test_diagflat(self):
+        x = np.array([1, 2, 3])
+        self.assertAllClose(knp.diagflat(x), np.diagflat(x))
+        self.assertAllClose(knp.diagflat(x, k=1), np.diagflat(x, k=1))
+        self.assertAllClose(knp.diagflat(x, k=-1), np.diagflat(x, k=-1))
+
+        x = np.array([[1, 2], [3, 4]])
+        self.assertAllClose(knp.diagflat(x), np.diagflat(x))
+        self.assertAllClose(knp.diagflat(x, k=1), np.diagflat(x, k=1))
+        self.assertAllClose(knp.diagflat(x, k=-1), np.diagflat(x, k=-1))
+
+        x = np.array([1, 2, 3, 4])
+        self.assertAllClose(knp.diagflat(x), np.diagflat(x))
+        self.assertAllClose(knp.diagflat(x, k=2), np.diagflat(x, k=2))
+        self.assertAllClose(knp.diagflat(x, k=-2), np.diagflat(x, k=-2))
+
+        x_float = np.array([1.1, 2.2, 3.3])
+        self.assertAllClose(knp.diagflat(x_float), np.diagflat(x_float))
+
+        x_complex = np.array([1 + 1j, 2 + 2j, 3 + 3j])
+        self.assertAllClose(knp.diagflat(x_complex), np.diagflat(x_complex))
+
+        x = np.array([1, 2, 3])
+        self.assertAllClose(knp.Diagflat()(x), np.diagflat(x))
+        self.assertAllClose(knp.Diagflat(k=1)(x), np.diagflat(x, k=1))
+        self.assertAllClose(knp.Diagflat(k=-1)(x), np.diagflat(x, k=-1))
 
     def test_diagonal(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -6271,6 +6328,35 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(
             standardize_dtype(knp.Diag().symbolic_call(x).dtype),
             expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_diagflat(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.diagflat(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.diagflat(x).dtype), expected_dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.Diagflat().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+        x_2d = knp.ones((1, 1), dtype=dtype)
+        x_jax_2d = jnp.ones((1, 1), dtype=dtype)
+        expected_dtype_2d = standardize_dtype(jnp.diagflat(x_jax_2d).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.diagflat(x_2d).dtype), expected_dtype_2d
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Diagflat().symbolic_call(x_2d).dtype),
+            expected_dtype_2d,
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))

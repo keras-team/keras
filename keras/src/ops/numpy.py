@@ -2062,6 +2062,61 @@ def diag(x, k=0):
     return backend.numpy.diag(x, k=k)
 
 
+class Diagflat(Operation):
+    def __init__(self, k=0):
+        super().__init__()
+        self.k = k
+
+    def call(self, x):
+        return backend.numpy.diagflat(x, k=self.k)
+
+    def compute_output_spec(self, x):
+        x_shape = x.shape
+
+        if len(x_shape) == 0:
+            flat_size = 1
+        elif len(x_shape) == 1:
+            flat_size = x_shape[0] if x_shape[0] is not None else None
+        else:
+            flat_size = None
+            for s in x_shape:
+                if s is None:
+                    flat_size = None
+                    break
+                elif flat_size is None:
+                    flat_size = s
+                else:
+                    flat_size *= s
+
+        if flat_size is None:
+            output_shape = [None, None]
+        else:
+            output_shape = [
+                flat_size + int(np.abs(self.k)),
+                flat_size + int(np.abs(self.k)),
+            ]
+
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.diagflat", "keras.ops.numpy.diagflat"])
+def diagflat(x, k=0):
+    """Create a two-dimensional array with the flattened input on the k-th diagonal.
+
+    Args:
+        x: Input tensor to be flattened and placed on the diagonal.
+        k: The diagonal to place the flattened input. Defaults to `0`.
+           Use `k > 0` for diagonals above the main diagonal,
+           and `k < 0` for diagonals below the main diagonal.
+
+    Returns:
+        A 2-D tensor with the flattened input on the specified diagonal.
+    """
+    if any_symbolic_tensors((x,)):
+        return Diagflat(k=k).symbolic_call(x)
+    return backend.numpy.diagflat(x, k=k)
+
+
 class Diagonal(Operation):
     def __init__(self, offset=0, axis1=0, axis2=1):
         super().__init__()
