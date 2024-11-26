@@ -136,10 +136,15 @@ class CloneModelTest(testing.TestCase):
     @parameterized.named_parameters(
         ("cnn_functional", get_cnn_functional_model),
         ("cnn_sequential", get_cnn_sequential_model),
+        (
+            "cnn_sequential_noinputlayer",
+            lambda: get_cnn_sequential_model(explicit_input=False),
+        ),
     )
     def test_input_tensors(self, model_fn):
+        ref_input = np.random.random((2, 7, 3))
         model = model_fn()
-        # model.inputs doesn't work for Sequential, model.input doesn't work for Functional, only model.inputs[0] works for both
+        model(ref_input)  # Maybe needed to get model inputs if no Input layer
         input_tensor = model.inputs[0]
         new_model = clone_model(model, input_tensors=input_tensor)
         tree.assert_same_structure(model.inputs, new_model.inputs)
