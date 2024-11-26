@@ -146,6 +146,7 @@ from keras.src.ops.numpy import cross
 from keras.src.ops.numpy import cumprod
 from keras.src.ops.numpy import cumsum
 from keras.src.ops.numpy import diag
+from keras.src.ops.numpy import diagflat
 from keras.src.ops.numpy import diagonal
 from keras.src.ops.numpy import diff
 from keras.src.ops.numpy import digitize

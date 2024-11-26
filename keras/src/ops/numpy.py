@@ -2101,7 +2101,8 @@ class Diagflat(Operation):
 
 @keras_export(["keras.ops.diagflat", "keras.ops.numpy.diagflat"])
 def diagflat(x, k=0):
-    """Create a two-dimensional array with the flattened input on the k-th diagonal.
+    """Create a two-dimensional array with the flattened input on
+       the k-th diagonal.
 
     Args:
         x: Input tensor to be flattened and placed on the diagonal.
