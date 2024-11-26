@@ -9,8 +9,8 @@ from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend.config import is_flash_attention_enabled
 from keras.src.layers.activations.softmax import Softmax
-from keras.src.layers.attention.attention import is_flash_attention_enabled
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.layer import Layer
 from keras.src.layers.regularization.dropout import Dropout
@@ -127,6 +127,17 @@ class MultiHeadAttention(Layer):
         self._value_dim = value_dim if value_dim else key_dim
         self._dropout = dropout
         self._use_bias = use_bias
+        if output_shape:
+            if isinstance(output_shape, int):
+                output_shape = (output_shape,)
+            try:
+                output_shape = tuple(output_shape)
+            except:
+                raise ValueError(
+                    f"Invalid `output_shape`: {output_shape}. When "
+                    "specified, the `output_shape` should be of type tuple, "
+                    "list, or int."
+                )
         self._output_shape = output_shape
         self._flash_attention = flash_attention or is_flash_attention_enabled()
         self._kernel_initializer = initializers.get(kernel_initializer)
@@ -176,9 +187,8 @@ class MultiHeadAttention(Layer):
     def use_bias(self):
         return self._use_bias
 
-    @property
-    def output_shape(self):
-        return self._output_shape
+    # Avoid exposing `output_shape` as it may conflict with `Functional` and
+    # `Sequential` models when calling `summary()`.
 
     @property
     def attention_axes(self):
@@ -343,14 +353,7 @@ class MultiHeadAttention(Layer):
         """
         query_rank = len(query_shape)
         if self._output_shape:
-            if isinstance(self._output_shape, (tuple, list)):
-                output_shape = self._output_shape
-            elif isinstance(self._output_shape, int):
-                output_shape = [self._output_shape]
-            else:
-                raise ValueError(
-                    f"Invalid output_shape type: {self._output_shape}"
-                )
+            output_shape = self._output_shape
         else:
             output_shape = [query_shape[-1]]
         einsum_equation, bias_axes, output_rank = _build_proj_equation(
@@ -617,12 +620,15 @@ class MultiHeadAttention(Layer):
             # the shape of the causal mask is [1, T, S]
             mask = self._compute_causal_mask(query, value)
             auto_mask = mask if auto_mask is None else auto_mask & mask
+
+        if attention_mask is not None:
+            attention_mask = ops.cast(attention_mask, "bool")
         if auto_mask is not None:
             # merge attention_mask & automatic mask, to shape [B, T, S]
             attention_mask = (
                 auto_mask
                 if attention_mask is None
-                else ops.cast(attention_mask, bool) & auto_mask
+                else attention_mask & auto_mask
             )
         return attention_mask
 
@@ -661,8 +667,12 @@ class MultiHeadAttention(Layer):
         value_shape,
         key_shape=None,
     ):
+        query_shape = tuple(query_shape)
+        value_shape = tuple(value_shape)
         if key_shape is None:
             key_shape = value_shape
+        else:
+            key_shape = tuple(key_shape)
 
         if value_shape[1:-1] != key_shape[1:-1]:
             raise ValueError(
@@ -670,17 +680,8 @@ class MultiHeadAttention(Layer):
                 f"must be equal. Received: value_shape={value_shape} and "
                 f"key_shape={key_shape}"
             )
-
         if self._output_shape:
-            if isinstance(self._output_shape, (tuple, list)):
-                return query_shape[:-1] + tuple(self._output_shape)
-            elif isinstance(self._output_shape, int):
-                return query_shape[:-1] + (self._output_shape,)
-            else:
-                raise ValueError(
-                    f"Invalid output_shape type: {self._output_shape}"
-                )
-
+            query_shape = query_shape[:-1] + self._output_shape
         return query_shape
 
     def compute_output_spec(

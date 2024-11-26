@@ -12,7 +12,7 @@ from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.naming import auto_name
 
 
-class KerasVariable:
+class Variable:
     """Represents a backend-agnostic variable in Keras.
 
     A `Variable` acts as a container for state. It holds a tensor value and can
@@ -30,17 +30,25 @@ class KerasVariable:
             dtype type (`"float32"` if never configured).
         trainable: Optional. Boolean indicating if variable is trainable.
             Defaults to `True`.
+        autocast: Optional. Boolean indicating whether the variable supports
+            autocasting. If `True`, the layer may first convert the variable
+            to the compute data type when accessed. Defaults to `True`.
+        aggregation: Optional. String specifying how a distributed variable will
+            be aggregated. This serves as a semantic annotation, to be taken
+            into account by downstream backends or users. Defaults to `"mean"`.
         name: Optional. A unique name for the variable. Automatically generated
             if not set.
 
     Attributes:
-        name: The name of the variable (string).
-        path: The path of the variable within the Keras model or layer (string).
-        dtype: The data type of the variable (string).
         shape: The shape of the variable (tuple of integers).
         ndim: The number of dimensions of the variable (integer).
+        dtype: The data type of the variable (string).
         trainable: Whether the variable is trainable (boolean).
+        autocast: Whether the variable supports autocasting (boolean).
+        aggregation: How a distributed variable will be aggregated (string).
         value: The current value of the variable (NumPy array or tensor).
+        name: The name of the variable (string).
+        path: The path of the variable within the Keras model or layer (string).
 
     Examples:
 
@@ -95,26 +103,25 @@ class KerasVariable:
                 "cannot contain character `/`. "
                 f"Received: name={name}"
             )
-        if aggregation not in ("mean", "sum", "only_first_replica"):
+        if aggregation not in ("none", "mean", "sum", "only_first_replica"):
             raise ValueError(
                 "Invalid valid for argument `aggregation`. Expected "
-                "one of {'mean', 'sum', 'only_first_replica'}. "
+                "one of {'none', 'mean', 'sum', 'only_first_replica'}. "
                 f"Received: aggregation={aggregation}"
             )
-        self.name = name
+        self._name = name
         parent_path = current_path()
         if parent_path:
-            self.path = current_path() + "/" + self.name
+            self._path = current_path() + "/" + name
         else:
-            self.path = self.name
-        dtype = standardize_dtype(dtype)
-        self._dtype = dtype
+            self._path = name
+        self._dtype = standardize_dtype(dtype)
         self._shape = None
         self._initializer = None
         self._regularizer = None
         self._constraint = None
-        self._trainable = trainable
-        self._autocast = autocast
+        self._trainable = bool(trainable)
+        self._autocast = bool(autocast)
         self._aggregation = aggregation
         # `self._overwrite_with_gradient` is an internal property to determine
         # whether this variable should be overwritten by the computed gradient.
@@ -163,7 +170,7 @@ class KerasVariable:
                 self._initialize_with_initializer(initializer)
             else:
                 self._initialize(initializer)
-                self._shape = tuple(self._value.shape)
+                self._shape = self._validate_shape(self._value.shape)
         self._ndim = len(self._shape)
 
     def _deferred_initialize(self):
@@ -201,10 +208,12 @@ class KerasVariable:
 
     @property
     def aggregation(self):
+        """The strategy for aggregating this variable."""
         return self._aggregation
 
     @property
     def value(self):
+        """The current value of the variable (numpy array or backend tensor)."""
         if in_stateless_scope():
             scope = get_stateless_scope()
             value = scope.get_current_value(self)
@@ -246,30 +255,46 @@ class KerasVariable:
 
     @property
     def dtype(self):
+        """The data type of the variable."""
         autocast_scope = get_autocast_scope()
         if (
             self._autocast
             and autocast_scope is not None
             and is_float_dtype(self._dtype)
         ):
-            return autocast_scope.dtype
-        return self._dtype
+            dtype = autocast_scope.dtype
+        else:
+            dtype = self._dtype
+        return backend.standardize_dtype(dtype)
 
     @property
     def shape(self):
+        """The shape of the variable."""
         return self._shape
 
     @property
     def ndim(self):
+        """The number of dimensions of the variable."""
         return self._ndim
 
     @property
     def trainable(self):
+        """Whether the variable is trainable."""
         return self._trainable
 
     @trainable.setter
     def trainable(self, value):
-        self._trainable = value
+        self._trainable = bool(value)
+
+    @property
+    def name(self):
+        """The name of the variable."""
+        return self._name
+
+    @property
+    def path(self):
+        """The path of the variable within the Keras model or layer."""
+        return self._path
 
     @property
     def overwrite_with_gradient(self):
@@ -326,9 +351,13 @@ class KerasVariable:
         self._constraint = value
 
     def __repr__(self):
+        value = None
+        if hasattr(self, "_value") and self._value is not None:
+            value = backend.core.convert_to_numpy(self._value)
+        value_str = f", value={value}" if value is not None else ""
         return (
-            f"<KerasVariable shape={self.shape}, dtype={self.dtype}, "
-            f"path={self.path}>"
+            f"<Variable path={self.path}, shape={self.shape}, "
+            f"dtype={self.dtype}{value_str}>"
         )
 
     def _initialize(self, value):
@@ -573,7 +602,7 @@ def get_autocast_scope():
 class AutocastScope:
     """Context manager that enables the autocasting of float variables.
 
-    Under this context manager, float `KerasVariables`s will be cast to `dtype`
+    Under this context manager, float `Variables`s will be cast to `dtype`
     (note that `dtype` must also be float).
     """
 

@@ -2285,6 +2285,24 @@ def vdot(x1, x2):
     return tf.cast(dot(x1, x2), result_dtype)
 
 
+def inner(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, float)
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
+    x = tf.cond(
+        tf.math.logical_or(
+            tf.math.equal(tf.rank(x1), 0),
+            tf.math.equal(tf.rank(x2), 0),
+        ),
+        lambda: x1 * x2,
+        lambda: tf.tensordot(x1, x2, axes=[[-1], [-1]]),
+    )
+    return tf.cast(x, result_dtype)
+
+
 def vstack(xs):
     dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
     if len(dtype_set) > 1:

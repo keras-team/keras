@@ -12,7 +12,6 @@ import warnings
 import tensorflow as tf
 
 from keras.src import backend
-from keras.src.backend.common import KerasVariable
 from keras.src.backend.tensorflow.trackable import KerasAutoTrackable
 from keras.src.optimizers import base_optimizer
 
@@ -46,7 +45,7 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
         )
 
     def assign(self, variable, value):
-        if isinstance(variable, KerasVariable):
+        if isinstance(variable, backend.Variable):
             variable = variable.value
         value = tf.cast(value, variable.dtype)
         if isinstance(value, tf.IndexedSlices):
@@ -55,7 +54,7 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
             variable.assign(value)
 
     def assign_add(self, variable, value):
-        if isinstance(variable, KerasVariable):
+        if isinstance(variable, backend.Variable):
             variable = variable.value
         value = tf.cast(value, variable.dtype)
         if isinstance(value, tf.IndexedSlices):
@@ -64,7 +63,7 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
             variable.assign_add(value)
 
     def assign_sub(self, variable, value):
-        if isinstance(variable, KerasVariable):
+        if isinstance(variable, backend.Variable):
             variable = variable.value
         value = tf.cast(value, variable.dtype)
         if isinstance(value, tf.IndexedSlices):

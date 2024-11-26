@@ -469,6 +469,33 @@ class SavingTest(testing.TestCase):
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
+    def test_save_weights_only_with_unbuilt_model(self):
+        temp_filepath = Path(
+            os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        )
+        model = _get_subclassed_model()
+        with self.assertRaisesRegex(
+            ValueError, "You are saving a model that has not yet been built."
+        ):
+            saving_lib.save_weights_only(model, temp_filepath)
+
+    def test_load_weights_only_with_unbuilt_model(self):
+        temp_filepath = Path(
+            os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        )
+        model = _get_subclassed_model()
+        x = np.random.random((100, 32))
+        _ = model.predict(x)  # Build the model by calling it on some data
+        saving_lib.save_weights_only(model, temp_filepath)
+        saving_lib.load_weights_only(model, temp_filepath)
+
+        new_model = _get_subclassed_model()
+        with self.assertRaisesRegex(
+            ValueError,
+            "You are loading weights into a model that has not yet been built.",
+        ):
+            saving_lib.load_weights_only(new_model, temp_filepath)
+
     def test_load_weights_only_with_keras_file(self):
         # Test loading weights from whole saved model
         temp_filepath = Path(os.path.join(self.get_temp_dir(), "mymodel.keras"))
@@ -1071,6 +1098,6 @@ class SavingBattleTest(testing.TestCase):
         with mock.patch(
             "keras.src.utils.file_utils.is_remote_path", is_remote_path
         ):
-            model = _get_subclassed_model()
+            model = _get_basic_functional_model()
             model.save_weights(temp_filepath)
             model.load_weights(temp_filepath)

@@ -67,12 +67,14 @@ class LossScaleOptimizer(optimizer.Optimizer):
             shape=(),
             dtype="int",
             initializer=initializers.Zeros(),
+            aggregation="none",
             name="step_counter",
         )
         self.dynamic_scale = self.add_variable(
             shape=(),
             dtype="float32",
             initializer=initializers.Constant(self.initial_scale),
+            aggregation="none",
             name="dynamic_scale",
         )
         self.inner_optimizer.build(var_list)

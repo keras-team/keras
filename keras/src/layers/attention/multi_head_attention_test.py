@@ -14,9 +14,9 @@ from keras.src import ops
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
-from keras.src.layers.attention.attention import disable_flash_attention
-from keras.src.layers.attention.attention import enable_flash_attention
-from keras.src.layers.attention.attention import is_flash_attention_enabled
+from keras.src.backend.config import disable_flash_attention
+from keras.src.backend.config import enable_flash_attention
+from keras.src.backend.config import is_flash_attention_enabled
 
 
 class MultiHeadAttentionTest(testing.TestCase):
@@ -247,6 +247,14 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
         self.assertEqual(output.shape, comp_output_shape)
 
+        # Test shapes as lists.
+        comp_output_shape = layer.compute_output_shape(
+            list(query_shape),
+            list(value_shape),
+            list(key_shape) if key_shape is not None else None,
+        )
+        self.assertEqual(output.shape, comp_output_shape)
+
     @parameterized.named_parameters(
         ("query_value_dim_mismatch", (2, 4, 8), (2, 2, 7), (2,)),
         ("key_value_dim_mismatch", (2, 4, 8), (2, 2, 8), (2, 1, 7)),
@@ -340,11 +348,9 @@ class MultiHeadAttentionTest(testing.TestCase):
             [[[1, 1, 0]] * 3 + [[0, 0, 0]] * 2]
             + [[[1, 0, 0]] * 5]
             + [[[1, 1, 1]] + [[0, 0, 0]] * 4]
-        ).astype(bool)
+        )
         if use_causal_mask:
-            mask = mask & np.array(
-                [[[1, 0, 0], [1, 1, 0]] + [[1, 1, 1]] * 3]
-            ).astype(bool)
+            mask = mask & np.array([[[1, 0, 0], [1, 1, 0]] + [[1, 1, 1]] * 3])
         del masked_query._keras_mask
         del masked_value._keras_mask
         output_with_manual_mask = layer(
@@ -636,3 +642,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         assert output.shape == (2, 4, 8, 8), (
             f"Expected shape (2, 4, 8, 8)," f" got {output.shape}"
         )
+
+    def test_multi_head_attention_output_shape_error(self):
+        with self.assertRaisesRegex(ValueError, r"Invalid `output_shape`"):
+            layers.MultiHeadAttention(num_heads=2, key_dim=16, output_shape=8.0)
