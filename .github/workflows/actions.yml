@@ -88,6 +88,7 @@ jobs:
         if: ${{ matrix.backend == 'openvino' }}
         run: |
           python integration_tests/import_test.py
+          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
       - name: Test with pytest
         if: ${{ matrix.backend != 'openvino'}}
         run: |
