@@ -298,7 +298,7 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
         input_dtype = None
         input_batch_shape = None
 
-    if input_tensors:
+    if input_tensors is not None:
         if isinstance(input_tensors, (list, tuple)):
             if len(input_tensors) != 1:
                 raise ValueError(
@@ -310,7 +310,12 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
                 "Argument `input_tensors` must be a KerasTensor. "
                 f"Received invalid value: input_tensors={input_tensors}"
             )
-        inputs = Input(tensor=input_tensors, name=input_name)
+        inputs = Input(
+            tensor=input_tensors,
+            batch_shape=input_tensors.shape,
+            dtype=input_tensors.dtype,
+            name=input_name,
+        )
         new_layers = [inputs] + new_layers
     else:
         if input_batch_shape is not None:
