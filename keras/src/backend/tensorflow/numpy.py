@@ -1857,6 +1857,7 @@ def ravel(x):
 
 def unravel_index(x, shape):
     x = tf.convert_to_tensor(x)
+    input_dtype = x.dtype
     if x.ndim == 2:
         coords = []
         for dim in shape:
@@ -1865,7 +1866,7 @@ def unravel_index(x, shape):
             x = x // dim
 
         coords = [
-            tf.reshape(tf.cast(coord, tf.int64), x.shape) for coord in coords
+            tf.reshape(tf.cast(coord, input_dtype), x.shape) for coord in coords
         ]
 
         return tuple(np.array(coord) for coord in reversed(coords))
