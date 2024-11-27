@@ -180,6 +180,11 @@ def hard_shrink(x, threshold=0.5):
     )
 
 
+def threshold(x, threshold_value, value):
+    x = convert_to_tensor(x)
+    return np.where(x > threshold_value, x, value)
+
+
 def softmax(x, axis=None):
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
