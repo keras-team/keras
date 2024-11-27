@@ -617,3 +617,31 @@ def log_softmax(x, axis=-1):
         axis: Integer, axis along which the softmax is applied.
     """
     return ops.log_softmax(x, axis=axis)
+
+
+@keras_export(["keras.activations.sparsemax"])
+def sparsemax(x):
+    """Sparsemax activation function.
+
+    For each batch $i$, and class $j$,
+    compute sparsemax activation function:
+
+    $$
+    \mathrm{sparsemax}(x)[i, j] = \max(\mathrm{logits}[i, j] -
+    \tau(\mathrm{logits}[i, :]), 0).
+    $$
+
+    Args:
+        logits: A `Tensor`.
+        axis: `int`, axis along which the sparsemax operation is applied.
+
+    Returns:
+        A `Tensor`, output of sparsemax transformation. Has the same type and
+        shape as `logits`.
+
+    Reference:
+
+    - [Martins et.al., 2016](https://arxiv.org/abs/1602.02068)
+    """
+    x = backend.convert_to_tensor(x)
+    return ops.sparsemax(x)

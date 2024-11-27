@@ -151,6 +151,23 @@ def log_softmax(x, axis=-1):
     return tf.nn.log_softmax(x, axis=axis)
 
 
+def sparsemax(logits, axis=-1):
+    # Sort logits along the specified axis in descending order
+    logits_sorted = tf.sort(logits, direction="DESCENDING", axis=axis)
+    logits_cumsum = tf.cumsum(logits_sorted, axis=axis)
+    r = tf.range(1, tf.shape(logits)[axis] + 1, dtype=logits.dtype)
+    r_shape = [1] * len(logits.shape)
+    r_shape[axis] = -1  # Broadcast to match the target axis
+    r = tf.reshape(r, r_shape)  # Reshape for broadcasting
+    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    # Find the threshold
+    logits_cumsum_safe = tf.where(support, logits_cumsum, 0.0)
+    k = tf.reduce_sum(tf.cast(support, logits.dtype), axis=axis, keepdims=True)
+    tau = (tf.reduce_sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    output = tf.maximum(logits - tau, 0.0)
+    return output
+
+
 def _transpose_spatial_inputs(inputs):
     num_spatial_dims = len(inputs.shape) - 2
     # Tensorflow pooling does not support `channels_first` format, so
