@@ -144,6 +144,7 @@ def log_softmax(x, axis=-1):
 
 def sparsemax(logits, axis=-1):
     # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(logits)
     logits_sorted = -1.0 * jnp.sort(logits * -1.0, axis=axis)
     logits_cumsum = jnp.cumsum(logits_sorted, axis=axis)  # find cumulative sum
     r = jnp.arange(1, logits.shape[axis] + 1)  # Determine the sparsity

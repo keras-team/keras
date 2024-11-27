@@ -193,6 +193,7 @@ def log_softmax(x, axis=None):
 
 def sparsemax(logits, axis=-1):
     # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(logits)
     logits_sorted = -1.0 * np.sort(-1.0 * logits, axis=axis)
     logits_cumsum = np.cumsum(logits_sorted, axis=axis)
     r = np.arange(1, logits.shape[axis] + 1)

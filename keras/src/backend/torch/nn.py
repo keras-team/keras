@@ -176,6 +176,7 @@ def log_softmax(x, axis=-1):
 
 def sparsemax(logits, axis=-1):
     # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(logits)
     logits_sorted, _ = torch.sort(logits, dim=axis, descending=True)
     logits_cumsum = torch.cumsum(logits_sorted, dim=axis)
     r = torch.arange(
