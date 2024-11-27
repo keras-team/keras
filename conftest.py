@@ -22,6 +22,10 @@ def pytest_configure(config):
         "markers",
         "requires_trainable_backend: mark test for trainable backend only",
     )
+    config.addinivalue_line(
+        "markers",
+        "openvino_backend: mark test case supported by OpenVINO backend",
+    )
 
 
 def pytest_collection_modifyitems(config, items):
