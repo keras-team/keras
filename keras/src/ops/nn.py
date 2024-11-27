@@ -216,6 +216,44 @@ def soft_shrink(x, threshold=0.5):
     return backend.nn.soft_shrink(x, threshold)
 
 
+class SparsePlus(Operation):
+    def call(self, x):
+        return backend.nn.sparse_plus(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.sparse_plus", "keras.ops.nn.sparse_plus"])
+def sparse_plus(x):
+    """SparsePlus activation function.
+
+    It is defined as
+
+    `f(x) = 0` for `x <= -1`.
+    `f(x) = (1/4) * (x + 1)^2` for `-1 < x < 1`.
+    `f(x) = x` for `x >= 1`.
+
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1.0, 0.0, 1.0])
+    >>> x_sparse_plus = keras.ops.sparse_plus(x)
+    >>> print(x_sparse_plus)
+    Array([0.   0.25 1.  ], shape=(3,), dtype=float32)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return SparsePlus().symbolic_call(x)
+    return backend.nn.sparse_plus(x)
+
+
 class Silu(Operation):
     def call(self, x):
         return backend.nn.silu(x)

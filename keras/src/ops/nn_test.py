@@ -168,6 +168,10 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.soft_shrink(x).shape, (None, 2, 3))
 
+    def test_sparse_plus(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.sparse_plus(x).shape, (None, 2, 3))
+
     def test_softmax(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.softmax(x).shape, (None, 2, 3))
@@ -841,6 +845,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.soft_shrink(x).shape, (1, 2, 3))
 
+    def test_sparse_plus(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.sparse_plus(x).shape, (1, 2, 3))
+
     def test_softmax(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.softmax(x).shape, (1, 2, 3))
@@ -1394,6 +1402,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knn.soft_shrink(x),
             [0.0, 0.0, 0.5, 1.5, 2.5],
+        )
+
+    def test_sparse_plus(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.sparse_plus(x),
+            [0.0625, 0.25, 1.0, 2.0, 3.0],
         )
 
     def test_softmax(self):
@@ -2569,6 +2584,24 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.SoftShrink().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_sparse_plus(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.sparse_plus(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.sparse_plus(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.SparsePlus().symbolic_call(x).dtype),
             expected_dtype,
         )
 
