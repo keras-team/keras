@@ -33,6 +33,7 @@ from keras.src.activations.activations import softmax
 from keras.src.activations.activations import softplus
 from keras.src.activations.activations import softsign
 from keras.src.activations.activations import sparse_plus
+from keras.src.activations.activations import sparsemax
 from keras.src.activations.activations import squareplus
 from keras.src.activations.activations import tanh
 from keras.src.activations.activations import tanh_shrink
