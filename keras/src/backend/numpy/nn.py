@@ -191,7 +191,7 @@ def log_softmax(x, axis=None):
     return x - max_x - logsumexp
 
 
-def sparsemax_np(logits, axis=-1):
+def sparsemax(logits, axis=-1):
     # Sort logits along the specified axis in descending order
     logits_sorted = -1.0 * np.sort(-1.0 * logits, axis=axis)
     logits_cumsum = np.cumsum(logits_sorted, axis=axis)
