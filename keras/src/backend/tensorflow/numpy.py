@@ -1855,6 +1855,25 @@ def ravel(x):
     return tf.reshape(x, [-1])
 
 
+def unravel_index(x, shape):
+    x = tf.convert_to_tensor(x)
+    if x.ndim == 2:
+        coords = []
+        for dim in shape:
+            coord = x % dim
+            coords.append(coord)
+            x = x // dim
+
+        coords = [
+            tf.reshape(tf.cast(coord, tf.int64), x.shape) for coord in coords
+        ]
+
+        return tuple(np.array(coord) for coord in reversed(coords))
+
+    else:
+        return tf.unravel_index(x, shape)
+
+
 @sparse.elementwise_unary
 def real(x):
     x = convert_to_tensor(x)

@@ -828,6 +828,10 @@ def ravel(x):
     return np.ravel(x)
 
 
+def unravel_index(x, shape):
+    return np.unravel_index(x, shape)
+
+
 def real(x):
     return np.real(x)
 
