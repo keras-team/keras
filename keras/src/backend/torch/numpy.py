@@ -1216,7 +1216,7 @@ def ravel(x):
 
 def unravel_index(x, shape):
     x = convert_to_tensor(x)
-    return torch.unravel(x, shape)
+    return torch.unravel_index(x, shape)
 
 
 def real(x):
