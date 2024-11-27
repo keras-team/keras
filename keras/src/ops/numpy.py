@@ -4682,15 +4682,8 @@ class UnravelIndex(Operation):
                 except Exception:
                     output_shapes = [[None] for _ in self.shape]
 
-        if isinstance(indices, KerasTensor):
-            input_dtype = indices.dtype
-        else:
-            input_dtype = getattr(indices, "dtype", None)
-            if input_dtype is None:
-                input_dtype = np.int64
-
         return [
-            KerasTensor(shape, dtype=input_dtype) for shape in output_shapes
+            KerasTensor(shape, dtype=indices.dtype) for shape in output_shapes
         ]
 
 
