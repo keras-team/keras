@@ -270,7 +270,6 @@ class CosineSimilarity(reduction_metrics.MeanMetricWrapper):
         axis: (Optional) Defaults to `-1`. The dimension along which the cosine
             similarity is computed.
 
-    Example:
 
     Example:
 
