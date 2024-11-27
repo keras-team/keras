@@ -940,7 +940,7 @@ class ActivationsTest(testing.TestCase):
 
         # result check with axis=-3 with 4d input
         x_4d = np.linspace(1, 12, num=12).reshape(-1, 1, 1, 2)
-        expected_result = np.ones_like(x_3d)
+        expected_result = np.ones_like(x_4d)
         self.assertAllClose(
             expected_result, activations.sparsemax(x_4d, axis=-3)
         )
