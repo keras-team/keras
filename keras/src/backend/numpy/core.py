@@ -20,7 +20,7 @@ IS_THREAD_SAFE = True
 
 class Variable(KerasVariable):
     def _initialize(self, value):
-        self._value = np.array(value, dtype=self._dtype)
+        self._value = value
 
     def _direct_assign(self, value):
         self._value = np.array(value, dtype=self._dtype)
