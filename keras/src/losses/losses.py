@@ -44,6 +44,9 @@ class LossFunctionWrapper(Loss):
             config = serialization_lib.deserialize_keras_object(config)
         return cls(**config)
 
+    def __repr__(self):
+        return f"<LossFunctionWrapper({self.fn}, kwargs={self._fn_kwargs})>"
+
 
 @keras_export("keras.losses.MeanSquaredError")
 class MeanSquaredError(LossFunctionWrapper):

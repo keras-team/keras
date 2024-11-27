@@ -62,6 +62,11 @@ def soft_shrink(x, threshold=0.5):
     )
 
 
+def sparse_plus(x):
+    x = convert_to_tensor(x)
+    return jnn.sparse_plus(x)
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return jnn.silu(x)

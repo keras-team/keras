@@ -428,7 +428,6 @@ class CompileLoss(losses_module.Loss):
                 f"Received instead: loss_weights={loss_weights} "
                 f"of type {type(loss_weights)}"
             )
-
         self._user_loss = loss
         self._user_loss_weights = loss_weights
         self.built = False
@@ -569,6 +568,23 @@ class CompileLoss(losses_module.Loss):
         loss = self._user_loss
         loss_weights = self._user_loss_weights
         flat_output_names = self.output_names
+        if (
+            self.output_names
+            and isinstance(self._user_loss, dict)
+            and not isinstance(y_pred, dict)
+        ):
+            if set(self.output_names) == set(self._user_loss.keys()):
+                loss = [self._user_loss[name] for name in self.output_names]
+                if isinstance(self._user_loss_weights, dict):
+                    loss_weights = [
+                        self._user_loss_weights[name]
+                        for name in self.output_names
+                    ]
+            else:
+                raise ValueError(
+                    f"Expected keys {self.output_names} in loss dict, but "
+                    f"found loss.keys()={list(self._user_loss.keys())}"
+                )
 
         # Pytree leaf container
         class WeightedLoss:
@@ -691,26 +707,30 @@ class CompileLoss(losses_module.Loss):
         try:
             tree.assert_same_structure(y_pred, y_true, check_types=False)
         except ValueError:
+            # Check case where y_true is either flat or leaf
+            if (
+                not tree.is_nested(y_true)
+                and hasattr(y_pred, "__len__")
+                and len(y_pred) == 1
+            ):
+                y_true = [y_true]
+
+            # Check case where y_pred is list/tuple and y_true is dict
+            elif isinstance(y_pred, (list, tuple)) and isinstance(y_true, dict):
+                if set(self.output_names) == set(y_true.keys()):
+                    y_true = [y_true[name] for name in self.output_names]
+
             try:
-                # Check case where y_true is either flat or leaf
-                if (
-                    not tree.is_nested(y_true)
-                    and hasattr(y_pred, "__len__")
-                    and len(y_pred) == 1
-                ):
-                    y_true = [y_true]
+                y_true = tree.pack_sequence_as(y_pred, y_true)
+            except:
+                # Check case where y_true has the same structure but uses
+                # different (but reconcilable) container types,
+                # e.g `list` vs `tuple`.
                 try:
-                    y_true = tree.pack_sequence_as(y_pred, y_true)
+                    tree.assert_same_paths(y_true, y_pred)
+                    y_true = tree.pack_sequence_as(y_pred, tree.flatten(y_true))
                 except:
-                    # Check case where y_true has the same structure but uses
-                    # different (but reconcilable) container types,
-                    # e.g `list` vs `tuple`.
                     try:
-                        tree.assert_same_paths(y_true, y_pred)
-                        y_true = tree.pack_sequence_as(
-                            y_pred, tree.flatten(y_true)
-                        )
-                    except:
                         # Check case where loss is partially defined over y_pred
                         flat_y_true = tree.flatten(y_true)
                         flat_loss = tree.flatten(self._user_loss)
@@ -726,14 +746,18 @@ class CompileLoss(losses_module.Loss):
                         ):
                             y_true[i] = y_t
                         y_true = tree.pack_sequence_as(self._user_loss, y_true)
-            except:
-                y_true_struct = tree.map_structure(lambda _: "*", y_true)
-                y_pred_struct = tree.map_structure(lambda _: "*", y_pred)
-                raise ValueError(
-                    "y_true and y_pred have different structures.\n"
-                    f"y_true: {y_true_struct}\n"
-                    f"y_pred: {y_pred_struct}\n"
-                )
+                    except:
+                        y_true_struct = tree.map_structure(
+                            lambda _: "*", y_true
+                        )
+                        y_pred_struct = tree.map_structure(
+                            lambda _: "*", y_pred
+                        )
+                        raise ValueError(
+                            "y_true and y_pred have different structures.\n"
+                            f"y_true: {y_true_struct}\n"
+                            f"y_pred: {y_pred_struct}\n"
+                        )
 
         if not self.built:
             self.build(y_true, y_pred)
@@ -774,6 +798,7 @@ class CompileLoss(losses_module.Loss):
                 _sample_weight = resolve_path(path, sample_weight)
             else:
                 _sample_weight = sample_weight
+
             value = ops.cast(
                 loss_fn(y_t, y_p, _sample_weight), dtype=self.dtype
             )
