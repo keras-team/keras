@@ -29,6 +29,12 @@ def pytest_collection_modifyitems(config, items):
         backend() == "numpy",
         reason="Trainer not implemented for NumPy backend.",
     )
+    requires_eager_backend = pytest.mark.skipif(
+        backend() == "openvino",
+        reason="Only non-eager mode is supported by OpenVINO backend.",
+    )
     for item in items:
         if "requires_trainable_backend" in item.keywords:
             item.add_marker(requires_trainable_backend)
+        elif "requires_non_eager_backend" not in item.keywords:
+            item.add_marker(requires_eager_backend)

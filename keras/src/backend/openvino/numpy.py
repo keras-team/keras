@@ -283,7 +283,12 @@ def cumprod(x, axis=None, dtype=None):
 
 
 def cumsum(x, axis=None, dtype=None):
-    raise NotImplementedError("`cumsum` is not supported with openvino backend")
+    x = get_ov_output(x)
+    if dtype is not None:
+        ov_type = OPENVINO_DTYPES[dtype]
+        x = ov_opset.convert(x, ov_type).output(0)
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.cumsum(x, axis).output(0))
 
 
 def diag(x, k=0):
@@ -828,9 +833,9 @@ def squeeze(x, axis=None):
 
 
 def transpose(x, axes=None):
-    raise NotImplementedError(
-        "`transpose` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    axes = ov_opset.constant(axes, Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.transpose(x, axes).output(0))
 
 
 def var(x, axis=None, keepdims=False):
