@@ -449,6 +449,10 @@ def diag(x, k=0):
     return np.diag(x, k=k)
 
 
+def diagflat(x, k=0):
+    return np.diagflat(x, k=k)
+
+
 def diagonal(x, offset=0, axis1=0, axis2=1):
     axis1 = standardize_axis_for_numpy(axis1)
     axis2 = standardize_axis_for_numpy(axis2)

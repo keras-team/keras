@@ -598,6 +598,11 @@ def diag(x, k=0):
     return torch.diag(x, diagonal=k)
 
 
+def diagflat(x, k=0):
+    x = convert_to_tensor(x)
+    return torch.diagflat(x, offset=k)
+
+
 def diagonal(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     return torch.diagonal(

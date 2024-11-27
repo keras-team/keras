@@ -1107,6 +1107,11 @@ def diag(x, k=0):
         raise ValueError(f"`x` must be 1d or 2d. Received: x.shape={x.shape}")
 
 
+def diagflat(x, k=0):
+    x = convert_to_tensor(x)
+    return diag(tf.reshape(x, [-1]), k)
+
+
 def diagonal(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     x_rank = x.ndim
