@@ -620,7 +620,7 @@ def log_softmax(x, axis=-1):
 
 
 @keras_export(["keras.activations.sparsemax"])
-def sparsemax(x):
+def sparsemax(x, axis=-1):
     """Sparsemax activation function.
 
     For each batch $i$, and class $j$,
@@ -644,4 +644,4 @@ def sparsemax(x):
     - [Martins et.al., 2016](https://arxiv.org/abs/1602.02068)
     """
     x = backend.convert_to_tensor(x)
-    return ops.sparsemax(x)
+    return ops.sparsemax(x, axis)
