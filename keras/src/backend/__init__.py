@@ -52,6 +52,7 @@ elif backend() == "numpy":
     distribution_lib = None
 elif backend() == "openvino":
     from keras.src.backend.openvino import *  # noqa: F403
+    from keras.src.backend.openvino.core import Variable as BackendVariable
 
     distribution_lib = None
 else:
