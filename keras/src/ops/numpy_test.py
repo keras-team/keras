@@ -7841,8 +7841,6 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         if backend.backend() == "tensorflow":
-            import tensorflow as tf
-
             if dtype in ("int8", "int16", "uint16", "uint32", "uint8"):
                 pytest.skip(
                     f"unravel index unsupported for {dtype}"
