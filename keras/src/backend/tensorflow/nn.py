@@ -127,8 +127,8 @@ def hard_shrink(x, threshold=0.5):
     return tf.where(tf.abs(x) > threshold, x, tf.zeros_like(x))
 
 
-def threshold(x, threshold_value, value):
-    return tf.where(x > threshold_value, x, value)
+def threshold(x, threshold, default_value):
+    return tf.where(x > threshold, x, default_value)
 
 
 def softmax(x, axis=-1):

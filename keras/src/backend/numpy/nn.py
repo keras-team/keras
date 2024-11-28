@@ -180,9 +180,9 @@ def hard_shrink(x, threshold=0.5):
     )
 
 
-def threshold(x, threshold_value, value):
+def threshold(x, threshold, default_value):
     x = convert_to_tensor(x)
-    return np.where(x > threshold_value, x, np.array(value, dtype=x.dtype))
+    return np.where(x > threshold, x, np.array(default_value, dtype=x.dtype))
 
 
 def softmax(x, axis=None):

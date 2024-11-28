@@ -832,17 +832,17 @@ class Threshold(Operation):
 
 
 @keras_export(["keras.ops.threshold", "keras.ops.nn.threshold"])
-def threshold(x, threshold_value, value):
+def threshold(x, threshold, default_value):
     """Threshold activation function.
 
     The function thresholds the input `x` as follows:
-    `f(x) = x` if `x > threshold_value`,
-    `f(x) = value` otherwise.
+    `f(x) = x` if `x > threshold`,
+    `f(x) = default_value` otherwise.
 
     Args:
         x: Input tensor.
-        threshold_value: The value that decides when to retain or replace x.
-        value: Value to assign when `x <= threshold_value`.
+        threshold: The value that decides when to retain or replace x.
+        default_value: Value to assign when `x <= threshold`.
 
     Returns:
         A tensor with the same shape as `x`.
@@ -856,8 +856,8 @@ def threshold(x, threshold_value, value):
 
     """
     if any_symbolic_tensors((x,)):
-        return Threshold(threshold_value, value).symbolic_call(x)
-    return backend.nn.threshold(x, threshold_value, value)
+        return Threshold(threshold, default_value).symbolic_call(x)
+    return backend.nn.threshold(x, threshold, default_value)
 
 
 class Softmax(Operation):

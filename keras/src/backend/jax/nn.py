@@ -132,9 +132,9 @@ def hard_shrink(x, threshold=0.5):
     return jnp.where(jnp.abs(x) > threshold, x, 0.0)
 
 
-def threshold(x, threshold_value, value):
+def threshold(x, threshold, default_value):
     x = convert_to_tensor(x)
-    return jnp.where(x > threshold_value, x, value)
+    return jnp.where(x > threshold, x, default_value)
 
 
 def softmax(x, axis=-1):
