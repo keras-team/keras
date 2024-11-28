@@ -150,6 +150,7 @@ class AttentionTest(testing.TestCase):
             "are used",
         )
 
+    @pytest.mark.openvino_backend
     def test_attention_calculate_score_mask_with_causal_no_vmask(self):
         scores = np.random.random((2, 3, 4))
         layer = layers.Attention()
@@ -219,6 +220,7 @@ class AttentionTest(testing.TestCase):
             "compute_mask should not return None with a valid mask",
         )
 
+    @pytest.mark.openvino_backend
     def test_attention_compute_mask_returns_correct_tensor_with_valid_mask(
         self,
     ):
@@ -236,6 +238,7 @@ class AttentionTest(testing.TestCase):
             "compute_mask did not return the correct mask tensor",
         )
 
+    @pytest.mark.openvino_backend
     def test_attention_compute_mask_returns_correct_tensor_with_all_true_mask(
         self,
     ):
@@ -251,6 +254,7 @@ class AttentionTest(testing.TestCase):
             "compute_mask did not return the correct mask tensor",
         )
 
+    @pytest.mark.openvino_backend
     def test_attention_compute_mask_returns_correct_tensor_with_all_false_mask(
         self,
     ):
@@ -266,6 +270,7 @@ class AttentionTest(testing.TestCase):
             "compute_mask did not return the correct mask tensor",
         )
 
+    @pytest.mark.openvino_backend
     def test_attention_compute_mask_with_tolerance_1e_3(self):
         layer = layers.Attention()
         dummy_inputs = [np.ones((2, 3, 4)), np.ones((2, 4, 4))]
@@ -279,6 +284,7 @@ class AttentionTest(testing.TestCase):
             "Incorrect mask tensor within tolerance 1e-3",
         )
 
+    @pytest.mark.openvino_backend
     def test_attention_compute_mask_with_tolerance_1e_5(self):
         layer = layers.Attention()
         dummy_inputs = [np.ones((2, 3, 4)), np.ones((2, 4, 4))]
@@ -292,6 +298,7 @@ class AttentionTest(testing.TestCase):
             "Incorrect mask tensor within tolerance 1e-5",
         )
 
+    @pytest.mark.openvino_backend
     def test_attention_compute_mask_with_tolerance_1e_7(self):
         layer = layers.Attention()
         dummy_inputs = [np.ones((2, 3, 4)), np.ones((2, 4, 4))]
@@ -305,6 +312,7 @@ class AttentionTest(testing.TestCase):
             "Incorrect mask tensor within tolerance 1e-7 ",
         )
 
+    @pytest.mark.openvino_backend
     def test_attention_compute_mask_with_single_element_masks(self):
         layer = layers.Attention()
         dummy_inputs = [np.ones((2, 3, 4)), np.ones((2, 4, 4))]
@@ -315,6 +323,7 @@ class AttentionTest(testing.TestCase):
         expected_shape = (1,)
         self.assertEqual(computed_mask.shape, expected_shape)
 
+    @pytest.mark.openvino_backend
     def test_attention_compute_mask_with_non_boolean_masks(self):
         layer = layers.Attention()
         dummy_inputs = [np.ones((2, 3, 4)), np.ones((2, 4, 4))]
@@ -324,6 +333,7 @@ class AttentionTest(testing.TestCase):
         computed_mask = ops.convert_to_numpy(computed_mask)
         self.assertTrue(np.array_equal(computed_mask, valid_mask))
 
+    @pytest.mark.openvino_backend
     def test_attention_compute_mask_with_edge_case_masks(self):
         layer = layers.Attention()
         dummy_inputs = [np.ones((2, 3, 4)), np.ones((2, 4, 4))]
@@ -339,6 +349,7 @@ class AttentionTest(testing.TestCase):
             computed_mask = ops.convert_to_numpy(computed_mask)
             self.assertTrue(np.array_equal(computed_mask, mask))
 
+    @pytest.mark.openvino_backend
     def test_attention_compute_mask_with_different_input_shapes(self):
         layer = layers.Attention()
         input_shapes = [(2, 3, 4), (3, 2, 5), (4, 1, 6)]
