@@ -626,15 +626,15 @@ def sparsemax(x, axis=-1):
     For each batch `i`, and class `j`,
     sparsemax activation function is defined as:
 
-    `sparsemax(x)[i, j] = max(logits[i, j] - τ(logits[i, :]), 0).`
+    `sparsemax(x)[i, j] = max(x[i, j] - τ(x[i, :]), 0).`
 
     Args:
-        logits: Input tensor.
+        x: Input tensor.
         axis: `int`, axis along which the sparsemax operation is applied.
 
     Returns:
         A tensor, output of sparsemax transformation. Has the same type and
-        shape as `logits`.
+        shape as `x`.
 
     Reference:
 
