@@ -27,6 +27,7 @@ from keras.src.activations.activations import sparse_plus
 from keras.src.activations.activations import squareplus
 from keras.src.activations.activations import tanh
 from keras.src.activations.activations import tanh_shrink
+from keras.src.activations.activations import threshold
 from keras.src.api_export import keras_export
 from keras.src.saving import object_registration
 from keras.src.saving import serialization_lib
@@ -49,6 +50,7 @@ ALL_OBJECTS = {
     glu,
     tanh,
     tanh_shrink,
+    threshold,
     sigmoid,
     exponential,
     hard_sigmoid,

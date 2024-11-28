@@ -683,6 +683,17 @@ class ActivationsTest(testing.TestCase):
         expected = hard_shrink(x)
         self.assertAllClose(result, expected, rtol=1e-05)
 
+    def test_threshold(self):
+        def threshold(x, threshold_value, value):
+            return np.where(
+                x > threshold_value, x, np.array(value, dtype=x.dtype)
+            )
+
+        x = np.random.random((2, 5))
+        result = activations.threshold(x[np.newaxis, :], 0, 0)[0]
+        expected = threshold(x, 0, 0)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
     def test_squareplus(self):
         def squareplus(x, b=4):
             y = x + np.sqrt(x**2 + b)
