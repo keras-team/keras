@@ -4689,16 +4689,20 @@ class UnravelIndex(Operation):
 
 @keras_export(["keras.ops.unravel_index", "keras.ops.numpy.unravel_index"])
 def unravel_index(indices, shape):
-    """Convert a flat index or array of flat indices into a tuple of
-    coordinate arrays.
+    """Convert flat indices to coordinate arrays in a given array shape.
 
     Args:
         indices: An integer or array of integers representing flat indices.
         shape: The shape of the array to unravel into.
 
     Returns:
-        Tuple of arrays, one for each dimension, containing the unraveled
-        indices.
+        Tuple of arrays for each dimension with unraveled indices.
+
+    Example:
+        >>> indices = 5
+        >>> shape = (3, 3)
+        >>> unravel_index(indices, shape)
+        (1, 2)  # 5 is at row 1, column 2 in a 3x3 array
     """
     if any_symbolic_tensors((indices,)):
         return UnravelIndex(shape).symbolic_call(indices)

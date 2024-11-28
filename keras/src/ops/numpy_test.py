@@ -7840,12 +7840,6 @@ class NumpyDtypeTest(testing.TestCase):
     def test_unravel_index(self, dtype):
         import jax.numpy as jnp
 
-        if backend.backend() == "tensorflow":
-            if dtype in ("int8", "int16", "uint16", "uint32", "uint8"):
-                pytest.skip(
-                    f"unravel index unsupported for {dtype}"
-                    " with TensorFlow backend"
-                )
         x = knp.ones((3,), dtype=dtype)
         x_jax = jnp.ones((3,), dtype=dtype)
 
