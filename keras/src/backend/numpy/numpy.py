@@ -829,7 +829,10 @@ def ravel(x):
 
 
 def unravel_index(x, shape):
-    return np.unravel_index(x, shape)
+    dtype = dtypes.result_type(x.dtype)
+    return tuple(
+        indices.astype(dtype) for indices in np.unravel_index(x, shape)
+    )
 
 
 def real(x):
