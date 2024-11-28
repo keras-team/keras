@@ -78,10 +78,10 @@ class ModelCheckpoint(Callback):
             when checkpoint saving the whole model (default).
             For example:
             if `filepath` is `"{epoch:02d}-{val_loss:.2f}.keras"` or
-            "{epoch:02d}-{val_loss:.2f}.h5"`, then the model checkpoints
-            will be saved with the epoch number and the validation loss in
-            the filename. The directory of the filepath should not be reused
-            by any other callbacks to avoid conflicts.
+            "{epoch:02d}-{val_loss:.2f}.weights.h5"`, then the model
+            checkpoints will be saved with the epoch number and the validation
+            loss in the filename. The directory of the filepath
+            should not be reused by any other callbacks to avoid conflicts.
         monitor: The metric name to monitor. Typically the metrics are set by
             the `Model.compile` method. Note:
             * Prefix the name with `"val_"` to monitor validation metrics.
@@ -193,7 +193,7 @@ class ModelCheckpoint(Callback):
             ):
                 raise ValueError(
                     "The filepath provided must end in `.keras` "
-                    "(Keras model format) or `.h5` (HDF5 format). Received: "
+                    "(Keras model format). Received: "
                     f"filepath={self.filepath}"
                 )
 
