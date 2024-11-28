@@ -74,13 +74,14 @@ class ModelCheckpoint(Callback):
             which will be filled the value of `epoch` and keys in `logs`
             (passed in `on_epoch_end`).
             The `filepath` name needs to end with `".weights.h5"` when
-            `save_weights_only=True` or should end with `".keras"` when
-            checkpoint saving the whole model (default).
+            `save_weights_only=True` or should end with `".keras"` or `".h5"`
+            when checkpoint saving the whole model (default).
             For example:
-            if `filepath` is `"{epoch:02d}-{val_loss:.2f}.keras"`, then the
-            model checkpoints will be saved with the epoch number and the
-            validation loss in the filename. The directory of the filepath
-            should not be reused by any other callbacks to avoid conflicts.
+            if `filepath` is `"{epoch:02d}-{val_loss:.2f}.keras"` or
+            "{epoch:02d}-{val_loss:.2f}.h5"`, then the model checkpoints
+            will be saved with the epoch number and the validation loss in
+            the filename. The directory of the filepath should not be reused
+            by any other callbacks to avoid conflicts.
         monitor: The metric name to monitor. Typically the metrics are set by
             the `Model.compile` method. Note:
             * Prefix the name with `"val_"` to monitor validation metrics.
@@ -184,13 +185,6 @@ class ModelCheckpoint(Callback):
                     "When using `save_weights_only=True` in `ModelCheckpoint`"
                     ", the filepath provided must end in `.weights.h5` "
                     "(Keras weights format). Received: "
-                    f"filepath={self.filepath}"
-                )
-        else:
-            if not self.filepath.endswith(".keras"):
-                raise ValueError(
-                    "The filepath provided must end in `.keras` "
-                    "(Keras model format). Received: "
                     f"filepath={self.filepath}"
                 )
 
