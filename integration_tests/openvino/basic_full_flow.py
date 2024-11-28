@@ -1,11 +1,9 @@
 import numpy as np
-import pytest
 
 import keras
 from keras.src import testing
 
 
-@pytest.mark.requires_trainable_backend
 class BasicFlowTest(testing.TestCase):
     def test_basic_fit(self):
         def get_expected_result(x1, x2):

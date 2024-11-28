@@ -4,6 +4,8 @@ import numpy as np
 import openvino as ov
 import openvino.runtime.opset14 as ov_opset
 from openvino import Tensor
+from openvino import Model
+from openvino import compile_model
 from openvino.runtime import Type
 
 from keras.src import tree
@@ -238,7 +240,23 @@ def convert_to_tensor(x, dtype=None, sparse=None):
 
 
 def convert_to_numpy(x):
-    return np.array(x)
+    if isinstance(x, np.ndarray):
+        return x
+    elif isinstance(x, ov.Tensor):
+        return x.data
+    assert isinstance(
+        x, OpenVINOKerasTensor
+    ), "unsupported type {} for `convert_to_numpy` in openvino backend".format(
+        type(x)
+    )
+    try:
+        ov_result = x.output
+        ov_model = Model(results=[ov_result], parameters=[])
+        ov_compiled_model = compile_model(ov_model, get_device())
+        result = ov_compiled_model({})[0]
+    except:
+        raise "`convert_to_numpy` cannot convert to numpy"
+    return result
 
 
 def is_tensor(x):

@@ -6,6 +6,7 @@ from keras.src.layers.activations import elu
 
 
 class ELUTest(testing.TestCase):
+    @pytest.mark.openvino_backend
     def test_config(self):
         elu_layer = elu.ELU()
         self.run_class_serialization_test(elu_layer)
@@ -20,6 +21,7 @@ class ELUTest(testing.TestCase):
             assert_built_after_instantiation=True,
         )
 
+    @pytest.mark.openvino_backend
     def test_correctness(self):
         def np_elu(x, alpha=1.0):
             return (x > 0) * x + (x <= 0) * alpha * (np.exp(x) - 1)
