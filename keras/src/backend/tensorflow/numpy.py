@@ -1859,7 +1859,6 @@ def unravel_index(x, shape):
     x = tf.convert_to_tensor(x)
     input_dtype = x.dtype
 
-    # Handle case when x is 1D
     if x.ndim == 1:
         coords = []
         for dim in reversed(shape):
@@ -1867,7 +1866,6 @@ def unravel_index(x, shape):
             x = x // dim
         return tuple(reversed(coords))
 
-    # Handle multi-dimensional case
     x_shape = x.shape
     coords = []
     for dim in shape:
