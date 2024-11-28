@@ -99,6 +99,7 @@ from keras.src.ops.nn import softmax
 from keras.src.ops.nn import softplus
 from keras.src.ops.nn import softsign
 from keras.src.ops.nn import sparse_categorical_crossentropy
+from keras.src.ops.nn import sparse_plus
 from keras.src.ops.nn import squareplus
 from keras.src.ops.nn import tanh_shrink
 from keras.src.ops.numpy import abs
@@ -146,6 +147,7 @@ from keras.src.ops.numpy import cross
 from keras.src.ops.numpy import cumprod
 from keras.src.ops.numpy import cumsum
 from keras.src.ops.numpy import diag
+from keras.src.ops.numpy import diagflat
 from keras.src.ops.numpy import diagonal
 from keras.src.ops.numpy import diff
 from keras.src.ops.numpy import digitize

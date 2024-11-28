@@ -706,6 +706,19 @@ class ActivationsTest(testing.TestCase):
         expected = soft_shrink(x)
         self.assertAllClose(result, expected, rtol=1e-05)
 
+    def test_sparse_plus(self):
+        def sparse_plus(x):
+            return np.where(
+                x <= -1,
+                np.zeros_like(x),
+                np.where(x < 1, (1 / 4) * (x + 1) ** 2, x),
+            )
+
+        x = np.random.random((2, 5))
+        result = activations.sparse_plus(x[np.newaxis, :])[0]
+        expected = sparse_plus(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
     def test_elu(self):
         x = np.random.random((2, 5))
         result = activations.elu(x[np.newaxis, :])[0]

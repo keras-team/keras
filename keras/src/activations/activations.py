@@ -277,6 +277,23 @@ def soft_shrink(x, threshold=0.5):
     return ops.soft_shrink(x, threshold=threshold)
 
 
+@keras_export("keras.activations.sparse_plus")
+def sparse_plus(x):
+    """SparsePlus activation function.
+
+    SparsePlus is defined as:
+
+    `sparse_plus(x) = 0` for `x <= -1`.
+    `sparse_plus(x) = (1/4) * (x + 1)^2` for `-1 < x < 1`.
+    `sparse_plus(x) = x` for `x >= 1`.
+
+    Args:
+        x: Input tensor.
+
+    """
+    return ops.sparse_plus(x)
+
+
 @keras_export(["keras.activations.silu", "keras.activations.swish"])
 def silu(x):
     """Swish (or Silu) activation function.
