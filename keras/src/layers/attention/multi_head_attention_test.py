@@ -646,3 +646,31 @@ class MultiHeadAttentionTest(testing.TestCase):
     def test_multi_head_attention_output_shape_error(self):
         with self.assertRaisesRegex(ValueError, r"Invalid `output_shape`"):
             layers.MultiHeadAttention(num_heads=2, key_dim=16, output_shape=8.0)
+
+    def test_quantize_int8(self):
+        query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
+        key = np.array([[[0.0, 1.0], [1.0, 0.0]]])
+        value = np.array([[[1.0, 2.0], [3.0, 4.0]]])
+        layer = layers.MultiHeadAttention(
+            num_heads=3,
+            key_dim=8,
+            use_bias=False,
+        )
+        layer.build(query.shape, value.shape, key.shape)
+        output_float = layer(query, key, value)
+        for sublayer in layer._flatten_layers():
+            try:
+                sublayer.quantize("int8")
+            except:
+                pass
+
+        # Verify weights dtype
+        self.assertDType(layer._query_dense._kernel, "int8")
+        self.assertDType(layer._key_dense._kernel, "int8")
+        self.assertDType(layer._value_dense._kernel, "int8")
+        self.assertDType(layer._output_dense._kernel, "int8")
+
+        # Try eager call and verify output correctness
+        output_quantized = layer(query, key, value)
+        mse = ops.mean(ops.square(output_float - output_quantized))
+        self.assertLess(mse, 1e-3)  # A weak correctness test

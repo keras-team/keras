@@ -541,13 +541,13 @@ class MultiHeadAttention(Layer):
         #   H = `size_per_head`
 
         # `query` = [B, T, N ,H]
-        query = self._query_dense.call(query)
+        query = self._query_dense(query)
 
         # `key` = [B, S, N, H]
-        key = self._key_dense.call(key)
+        key = self._key_dense(key)
 
         # `value` = [B, S, N, H]
-        value = self._value_dense.call(value)
+        value = self._value_dense(value)
         attention_output, attention_scores = self._compute_attention(
             query,
             key,
@@ -555,7 +555,7 @@ class MultiHeadAttention(Layer):
             attention_mask,
             training,
         )
-        attention_output = self._output_dense.call(attention_output)
+        attention_output = self._output_dense(attention_output)
 
         if return_attention_scores:
             return attention_output, attention_scores
