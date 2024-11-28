@@ -150,7 +150,6 @@ class AttentionTest(testing.TestCase):
             "are used",
         )
 
-    @pytest.mark.openvino_backend
     def test_attention_calculate_score_mask_with_causal_no_vmask(self):
         scores = np.random.random((2, 3, 4))
         layer = layers.Attention()
