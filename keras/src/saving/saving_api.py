@@ -78,6 +78,17 @@ def save_model(model, filepath, overwrite=True, zipped=None, **kwargs):
             f"{list(kwargs.keys())}"
         )
 
+    # Deprecation warnings
+    if str(filepath).endswith((".h5", ".hdf5")):
+        logging.warning(
+            "You are saving your model as an HDF5 file via "
+            "`model.save()` or `keras.saving.save_model(model)`. "
+            "This file format is considered legacy. "
+            "We recommend using instead the native Keras format, "
+            "e.g. `model.save('my_model.keras')` or "
+            "`keras.saving.save_model(model, 'my_model.keras')`. "
+        )
+
     is_hf = str(filepath).startswith("hf://")
     if zipped is None:
         zipped = not is_hf  # default behavior depends on destination

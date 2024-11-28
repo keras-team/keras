@@ -187,6 +187,15 @@ class ModelCheckpoint(Callback):
                     "(Keras weights format). Received: "
                     f"filepath={self.filepath}"
                 )
+        else:
+            if not any(
+                self.filepath.endswith(ext) for ext in (".keras", ".h5")
+            ):
+                raise ValueError(
+                    "The filepath provided must end in `.keras` "
+                    "(Keras model format) or `.h5` (HDF5 format). Received: "
+                    f"filepath={self.filepath}"
+                )
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
