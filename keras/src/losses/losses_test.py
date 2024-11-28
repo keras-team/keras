@@ -1657,7 +1657,12 @@ class TverskyTest(testing.TestCase):
         y_pred = np.array(
             [[[[0.0], [1.0]], [[0.0], [1.0]]], [[[0.4], [0.0]], [[0.0], [0.9]]]]
         )
-        output = losses.Tversky(alpha=0.2, beta=0.8, axis=(1, 2, 3), reduction=None)(y_true, y_pred)
+        output = losses.Tversky(
+            alpha=0.2,
+            beta=0.8,
+            axis=(1, 2, 3),
+            reduction=None
+        )(y_true, y_pred)
         self.assertAllClose(output, [0.5, 0.7222222])
 
     def test_dtype_arg(self):

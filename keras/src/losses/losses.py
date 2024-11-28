@@ -1406,7 +1406,11 @@ class Tversky(LossFunctionWrapper):
 
     def get_config(self):
         config = Loss.get_config(self)
-        config.update({"alpha": self.alpha, "beta": self.beta, "axis": self.axis})
+        config.update({
+            "alpha": self.alpha,
+            "beta": self.beta,
+            "axis": self.axis
+        })
         return config
 
 
