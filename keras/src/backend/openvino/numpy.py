@@ -499,9 +499,8 @@ def logical_and(x1, x2):
 
 
 def logical_not(x):
-    raise NotImplementedError(
-        "`logical_not` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.logical_not(x).output(0))
 
 
 def logical_or(x1, x2):
@@ -848,7 +847,9 @@ def var(x, axis=None, keepdims=False):
 
 
 def sum(x, axis=None, keepdims=False):
-    raise NotImplementedError("`sum` is not supported with openvino backend")
+    x = get_ov_output(x)
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.reduce_sum(x, axis, keepdims).output(0))
 
 
 def eye(N, M=None, k=0, dtype=None):

@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras.src import layers
 from keras.src import testing
@@ -39,6 +40,7 @@ class AdditiveAttentionTest(testing.TestCase):
             run_training_check=False,
         )
 
+    @pytest.mark.openvino_backend
     def test_attention_correctness(self):
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
         key = np.array([[[0.0, 1.0], [1.0, 0.0]]])
@@ -70,6 +72,7 @@ class AdditiveAttentionTest(testing.TestCase):
         self.assertAllClose(output, [[[1.0, 1.0], [0.0, 0.0]]])
         self.assertAllClose(scores, [[[1.0, 0.0], [1.0, 0.0]]])
 
+    @pytest.mark.openvino_backend
     def test_attention_errors(self):
         layer = layers.AdditiveAttention()
         tensor = np.array([[[1.0, 1.0], [1.0, 1.0]]])

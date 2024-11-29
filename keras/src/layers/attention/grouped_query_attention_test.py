@@ -60,6 +60,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
             run_training_check=False,
         )
 
+    @pytest.mark.openvino_backend
     def test_basics_with_flash_attention(self):
         enable_flash_attention()
         init_kwargs = {
@@ -152,6 +153,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
                         in str(e.args[0])
                     )
 
+    @pytest.mark.openvino_backend
     @parameterized.named_parameters(
         ("without_key_proj_mha", (4, 8), (2, 8), None, 2, 2),
         ("with_key_proj_mha", (4, 8), (2, 8), (2, 3), 2, 2),
@@ -188,6 +190,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
         )
         self.assertEqual(output.shape, comp_output_shape)
 
+    @pytest.mark.openvino_backend
     @parameterized.named_parameters(
         ("query_value_dim_mismatch", (2, 4, 8), (2, 2, 7), 2),
         ("key_value_dim_mismatch", (2, 4, 8), (2, 2, 8), (2, 1, 7)),
@@ -202,6 +205,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, r"must be equal"):
             layer.compute_output_shape(query_shape, value_shape, key_shape)
 
+    @pytest.mark.openvino_backend
     def test_initializer(self):
         # Test with a specified initializer.
         layer = layers.GroupedQueryAttention(
@@ -288,6 +292,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
         )
         self.assertAllClose(output, output_with_manual_mask)
 
+    @pytest.mark.openvino_backend
     @parameterized.named_parameters(
         ("disable_flash_attention", False), ("enable_flash_attention", True)
     )
