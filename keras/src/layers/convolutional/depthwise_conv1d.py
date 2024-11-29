@@ -92,7 +92,9 @@ class DepthwiseConv1D(BaseDepthwiseConv):
     Example:
 
     >>> x = np.random.rand(4, 10, 12)
-    >>> y = keras.layers.DepthwiseConv1D(kernel_size=3, depth_multiplier=3, strides=2, activation='relu')(x)
+    >>> y = keras.layers.DepthwiseConv1D(kernel_size=3, 
+            depth_multiplier=3,
+            strides=2, activation='relu')(x)
     >>> print(y.shape)
     (4, 4, 36)
     """
