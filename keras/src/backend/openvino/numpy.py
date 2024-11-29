@@ -233,7 +233,12 @@ def ceil(x):
 
 
 def clip(x, x_min, x_max):
-    raise NotImplementedError("`clip` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_min = get_ov_output(x_min, x.get_element_type())
+    x_max = get_ov_output(x_max, x.get_element_type())
+    clip_by_min = ov_opset.maximum(x, x_min).output(0)
+    clip_by_max = ov_opset.minimum(clip_by_min, x_max).output(0)
+    return OpenVINOKerasTensor(clip_by_max)
 
 
 def concatenate(xs, axis=0):

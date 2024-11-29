@@ -51,9 +51,12 @@ def log_sigmoid(x):
 
 
 def leaky_relu(x, negative_slope=0.2):
-    raise NotImplementedError(
-        "`leaky_relu` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    slope_const = ov_opset.constant(
+        negative_slope, x.get_element_type()
+    ).output(0)
+    leaky_relu = ov_opset.prelu(x, slope_const).output(0)
+    return OpenVINOKerasTensor(leaky_relu)
 
 
 def hard_sigmoid(x):
