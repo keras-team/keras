@@ -160,15 +160,23 @@ def _adjust_padding(
 def _adjust_input(inputs, num_spatial_dims, data_format):
     if data_format == "channels_first":
         return inputs
-    permutation = [0, 3, 1, 2] if num_spatial_dims == 2 else [0, 4, 1, 2, 3]
+    if num_spatial_dims == 1:
+        permutation = [0, 2, 1]
+    elif num_spatial_dims == 2:
+        permutation = [0, 3, 1, 2]
+    else:
+        permutation = [0, 4, 1, 2, 3]
     permutation = ov_opset.constant(permutation, Type.i32)
     return ov_opset.transpose(inputs, permutation).output(0)
 
 
 def _adjust_kernel(kernel, num_spatial_dims, data_format):
-    if data_format == "channels_first":
-        return kernel
-    permutation = [3, 2, 0, 1] if num_spatial_dims == 2 else [4, 3, 0, 1, 2]
+    if num_spatial_dims == 1:
+        permutation = [2, 1, 0]
+    elif num_spatial_dims == 2:
+        permutation = [3, 2, 0, 1]
+    else:
+        permutation = [4, 3, 0, 1, 2]
     permutation = ov_opset.constant(permutation, Type.i32)
     return ov_opset.transpose(kernel, permutation).output(0)
 
@@ -177,7 +185,12 @@ def _adjust_outputs(outputs, num_spatial_dims, data_format):
     if data_format == "channels_first":
         return outputs
     # convert a tensor from NCHW to NHWC layout
-    permutation = [0, 2, 3, 1] if num_spatial_dims == 2 else [0, 2, 3, 4, 1]
+    if num_spatial_dims == 1:
+        permutation = [0, 2, 1]
+    elif num_spatial_dims == 2:
+        permutation = [0, 2, 3, 1]
+    else:
+        permutation = [0, 2, 3, 4, 1]
     permutation = ov_opset.constant(permutation, Type.i32)
     return ov_opset.transpose(outputs, permutation).output(0)
 
@@ -196,22 +209,41 @@ def conv(
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
 
+    if data_format == 'channels_last':
+        inputs_in_channels = inputs.get_partial_shape()[2 + num_spatial_dims - 1]
+    else:
+        inputs_in_channels = inputs.get_partial_shape()[1]
     kernel_in_channels = kernel.get_partial_shape()[-2]
-    inputs_in_channels = inputs.get_partial_shape()[2 + num_spatial_dims - 1]
-    assert (
-        kernel_in_channels == inputs_in_channels
-    ), "not equal inputs and kernel channels: {}, {}".format(
-        inputs_in_channels, kernel_in_channels
-    )
 
     strides = _adjust_strides_dilation(strides, num_spatial_dims)
     dilation_rate = _adjust_strides_dilation(dilation_rate, num_spatial_dims)
     pad_mode, pads_begin, pads_end = _adjust_padding(padding)
     inputs = _adjust_input(inputs, num_spatial_dims, data_format)
     kernel = _adjust_kernel(kernel, num_spatial_dims, data_format)
-    conv = ov_opset.convolution(
-        inputs, kernel, strides, pads_begin, pads_end, dilation_rate, pad_mode
-    )
+
+    num_groups = inputs_in_channels.get_length() // kernel_in_channels.get_length()
+    if num_groups == 1:
+        conv = ov_opset.convolution(
+            inputs, kernel, strides, pads_begin, pads_end, dilation_rate, pad_mode
+        )
+    else:
+        input_shape = ov_opset.shape_of(inputs).output(0)
+        filter_shape = ov_opset.shape_of(kernel).output(0)
+        zero_const = ov_opset.constant([0], Type.i32).output(0)
+        one_const = ov_opset.constant([1], Type.i32).output(0)
+        two_const = ov_opset.constant([2], Type.i32).output(0)
+        input_cin = ov_opset.slice(input_shape, one_const, two_const, one_const).output(0)
+        filter_cin = ov_opset.slice(filter_shape, one_const, two_const, one_const).output(0)
+        num_groups = ov_opset.divide(input_cin, filter_cin).output(0)
+
+        # reshape the filter based on the number of groups information
+        int_max_const = ov_opset.constant([2**31 - 1], Type.i32).output(0)
+        filter_cout = ov_opset.slice(filter_shape, zero_const, one_const, one_const).output(0)
+        filter_new_cout = ov_opset.divide(filter_cout, num_groups).output(0)
+        shape_cin_xy = ov_opset.slice(filter_shape, one_const, int_max_const, one_const).output(0)
+        filter_new_shape = ov_opset.concat([num_groups, filter_new_cout, shape_cin_xy], 0).output(0)
+        new_filter = ov_opset.reshape(kernel, filter_new_shape, False).output(0)
+        conv = ov_opset.group_convolution(inputs, new_filter, strides, pads_begin, pads_end, dilation_rate, pad_mode)
     conv = _adjust_outputs(conv.output(0), num_spatial_dims, data_format)
     return OpenVINOKerasTensor(conv)
 
