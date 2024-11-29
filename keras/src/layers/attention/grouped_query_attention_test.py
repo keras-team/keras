@@ -205,7 +205,6 @@ class GroupedQueryAttentionTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, r"must be equal"):
             layer.compute_output_shape(query_shape, value_shape, key_shape)
 
-    @pytest.mark.openvino_backend
     def test_initializer(self):
         # Test with a specified initializer.
         layer = layers.GroupedQueryAttention(
