@@ -1859,8 +1859,10 @@ def unravel_index(x, shape):
     x = tf.convert_to_tensor(x)
     input_dtype = x.dtype
 
-    if shape is None:
-        raise ValueError("Received `None` value for `shape`")
+    if None in shape:
+        raise ValueError(
+            "`shape` argument cannot contain `None`. Received: shape={shape}"
+        )
 
     if x.ndim == 1:
         coords = []
