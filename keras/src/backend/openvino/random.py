@@ -19,6 +19,8 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     seed1, seed2 = draw_seed(seed).data
     minval_const = ov_opset.constant(minval, dtype=dtype)
     maxval_const = ov_opset.constant(maxval, dtype=dtype)
+    if isinstance(shape, tuple):
+        shape = list(shape)
     output_shape_const = ov_opset.constant(shape, dtype=Type.i32)
     random_uniform = ov_opset.random_uniform(
         output_shape_const, minval_const, maxval_const, ov_type, seed1, seed2

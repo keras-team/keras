@@ -209,8 +209,10 @@ def conv(
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
 
-    if data_format == 'channels_last':
-        inputs_in_channels = inputs.get_partial_shape()[2 + num_spatial_dims - 1]
+    if data_format == "channels_last":
+        inputs_in_channels = inputs.get_partial_shape()[
+            2 + num_spatial_dims - 1
+        ]
     else:
         inputs_in_channels = inputs.get_partial_shape()[1]
     kernel_in_channels = kernel.get_partial_shape()[-2]
@@ -221,10 +223,18 @@ def conv(
     inputs = _adjust_input(inputs, num_spatial_dims, data_format)
     kernel = _adjust_kernel(kernel, num_spatial_dims, data_format)
 
-    num_groups = inputs_in_channels.get_length() // kernel_in_channels.get_length()
+    num_groups = (
+        inputs_in_channels.get_length() // kernel_in_channels.get_length()
+    )
     if num_groups == 1:
         conv = ov_opset.convolution(
-            inputs, kernel, strides, pads_begin, pads_end, dilation_rate, pad_mode
+            inputs,
+            kernel,
+            strides,
+            pads_begin,
+            pads_end,
+            dilation_rate,
+            pad_mode,
         )
     else:
         input_shape = ov_opset.shape_of(inputs).output(0)
@@ -232,18 +242,36 @@ def conv(
         zero_const = ov_opset.constant([0], Type.i32).output(0)
         one_const = ov_opset.constant([1], Type.i32).output(0)
         two_const = ov_opset.constant([2], Type.i32).output(0)
-        input_cin = ov_opset.slice(input_shape, one_const, two_const, one_const).output(0)
-        filter_cin = ov_opset.slice(filter_shape, one_const, two_const, one_const).output(0)
+        input_cin = ov_opset.slice(
+            input_shape, one_const, two_const, one_const
+        ).output(0)
+        filter_cin = ov_opset.slice(
+            filter_shape, one_const, two_const, one_const
+        ).output(0)
         num_groups = ov_opset.divide(input_cin, filter_cin).output(0)
 
         # reshape the filter based on the number of groups information
         int_max_const = ov_opset.constant([2**31 - 1], Type.i32).output(0)
-        filter_cout = ov_opset.slice(filter_shape, zero_const, one_const, one_const).output(0)
+        filter_cout = ov_opset.slice(
+            filter_shape, zero_const, one_const, one_const
+        ).output(0)
         filter_new_cout = ov_opset.divide(filter_cout, num_groups).output(0)
-        shape_cin_xy = ov_opset.slice(filter_shape, one_const, int_max_const, one_const).output(0)
-        filter_new_shape = ov_opset.concat([num_groups, filter_new_cout, shape_cin_xy], 0).output(0)
+        shape_cin_xy = ov_opset.slice(
+            filter_shape, one_const, int_max_const, one_const
+        ).output(0)
+        filter_new_shape = ov_opset.concat(
+            [num_groups, filter_new_cout, shape_cin_xy], 0
+        ).output(0)
         new_filter = ov_opset.reshape(kernel, filter_new_shape, False).output(0)
-        conv = ov_opset.group_convolution(inputs, new_filter, strides, pads_begin, pads_end, dilation_rate, pad_mode)
+        conv = ov_opset.group_convolution(
+            inputs,
+            new_filter,
+            strides,
+            pads_begin,
+            pads_end,
+            dilation_rate,
+            pad_mode,
+        )
     conv = _adjust_outputs(conv.output(0), num_spatial_dims, data_format)
     return OpenVINOKerasTensor(conv)
 
