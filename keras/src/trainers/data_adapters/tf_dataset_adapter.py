@@ -128,7 +128,7 @@ def make_class_weight_map_fn(class_weight):
         if y.shape.rank >= 2:
             y_classes = tf.__internal__.smart_cond.smart_cond(
                 tf.shape(y)[-1] > 1,
-                lambda: tf.argmax(y, axis=-1),
+                lambda: tf.argmax(y, axis=-1, output_type=tf.int32),
                 lambda: tf.cast(tf.round(tf.squeeze(y, axis=-1)), tf.int32),
             )
         else:
