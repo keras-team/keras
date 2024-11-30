@@ -2,7 +2,7 @@
 
 Keras 3 is a multi-backend deep learning framework, with support for JAX, TensorFlow, and PyTorch.
 Effortlessly build and train models for computer vision, natural language processing, audio processing,
-timeseries forecasting, recommender systems, etc.
+time series forecasting, recommender systems, etc.
 
 - **Accelerated model development**: Ship deep learning solutions faster thanks to the high-level UX of Keras
 and the availability of easy-to-debug runtimes like PyTorch or JAX eager execution.
