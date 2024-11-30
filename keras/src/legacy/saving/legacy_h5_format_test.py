@@ -65,7 +65,7 @@ def get_subclassed_model(keras):
 
             # top_level_model_weights
             x += ops.cast(self.bias, x.dtype)
-
+            return x
 
     model = MyModel()
     model(np.random.random((2, 3)))
