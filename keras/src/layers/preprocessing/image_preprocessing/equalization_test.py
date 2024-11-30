@@ -1,0 +1,92 @@
+import numpy as np
+import pytest
+
+from keras.src import layers
+from keras.src import ops
+from keras.src import testing
+
+from absl.testing import parameterized
+
+
+class EqualizationTest(testing.TestCase):
+    def assertAllInRange(self, array, min_val, max_val):
+        self.assertTrue(np.all(array >= min_val))
+        self.assertTrue(np.all(array <= max_val))
+
+    @pytest.mark.requires_trainable_backend
+    def test_layer(self):
+        self.run_layer_test(
+            layers.Equalization,
+            init_kwargs={
+                "value_range": (0, 255),
+            },
+            input_shape=(8, 3, 4, 3),
+            supports_masking=False,
+            expected_output_shape=(8, 3, 4, 3),
+        )
+
+    def test_equalizes_to_all_bins(self):
+        xs = np.random.uniform(size=(2, 512, 512, 3), low=0, high=255).astype(
+            np.float32
+        )
+        layer = layers.Equalization(value_range=(0, 255))
+        xs = layer(xs)
+
+        for i in range(0, 256):
+            self.assertTrue(np.any(ops.convert_to_numpy(xs) == i))
+
+    @parameterized.named_parameters(
+        ("float32", np.float32), ("int32", np.int32), ("int64", np.int64)
+    )
+    def test_input_dtypes(self, dtype):
+        xs = np.random.uniform(size=(2, 512, 512, 3), low=0, high=255).astype(
+            dtype
+        )
+        layer = layers.Equalization(value_range=(0, 255))
+        xs = ops.convert_to_numpy(layer(xs))
+
+        for i in range(0, 256):
+            self.assertTrue(np.any(xs == i))
+        self.assertAllInRange(xs, 0, 255)
+
+    @parameterized.named_parameters(("0_255", 0, 255), ("0_1", 0, 1))
+    def test_output_range(self, lower, upper):
+        xs = np.random.uniform(
+            size=(2, 512, 512, 3), low=lower, high=upper
+        ).astype(np.float32)
+        layer = layers.Equalization(value_range=(lower, upper))
+        xs = ops.convert_to_numpy(layer(xs))
+        self.assertAllInRange(xs, lower, upper)
+
+    def test_constant_regions(self):
+        xs = np.zeros((1, 64, 64, 3), dtype=np.float32)
+        xs[:, :21, :, :] = 50
+        xs[:, 21:42, :, :] = 100
+        xs[:, 42:, :, :] = 200
+
+        layer = layers.Equalization(value_range=(0, 255))
+        equalized = ops.convert_to_numpy(layer(xs))
+
+        self.assertTrue(len(np.unique(equalized)) >= 3)
+        self.assertAllInRange(equalized, 0, 255)
+
+    def test_grayscale_images(self):
+        xs = np.random.uniform(0, 255, size=(2, 64, 64, 1)).astype(np.float32)
+        layer = layers.Equalization(value_range=(0, 255))
+        equalized = ops.convert_to_numpy(layer(xs))
+        self.assertEqual(equalized.shape[-1], 1)
+        self.assertAllInRange(equalized, 0, 255)
+
+    def test_single_color_image(self):
+        xs = np.full((1, 64, 64, 3), 128, dtype=np.float32)
+        layer = layers.Equalization(value_range=(0, 255))
+        equalized = ops.convert_to_numpy(layer(xs))
+        self.assertAllClose(equalized, 128.0)
+
+    def test_different_bin_sizes(self):
+        xs = np.random.uniform(0, 255, size=(1, 64, 64, 3)).astype(np.float32)
+        bin_sizes = [16, 64, 128, 256]
+        for bins in bin_sizes:
+            layer = layers.Equalization(value_range=(0, 255), bins=bins)
+            equalized = ops.convert_to_numpy(layer(xs))
+            self.assertAllInRange(equalized, 0, 255)
