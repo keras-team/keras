@@ -53,8 +53,21 @@ def get_subclassed_model(keras):
             self.dense_1 = keras.layers.Dense(3, activation="relu")
             self.dense_2 = keras.layers.Dense(1, activation="sigmoid")
 
+            # top_level_model_weights
+            self.bias = self.add_weight(
+                name="bias",
+                shape=[1],
+                trainable=True,
+                initializer=keras.initializers.Zeros(),
+            )
+
         def call(self, x):
-            return self.dense_2(self.dense_1(x))
+            x = self.dense_1(x)
+            x = self.dense_2(x)
+
+            # top_level_model_weights
+            x += ops.cast(self.bias, x.dtype)
+
 
     model = MyModel()
     model(np.random.random((2, 3)))
