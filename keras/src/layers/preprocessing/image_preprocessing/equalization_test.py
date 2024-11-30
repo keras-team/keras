@@ -1,11 +1,10 @@
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
-
-from absl.testing import parameterized
 
 
 class EqualizationTest(testing.TestCase):

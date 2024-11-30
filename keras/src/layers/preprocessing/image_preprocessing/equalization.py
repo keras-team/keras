@@ -1,8 +1,8 @@
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
-from keras.src import backend
 
 
 @keras_export("keras.layers.Equalization")
@@ -36,7 +36,8 @@ class Equalization(BaseImagePreprocessingLayer):
 
     Output: 3D (HWC) or 4D (NHWC) tensor with intensities redistributed to
         enhance contrast. The output will be of the same shape and dtype as
-        the input, with values scaled and clipped to the specified `value_range`.
+        the input, with values scaled and clipped to the specified
+        `value_range`.
 
     Example:
 
