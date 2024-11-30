@@ -185,12 +185,12 @@ class TrackedList(list):
             self.tracker.untrack(value)
 
     def tree_flatten(self):
-        # For optree
+        # For optree / dmtree
         return (self, None)
 
     @classmethod
     def tree_unflatten(cls, metadata, children):
-        # For optree
+        # For optree / dmtree
         return cls(children)
 
 
@@ -234,20 +234,15 @@ class TrackedDict(dict):
         super().clear()
 
     def tree_flatten(self):
-        from keras.src.utils.module_utils import optree
-
-        # For optree
-        keys, values = optree.utils.unzip2(
-            optree.utils.total_order_sorted(self.items(), key=lambda kv: kv[0])
-        )
-        return values, list(keys), keys
+        # For optree / dmtree
+        keys = sorted(list(self.keys()))
+        values = [self[k] for k in keys]
+        return values, keys, keys
 
     @classmethod
     def tree_unflatten(cls, keys, values):
-        from keras.src.utils.module_utils import optree
-
-        # For optree
-        return cls(optree.utils.safe_zip(keys, values))
+        # For optree / dmtree
+        return cls(zip(keys, values))
 
 
 @tree.register_tree_node_class
@@ -286,10 +281,10 @@ class TrackedSet(set):
         super().clear()
 
     def tree_flatten(self):
-        # For optree
+        # For optree / dmtree
         return (self, None)
 
     @classmethod
     def tree_unflatten(cls, metadata, children):
-        # For optree
+        # For optree / dmtree
         return cls(children)
