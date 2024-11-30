@@ -170,13 +170,28 @@ def _adjust_input(inputs, num_spatial_dims, data_format):
     return ov_opset.transpose(inputs, permutation).output(0)
 
 
-def _adjust_kernel(kernel, num_spatial_dims, data_format):
+def _adjust_kernel(kernel, num_spatial_dims):
     if num_spatial_dims == 1:
         permutation = [2, 1, 0]
     elif num_spatial_dims == 2:
         permutation = [3, 2, 0, 1]
     else:
         permutation = [4, 3, 0, 1, 2]
+    permutation = ov_opset.constant(permutation, Type.i32)
+    return ov_opset.transpose(kernel, permutation).output(0)
+
+
+def _adjust_depthwise_kernel(kernel, num_spatial_dims):
+    # kernel layout: filter_H, filter_W, C_IN, Ch_mul
+    if num_spatial_dims == 1:
+        # kernel layout: filter_H, C_IN, Ch_mul
+        permutation = [1, 2, 0]
+    elif num_spatial_dims == 2:
+        # kernel layout: filter_H, filter_W, C_IN, Ch_mul
+        permutation = [2, 3, 0, 1]
+    else:
+        # kernel layout: filter_H, filter_W, filter_Z, C_IN, Ch_mul
+        permutation = [3, 4, 0, 1, 2]
     permutation = ov_opset.constant(permutation, Type.i32)
     return ov_opset.transpose(kernel, permutation).output(0)
 
@@ -221,7 +236,7 @@ def conv(
     dilation_rate = _adjust_strides_dilation(dilation_rate, num_spatial_dims)
     pad_mode, pads_begin, pads_end = _adjust_padding(padding)
     inputs = _adjust_input(inputs, num_spatial_dims, data_format)
-    kernel = _adjust_kernel(kernel, num_spatial_dims, data_format)
+    kernel = _adjust_kernel(kernel, num_spatial_dims)
 
     num_groups = (
         inputs_in_channels.get_length() // kernel_in_channels.get_length()
@@ -299,11 +314,9 @@ def depthwise_conv(
     pad_mode, pads_begin, pads_end = _adjust_padding(padding)
 
     inputs = _adjust_input(inputs, num_spatial_dims, data_format)
-    # prepare filter to have a number of groups equal to CIN
-    unsqueeze_dim = ov_opset.constant([3], Type.i32)
+    kernel = _adjust_depthwise_kernel(kernel, num_spatial_dims)
+    unsqueeze_dim = ov_opset.constant([2], Type.i32)
     kernel = ov_opset.unsqueeze(kernel, unsqueeze_dim)
-    perm = ov_opset.constant([2, 4, 3, 0, 1], Type.i32)
-    kernel = ov_opset.transpose(kernel, perm)
 
     group_conv = ov_opset.group_convolution(
         inputs, kernel, strides, pads_begin, pads_end, dilation_rate, pad_mode

@@ -242,7 +242,7 @@ def convert_to_tensor(x, dtype=None, sparse=None):
 def convert_to_numpy(x):
     if isinstance(x, np.ndarray):
         return x
-    elif isinstance(x, (int, float, list)):
+    elif isinstance(x, (int, float, list, tuple)):
         return np.array(x)
     elif isinstance(x, ov.Tensor):
         return x.data
