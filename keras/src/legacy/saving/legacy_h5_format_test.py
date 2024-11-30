@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import pytest
-import tf_keras
 
 import keras
 from keras.src import layers
@@ -16,6 +15,11 @@ from keras.src.saving import serialization_lib
 # TODO: more thorough testing. Correctness depends
 # on exact weight ordering for each layer, so we need
 # to test across all types of layers.
+
+try:
+    import tf_keras
+except:
+    tf_keras = None
 
 
 def get_sequential_model(keras):
@@ -73,6 +77,7 @@ def get_subclassed_model(keras):
 
 
 @pytest.mark.requires_trainable_backend
+@pytest.mark.skipif(tf_keras is None, reason="Test requires tf_keras")
 class LegacyH5WeightsTest(testing.TestCase):
     def _check_reloading_weights(self, ref_input, model, tf_keras_model):
         ref_output = tf_keras_model(ref_input)
@@ -276,6 +281,7 @@ class LegacyH5WholeModelTest(testing.TestCase):
 
 
 @pytest.mark.requires_trainable_backend
+@pytest.mark.skipif(tf_keras is None, reason="Test requires tf_keras")
 class LegacyH5BackwardsCompatTest(testing.TestCase):
     def _check_reloading_model(self, ref_input, model, tf_keras_model):
         # Whole model file
