@@ -460,6 +460,24 @@ def hard_shrink(x, threshold=0.5):
     return ops.hard_shrink(x, threshold=threshold)
 
 
+@keras_export("keras.activations.threshold")
+def threshold(x, threshold, default_value):
+    """Threshold activation function.
+
+    It is defined as:
+
+    `threshold(x) = x` if `x > threshold`,
+    `threshold(x) = default_value` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: The value that decides when to retain or replace x.
+        default_value: Value to assign when `x <= threshold`.
+
+    """
+    return ops.threshold(x, threshold, default_value)
+
+
 @keras_export("keras.activations.sigmoid")
 def sigmoid(x):
     """Sigmoid activation function.

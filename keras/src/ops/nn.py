@@ -818,6 +818,48 @@ def hard_shrink(x, threshold=0.5):
     return backend.nn.hard_shrink(x, threshold)
 
 
+class Threshold(Operation):
+    def __init__(self, threshold_value, value):
+        super().__init__()
+        self.threshold_value = threshold_value
+        self.value = value
+
+    def call(self, x):
+        return backend.nn.threshold(x, self.threshold_value, self.value)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.threshold", "keras.ops.nn.threshold"])
+def threshold(x, threshold, default_value):
+    """Threshold activation function.
+
+    The function thresholds the input `x` as follows:
+    `f(x) = x` if `x > threshold`,
+    `f(x) = default_value` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: The value that decides when to retain or replace x.
+        default_value: Value to assign when `x <= threshold`.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1.0, 0.0, 1.0, 2.0])
+    >>> x_threshold = keras.ops.threshold(x, 1, 0)
+    >>> print(x_threshold)
+    array([0., 0., 0., 2.], shape=(4,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Threshold(threshold, default_value).symbolic_call(x)
+    return backend.nn.threshold(x, threshold, default_value)
+
+
 class Softmax(Operation):
     def __init__(self, axis=-1):
         super().__init__()

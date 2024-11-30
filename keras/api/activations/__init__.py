@@ -37,3 +37,4 @@ from keras.src.activations.activations import sparsemax
 from keras.src.activations.activations import squareplus
 from keras.src.activations.activations import tanh
 from keras.src.activations.activations import tanh_shrink
+from keras.src.activations.activations import threshold

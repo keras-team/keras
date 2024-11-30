@@ -134,6 +134,11 @@ def hard_shrink(x, threshold=0.5):
     return tnn.hardshrink(x, lambd=threshold)
 
 
+def threshold(x, threshold, default_value):
+    x = convert_to_tensor(x)
+    return tnn.threshold(x, threshold=threshold, value=default_value)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
