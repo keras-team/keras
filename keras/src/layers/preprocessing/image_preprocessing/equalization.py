@@ -7,12 +7,12 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
 
 @keras_export("keras.layers.Equalization")
 class Equalization(BaseImagePreprocessingLayer):
-    """A preprocessing layer that performs histogram equalization on image channels.
+    """Preprocessing layer for histogram equalization on image channels.
 
-    Histogram equalization is a technique to adjust image intensities to enhance
-    contrast by effectively spreading out the most frequent intensity values.
-    This layer applies equalization on a channel-wise basis, which can improve
-    the visibility of details in images.
+    Histogram equalization is a technique to adjust image intensities to
+    enhance contrast by effectively spreading out the most frequent
+    intensity values. This layer applies equalization on a channel-wise
+    basis, which can improve the visibility of details in images.
 
     This layer works with both grayscale and color images, performing
     equalization independently on each color channel. At inference time,
@@ -22,11 +22,11 @@ class Equalization(BaseImagePreprocessingLayer):
     (independently of which backend you're using).
 
     Args:
-        value_range: Optional list/tuple of 2 floats specifying the lower and
-            upper limits of the input data values. Defaults to `[0, 255]`.
+        value_range: Optional list/tuple of 2 floats specifying the lower
+            and upper limits of the input data values. Defaults to `[0, 255]`.
             If the input image has been scaled, use the appropriate range
-            (e.g., `[0.0, 1.0]`). The equalization will be scaled to this range,
-            and output values will be clipped accordingly.
+            (e.g., `[0.0, 1.0]`). The equalization will be scaled to this
+            range, and output values will be clipped accordingly.
         bins: Integer specifying the number of histogram bins to use for
             equalization. Defaults to 256, which is suitable for 8-bit images.
             Larger values can provide more granular intensity redistribution.
