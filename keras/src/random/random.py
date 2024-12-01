@@ -210,7 +210,9 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 @keras_export("keras.random.dropout")
 def dropout(inputs, rate, noise_shape=None, seed=None):
-    return backend.random.dropout(inputs, rate, noise_shape=noise_shape, seed=seed)
+    return backend.random.dropout(
+        inputs, rate, noise_shape=noise_shape, seed=seed
+    )
 
 
 @keras_export("keras.random.shuffle")
