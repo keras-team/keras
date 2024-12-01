@@ -45,7 +45,11 @@ def get_ov_output(x, ov_type=None):
             ov_type is not None
         ), "no type is specified for creation of ov.Output for scalar"
         x = ov_opset.constant(x, ov_type).output(0)
+    elif isinstance(x, np.ndarray):
+        x = ov_opset.constant(x).output(0)
     elif isinstance(x, KerasVariable):
+        if isinstance(x.value, OpenVINOKerasTensor):
+            return x.value.output
         x = ov_opset.constant(x.value.data).output(0)
     elif isinstance(x, OpenVINOKerasTensor):
         x = x.output

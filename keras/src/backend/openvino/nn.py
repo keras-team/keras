@@ -1,4 +1,3 @@
-import numpy as np
 import openvino.runtime.opset14 as ov_opset
 from openvino import Type
 
@@ -61,18 +60,22 @@ def leaky_relu(x, negative_slope=0.2):
 
 def hard_sigmoid(x):
     x = get_ov_output(x)
-    alpha = 1 / np.array(6.0, dtype=np.float32)
-    beta = np.array(0.5, dtype=np.float32)
+    alpha = get_ov_output(1.0 / 6.0, x.get_element_type())
+    beta = get_ov_output(0.5, x.get_element_type())
     return OpenVINOKerasTensor(ov_opset.hard_sigmoid(x, alpha, beta).output(0))
 
 
 def hard_silu(x):
+    hard_sigmoid_output = get_ov_output(hard_sigmoid(x))
     x = get_ov_output(x)
-    return OpenVINOKerasTensor(ov_opset.multiply(x, hard_sigmoid(x)).output(0))
+    return OpenVINOKerasTensor(
+        ov_opset.multiply(x, hard_sigmoid_output).output(0)
+    )
 
 
 def elu(x, alpha=1.0):
     x = get_ov_output(x)
+    alpha = get_ov_output(alpha, x.get_element_type())
     return OpenVINOKerasTensor(ov_opset.elu(x, alpha).output(0))
 
 
@@ -82,6 +85,8 @@ def selu(
     scale=1.0507009873554804934193349852946,
 ):
     x = get_ov_output(x)
+    alpha = get_ov_output(alpha, x.get_element_type())
+    scale = get_ov_output(scale, x.get_element_type())
     return OpenVINOKerasTensor(ov_opset.selu(x, alpha, scale).output(0))
 
 
@@ -219,7 +224,7 @@ def conv(
     dilation_rate=1,
 ):
     inputs = get_ov_output(inputs)
-    kernel = get_ov_output(kernel.value)
+    kernel = get_ov_output(kernel)
 
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
@@ -300,7 +305,7 @@ def depthwise_conv(
     dilation_rate=1,
 ):
     inputs = get_ov_output(inputs)
-    kernel = get_ov_output(kernel.value)
+    kernel = get_ov_output(kernel)
 
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
