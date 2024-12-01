@@ -79,7 +79,9 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
             "`logits` should be a 2-D tensor with shape "
             f"[batch_size, num_classes]. Received: logits={logits}"
         )
-    return backend.random.categorical(logits, num_samples, dtype=dtype, seed=seed)
+    return backend.random.categorical(
+        logits, num_samples, dtype=dtype, seed=seed
+    )
 
 
 @keras_export("keras.random.uniform")
