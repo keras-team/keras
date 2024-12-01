@@ -21,9 +21,9 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
             Note that passing an integer as the `seed` value will produce the same random values for each call.  
             To generate different random values for repeated calls, an instance of  
             `keras.random.SeedGenerator` must be provided as the `seed` value.  
-            Remark concerning the JAX backend: The global `keras.random.SeedGenerator` is not supported  
-            when tracing functions with the JAX backend. In case the random number generator 
-            is used with JIT compilation and the JAX backend, a `seed` argument must be provided.
+            Remark concerning the JAX backend: When tracing functions with the JAX backend the global 
+            `keras.random.SeedGenerator` is not supported. Therefore, during tracing the default value seed=None 
+            will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.normal(
         shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
@@ -58,9 +58,9 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
             Note that passing an integer as the `seed` value will produce the same random values for each call.  
             To generate different random values for repeated calls, an instance of  
             `keras.random.SeedGenerator` must be provided as the `seed` value.  
-            Remark concerning the JAX backend: The global `keras.random.SeedGenerator` is not supported  
-            when tracing functions with the JAX backend. In case the random number generator 
-            is used with JIT compilation and the JAX backend, a `seed` argument must be provided.
+            Remark concerning the JAX backend: When tracing functions with the JAX backend the global 
+            `keras.random.SeedGenerator` is not supported. Therefore, during tracing the default value seed=None 
+            will produce an error, and a `seed` argument must be provided.
 
     Returns:
         A 2-D tensor with (batch_size, num_samples).
@@ -102,10 +102,9 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
             Note that passing an integer as the `seed` value will produce the same random values for each call.  
             To generate different random values for repeated calls, an instance of  
             `keras.random.SeedGenerator` must be provided as the `seed` value.  
-            Remark concerning the JAX backend: The global `keras.random.SeedGenerator` is not supported  
-            when tracing functions with the JAX backend. In case the random number generator 
-            is used with JIT compilation and the JAX backend, a `seed` argument must be provided.
-
+            Remark concerning the JAX backend: When tracing functions with the JAX backend the global 
+            `keras.random.SeedGenerator` is not supported. Therefore, during tracing the default value seed=None 
+            will produce an error, and a `seed` argument must be provided.
     """
     if dtype and not backend.is_float_dtype(dtype):
         raise ValueError(
@@ -143,9 +142,9 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
             Note that passing an integer as the `seed` value will produce the same random values for each call.  
             To generate different random values for repeated calls, an instance of  
             `keras.random.SeedGenerator` must be provided as the `seed` value.  
-            Remark concerning the JAX backend: The global `keras.random.SeedGenerator` is not supported  
-            when tracing functions with the JAX backend. In case the random number generator 
-            is used with JIT compilation and the JAX backend, a `seed` argument must be provided.
+            Remark concerning the JAX backend: When tracing functions with the JAX backend the global 
+            `keras.random.SeedGenerator` is not supported. Therefore, during tracing the default value seed=None 
+            will produce an error, and a `seed` argument must be provided.
     """
     if dtype and not backend.is_int_dtype(dtype):
         raise ValueError(
@@ -179,10 +178,9 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
             The `seed` argument can be used to ensure deterministic (repeatable) random number generation.  
             Note that passing an integer as the `seed` value will produce the same random values for each call.  
             To generate different random values for repeated calls, an instance of  
-            `keras.random.SeedGenerator` must be provided as the `seed` value.  
-            Remark concerning the JAX backend: The global `keras.random.SeedGenerator` is not supported  
-            when tracing functions with the JAX backend. In case the random number generator 
-            is used with JIT compilation and the JAX backend, a `seed` argument must be provided.
+            Remark concerning the JAX backend: When tracing functions with the JAX backend the global 
+            `keras.random.SeedGenerator` is not supported. Therefore, during tracing the default value seed=None 
+            will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.truncated_normal(
         shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
@@ -210,9 +208,9 @@ def shuffle(x, axis=0, seed=None):
             Note that passing an integer as the `seed` value will produce the same random values for each call.  
             To generate different random values for repeated calls, an instance of  
             `keras.random.SeedGenerator` must be provided as the `seed` value.  
-            Remark concerning the JAX backend: The global `keras.random.SeedGenerator` is not supported  
-            when tracing functions with the JAX backend. In case the random number generator 
-            is used with JIT compilation and the JAX backend, a `seed` argument must be provided.
+            Remark concerning the JAX backend: When tracing functions with the JAX backend the global 
+            `keras.random.SeedGenerator` is not supported. Therefore, during tracing the default value seed=None 
+            will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.shuffle(x, axis=axis, seed=seed)
 
@@ -234,9 +232,9 @@ def gamma(shape, alpha, dtype=None, seed=None):
             Note that passing an integer as the `seed` value will produce the same random values for each call.  
             To generate different random values for repeated calls, an instance of  
             `keras.random.SeedGenerator` must be provided as the `seed` value.  
-            Remark concerning the JAX backend: The global `keras.random.SeedGenerator` is not supported  
-            when tracing functions with the JAX backend. In case the random number generator 
-            is used with JIT compilation and the JAX backend, a `seed` argument must be provided.
+            Remark concerning the JAX backend: When tracing functions with the JAX backend the global 
+            `keras.random.SeedGenerator` is not supported. Therefore, during tracing the default value seed=None 
+            will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.gamma(shape, alpha=alpha, dtype=dtype, seed=seed)
 
@@ -265,9 +263,9 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
             Note that passing an integer as the `seed` value will produce the same random values for each call.  
             To generate different random values for repeated calls, an instance of  
             `keras.random.SeedGenerator` must be provided as the `seed` value.  
-            Remark concerning the JAX backend: The global `keras.random.SeedGenerator` is not supported  
-            when tracing functions with the JAX backend. In case the random number generator 
-            is used with JIT compilation and the JAX backend, a `seed` argument must be provided.
+            Remark concerning the JAX backend: When tracing functions with the JAX backend the global 
+            `keras.random.SeedGenerator` is not supported. Therefore, during tracing the default value seed=None 
+            will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.binomial(
         shape,
@@ -301,9 +299,9 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
             Note that passing an integer as the `seed` value will produce the same random values for each call.  
             To generate different random values for repeated calls, an instance of  
             `keras.random.SeedGenerator` must be provided as the `seed` value.  
-            Remark concerning the JAX backend: The global `keras.random.SeedGenerator` is not supported  
-            when tracing functions with the JAX backend. In case the random number generator 
-            is used with JIT compilation and the JAX backend, a `seed` argument must be provided.
+            Remark concerning the JAX backend: When tracing functions with the JAX backend the global 
+            `keras.random.SeedGenerator` is not supported. Therefore, during tracing the default value seed=None 
+            will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.beta(
         shape=shape, alpha=alpha, beta=beta, dtype=dtype, seed=seed
