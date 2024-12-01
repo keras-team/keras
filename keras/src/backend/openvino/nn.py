@@ -75,7 +75,6 @@ def hard_silu(x):
 
 def elu(x, alpha=1.0):
     x = get_ov_output(x)
-    alpha = get_ov_output(alpha, x.get_element_type())
     return OpenVINOKerasTensor(ov_opset.elu(x, alpha).output(0))
 
 
