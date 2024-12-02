@@ -134,6 +134,11 @@ def hard_shrink(x, threshold=0.5):
     return tnn.hardshrink(x, lambd=threshold)
 
 
+def threshold(x, threshold, default_value):
+    x = convert_to_tensor(x)
+    return tnn.threshold(x, threshold=threshold, value=default_value)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
@@ -172,6 +177,28 @@ def log_softmax(x, axis=-1):
     else:
         output = tnn.log_softmax(x, dim=axis)
     return cast(output, dtype)
+
+
+def sparsemax(logits, axis=-1):
+    # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(logits)
+    logits_sorted, _ = torch.sort(logits, dim=axis, descending=True)
+    logits_cumsum = torch.cumsum(logits_sorted, dim=axis)
+    r = torch.arange(
+        1, logits.size(axis) + 1, device=logits.device, dtype=logits.dtype
+    )
+    r_shape = [1] * logits.ndim
+    r_shape[axis] = -1  # Broadcast to match the target axis
+    r = r.view(r_shape)
+    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    # Find the threshold
+    k = torch.sum(support, dim=axis, keepdim=True)
+    logits_cumsum_safe = torch.where(
+        support, logits_cumsum, torch.tensor(0.0, device=logits.device)
+    )
+    tau = (torch.sum(logits_cumsum_safe, dim=axis, keepdim=True) - 1) / k
+    output = torch.clamp(logits - tau, min=0.0)
+    return output
 
 
 def _compute_padding_length(
