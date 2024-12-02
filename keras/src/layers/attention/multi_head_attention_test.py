@@ -375,6 +375,10 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertAllClose(output_1, output_2)
         self.assertAllClose(output_1, output_3)
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
     def test_no_warning_with_keras_mask(self):
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
         query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
