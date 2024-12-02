@@ -10,6 +10,7 @@ from openvino.runtime import Type
 
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
+from keras.src.backend.common import dtypes
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.dtypes import result_type
@@ -37,13 +38,35 @@ OPENVINO_DTYPES = {
 }
 
 
+def align_operand_types(x1, x2, op_name):
+    x1_type = x1.element_type
+    x2_type = x2.element_type
+    if x1_type.is_dynamic() or x2_type.is_dynamic():
+        raise ValueError(
+            f"'{op_name}' operation is not supported for dynamic operand type "
+            "with openvino backend"
+        )
+    x1_type = ov_to_keras_type(x1_type)
+    x2_type = ov_to_keras_type(x2_type)
+    result_type = dtypes.result_type(x1_type, x2_type)
+    result_type = OPENVINO_DTYPES[result_type]
+    if x1_type != result_type:
+        x1 = ov_opset.convert(x1, result_type)
+    if x2_type != result_type:
+        x2 = ov_opset.convert(x2, result_type)
+    return x1, x2
+
+
 # create ov.Output (symbolic OpenVINO tensor)
 # for different input `x`
 def get_ov_output(x, ov_type=None):
-    if isinstance(x, (float, int)):
-        assert (
-            ov_type is not None
-        ), "no type is specified for creation of ov.Output for scalar"
+    if isinstance(x, float):
+        if ov_type is None:
+            ov_type = Type.f32
+        x = ov_opset.constant(x, ov_type).output(0)
+    elif isinstance(x, int):
+        if ov_type is None:
+            ov_type = Type.i32
         x = ov_opset.constant(x, ov_type).output(0)
     elif isinstance(x, np.ndarray):
         x = ov_opset.constant(x).output(0)
