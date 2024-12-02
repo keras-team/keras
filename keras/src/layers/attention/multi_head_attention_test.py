@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import numpy as np
 import pytest
@@ -315,6 +316,7 @@ class MultiHeadAttentionTest(testing.TestCase):
                 [[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]]
             )
             masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
+            query_mask = backend.get_keras_mask(masked_query)
             value = np.random.normal(size=(3, 3, 8))
             output = layer(query=masked_query, value=value)
         except RuntimeError as e:
@@ -325,7 +327,7 @@ class MultiHeadAttentionTest(testing.TestCase):
                     "PyTorch errors out on GPU: issue to track bug is here "
                     "https://github.com/keras-team/keras/issues/20459"
                 )
-        self.assertAllClose(masked_query._keras_mask, output._keras_mask)
+        self.assertAllClose(query_mask, output._keras_mask)
 
     @parameterized.named_parameters(("causal", True), ("not_causal", 0))
     @pytest.mark.skipif(
@@ -372,6 +374,17 @@ class MultiHeadAttentionTest(testing.TestCase):
 
         self.assertAllClose(output_1, output_2)
         self.assertAllClose(output_1, output_3)
+
+    def test_no_warning_with_keras_mask(self):
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
+        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
+        value = np.array([[5, 4, 0], [3, 0, 0], [2, 1, 1]])
+        masked_value = layers.Embedding(6, 8, mask_zero=True)(value)
+
+        with warnings.catch_warnings(record=True) as warning_logs:
+            _ = layer(query=masked_query, value=masked_value)
+            self.assertLen(warning_logs, 0)
 
     @parameterized.named_parameters(
         ("disable_flash_attention", False), ("enable_flash_attention", True)
