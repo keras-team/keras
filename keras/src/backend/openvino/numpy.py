@@ -1,3 +1,4 @@
+import numpy as np
 import openvino.runtime.opset14 as ov_opset
 from openvino import Type
 
@@ -5,7 +6,6 @@ from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
-from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
 
@@ -106,6 +106,8 @@ def ones(shape, dtype=None):
     const_one = ov_opset.constant(1, dtype=ov_type).output(0)
     if isinstance(shape, tuple):
         shape = list(shape)
+    elif isinstance(shape, int):
+        shape = [shape]
     output_shape = ov_opset.constant(shape, dtype=Type.i32).output(0)
     ones = ov_opset.broadcast(const_one, output_shape)
     return OpenVINOKerasTensor(ones.output(0))
@@ -117,6 +119,8 @@ def zeros(shape, dtype=None):
     const_zero = ov_opset.constant(0, dtype=ov_type).output(0)
     if isinstance(shape, tuple):
         shape = list(shape)
+    elif isinstance(shape, int):
+        shape = [shape]
     output_shape = ov_opset.constant(shape, dtype=Type.i32).output(0)
     zeros = ov_opset.broadcast(const_zero, output_shape)
     return OpenVINOKerasTensor(zeros.output(0))
@@ -207,7 +211,9 @@ def argsort(x, axis=-1):
 
 
 def array(x, dtype=None):
-    return convert_to_tensor(x, dtype=dtype)
+    if dtype is not None:
+        return np.array(x, dtype=dtype)
+    return np.array(x)
 
 
 def average(x, axis=None, weights=None):

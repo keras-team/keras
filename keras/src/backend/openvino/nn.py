@@ -99,11 +99,27 @@ def gelu(x, approximate=True):
 
 def softmax(x, axis=None):
     x = get_ov_output(x)
+    if axis is None:
+        x_shape = ov_opset.shape_of(x)
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        flatten_x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        softmax_x = ov_opset.softmax(flatten_x, 0).output(0)
+        return OpenVINOKerasTensor(
+            ov_opset.reshape(softmax_x, x_shape, False).output(0)
+        )
     return OpenVINOKerasTensor(ov_opset.softmax(x, axis).output(0))
 
 
 def log_softmax(x, axis=None):
     x = get_ov_output(x)
+    if axis is None:
+        x_shape = ov_opset.shape_of(x)
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        flatten_x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        log_softmax_x = ov_opset.log_softmax(flatten_x, 0).output(0)
+        return OpenVINOKerasTensor(
+            ov_opset.reshape(log_softmax_x, x_shape, False).output(0)
+        )
     return OpenVINOKerasTensor(ov_opset.log_softmax(x, axis).output(0))
 
 
