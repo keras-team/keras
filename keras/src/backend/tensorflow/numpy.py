@@ -1855,6 +1855,31 @@ def ravel(x):
     return tf.reshape(x, [-1])
 
 
+def unravel_index(x, shape):
+    x = tf.convert_to_tensor(x)
+    input_dtype = x.dtype
+
+    if None in shape:
+        raise ValueError(
+            "`shape` argument cannot contain `None`. Received: shape={shape}"
+        )
+
+    if x.ndim == 1:
+        coords = []
+        for dim in reversed(shape):
+            coords.append(tf.cast(x % dim, input_dtype))
+            x = x // dim
+        return tuple(reversed(coords))
+
+    x_shape = x.shape
+    coords = []
+    for dim in shape:
+        coords.append(tf.reshape(tf.cast(x % dim, input_dtype), x_shape))
+        x = x // dim
+
+    return tuple(reversed(coords))
+
+
 @sparse.elementwise_unary
 def real(x):
     x = convert_to_tensor(x)

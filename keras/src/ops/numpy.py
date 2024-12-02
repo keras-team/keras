@@ -4659,6 +4659,57 @@ def ravel(x):
     return backend.numpy.ravel(x)
 
 
+class UnravelIndex(Operation):
+    def __init__(self, shape):
+        self.shape = shape
+        self._inbound_nodes = []
+
+    def call(self, indices):
+        return backend.numpy.unravel_index(indices, self.shape)
+
+    def compute_output_spec(self, indices):
+        if None in self.shape:
+            output_shapes = [[None] for _ in self.shape]
+        else:
+            if isinstance(indices, int):
+                output_shapes = [[1] for _ in self.shape]
+            elif hasattr(indices, "shape"):
+                output_shapes = [list(indices.shape) for _ in self.shape]
+            else:
+                try:
+                    indices_shape = np.shape(indices)
+                    output_shapes = [list(indices_shape) for _ in self.shape]
+                except Exception:
+                    output_shapes = [[None] for _ in self.shape]
+
+        return [
+            KerasTensor(shape, dtype=indices.dtype) for shape in output_shapes
+        ]
+
+
+@keras_export(["keras.ops.unravel_index", "keras.ops.numpy.unravel_index"])
+def unravel_index(indices, shape):
+    """Convert flat indices to coordinate arrays in a given array shape.
+
+    Args:
+        indices: An integer or array of integers representing flat indices.
+        shape: The shape of the array to unravel into.
+
+    Returns:
+        Tuple of arrays for each dimension with unraveled indices.
+
+    Example:
+        >>> indices = 5
+        >>> shape = (3, 3)
+        >>> unravel_index(indices, shape)
+        (1, 2)  # 5 is at row 1, column 2 in a 3x3 array
+    """
+    if any_symbolic_tensors((indices,)):
+        return UnravelIndex(shape).symbolic_call(indices)
+
+    return backend.numpy.unravel_index(indices, shape)
+
+
 class Real(Operation):
     def call(self, x):
         return backend.numpy.real(x)
