@@ -664,7 +664,7 @@ def repeat(x, repeats, axis=None):
 
 
 def reshape(x, newshape):
-    x = get_ov_output(x.value)
+    x = get_ov_output(x)
     if isinstance(newshape, tuple):
         newshape = list(newshape)
     newshape = ov_opset.constant(newshape, Type.i32).output(0)

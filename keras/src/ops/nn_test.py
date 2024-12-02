@@ -88,96 +88,119 @@ def _dot_product_attention(
 
 
 class NNOpsDynamicShapeTest(testing.TestCase):
+    @pytest.mark.openvino_backend
     def test_relu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.relu(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_relu6(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.relu6(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_sigmoid(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.sigmoid(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_softplus(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.softplus(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_softsign(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.softsign(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_silu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.silu(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_log_sigmoid(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.log_sigmoid(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_leaky_relu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.leaky_relu(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_hard_sigmoid(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_sigmoid(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_hard_silu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_silu(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_elu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.elu(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_selu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.selu(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_gelu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.gelu(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_celu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.celu(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_glu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.glu(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_tanh_shrink(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.tanh_shrink(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_hard_tanh(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_tanh(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_hard_shrink(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_shrink(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_squareplus(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.squareplus(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_soft_shrink(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.soft_shrink(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_sparse_plus(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.sparse_plus(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_softmax(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.softmax(x).shape, (None, 2, 3))
         self.assertEqual(knn.softmax(x, axis=1).shape, (None, 2, 3))
         self.assertEqual(knn.softmax(x, axis=-1).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_softmax_in_graph(self):
         class SoftmaxLayer(keras.Layer):
             def call(self, x):
@@ -194,12 +217,14 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         x = ops.array([[1.0, 2.0, 3.0, 4.0]])
         model.predict(x)
 
+    @pytest.mark.openvino_backend
     def test_log_softmax(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.log_softmax(x).shape, (None, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=1).shape, (None, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=-1).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
@@ -243,6 +268,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             ),
         )
 
+    @pytest.mark.openvino_backend
     def test_average_pool(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
@@ -289,6 +315,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             ),
         )
 
+    @pytest.mark.openvino_backend
     def test_multi_hot(self):
         x = KerasTensor([None, 3, 1])
         self.assertEqual(knn.multi_hot(x, 5).shape, (None, 1, 5))
@@ -308,6 +335,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
         self.assertSparse(out, sparse)
 
+    @pytest.mark.openvino_backend
     def test_conv(self):
         data_format = backend.config.image_data_format()
         # Test 1D conv.
@@ -444,6 +472,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             ),
         )
 
+    @pytest.mark.openvino_backend
     def test_depthwise_conv(self):
         data_format = backend.config.image_data_format()
         # Test 1D depthwise conv.
@@ -524,6 +553,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             ),
         )
 
+    @pytest.mark.openvino_backend
     def test_separable_conv(self):
         data_format = backend.config.image_data_format()
         # Test 1D separable conv.
@@ -592,6 +622,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             ),
         )
 
+    @pytest.mark.openvino_backend
     def test_conv_transpose(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
@@ -648,6 +679,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             ),
         )
 
+    @pytest.mark.openvino_backend
     def test_one_hot(self):
         x = KerasTensor([None, 3, 1])
         self.assertEqual(knn.one_hot(x, 5).shape, (None, 3, 1, 5))
@@ -667,6 +699,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
         self.assertSparse(out, sparse)
 
+    @pytest.mark.openvino_backend
     def test_moments(self):
         x = KerasTensor([None, 3, 4])
         self.assertEqual(knn.moments(x, axes=[0])[0].shape, (3, 4))
@@ -681,6 +714,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             knn.moments(x, axes=[1, 2], keepdims=True)[0].shape, (None, 1, 1)
         )
 
+    @pytest.mark.openvino_backend
     def test_batch_normalization(self):
         x = KerasTensor([None, 3, 4])
         mean = KerasTensor([4])
@@ -729,6 +763,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             scale=KerasTensor([3]),
         )
 
+    @pytest.mark.openvino_backend
     def test_ctc_decode(self):
         # Test strategy="greedy"
         inputs = KerasTensor([None, 2, 3])
@@ -746,16 +781,19 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(decoded.shape, (2, None, 2))
         self.assertEqual(scores.shape, (None, 2))
 
+    @pytest.mark.openvino_backend
     def test_normalize(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.normalize(x).shape, (None, 2, 3))
 
+    @pytest.mark.openvino_backend
     def test_psnr(self):
         x1 = KerasTensor([None, 2, 3])
         x2 = KerasTensor([None, 5, 6])
         out = knn.psnr(x1, x2, max_val=224)
         self.assertEqual(out.shape, ())
 
+    @pytest.mark.openvino_backend
     def test_dot_product_attention(self):
         query = KerasTensor([None, None, 8, 16])
         key = KerasTensor([None, None, 6, 16])
@@ -764,6 +802,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, query.shape)
 
 
+@pytest.mark.openvino_backend
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
         x = KerasTensor([1, 2, 3])
@@ -1270,20 +1309,24 @@ class NNOpsStaticShapeTest(testing.TestCase):
 
 
 class NNOpsCorrectnessTest(testing.TestCase):
+    @pytest.mark.openvino_backend
     def test_relu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(knn.relu(x), [0, 0, 1, 2, 3])
 
+    @pytest.mark.openvino_backend
     def test_relu6(self):
         x = np.array([-1, 0, 1, 2, 3, 4, 5, 6, 7], dtype=np.float32)
         self.assertAllClose(knn.relu6(x), [0, 0, 1, 2, 3, 4, 5, 6, 6])
 
+    @pytest.mark.openvino_backend
     def test_sigmoid(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
             knn.sigmoid(x), [0.26894143, 0.5, 0.7310586, 0.880797, 0.95257413]
         )
 
+    @pytest.mark.openvino_backend
     def test_softplus(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
@@ -1291,10 +1334,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [0.31326166, 0.6931472, 1.3132616, 2.126928, 3.0485873],
         )
 
+    @pytest.mark.openvino_backend
     def test_softsign(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(knn.softsign(x), [-0.5, 0, 0.5, 0.6666667, 0.75])
 
+    @pytest.mark.openvino_backend
     def test_silu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
@@ -1309,6 +1354,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [-1.3132616, -0.6931472, -0.31326166, -0.126928, -0.04858732],
         )
 
+    @pytest.mark.openvino_backend
     def test_leaky_relu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
@@ -1316,6 +1362,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [-0.2, 0, 1, 2, 3],
         )
 
+    @pytest.mark.openvino_backend
     def test_hard_sigmoid(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
@@ -1323,6 +1370,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
         )
 
+    @pytest.mark.openvino_backend
     def test_hard_silu(self):
         x = np.array([-3, -2, -1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
@@ -1330,6 +1378,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [-0.0, -0.333333, -0.333333, 0.0, 0.6666667, 1.6666667, 3.0],
         )
 
+    @pytest.mark.openvino_backend
     def test_elu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
@@ -1341,6 +1390,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [-0.31606027, 0, 1, 2, 3],
         )
 
+    @pytest.mark.openvino_backend
     def test_selu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
@@ -1348,6 +1398,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [-1.1113307, 0.0, 1.050701, 2.101402, 3.152103],
         )
 
+    @pytest.mark.openvino_backend
     def test_gelu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
@@ -1411,6 +1462,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [0.0625, 0.25, 1.0, 2.0, 3.0],
         )
 
+    @pytest.mark.openvino_backend
     def test_softmax(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
         self.assertAllClose(
@@ -1446,6 +1498,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             )
             self.assertAllClose(normalized_sum_by_axis, 1.0)
 
+    @pytest.mark.openvino_backend
     def test_log_softmax(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
         self.assertAllClose(
@@ -1573,6 +1626,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         padding=("valid", "same"),
         dilation_rate=(1, 2),
     )
+    @pytest.mark.openvino_backend
     def test_conv_1d(self, strides, padding, dilation_rate):
         if strides > 1 and dilation_rate > 1:
             pytest.skip("Unsupported configuration")
@@ -1604,6 +1658,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(outputs, expected)
 
     @parameterized.product(strides=(1, 2, (1, 2)), padding=("valid", "same"))
+    @pytest.mark.openvino_backend
     def test_conv_2d(self, strides, padding):
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 10, 10, 3)
@@ -1626,6 +1681,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(outputs, expected)
 
     @parameterized.product(strides=(1, 2), dilation_rate=(1, (2, 1)))
+    @pytest.mark.openvino_backend
     def test_conv_2d_group_2(self, strides, dilation_rate):
         if (
             backend.backend() == "tensorflow"
@@ -1664,6 +1720,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         padding=("valid", "same"),
         data_format=("channels_first", "channels_last"),
     )
+    @pytest.mark.openvino_backend
     def test_conv_3d(self, strides, padding, data_format):
         if data_format == "channels_last":
             input_shape = (2, 8, 8, 8, 3)
@@ -1705,6 +1762,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         padding=("valid", "same"),
         dilation_rate=(1, (2, 2)),
     )
+    @pytest.mark.openvino_backend
     def test_depthwise_conv_2d(self, strides, padding, dilation_rate):
         if (
             backend.backend() == "tensorflow"
@@ -2136,6 +2194,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
         context._reset_context()
 
+    @pytest.mark.openvino_backend
     def test_batch_normalization(self):
         x = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
         mean = np.array([0.2, 0.3, 0.4])
@@ -2449,6 +2508,7 @@ class NNOpsDtypeTest(testing.TestCase):
         return super().tearDown()
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_elu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2467,6 +2527,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_gelu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2648,6 +2709,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_hard_sigmoid(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2666,6 +2728,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_hard_silu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2684,6 +2747,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_leaky_relu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2720,6 +2784,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_log_softmax(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2738,6 +2803,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_relu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2756,6 +2822,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_relu6(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2774,6 +2841,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_selu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2792,6 +2860,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_sigmoid(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2810,6 +2879,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_silu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2828,6 +2898,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_softplus(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2846,6 +2917,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_softmax(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2864,6 +2936,7 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @pytest.mark.openvino_backend
     def test_softsign(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2977,6 +3050,7 @@ class NNOpsBehaviorTest(testing.TestCase):
         out = model.evaluate(x, y)
         self.assertAllClose(out, 2.682124)
 
+    @pytest.mark.openvino_backend
     def test_softmax_on_axis_with_size_one_warns(self):
         x = np.array([[1.0]])
         # Applying softmax on the second axis, which has size 1
@@ -2994,6 +3068,7 @@ class NNOpsBehaviorTest(testing.TestCase):
         with self.assertWarnsRegex(UserWarning, expected_warning_regex):
             knn.softmax(x, axis)
 
+    @pytest.mark.openvino_backend
     def test_normalize_order_validation(self):
         # Test with a non-integer order
         with self.assertRaisesRegex(
@@ -3019,6 +3094,7 @@ class NNOpsBehaviorTest(testing.TestCase):
         ):
             knn.normalize(np.array([1, 2, 3]), order=2.5)
 
+    @pytest.mark.openvino_backend
     def test_check_shape_first_dim_mismatch(self):
         name1, shape1 = "labels", (2, 3)
         name2, shape2 = "logits", (3, 4, 5)

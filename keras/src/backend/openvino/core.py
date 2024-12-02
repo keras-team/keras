@@ -248,6 +248,8 @@ def convert_to_numpy(x):
         return x
     elif isinstance(x, (int, float, list, tuple)):
         return np.array(x)
+    elif np.isscalar(x):
+        return x
     elif isinstance(x, ov.Tensor):
         return x.data
     assert isinstance(
