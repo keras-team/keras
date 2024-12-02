@@ -818,6 +818,48 @@ def hard_shrink(x, threshold=0.5):
     return backend.nn.hard_shrink(x, threshold)
 
 
+class Threshold(Operation):
+    def __init__(self, threshold_value, value):
+        super().__init__()
+        self.threshold_value = threshold_value
+        self.value = value
+
+    def call(self, x):
+        return backend.nn.threshold(x, self.threshold_value, self.value)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.threshold", "keras.ops.nn.threshold"])
+def threshold(x, threshold, default_value):
+    """Threshold activation function.
+
+    The function thresholds the input `x` as follows:
+    `f(x) = x` if `x > threshold`,
+    `f(x) = default_value` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: The value that decides when to retain or replace x.
+        default_value: Value to assign when `x <= threshold`.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1.0, 0.0, 1.0, 2.0])
+    >>> x_threshold = keras.ops.threshold(x, 1, 0)
+    >>> print(x_threshold)
+    array([0., 0., 0., 2.], shape=(4,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Threshold(threshold, default_value).symbolic_call(x)
+    return backend.nn.threshold(x, threshold, default_value)
+
+
 class Softmax(Operation):
     def __init__(self, axis=-1):
         super().__init__()
@@ -949,6 +991,48 @@ def log_softmax(x, axis=-1):
         return x
     else:
         return backend.nn.log_softmax(x, axis=axis)
+
+
+class Sparsemax(Operation):
+    def __init__(self, axis=-1):
+        super().__init__()
+        self.axis = axis
+
+    def call(self, x):
+        return backend.nn.sparsemax(x, axis=self.axis)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.sparsemax", "keras.ops.nn.sparsemax"])
+def sparsemax(x, axis=-1):
+    """Sparsemax activation function.
+
+    For each batch `i`, and class `j`,
+    sparsemax activation function is defined as:
+
+    `sparsemax(x)[i, j] = max(x[i, j] - τ(x[i, :]), 0).`
+
+    Args:
+        x: Input tensor.
+        axis: `int`, axis along which the sparsemax operation is applied.
+
+    Returns:
+        A tensor, output of sparsemax transformation. Has the same type and
+        shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1., 0., 1.])
+    >>> x_sparsemax = keras.ops.sparsemax(x)
+    >>> print(x_sparsemax)
+    array([0., 0., 1.], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Sparsemax(axis).symbolic_call(x)
+    return backend.nn.sparsemax(x, axis=axis)
 
 
 class MaxPool(Operation):

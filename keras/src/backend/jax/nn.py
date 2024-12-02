@@ -132,6 +132,11 @@ def hard_shrink(x, threshold=0.5):
     return jnp.where(jnp.abs(x) > threshold, x, 0.0)
 
 
+def threshold(x, threshold, default_value):
+    x = convert_to_tensor(x)
+    return jnp.where(x > threshold, x, default_value)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return jnn.softmax(x, axis=axis)
@@ -140,6 +145,24 @@ def softmax(x, axis=-1):
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return jnn.log_softmax(x, axis=axis)
+
+
+def sparsemax(logits, axis=-1):
+    # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(logits)
+    logits_sorted = -1.0 * jnp.sort(logits * -1.0, axis=axis)
+    logits_cumsum = jnp.cumsum(logits_sorted, axis=axis)  # find cumulative sum
+    r = jnp.arange(1, logits.shape[axis] + 1)  # Determine the sparsity
+    r_shape = [1] * logits.ndim
+    r_shape[axis] = -1  # Broadcast to match the target axis
+    r = r.reshape(r_shape)
+    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    # Find the threshold
+    k = jnp.sum(support, axis=axis, keepdims=True)
+    logits_cumsum_safe = jnp.where(support, logits_cumsum, 0.0)
+    tau = (jnp.sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    output = jnp.maximum(logits - tau, 0.0)
+    return output
 
 
 def _convert_to_spatial_operand(

@@ -178,6 +178,10 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.hard_shrink(x).shape, (None, 2, 3))
 
+    def test_threshld(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.threshold(x, 0, 0).shape, (None, 2, 3))
+
     @pytest.mark.openvino_backend
     def test_squareplus(self):
         x = KerasTensor([None, 2, 3])
@@ -223,6 +227,10 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knn.log_softmax(x).shape, (None, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=1).shape, (None, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=-1).shape, (None, 2, 3))
+
+    def test_sparsemax(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.sparsemax(x).shape, (None, 2, 3))
 
     @pytest.mark.openvino_backend
     def test_max_pool(self):
@@ -876,6 +884,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.hard_shrink(x).shape, (1, 2, 3))
 
+    def test_threshold(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.threshold(x, 0, 0).shape, (1, 2, 3))
+
     def test_squareplus(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.squareplus(x).shape, (1, 2, 3))
@@ -899,6 +911,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.log_softmax(x).shape, (1, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=1).shape, (1, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=-1).shape, (1, 2, 3))
+
+    def test_sparsemax(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.sparsemax(x).shape, (1, 2, 3))
 
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
@@ -1441,6 +1457,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [0.0, 0.0, 1.0, 2.0, 3.0],
         )
 
+    def test_threshold(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.threshold(x, 0, 0),
+            [0.0, 0.0, 1.0, 2.0, 3.0],
+        )
+
     def test_squareplus(self):
         x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
@@ -1539,6 +1562,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
                 np.exp(ops.convert_to_numpy(result)), axis=axis
             )
             self.assertAllClose(normalized_sum_by_axis, 1.0)
+
+    def test_sparsemax(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.sparsemax(x),
+            [0.0, 0.0, 0.0, 0.0, 1.0],
+        )
 
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
@@ -2627,6 +2657,24 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.HardShrink().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_threshold(self, dtype):
+        import torch
+        import torch.nn.functional as tnn
+
+        x = knp.ones((1), dtype=dtype)
+        x_torch = torch.ones(1, dtype=getattr(torch, dtype))
+        expected_dtype = standardize_dtype(tnn.threshold(x_torch, 0, 0).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.threshold(x, 0, 0).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Threshold(0, 0).symbolic_call(x).dtype),
             expected_dtype,
         )
 

@@ -180,6 +180,11 @@ def hard_shrink(x, threshold=0.5):
     )
 
 
+def threshold(x, threshold, default_value):
+    x = convert_to_tensor(x)
+    return np.where(x > threshold, x, np.array(default_value, dtype=x.dtype))
+
+
 def softmax(x, axis=None):
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
@@ -189,6 +194,24 @@ def log_softmax(x, axis=None):
     max_x = np.max(x, axis=axis, keepdims=True)
     logsumexp = np.log(np.exp(x - max_x).sum(axis=axis, keepdims=True))
     return x - max_x - logsumexp
+
+
+def sparsemax(logits, axis=-1):
+    # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(logits)
+    logits_sorted = -1.0 * np.sort(-1.0 * logits, axis=axis)
+    logits_cumsum = np.cumsum(logits_sorted, axis=axis)
+    r = np.arange(1, logits.shape[axis] + 1)
+    r_shape = [1] * logits.ndim
+    r_shape[axis] = -1  # Broadcast to match the target axis
+    r = r.reshape(r_shape)
+    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    # Find the threshold
+    k = np.sum(support, axis=axis, keepdims=True)
+    logits_cumsum_safe = np.where(support, logits_cumsum, 0.0)
+    tau = (np.sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    output = np.maximum(logits - tau, 0.0)
+    return output
 
 
 def _convert_to_spatial_operand(

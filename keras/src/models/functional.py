@@ -219,7 +219,6 @@ class Functional(Function, Model):
             tree.assert_same_structure(
                 tree.lists_to_tuples(inputs),
                 tree.lists_to_tuples(self._inputs_struct),
-                check_types=False,
             )
         except:
             model_inputs_struct = tree.map_structure(
