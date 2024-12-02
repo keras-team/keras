@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from absl.testing import parameterized
+from tensorflow import data as tf_data
 
 from keras.src import layers
 from keras.src import ops
@@ -89,3 +90,11 @@ class EqualizationTest(testing.TestCase):
             layer = layers.Equalization(value_range=(0, 255), bins=bins)
             equalized = ops.convert_to_numpy(layer(xs))
             self.assertAllInRange(equalized, 0, 255)
+
+    def test_tf_data_compatibility(self):
+        layer = layers.Equalization(value_range=(0, 255))
+        input_data = np.random.random((2, 8, 8, 3)) * 255
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        for output in ds.take(1):
+            output_array = output.numpy()
+            self.assertAllInRange(output_array, 0, 255)

@@ -87,21 +87,27 @@ class Equalization(BaseImagePreprocessingLayer):
         scaled = (values - value_min) * (nbins - 1) / (value_max - value_min)
         indices = self.backend.cast(scaled, "int32")
         indices = self.backend.numpy.clip(indices, 0, nbins - 1)
+        flat_indices = self.backend.numpy.reshape(indices, [-1])
 
         if backend.backend() == "jax":
             # for JAX bincount is never jittable because of output shape
-            flat_indices = self.backend.numpy.reshape(indices, [-1])
-            one_hot = self.backend.numpy.eye(nbins)[flat_indices]
-            histogram = self.backend.numpy.sum(one_hot, axis=0)
+            histogram = self.backend.numpy.zeros(nbins, dtype="int32")
+            for i in range(nbins):
+                matches = self.backend.cast(
+                    self.backend.numpy.equal(flat_indices, i), "int32"
+                )
+                bin_count = self.backend.numpy.sum(matches)
+                one_hot = self.backend.cast(
+                    self.backend.numpy.arange(nbins) == i, "int32"
+                )
+                histogram = histogram + (bin_count * one_hot)
+            return histogram
         else:
             # TensorFlow/PyTorch/NumPy implementation using bincount
-            flat_indices = self.backend.numpy.reshape(indices, [-1])
-            histogram = self.backend.numpy.bincount(
+            return self.backend.numpy.bincount(
                 flat_indices,
                 minlength=nbins,
             )
-
-        return histogram
 
     def _scale_values(self, values, source_range, target_range):
         source_min, source_max = source_range
