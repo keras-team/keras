@@ -528,6 +528,14 @@ class MultiHeadAttention(Layer):
         self._return_attention_scores = return_attention_scores
         if key is None:
             key = value
+
+        # Delete the masks because the masks are handled at the level of the
+        # layer
+        query_mask = backend.get_keras_mask(query)
+        backend.set_keras_mask(query, None)
+        backend.set_keras_mask(value, None)
+        backend.set_keras_mask(key, None)
+
         attention_mask = self._compute_attention_mask(
             query,
             value,
@@ -540,14 +548,14 @@ class MultiHeadAttention(Layer):
         #   N = `num_attention_heads`
         #   H = `size_per_head`
 
-        # `query` = [B, T, N ,H]
-        query = self._query_dense.call(query)
+        # `query` = [B, T, N, H]
+        query = self._query_dense(query)
 
         # `key` = [B, S, N, H]
-        key = self._key_dense.call(key)
+        key = self._key_dense(key)
 
         # `value` = [B, S, N, H]
-        value = self._value_dense.call(value)
+        value = self._value_dense(value)
         attention_output, attention_scores = self._compute_attention(
             query,
             key,
@@ -555,7 +563,11 @@ class MultiHeadAttention(Layer):
             attention_mask,
             training,
         )
-        attention_output = self._output_dense.call(attention_output)
+        attention_output = self._output_dense(attention_output)
+
+        # Set mask on output if needed
+        if query_mask is not None:
+            backend.set_keras_mask(attention_output, query_mask)
 
         if return_attention_scores:
             return attention_output, attention_scores
