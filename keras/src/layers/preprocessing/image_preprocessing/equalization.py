@@ -31,13 +31,16 @@ class Equalization(BaseImagePreprocessingLayer):
             equalization. Defaults to 256, which is suitable for 8-bit images.
             Larger values can provide more granular intensity redistribution.
 
-    Inputs: 3D (HWC) or 4D (NHWC) tensor, with float or int dtype. Input pixel
-        values can be of any range (e.g. `[0., 1.)` or `[0, 255]`)
+    Input shape:
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format,
+        or `(..., channels, height, width)`, in `"channels_first"` format.
 
-    Output: 3D (HWC) or 4D (NHWC) tensor with intensities redistributed to
-        enhance contrast. The output will be of the same shape and dtype as
-        the input, with values scaled and clipped to the specified
-        `value_range`.
+    Output shape:
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., target_height, target_width, channels)`,
+        or `(..., channels, target_height, target_width)`,
+        in `"channels_first"` format.
 
     Example:
 
