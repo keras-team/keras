@@ -11,14 +11,24 @@ from keras.src.utils.naming import auto_name
 
 @keras_export("keras.random.SeedGenerator")
 class SeedGenerator:
-    """Generates variable seeds upon each call to a RNG-using function.
+    """Generates variable seeds upon each call to a function generating
+    random numbers.
 
-    In Keras, all RNG-using methods (such as `keras.random.normal()`)
-    are stateless, meaning that if you pass an integer seed to them
-    (such as `seed=42`), they will return the same values at each call.
-    In order to get different values at each call, you must use a
-    `SeedGenerator` instead as the seed argument. The `SeedGenerator`
-    object is stateful.
+    In Keras, all random number generators (such as
+    `keras.random.normal()`) are stateless, meaning that if you pass an
+    integer seed to them (such as `seed=42`), they will return the same
+    values for repeated calls. To get different values for each
+    call, a `SeedGenerator` providing the state of the random generator
+    has to be used.
+    Note that all the random number generators have a default seed of None,
+    which implies that an internal global SeedGenerator is used.
+    If you need to decouple the RNG from the global state you can provide
+    a local `StateGenerator` with either a deterministic or random initial
+    state.
+    Remark concerning the JAX backen: Note that the use of a local
+    `StateGenerator` as seed argument is required for JIT compilation of
+    RNG with the JAX backend, because the use of global state is not
+    supported.
 
     Example:
 
