@@ -19,10 +19,22 @@ class EqualizationTest(testing.TestCase):
             layers.Equalization,
             init_kwargs={
                 "value_range": (0, 255),
+                "data_format": "channels_last",
             },
-            input_shape=(8, 3, 4, 3),
+            input_shape=(1, 2, 2, 3),
             supports_masking=False,
-            expected_output_shape=(8, 3, 4, 3),
+            expected_output_shape=(1, 2, 2, 3),
+        )
+
+        self.run_layer_test(
+            layers.Equalization,
+            init_kwargs={
+                "value_range": (0, 255),
+                "data_format": "channels_first",
+            },
+            input_shape=(1, 3, 2, 2),
+            supports_masking=False,
+            expected_output_shape=(1, 3, 2, 2),
         )
 
     def test_equalizes_to_all_bins(self):
@@ -71,17 +83,40 @@ class EqualizationTest(testing.TestCase):
         self.assertAllInRange(equalized, 0, 255)
 
     def test_grayscale_images(self):
-        xs = np.random.uniform(0, 255, size=(2, 64, 64, 1)).astype(np.float32)
-        layer = layers.Equalization(value_range=(0, 255))
-        equalized = ops.convert_to_numpy(layer(xs))
-        self.assertEqual(equalized.shape[-1], 1)
-        self.assertAllInRange(equalized, 0, 255)
+        xs_last = np.random.uniform(0, 255, size=(2, 64, 64, 1)).astype(
+            np.float32
+        )
+        layer_last = layers.Equalization(
+            value_range=(0, 255), data_format="channels_last"
+        )
+        equalized_last = ops.convert_to_numpy(layer_last(xs_last))
+        self.assertEqual(equalized_last.shape[-1], 1)
+        self.assertAllInRange(equalized_last, 0, 255)
+
+        xs_first = np.random.uniform(0, 255, size=(2, 1, 64, 64)).astype(
+            np.float32
+        )
+        layer_first = layers.Equalization(
+            value_range=(0, 255), data_format="channels_first"
+        )
+        equalized_first = ops.convert_to_numpy(layer_first(xs_first))
+        self.assertEqual(equalized_first.shape[1], 1)
+        self.assertAllInRange(equalized_first, 0, 255)
 
     def test_single_color_image(self):
-        xs = np.full((1, 64, 64, 3), 128, dtype=np.float32)
-        layer = layers.Equalization(value_range=(0, 255))
-        equalized = ops.convert_to_numpy(layer(xs))
-        self.assertAllClose(equalized, 128.0)
+        xs_last = np.full((1, 64, 64, 3), 128, dtype=np.float32)
+        layer_last = layers.Equalization(
+            value_range=(0, 255), data_format="channels_last"
+        )
+        equalized_last = ops.convert_to_numpy(layer_last(xs_last))
+        self.assertAllClose(equalized_last, 128.0)
+
+        xs_first = np.full((1, 3, 64, 64), 128, dtype=np.float32)
+        layer_first = layers.Equalization(
+            value_range=(0, 255), data_format="channels_first"
+        )
+        equalized_first = ops.convert_to_numpy(layer_first(xs_first))
+        self.assertAllClose(equalized_first, 128.0)
 
     def test_different_bin_sizes(self):
         xs = np.random.uniform(0, 255, size=(1, 64, 64, 3)).astype(np.float32)

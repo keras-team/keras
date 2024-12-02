@@ -60,10 +60,13 @@ class Equalization(BaseImagePreprocessingLayer):
     ```
     """
 
-    def __init__(self, value_range=(0, 255), bins=256, **kwargs):
+    def __init__(
+        self, value_range=(0, 255), bins=256, data_format=None, **kwargs
+    ):
         super().__init__(**kwargs)
         self.bins = bins
         self._set_value_range(value_range)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def _set_value_range(self, value_range):
         if not isinstance(value_range, (tuple, list)):
@@ -167,13 +170,21 @@ class Equalization(BaseImagePreprocessingLayer):
     def transform_images(self, images, transformations=None, **kwargs):
         images = self.backend.cast(images, self.compute_dtype)
 
-        channels = []
-        for i in range(self.backend.core.shape(images)[-1]):
-            channel = images[..., i]
-            equalized = self._equalize_channel(channel, self.value_range)
-            channels.append(equalized)
+        if self.data_format == "channels_first":
+            channels = []
+            for i in range(self.backend.core.shape(images)[-3]):
+                channel = images[..., i, :, :]
+                equalized = self._equalize_channel(channel, self.value_range)
+                channels.append(equalized)
+            equalized_images = self.backend.numpy.stack(channels, axis=-3)
+        else:
+            channels = []
+            for i in range(self.backend.core.shape(images)[-1]):
+                channel = images[..., i]
+                equalized = self._equalize_channel(channel, self.value_range)
+                channels.append(equalized)
+            equalized_images = self.backend.numpy.stack(channels, axis=-1)
 
-        equalized_images = self.backend.numpy.stack(channels, axis=-1)
         return self.backend.cast(equalized_images, self.compute_dtype)
 
     def compute_output_shape(self, input_shape):
