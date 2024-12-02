@@ -26,7 +26,7 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
             `keras.random.SeedGenerator` must be provided as the `seed` value.
             Remark concerning the JAX backend: When tracing functions with the
             JAX backend the global `keras.random.SeedGenerator` is not
-            supported. Therefore, during tracing the default value seed=None
+            supported. Therefore, during tracing the default value `seed=None`
             will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.normal(

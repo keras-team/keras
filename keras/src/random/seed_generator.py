@@ -20,11 +20,13 @@ class SeedGenerator:
     values for repeated calls. To get different values for each
     call, a `SeedGenerator` providing the state of the random generator
     has to be used.
+
     Note that all the random number generators have a default seed of None,
     which implies that an internal global SeedGenerator is used.
     If you need to decouple the RNG from the global state you can provide
     a local `StateGenerator` with either a deterministic or random initial
     state.
+
     Remark concerning the JAX backen: Note that the use of a local
     `StateGenerator` as seed argument is required for JIT compilation of
     RNG with the JAX backend, because the use of global state is not
