@@ -51,9 +51,9 @@ def align_operand_types(x1, x2, op_name):
     result_type = dtypes.result_type(x1_type, x2_type)
     result_type = OPENVINO_DTYPES[result_type]
     if x1_type != result_type:
-        x1 = ov_opset.convert(x1, result_type)
+        x1 = ov_opset.convert(x1, result_type).output(0)
     if x2_type != result_type:
-        x2 = ov_opset.convert(x2, result_type)
+        x2 = ov_opset.convert(x2, result_type).output(0)
     return x1, x2
 
 
@@ -106,52 +106,82 @@ class OpenVINOKerasTensor:
 
     def __add__(self, other):
         first = self.output
-        other = get_ov_output(other, first.get_element_type())
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__add__"
+        )
         return OpenVINOKerasTensor(ov_opset.add(first, other).output(0))
 
     def __radd__(self, other):
         first = self.output
-        other = get_ov_output(other, first.get_element_type())
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__radd__"
+        )
         return OpenVINOKerasTensor(ov_opset.add(first, other).output(0))
 
     def __sub__(self, other):
         first = self.output
-        other = get_ov_output(other, first.get_element_type())
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__sub__"
+        )
         return OpenVINOKerasTensor(ov_opset.subtract(first, other).output(0))
 
     def __rsub__(self, other):
         first = self.output
-        other = get_ov_output(other, first.get_element_type())
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__rsub__"
+        )
         return OpenVINOKerasTensor(ov_opset.subtract(other, first).output(0))
 
     def __mul__(self, other):
         first = self.output
-        other = get_ov_output(other, first.get_element_type())
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__mul__"
+        )
         return OpenVINOKerasTensor(ov_opset.multiply(first, other).output(0))
 
     def __rmul__(self, other):
         first = self.output
-        other = get_ov_output(other, first.get_element_type())
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__rmul__"
+        )
         return OpenVINOKerasTensor(ov_opset.multiply(first, other).output(0))
 
     def __truediv__(self, other):
         first = self.output
-        other = get_ov_output(other, first.get_element_type())
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__truediv__"
+        )
         return OpenVINOKerasTensor(ov_opset.divide(first, other).output(0))
 
     def __rtruediv__(self, other):
         first = self.output
-        other = get_ov_output(other, first.get_element_type())
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__rtruediv__"
+        )
         return OpenVINOKerasTensor(ov_opset.divide(other, first).output(0))
 
     def __floordiv__(self, other):
         first = self.output
-        other = get_ov_output(other, first.get_element_type())
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__floordiv__"
+        )
         return OpenVINOKerasTensor(ov_opset.divide(first, other).output(0))
 
     def __rfloordiv__(self, other):
         first = self.output
-        other = get_ov_output(other, first.get_element_type())
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__rfloordiv__"
+        )
         return OpenVINOKerasTensor(ov_opset.divide(other, first).output(0))
 
     def __neg__(self):
