@@ -103,6 +103,9 @@ class OpenVINOKerasTensor:
         self.output = x
         self.shape = x_keras_shape
         self.dtype = x_keras_type
+        self.ndim = None
+        if x.get_partial_shape().rank.is_static:
+            self.ndim = x.get_partial_shape().rank.get_length()
 
     def __add__(self, other):
         first = self.output
@@ -278,9 +281,12 @@ class Variable(KerasVariable):
 
 def convert_to_tensor(x, dtype=None, sparse=None):
     if sparse:
-        raise ValueError("`sparse=True` is not supported with numpy backend")
+        raise ValueError("`sparse=True` is not supported with openvino backend")
     if isinstance(x, OpenVINOKerasTensor):
         return x
+    elif isinstance(x, np.ndarray):
+        dtype = standardize_dtype(dtype)
+        return OpenVINOKerasTensor(ov_opset.constant(x.astype(dtype)).output(0))
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if isinstance(x, Variable):
