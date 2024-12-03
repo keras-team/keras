@@ -20,7 +20,6 @@ IS_THREAD_SAFE = True
 
 class Variable(KerasVariable):
     def _initialize(self, value):
-        value = jnp.array(value, dtype=self._dtype)
         # Note that variable.shape is needed by distribution_lib
         self._shape = tuple(value.shape)
         # We can't import the keras/distribution/distribution_lib
