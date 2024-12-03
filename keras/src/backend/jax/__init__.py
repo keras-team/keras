@@ -1,4 +1,3 @@
-from keras.src.backend.common.name_scope import name_scope
 from keras.src.backend.jax import core
 from keras.src.backend.jax import distribution_lib
 from keras.src.backend.jax import image
@@ -18,6 +17,7 @@ from keras.src.backend.jax.core import convert_to_numpy
 from keras.src.backend.jax.core import convert_to_tensor
 from keras.src.backend.jax.core import device_scope
 from keras.src.backend.jax.core import is_tensor
+from keras.src.backend.jax.core import name_scope
 from keras.src.backend.jax.core import random_seed_dtype
 from keras.src.backend.jax.core import scatter
 from keras.src.backend.jax.core import shape
