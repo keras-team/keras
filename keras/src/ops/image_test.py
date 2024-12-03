@@ -13,6 +13,7 @@ from keras.src.ops import image as kimage
 from keras.src.testing.test_utils import named_product
 
 
+@pytest.mark.openvino_backend
 class ImageOpsDynamicShapeTest(testing.TestCase):
     def setUp(self):
         # Defaults to channels_last
@@ -164,6 +165,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (3, 10, 20))
 
 
+@pytest.mark.openvino_backend
 class ImageOpsStaticShapeTest(testing.TestCase):
     def setUp(self):
         # Defaults to channels_last
@@ -1321,6 +1323,7 @@ class ImageOpsBehaviorTests(testing.TestCase):
         ):
             kimage.affine_transform(images, invalid_transform)
 
+    @pytest.mark.openvino_backend
     def test_extract_patches_invalid_size(self):
         size = (3, 3, 3)  # Invalid size, too many dimensions
         image = np.random.uniform(size=(2, 20, 20, 3))
