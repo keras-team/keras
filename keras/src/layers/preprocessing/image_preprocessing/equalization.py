@@ -143,7 +143,7 @@ class Equalization(BaseImagePreprocessingLayer):
     def _apply_equalization(self, channel, hist):
         cdf = self.backend.numpy.cumsum(hist)
 
-        if backend.backend() == "jax":
+        if self.backend.name == "jax":
             mask = cdf > 0
             first_nonzero_idx = self.backend.numpy.argmax(mask)
             cdf_min = self.backend.numpy.take(cdf, first_nonzero_idx)
