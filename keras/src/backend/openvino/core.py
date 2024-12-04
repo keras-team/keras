@@ -70,6 +70,8 @@ def get_ov_output(x, ov_type=None):
         x = ov_opset.constant(x, ov_type).output(0)
     elif isinstance(x, np.ndarray):
         x = ov_opset.constant(x).output(0)
+    elif np.isscalar(x):
+        x = ov_opset.constant(x).output(0)
     elif isinstance(x, KerasVariable):
         if isinstance(x.value, OpenVINOKerasTensor):
             return x.value.output
@@ -89,7 +91,7 @@ def get_ov_output(x, ov_type=None):
 # that provides interface similar to KerasTensor
 # with dtype and shape members
 class OpenVINOKerasTensor:
-    def __init__(self, x):
+    def __init__(self, x, data=None):
         x_shape = x.get_partial_shape()
         if x_shape.rank.is_dynamic:
             x_keras_shape = None
@@ -104,6 +106,7 @@ class OpenVINOKerasTensor:
         self.shape = x_keras_shape
         self.dtype = x_keras_type
         self.ndim = None
+        self.data = data
         if x.get_partial_shape().rank.is_static:
             self.ndim = x.get_partial_shape().rank.get_length()
 
@@ -191,6 +194,14 @@ class OpenVINOKerasTensor:
         first = self.output
         return OpenVINOKerasTensor(ov_opset.negative(first).output(0))
 
+    def __pow__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__pow__"
+        )
+        return OpenVINOKerasTensor(ov_opset.power(first, other).output(0))
+
     def __getitem__(self, indices):
         # now it has limited functionaly
         # and supports only a case with one integer index in indices
@@ -214,6 +225,23 @@ class OpenVINOKerasTensor:
         return OpenVINOKerasTensor(
             ov_opset.gather(data, gather_index, axis).output(0)
         )
+
+    def __len__(self):
+        ov_output = self.output
+        ov_shape = ov_output.get_partial_shape()
+        assert (
+            ov_shape.rank.is_static and ov_shape.rank.get_length() > 0
+        ), "rank must be static and greater than zero"
+        assert ov_shape[0].is_static, "the first dimension must be static"
+        return ov_shape[0].get_length()
+
+    def __mod__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__mod__"
+        )
+        return OpenVINOKerasTensor(ov_opset.mod(first, other).output(0))
 
 
 def ov_to_keras_type(ov_type):
@@ -286,7 +314,13 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         return x
     elif isinstance(x, np.ndarray):
         dtype = standardize_dtype(dtype)
-        return OpenVINOKerasTensor(ov_opset.constant(x.astype(dtype)).output(0))
+        return OpenVINOKerasTensor(
+            ov_opset.constant(x.astype(dtype)).output(0), x
+        )
+    elif isinstance(x, (list, tuple)):
+        dtype = standardize_dtype(dtype)
+        x = np.array(x, dtype=dtype)
+        return OpenVINOKerasTensor(ov_opset.constant(x).output(0), x)
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if isinstance(x, Variable):
@@ -311,6 +345,8 @@ def convert_to_numpy(x):
         return x
     elif isinstance(x, ov.Tensor):
         return x.data
+    elif x is None:
+        return x
     assert isinstance(
         x, OpenVINOKerasTensor
     ), "unsupported type {} for `convert_to_numpy` in openvino backend".format(
@@ -329,13 +365,13 @@ def convert_to_numpy(x):
 def is_tensor(x):
     if isinstance(x, OpenVINOKerasTensor):
         return True
-    if isinstance(x, (ov.Tensor, np.ndarray)):
+    if isinstance(x, ov.Tensor):
         return True
     return False
 
 
 def shape(x):
-    return x.shape
+    return tuple(x.shape)
 
 
 def cast(x, dtype):
