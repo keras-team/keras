@@ -239,6 +239,49 @@ def fake_quant_with_min_max_args(
 
     return _fake_quant_with_min_max_args(inputs)
 
+@keras_export("keras.quantizers.fake_quant_with_min_max_args_gradient")
+def fake_quant_with_min_max_args_gradient(
+    gradients,
+    inputs,
+    min_range: float = -6.0,
+    max_range: float = 6.0,
+    num_bits: int = 8,
+    narrow_range: bool = False,
+    name: Optional[str] = None,
+):
+    """Fake quantization operation with gradient, matching TensorFlow's implementation."""
+
+    if isinstance(inputs, np.ndarray):
+        inputs = ops.convert_to_tensor(inputs)
+
+    def _fake_quant_with_min_max_args_gradient(x):
+        quant_min, quant_max, step_size = adjust_and_nudge_quantization_range(
+            min_range, max_range, num_bits, narrow_range
+        )
+
+        n_steps = 2**num_bits - 1
+        if narrow_range:
+            n_steps -= 1
+
+        # Clip and nudge input to the range
+        x_clipped = ops.clip(x, quant_min, quant_max)
+        x_norm = (x_clipped - quant_min) / step_size
+        x_quantized = ops.round(x_norm)
+        x_quantized = ops.clip(x_quantized, 0.0, n_steps)
+        result = x_quantized * step_size + quant_min
+
+        def grad(*args, upstream=None):
+            if upstream is None:
+                (upstream,) = args
+            # Gradient mask: valid within the range
+            mask = ops.cast((x >= quant_min) & (x <= quant_max), dtype=upstream.dtype)
+            return upstream * mask
+
+        return result, grad
+
+    output, grad = _fake_quant_with_min_max_args_gradient(inputs)
+    return output, grad(gradients)
+
 
 """Float8-related methods"""
 
