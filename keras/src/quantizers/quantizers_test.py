@@ -1,3 +1,5 @@
+import numpy as np
+
 from keras.src import ops
 from keras.src import quantizers
 from keras.src import random
@@ -100,3 +102,252 @@ class QuantizersTest(testing.TestCase):
         )
         # A loose assertion due to an expected quantization error
         self.assertAllClose(qdq_values, values, atol=5e-1)
+
+    def _TestOp(
+        self,
+        op,
+        input_min,
+        input_max,
+        num_bits,
+        narrow_range,
+        expected_nudged_input_min,
+        expected_nudged_input_max,
+        expected_step,
+    ):
+        inputs = np.array(
+            [
+                expected_nudged_input_min - expected_step,
+                expected_nudged_input_min - 0.01,
+                expected_nudged_input_min,
+                expected_nudged_input_min + 0.01,
+                expected_nudged_input_min + expected_step - 0.01,
+                expected_nudged_input_min + expected_step,
+                expected_nudged_input_min + expected_step + 0.01,
+                expected_nudged_input_max - 0.01,
+                expected_nudged_input_max,
+                expected_nudged_input_max + 0.01,
+                expected_nudged_input_max + expected_step,
+            ],
+            dtype=np.float32,
+        )
+        expected = np.array(
+            [
+                expected_nudged_input_min,
+                expected_nudged_input_min,
+                expected_nudged_input_min,
+                expected_nudged_input_min,
+                expected_nudged_input_min + expected_step,
+                expected_nudged_input_min + expected_step,
+                expected_nudged_input_min + expected_step,
+                expected_nudged_input_max,
+                expected_nudged_input_max,
+                expected_nudged_input_max,
+                expected_nudged_input_max,
+            ],
+            dtype=np.float32,
+        )
+
+        outputs = op(
+            inputs,
+            input_min,
+            input_max,
+            num_bits=num_bits,
+            narrow_range=narrow_range,
+        )
+        result = np.isclose(outputs, expected).all()
+        self.assertTrue(result)
+
+    def fakeQuantWithMinMaxArgs_with8BitsNoScalingNoNudging(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            0.0,
+            255.0,
+            8,
+            False,
+            0.0,
+            255.0,
+            1.0,
+        )
+
+    def fakeQuantWithMinMaxArgs_with8BitsScalingAndNudgingDown(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            0.5,
+            128.0,
+            8,
+            False,
+            0.0,
+            127.5,
+            0.5,
+        )
+
+    def fakeQuantWithMinMaxArgs_with8BitsScalingAndNudgingUp(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            -128.0,
+            -0.5,
+            8,
+            False,
+            -127.5,
+            0.0,
+            0.5,
+        )
+
+    def fakeQuantWithMinMaxArgs_with8BitsScalingAndNudgingBetween(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            -0.1,
+            127.4,
+            8,
+            False,
+            0.0,
+            127.5,
+            0.5,
+        )
+
+    # 8 bits, narrow range.
+    def fakeQuantWithMinMaxArgs_with8BitsNarrowRangeNoScalingNoNudging(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            0.0,
+            254.0,
+            8,
+            True,
+            0.0,
+            254.0,
+            1.0,
+        )
+
+    def fakeQuantWithMinMaxArgs_with8BitsNarrowRangeScalingAndNudgingDown(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            0.1,
+            127.1,
+            8,
+            True,
+            0.0,
+            127.0,
+            0.5,
+        )
+
+    def fakeQuantWithMinMaxArgs_with8BitsNarrowRangeScalingAndNudgingUp(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            -127.1,
+            -0.1,
+            8,
+            True,
+            -127.0,
+            0.0,
+            0.5,
+        )
+
+    def fakeQuantWithMinMaxArgs_with8BitsNarrowRangeScalingAndNudgingBetween(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            -0.1,
+            126.9,
+            8,
+            True,
+            0.0,
+            127.0,
+            0.5,
+        )
+
+    # 7 bits, wide range.
+    def fakeQuantWithMinMaxArgs_with7BitsNoScalingNoNudging(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            0.0,
+            127.0,
+            7,
+            False,
+            0.0,
+            127.0,
+            1.0,
+        )
+
+    def fakeQuantWithMinMaxArgs_with7BitsScalingAndNudgingDown(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            0.5,
+            64.0,
+            7,
+            False,
+            0.0,
+            63.5,
+            0.5,
+        )
+
+    def fakeQuantWithMinMaxArgs_with7BitsScalingAndNudgingUp(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            -64.0,
+            -0.5,
+            7,
+            False,
+            -63.5,
+            0.0,
+            0.5,
+        )
+
+    def fakeQuantWithMinMaxArgs_with7BitsScalingAndNudgingBetween(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            -0.1,
+            63.4,
+            7,
+            False,
+            0.0,
+            63.5,
+            0.5,
+        )
+
+    # 7 bits, narrow range.
+    def fakeQuantWithMinMaxArgs_with7BitsNarrowRangeNoScalingNoNudging(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            0.0,
+            126.0,
+            7,
+            True,
+            0.0,
+            126.0,
+            1.0,
+        )
+
+    def fakeQuantWithMinMaxArgs_with7BitsNarrowRangeScalingAndNudgingDown(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            0.1,
+            63.1,
+            7,
+            True,
+            0.0,
+            63.0,
+            0.5,
+        )
+
+    def fakeQuantWithMinMaxArgs_with7BitsNarrowRangeScalingAndNudgingUp(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            -63.1,
+            -0.1,
+            7,
+            True,
+            -63.0,
+            0.0,
+            0.5,
+        )
+
+    def fakeQuantWithMinMaxArgs_with7BitsNarrowRangeScalingAndNudgingBetween(self):
+        self._TestOp(
+            quantizers.fake_quant_with_min_max_args,
+            -0.1,
+            62.9,
+            7,
+            True,
+            0.0,
+            63.0,
+            0.5,
+        )

@@ -1,3 +1,6 @@
+from typing import Optional
+from typing import Tuple
+
 import ml_dtypes
 import numpy as np
 
@@ -125,6 +128,116 @@ class AbsMaxQuantizer(Quantizer):
             "epsilon": self.epsilon,
             "output_dtype": self.output_dtype,
         }
+
+
+@keras_export("keras.quantizers.adjust_and_nudge_quntization_range")
+def adjust_and_nudge_quantization_range(
+    min_range: float, max_range: float, num_bits: int, narrow_range: bool
+) -> Tuple[float, float, float]:
+    """Adjusts and nudges the quantization range for better accuracy."""
+    if num_bits < 2:
+        raise ValueError("num_bits must be >= 2")
+
+    n_steps = float(2**num_bits - 1)
+    if narrow_range:
+        n_steps -= 1.0
+
+    # Handle the case where min and max are too close
+    if abs(max_range - min_range) < 1e-10:
+        return min_range, max_range, 1.0
+
+    # Calculate the step size
+    step_size = (max_range - min_range) / n_steps
+
+    # Calculate the reciprocal of the step size
+    inv_step_size = 1.0 / step_size
+
+    # Round the reciprocal to get an integer
+    rounded_inv_step_size = ops.round(inv_step_size)
+
+    # Calculate the final step size
+    final_step_size = 1.0 / rounded_inv_step_size
+
+    # Calculate the quantized min/max values, ensuring accurate rounding
+    quantized_min = (
+        ops.round(min_range * rounded_inv_step_size) / rounded_inv_step_size
+    )
+    quantized_max = (
+        ops.round(max_range * rounded_inv_step_size) / rounded_inv_step_size
+    )
+
+    # Convert quantization limits to float
+    quant_min_float = float(quantized_min)
+    quant_max_float = float(quantized_max)
+
+    # Calculate the scale
+    nudged_scale = (max_range - min_range) / (quant_max_float - quant_min_float)
+
+    # Calculate zero point from min
+    zero_point_from_min = quant_min_float - min_range / nudged_scale
+
+    # Determine nudged zero point
+    if zero_point_from_min < quant_min_float:
+        nudged_zero_point = quantized_min
+    elif zero_point_from_min > quant_max_float:
+        nudged_zero_point = quantized_max
+    else:
+        nudged_zero_point = ops.round(zero_point_from_min)
+
+    # Calculate nudged min and max
+    nudged_min = (quant_min_float - nudged_zero_point) * nudged_scale
+    nudged_max = (quant_max_float - nudged_zero_point) * nudged_scale
+
+    return (
+        nudged_min,
+        nudged_max,
+        final_step_size,
+    )  # Returning nudged values and scale
+
+
+@keras_export("keras.quantizers.fake_quant_with_min_max_args")
+def fake_quant_with_min_max_args(
+    inputs,
+    min_range: float = -6.0,
+    max_range: float = 6.0,
+    num_bits: int = 8,
+    narrow_range: bool = False,
+    name: Optional[str] = None,
+):
+    """Fake quantization operation matching TensorFlow's implementation."""
+
+    if isinstance(inputs, np.ndarray):
+        inputs = ops.convert_to_tensor(inputs)
+
+    @ops.custom_gradient
+    def _fake_quant_with_min_max_args(x):
+        quant_min, quant_max, step_size = adjust_and_nudge_quantization_range(
+            min_range, max_range, num_bits, narrow_range
+        )
+
+        n_steps = 2**num_bits - 1
+        if narrow_range:
+            n_steps -= 1
+
+        # Clip and nudge input to the range
+        x_clipped = ops.clip(x, quant_min, quant_max)
+        x_norm = (x_clipped - quant_min) / step_size
+        x_quantized = ops.round(x_norm)
+        x_quantized = ops.clip(x_quantized, 0.0, n_steps)
+        result = x_quantized * step_size + quant_min
+
+        def grad(*args, upstream=None):
+            if upstream is None:
+                (upstream,) = args
+            # Gradient mask: valid within the range
+            mask = ops.cast(
+                (x >= quant_min) & (x <= quant_max), dtype=upstream.dtype
+            )
+            return upstream * mask
+
+        return result, grad
+
+    return _fake_quant_with_min_max_args(inputs)
 
 
 """Float8-related methods"""
