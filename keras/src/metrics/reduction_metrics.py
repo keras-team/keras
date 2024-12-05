@@ -118,7 +118,6 @@ class Mean(Metric):
     >>> m.update_state([1, 3, 5, 7], sample_weight=[1, 1, 0, 0])
     >>> m.result()
     2.0
-    ```
     """
 
     def __init__(self, name="mean", dtype=None):

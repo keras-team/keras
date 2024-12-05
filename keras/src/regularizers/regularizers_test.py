@@ -21,19 +21,19 @@ class RegularizersTest(testing.TestCase):
         self.run_class_serialization_test(reg)
 
     def test_l1(self):
-        value = np.random.random((4, 4))
+        value = np.random.random((4, 4)).astype(np.float32)
         x = backend.Variable(value)
         y = regularizers.L1(0.1)(x)
         self.assertAllClose(y, 0.1 * np.sum(np.abs(value)))
 
     def test_l2(self):
-        value = np.random.random((4, 4))
+        value = np.random.random((4, 4)).astype(np.float32)
         x = backend.Variable(value)
         y = regularizers.L2(0.1)(x)
         self.assertAllClose(y, 0.1 * np.sum(np.square(value)))
 
     def test_l1_l2(self):
-        value = np.random.random((4, 4))
+        value = np.random.random((4, 4)).astype(np.float32)
         x = backend.Variable(value)
         y = regularizers.L1L2(l1=0.1, l2=0.2)(x)
         self.assertAllClose(
@@ -41,7 +41,7 @@ class RegularizersTest(testing.TestCase):
         )
 
     def test_orthogonal_regularizer(self):
-        value = np.random.random((4, 4))
+        value = np.random.random((4, 4)).astype(np.float32)
         x = backend.Variable(value)
         y = regularizers.OrthogonalRegularizer(factor=0.1, mode="rows")(x)
 
@@ -103,7 +103,7 @@ class RegularizersTest(testing.TestCase):
 
     def test_orthogonal_regularizer_input_rank_validation(self):
         with self.assertRaises(ValueError) as context:
-            value = np.random.random((4, 4, 4))
+            value = np.random.random((4, 4, 4)).astype(np.float32)
             x = backend.Variable(value)
             regularizers.OrthogonalRegularizer(factor=0.1)(x)
 

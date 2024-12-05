@@ -31,13 +31,12 @@ class DeviceTest(testing.TestCase):
     @pytest.mark.skipif(backend.backend() != "jax", reason="jax only")
     def test_jax_device_scope(self):
         import jax
-        from jax.lib import xla_bridge
 
         def get_device(t):
             # After updating to Jax 0.4.33, Directly access via t.device attr.
             return list(t.devices())[0]
 
-        platform = xla_bridge.get_backend().platform
+        platform = jax.default_backend()
 
         if platform != "gpu":
             self.skipTest("Need at least one GPU for testing")

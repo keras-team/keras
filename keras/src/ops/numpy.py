@@ -2062,6 +2062,62 @@ def diag(x, k=0):
     return backend.numpy.diag(x, k=k)
 
 
+class Diagflat(Operation):
+    def __init__(self, k=0):
+        super().__init__()
+        self.k = k
+
+    def call(self, x):
+        return backend.numpy.diagflat(x, k=self.k)
+
+    def compute_output_spec(self, x):
+        x_shape = x.shape
+
+        if len(x_shape) == 0:
+            flat_size = 1
+        elif len(x_shape) == 1:
+            flat_size = x_shape[0] if x_shape[0] is not None else None
+        else:
+            flat_size = None
+            for s in x_shape:
+                if s is None:
+                    flat_size = None
+                    break
+                elif flat_size is None:
+                    flat_size = s
+                else:
+                    flat_size *= s
+
+        if flat_size is None:
+            output_shape = [None, None]
+        else:
+            output_shape = [
+                flat_size + int(np.abs(self.k)),
+                flat_size + int(np.abs(self.k)),
+            ]
+
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.diagflat", "keras.ops.numpy.diagflat"])
+def diagflat(x, k=0):
+    """Create a two-dimensional array with the flattened input on
+       the k-th diagonal.
+
+    Args:
+        x: Input tensor to be flattened and placed on the diagonal.
+        k: The diagonal to place the flattened input. Defaults to `0`.
+           Use `k > 0` for diagonals above the main diagonal,
+           and `k < 0` for diagonals below the main diagonal.
+
+    Returns:
+        A 2-D tensor with the flattened input on the specified diagonal.
+    """
+    if any_symbolic_tensors((x,)):
+        return Diagflat(k=k).symbolic_call(x)
+    return backend.numpy.diagflat(x, k=k)
+
+
 class Diagonal(Operation):
     def __init__(self, offset=0, axis1=0, axis2=1):
         super().__init__()
@@ -2667,6 +2723,32 @@ def exp(x):
     if any_symbolic_tensors((x,)):
         return Exp().symbolic_call(x)
     return backend.numpy.exp(x)
+
+
+class Exp2(Operation):
+    def call(self, x):
+        return backend.numpy.exp2(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if "int" in dtype or dtype == "bool":
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.exp2", "keras.ops.numpy.exp2"])
+def exp2(x):
+    """Calculate the base-2 exponential of all elements in the input tensor.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output tensor, element-wise base-2 exponential of `x`.
+    """
+    if any_symbolic_tensors((x,)):
+        return Exp2().symbolic_call(x)
+    return backend.numpy.exp2(x)
 
 
 class ExpandDims(Operation):
@@ -4577,6 +4659,57 @@ def ravel(x):
     return backend.numpy.ravel(x)
 
 
+class UnravelIndex(Operation):
+    def __init__(self, shape):
+        self.shape = shape
+        self._inbound_nodes = []
+
+    def call(self, indices):
+        return backend.numpy.unravel_index(indices, self.shape)
+
+    def compute_output_spec(self, indices):
+        if None in self.shape:
+            output_shapes = [[None] for _ in self.shape]
+        else:
+            if isinstance(indices, int):
+                output_shapes = [[1] for _ in self.shape]
+            elif hasattr(indices, "shape"):
+                output_shapes = [list(indices.shape) for _ in self.shape]
+            else:
+                try:
+                    indices_shape = np.shape(indices)
+                    output_shapes = [list(indices_shape) for _ in self.shape]
+                except Exception:
+                    output_shapes = [[None] for _ in self.shape]
+
+        return [
+            KerasTensor(shape, dtype=indices.dtype) for shape in output_shapes
+        ]
+
+
+@keras_export(["keras.ops.unravel_index", "keras.ops.numpy.unravel_index"])
+def unravel_index(indices, shape):
+    """Convert flat indices to coordinate arrays in a given array shape.
+
+    Args:
+        indices: An integer or array of integers representing flat indices.
+        shape: The shape of the array to unravel into.
+
+    Returns:
+        Tuple of arrays for each dimension with unraveled indices.
+
+    Example:
+        >>> indices = 5
+        >>> shape = (3, 3)
+        >>> unravel_index(indices, shape)
+        (1, 2)  # 5 is at row 1, column 2 in a 3x3 array
+    """
+    if any_symbolic_tensors((indices,)):
+        return UnravelIndex(shape).symbolic_call(indices)
+
+    return backend.numpy.unravel_index(indices, shape)
+
+
 class Real(Operation):
     def call(self, x):
         return backend.numpy.real(x)
@@ -5650,6 +5783,45 @@ def vdot(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Vdot().symbolic_call(x1, x2)
     return backend.numpy.vdot(x1, x2)
+
+
+class Inner(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.inner(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        return KerasTensor([], dtype=dtype)
+
+
+@keras_export(["keras.ops.inner", "keras.ops.numpy.inner"])
+def inner(x1, x2):
+    """Return the inner product of two tensors.
+
+    Ordinary inner product of vectors for 1-D tensors
+    (without complex conjugation), in higher dimensions
+    a sum product over the last axes.
+
+    Multidimensional arrays are treated as vectors by flattening
+    all but their last axes. The resulting dot product is performed
+    over their last axes.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor. The last dimension of `x1` and `x2`
+            must match.
+
+    Returns:
+        Output tensor. The shape of the output is determined by
+        broadcasting the shapes of `x1` and `x2` after removing
+        their last axes.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Inner().symbolic_call(x1, x2)
+    return backend.numpy.inner(x1, x2)
 
 
 @keras_export(["keras.ops.vectorize", "keras.ops.numpy.vectorize"])

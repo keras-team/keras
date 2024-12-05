@@ -19,3 +19,4 @@ examples/**/*.jpg
 .python-version
 .coverage
 *coverage.xml
+.ruff_cache

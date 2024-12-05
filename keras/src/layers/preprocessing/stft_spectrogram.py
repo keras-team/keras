@@ -217,7 +217,7 @@ class STFTSpectrogram(layers.Layer):
             self.real_kernel = self.add_weight(
                 name="real_kernel",
                 shape=shape,
-                initializer=initializers.STFTInitializer(
+                initializer=initializers.STFT(
                     "real", self.window, self.scaling, self.periodic
                 ),
             )
@@ -225,7 +225,7 @@ class STFTSpectrogram(layers.Layer):
             self.imag_kernel = self.add_weight(
                 name="imag_kernel",
                 shape=shape,
-                initializer=initializers.STFTInitializer(
+                initializer=initializers.STFT(
                     "imag", self.window, self.scaling, self.periodic
                 ),
             )

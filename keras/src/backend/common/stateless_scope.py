@@ -8,7 +8,7 @@ class StatelessScope:
 
     The values of variables to be used inside the scope
     should be passed via the `state_mapping` argument, a
-    list of tuples `(k, v)` where `k` is a `KerasVariable`
+    list of tuples `(k, v)` where `k` is a `Variable`
     and `v` is the intended value for this variable
     (a backend tensor).
 
@@ -39,7 +39,7 @@ class StatelessScope:
         initialize_variables=True,
     ):
         from keras.src import backend
-        from keras.src.backend.common.variables import KerasVariable
+        from keras.src.backend.common.variables import Variable
 
         self.collect_losses = collect_losses
         self.initialize_variables = initialize_variables
@@ -47,13 +47,13 @@ class StatelessScope:
         self.state_mapping = {}
         state_mapping = state_mapping or {}
         for k, v in state_mapping:
-            if not isinstance(k, KerasVariable):
+            if not isinstance(k, Variable):
                 raise ValueError(
                     "Invalid reference variable in StatelessScope: "
-                    "all keys in argument `mapping` must be KerasVariable "
+                    "all keys in argument `mapping` must be Variable "
                     f"instances. Received instead: {k}"
                 )
-            if isinstance(v, KerasVariable):
+            if isinstance(v, Variable):
                 v = backend.cast(v.value, dtype=k.dtype)
             else:
                 v = backend.convert_to_tensor(v, dtype=k.dtype)

@@ -49,6 +49,7 @@ from keras.src.ops.numpy import cross
 from keras.src.ops.numpy import cumprod
 from keras.src.ops.numpy import cumsum
 from keras.src.ops.numpy import diag
+from keras.src.ops.numpy import diagflat
 from keras.src.ops.numpy import diagonal
 from keras.src.ops.numpy import diff
 from keras.src.ops.numpy import digitize
@@ -59,6 +60,7 @@ from keras.src.ops.numpy import einsum
 from keras.src.ops.numpy import empty
 from keras.src.ops.numpy import equal
 from keras.src.ops.numpy import exp
+from keras.src.ops.numpy import exp2
 from keras.src.ops.numpy import expand_dims
 from keras.src.ops.numpy import expm1
 from keras.src.ops.numpy import eye
@@ -74,6 +76,7 @@ from keras.src.ops.numpy import histogram
 from keras.src.ops.numpy import hstack
 from keras.src.ops.numpy import identity
 from keras.src.ops.numpy import imag
+from keras.src.ops.numpy import inner
 from keras.src.ops.numpy import isclose
 from keras.src.ops.numpy import isfinite
 from keras.src.ops.numpy import isinf
@@ -152,6 +155,7 @@ from keras.src.ops.numpy import tril
 from keras.src.ops.numpy import triu
 from keras.src.ops.numpy import true_divide
 from keras.src.ops.numpy import trunc
+from keras.src.ops.numpy import unravel_index
 from keras.src.ops.numpy import var
 from keras.src.ops.numpy import vdot
 from keras.src.ops.numpy import vectorize

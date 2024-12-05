@@ -5,6 +5,7 @@ from keras.src.activations.activations import elu
 from keras.src.activations.activations import exponential
 from keras.src.activations.activations import gelu
 from keras.src.activations.activations import glu
+from keras.src.activations.activations import hard_shrink
 from keras.src.activations.activations import hard_sigmoid
 from keras.src.activations.activations import hard_silu
 from keras.src.activations.activations import hard_tanh
@@ -18,10 +19,16 @@ from keras.src.activations.activations import relu6
 from keras.src.activations.activations import selu
 from keras.src.activations.activations import sigmoid
 from keras.src.activations.activations import silu
+from keras.src.activations.activations import soft_shrink
 from keras.src.activations.activations import softmax
 from keras.src.activations.activations import softplus
 from keras.src.activations.activations import softsign
+from keras.src.activations.activations import sparse_plus
+from keras.src.activations.activations import sparsemax
+from keras.src.activations.activations import squareplus
 from keras.src.activations.activations import tanh
+from keras.src.activations.activations import tanh_shrink
+from keras.src.activations.activations import threshold
 from keras.src.api_export import keras_export
 from keras.src.saving import object_registration
 from keras.src.saving import serialization_lib
@@ -36,19 +43,26 @@ ALL_OBJECTS = {
     selu,
     softplus,
     softsign,
+    squareplus,
+    soft_shrink,
+    sparse_plus,
     silu,
     gelu,
     glu,
     tanh,
+    tanh_shrink,
+    threshold,
     sigmoid,
     exponential,
     hard_sigmoid,
     hard_silu,
     hard_tanh,
+    hard_shrink,
     linear,
     mish,
     log_softmax,
     log_sigmoid,
+    sparsemax,
 }
 
 ALL_OBJECTS_DICT = {fn.__name__: fn for fn in ALL_OBJECTS}

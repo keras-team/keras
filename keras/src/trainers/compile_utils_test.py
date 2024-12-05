@@ -1,7 +1,6 @@
 from collections import namedtuple
 
 import numpy as np
-import tree
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -9,6 +8,7 @@ from keras.src import metrics as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import testing
+from keras.src import tree
 from keras.src.trainers.compile_utils import CompileLoss
 from keras.src.trainers.compile_utils import CompileMetrics
 
@@ -375,6 +375,33 @@ class TestCompileLoss(testing.TestCase):
         value = compile_loss(y_true, y_pred)
         self.assertAllClose(value, 1.07666, atol=1e-5)
 
+    def test_struct_loss_valid_weights(self):
+        y_true = {
+            "a": np.array([1, 2]),
+            "b": np.array([1, 2]),
+        }
+        y_pred = {
+            "a": np.array([3, 4]),
+            "b": np.array([3, 4]),
+        }
+        loss = {"a": "mse", "b": "mse"}
+        compile_loss = CompileLoss(
+            loss=loss,
+            output_names=["a", "b"],
+            loss_weights={
+                "a": np.ones((2,)),
+                "b": np.zeros((2,)),
+            },
+        )
+        compile_loss.build(y_true, y_pred)
+        value = compile_loss(y_true, y_pred)
+        self.assertAllClose(value, 4)
+
+        # Metrics still report unweighted loss.
+        a_loss_mean, b_loss_mean = compile_loss.metrics
+        self.assertEqual(a_loss_mean.result(), 4)
+        self.assertEqual(b_loss_mean.result(), 4)
+
     def test_struct_loss_invalid_weights(self):
         y_true = {
             "a": {
@@ -520,3 +547,25 @@ class TestCompileLoss(testing.TestCase):
         ):
             wrong_struc_y_true = [np.array([[1]])]
             compile_loss(wrong_struc_y_true, y_pred)
+
+    @parameterized.parameters(
+        ["mse", None, None],
+        [None, "mse", None],
+        [None, None, "mse"],
+        [None, "mse", "mse"],
+        ["mse", None, "mse"],
+    )
+    def test_y_true_partial_y_pred_span(self, *loss_conf):
+        loss_conf = list(loss_conf)
+        ones = np.ones((320, 3))
+        zeros = np.zeros((320, 3))
+        twos = np.ones((320, 3)) * 2
+        y_pred = [zeros, ones, twos]
+        y_true = [y for y, loss in zip(y_pred, loss_conf) if loss is not None]
+        y_true = y_true[0] if len(y_true) == 1 else y_true
+        compile_loss = CompileLoss(loss=loss_conf, output_names=["a", "b", "c"])
+        # build call
+        compile_loss(y_true, y_pred)
+        # built call
+        loss = compile_loss(y_true, y_pred)
+        self.assertEqual(loss, 0.0)

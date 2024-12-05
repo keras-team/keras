@@ -7,6 +7,7 @@ from keras.src.api_export import keras_export
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.saving import serialization_lib
+from keras.src.utils.numerical_utils import build_pos_neg_masks
 from keras.src.utils.numerical_utils import normalize
 
 
@@ -42,6 +43,9 @@ class LossFunctionWrapper(Loss):
         if "fn" in config:
             config = serialization_lib.deserialize_keras_object(config)
         return cls(**config)
+
+    def __repr__(self):
+        return f"<LossFunctionWrapper({self.fn}, kwargs={self._fn_kwargs})>"
 
 
 @keras_export("keras.losses.MeanSquaredError")
@@ -768,8 +772,8 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
     As a standalone function:
 
     >>> # Example 1: (batch_size = 1, number of samples = 4)
-    >>> y_true = [0, 1, 0, 0]
-    >>> y_pred = [-18.6, 0.51, 2.94, -12.8]
+    >>> y_true = np.array([0, 1, 0, 0])
+    >>> y_pred = np.array([-18.6, 0.51, 2.94, -12.8])
     >>> loss = keras.losses.BinaryFocalCrossentropy(
     ...    gamma=2, from_logits=True)
     >>> loss(y_true, y_pred)
@@ -782,8 +786,8 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
     0.51
 
     >>> # Example 2: (batch_size = 2, number of samples = 4)
-    >>> y_true = [[0, 1], [0, 0]]
-    >>> y_pred = [[-18.6, 0.51], [2.94, -12.8]]
+    >>> y_true = np.array([[0, 1], [0, 0]])
+    >>> y_pred = np.array([[-18.6, 0.51], [2.94, -12.8]])
     >>> # Using default 'auto'/'sum_over_batch_size' reduction type.
     >>> loss = keras.losses.BinaryFocalCrossentropy(
     ...     gamma=3, from_logits=True)
@@ -922,8 +926,8 @@ class CategoricalCrossentropy(LossFunctionWrapper):
 
     Standalone usage:
 
-    >>> y_true = [[0, 1, 0], [0, 0, 1]]
-    >>> y_pred = [[0.05, 0.95, 0], [0.1, 0.8, 0.1]]
+    >>> y_true = np.array([[0, 1, 0], [0, 0, 1]])
+    >>> y_pred = np.array([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
     >>> # Using 'auto'/'sum_over_batch_size' reduction type.
     >>> cce = keras.losses.CategoricalCrossentropy()
     >>> cce(y_true, y_pred)
@@ -1384,6 +1388,7 @@ class Tversky(LossFunctionWrapper):
         beta=0.5,
         reduction="sum_over_batch_size",
         name="tversky",
+        axis=None,
         dtype=None,
     ):
         super().__init__(
@@ -1393,13 +1398,109 @@ class Tversky(LossFunctionWrapper):
             dtype=dtype,
             alpha=alpha,
             beta=beta,
+            axis=axis,
         )
         self.alpha = alpha
         self.beta = beta
+        self.axis = axis
 
     def get_config(self):
         config = Loss.get_config(self)
-        config.update({"alpha": self.alpha, "beta": self.beta})
+        config.update(
+            {"alpha": self.alpha, "beta": self.beta, "axis": self.axis}
+        )
+        return config
+
+
+@keras_export("keras.losses.Circle")
+class Circle(LossFunctionWrapper):
+    """Computes Circle Loss between integer labels and L2-normalized embeddings.
+
+    This is a metric learning loss designed to minimize within-class distance
+    and maximize between-class distance in a flexible manner by dynamically
+    adjusting the penalty strength based on optimization status of each
+    similarity score.
+
+    To use Circle Loss effectively, the model should output embeddings without
+    an activation function (such as a `Dense` layer with `activation=None`)
+    followed by UnitNormalization layer to ensure unit-norm embeddings.
+
+    Args:
+        gamma: Scaling factor that determines the largest scale of each
+            similarity score. Defaults to `80`.
+        margin: The relaxation factor, below this distance, negatives are
+        up weighted and positives are down weighted. Similarly, above this
+        distance negatives are down weighted and positive are up weighted.
+            Defaults to `0.4`.
+        remove_diagonal: Boolean, whether to remove self-similarities from the
+            positive mask. Defaults to `True`.
+        reduction: Type of reduction to apply to the loss. In almost all cases
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
+        name: Optional name for the loss instance.
+        dtype: The dtype of the loss's computations. Defaults to `None`, which
+            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            `"float32"` unless set to different value
+            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            provided, then the `compute_dtype` will be utilized.
+
+    Examples:
+
+    Usage with the `compile()` API:
+
+    ```python
+    model = models.Sequential([
+        keras.layers.Input(shape=(224, 224, 3)),
+        keras.layers.Conv2D(16, (3, 3), activation='relu'),
+        keras.layers.Flatten(),
+        keras.layers.Dense(64, activation=None),  # No activation
+        keras.layers.UnitNormalization()  # L2 normalization
+    ])
+
+    model.compile(optimizer="adam", loss=keras.losses.Circle())
+    ```
+
+    Reference:
+    - [Yifan Sun et al., 2020](https://arxiv.org/abs/2002.10857)
+
+    """
+
+    def __init__(
+        self,
+        gamma=80.0,
+        margin=0.4,
+        remove_diagonal=True,
+        reduction="sum_over_batch_size",
+        name="circle",
+        dtype=None,
+    ):
+        super().__init__(
+            circle,
+            name=name,
+            reduction=reduction,
+            dtype=dtype,
+            gamma=gamma,
+            margin=margin,
+            remove_diagonal=remove_diagonal,
+        )
+        self.gamma = gamma
+        self.margin = margin
+        self.remove_diagonal = remove_diagonal
+
+    def get_config(self):
+        config = Loss.get_config(self)
+        config.update(
+            {
+                "gamma": self.gamma,
+                "margin": self.margin,
+                "remove_diagonal": self.remove_diagonal,
+            }
+        )
         return config
 
 
@@ -2369,7 +2470,7 @@ def dice(y_true, y_pred, axis=None):
 
 
 @keras_export("keras.losses.tversky")
-def tversky(y_true, y_pred, alpha=0.5, beta=0.5):
+def tversky(y_true, y_pred, alpha=0.5, beta=0.5, axis=None):
     """Computes the Tversky loss value between `y_true` and `y_pred`.
 
     This loss function is weighted by the alpha and beta coefficients
@@ -2383,6 +2484,7 @@ def tversky(y_true, y_pred, alpha=0.5, beta=0.5):
         y_pred: tensor of predicted targets.
         alpha: coefficient controlling incidence of false positives.
         beta: coefficient controlling incidence of false negatives.
+        axis: tuple for which dimensions the loss is calculated.
 
     Returns:
         Tversky loss value.
@@ -2394,15 +2496,104 @@ def tversky(y_true, y_pred, alpha=0.5, beta=0.5):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    inputs = ops.reshape(y_true, [-1])
-    targets = ops.reshape(y_pred, [-1])
+    inputs = y_true
+    targets = y_pred
 
-    intersection = ops.sum(inputs * targets)
-    fp = ops.sum((1 - targets) * inputs)
-    fn = ops.sum(targets * (1 - inputs))
+    intersection = ops.sum(inputs * targets, axis=axis)
+    fp = ops.sum((1 - targets) * inputs, axis=axis)
+    fn = ops.sum(targets * (1 - inputs), axis=axis)
+
     tversky = ops.divide(
         intersection,
         intersection + fp * alpha + fn * beta + backend.epsilon(),
     )
 
     return 1 - tversky
+
+
+@keras_export("keras.losses.circle")
+def circle(
+    y_true,
+    y_pred,
+    ref_labels=None,
+    ref_embeddings=None,
+    remove_diagonal=True,
+    gamma=80,
+    margin=0.4,
+):
+    """Computes the Circle loss.
+
+    It is designed to minimize within-class distances and maximize between-class
+    distances in L2 normalized embedding space.
+
+    Args:
+        y_true: Tensor with ground truth labels in integer format.
+        y_pred: Tensor with predicted L2 normalized embeddings.
+        ref_labels: Optional integer tensor with labels for reference
+            embeddings. If `None`, defaults to `y_true`.
+        ref_embeddings: Optional tensor with L2 normalized reference embeddings.
+            If `None`, defaults to `y_pred`.
+        remove_diagonal: Boolean, whether to remove self-similarities from
+            positive mask. Defaults to `True`.
+        gamma: Float, scaling factor for the loss. Defaults to `80`.
+        margin: Float, relaxation factor for the loss. Defaults to `0.4`.
+
+    Returns:
+        Circle loss value.
+    """
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.cast(y_true, "int32")
+    ref_embeddings = (
+        y_pred
+        if ref_embeddings is None
+        else ops.convert_to_tensor(ref_embeddings)
+    )
+    ref_labels = y_true if ref_labels is None else ops.cast(ref_labels, "int32")
+
+    optim_pos = margin
+    optim_neg = 1 + margin
+    delta_pos = margin
+    delta_neg = 1 - margin
+
+    pairwise_cosine_distances = 1 - ops.matmul(
+        y_pred, ops.transpose(ref_embeddings)
+    )
+
+    pairwise_cosine_distances = ops.maximum(pairwise_cosine_distances, 0.0)
+    positive_mask, negative_mask = build_pos_neg_masks(
+        y_true,
+        ref_labels,
+        remove_diagonal=remove_diagonal,
+    )
+    positive_mask = ops.cast(
+        positive_mask, dtype=pairwise_cosine_distances.dtype
+    )
+    negative_mask = ops.cast(
+        negative_mask, dtype=pairwise_cosine_distances.dtype
+    )
+
+    pos_weights = optim_pos + pairwise_cosine_distances
+    pos_weights = pos_weights * positive_mask
+    pos_weights = ops.maximum(pos_weights, 0.0)
+    neg_weights = optim_neg - pairwise_cosine_distances
+    neg_weights = neg_weights * negative_mask
+    neg_weights = ops.maximum(neg_weights, 0.0)
+
+    pos_dists = delta_pos - pairwise_cosine_distances
+    neg_dists = delta_neg - pairwise_cosine_distances
+
+    pos_wdists = -1 * gamma * pos_weights * pos_dists
+    neg_wdists = gamma * neg_weights * neg_dists
+
+    p_loss = ops.logsumexp(
+        ops.where(positive_mask, pos_wdists, float("-inf")),
+        axis=1,
+    )
+    n_loss = ops.logsumexp(
+        ops.where(negative_mask, neg_wdists, float("-inf")),
+        axis=1,
+    )
+
+    circle_loss = ops.softplus(p_loss + n_loss)
+    backend.set_keras_mask(circle_loss, circle_loss > 0)
+    return circle_loss

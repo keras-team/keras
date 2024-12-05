@@ -73,6 +73,7 @@ from keras.src.ops.nn import dot_product_attention
 from keras.src.ops.nn import elu
 from keras.src.ops.nn import gelu
 from keras.src.ops.nn import glu
+from keras.src.ops.nn import hard_shrink
 from keras.src.ops.nn import hard_sigmoid
 from keras.src.ops.nn import hard_silu
 from keras.src.ops.nn import hard_silu as hard_swish
@@ -93,10 +94,16 @@ from keras.src.ops.nn import separable_conv
 from keras.src.ops.nn import sigmoid
 from keras.src.ops.nn import silu
 from keras.src.ops.nn import silu as swish
+from keras.src.ops.nn import soft_shrink
 from keras.src.ops.nn import softmax
 from keras.src.ops.nn import softplus
 from keras.src.ops.nn import softsign
 from keras.src.ops.nn import sparse_categorical_crossentropy
+from keras.src.ops.nn import sparse_plus
+from keras.src.ops.nn import sparsemax
+from keras.src.ops.nn import squareplus
+from keras.src.ops.nn import tanh_shrink
+from keras.src.ops.nn import threshold
 from keras.src.ops.numpy import abs
 from keras.src.ops.numpy import absolute
 from keras.src.ops.numpy import add
@@ -142,6 +149,7 @@ from keras.src.ops.numpy import cross
 from keras.src.ops.numpy import cumprod
 from keras.src.ops.numpy import cumsum
 from keras.src.ops.numpy import diag
+from keras.src.ops.numpy import diagflat
 from keras.src.ops.numpy import diagonal
 from keras.src.ops.numpy import diff
 from keras.src.ops.numpy import digitize
@@ -152,6 +160,7 @@ from keras.src.ops.numpy import einsum
 from keras.src.ops.numpy import empty
 from keras.src.ops.numpy import equal
 from keras.src.ops.numpy import exp
+from keras.src.ops.numpy import exp2
 from keras.src.ops.numpy import expand_dims
 from keras.src.ops.numpy import expm1
 from keras.src.ops.numpy import eye
@@ -167,6 +176,7 @@ from keras.src.ops.numpy import histogram
 from keras.src.ops.numpy import hstack
 from keras.src.ops.numpy import identity
 from keras.src.ops.numpy import imag
+from keras.src.ops.numpy import inner
 from keras.src.ops.numpy import isclose
 from keras.src.ops.numpy import isfinite
 from keras.src.ops.numpy import isinf
@@ -246,6 +256,7 @@ from keras.src.ops.numpy import tril
 from keras.src.ops.numpy import triu
 from keras.src.ops.numpy import true_divide
 from keras.src.ops.numpy import trunc
+from keras.src.ops.numpy import unravel_index
 from keras.src.ops.numpy import var
 from keras.src.ops.numpy import vdot
 from keras.src.ops.numpy import vectorize

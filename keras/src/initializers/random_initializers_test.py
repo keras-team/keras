@@ -7,7 +7,7 @@ from keras.src import testing
 from keras.src import utils
 
 
-class InitializersTest(testing.TestCase):
+class RandomInitializersTest(testing.TestCase):
     def test_random_normal(self):
         utils.set_random_seed(1337)
         shape = (25, 20)
@@ -124,11 +124,11 @@ class InitializersTest(testing.TestCase):
         )
         self.run_class_serialization_test(initializer)
 
-    def test_orthogonal_initializer(self):
+    def test_orthogonal(self):
         shape = (5, 5)
         gain = 2.0
         seed = 1234
-        initializer = initializers.OrthogonalInitializer(gain=gain, seed=seed)
+        initializer = initializers.Orthogonal(gain=gain, seed=seed)
         values = initializer(shape=shape)
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(initializer.gain, gain)
@@ -148,9 +148,9 @@ class InitializersTest(testing.TestCase):
 
         self.run_class_serialization_test(initializer)
 
-        # Test legacy class_name
-        initializer = initializers.get("Orthogonal")
-        self.assertIsInstance(initializer, initializers.OrthogonalInitializer)
+        # Test compatible class_name
+        initializer = initializers.get("OrthogonalInitializer")
+        self.assertIsInstance(initializer, initializers.Orthogonal)
 
     def test_get_method(self):
         obj = initializers.get("glorot_normal")
@@ -161,6 +161,25 @@ class InitializersTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             initializers.get("typo")
+
+    def test_get_method_with_tensor(self):
+        shape = (5, 5)
+
+        # Test backend tensor
+        tensor = random.uniform(shape=shape)
+        initializer = initializers.get(tensor)
+        values = initializer(shape=shape)
+        self.assertAllClose(values, tensor)
+
+        # Test numpy array
+        tensor = np.random.uniform(size=shape).astype("float32")
+        initializer = initializers.get(tensor)
+        values = initializer(shape=shape)
+        self.assertAllClose(values, tensor)
+
+        # Test bad `shape` argument
+        with self.assertRaisesRegex(ValueError, r"Expected `shape` to be"):
+            initializer(shape=(10, 10))
 
     def test_variance_scaling_invalid_scale(self):
         seed = 1234
@@ -195,7 +214,7 @@ class InitializersTest(testing.TestCase):
 
     def test_serialization_with_seed_generator(self):
         seed = random.SeedGenerator()
-        initializer = initializers.OrthogonalInitializer(seed=seed)
+        initializer = initializers.Orthogonal(seed=seed)
         self.run_class_serialization_test(initializer)
 
         seed = random.SeedGenerator()

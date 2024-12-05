@@ -940,7 +940,7 @@ class JAXTrainer(base_trainer.Trainer):
 
         During JAX training, since the training function are stateless, we have
         to pass in and get the model weights over and over, during which the
-        copy of the weights that attached to the KerasVariable are still and
+        copy of the weights that attached to the Variable are still and
         occupying extra memory. We remove those variable to save memory (for
         better memory utilization) at the beginning of the epoch, and reattach
         the value back to variables at the end of the epoch, via

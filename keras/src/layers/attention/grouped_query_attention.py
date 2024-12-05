@@ -1,8 +1,11 @@
+import math
+
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend.config import is_flash_attention_enabled
 from keras.src.layers.activations.softmax import Softmax
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.layer import Layer
@@ -34,6 +37,11 @@ class GroupedQueryAttention(Layer):
         num_key_value_heads: Number of key and value attention heads.
         dropout: Dropout probability.
         use_bias: Boolean, whether the dense layers use bias vectors/matrices.
+        flash_attention: If `None`, the layer attempts to use flash
+            attention for faster and more memory-efficient attention
+            computations when possible. This behavior can be configured using
+            `keras.config.enable_flash_attention()` or
+            `keras.config.disable_flash_attention()`.
         kernel_initializer: Initializer for dense layer kernels.
         bias_initializer: Initializer for dense layer biases.
         kernel_regularizer: Regularizer for dense layer kernels.
@@ -41,6 +49,7 @@ class GroupedQueryAttention(Layer):
         activity_regularizer: Regularizer for dense layer activity.
         kernel_constraint: Constraint for dense layer kernels.
         bias_constraint: Constraint for dense layer kernels.
+        seed: Optional integer to seed the dropout layer.
 
     Call arguments:
         query: Query tensor of shape `(batch_dim, target_seq_len, feature_dim)`,
@@ -85,6 +94,7 @@ class GroupedQueryAttention(Layer):
         num_key_value_heads,
         dropout=0.0,
         use_bias=True,
+        flash_attention=None,
         kernel_initializer="glorot_uniform",
         bias_initializer="zeros",
         kernel_regularizer=None,
@@ -92,6 +102,7 @@ class GroupedQueryAttention(Layer):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
+        seed=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -107,6 +118,7 @@ class GroupedQueryAttention(Layer):
         self.num_repeats = num_query_heads // num_key_value_heads
         self.dropout = dropout
         self.use_bias = use_bias
+        self._flash_attention = flash_attention or is_flash_attention_enabled()
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.bias_initializer = initializers.get(bias_initializer)
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
@@ -114,6 +126,17 @@ class GroupedQueryAttention(Layer):
         self.activity_regularizer = regularizers.get(activity_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
+        self.seed = seed
+
+        self._inverse_sqrt_head_dim = 1.0 / math.sqrt(float(self.head_dim))
+        self._return_attention_scores = False
+
+        # Check for flash attention constraints
+        if self._flash_attention and self.dropout > 0.0:
+            raise ValueError(
+                "Dropout is not supported when flash attention is enabled. "
+                "Please set dropout to 0.0 to use flash attention."
+            )
 
     def build(
         self,
@@ -160,7 +183,7 @@ class GroupedQueryAttention(Layer):
 
         self._softmax = Softmax(axis=-1, dtype=self.dtype_policy)
         self._dropout_layer = Dropout(
-            rate=self.dropout, dtype=self.dtype_policy
+            rate=self.dropout, dtype=self.dtype_policy, seed=self.seed
         )
 
         self._dot_product_equation = "bquh,bkuh->buqk"
@@ -213,6 +236,7 @@ class GroupedQueryAttention(Layer):
         training=None,
         use_causal_mask=False,
     ):
+        self._return_attention_scores = return_attention_scores
         if key is None:
             key = value
 
@@ -353,9 +377,52 @@ class GroupedQueryAttention(Layer):
     def _compute_attention(
         self, query, key, value, attention_mask=None, training=None
     ):
+        # Check for flash attention constraints
+        if self._flash_attention and self._return_attention_scores:
+            raise ValueError(
+                "Returning attention scores is not supported when flash "
+                "attention is enabled. Please disable flash attention to access"
+                " attention scores."
+            )
+
+        # Determine whether to use dot-product attention
+        use_dot_product_attention = not (
+            self.dropout > 0.0
+            or self._return_attention_scores
+            or (len(query.shape) != 4)
+        )
+
+        if use_dot_product_attention:
+            if attention_mask is not None:
+                # Ensure attention_mask has the correct shape for broadcasting
+                # Expected shape: [batch_size, num_heads, query_seq_len,
+                # key_seq_len].
+                mask_expansion_axis = -1 * 2 - 1
+                len_attention_scores_shape = 4  # Only accepts 4D inputs
+                for _ in range(
+                    len_attention_scores_shape - len(attention_mask.shape)
+                ):
+                    attention_mask = ops.expand_dims(
+                        attention_mask, axis=mask_expansion_axis
+                    )
+                attention_mask = ops.cast(attention_mask, dtype="bool")
+            # Directly compute the attention output using dot-product attention
+            attention_output = ops.dot_product_attention(
+                query=query,
+                key=key,
+                value=value,
+                bias=None,
+                mask=attention_mask,
+                scale=self._inverse_sqrt_head_dim,
+                is_causal=False,
+                flash_attention=self._flash_attention,
+            )
+            return attention_output, None
+
+        # Default behavior without flash attention, with explicit attention
+        # scores
         query = ops.multiply(
-            query,
-            1.0 / ops.sqrt(ops.cast(self.head_dim, query.dtype)),
+            query, ops.cast(self._inverse_sqrt_head_dim, query.dtype)
         )
         # Take the dot product between "query" and "key" to get the raw
         # attention scores.
@@ -365,7 +432,10 @@ class GroupedQueryAttention(Layer):
         scores = self._masked_softmax(scores, attention_mask=attention_mask)
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
-        scores_dropout = self._dropout_layer(scores, training=training)
+        if self.dropout > 0.0:
+            scores_dropout = self._dropout_layer(scores, training=training)
+        else:
+            scores_dropout = scores
         output = ops.einsum(self._combine_equation, scores_dropout, value)
         return output, scores
 
@@ -428,6 +498,7 @@ class GroupedQueryAttention(Layer):
             ),
             "kernel_constraint": constraints.serialize(self.kernel_constraint),
             "bias_constraint": constraints.serialize(self.bias_constraint),
+            "seed": self.seed,
         }
         base_config = super().get_config()
         return {**base_config, **config}

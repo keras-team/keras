@@ -2,7 +2,14 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    clip_to_image_size,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    convert_format,
+)
 from keras.src.random.seed_generator import SeedGenerator
+from keras.src.utils import backend_utils
 
 
 @keras_export("keras.layers.RandomTranslation")
@@ -166,13 +173,99 @@ class RandomTranslation(BaseImagePreprocessingLayer):
     def transform_labels(self, labels, transformation, training=True):
         return labels
 
+    def get_transformed_x_y(self, x, y, transform):
+        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.numpy.split(
+            transform, 8, axis=-1
+        )
+
+        k = c0 * x + c1 * y + 1
+        x_transformed = (a0 * x + a1 * y + a2) / k
+        y_transformed = (b0 * x + b1 * y + b2) / k
+        return x_transformed, y_transformed
+
+    def get_shifted_bbox(self, bounding_boxes, w_shift_factor, h_shift_factor):
+        bboxes = bounding_boxes["boxes"]
+        x1, x2, x3, x4 = self.backend.numpy.split(bboxes, 4, axis=-1)
+
+        w_shift_factor = self.backend.convert_to_tensor(
+            w_shift_factor, dtype=x1.dtype
+        )
+        h_shift_factor = self.backend.convert_to_tensor(
+            h_shift_factor, dtype=x1.dtype
+        )
+
+        if len(bboxes.shape) == 3:
+            w_shift_factor = self.backend.numpy.expand_dims(w_shift_factor, -1)
+            h_shift_factor = self.backend.numpy.expand_dims(h_shift_factor, -1)
+
+        bounding_boxes["boxes"] = self.backend.numpy.concatenate(
+            [
+                x1 - w_shift_factor,
+                x2 - h_shift_factor,
+                x3 - w_shift_factor,
+                x4 - h_shift_factor,
+            ],
+            axis=-1,
+        )
+        return bounding_boxes
+
     def transform_bounding_boxes(
         self,
         bounding_boxes,
         transformation,
         training=True,
     ):
-        raise NotImplementedError
+        if backend_utils.in_tf_graph():
+            self.backend.set_backend("tensorflow")
+
+        if self.data_format == "channels_first":
+            height_axis = -2
+            width_axis = -1
+        else:
+            height_axis = -3
+            width_axis = -2
+
+        input_height, input_width = (
+            transformation["input_shape"][height_axis],
+            transformation["input_shape"][width_axis],
+        )
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source=self.bounding_box_format,
+            target="xyxy",
+            height=input_height,
+            width=input_width,
+        )
+
+        translations = transformation["translations"]
+        transform = self._get_translation_matrix(translations)
+
+        w_shift_factor, h_shift_factor = self.get_transformed_x_y(
+            0, 0, transform
+        )
+        bounding_boxes = self.get_shifted_bbox(
+            bounding_boxes, w_shift_factor, h_shift_factor
+        )
+
+        bounding_boxes = clip_to_image_size(
+            bounding_boxes=bounding_boxes,
+            height=input_height,
+            width=input_width,
+            format="xyxy",
+        )
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source="xyxy",
+            target=self.bounding_box_format,
+            height=input_height,
+            width=input_width,
+        )
+
+        self.backend.reset()
+
+        return bounding_boxes
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
@@ -227,7 +320,7 @@ class RandomTranslation(BaseImagePreprocessingLayer):
             ),
             dtype="float32",
         )
-        return {"translations": translations}
+        return {"translations": translations, "input_shape": images_shape}
 
     def _translate_inputs(self, inputs, transformation):
         if transformation is None:

@@ -661,10 +661,11 @@ class ModelTest(testing.TestCase):
                 "output_c": "binary_crossentropy",
             },
         )
+
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
-            KeyError,
-            "in the `loss` argument, can't be found in the model's output",
+            ValueError,
+            "Expected keys",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -680,8 +681,8 @@ class ModelTest(testing.TestCase):
         )
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
-            KeyError,
-            "in the `loss` argument, can't be found in the model's output",
+            ValueError,
+            "Expected keys",
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -986,8 +987,8 @@ class ModelTest(testing.TestCase):
 
     def get_struct_loss(self, structure):
         def loss_fn(y_true, y_pred):
-            tree.assert_same_structure(structure, y_true, check_types=False)
-            tree.assert_same_structure(structure, y_pred, check_types=False)
+            tree.assert_same_structure(structure, y_true)
+            tree.assert_same_structure(structure, y_pred)
             tree.map_structure(
                 lambda spec, tensor: self.assertEqual(spec.ndim, tensor.ndim),
                 structure,
@@ -1043,7 +1044,7 @@ class ModelTest(testing.TestCase):
 
         if _type is other_type:
             with self.assertRaisesRegex(
-                ValueError, "don't have the same structure"
+                ValueError, "[Ee]xpected.*" + _type.__name__
             ):
                 model.fit(x, y, batch_size=2, epochs=1, verbose=0)
         else:

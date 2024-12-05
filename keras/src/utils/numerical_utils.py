@@ -193,3 +193,33 @@ def encode_categorical_inputs(
             axis=reduction_axis,
         )
         return outputs
+
+
+def build_pos_neg_masks(
+    query_labels,
+    key_labels,
+    remove_diagonal=True,
+):
+    from keras.src import ops
+
+    if ops.ndim(query_labels) == 1:
+        query_labels = ops.reshape(query_labels, (-1, 1))
+
+    if ops.ndim(key_labels) == 1:
+        key_labels = ops.reshape(key_labels, (-1, 1))
+
+    positive_mask = ops.equal(query_labels, ops.transpose(key_labels))
+    negative_mask = ops.logical_not(positive_mask)
+
+    if remove_diagonal:
+        positive_mask = ops.logical_and(
+            positive_mask,
+            ~ops.eye(
+                ops.size(query_labels),
+                ops.size(key_labels),
+                k=0,
+                dtype="bool",
+            ),
+        )
+
+    return positive_mask, negative_mask

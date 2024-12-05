@@ -114,16 +114,17 @@ class EarlyStoppingTest(testing.TestCase):
             loss="mae",
             metrics=["mse"],
         )
-        weights = model.get_weights()
-
-        # This should allow training to go for at least `patience` epochs
-        model.set_weights(weights)
-
         stopper = callbacks.EarlyStopping(monitor="mse", patience=patience)
-        hist = model.fit(
+
+        history1 = model.fit(
             data, labels, callbacks=[stopper], verbose=0, epochs=20
         )
-        assert len(hist.epoch) >= patience
+        self.assertGreaterEqual(len(history1.epoch), patience)
+
+        history2 = model.fit(
+            data, labels, callbacks=[stopper], verbose=0, epochs=20
+        )
+        self.assertGreaterEqual(len(history2.epoch), patience)
 
     @pytest.mark.requires_trainable_backend
     def test_early_stopping_with_baseline(self):

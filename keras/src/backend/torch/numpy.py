@@ -598,6 +598,11 @@ def diag(x, k=0):
     return torch.diag(x, diagonal=k)
 
 
+def diagflat(x, k=0):
+    x = convert_to_tensor(x)
+    return torch.diagflat(x, offset=k)
+
+
 def diagonal(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     return torch.diagonal(
@@ -655,6 +660,14 @@ def exp(x):
     if "int" in ori_dtype or ori_dtype == "bool":
         x = cast(x, config.floatx())
     return torch.exp(x)
+
+
+def exp2(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = cast(x, config.floatx())
+    return torch.exp2(x)
 
 
 def expand_dims(x, axis):
@@ -1201,6 +1214,12 @@ def ravel(x):
     return torch.ravel(x)
 
 
+def unravel_index(x, shape):
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype)
+    return tuple(cast(idx, dtype) for idx in torch.unravel_index(x, shape))
+
+
 def real(x):
     if not isinstance(x, torch.Tensor):
         x = torch.from_numpy(x)  # needed for complex type conversion
@@ -1477,6 +1496,20 @@ def vdot(x1, x2):
     x1 = cast(x1, compute_dtype)
     x2 = cast(x2, compute_dtype)
     return cast(torch.vdot(x1, x2), result_dtype)
+
+
+def inner(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, float)
+
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
+
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+    return cast(torch.inner(x1, x2), result_dtype)
 
 
 def vstack(xs):

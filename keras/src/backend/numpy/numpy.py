@@ -449,6 +449,10 @@ def diag(x, k=0):
     return np.diag(x, k=k)
 
 
+def diagflat(x, k=0):
+    return np.diagflat(x, k=k)
+
+
 def diagonal(x, offset=0, axis1=0, axis2=1):
     axis1 = standardize_axis_for_numpy(axis1)
     axis2 = standardize_axis_for_numpy(axis2)
@@ -487,6 +491,14 @@ def exp(x):
     if "int" in ori_dtype or ori_dtype == "bool":
         x = x.astype(config.floatx())
     return np.exp(x)
+
+
+def exp2(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    return np.exp2(x)
 
 
 def expand_dims(x, axis):
@@ -816,6 +828,13 @@ def ravel(x):
     return np.ravel(x)
 
 
+def unravel_index(x, shape):
+    dtype = dtypes.result_type(x.dtype)
+    return tuple(
+        indices.astype(dtype) for indices in np.unravel_index(x, shape)
+    )
+
+
 def real(x):
     return np.real(x)
 
@@ -996,6 +1015,15 @@ def vdot(x1, x2):
     x1 = x1.astype(dtype)
     x2 = x2.astype(dtype)
     return np.vdot(x1, x2)
+
+
+def inner(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
+    return np.inner(x1, x2)
 
 
 def vstack(xs):
