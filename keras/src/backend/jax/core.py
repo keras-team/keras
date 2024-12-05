@@ -21,7 +21,11 @@ IS_THREAD_SAFE = True
 class Variable(KerasVariable):
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib
-        self._shape = tuple(value.shape)
+        if self._shape is None:
+            if hasattr(value, "shape"):
+                self._shape = self._validate_shape(value.shape)
+            elif isinstance(value, (int, float)):
+                self._shape = ()
         # We can't import the keras/distribution/distribution_lib
         # due to circular dependency.
         distribution = global_state.get_global_attribute("distribution")
