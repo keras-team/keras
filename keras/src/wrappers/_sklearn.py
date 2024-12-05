@@ -1,22 +1,24 @@
 import copy
+
 import numpy as np
+from sklearn.base import BaseEstimator
+from sklearn.base import ClassifierMixin
+from sklearn.base import RegressorMixin
+from sklearn.base import TransformerMixin
+from sklearn.base import check_is_fitted
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils.metadata_routing import MetadataRequest
+from sklearn.utils.multiclass import type_of_target
+
 from keras.src.api_export import keras_export
-from sklearn.base import (
-    BaseEstimator,
-    ClassifierMixin,
-    RegressorMixin,
-    TransformerMixin,
-    check_is_fitted,
-)
 from keras.src.models.cloning import clone_model
 from keras.src.models.model import Model
+from keras.src.wrappers.fixes import _routing_enabled
+from keras.src.wrappers.fixes import _validate_data
 from keras.src.wrappers.random_state import tensorflow_random_state
-from keras.src.wrappers.utils import TargetReshaper, _check_model
-from keras.src.wrappers.fixes import _routing_enabled, _validate_data
-from sklearn.utils.multiclass import type_of_target
+from keras.src.wrappers.utils import TargetReshaper
+from keras.src.wrappers.utils import _check_model
 
 
 class KerasBase(BaseEstimator):
@@ -27,32 +29,40 @@ class KerasBase(BaseEstimator):
             An instance of `Model`, or a callable returning such an object.
 
             Note that if input is a `Model`, it will be cloned using
-            `keras.models.clone_model` before being fitted, unless `warm_start=True`.
+            `keras.models.clone_model` before being fitted, unless
+            `warm_start=True`.
 
             The `Model` instance needs to be passed as already compiled.
 
-            If callable, it must accept at least `X` and `y` as keyword arguments.
-            Other arguments must be accepted if passed as `model_args` by the user.
+            If callable, it must accept at least `X` and `y` as keyword
+            arguments. Other arguments must be accepted if passed as
+            `model_args` by the user.
 
         warm_start: bool, default=False
             Whether to reuse the model weights from the previous fit. If `True`,
-            the given model won't be cloned and the weights from the previous fit
-            will be reused.
+            the given model won't be cloned and the weights from the previous
+            fit will be reused.
 
         model_args: dict, default=None
             Keyword arguments passed to `model`, if `model` is callable.
 
         random_state : int, np.random.RandomState, or None, default None
-            Set the Tensorflow random number generators to a reproducible deterministic
-            state using this seed. Pass an int for reproducible results across multiple
-            function calls.
+            Set the Tensorflow random number generators to a reproducible
+            deterministic state using this seed. Pass an int for reproducible
+            results across multiple function calls.
 
     Attributes:
         model_ : `Model`
             The fitted model.
     """
 
-    def __init__(self, model, warm_start=False, model_args=None, random_state=None):
+    def __init__(
+        self,
+        model,
+        warm_start=False,
+        model_args=None,
+        random_state=None,
+    ):
         self.model = model
         self.warm_start = warm_start
         self.model_args = model_args
@@ -63,7 +73,9 @@ class KerasBase(BaseEstimator):
 
         This is used by the `sklearn.base.clone` function.
         """
-        model = self.model if callable(self.model) else copy.deepcopy(self.model)
+        model = (
+            self.model if callable(self.model) else copy.deepcopy(self.model)
+        )
         return type(self)(
             model=model,
             warm_start=self.warm_start,
@@ -80,7 +92,8 @@ class KerasBase(BaseEstimator):
         """Set requested parameters by the fit method.
 
         Please see [scikit-learn's metadata routing]
-        (https://scikit-learn.org/stable/metadata_routing.html) for more details.
+        (https://scikit-learn.org/stable/metadata_routing.html) for more
+        details.
 
 
         Arguments:
@@ -93,9 +106,9 @@ class KerasBase(BaseEstimator):
         """
         if not _routing_enabled():
             raise RuntimeError(
-                "This method is only available when metadata routing is enabled."
-                " You can enable it using"
-                " sklearn.set_config(enable_metadata_routing=True)."
+                "This method is only available when metadata routing is "
+                "enabled. You can enable it using "
+                "sklearn.set_config(enable_metadata_routing=True)."
             )
 
         self._metadata_request = MetadataRequest(owner=self.__class__.__name__)
@@ -113,7 +126,8 @@ class KerasBase(BaseEstimator):
             return "categorical_crossentropy"
         else:
             raise ValueError(
-                f"Cannot automatically identify loss for target type: {target_type}"
+                "Cannot automatically identify loss for target type: "
+                f"{target_type}"
             )
 
     def _get_model(self, X, y):
@@ -193,14 +207,14 @@ class KerasClassifier(ClassifierMixin, KerasBase):
 
     Args:
         model: `Model`
-            An instance of `Model`. Needs to be compiled, have a loss, and optimizer.
-            Note that the model will be cloned using `clone_model` before being fitted,
-            unless `warm_start=True`.
+            An instance of `Model`. Needs to be compiled, have a loss, and
+            optimizer. Note that the model will be cloned using `clone_model`
+            before being fitted, unless `warm_start=True`.
 
         warm_start: bool, default=False
             Whether to reuse the model weights from the previous fit. If `True`,
-            the given model won't be cloned and the weights from the previous fit
-            will be reused.
+            the given model won't be cloned and the weights from the previous
+            fit will be reused.
 
     Attributes:
         model_ : `Model`
@@ -244,14 +258,14 @@ class KerasRegressor(RegressorMixin, KerasBase):
 
     Args:
         model: `Model`
-            An instance of `Model`. Needs to be compiled, have a loss, and optimizer.
-            Note that the model will be cloned using `clone_model` before being fitted,
-            unless `warm_start=True`.
+            An instance of `Model`. Needs to be compiled, have a loss, and
+            optimizer. Note that the model will be cloned using `clone_model`
+            before being fitted, unless `warm_start=True`.
 
         warm_start: bool, default=False
             Whether to reuse the model weights from the previous fit. If `True`,
-            the given model won't be cloned and the weights from the previous fit
-            will be reused.
+            the given model won't be cloned and the weights from the previous
+            fit will be reused.
 
     Attributes:
         model_ : `Model`
@@ -274,14 +288,14 @@ class KerasTransformer(TransformerMixin, KerasBase):
 
     Args:
         model: `Model`
-            An instance of `Model`. Needs to be compiled, have a loss, and optimizer.
-            Note that the model will be cloned using `clone_model` before being fitted,
-            unless `warm_start=True`.
+            An instance of `Model`. Needs to be compiled, have a loss, and
+            optimizer. Note that the model will be cloned using `clone_model`
+            before being fitted, unless `warm_start=True`.
 
         warm_start: bool, default=False
             Whether to reuse the model weights from the previous fit. If `True`,
-            the given model won't be cloned and the weights from the previous fit
-            will be reused.
+            the given model won't be cloned and the weights from the previous
+            fit will be reused.
 
     Attributes:
         model_ : `Model`

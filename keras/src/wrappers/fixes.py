@@ -4,8 +4,8 @@ from sklearn import get_config
 def _validate_data(estimator, *args, **kwargs):
     """Validate the input data.
 
-    wrapper for sklearn.utils.validation.validate_data or BaseEstimator._validate_data
-    depending on the scikit-learn version.
+    wrapper for sklearn.utils.validation.validate_data or
+    BaseEstimator._validate_data depending on the scikit-learn version.
 
     TODO: remove when minimum scikit-learn version is 1.6
     """
@@ -49,7 +49,8 @@ def _raise_for_params(params, owner, method):
             If metadata routing is not enabled and params are passed.
     """
     caller = (
-        f"{owner.__class__.__name__}.{method}" if method else owner.__class__.__name__
+        f"{owner.__class__.__name__}.{method}" if method
+        else owner.__class__.__name__
     )
     if not _routing_enabled() and params:
         raise ValueError(

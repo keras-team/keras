@@ -2,13 +2,16 @@
 
 from contextlib import contextmanager
 
-from keras.src.models import Model
-from keras.src.backend import floatx, set_floatx
-from keras.src.wrappers import KerasClassifier, KerasRegressor, KerasTransformer
-from keras.src.layers import Dense, Input
-from keras.src.models import Model
-
 from sklearn.utils.estimator_checks import parametrize_with_checks
+
+from keras.src.backend import floatx
+from keras.src.backend import set_floatx
+from keras.src.layers import Dense
+from keras.src.layers import Input
+from keras.src.models import Model
+from keras.src.wrappers import KerasClassifier
+from keras.src.wrappers import KerasRegressor
+from keras.src.wrappers import KerasTransformer
 
 
 def dynamic_model(X, y, loss: str):

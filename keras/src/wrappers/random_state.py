@@ -1,14 +1,16 @@
 import os
 import random
 from contextlib import contextmanager
-from typing import Generator, Iterator
+from typing import Generator
+from typing import Iterator
 
 import numpy as np
 
 try:
     import tensorflow as tf
     from tensorflow.python.eager import context
-    from tensorflow.python.framework import config, ops
+    from tensorflow.python.framework import config
+    from tensorflow.python.framework import ops
 
     def tf_set_seed(seed: int) -> None:
         tf.random.set_seed(seed)

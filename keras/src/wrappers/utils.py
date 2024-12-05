@@ -1,8 +1,6 @@
-from contextlib import contextmanager
-import os
-import random
-import numpy as np
-from sklearn.base import BaseEstimator, TransformerMixin, check_is_fitted
+from sklearn.base import BaseEstimator
+from sklearn.base import TransformerMixin
+from sklearn.base import check_is_fitted
 from sklearn.utils._array_api import get_namespace
 
 
@@ -11,7 +9,8 @@ def _check_model(model):
     # compile model if user gave us an un-compiled model
     if not model.compiled or not model.loss or not model.optimizer:
         raise RuntimeError(
-            "Given model needs to be compiled, and have a loss and an optimizer."
+            "Given model needs to be compiled, and have a loss and an "
+            "optimizer."
         )
 
 
