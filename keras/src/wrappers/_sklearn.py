@@ -9,13 +9,13 @@ from sklearn.base import check_is_fitted
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils.metadata_routing import MetadataRequest
-from sklearn.utils.multiclass import type_of_target
 
 from keras.src.api_export import keras_export
 from keras.src.models.cloning import clone_model
 from keras.src.models.model import Model
 from keras.src.wrappers.fixes import _routing_enabled
 from keras.src.wrappers.fixes import _validate_data
+from keras.src.wrappers.fixes import type_of_target
 from keras.src.wrappers.random_state import tensorflow_random_state
 from keras.src.wrappers.utils import TargetReshaper
 from keras.src.wrappers.utils import _check_model
@@ -46,6 +46,12 @@ class KerasBase(BaseEstimator):
         model_args: dict, default=None
             Keyword arguments passed to `model`, if `model` is callable.
 
+        fit_args: dict, default=None
+            Keyword arguments passed to `model.fit`. These can also be passed
+            directly to the `fit` method of the scikit-learn wrapper. The
+            values passed directly to the `fit` method take precedence over
+            these.
+
         random_state : int, np.random.RandomState, or None, default None
             Set the Tensorflow random number generators to a reproducible
             deterministic state using this seed. Pass an int for reproducible
@@ -61,11 +67,13 @@ class KerasBase(BaseEstimator):
         model,
         warm_start=False,
         model_args=None,
+        fit_args=None,
         random_state=None,
     ):
         self.model = model
         self.warm_start = warm_start
         self.model_args = model_args
+        self.fit_args = fit_args
         self.random_state = random_state
 
     def __sklearn_clone__(self):
@@ -172,11 +180,13 @@ class KerasBase(BaseEstimator):
         _check_model(model)
 
         rand = self._get_random_int()
+        fit_args = self.fit_args or {}
+        fit_args.update(kwargs)
         if rand is not None:
             with tensorflow_random_state(rand):
-                self.history_ = model.fit(X, y, **kwargs)
+                self.history_ = model.fit(X, y, **fit_args)
         else:
-            self.history_ = model.fit(X, y, **kwargs)
+            self.history_ = model.fit(X, y, **fit_args)
 
         self.model_ = model
         return self
@@ -207,14 +217,36 @@ class KerasClassifier(ClassifierMixin, KerasBase):
 
     Args:
         model: `Model`
-            An instance of `Model`. Needs to be compiled, have a loss, and
-            optimizer. Note that the model will be cloned using `clone_model`
-            before being fitted, unless `warm_start=True`.
+            An instance of `Model`, or a callable returning such an object.
+
+            Note that if input is a `Model`, it will be cloned using
+            `keras.models.clone_model` before being fitted, unless
+            `warm_start=True`.
+
+            The `Model` instance needs to be passed as already compiled.
+
+            If callable, it must accept at least `X` and `y` as keyword
+            arguments. Other arguments must be accepted if passed as
+            `model_args` by the user.
 
         warm_start: bool, default=False
             Whether to reuse the model weights from the previous fit. If `True`,
             the given model won't be cloned and the weights from the previous
             fit will be reused.
+
+        model_args: dict, default=None
+            Keyword arguments passed to `model`, if `model` is callable.
+
+        fit_args: dict, default=None
+            Keyword arguments passed to `model.fit`. These can also be passed
+            directly to the `fit` method of the scikit-learn wrapper. The
+            values passed directly to the `fit` method take precedence over
+            these.
+
+        random_state : int, np.random.RandomState, or None, default None
+            Set the Tensorflow random number generators to a reproducible
+            deterministic state using this seed. Pass an int for reproducible
+            results across multiple function calls.
 
     Attributes:
         model_ : `Model`
@@ -244,7 +276,20 @@ class KerasClassifier(ClassifierMixin, KerasBase):
 
     def _more_tags(self):
         # required to be compatible with scikit-learn<1.6
-        return {"poor_score": True}
+        return {
+            "poor_score": True,
+            "_xfail_checks": {
+                "check_classifiers_regression_target": (
+                    "not an issue in sklearn>=1.6"
+                ),
+                "check_parameters_default_constructible": (
+                    "not an issue in sklearn>=1.6"
+                ),
+                "check_classifiers_one_label_sample_weights": (
+                    "not an issue in sklearn>=1.6"
+                ),
+            },
+        }
 
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()
@@ -258,14 +303,36 @@ class KerasRegressor(RegressorMixin, KerasBase):
 
     Args:
         model: `Model`
-            An instance of `Model`. Needs to be compiled, have a loss, and
-            optimizer. Note that the model will be cloned using `clone_model`
-            before being fitted, unless `warm_start=True`.
+            An instance of `Model`, or a callable returning such an object.
+
+            Note that if input is a `Model`, it will be cloned using
+            `keras.models.clone_model` before being fitted, unless
+            `warm_start=True`.
+
+            The `Model` instance needs to be passed as already compiled.
+
+            If callable, it must accept at least `X` and `y` as keyword
+            arguments. Other arguments must be accepted if passed as
+            `model_args` by the user.
 
         warm_start: bool, default=False
             Whether to reuse the model weights from the previous fit. If `True`,
             the given model won't be cloned and the weights from the previous
             fit will be reused.
+
+        model_args: dict, default=None
+            Keyword arguments passed to `model`, if `model` is callable.
+
+        fit_args: dict, default=None
+            Keyword arguments passed to `model.fit`. These can also be passed
+            directly to the `fit` method of the scikit-learn wrapper. The
+            values passed directly to the `fit` method take precedence over
+            these.
+
+        random_state : int, np.random.RandomState, or None, default None
+            Set the Tensorflow random number generators to a reproducible
+            deterministic state using this seed. Pass an int for reproducible
+            results across multiple function calls.
 
     Attributes:
         model_ : `Model`
@@ -274,7 +341,14 @@ class KerasRegressor(RegressorMixin, KerasBase):
 
     def _more_tags(self):
         # required to be compatible with scikit-learn<1.6
-        return {"poor_score": True}
+        return {
+            "poor_score": True,
+            "_xfail_checks": {
+                "check_parameters_default_constructible": (
+                    "not an issue in sklearn>=1.6"
+                ),
+            },
+        }
 
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()
@@ -319,7 +393,14 @@ class KerasTransformer(TransformerMixin, KerasBase):
 
     def _more_tags(self):
         # required to be compatible with scikit-learn<1.6
-        return {"preserves_dtype": []}
+        return {
+            "preserves_dtype": [],
+            "_xfail_checks": {
+                "check_parameters_default_constructible": (
+                    "not an issue in sklearn>=1.6"
+                ),
+            },
+        }
 
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()

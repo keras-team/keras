@@ -14,7 +14,7 @@ from keras.src.wrappers import KerasRegressor
 from keras.src.wrappers import KerasTransformer
 
 
-def dynamic_model(X, y, loss: str):
+def dynamic_model(X, y, loss, layers=[10]):
     """Creates a basic MLP classifier dynamically choosing binary/multiclass
     classification loss and ouput activations.
     """
@@ -22,7 +22,7 @@ def dynamic_model(X, y, loss: str):
     inp = Input(shape=(n_features_in,))
 
     hidden = inp
-    for layer_size in [10]:
+    for layer_size in layers:
         hidden = Dense(layer_size, activation="relu")(hidden)
 
     n_outputs = y.shape[1] if len(y.shape) > 1 else 1
@@ -51,7 +51,11 @@ def use_floatx(x: str):
         KerasClassifier(
             model=dynamic_model,
             random_state=42,
-            model_args={"loss": "categorical_crossentropy"},
+            model_args={
+                "loss": "categorical_crossentropy",
+                "layers": [20, 20, 20],
+            },
+            fit_args={"epochs": 5},
         ),
         KerasRegressor(
             model=dynamic_model,

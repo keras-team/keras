@@ -20,6 +20,24 @@ def _validate_data(estimator, *args, **kwargs):
         raise
 
 
+def type_of_target(y, input_name="", *, raise_unknown=False):
+    # fix for raise_unknown which is introduced in scikit-learn 1.6
+    from sklearn.utils.multiclass import type_of_target
+
+    def _raise_or_return(target_type):
+        """Depending on the value of raise_unknown, either raise an error or
+        return 'unknown'.
+        """
+        if raise_unknown and target_type == "unknown":
+            input = input_name if input_name else "data"
+            raise ValueError(f"Unknown label type for {input}: {y!r}")
+        else:
+            return target_type
+
+    target_type = type_of_target(y, input_name=input_name)
+    return _raise_or_return(target_type)
+
+
 def _routing_enabled():
     """Return whether metadata routing is enabled.
 
