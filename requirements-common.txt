@@ -3,6 +3,7 @@ ruff
 pytest
 numpy
 scipy
+scikit-learn
 pandas
 absl-py
 requests
