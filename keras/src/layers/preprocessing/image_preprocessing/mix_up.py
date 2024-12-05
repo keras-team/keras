@@ -41,19 +41,6 @@ class MixUp(BaseImagePreprocessingLayer):
         self.seed = seed
         self.generator = SeedGenerator(seed)
 
-    def _sample_from_beta(self, alpha, beta, shape, seed):
-        sample_alpha = self.backend.random.gamma(
-            shape,
-            alpha=alpha,
-            seed=seed,
-        )
-        sample_beta = self.backend.random.gamma(
-            shape,
-            alpha=beta,
-            seed=seed,
-        )
-        return sample_alpha / (sample_alpha + sample_beta)
-
     def get_random_transformation(self, data, training=True, seed=None):
         if isinstance(data, dict):
             images = data["images"]
