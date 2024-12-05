@@ -1,20 +1,14 @@
 """Tests using Scikit-Learn's bundled estimator_checks."""
 
 from contextlib import contextmanager
-from sklearn.utils._array_api import get_namespace
 
-import pytest
 from keras.src.models import Model
 from keras.src.backend import floatx, set_floatx
-from sklearn.utils.estimator_checks import parametrize_with_checks
-
 from keras.src.wrappers import KerasClassifier, KerasRegressor, KerasTransformer
-
-from typing import Any, Dict, Optional
-
 from keras.src.layers import Dense, Input
 from keras.src.models import Model
 
+from sklearn.utils.estimator_checks import parametrize_with_checks
 
 def dynamic_model(X, y, loss: str):
     """Creates a basic MLP classifier dynamically choosing binary/multiclass
