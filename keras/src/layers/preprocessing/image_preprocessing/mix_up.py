@@ -1,3 +1,4 @@
+import keras.src.random.random
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -10,10 +11,10 @@ class MixUp(BaseImagePreprocessingLayer):
     """MixUp implements the MixUp data augmentation technique.
 
     Args:
-        alpha: Float between 0 and 1. Inverse scale parameter for the gamma
-            distribution. This controls the shape of the distribution from which
-            the smoothing values are sampled. Defaults to 0.2, which is a
-            recommended value when training an imagenet1k classification model.
+        alpha: Float between 0 and 1. Controls the blending strength.
+               Smaller values mean less mixing, while larger values allow
+               for more  blending between images. Defaults to 0.2,
+               recommended for ImageNet1k classification.
         seed: Integer. Used to create a random seed.
 
     References:
@@ -34,8 +35,8 @@ class MixUp(BaseImagePreprocessingLayer):
     ```
     """
 
-    def __init__(self, alpha=0.2, seed=None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, alpha=0.2, data_format=None, seed=None, **kwargs):
+        super().__init__(data_format=None, **kwargs)
         self.alpha = alpha
         self.seed = seed
         self.generator = SeedGenerator(seed)
@@ -73,21 +74,20 @@ class MixUp(BaseImagePreprocessingLayer):
             self.backend.numpy.arange(0, batch_size), seed=seed
         )
 
-        lambda_sample = self._sample_from_beta(
-            self.alpha, self.alpha, (batch_size,), seed=seed
+        mix_weight = keras.src.random.random.beta(
+            (batch_size,), self.alpha, self.alpha, seed=seed
         )
-
         return {
-            "lambda_sample": lambda_sample,
+            "mix_weight": mix_weight,
             "permutation_order": permutation_order,
         }
 
     def transform_images(self, images, transformation=None, training=True):
-        lambda_sample = transformation["lambda_sample"]
+        mix_weight = transformation["mix_weight"]
         permutation_order = transformation["permutation_order"]
 
-        lambda_sample = self.backend.cast(
-            self.backend.numpy.reshape(lambda_sample, [-1, 1, 1, 1]),
+        mix_weight = self.backend.cast(
+            self.backend.numpy.reshape(mix_weight, [-1, 1, 1, 1]),
             dtype=self.compute_dtype,
         )
 
@@ -96,23 +96,21 @@ class MixUp(BaseImagePreprocessingLayer):
             dtype=self.compute_dtype,
         )
 
-        images = lambda_sample * images + (1.0 - lambda_sample) * mixup_images
+        images = mix_weight * images + (1.0 - mix_weight) * mixup_images
 
         return images
 
     def transform_labels(self, labels, transformation, training=True):
-        lambda_sample = transformation["lambda_sample"]
+        mix_weight = transformation["mix_weight"]
         permutation_order = transformation["permutation_order"]
 
         labels_for_mixup = self.backend.numpy.take(
             labels, permutation_order, axis=0
         )
 
-        lambda_sample = self.backend.numpy.reshape(lambda_sample, [-1, 1])
+        mix_weight = self.backend.numpy.reshape(mix_weight, [-1, 1])
 
-        labels = (
-            lambda_sample * labels + (1.0 - lambda_sample) * labels_for_mixup
-        )
+        labels = mix_weight * labels + (1.0 - mix_weight) * labels_for_mixup
 
         return labels
 
@@ -135,18 +133,18 @@ class MixUp(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        lambda_sample = transformation["lambda_sample"]
+        mix_weight = transformation["mix_weight"]
         permutation_order = transformation["permutation_order"]
 
-        lambda_sample = self.backend.numpy.reshape(lambda_sample, [-1, 1, 1, 1])
+        mix_weight = self.backend.numpy.reshape(mix_weight, [-1, 1, 1, 1])
 
         segmentation_masks_for_mixup = self.backend.numpy.take(
             segmentation_masks, permutation_order
         )
 
         segmentation_masks = (
-            lambda_sample * segmentation_masks
-            + (1.0 - lambda_sample) * segmentation_masks_for_mixup
+            mix_weight * segmentation_masks
+            + (1.0 - mix_weight) * segmentation_masks_for_mixup
         )
 
         return segmentation_masks
