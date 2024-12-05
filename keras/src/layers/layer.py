@@ -872,6 +872,12 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                         mask = tree.map_structure(backend.get_keras_mask, v)
                         kwargs[expected_mask_arg_name] = mask
 
+        # We need to cache the `previous_mask` before `__call__` because the
+        # mask might be removed during the call, such as `MultiHeadAttention`.
+        previous_mask = tree.map_structure(
+            backend.get_keras_mask, call_spec.first_arg
+        )
+
         ####################
         # 7. Call the layer.
         try:
@@ -918,12 +924,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                         if backend.is_tensor(output):
                             self.add_loss(self.activity_regularizer(output))
 
-            # Set masks on outputs,
-            # provided only the first positional input arg and its mask.
+            # Set `previous_mask` on outputs if available. It is provided only
+            # for the first positional input arg and its mask.
             # TODO: consider extending this to all args and kwargs.
-            previous_mask = tree.map_structure(
-                backend.get_keras_mask, call_spec.first_arg
-            )
             if self.supports_masking:
                 self._set_mask_metadata(
                     call_spec.first_arg, outputs, previous_mask
