@@ -49,7 +49,8 @@ def _raise_for_params(params, owner, method):
             If metadata routing is not enabled and params are passed.
     """
     caller = (
-        f"{owner.__class__.__name__}.{method}" if method
+        f"{owner.__class__.__name__}.{method}"
+        if method
         else owner.__class__.__name__
     )
     if not _routing_enabled() and params:
