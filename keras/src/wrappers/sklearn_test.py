@@ -2,7 +2,7 @@
 
 from contextlib import contextmanager
 
-from sklearn.utils.estimator_checks import parametrize_with_checks
+from keras.src.wrappers.fixes import parametrize_with_checks
 
 from keras.src.backend import floatx
 from keras.src.backend import set_floatx
@@ -46,6 +46,33 @@ def use_floatx(x: str):
         set_floatx(_floatx)
 
 
+EXPECTED_FAILED_CHECKS = {
+    "KerasClassifier": {
+        "check_classifiers_regression_target": ("not an issue in sklearn>=1.6"),
+        "check_parameters_default_constructible": (
+            "not an issue in sklearn>=1.6"
+        ),
+        "check_classifiers_one_label_sample_weights": (
+            "0 sample weight is not ignored"
+        ),
+        "check_classifiers_classes": (
+            "with small test cases the estimator returns not all classes "
+            "sometimes"
+        )
+    },
+    "KerasRegressor": {
+        "check_parameters_default_constructible": (
+            "not an issue in sklearn>=1.6"
+        ),
+    },
+    "KerasTransformer": {
+        "check_parameters_default_constructible": (
+            "not an issue in sklearn>=1.6"
+        ),
+    },
+}
+
+
 @parametrize_with_checks(
     estimators=[
         KerasClassifier(
@@ -67,6 +94,9 @@ def use_floatx(x: str):
             random_state=42,
             model_args={"loss": "mse"},
         ),
+    ],
+    expected_failed_checks=lambda estimator: EXPECTED_FAILED_CHECKS[
+        type(estimator).__name__
     ],
 )
 def test_fully_compliant_estimators_low_precision(estimator, check):

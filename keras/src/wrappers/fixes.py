@@ -1,5 +1,41 @@
+import sklearn
 from sklearn import get_config
+from packaging.version import parse as parse_version
 
+sklearn_version = parse_version(parse_version(sklearn.__version__).base_version)
+
+if sklearn_version < parse_version("1.6"):
+    def patched_more_tags(estimator, expected_failed_checks):
+        import copy
+
+        from sklearn.utils._tags import _safe_tags
+
+        original_tags = copy.deepcopy(_safe_tags(estimator))
+
+        def patched_more_tags(self):
+            original_tags.update({"_xfail_checks": expected_failed_checks})
+            return original_tags
+
+        estimator.__class__._more_tags = patched_more_tags
+        return estimator
+
+    def parametrize_with_checks(
+        estimators,
+        *,
+        legacy: bool = True,
+        expected_failed_checks = None,
+    ):
+        # legacy is not supported and ignored
+        from sklearn.utils.estimator_checks import parametrize_with_checks
+
+        estimators = [
+            patched_more_tags(estimator, expected_failed_checks(estimator))
+            for estimator in estimators
+        ]
+
+        return parametrize_with_checks(estimators)
+else:
+    from sklearn.utils.estimator_checks import parametrize_with_checks
 
 def _validate_data(estimator, *args, **kwargs):
     """Validate the input data.

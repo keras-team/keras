@@ -278,17 +278,6 @@ class KerasClassifier(ClassifierMixin, KerasBase):
         # required to be compatible with scikit-learn<1.6
         return {
             "poor_score": True,
-            "_xfail_checks": {
-                "check_classifiers_regression_target": (
-                    "not an issue in sklearn>=1.6"
-                ),
-                "check_parameters_default_constructible": (
-                    "not an issue in sklearn>=1.6"
-                ),
-                "check_classifiers_one_label_sample_weights": (
-                    "not an issue in sklearn>=1.6"
-                ),
-            },
         }
 
     def __sklearn_tags__(self):
