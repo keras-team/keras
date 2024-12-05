@@ -142,7 +142,6 @@ class KerasBase(BaseEstimator):
         # int or None
         return self.random_state
 
-
     def fit(self, X, y, **kwargs):
         """Fit the model.
 

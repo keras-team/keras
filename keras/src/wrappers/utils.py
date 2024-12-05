@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin, check_is_fitted
 from sklearn.utils._array_api import get_namespace
 
+
 def _check_model(model):
     """Check whether the model need sto be compiled."""
     # compile model if user gave us an un-compiled model
@@ -12,6 +13,7 @@ def _check_model(model):
         raise RuntimeError(
             "Given model needs to be compiled, and have a loss and an optimizer."
         )
+
 
 class TargetReshaper(TransformerMixin, BaseEstimator):
     """Convert 1D targets to 2D and back.

@@ -3,7 +3,7 @@ from sklearn import get_config
 
 def _validate_data(estimator, *args, **kwargs):
     """Validate the input data.
-    
+
     wrapper for sklearn.utils.validation.validate_data or BaseEstimator._validate_data
     depending on the scikit-learn version.
 
@@ -12,11 +12,13 @@ def _validate_data(estimator, *args, **kwargs):
     try:
         # scikit-learn >= 1.6
         from sklearn.utils.validation import validate_data
+
         return validate_data(estimator, *args, **kwargs)
     except ImportError:
         return estimator._validate_data(*args, **kwargs)
     except:
         raise
+
 
 def _routing_enabled():
     """Return whether metadata routing is enabled.

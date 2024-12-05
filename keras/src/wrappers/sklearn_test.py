@@ -10,6 +10,7 @@ from keras.src.models import Model
 
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
+
 def dynamic_model(X, y, loss: str):
     """Creates a basic MLP classifier dynamically choosing binary/multiclass
     classification loss and ouput activations.
@@ -27,6 +28,7 @@ def dynamic_model(X, y, loss: str):
     model.compile(loss=loss, optimizer="rmsprop")
 
     return model
+
 
 @contextmanager
 def use_floatx(x: str):
