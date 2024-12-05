@@ -21,6 +21,8 @@ class OpenVINOTrainer(base_trainer.Trainer):
         self.predict_function = None
         self.ov_compiled_model = None
         self.ov_device = None
+        self.struct_params = None
+        self.struct_outputs = None
 
     def _unpack_singleton(self, x):
         if isinstance(x, (list, tuple)) and len(x) == 1:
@@ -34,11 +36,12 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+        ov_compiled_model = self._get_compiled_model(x)
         flatten_x = tree.flatten(x)
-        ov_compiled_model = self._get_compiled_model(flatten_x)
         y_pred = ov_compiled_model(flatten_x)
+        # recover structure of the model output
         y_pred = self._unpack_singleton(
-            tree.pack_sequence_as(self._outputs_struct, y_pred.to_tuple())
+            tree.pack_sequence_as(self.struct_outputs, y_pred.to_tuple())
         )
         return y_pred
 
@@ -62,31 +65,55 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
         self.test_function = test_step
 
-    def _get_compiled_model(self, flatten_data):
+    def _parameterize_data(self, data):
+        if isinstance(data, (list, tuple)):
+            parametrize_data = []
+            for elem in data:
+                param_elem = self._parameterize_data(elem)
+                parametrize_data.append(param_elem)
+        elif isinstance(data, dict):
+            parametrize_data = dict()
+            for elem_name, elem in data.items():
+                param_elem = self._parameterize_data(elem)
+                parametrize_data[elem_name] = param_elem
+        elif isinstance(data, np.ndarray) or np.isscalar(data):
+            ov_type = OPENVINO_DTYPES[str(data.dtype)]
+            ov_shape = list(data.shape)
+            param = ov_opset.parameter(shape=ov_shape, dtype=ov_type)
+            parametrize_data = OpenVINOKerasTensor(param.output(0))
+        elif isinstance(data, int):
+            param = ov_opset.parameter(shape=[], dtype=ov.Type.i32)
+            parametrize_data = OpenVINOKerasTensor(param.output(0))
+        elif isinstance(data, float):
+            param = ov_opset.parameter(shape=[], dtype=ov.Type.f32)
+            parametrize_data = OpenVINOKerasTensor(param.output(0))
+        else:
+            raise "Unknown type of input data {}".format(type(data))
+        return parametrize_data
+
+    def _get_compiled_model(self, data):
         if (
             self.ov_compiled_model is not None
             and get_device() == self.ov_device
         ):
             return self.ov_compiled_model
 
-        # prepare compiled model from scratch
+        # remove the previous cached compiled model if exists
         del self.ov_compiled_model
-        ov_inputs = []
+
+        # prepare parameterized input
+        self.struct_params = self._parameterize_data(data)
+        # construct OpenVINO graph during calling Keras Model
+        self.struct_outputs = self(self.struct_params)
+
         parameters = []
-        for idx, _input in enumerate(self._inputs):
-            ov_type = OPENVINO_DTYPES[_input.dtype]
-            ov_shape = list(flatten_data[idx].shape)
-            param = ov_opset.parameter(shape=ov_shape, dtype=ov_type)
-            parameters.append(param)
-            ov_inputs.append(OpenVINOKerasTensor(param.output(0)))
-        # build OpenVINO graph ov.Model
-        ov_outputs = self._run_through_graph(
-            ov_inputs, operation_fn=lambda op: op
-        )
-        ov_outputs = tree.flatten(ov_outputs)
+        for p in tree.flatten(self.struct_params):
+            parameters.append(p.output.get_node())
         results = []
-        for ov_output in ov_outputs:
-            results.append(ov_opset.result(ov_output.output))
+        for r in tree.flatten(self.struct_outputs):
+            results.append(ov_opset.result(r.output))
+
+        # prepare compiled model from scratch
         ov_model = ov.Model(results=results, parameters=parameters)
         self.ov_compiled_model = ov.compile_model(ov_model, get_device())
         self.ov_device = get_device()
