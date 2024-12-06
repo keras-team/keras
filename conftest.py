@@ -22,12 +22,16 @@ def pytest_configure(config):
         "markers",
         "requires_trainable_backend: mark test for trainable backend only",
     )
+    config.addinivalue_line(
+        "markers",
+        "openvino_backend: mark test case supported by OpenVINO backend",
+    )
 
 
 def pytest_collection_modifyitems(config, items):
     requires_trainable_backend = pytest.mark.skipif(
-        backend() == "numpy",
-        reason="Trainer not implemented for NumPy backend.",
+        backend() == "numpy" or backend() == "openvino",
+        reason="Trainer not implemented for NumPy and OpenVINO backend.",
     )
     for item in items:
         if "requires_trainable_backend" in item.keywords:
