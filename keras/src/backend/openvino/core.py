@@ -27,6 +27,7 @@ OPENVINO_DTYPES = {
     "uint8": ov.Type.u8,
     "uint16": ov.Type.u16,
     "uint32": ov.Type.u32,
+    "uint64": ov.Type.u64,
     "int8": ov.Type.i8,
     "int16": ov.Type.i16,
     "int32": ov.Type.i32,
@@ -103,7 +104,7 @@ class OpenVINOKerasTensor:
         x_type = x.get_element_type()
         x_keras_type = ov_to_keras_type(x_type)
         self.output = x
-        self.shape = x_keras_shape
+        self.shape = tuple(x_keras_shape)
         self.dtype = x_keras_type
         self.ndim = None
         self.data = data
@@ -194,6 +195,14 @@ class OpenVINOKerasTensor:
         first = self.output
         return OpenVINOKerasTensor(ov_opset.negative(first).output(0))
 
+    def __abs__(self):
+        first = self.output
+        return OpenVINOKerasTensor(ov_opset.absolute(first).output(0))
+
+    def __invert__(self):
+        first = self.output
+        return OpenVINOKerasTensor(ov_opset.logical_not(first).output(0))
+
     def __pow__(self, other):
         first = self.output
         other = get_ov_output(other)
@@ -209,6 +218,8 @@ class OpenVINOKerasTensor:
         data = self.output
         axis = []
         gather_index = None
+        if isinstance(indices, int):
+            indices = (indices,)
         assert isinstance(indices, tuple), "only tuple is supported"
         for dim, index in enumerate(indices):
             if isinstance(index, int):
@@ -304,7 +315,39 @@ class Variable(KerasVariable):
         return convert_to_tensor(value, dtype=dtype)
 
     def __array__(self):
+        if isinstance(self.value, OpenVINOKerasTensor):
+            return self.value.output.get_node().data
         return self.value.data
+
+    def __getitem__(self, idx):
+        if isinstance(self.value, OpenVINOKerasTensor):
+            arr = self.value.output.get_node().data
+            return arr.__getitem__(idx)
+        return self.value.__getitem__(idx)
+
+    def __int__(self):
+        if isinstance(self.value, OpenVINOKerasTensor):
+            arr = self.value.output.get_node().data
+        else:
+            arr = self.value.data
+        if arr.ndim > 0:
+            raise TypeError(
+                "Only scalar arrays can be converted to Python scalars. "
+                f"Got: shape={arr.shape}"
+            )
+        return int(arr)
+
+    def __float__(self):
+        if isinstance(self.value, OpenVINOKerasTensor):
+            arr = self.value.output.get_node().data
+        else:
+            arr = self.value.data
+        if arr.ndim > 0:
+            raise TypeError(
+                "Only scalar arrays can be converted to Python scalars. "
+                f"Got: shape={arr.shape}"
+            )
+        return float(arr)
 
 
 def convert_to_tensor(x, dtype=None, sparse=None):

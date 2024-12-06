@@ -516,9 +516,9 @@ def logaddexp(x1, x2):
 
 
 def logical_and(x1, x2):
-    raise NotImplementedError(
-        "`logical_and` is not supported with openvino backend"
-    )
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    return OpenVINOKerasTensor(ov_opset.logical_and(x1, x2).output(0))
 
 
 def logical_not(x):
@@ -527,9 +527,9 @@ def logical_not(x):
 
 
 def logical_or(x1, x2):
-    raise NotImplementedError(
-        "`logical_or` is not supported with openvino backend"
-    )
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    return OpenVINOKerasTensor(ov_opset.logical_or(x1, x2).output(0))
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
@@ -565,7 +565,10 @@ def minimum(x1, x2):
 
 
 def mod(x1, x2):
-    raise NotImplementedError("`mod` is not supported with openvino backend")
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "mod()")
+    return OpenVINOKerasTensor(ov_opset.floor_mod(x1, x2).output(0))
 
 
 def moveaxis(x, source, destination):
@@ -603,15 +606,27 @@ def not_equal(x1, x2):
 
 
 def zeros_like(x, dtype=None):
-    raise NotImplementedError(
-        "`zeros_like` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    shape_x = ov_opset.shape_of(x)
+    if dtype is not None:
+        ov_type = OPENVINO_DTYPES[dtype]
+        const_zero = ov_opset.constant(0, ov_type).output(0)
+    else:
+        const_zero = ov_opset.constant(0, x.get_element_type()).output(0)
+    res = ov_opset.broadcast(const_zero, shape_x).output(0)
+    return OpenVINOKerasTensor(res)
 
 
 def ones_like(x, dtype=None):
-    raise NotImplementedError(
-        "`ones_like` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    shape_x = ov_opset.shape_of(x)
+    if dtype is not None:
+        ov_type = OPENVINO_DTYPES[dtype]
+        const_one = ov_opset.constant(1, ov_type).output(0)
+    else:
+        const_one = ov_opset.constant(1, x.get_element_type()).output(0)
+    res = ov_opset.broadcast(const_one, shape_x).output(0)
+    return OpenVINOKerasTensor(res)
 
 
 def outer(x1, x2):
@@ -723,7 +738,15 @@ def split(x, indices_or_sections, axis=0):
 
 
 def stack(x, axis=0):
-    raise NotImplementedError("`stack` is not supported with openvino backend")
+    assert isinstance(x, list), "`stack` is supported only for `x` list"
+    elems = []
+    const_axis = ov_opset.constant(axis, Type.i32).output(0)
+    for elem in x:
+        elem = get_ov_output(elem)
+        elem = ov_opset.unsqueeze(elem, const_axis).output(0)
+        elems.append(elem)
+    res = ov_opset.concat(elems, axis).output(0)
+    return OpenVINOKerasTensor(res)
 
 
 def std(x, axis=None, keepdims=False):
