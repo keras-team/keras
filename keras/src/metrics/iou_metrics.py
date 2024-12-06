@@ -55,8 +55,8 @@ class _IoUBase(Metric):
         sparse_y_pred=True,
         axis=-1,
     ):
-        # defaulting to float32 to avoid issues with confusion matrix
-        super().__init__(name=name, dtype=dtype or "float32")
+        # defaulting to int to avoid issues with confusion matrix
+        super().__init__(name=name, dtype=dtype or "int")
         # Metric should be maximized during optimization.
         self._direction = "up"
         self.num_classes = num_classes
@@ -69,6 +69,7 @@ class _IoUBase(Metric):
             name="total_confusion_matrix",
             shape=(num_classes, num_classes),
             initializer=initializers.Zeros(),
+            dtype=self.dtype,
         )
 
     def update_state(self, y_true, y_pred, sample_weight=None):
@@ -131,7 +132,7 @@ class _IoUBase(Metric):
             y_pred,
             self.num_classes,
             weights=sample_weight,
-            dtype="float32",
+            dtype=self.dtype,
         )
 
         return self.total_cm.assign(self.total_cm + current_cm)
@@ -272,10 +273,11 @@ class IoU(_IoUBase):
         denominator = ops.take_along_axis(
             denominator, target_class_ids, axis=-1
         )
+        denominator = ops.cast(denominator, dtype="float32")
 
         # If the denominator is 0, we need to ignore the class.
         num_valid_entries = ops.sum(
-            ops.cast(ops.greater(denominator, 1e-9), dtype=self.dtype)
+            ops.cast(ops.greater(denominator, 1e-9), dtype="float32")
         )
 
         iou = ops.divide(true_positives, denominator + backend.epsilon())
