@@ -332,11 +332,6 @@ class KerasRegressor(RegressorMixin, KerasBase):
         # required to be compatible with scikit-learn<1.6
         return {
             "poor_score": True,
-            "_xfail_checks": {
-                "check_parameters_default_constructible": (
-                    "not an issue in sklearn>=1.6"
-                ),
-            },
         }
 
     def __sklearn_tags__(self):
@@ -384,11 +379,6 @@ class KerasTransformer(TransformerMixin, KerasBase):
         # required to be compatible with scikit-learn<1.6
         return {
             "preserves_dtype": [],
-            "_xfail_checks": {
-                "check_parameters_default_constructible": (
-                    "not an issue in sklearn>=1.6"
-                ),
-            },
         }
 
     def __sklearn_tags__(self):

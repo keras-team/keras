@@ -2,8 +2,9 @@
 
 from contextlib import contextmanager
 
-from keras.src.wrappers.fixes import parametrize_with_checks
+import pytest
 
+import keras
 from keras.src.backend import floatx
 from keras.src.backend import set_floatx
 from keras.src.layers import Dense
@@ -12,6 +13,7 @@ from keras.src.models import Model
 from keras.src.wrappers import KerasClassifier
 from keras.src.wrappers import KerasRegressor
 from keras.src.wrappers import KerasTransformer
+from keras.src.wrappers.fixes import parametrize_with_checks
 
 
 def dynamic_model(X, y, loss, layers=[10]):
@@ -58,7 +60,7 @@ EXPECTED_FAILED_CHECKS = {
         "check_classifiers_classes": (
             "with small test cases the estimator returns not all classes "
             "sometimes"
-        )
+        ),
     },
     "KerasRegressor": {
         "check_parameters_default_constructible": (
@@ -103,4 +105,10 @@ def test_fully_compliant_estimators_low_precision(estimator, check):
     """Checks that can be passed with sklearn's default tolerances
     and in a single epoch.
     """
-    check(estimator)
+    try:
+        check(estimator)
+    except NotImplementedError:
+        if keras.config.backend() == "numpy":
+            pytest.skip("Backend not implemented")
+        else:
+            raise

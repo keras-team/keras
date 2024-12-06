@@ -1,10 +1,11 @@
 import sklearn
-from sklearn import get_config
 from packaging.version import parse as parse_version
+from sklearn import get_config
 
 sklearn_version = parse_version(parse_version(sklearn.__version__).base_version)
 
 if sklearn_version < parse_version("1.6"):
+
     def patched_more_tags(estimator, expected_failed_checks):
         import copy
 
@@ -23,10 +24,10 @@ if sklearn_version < parse_version("1.6"):
         estimators,
         *,
         legacy: bool = True,
-        expected_failed_checks = None,
+        expected_failed_checks=None,
     ):
         # legacy is not supported and ignored
-        from sklearn.utils.estimator_checks import parametrize_with_checks
+        from sklearn.utils.estimator_checks import parametrize_with_checks  # noqa: F401, I001
 
         estimators = [
             patched_more_tags(estimator, expected_failed_checks(estimator))
@@ -35,7 +36,8 @@ if sklearn_version < parse_version("1.6"):
 
         return parametrize_with_checks(estimators)
 else:
-    from sklearn.utils.estimator_checks import parametrize_with_checks
+    pass
+
 
 def _validate_data(estimator, *args, **kwargs):
     """Validate the input data.
