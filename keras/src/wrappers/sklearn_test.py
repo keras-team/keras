@@ -109,6 +109,6 @@ def test_fully_compliant_estimators_low_precision(estimator, check):
         check(estimator)
     except NotImplementedError:
         if keras.config.backend() == "numpy":
-            pytest.skip("Backend not implemented")
+            pytest.xfail("Backend not implemented")
         else:
             raise
