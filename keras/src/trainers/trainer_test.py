@@ -407,6 +407,38 @@ class TestTrainer(testing.TestCase):
         self.assertEqual(new_model.metrics[0], new_model._loss_tracker)
         self.assertEqual(new_model.metrics[1], new_model._compile_metrics)
 
+    def test_multiple_compiles(self):
+        # https://github.com/keras-team/keras/issues/20474
+        model1 = ExampleModel(units=3)
+        model2 = ExampleModel(units=3)
+        model1.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+        )
+
+        # Combine these 2 models into `combined`.
+        inputs = keras.Input(shape=(4,))
+        x = model1(inputs)
+        outputs = model2(x)
+        combined = models.Model(inputs, outputs)
+        combined.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+        )
+
+        self.assertLen(model1.metrics, 2)
+        self.assertIsNotNone(model1._loss_tracker)
+        self.assertEqual(model1.metrics[0], model1._loss_tracker)
+        self.assertEqual(model1.metrics[1], model1._compile_metrics)
+
+        # `combined.metrics` will not include `model1.metrics`.
+        self.assertLen(combined.metrics, 2)
+        self.assertIsNotNone(combined._loss_tracker)
+        self.assertEqual(combined.metrics[0], combined._loss_tracker)
+        self.assertEqual(combined.metrics[1], combined._compile_metrics)
+
     @pytest.mark.skipif(
         backend.backend() != "torch",
         reason="torch backend runs in eager mode for jit_compile='auto'",
