@@ -3,6 +3,7 @@ import pytest
 
 from keras.src import layers
 from keras.src import testing
+from keras.src.utils import backend_utils
 
 
 class MixUpTest(testing.TestCase):
@@ -46,8 +47,14 @@ class MixUpTest(testing.TestCase):
         image1 = np.ones((64, 64, 3))
         image2 = np.zeros((64, 64, 3))
 
-        mix_up_layer = layers.MixUp(alpha=(0.1, 0.9))
-        output1 = mix_up_layer([image1, image2])
-        output2 = mix_up_layer([image1, image2])
+        mix_up_layer = layers.MixUp(alpha=0.1)
+        output1 = mix_up_layer(
+            backend_utils.convert_tf_tensor([image1, image2])
+        )
+
+        mix_up_layer = layers.MixUp(alpha=0.9)
+        output2 = mix_up_layer(
+            backend_utils.convert_tf_tensor([image1, image2])
+        )
 
         self.assertNotAllClose(output1, output2)
