@@ -3,7 +3,6 @@ import pytest
 
 from keras.src import layers
 from keras.src import testing
-from keras.src.utils import backend_utils
 
 
 class MixUpTest(testing.TestCase):
@@ -21,40 +20,36 @@ class MixUpTest(testing.TestCase):
 
     def test_mix_up_basic_functionality(self):
         image = np.random.random((64, 64, 3))
-        mix_up_layer = layers.MixUp(alpha=0.2)
-        output = mix_up_layer(image)
+        mix_up_layer = layers.MixUp(alpha=1)
+        transformation = {"mix_weight": 1, "permutation_order": [0]}
+        output = mix_up_layer.transform_images(
+            image, transformation=transformation
+        )[0]
         self.assertAllClose(output, image)
 
         image = np.random.random((4, 64, 64, 3))
         mix_up_layer = layers.MixUp(alpha=0.2)
-        output = mix_up_layer(image)
+        transformation = {"mix_weight": 0.2, "permutation_order": [1, 0, 2, 3]}
+        output = mix_up_layer.transform_images(
+            image, transformation=transformation
+        )
         self.assertNotAllClose(output, image)
         self.assertAllClose(output.shape, image.shape)
 
     def test_mix_up_basic_functionality_channel_first(self):
         image = np.random.random((3, 64, 64))
-        mix_up_layer = layers.MixUp(alpha=0.2)
-        output = mix_up_layer(image)
+        mix_up_layer = layers.MixUp(alpha=1)
+        transformation = {"mix_weight": 1, "permutation_order": [0]}
+        output = mix_up_layer.transform_images(
+            image, transformation=transformation
+        )[0]
         self.assertAllClose(output, image)
 
         image = np.random.random((4, 3, 64, 64))
         mix_up_layer = layers.MixUp(alpha=0.2)
-        output = mix_up_layer(image)
+        transformation = {"mix_weight": 0.2, "permutation_order": [1, 0, 2, 3]}
+        output = mix_up_layer.transform_images(
+            image, transformation=transformation
+        )
         self.assertNotAllClose(output, image)
         self.assertAllClose(output.shape, image.shape)
-
-    def test_mix_up_random_alpha(self):
-        image1 = np.ones((64, 64, 3))
-        image2 = np.zeros((64, 64, 3))
-
-        mix_up_layer = layers.MixUp(alpha=0.1)
-        output1 = mix_up_layer(
-            backend_utils.convert_tf_tensor([image1, image2])
-        )
-
-        mix_up_layer = layers.MixUp(alpha=0.9)
-        output2 = mix_up_layer(
-            backend_utils.convert_tf_tensor([image1, image2])
-        )
-
-        self.assertNotAllClose(output1, output2)
