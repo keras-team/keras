@@ -27,7 +27,7 @@ class MixUp(BaseImagePreprocessingLayer):
     images, labels = images[:10], labels[:10]
     # Labels must be floating-point and one-hot encoded
     labels = tf.cast(tf.one_hot(labels, 10), tf.float32)
-    mixup = keras.layers.preprocessing.MixUp(10)
+    mixup = keras.layers.MixUp(alpha=0.2)
     augmented_images, updated_labels = mixup(
         {'images': images, 'labels': labels}
     )
