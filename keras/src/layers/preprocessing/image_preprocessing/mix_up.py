@@ -54,15 +54,13 @@ class MixUp(BaseImagePreprocessingLayer):
         else:
             batch_size = self.backend.shape(images)[0]
 
-        if seed is None:
-            seed = self._get_seed_generator(self.backend._backend)
-
         permutation_order = self.backend.random.shuffle(
-            self.backend.numpy.arange(0, batch_size, dtype="int64"), seed=seed
+            self.backend.numpy.arange(0, batch_size, dtype="int64"),
+            seed=self.seed,
         )
 
         mix_weight = keras.src.random.random.beta(
-            (batch_size,), self.alpha, self.alpha, seed=seed
+            (1,), self.alpha, self.alpha, seed=self.seed
         )
         return {
             "mix_weight": mix_weight,

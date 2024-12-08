@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from tensorflow import data as tf_data
 
 from keras.src import layers
 from keras.src import testing
@@ -53,3 +54,10 @@ class MixUpTest(testing.TestCase):
         )
         self.assertNotAllClose(output, image)
         self.assertAllClose(output.shape, image.shape)
+
+    def test_tf_data_compatibility(self):
+        layer = layers.MixUp()
+        input_data = np.random.random((2, 8, 8, 3))
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        for output in ds.take(1):
+            output.numpy()
