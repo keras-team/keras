@@ -202,6 +202,70 @@ class QuantizersTest(testing.TestCase):
             print("")
         self.assertTrue(result)
 
+    def _TestChannelsOp(
+        self,
+        op,
+        input_mins,
+        input_maxs,
+        num_bits,
+        narrow_range,
+        expected_nudged_input_mins,
+        expected_nudged_input_maxs,
+        expected_steps,
+    ):
+        num_channels = len(input_mins)
+        inputs_list = []
+        expected_list = []
+        for i in range(num_channels):
+            expected_nudged_input_min = expected_nudged_input_mins[i]
+            expected_nudged_input_max = expected_nudged_input_maxs[i]
+            expected_step = expected_steps[i]
+
+            inputs_list.append(
+                [
+                    expected_nudged_input_min - expected_step,
+                    expected_nudged_input_min - 0.01,
+                    expected_nudged_input_min,
+                    expected_nudged_input_min + 0.01,
+                    expected_nudged_input_min + expected_step - 0.01,
+                    expected_nudged_input_min + expected_step,
+                    expected_nudged_input_min + expected_step + 0.01,
+                    expected_nudged_input_max - 0.01,
+                    expected_nudged_input_max,
+                    expected_nudged_input_max + 0.01,
+                    expected_nudged_input_max + expected_step,
+                ]
+            )
+            expected_list.append(
+                [
+                    expected_nudged_input_min,
+                    expected_nudged_input_min,
+                    expected_nudged_input_min,
+                    expected_nudged_input_min,
+                    expected_nudged_input_min + expected_step,
+                    expected_nudged_input_min + expected_step,
+                    expected_nudged_input_min + expected_step,
+                    expected_nudged_input_max,
+                    expected_nudged_input_max,
+                    expected_nudged_input_max,
+                    expected_nudged_input_max,
+                ]
+            )
+        inputs = np.transpose(np.array(inputs_list, dtype=np.float32))
+        expected = np.transpose(np.array(expected_list, dtype=np.float32))
+        input_min = np.array(input_mins, dtype=np.float32)
+        input_max = np.array(input_maxs, dtype=np.float32)
+        outputs = op(
+            inputs, input_min, input_max, num_bits=num_bits, narrow_range=narrow_range
+        )
+        result = np.isclose(outputs, expected).all()
+        if not result:
+            print(f"inputs: {inputs}")
+            print(f"outputs: {outputs}")
+            print(f"expected: {expected}")
+            print("")
+        self.assertTrue(result)
+
     def test_fakeQuantWithMinMaxArgs_with8BitsNoSclngNoNdgng(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
@@ -607,4 +671,57 @@ class QuantizersTest(testing.TestCase):
             0.0,
             63.0,
             0.5,
+        )
+
+
+    # 8 bits, wide range.
+    def test_fakeQuantWithMinMaxVarsPerChannel_with8Bits(self):
+        self._TestChannelsOp(
+            quantizers.fake_quant_with_min_max_vars_per_channel,
+            [0.0, 0.5, -128.0, -0.1],
+            [255.0, 128.0, -0.5, 127.4],
+            8,
+            False,
+            [0.0, 0.0, -127.5, 0.0],
+            [255.0, 127.5, 0.0, 127.5],
+            [1.0, 0.5, 0.5, 0.5],
+        )
+
+    # 8 bits, narrow range.
+    def test_fakeQuantWithMinMaxVarsPerChannel_with8BitsNarrowRange(self):
+        self._TestChannelsOp(
+            quantizers.fake_quant_with_min_max_vars_per_channel,
+            [0.0, 0.1, -127.1, -0.1],
+            [254.0, 127.1, -0.1, 126.9],
+            8,
+            True,
+            [0.0, 0.0, -127.0, 0.0],
+            [254.0, 127.0, 0.0, 127.0],
+            [1.0, 0.5, 0.5, 0.5],
+        )
+
+    # 7 bits, wide range.
+    def test_fakeQuantWithMinMaxVarsPerChannel_with7Bits(self):
+        self._TestChannelsOp(
+            quantizers.fake_quant_with_min_max_vars_per_channel,
+            [0.0, 0.5, -64.0, -0.1],
+            [127.0, 64.0, -0.5, 63.4],
+            7,
+            False,
+            [0.0, 0.0, -63.5, 0.0],
+            [127.0, 63.5, 0.0, 63.5],
+            [1.0, 0.5, 0.5, 0.5],
+        )
+
+    # 7 bits, narrow range.
+    def test_fakeQuantWithMinMaxVarsPerChannel_with7BitsNarrowRange(self):
+        self._TestChannelsOp(
+            quantizers.fake_quant_with_min_max_vars_per_channel,
+            [0.0, 0.1, -63.1, -0.1],
+            [126.0, 63.1, -0.1, 62.9],
+            7,
+            True,
+            [0.0, 0.0, -63.0, 0.0],
+            [126.0, 63.0, 0.0, 63.0],
+            [1.0, 0.5, 0.5, 0.5],
         )

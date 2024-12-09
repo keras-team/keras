@@ -287,6 +287,84 @@ def fake_quant_with_min_max_args_gradient(
     return output, grad(gradients)
 
 
+@keras_export("keras.quantizers.fake_quant_with_min_max_vars_per_channel")
+def fake_quant_with_min_max_vars_per_channel(
+    inputs: np.ndarray,
+    min_vals: np.ndarray,
+    max_vals: np.ndarray,
+    num_bits: int = 8,
+    narrow_range: bool = False,
+    name: Optional[str] = None,
+):
+    """
+    Perform per-channel fake quantization with custom gradient.
+
+    Args:
+        inputs: Input tensor of float type
+        min_vals: Per-channel minimum values
+        max_vals: Per-channel maximum values
+        num_bits: Quantization bit width (2-16)
+        narrow_range: Whether to use narrow quantization range
+
+    Returns:
+        Fake-quantized tensor
+    """
+
+    if isinstance(inputs, np.ndarray):
+        inputs = ops.convert_to_tensor(inputs)
+    min_vals = ops.convert_to_tensor(min_vals)
+    max_vals = ops.convert_to_tensor(max_vals)
+
+    @ops.custom_gradient
+    def _fake_quant_with_min_max_vars_per_channel(x, min_val, max_val):
+        # Determine the number of channels
+        num_channels = min_val.shape[-1]
+
+        # Initialize an empty list to store quantized values for each channel
+        quantized_channels = []
+
+        # Iterate over each channel
+        for i in range(num_channels):
+            # Extract min/max values for current channel
+            current_min = min_val[..., i]
+            current_max = max_val[..., i]
+
+            # Calculate step size and quantized min/max using _adjust_range
+            qnt_min, qnt_max, step_size = adjust_and_nudge_quantization_range(
+                current_min, current_max, num_bits, narrow_range
+            )
+
+            # Calculate the number of steps
+            n_steps = 2**num_bits - 1
+            if narrow_range:
+                n_steps -= 1
+
+            # Clip and nudge input to the range for the current channel
+            x_clipped = ops.clip(x[..., i], qnt_min, qnt_max)
+            x_norm = (x_clipped - qnt_min) / step_size
+            x_quantized = ops.round(x_norm)
+            x_quantized = ops.clip(x_quantized, 0.0, n_steps)
+            result_channel = x_quantized * step_size + qnt_min
+
+            quantized_channels.append(result_channel)
+
+        # Concatenate quantized channels
+        result = ops.stack(quantized_channels, axis=-1)
+
+        def grad(*args, upstream=None):
+            if upstream is None:
+                (upstream,) = args
+
+            # Gradient for min and max values
+            grad_min = ops.zeros_like(min_val)
+            grad_max = ops.zeros_like(max_val)
+            return upstream, grad_min, grad_max
+
+        return result, grad
+
+    return _fake_quant_with_min_max_vars_per_channel(inputs, min_vals, max_vals)
+
+
 """Float8-related methods"""
 
 
