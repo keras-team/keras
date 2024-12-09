@@ -61,6 +61,43 @@ class VariableInitializationTest(test_case.TestCase):
         self.assertAllClose(v.value, np.ones((2, 2)))
         self.assertEqual(v.dtype, "float32")
 
+    def test_variable_initialization_with_lambda_expression(self):
+        # Test Python number
+        v = backend.Variable(
+            initializer=lambda *a, **kw: 1.0,
+            shape=(),
+            dtype="float32",
+        )
+        self.assertAllClose(v.value, 1.0)
+        self.assertEqual(v.dtype, "float32")
+
+        # Test Python array
+        v = backend.Variable(
+            initializer=lambda *a, **kw: [1.0],
+            shape=(1,),
+            dtype="float32",
+        )
+        self.assertAllClose(v.value, np.ones((1,)))
+        self.assertEqual(v.dtype, "float32")
+
+        # Test numpy array
+        v = backend.Variable(
+            initializer=lambda *a, **kw: np.ones((1,)),
+            shape=(1,),
+            dtype="float32",
+        )
+        self.assertAllClose(v.value, np.ones((1,)))
+        self.assertEqual(v.dtype, "float32")
+
+        # Test backend array
+        v = backend.Variable(
+            initializer=lambda *a, **kw: ops.ones((1,)),
+            shape=(1,),
+            dtype="float32",
+        )
+        self.assertAllClose(v.value, np.ones((1,)))
+        self.assertEqual(v.dtype, "float32")
+
     def test_variable_initialization_with_strings(self):
         """Test variable init with non-callable initializer."""
         v = backend.Variable(initializer="ones", shape=(2, 2))

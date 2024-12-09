@@ -88,9 +88,13 @@ from keras.src.layers.preprocessing.image_preprocessing.auto_contrast import (
 from keras.src.layers.preprocessing.image_preprocessing.center_crop import (
     CenterCrop,
 )
+from keras.src.layers.preprocessing.image_preprocessing.equalization import (
+    Equalization,
+)
 from keras.src.layers.preprocessing.image_preprocessing.max_num_bounding_box import (
     MaxNumBoundingBoxes,
 )
+from keras.src.layers.preprocessing.image_preprocessing.mix_up import MixUp
 from keras.src.layers.preprocessing.image_preprocessing.random_brightness import (
     RandomBrightness,
 )

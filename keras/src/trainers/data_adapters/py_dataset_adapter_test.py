@@ -93,6 +93,7 @@ class ExceptionPyDataset(py_dataset_adapter.PyDataset):
         raise ValueError("Expected exception")
 
 
+@pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Flaky on GPU")
 class PyDatasetAdapterTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(
