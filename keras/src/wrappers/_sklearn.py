@@ -25,34 +25,27 @@ class KerasBase(BaseEstimator):
     """Base class for scikit-learn wrappers.
 
     Args:
-        model: `Model`
+        model: `Model`.
             An instance of `Model`, or a callable returning such an object.
-
             Note that if input is a `Model`, it will be cloned using
             `keras.models.clone_model` before being fitted, unless
             `warm_start=True`.
-
             The `Model` instance needs to be passed as already compiled.
-
             If callable, it must accept at least `X` and `y` as keyword
             arguments. Other arguments must be accepted if passed as
             `model_args` by the user.
-
-        warm_start: bool, default=False
+        warm_start: bool, defaults to False.
             Whether to reuse the model weights from the previous fit. If `True`,
             the given model won't be cloned and the weights from the previous
             fit will be reused.
-
-        model_args: dict, default=None
+        model_args: dict, defaults to None.
             Keyword arguments passed to `model`, if `model` is callable.
-
-        fit_args: dict, default=None
+        fit_args: dict, defaults to None.
             Keyword arguments passed to `model.fit`. These can also be passed
             directly to the `fit` method of the scikit-learn wrapper. The
             values passed directly to the `fit` method take precedence over
             these.
-
-        random_state : int, np.random.RandomState, or None, default None
+        random_state : int, np.random.RandomState, or None, defaults to None.
             Set the Tensorflow random number generators to a reproducible
             deterministic state using this seed. Pass an int for reproducible
             results across multiple function calls.
@@ -99,8 +92,8 @@ class KerasBase(BaseEstimator):
     def set_fit_request(self, **kwargs):
         """Set requested parameters by the fit method.
 
-        Please see [scikit-learn's metadata routing]
-        (https://scikit-learn.org/stable/metadata_routing.html) for more
+        Please see [scikit-learn's metadata routing](
+        https://scikit-learn.org/stable/metadata_routing.html) for more
         details.
 
 
@@ -216,34 +209,27 @@ class KerasClassifier(ClassifierMixin, KerasBase):
     """scikit-learn compatible classifier wrapper for Keras models.
 
     Args:
-        model: `Model`
+        model: `Model`.
             An instance of `Model`, or a callable returning such an object.
-
             Note that if input is a `Model`, it will be cloned using
             `keras.models.clone_model` before being fitted, unless
             `warm_start=True`.
-
             The `Model` instance needs to be passed as already compiled.
-
             If callable, it must accept at least `X` and `y` as keyword
             arguments. Other arguments must be accepted if passed as
             `model_args` by the user.
-
-        warm_start: bool, default=False
+        warm_start: bool, defaults to False.
             Whether to reuse the model weights from the previous fit. If `True`,
             the given model won't be cloned and the weights from the previous
             fit will be reused.
-
-        model_args: dict, default=None
+        model_args: dict, defaults to None.
             Keyword arguments passed to `model`, if `model` is callable.
-
-        fit_args: dict, default=None
+        fit_args: dict, defaults to None.
             Keyword arguments passed to `model.fit`. These can also be passed
             directly to the `fit` method of the scikit-learn wrapper. The
             values passed directly to the `fit` method take precedence over
             these.
-
-        random_state : int, np.random.RandomState, or None, default None
+        random_state : int, np.random.RandomState, or None, defaults to None.
             Set the Tensorflow random number generators to a reproducible
             deterministic state using this seed. Pass an int for reproducible
             results across multiple function calls.
@@ -253,6 +239,52 @@ class KerasClassifier(ClassifierMixin, KerasBase):
             The fitted model.
         classes_ : array-like, shape=(n_classes,)
             The classes labels.
+
+    Example:
+    Here we use a function which creates a basic MLP model dynamically choosing
+    the input and output shapes. We will use this to create our scikit-learn
+    model.
+
+    ``` python
+    from keras.src.layers import Dense, Input, Model
+
+    def dynamic_model(X, y, loss, layers=[10]):
+        # Creates a basic MLP model dynamically choosing the input and output
+        # shapes.
+        n_features_in = X.shape[1]
+        inp = Input(shape=(n_features_in,))
+
+        hidden = inp
+        for layer_size in layers:
+            hidden = Dense(layer_size, activation="relu")(hidden)
+
+        n_outputs = y.shape[1] if len(y.shape) > 1 else 1
+        out = [Dense(n_outputs, activation="softmax")(hidden)]
+        model = Model(inp, out)
+        model.compile(loss=loss, optimizer="rmsprop")
+
+        return model
+    ```
+
+    You can then use this function to create a scikit-learn compatible model
+    and fit it on some data.
+
+    ``` python
+    from sklearn.datasets import make_classification
+    from keras.wrappers import KerasClassifier
+
+    X, y = make_classification(n_samples=1000, n_features=10, n_classes=3)
+    est = KerasClassifier(
+        model=dynamic_model,
+        random_state=42,
+        model_args={
+            "loss": "categorical_crossentropy",
+            "layers": [20, 20, 20],
+        },
+    )
+
+    est.fit(X, y, epochs=5)
+    ```
     """
 
     def _process_target(self, y, reset=False):
@@ -291,34 +323,27 @@ class KerasRegressor(RegressorMixin, KerasBase):
     """scikit-learn compatible regressor wrapper for Keras models.
 
     Args:
-        model: `Model`
+        model: `Model`.
             An instance of `Model`, or a callable returning such an object.
-
             Note that if input is a `Model`, it will be cloned using
             `keras.models.clone_model` before being fitted, unless
             `warm_start=True`.
-
             The `Model` instance needs to be passed as already compiled.
-
             If callable, it must accept at least `X` and `y` as keyword
             arguments. Other arguments must be accepted if passed as
             `model_args` by the user.
-
-        warm_start: bool, default=False
+        warm_start: bool, defaults to False.
             Whether to reuse the model weights from the previous fit. If `True`,
             the given model won't be cloned and the weights from the previous
             fit will be reused.
-
-        model_args: dict, default=None
+        model_args: dict, defaults to None.
             Keyword arguments passed to `model`, if `model` is callable.
-
-        fit_args: dict, default=None
+        fit_args: dict, defaults to None.
             Keyword arguments passed to `model.fit`. These can also be passed
             directly to the `fit` method of the scikit-learn wrapper. The
             values passed directly to the `fit` method take precedence over
             these.
-
-        random_state : int, np.random.RandomState, or None, default None
+        random_state : int, np.random.RandomState, or None, defaults to None.
             Set the Tensorflow random number generators to a reproducible
             deterministic state using this seed. Pass an int for reproducible
             results across multiple function calls.
@@ -326,6 +351,52 @@ class KerasRegressor(RegressorMixin, KerasBase):
     Attributes:
         model_ : `Model`
             The fitted model.
+
+    Example:
+    Here we use a function which creates a basic MLP model dynamically choosing
+    the input and output shapes. We will use this to create our scikit-learn
+    model.
+
+    ``` python
+    from keras.src.layers import Dense, Input, Model
+
+    def dynamic_model(X, y, loss, layers=[10]):
+        # Creates a basic MLP model dynamically choosing the input and output
+        # shapes.
+        n_features_in = X.shape[1]
+        inp = Input(shape=(n_features_in,))
+
+        hidden = inp
+        for layer_size in layers:
+            hidden = Dense(layer_size, activation="relu")(hidden)
+
+        n_outputs = y.shape[1] if len(y.shape) > 1 else 1
+        out = [Dense(n_outputs, activation="softmax")(hidden)]
+        model = Model(inp, out)
+        model.compile(loss=loss, optimizer="rmsprop")
+
+        return model
+    ```
+
+    You can then use this function to create a scikit-learn compatible model
+    and fit it on some data.
+
+    ``` python
+    from sklearn.datasets import make_classification
+    from keras.wrappers import KerasClassifier
+
+    X, y = make_classification(n_samples=1000, n_features=10, n_classes=3)
+    est = KerasClassifier(
+        model=dynamic_model,
+        random_state=42,
+        model_args={
+            "loss": "categorical_crossentropy",
+            "layers": [20, 20, 20],
+        },
+    )
+
+    est.fit(X, y, epochs=5)
+    ```
     """
 
     def _more_tags(self):

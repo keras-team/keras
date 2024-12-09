@@ -20,10 +20,9 @@ class TargetReshaper(TransformerMixin, BaseEstimator):
     For use in pipelines with transformers that only accept
     2D inputs, like OneHotEncoder and OrdinalEncoder.
 
-    Attributes
-    ----------
-    ndim_ : int
-        Dimensions of y that the transformer was trained on.
+    Attributes:
+        ndim_ : int
+            Dimensions of y that the transformer was trained on.
     """
 
     def fit(self, y):
