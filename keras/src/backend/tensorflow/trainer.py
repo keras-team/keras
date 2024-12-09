@@ -5,12 +5,11 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.eager import context as tf_context
 
-from keras.src import backend as backend_module
 from keras.src import callbacks as callbacks_module
 from keras.src import metrics as metrics_module
-from keras.src import ops as ops_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
+from keras.src.losses import loss as loss_module
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
@@ -66,7 +65,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 training=True,
             )
             self._loss_tracker.update_state(
-                loss, sample_weight=tf.shape(tree.flatten(x)[0])[0]
+                loss_module.unscale_loss_for_distribution(loss),
+                sample_weight=tf.shape(tree.flatten(x)[0])[0],
             )
             if self.optimizer is not None:
                 loss = self.optimizer.scale_loss(loss)
@@ -93,7 +93,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
         self._loss_tracker.update_state(
-            loss, sample_weight=tf.shape(tree.flatten(x)[0])[0]
+            loss_module.unscale_loss_for_distribution(loss),
+            sample_weight=tf.shape(tree.flatten(x)[0])[0],
         )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
@@ -710,17 +711,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
             self._symbolic_build(data_batch=data_batch)
 
     def _aggregate_additional_loss(self, loss):
-        if not backend_module.is_float_dtype(loss.dtype):
-            loss = ops_module.cast(loss, dtype=backend_module.floatx())
-        loss = ops_module.sum(loss)
-
-        # Scales the loss by the number of replicas in the strategy.
-        num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
-        if num_replicas > 1:
-            loss = ops_module.multiply(
-                loss, ops_module.cast(1.0 / num_replicas, loss.dtype)
-            )
-        return loss
+        loss = super()._aggregate_additional_loss(loss)
+        return loss_module.scale_loss_for_distribution(loss)
 
 
 class TFEpochIterator(EpochIterator):
