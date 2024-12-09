@@ -137,6 +137,14 @@ class DistributeTest(testing.TestCase):
             self.assertEqual(v2.aggregation, "sum")
             self.assertEqual(v2.value.aggregation, tf.VariableAggregation.SUM)
 
+    def test_seed_generator(self):
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
+        with strategy.scope():
+            seed_generator = keras.random.SeedGenerator(42)
+            states = strategy.run(lambda: seed_generator.state.value).values
+            for s in states:
+                self.assertAllClose(keras.ops.convert_to_numpy(s), (42, 0))
+
     def test_correctness_with_fit_and_regularizer(self):
         strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
 
