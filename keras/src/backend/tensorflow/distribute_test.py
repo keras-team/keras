@@ -162,8 +162,8 @@ class DistributeTest(testing.TestCase):
         )
         model = models.Model(inputs, layer(inputs))
         model.compile(loss="mse", optimizer="sgd")
-        model.fit(x, y, batch_size=batch_size, epochs=1)
-
+        history = model.fit(x, y, batch_size=batch_size, epochs=1)
+        expected_loss = history.history["loss"]
         expected_weights = keras.ops.convert_to_numpy(layer.kernel)
 
         # Runs with a mirrored strategy.
@@ -177,8 +177,10 @@ class DistributeTest(testing.TestCase):
             )
             model = models.Model(inputs, layer(inputs))
             model.compile(loss="mse", optimizer="sgd")
-            model.fit(x, y, batch_size=batch_size, epochs=1)
+            history = model.fit(x, y, batch_size=batch_size, epochs=1)
             weights = strategy.run(lambda: layer.kernel.value).values
+
+            self.assertAllClose(history.history["loss"], expected_loss)
             for w in weights:
                 self.assertAllClose(
                     keras.ops.convert_to_numpy(w), expected_weights
