@@ -183,7 +183,8 @@ class QuantizersTest(testing.TestCase):
         )
         initial_gradients = np.arange(1, len(inputs) + 1, dtype=np.float32)
         expected_backprops = np.array(
-            [0.0, 0.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 0.0, 0.0], dtype=np.float32
+            [0.0, 0.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 0.0, 0.0],
+            dtype=np.float32,
         )
         _, gradients = grad_op(
             initial_gradients,
