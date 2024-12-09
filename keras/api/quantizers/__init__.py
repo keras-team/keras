@@ -22,4 +22,7 @@ from keras.src.quantizers.quantizers import (
 from keras.src.quantizers.quantizers import (
     fake_quant_with_min_max_vars_per_channel,
 )
+from keras.src.quantizers.quantizers import (
+    fake_quant_with_min_max_vars_per_channel_gradient,
+)
 from keras.src.quantizers.quantizers import quantize_and_dequantize
