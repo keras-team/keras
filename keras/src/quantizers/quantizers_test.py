@@ -33,15 +33,16 @@ class QuantizersTest(testing.TestCase):
 
         # Test dequantizing
         dequantized_values = ops.divide(quantized_values, scale)
-        rmse = ops.sqrt(ops.mean(ops.square(ops.subtract(values,
-                                                         dequantized_values))))
+        rmse = ops.sqrt(
+            ops.mean(ops.square(ops.subtract(values, dequantized_values))))
         self.assertLess(rmse, 1e-1)  # loose assertion
 
         # Test serialization
         self.run_class_serialization_test(quantizer)
 
         # Test bfloat16 & float16 dtype
-        values = random.uniform([3, 4, 5], minval=-1, maxval=1, dtype="bfloat16")
+        values = random.uniform(
+            [3, 4, 5], minval=-1, maxval=1, dtype="bfloat16")
         quantized_values, scale = quantizer(values)
         self.assertDType(quantized_values, "int8")
         self.assertDType(scale, "bfloat16")
@@ -55,7 +56,8 @@ class QuantizersTest(testing.TestCase):
         quantized_values, scale = quantizers.abs_max_quantize(
             values, axis=-1, to_numpy=True
         )
-        ref_quantized_values, ref_scale = quantizers.abs_max_quantize(values, axis=-1)
+        ref_quantized_values, ref_scale = quantizers.abs_max_quantize(
+            values, axis=-1)
         self.assertAllClose(quantized_values, ref_quantized_values)
         self.assertAllClose(scale, ref_scale)
 
@@ -80,7 +82,8 @@ class QuantizersTest(testing.TestCase):
         )
         self.assertAllClose(computed_amax_history[0], amax_from_values)
         # Shift to left with 1 step
-        self.assertAllClose(computed_amax_history[1:], ops.roll(amax_history, -1)[1:])
+        self.assertAllClose(
+            computed_amax_history[1:], ops.roll(amax_history, -1)[1:])
 
     def test_quantize_and_dequantize(self):
         scale = 1.0 / 100.0
