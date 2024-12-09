@@ -8,6 +8,7 @@ from absl.testing import parameterized
 from keras.src import applications
 from keras.src import backend
 from keras.src import layers
+from keras.src import ops
 from keras.src import saving
 from keras.src import testing
 from keras.src.layers.core.input_layer import Input
@@ -15,7 +16,6 @@ from keras.src.layers.input_spec import InputSpec
 from keras.src.models import Functional
 from keras.src.models import Model
 from keras.src.models import Sequential
-from keras.src import ops
 
 
 class FunctionalTest(testing.TestCase):
@@ -707,9 +707,10 @@ class FunctionalTest(testing.TestCase):
         model = Model(inputs={"IT": x1, "IS": x2}, outputs=y)
         x1 = ops.ones((1, 10))
         x2 = ops.zeros((1, 10))
-        r1 = model({"IT": x1, "IS": x2})
+        # Works
+        _ = model({"IT": x1, "IS": x2})
         with self.assertRaisesRegex(
             ValueError,
             "The structure of `inputs` doesn't match the expected structure",
         ):
-            r2 = model([x1, x2])
+            model([x1, x2])
