@@ -45,8 +45,8 @@ class ConstraintsTest(testing.TestCase):
         output = constraint_fn(get_example_array())
         output = backend.convert_to_numpy(output)
         l2 = np.sqrt(np.sum(np.square(output), axis=0))
-        self.assertFalse(l2[l2 < 0.2].size > 0)
-        self.assertFalse(l2[l2 > 0.5 + 1e-6].size > 0)
+        self.assertTrue(np.all(l2 >= 0.2))
+        self.assertTrue(np.all(l2 <= 0.5 + 1e-6))
 
     def test_get_method(self):
         obj = constraints.get("unit_norm")
