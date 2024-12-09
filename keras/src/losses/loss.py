@@ -156,6 +156,7 @@ def reduce_values(values, sample_weight=None, reduction="sum_over_batch_size"):
                 ),
                 loss.dtype,
             )
+        divisor = scale_for_distribution(divisor)
         loss = ops.divide_no_nan(loss, divisor)
     return loss
 
@@ -221,3 +222,20 @@ def apply_mask(sample_weight, mask, dtype, reduction):
         else:
             sample_weight = mask
     return sample_weight
+
+
+def scale_for_distribution(divisor):
+    """Scales the given divisor value by the number of replicas in the strategy.
+
+    Currently, this function is only effective when using the tensorflow backend
+    and `tf.distribute`.
+    """
+    if backend.backend() == "tensorflow":
+        import tensorflow as tf
+
+        num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
+        if num_replicas > 1:
+            divisor = ops.multiply(
+                divisor, ops.cast(num_replicas, divisor.dtype)
+            )
+    return divisor
