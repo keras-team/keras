@@ -159,12 +159,8 @@ def adjust_and_nudge_quantization_range(
     final_step_size = 1.0 / rounded_inv_step_size
 
     # Calculate the quantized min/max values, ensuring accurate rounding
-    quantized_min = (
-        ops.round(min_range * rounded_inv_step_size) / rounded_inv_step_size
-    )
-    quantized_max = (
-        ops.round(max_range * rounded_inv_step_size) / rounded_inv_step_size
-    )
+    quantized_min = ops.round(min_range * rounded_inv_step_size) / rounded_inv_step_size
+    quantized_max = ops.round(max_range * rounded_inv_step_size) / rounded_inv_step_size
 
     # Convert quantization limits to float
     quant_min_float = float(quantized_min)
@@ -230,14 +226,13 @@ def fake_quant_with_min_max_args(
             if upstream is None:
                 (upstream,) = args
             # Gradient mask: valid within the range
-            mask = ops.cast(
-                (x >= quant_min) & (x <= quant_max), dtype=upstream.dtype
-            )
+            mask = ops.cast((x >= quant_min) & (x <= quant_max), dtype=upstream.dtype)
             return upstream * mask
 
         return result, grad
 
     return _fake_quant_with_min_max_args(inputs)
+
 
 @keras_export("keras.quantizers.fake_quant_with_min_max_args_gradient")
 def fake_quant_with_min_max_args_gradient(
@@ -275,7 +270,7 @@ def fake_quant_with_min_max_args_gradient(
                 (upstream,) = args
             # Gradient mask: valid within the range
             mask = ops.cast((x >= quant_min) & (x <= quant_max), dtype=upstream.dtype)
-            return upstream * mask
+            return ops.multiply(upstream, mask)
 
         return result, grad
 
