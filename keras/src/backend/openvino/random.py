@@ -19,6 +19,9 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
+    assert (
+        seed is not None
+    ), "openvino backend does not support `uniform` with None seed"
     dtype = dtype or floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     seed1, seed2 = draw_seed(seed).data

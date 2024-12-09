@@ -3,12 +3,14 @@ import openvino.runtime.opset14 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
+from keras.src.backend.common import dtypes
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import (
     align_operand_types as _align_operand_types,
 )
 from keras.src.backend.openvino.core import get_ov_output
+from keras.src.backend.openvino.core import ov_to_keras_type
 
 
 def add(x1, x2):
@@ -79,7 +81,14 @@ def mean(x, axis=None, keepdims=False):
 
 
 def max(x, axis=None, keepdims=False, initial=None):
-    raise NotImplementedError("`max` is not supported with openvino backend")
+    assert (
+        initial is None
+    ), "`max` with not None initial is not supported by openvino backend"
+    x = get_ov_output(x)
+    reduce_axis = ov_opset.constant(axis, Type.i32).output(0)
+    return OpenVINOKerasTensor(
+        ov_opset.reduce_max(x, reduce_axis, keepdims).output(0)
+    )
 
 
 def ones(shape, dtype=None):
@@ -258,9 +267,13 @@ def clip(x, x_min, x_max):
 
 
 def concatenate(xs, axis=0):
-    raise NotImplementedError(
-        "`concatenate` is not supported with openvino backend"
-    )
+    assert isinstance(xs, list), "`concatenate` is supported only for `x` list"
+    elems = []
+    for elem in xs:
+        elem = get_ov_output(elem)
+        elems.append(elem)
+    res = ov_opset.concat(elems, axis).output(0)
+    return OpenVINOKerasTensor(res)
 
 
 def conjugate(x):
@@ -518,17 +531,22 @@ def logaddexp(x1, x2):
 def logical_and(x1, x2):
     x1 = get_ov_output(x1)
     x2 = get_ov_output(x2)
+    x1 = ov_opset.convert(x1, Type.boolean).output(0)
+    x2 = ov_opset.convert(x2, Type.boolean).output(0)
     return OpenVINOKerasTensor(ov_opset.logical_and(x1, x2).output(0))
 
 
 def logical_not(x):
     x = get_ov_output(x)
+    x = ov_opset.convert(x, Type.boolean).output(0)
     return OpenVINOKerasTensor(ov_opset.logical_not(x).output(0))
 
 
 def logical_or(x1, x2):
     x1 = get_ov_output(x1)
     x2 = get_ov_output(x2)
+    x1 = ov_opset.convert(x1, Type.boolean).output(0)
+    x2 = ov_opset.convert(x2, Type.boolean).output(0)
     return OpenVINOKerasTensor(ov_opset.logical_or(x1, x2).output(0))
 
 
@@ -539,9 +557,10 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 
 def maximum(x1, x2):
-    raise NotImplementedError(
-        "`maximum` is not supported with openvino backend"
-    )
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "maximum()")
+    return OpenVINOKerasTensor(ov_opset.maximum(x1, x2).output(0))
 
 
 def median(x, axis=None, keepdims=False):
@@ -851,7 +870,12 @@ def divide(x1, x2):
         element_type = x2.output.get_element_type()
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
-    x1, x2 = _align_operand_types(x1, x2, "divide()")
+    x1_type = ov_to_keras_type(x1.get_element_type())
+    x2_type = ov_to_keras_type(x2.get_element_type())
+    result_type = dtypes.result_type(x1_type, x2_type, float)
+    result_type = OPENVINO_DTYPES[result_type]
+    x1 = ov_opset.convert(x1, result_type).output(0)
+    x2 = ov_opset.convert(x2, result_type).output(0)
     return OpenVINOKerasTensor(ov_opset.divide(x1, x2).output(0))
 
 
@@ -883,7 +907,9 @@ def negative(x):
 
 
 def square(x):
-    raise NotImplementedError("`square` is not supported with openvino backend")
+    x = get_ov_output(x)
+    const_two = ov_opset.constant(2, x.get_element_type()).output(0)
+    return OpenVINOKerasTensor(ov_opset.power(x, const_two).output(0))
 
 
 def sqrt(x):
@@ -892,14 +918,28 @@ def sqrt(x):
 
 
 def squeeze(x, axis=None):
-    raise NotImplementedError(
-        "`squeeze` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    if axis is None:
+        return OpenVINOKerasTensor(ov_opset.squeeze(x).output(0))
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.squeeze(x, axis).output(0))
 
 
 def transpose(x, axes=None):
     x = get_ov_output(x)
-    axes = ov_opset.constant(axes, Type.i32).output(0)
+    if axes is None:
+        # generate reverse permutation vector
+        shape_x = ov_opset.shape_of(x, "i64").output(0)
+        rank_x = ov_opset.shape_of(shape_x, "i64").output(0)
+        scalar_shape = ov_opset.constant([], Type.i32).output(0)
+        rank_x = ov_opset.reshape(rank_x, scalar_shape, False).output(0)
+        const_minus_one = ov_opset.constant(-1, Type.i64).output(0)
+        rank_minus_one = ov_opset.add(rank_x, const_minus_one).output(0)
+        axes = ov_opset.range(
+            rank_minus_one, const_minus_one, const_minus_one, "i64"
+        ).output(0)
+    else:
+        axes = ov_opset.constant(axes, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes).output(0))
 
 
@@ -926,6 +966,8 @@ def floor_divide(x1, x2):
 def logical_xor(x1, x2):
     x1 = get_ov_output(x1)
     x2 = get_ov_output(x2)
+    x1 = ov_opset.convert(x1, Type.boolean).output(0)
+    x2 = ov_opset.convert(x2, Type.boolean).output(0)
     return OpenVINOKerasTensor(ov_opset.logical_xor(x1, x2).output(0))
 
 

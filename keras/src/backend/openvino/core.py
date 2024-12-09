@@ -390,6 +390,11 @@ def convert_to_numpy(x):
         return x.data
     elif x is None:
         return x
+    elif isinstance(x, KerasVariable):
+        if isinstance(x.value, OpenVINOKerasTensor):
+            x = x.value
+        else:
+            return x.value.data
     assert isinstance(
         x, OpenVINOKerasTensor
     ), "unsupported type {} for `convert_to_numpy` in openvino backend".format(
