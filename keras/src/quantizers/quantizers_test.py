@@ -201,7 +201,7 @@ class QuantizersTest(testing.TestCase):
             print("")
         self.assertTrue(result)
 
-    def test_fakeQuantWithMinMaxArgs_with8BitsNoScalingNoNudging(self):
+    def test_fakeQuantWithMinMaxArgs_with8BitsNoSclngNoNdgng(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             0.0,
@@ -213,7 +213,7 @@ class QuantizersTest(testing.TestCase):
             1.0,
         )
 
-    def test_fakeQuantWithMinMaxArgs_with8BitsScalingAndNudgingDown(self):
+    def test_fakeQuantWithMinMaxArgs_with8BitsSclngAndNdgngDown(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             0.5,
@@ -225,7 +225,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgs_with8BitsScalingAndNudgingUp(self):
+    def test_fakeQuantWithMinMaxArgs_with8BitsSclngAndNdgngUp(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             -128.0,
@@ -237,7 +237,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgs_with8BitsScalingAndNudgingBetween(self):
+    def test_fakeQuantWithMinMaxArgs_with8BitsSclngAndNdgngBtwn(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             -0.1,
@@ -250,7 +250,7 @@ class QuantizersTest(testing.TestCase):
         )
 
     # 8 bits, narrow range.
-    def test_fakeQuantWithMinMaxArgs_with8BitsNarrowRangeNoScalingNoNudging(self):
+    def test_fakeQuantWithMinMaxArgs_with8BitsNrrwRangeNoSclngNoNdgng(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             0.0,
@@ -262,7 +262,7 @@ class QuantizersTest(testing.TestCase):
             1.0,
         )
 
-    def test_fakeQuantWithMinMaxArgs_with8BitsNarrowRangeScalingAndNudgingDown(self):
+    def test_fakeQuantWithMinMaxArgs_with8BitsNrrwRangeSclngAndNdgngDown(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             0.1,
@@ -274,7 +274,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgs_with8BitsNarrowRangeScalingAndNudgingUp(self):
+    def test_fakeQuantWithMinMaxArgs_with8BitsNrrwRangeSclngAndNdgngUp(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             -127.1,
@@ -286,7 +286,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgs_with8BitsNarrowRangeScalingAndNudgingBetween(self):
+    def test_fakeQuantWithMinMaxArgs_with8BitsNrrwRangeSclngAndNdgngBtwn(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             -0.1,
@@ -299,7 +299,7 @@ class QuantizersTest(testing.TestCase):
         )
 
     # 7 bits, wide range.
-    def test_fakeQuantWithMinMaxArgs_with7BitsNoScalingNoNudging(self):
+    def test_fakeQuantWithMinMaxArgs_with7BitsNoSclngNoNdgng(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             0.0,
@@ -311,7 +311,7 @@ class QuantizersTest(testing.TestCase):
             1.0,
         )
 
-    def test_fakeQuantWithMinMaxArgs_with7BitsScalingAndNudgingDown(self):
+    def test_fakeQuantWithMinMaxArgs_with7BitsSclngAndNdgngDown(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             0.5,
@@ -323,7 +323,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgs_with7BitsScalingAndNudgingUp(self):
+    def test_fakeQuantWithMinMaxArgs_with7BitsSclngAndNdgngUp(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             -64.0,
@@ -335,7 +335,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgs_with7BitsScalingAndNudgingBetween(self):
+    def test_fakeQuantWithMinMaxArgs_with7BitsSclngAndNdgngBtwn(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             -0.1,
@@ -348,7 +348,7 @@ class QuantizersTest(testing.TestCase):
         )
 
     # 7 bits, narrow range.
-    def test_fakeQuantWithMinMaxArgs_with7BitsNarrowRangeNoScalingNoNudging(self):
+    def test_fakeQuantWithMinMaxArgs_with7BitsNrrwRangeNoSclngNoNdgng(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             0.0,
@@ -360,7 +360,7 @@ class QuantizersTest(testing.TestCase):
             1.0,
         )
 
-    def test_fakeQuantWithMinMaxArgs_with7BitsNarrowRangeScalingAndNudgingDown(self):
+    def test_fakeQuantWithMinMaxArgs_with7BitsNrrwRangeSclngAndNdgngDown(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             0.1,
@@ -372,7 +372,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgs_with7BitsNarrowRangeScalingAndNudgingUp(self):
+    def test_fakeQuantWithMinMaxArgs_with7BitsNrrwRangeSclngAndNdgngUp(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             -63.1,
@@ -384,7 +384,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgs_with7BitsNarrowRangeScalingAndNudgingBetween(self):
+    def test_fakeQuantWithMinMaxArgs_with7BitsNrrwRangeSclngAndNdgngBtwn(self):
         self._TestOp(
             quantizers.fake_quant_with_min_max_args,
             -0.1,
@@ -397,7 +397,7 @@ class QuantizersTest(testing.TestCase):
         )
 
     # 8 bits, wide range.
-    def test_fakeQuantWithMinMaxArgsGradient_with8BitsNoScalingNoNudging(self):
+    def test_fakeQuantWithMinMaxArgsGrad_with8BitsNoSclngNoNdgng(self):
         self._TestGradOp(
             quantizers.fake_quant_with_min_max_args_gradient,
             0.0,
@@ -409,7 +409,7 @@ class QuantizersTest(testing.TestCase):
             1.0,
         )
 
-    def test_fakeQuantWithMinMaxArgsGradient_with8BitsScalingAndNudgingDown(self):
+    def test_fakeQuantWithMinMaxArgsGrad_with8BitsSclngAndNdgngDown(self):
         self._TestGradOp(
             quantizers.fake_quant_with_min_max_args_gradient,
             0.5,
@@ -421,7 +421,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgsGradient_with8BitsScalingAndNudgingUp(self):
+    def test_fakeQuantWithMinMaxArgsGrad_with8BitsSclngAndNdgngUp(self):
         self._TestGradOp(
             quantizers.fake_quant_with_min_max_args_gradient,
             -128.0,
@@ -433,7 +433,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgsGradient_with8BitsScalingAndNudgingBetween(self):
+    def test_fakeQuantWithMinMaxArgsGrad_with8BitsSclngAndNdgngBtwn(self):
         self._TestGradOp(
             quantizers.fake_quant_with_min_max_args_gradient,
             -0.1,
@@ -446,7 +446,7 @@ class QuantizersTest(testing.TestCase):
         )
 
     # 8 bits, narrow range.
-    def test_fakeQuantWithMinMaxArgsGradient_with8BitsNarrowRangeNoScalingNoNudging(
+    def test_fakeQuantWithMinMaxArgsGrad_with8BitsNrrwRangeNoSclngNoNdgng(
         self,
     ):
         self._TestGradOp(
@@ -460,7 +460,7 @@ class QuantizersTest(testing.TestCase):
             1.0,
         )
 
-    def test_fakeQuantWithMinMaxArgsGradient_with8BitsNarrowRangeScalingAndNudgingDown(
+    def test_fakeQuantWithMinMaxArgsGrad_with8BitsNrrwRangeSclngAndNdgngDown(
         self,
     ):
         self._TestGradOp(
@@ -474,7 +474,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgsGradient_with8BitsNarrowRangeScalingAndNudgingUp(
+    def test_fakeQuantWithMinMaxArgsGrad_with8BitsNrrwRangeSclngAndNdgngUp(
         self,
     ):
         self._TestGradOp(
@@ -488,7 +488,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgsGradient_with8BitsNarrowRangeScalingAndNudgingBetween(
+    def test_fakeQuantWithMinMaxArgsGrad_with8BitsNrrwRangeSclngAndNdgngBtwn(
         self,
     ):
         self._TestGradOp(
@@ -503,7 +503,7 @@ class QuantizersTest(testing.TestCase):
         )
 
     # 7 bits, wide range.
-    def test_fakeQuantWithMinMaxArgsGradient_with7BitsNoScalingNoNudging(self):
+    def test_fakeQuantWithMinMaxArgsGrad_with7BitsNoSclngNoNdgng(self):
         self._TestGradOp(
             quantizers.fake_quant_with_min_max_args_gradient,
             0.0,
@@ -515,7 +515,7 @@ class QuantizersTest(testing.TestCase):
             1.0,
         )
 
-    def test_fakeQuantWithMinMaxArgsGradient_with7BitsScalingAndNudgingDown(self):
+    def test_fakeQuantWithMinMaxArgsGrad_with7BitsSclngAndNdgngDown(self):
         self._TestGradOp(
             quantizers.fake_quant_with_min_max_args_gradient,
             0.5,
@@ -527,7 +527,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgsGradient_with7BitsScalingAndNudgingUp(self):
+    def test_fakeQuantWithMinMaxArgsGrad_with7BitsSclngAndNdgngUp(self):
         self._TestGradOp(
             quantizers.fake_quant_with_min_max_args_gradient,
             -64.0,
@@ -539,7 +539,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgsGradient_with7BitsScalingAndNudgingBetween(self):
+    def test_fakeQuantWithMinMaxArgsGrad_with7BitsSclngAndNdgngBtwn(self):
         self._TestGradOp(
             quantizers.fake_quant_with_min_max_args_gradient,
             -0.1,
@@ -552,7 +552,7 @@ class QuantizersTest(testing.TestCase):
         )
 
     # 7 bits, narrow range.
-    def test_fakeQuantWithMinMaxArgsGradient_with7BitsNarrowRangeNoScalingNoNudging(
+    def test_fakeQuantWithMinMaxArgsGrad_with7BitsNrrwRangeNoSclngNoNdgng(
         self,
     ):
         self._TestGradOp(
@@ -566,7 +566,7 @@ class QuantizersTest(testing.TestCase):
             1.0,
         )
 
-    def test_fakeQuantWithMinMaxArgsGradient_with7BitsNarrowRangeScalingAndNudgingDown(
+    def test_fakeQuantWithMinMaxArgsGrad_with7BitsNrrwRangeSclngAndNdgngDown(
         self,
     ):
         self._TestGradOp(
@@ -580,7 +580,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgsGradient_with7BitsNarrowRangeScalingAndNudgingUp(
+    def test_fakeQuantWithMinMaxArgsGrad_with7BitsNrrwRangeSclngAndNdgngUp(
         self,
     ):
         self._TestGradOp(
@@ -594,7 +594,7 @@ class QuantizersTest(testing.TestCase):
             0.5,
         )
 
-    def test_fakeQuantWithMinMaxArgsGradient_with7BitsNarrowRangeScalingAndNudgingBetween(
+    def test_fakeQuantWithMinMaxArgsGrad_with7BitsNrrwRangeSclngAndNdgngBtwn(
         self,
     ):
         self._TestGradOp(
