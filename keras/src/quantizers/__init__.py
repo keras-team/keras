@@ -11,7 +11,9 @@ from keras.src.quantizers.quantizers import fake_quant_with_min_max_args
 from keras.src.quantizers.quantizers import (
     fake_quant_with_min_max_args_gradient,
 )
-from keras.src.quantizers.quantizers import fake_quant_with_min_max_vars_per_channel
+from keras.src.quantizers.quantizers import (
+    fake_quant_with_min_max_vars_per_channel,
+)
 from keras.src.quantizers.quantizers import quantize_and_dequantize
 from keras.src.saving import serialization_lib
 from keras.src.utils.naming import to_snake_case

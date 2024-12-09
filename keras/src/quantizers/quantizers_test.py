@@ -18,8 +18,7 @@ class QuantizersTest(testing.TestCase):
             quantizers.get("typo")
 
     def test_abs_max_quantizer(self):
-        values = random.uniform([3, 4, 5], minval=-1, maxval=1,
-                                dtype="float32")
+        values = random.uniform([3, 4, 5], minval=-1, maxval=1, dtype="float32")
         quantizer = quantizers.AbsMaxQuantizer(axis=-1)
 
         # Test quantizing
@@ -34,7 +33,8 @@ class QuantizersTest(testing.TestCase):
         # Test dequantizing
         dequantized_values = ops.divide(quantized_values, scale)
         rmse = ops.sqrt(
-            ops.mean(ops.square(ops.subtract(values, dequantized_values))))
+            ops.mean(ops.square(ops.subtract(values, dequantized_values)))
+        )
         self.assertLess(rmse, 1e-1)  # loose assertion
 
         # Test serialization
@@ -42,7 +42,8 @@ class QuantizersTest(testing.TestCase):
 
         # Test bfloat16 & float16 dtype
         values = random.uniform(
-            [3, 4, 5], minval=-1, maxval=1, dtype="bfloat16")
+            [3, 4, 5], minval=-1, maxval=1, dtype="bfloat16"
+        )
         quantized_values, scale = quantizer(values)
         self.assertDType(quantized_values, "int8")
         self.assertDType(scale, "bfloat16")
@@ -57,7 +58,8 @@ class QuantizersTest(testing.TestCase):
             values, axis=-1, to_numpy=True
         )
         ref_quantized_values, ref_scale = quantizers.abs_max_quantize(
-            values, axis=-1)
+            values, axis=-1
+        )
         self.assertAllClose(quantized_values, ref_quantized_values)
         self.assertAllClose(scale, ref_scale)
 
@@ -83,7 +85,8 @@ class QuantizersTest(testing.TestCase):
         self.assertAllClose(computed_amax_history[0], amax_from_values)
         # Shift to left with 1 step
         self.assertAllClose(
-            computed_amax_history[1:], ops.roll(amax_history, -1)[1:])
+            computed_amax_history[1:], ops.roll(amax_history, -1)[1:]
+        )
 
     def test_quantize_and_dequantize(self):
         scale = 1.0 / 100.0
@@ -256,7 +259,11 @@ class QuantizersTest(testing.TestCase):
         input_min = np.array(input_mins, dtype=np.float32)
         input_max = np.array(input_maxs, dtype=np.float32)
         outputs = op(
-            inputs, input_min, input_max, num_bits=num_bits, narrow_range=narrow_range
+            inputs,
+            input_min,
+            input_max,
+            num_bits=num_bits,
+            narrow_range=narrow_range,
         )
         result = np.isclose(outputs, expected).all()
         if not result:
@@ -672,7 +679,6 @@ class QuantizersTest(testing.TestCase):
             63.0,
             0.5,
         )
-
 
     # 8 bits, wide range.
     def test_fakeQuantWithMinMaxVarsPerChannel_with8Bits(self):
