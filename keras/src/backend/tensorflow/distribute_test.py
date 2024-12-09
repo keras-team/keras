@@ -137,21 +137,25 @@ class DistributeTest(testing.TestCase):
             self.assertEqual(v2.aggregation, "sum")
             self.assertEqual(v2.value.aggregation, tf.VariableAggregation.SUM)
 
-    def test_loss_scaling_with_num_replicas_in_sync(self):
+    def test_correctness_with_fit_and_regularizer(self):
         strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
 
         batch_size = 12
         x = keras.ops.ones((batch_size, 1))
         y = keras.ops.zeros((batch_size, 1))
 
-        # Runs without a strategy.
+        # Runs without a strategy to get expected weights.
         inputs = layers.Input(shape=(1,))
         layer = layers.Dense(
-            1, use_bias=False, kernel_initializer=keras.initializers.Constant(1)
+            1,
+            use_bias=False,
+            kernel_initializer=keras.initializers.Constant(1),
+            kernel_regularizer=keras.regularizers.L1L2(l1=0.01, l2=0.01),
         )
         model = models.Model(inputs, layer(inputs))
         model.compile(loss="mse", optimizer="sgd")
         model.fit(x, y, batch_size=batch_size, epochs=1)
+
         expected_weights = keras.ops.convert_to_numpy(layer.kernel)
 
         # Runs with a mirrored strategy.
@@ -161,6 +165,7 @@ class DistributeTest(testing.TestCase):
                 1,
                 use_bias=False,
                 kernel_initializer=keras.initializers.Constant(1),
+                kernel_regularizer=keras.regularizers.L1L2(l1=0.01, l2=0.01),
             )
             model = models.Model(inputs, layer(inputs))
             model.compile(loss="mse", optimizer="sgd")
