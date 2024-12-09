@@ -18,7 +18,8 @@ class QuantizersTest(testing.TestCase):
             quantizers.get("typo")
 
     def test_abs_max_quantizer(self):
-        values = random.uniform([3, 4, 5], minval=-1, maxval=1, dtype="float32")
+        values = random.uniform([3, 4, 5], minval=-1, maxval=1,
+                                dtype="float32")
         quantizer = quantizers.AbsMaxQuantizer(axis=-1)
 
         # Test quantizing
@@ -32,7 +33,8 @@ class QuantizersTest(testing.TestCase):
 
         # Test dequantizing
         dequantized_values = ops.divide(quantized_values, scale)
-        rmse = ops.sqrt(ops.mean(ops.square(ops.subtract(values, dequantized_values))))
+        rmse = ops.sqrt(ops.mean(ops.square(ops.subtract(values,
+                                                         dequantized_values))))
         self.assertLess(rmse, 1e-1)  # loose assertion
 
         # Test serialization
