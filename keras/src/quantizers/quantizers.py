@@ -159,10 +159,12 @@ def adjust_and_nudge_quantization_range(
     final_step_size = 1.0 / rounded_inv_step_size
 
     # Calculate the quantized min/max values, ensuring accurate rounding
-    quantized_min = ops.round(min_range *
-                              rounded_inv_step_size) / rounded_inv_step_size
-    quantized_max = ops.round(max_range *
-                              rounded_inv_step_size) / rounded_inv_step_size
+    quantized_min = (
+        ops.round(min_range * rounded_inv_step_size) / rounded_inv_step_size
+    )
+    quantized_max = (
+        ops.round(max_range * rounded_inv_step_size) / rounded_inv_step_size
+    )
 
     # Convert quantization limits to float
     quant_min_float = float(quantized_min)
@@ -228,8 +230,9 @@ def fake_quant_with_min_max_args(
             if upstream is None:
                 (upstream,) = args
             # Gradient mask: valid within the range
-            mask = ops.cast((x >= quant_min) & (x <= quant_max),
-                            dtype=upstream.dtype)
+            mask = ops.cast(
+                (x >= quant_min) & (x <= quant_max), dtype=upstream.dtype
+            )
             return ops.multiply(upstream, mask)
 
         return result, grad
@@ -248,7 +251,7 @@ def fake_quant_with_min_max_args_gradient(
     name: Optional[str] = None,
 ):
     """Fake quantization operation with gradient,
-        matching TensorFlow's implementation."""
+    matching TensorFlow's implementation."""
 
     if isinstance(inputs, np.ndarray):
         inputs = ops.convert_to_tensor(inputs)
@@ -273,8 +276,9 @@ def fake_quant_with_min_max_args_gradient(
             if upstream is None:
                 (upstream,) = args
             # Gradient mask: valid within the range
-            mask = ops.cast((x >= quant_min) & (x <= quant_max),
-                            dtype=upstream.dtype)
+            mask = ops.cast(
+                (x >= quant_min) & (x <= quant_max), dtype=upstream.dtype
+            )
             return ops.multiply(upstream, mask)
 
         return result, grad
