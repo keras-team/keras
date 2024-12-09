@@ -352,7 +352,7 @@ class Trainer:
             if loss is not None:
                 losses.append(loss)
         for loss in self.losses:
-            losses.append(ops.sum(ops.cast(loss, dtype=backend.floatx())))
+            losses.append(self._aggregate_additional_loss(loss))
         if backend.backend() != "jax" and len(losses) == 0:
             raise ValueError(
                 "No loss to compute. Provide a `loss` argument in `compile()`."
@@ -385,6 +385,20 @@ class Trainer:
             )
         else:
             return self.compute_loss(x, y, y_pred, sample_weight)
+
+    def _aggregate_additional_loss(self, loss):
+        """Aggregates losses from `add_loss`, regularizers and sublayers.
+
+        Args:
+            loss: A tensor representing the additional loss to aggregate.
+
+        Returns:
+            A tensor representing the summed loss, cast to the `floatx()` if
+            necessary.
+        """
+        if not backend.is_float_dtype(loss.dtype):
+            loss = ops.cast(loss, dtype=backend.floatx())
+        return ops.sum(loss)
 
     def stateless_compute_loss(
         self,
