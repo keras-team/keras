@@ -112,10 +112,3 @@ class TFLayer(KerasAutoTrackable):
             return self(inputs)
 
         return serving_default
-
-    def _scale_loss_for_distribution(self, loss):
-        """Scales the given value by the number of replicas in the strategy."""
-        num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
-        if num_replicas > 1:
-            loss = tf.multiply(loss, tf.cast(num_replicas, loss.dtype))
-        return loss
