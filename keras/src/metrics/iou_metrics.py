@@ -1,3 +1,5 @@
+import warnings
+
 from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
@@ -103,7 +105,17 @@ class _IoUBase(Metric):
 
         if sample_weight is None:
             sample_weight = 1
-
+        else:
+            if (
+                hasattr(sample_weight, "dtype")
+                and "float" in str(sample_weight.dtype)
+                and "int" in str(self.dtype)
+            ):
+                warnings.warn(
+                    "You are passing weight as `float`, but dtype is `int`. "
+                    "This may result in an incorrect weight due to type casting"
+                    " Consider using integer weights."
+                )
         sample_weight = ops.convert_to_tensor(sample_weight, dtype=self.dtype)
 
         if len(sample_weight.shape) > 1:
@@ -408,7 +420,8 @@ class BinaryIoU(IoU):
             Update op.
         """
         y_true = ops.convert_to_tensor(y_true, dtype=self.dtype)
-        y_pred = ops.convert_to_tensor(y_pred, dtype=self.dtype)
+        # convert y_pred on float 32 and cast just after to dtype
+        y_pred = ops.convert_to_tensor(y_pred, dtype="float32")
         y_pred = ops.cast(y_pred >= self.threshold, self.dtype)
         return super().update_state(y_true, y_pred, sample_weight)
 

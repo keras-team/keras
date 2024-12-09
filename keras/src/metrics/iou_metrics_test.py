@@ -26,9 +26,7 @@ class IoUTest(testing.TestCase):
         y_pred = [0, 1, 0, 1]
         y_true = [0, 0, 1, 1]
 
-        obj = metrics.IoU(
-            num_classes=2, target_class_ids=[0, 1], dtype="float32"
-        )
+        obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
 
         result = obj(y_true, y_pred)
 
@@ -89,9 +87,7 @@ class IoUTest(testing.TestCase):
         y_pred = np.array([1], dtype=np.float32)
         y_true = np.array([1])
 
-        obj = metrics.IoU(
-            num_classes=2, target_class_ids=[0, 1], dtype="float32"
-        )
+        obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
         result = obj(y_true, y_pred)
 
         # cm = [[0, 0],
@@ -173,9 +169,7 @@ class BinaryIoUTest(testing.TestCase):
         # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2
-        obj = metrics.BinaryIoU(
-            target_class_ids=[0, 1], threshold=0.3, dtype="float32"
-        )
+        obj = metrics.BinaryIoU(target_class_ids=[0, 1], threshold=0.3)
         result = obj(y_true, y_pred)
         self.assertAllClose(result, expected_result, atol=1e-3)
 
@@ -185,9 +179,7 @@ class BinaryIoUTest(testing.TestCase):
         # sum_row = [2, 2], sum_col = [3, 1], true_positives = [2, 1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (2 / (2 + 3 - 2) + 1 / (2 + 1 - 1)) / 2
-        obj = metrics.BinaryIoU(
-            target_class_ids=[0, 1], threshold=0.5, dtype="float32"
-        )
+        obj = metrics.BinaryIoU(target_class_ids=[0, 1], threshold=0.5)
         result = obj(y_true, y_pred)
         self.assertAllClose(result, expected_result, atol=1e-3)
 
@@ -219,9 +211,7 @@ class BinaryIoUTest(testing.TestCase):
         threshold = 0.5
         y_true = np.array([1])
 
-        obj = metrics.BinaryIoU(
-            target_class_ids=[0, 1], threshold=threshold, dtype="float32"
-        )
+        obj = metrics.BinaryIoU(target_class_ids=[0, 1], threshold=threshold)
         result = obj(y_true, y_pred)
 
         # cm = [[0, 0],
@@ -358,7 +348,7 @@ class MeanIoUTest(testing.TestCase):
         y_pred = np.array([1], dtype=np.float32)
         y_true = np.array([1])
 
-        m_obj = metrics.MeanIoU(num_classes=2, dtype="float32")
+        m_obj = metrics.MeanIoU(num_classes=2)
         result = m_obj(y_true, y_pred)
 
         # cm = [[0, 0],
@@ -467,6 +457,13 @@ class MeanIoUTest(testing.TestCase):
             msg="Confusion matrices match, but they should not!",
         )
 
+    def test_user_warning_float_weight(self):
+        y_pred = [0, 1, 1, 1]
+        y_true = [0, 1, 1, 0]
+        m_obj = metrics.MeanIoU(num_classes=3)
+        with pytest.warns(Warning, match=r"weight.*float.*int.*casting"):
+            m_obj(y_true, y_pred, sample_weight=np.array([0.2, 0.3, 0.4, 0.1]))
+
 
 class OneHotIoUTest(testing.TestCase):
     def test_unweighted(self):
@@ -560,3 +557,9 @@ class OneHotMeanIoUTest(testing.TestCase):
         obj = metrics.OneHotMeanIoU(num_classes=3, dtype="float32")
         result = obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(result, expected_result, atol=1e-3)
+
+        # Check same result with int weights
+        sample_weight_int = [1, 2, 3, 3, 1]
+        obj_int = metrics.OneHotMeanIoU(num_classes=3)
+        result_int = obj_int(y_true, y_pred, sample_weight=sample_weight_int)
+        self.assertAllClose(result_int, expected_result, atol=1e-3)
