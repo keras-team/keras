@@ -36,7 +36,7 @@ if sklearn_version < parse_version("1.6"):
 
         return parametrize_with_checks(estimators)
 else:
-    pass
+    from sklearn.utils.estimator_checks import parametrize_with_checks  # noqa: F401, I001
 
 
 def _validate_data(estimator, *args, **kwargs):
