@@ -21,7 +21,7 @@ from keras.src.wrappers.utils import TargetReshaper
 from keras.src.wrappers.utils import _check_model
 
 
-class KerasBase(BaseEstimator):
+class SKLBase(BaseEstimator):
     """Base class for scikit-learn wrappers.
 
     Args:
@@ -205,7 +205,7 @@ class KerasBase(BaseEstimator):
 
 
 @keras_export("keras.wrappers.KerasClassifier")
-class KerasClassifier(ClassifierMixin, KerasBase):
+class SKLearnClassifier(ClassifierMixin, SKLBase):
     """scikit-learn compatible classifier wrapper for Keras models.
 
     Args:
@@ -241,50 +241,50 @@ class KerasClassifier(ClassifierMixin, KerasBase):
             The classes labels.
 
     Example:
-    Here we use a function which creates a basic MLP model dynamically choosing
-    the input and output shapes. We will use this to create our scikit-learn
-    model.
+        Here we use a function which creates a basic MLP model dynamically
+        choosing the input and output shapes. We will use this to create our
+        scikit-learn model.
 
-    ``` python
-    from keras.src.layers import Dense, Input, Model
+        ``` python
+        from keras.src.layers import Dense, Input, Model
 
-    def dynamic_model(X, y, loss, layers=[10]):
-        # Creates a basic MLP model dynamically choosing the input and output
-        # shapes.
-        n_features_in = X.shape[1]
-        inp = Input(shape=(n_features_in,))
+        def dynamic_model(X, y, loss, layers=[10]):
+            # Creates a basic MLP model dynamically choosing the input and
+            # output shapes.
+            n_features_in = X.shape[1]
+            inp = Input(shape=(n_features_in,))
 
-        hidden = inp
-        for layer_size in layers:
-            hidden = Dense(layer_size, activation="relu")(hidden)
+            hidden = inp
+            for layer_size in layers:
+                hidden = Dense(layer_size, activation="relu")(hidden)
 
-        n_outputs = y.shape[1] if len(y.shape) > 1 else 1
-        out = [Dense(n_outputs, activation="softmax")(hidden)]
-        model = Model(inp, out)
-        model.compile(loss=loss, optimizer="rmsprop")
+            n_outputs = y.shape[1] if len(y.shape) > 1 else 1
+            out = [Dense(n_outputs, activation="softmax")(hidden)]
+            model = Model(inp, out)
+            model.compile(loss=loss, optimizer="rmsprop")
 
-        return model
-    ```
+            return model
+        ```
 
-    You can then use this function to create a scikit-learn compatible model
-    and fit it on some data.
+        You can then use this function to create a scikit-learn compatible model
+        and fit it on some data.
 
-    ``` python
-    from sklearn.datasets import make_classification
-    from keras.wrappers import KerasClassifier
+        ``` python
+        from sklearn.datasets import make_classification
+        from keras.wrappers import KerasClassifier
 
-    X, y = make_classification(n_samples=1000, n_features=10, n_classes=3)
-    est = KerasClassifier(
-        model=dynamic_model,
-        random_state=42,
-        model_args={
-            "loss": "categorical_crossentropy",
-            "layers": [20, 20, 20],
-        },
-    )
+        X, y = make_classification(n_samples=1000, n_features=10, n_classes=3)
+        est = KerasClassifier(
+            model=dynamic_model,
+            random_state=42,
+            model_args={
+                "loss": "categorical_crossentropy",
+                "layers": [20, 20, 20],
+            },
+        )
 
-    est.fit(X, y, epochs=5)
-    ```
+        est.fit(X, y, epochs=5)
+        ```
     """
 
     def _process_target(self, y, reset=False):
@@ -319,7 +319,7 @@ class KerasClassifier(ClassifierMixin, KerasBase):
 
 
 @keras_export("keras.wrappers.KerasRegressor")
-class KerasRegressor(RegressorMixin, KerasBase):
+class SKLearnRegressor(RegressorMixin, SKLBase):
     """scikit-learn compatible regressor wrapper for Keras models.
 
     Args:
@@ -353,50 +353,50 @@ class KerasRegressor(RegressorMixin, KerasBase):
             The fitted model.
 
     Example:
-    Here we use a function which creates a basic MLP model dynamically choosing
-    the input and output shapes. We will use this to create our scikit-learn
-    model.
+        Here we use a function which creates a basic MLP model dynamically
+        choosing the input and output shapes. We will use this to create our
+        scikit-learn model.
 
-    ``` python
-    from keras.src.layers import Dense, Input, Model
+        ``` python
+        from keras.src.layers import Dense, Input, Model
 
-    def dynamic_model(X, y, loss, layers=[10]):
-        # Creates a basic MLP model dynamically choosing the input and output
-        # shapes.
-        n_features_in = X.shape[1]
-        inp = Input(shape=(n_features_in,))
+        def dynamic_model(X, y, loss, layers=[10]):
+            # Creates a basic MLP model dynamically choosing the input and
+            # output shapes.
+            n_features_in = X.shape[1]
+            inp = Input(shape=(n_features_in,))
 
-        hidden = inp
-        for layer_size in layers:
-            hidden = Dense(layer_size, activation="relu")(hidden)
+            hidden = inp
+            for layer_size in layers:
+                hidden = Dense(layer_size, activation="relu")(hidden)
 
-        n_outputs = y.shape[1] if len(y.shape) > 1 else 1
-        out = [Dense(n_outputs, activation="softmax")(hidden)]
-        model = Model(inp, out)
-        model.compile(loss=loss, optimizer="rmsprop")
+            n_outputs = y.shape[1] if len(y.shape) > 1 else 1
+            out = [Dense(n_outputs, activation="softmax")(hidden)]
+            model = Model(inp, out)
+            model.compile(loss=loss, optimizer="rmsprop")
 
-        return model
-    ```
+            return model
+        ```
 
-    You can then use this function to create a scikit-learn compatible model
-    and fit it on some data.
+        You can then use this function to create a scikit-learn compatible model
+        and fit it on some data.
 
-    ``` python
-    from sklearn.datasets import make_classification
-    from keras.wrappers import KerasClassifier
+        ``` python
+        from sklearn.datasets import make_regression
+        from keras.wrappers import KerasRegressor
 
-    X, y = make_classification(n_samples=1000, n_features=10, n_classes=3)
-    est = KerasClassifier(
-        model=dynamic_model,
-        random_state=42,
-        model_args={
-            "loss": "categorical_crossentropy",
-            "layers": [20, 20, 20],
-        },
-    )
+        X, y = make_regression(n_samples=1000, n_features=10)
+        est = KerasRegressor(
+            model=dynamic_model,
+            random_state=42,
+            model_args={
+                "loss": "mse",
+                "layers": [20, 20, 20],
+            },
+        )
 
-    est.fit(X, y, epochs=5)
-    ```
+        est.fit(X, y, epochs=5)
+        ```
     """
 
     def _more_tags(self):
@@ -412,8 +412,11 @@ class KerasRegressor(RegressorMixin, KerasBase):
 
 
 @keras_export("keras.wrappers.KerasTransformer")
-class KerasTransformer(TransformerMixin, KerasBase):
+class SKLearnTransformer(TransformerMixin, SKLBase):
     """scikit-learn compatible transformer wrapper for Keras models.
+
+    Note that this is a scikit-learn compatible transformer, and not a
+    transformer in the deep learning sense.
 
     Args:
         model: `Model`
@@ -429,6 +432,30 @@ class KerasTransformer(TransformerMixin, KerasBase):
     Attributes:
         model_ : `Model`
             The fitted model.
+
+    Example:
+        A common use case for a scikit-learn transformer, is to have a step
+        which gives you the embedding of your data. Here we assume
+        `my_package.my_model` is a Keras model which takes the input and gives
+        embeddings of the data, and `my_package.my_data` is your dataset loader.
+
+        ``` python
+        from my_package import my_model, my_data
+        from keras.wrappers import SKLearnTransformer
+        from sklearn.frozen import FrozenEstimator # requires scikit-learn>=1.6
+        from sklearn.pipeline import make_pipeline
+        from sklearn.ensemble import HistGradientBoostingClassifier
+
+        X, y = my_data()
+
+        trs = FrozenEstimator(SKLearnTransformer(model=my_model))
+        pipe = make_pipeline(trs, HistGradientBoostingClassifier())
+        pipe.fit(X, y)
+        ```
+
+        Note that in the above example, `FrozenEstimator` prevents any further
+        training of the transformer step in the pipeline, which can be the case
+        if you don't want to change the embedding model at hand.
     """
 
     def transform(self, X):
