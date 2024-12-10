@@ -65,6 +65,7 @@ EXPECTED_FAILED_CHECKS = {
             "This test assumes reproducibility in fit."
         ),
         "check_supervised_y_2d": "This test assumes reproducibility in fit.",
+        "check_fit_idempotent": "This test assumes reproducibility in fit.",
     },
     "SKLearnRegressor": {
         "check_parameters_default_constructible": (
