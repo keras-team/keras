@@ -1096,12 +1096,14 @@ def _apply_masks(logits, mask, is_causal):
 
 
 def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
+    original_dtype = key.dtype
     logits_dtype = np.promote_types(query.dtype, np.float32)
-    logits = np.einsum(
-        "BTNH,BSNH->BNTS",
-        query.astype(logits_dtype),
-        key.astype(logits_dtype),
-    )
+    if backend.standardize_dtype(key.dtype) == "bfloat16":
+        # `np.einsum` doesn't support bfloat16
+        key = key.astype("float32")
+        value = value.astype("float32")
+    logits = np.einsum("BTNH,BSNH->BNTS", query, key)
+    logits = logits.astype(logits_dtype)
     logits *= np.array(scale, dtype=logits.dtype)
 
     if bias is not None:
@@ -1111,7 +1113,7 @@ def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
 
     # Softmax and it is always carried out in fp32.
     padded_logits = padded_logits.astype(np.float32)
-    probs = softmax(padded_logits, axis=-1).astype(key.dtype)
+    probs = softmax(padded_logits, axis=-1).astype(original_dtype)
     encoded_dtype = probs.dtype
     if backend.standardize_dtype(probs.dtype) == "bfloat16":
         # `np.einsum` doesn't support bfloat16
