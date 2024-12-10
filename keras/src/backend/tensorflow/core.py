@@ -44,13 +44,7 @@ class Variable(
         )
 
     def _initialize_with_initializer(self, initializer):
-        self._value = tf.Variable(
-            lambda: initializer(self._shape, dtype=self._dtype),
-            dtype=self._dtype,
-            trainable=self.trainable,
-            name=self.name,
-            aggregation=self._map_aggregation(self.aggregation),
-        )
+        self._initialize(lambda: initializer(self._shape, dtype=self._dtype))
 
     def _deferred_initialize(self):
         if self._value is not None:

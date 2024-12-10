@@ -8,6 +8,7 @@ from absl.testing import parameterized
 from keras.src import applications
 from keras.src import backend
 from keras.src import layers
+from keras.src import ops
 from keras.src import saving
 from keras.src import testing
 from keras.src.layers.core.input_layer import Input
@@ -573,7 +574,6 @@ class FunctionalTest(testing.TestCase):
         with pytest.warns() as warning_logs:
             model.predict([np.ones((2, 2)), np.zeros((2, 2))], verbose=0)
             self.assertLen(list(filter(is_input_warning, warning_logs)), 1)
-
         # No warning for mismatched tuples and lists.
         model = Model([i1, i2], outputs)
         with warnings.catch_warnings(record=True) as warning_logs:
@@ -699,3 +699,18 @@ class FunctionalTest(testing.TestCase):
                 "tags": tags_data,
             }
         )
+
+    def test_list_input_with_dict_build(self):
+        x1 = Input((10,), name="IT")
+        x2 = Input((10,), name="IS")
+        y = layers.subtract([x1, x2])
+        model = Model(inputs={"IT": x1, "IS": x2}, outputs=y)
+        x1 = ops.ones((1, 10))
+        x2 = ops.zeros((1, 10))
+        # Works
+        _ = model({"IT": x1, "IS": x2})
+        with self.assertRaisesRegex(
+            ValueError,
+            "The structure of `inputs` doesn't match the expected structure",
+        ):
+            model([x1, x2])

@@ -239,3 +239,18 @@ def scale_loss_for_distribution(value):
                 value, ops.cast(1.0 / num_replicas, value.dtype)
             )
     return value
+
+
+def unscale_loss_for_distribution(value):
+    """Unscales the given value by the number of replicas in the strategy.
+
+    Currently, this function is only effective when using the tensorflow backend
+    and `tf.distribute`.
+    """
+    if backend.backend() == "tensorflow":
+        import tensorflow as tf
+
+        num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
+        if num_replicas > 1:
+            value = ops.multiply(value, ops.cast(num_replicas, value.dtype))
+    return value

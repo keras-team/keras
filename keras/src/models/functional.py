@@ -305,7 +305,13 @@ class Functional(Function, Model):
                     raise_exception = True
             else:
                 raise_exception = True
-
+        if (
+            isinstance(self._inputs_struct, dict)
+            and not isinstance(inputs, dict)
+            and list(self._inputs_struct.keys())
+            != sorted(self._inputs_struct.keys())
+        ):
+            raise_exception = True
         self._maybe_warn_inputs_struct_mismatch(
             inputs, raise_exception=raise_exception
         )

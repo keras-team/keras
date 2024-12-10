@@ -89,6 +89,7 @@ class SeedGenerator:
                 shape=(2,),
                 dtype=self.backend.random_seed_dtype(),
                 trainable=False,
+                aggregation="none",
                 name="seed_generator_state",
             )
 

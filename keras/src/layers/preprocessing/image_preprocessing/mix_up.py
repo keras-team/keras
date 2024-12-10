@@ -1,4 +1,3 @@
-import keras.src.random.random
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -54,13 +53,16 @@ class MixUp(BaseImagePreprocessingLayer):
         else:
             batch_size = self.backend.shape(images)[0]
 
+        if seed is None:
+            seed = self._get_seed_generator(self.backend._backend)
+
         permutation_order = self.backend.random.shuffle(
             self.backend.numpy.arange(0, batch_size, dtype="int64"),
-            seed=self.generator,
+            seed=seed,
         )
 
-        mix_weight = keras.src.random.random.beta(
-            (1,), self.alpha, self.alpha, seed=self.generator
+        mix_weight = self.backend.random.beta(
+            (1,), self.alpha, self.alpha, seed=seed
         )
         return {
             "mix_weight": mix_weight,
@@ -68,6 +70,7 @@ class MixUp(BaseImagePreprocessingLayer):
         }
 
     def transform_images(self, images, transformation=None, training=True):
+        images = self.backend.cast(images, self.compute_dtype)
         mix_weight = transformation["mix_weight"]
         permutation_order = transformation["permutation_order"]
 

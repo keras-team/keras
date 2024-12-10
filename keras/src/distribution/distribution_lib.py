@@ -1,9 +1,7 @@
-"""Unified high level distribution APIs across backends.
+"""Unified high-level distribution APIs across backends.
 
-!!!DO NOT USE!!! Currently under development and APIs are not final.
-
-Currently only the JAX backend has been implemented. The TensorFlow backend
-will be implemented in the future (via tf.dtensor API).
+Currently only the JAX backend is supported. The TensorFlow backend
+will be supported in the future (via tf.dtensor API).
 """
 
 import collections
