@@ -54,7 +54,7 @@ class RandomHue(BaseImagePreprocessingLayer):
     Example:
     ```python
     (images, labels), _ = keras.datasets.cifar10.load_data()
-    random_hue = keras.layers.RandomHue()
+    random_hue = keras.layers.RandomHue(factor=0.5, value_range=[0, 1])
     augmented_images = random_hue(images)
     ```
     """
