@@ -1,10 +1,4 @@
-"""!!!DO NOT USE!!!
-
-Distribution related class for JAX backend.
-
-This is just a prototype and we might want to unify it
-with other backends in the future.
-"""
+"""Utilities for distribution strategy with JAX backend."""
 
 import jax
 import numpy as np
