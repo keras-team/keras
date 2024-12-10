@@ -10,9 +10,9 @@ from keras.src.backend import set_floatx
 from keras.src.layers import Dense
 from keras.src.layers import Input
 from keras.src.models import Model
-from keras.src.wrappers import KerasClassifier
-from keras.src.wrappers import KerasRegressor
-from keras.src.wrappers import KerasTransformer
+from keras.src.wrappers import SKLearnClassifier
+from keras.src.wrappers import SKLearnRegressor
+from keras.src.wrappers import SKLearnTransformer
 from keras.src.wrappers.fixes import parametrize_with_checks
 
 
@@ -49,7 +49,7 @@ def use_floatx(x: str):
 
 
 EXPECTED_FAILED_CHECKS = {
-    "KerasClassifier": {
+    "SKLearnClassifier": {
         "check_classifiers_regression_target": ("not an issue in sklearn>=1.6"),
         "check_parameters_default_constructible": (
             "not an issue in sklearn>=1.6"
@@ -62,12 +62,12 @@ EXPECTED_FAILED_CHECKS = {
             "sometimes"
         ),
     },
-    "KerasRegressor": {
+    "SKLearnRegressor": {
         "check_parameters_default_constructible": (
             "not an issue in sklearn>=1.6"
         ),
     },
-    "KerasTransformer": {
+    "SKLearnTransformer": {
         "check_parameters_default_constructible": (
             "not an issue in sklearn>=1.6"
         ),
@@ -77,7 +77,7 @@ EXPECTED_FAILED_CHECKS = {
 
 @parametrize_with_checks(
     estimators=[
-        KerasClassifier(
+        SKLearnClassifier(
             model=dynamic_model,
             random_state=42,
             model_args={
@@ -86,12 +86,12 @@ EXPECTED_FAILED_CHECKS = {
             },
             fit_args={"epochs": 5},
         ),
-        KerasRegressor(
+        SKLearnRegressor(
             model=dynamic_model,
             random_state=42,
             model_args={"loss": "mse"},
         ),
-        KerasTransformer(
+        SKLearnTransformer(
             model=dynamic_model,
             random_state=42,
             model_args={"loss": "mse"},

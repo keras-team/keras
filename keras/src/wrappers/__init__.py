@@ -1,5 +1,5 @@
-from keras.src.wrappers._sklearn import KerasClassifier
-from keras.src.wrappers._sklearn import KerasRegressor
-from keras.src.wrappers._sklearn import KerasTransformer
+from keras.src.wrappers._sklearn import SKLearnClassifier
+from keras.src.wrappers._sklearn import SKLearnRegressor
+from keras.src.wrappers._sklearn import SKLearnTransformer
 
-__all__ = ["KerasClassifier", "KerasRegressor", "KerasTransformer"]
+__all__ = ["SKLearnClassifier", "SKLearnRegressor", "SKLearnTransformer"]

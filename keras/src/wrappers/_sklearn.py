@@ -204,7 +204,7 @@ class SKLBase(BaseEstimator):
         return self._target_encoder.inverse_transform(y)
 
 
-@keras_export("keras.wrappers.KerasClassifier")
+@keras_export("keras.wrappers.SKLearnClassifier")
 class SKLearnClassifier(ClassifierMixin, SKLBase):
     """scikit-learn compatible classifier wrapper for Keras models.
 
@@ -271,10 +271,10 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
 
         ``` python
         from sklearn.datasets import make_classification
-        from keras.wrappers import KerasClassifier
+        from keras.wrappers import SKLearnClassifier
 
         X, y = make_classification(n_samples=1000, n_features=10, n_classes=3)
-        est = KerasClassifier(
+        est = SKLearnClassifier(
             model=dynamic_model,
             random_state=42,
             model_args={
@@ -318,7 +318,7 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
         return tags
 
 
-@keras_export("keras.wrappers.KerasRegressor")
+@keras_export("keras.wrappers.SKLearnRegressor")
 class SKLearnRegressor(RegressorMixin, SKLBase):
     """scikit-learn compatible regressor wrapper for Keras models.
 
@@ -383,10 +383,10 @@ class SKLearnRegressor(RegressorMixin, SKLBase):
 
         ``` python
         from sklearn.datasets import make_regression
-        from keras.wrappers import KerasRegressor
+        from keras.wrappers import SKLearnRegressor
 
         X, y = make_regression(n_samples=1000, n_features=10)
-        est = KerasRegressor(
+        est = SKLearnRegressor(
             model=dynamic_model,
             random_state=42,
             model_args={
@@ -411,7 +411,7 @@ class SKLearnRegressor(RegressorMixin, SKLBase):
         return tags
 
 
-@keras_export("keras.wrappers.KerasTransformer")
+@keras_export("keras.wrappers.SKLearnTransformer")
 class SKLearnTransformer(TransformerMixin, SKLBase):
     """scikit-learn compatible transformer wrapper for Keras models.
 
