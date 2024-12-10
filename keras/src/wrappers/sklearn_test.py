@@ -101,14 +101,17 @@ EXPECTED_FAILED_CHECKS = {
         type(estimator).__name__
     ],
 )
-def test_fully_compliant_estimators_low_precision(estimator, check):
+def test_sklearn_estimator_checks(estimator, check):
     """Checks that can be passed with sklearn's default tolerances
     and in a single epoch.
     """
     try:
         check(estimator)
-    except NotImplementedError:
-        if keras.config.backend() == "numpy":
+    except Exception as exc:
+        if keras.config.backend() == "numpy" and (
+            isinstance(exc, NotImplementedError)
+            or "NotImplementedError" in str(exc)
+        ):
             pytest.xfail("Backend not implemented")
         else:
             raise
