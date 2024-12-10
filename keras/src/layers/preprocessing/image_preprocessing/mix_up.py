@@ -68,6 +68,7 @@ class MixUp(BaseImagePreprocessingLayer):
         }
 
     def transform_images(self, images, transformation=None, training=True):
+        images = self.backend.cast(images, self.compute_dtype)
         mix_weight = transformation["mix_weight"]
         permutation_order = transformation["permutation_order"]
 
