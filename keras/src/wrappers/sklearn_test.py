@@ -50,7 +50,7 @@ def use_floatx(x: str):
 
 EXPECTED_FAILED_CHECKS = {
     "SKLearnClassifier": {
-        "check_classifiers_regression_target": ("not an issue in sklearn>=1.6"),
+        "check_classifiers_regression_target": "not an issue in sklearn>=1.6",
         "check_parameters_default_constructible": (
             "not an issue in sklearn>=1.6"
         ),
@@ -61,6 +61,10 @@ EXPECTED_FAILED_CHECKS = {
             "with small test cases the estimator returns not all classes "
             "sometimes"
         ),
+        "check_classifier_data_not_an_array": (
+            "This test assumes reproducibility in fit."
+        ),
+        "check_supervised_y_2d": "This test assumes reproducibility in fit.",
     },
     "SKLearnRegressor": {
         "check_parameters_default_constructible": (
@@ -79,22 +83,19 @@ EXPECTED_FAILED_CHECKS = {
     estimators=[
         SKLearnClassifier(
             model=dynamic_model,
-            random_state=42,
-            model_args={
+            model_kwargs={
                 "loss": "categorical_crossentropy",
                 "layers": [20, 20, 20],
             },
-            fit_args={"epochs": 5},
+            fit_kwargs={"epochs": 5},
         ),
         SKLearnRegressor(
             model=dynamic_model,
-            random_state=42,
-            model_args={"loss": "mse"},
+            model_kwargs={"loss": "mse"},
         ),
         SKLearnTransformer(
             model=dynamic_model,
-            random_state=42,
-            model_args={"loss": "mse"},
+            model_kwargs={"loss": "mse"},
         ),
     ],
     expected_failed_checks=lambda estimator: EXPECTED_FAILED_CHECKS[
