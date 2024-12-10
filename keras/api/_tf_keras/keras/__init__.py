@@ -25,6 +25,7 @@ from keras.api import regularizers
 from keras.api import tree
 from keras.api import utils
 from keras.api import visualization
+from keras.api import wrappers
 from keras.api._tf_keras.keras import backend
 from keras.api._tf_keras.keras import layers
 from keras.api._tf_keras.keras import losses
