@@ -16,6 +16,7 @@ class SoftmaxTest(testing.TestCase):
             assert_built_after_instantiation=True,
         )
 
+    @pytest.mark.openvino_backend
     def test_softmax_correctness(self):
         softmax_layer = softmax.Softmax()
         input = np.array([[1.0, 2.0, 1.0], [1.0, 2.0, 1.0]])
@@ -38,6 +39,7 @@ class SoftmaxTest(testing.TestCase):
         result = softmax_layer(input, mask=mask)
         self.assertAllClose(result, expected_output)
 
+    @pytest.mark.openvino_backend
     def test_softmax_correctness_with_axis(self):
         softmax_layer = softmax.Softmax(axis=(1))
         input = np.array([[1.0, 2.0, 1.0], [1.0, 2.0, 1.0]])

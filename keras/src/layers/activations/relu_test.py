@@ -20,6 +20,7 @@ class ReLUTest(testing.TestCase):
             assert_built_after_instantiation=True,
         )
 
+    @pytest.mark.openvino_backend
     def test_normal_relu_correctness(self):
         relu_layer = relu.ReLU(max_value=10, negative_slope=0.0, threshold=0)
         input = np.array([-10, -5, 0.0, 5, 10])
@@ -27,6 +28,7 @@ class ReLUTest(testing.TestCase):
         result = relu_layer(input)
         self.assertAllClose(result, expected_output)
 
+    @pytest.mark.openvino_backend
     def test_leaky_relu_correctness(self):
         relu_layer = relu.ReLU(max_value=10, negative_slope=0.5, threshold=0)
         input = np.array([-10, -5, 0.0, 5, 10])
@@ -34,6 +36,7 @@ class ReLUTest(testing.TestCase):
         result = relu_layer(input)
         self.assertAllClose(result, expected_output)
 
+    @pytest.mark.openvino_backend
     def test_threshold_relu_correctness(self):
         relu_layer = relu.ReLU(max_value=8, negative_slope=0.0, threshold=5)
         input = np.array([6.0, 7.0, 0.0, 5, 10])
