@@ -36,7 +36,7 @@ class RandomHue(BaseImagePreprocessingLayer):
     hue channel (H) by delta. The image is then converted back to RGB.
 
     Args:
-        factor: , a single float or A tuple of two floats.
+        factor: A single float or a tuple of two floats.
              `factor` controls the extent to which the
             image hue is impacted. `factor=0.0` makes this layer perform a
             no-op operation, while a value of 1.0 performs the most aggressive
