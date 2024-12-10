@@ -473,6 +473,15 @@ def isdir(path):
     return os.path.isdir(path)
 
 
+def remove(path):
+    if is_remote_path(path):
+        if gfile.available:
+            return gfile.remove(path)
+        else:
+            _raise_if_no_gfile(path)
+    return os.remove(path)
+
+
 def rmtree(path):
     if is_remote_path(path):
         if gfile.available:

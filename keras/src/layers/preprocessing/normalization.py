@@ -278,7 +278,7 @@ class Normalization(TFDataLayer):
                 ) * batch_weight
                 total_mean = new_total_mean
         else:
-            raise NotImplementedError(type(data))
+            raise NotImplementedError(f"Unsupported data type: {type(data)}")
 
         self.adapt_mean.assign(total_mean)
         self.adapt_variance.assign(total_var)

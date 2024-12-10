@@ -28,7 +28,6 @@ class MeanSquaredError(reduction_metrics.MeanMetricWrapper):
         dtype: (Optional) data type of the metric result.
 
     Example:
-
     >>> m = keras.metrics.MeanSquaredError()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]])
     >>> m.result()
@@ -64,6 +63,7 @@ class MeanAbsoluteError(reduction_metrics.MeanMetricWrapper):
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]])
     >>> m.result()
     0.25
+
     >>> m.reset_state()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]],
     ...                sample_weight=[1, 0])
@@ -103,14 +103,12 @@ class MeanAbsolutePercentageError(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Example:
-
-    Example:
-
+    Examples:
     >>> m = keras.metrics.MeanAbsolutePercentageError()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]])
     >>> m.result()
     250000000.0
+
     >>> m.reset_state()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]],
     ...                sample_weight=[1, 0])
@@ -150,14 +148,13 @@ class MeanSquaredLogarithmicError(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Example:
-
-    Example:
+    Examples:
 
     >>> m = keras.metrics.MeanSquaredLogarithmicError()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]])
     >>> m.result()
     0.12011322
+
     >>> m.reset_state()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]],
     ...                sample_weight=[1, 0])
@@ -197,9 +194,7 @@ class RootMeanSquaredError(reduction_metrics.Mean):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Example:
-
-    Example:
+    Examples:
 
     >>> m = keras.metrics.RootMeanSquaredError()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]])
@@ -270,9 +265,7 @@ class CosineSimilarity(reduction_metrics.MeanMetricWrapper):
         axis: (Optional) Defaults to `-1`. The dimension along which the cosine
             similarity is computed.
 
-    Example:
-
-    Example:
+    Examples:
 
     >>> # l2_norm(y_true) = [[0., 1.], [1./1.414, 1./1.414]]
     >>> # l2_norm(y_pred) = [[1., 0.], [1./1.414, 1./1.414]]
@@ -283,6 +276,7 @@ class CosineSimilarity(reduction_metrics.MeanMetricWrapper):
     >>> m.update_state([[0., 1.], [1., 1.]], [[1., 0.], [1., 1.]])
     >>> m.result()
     0.49999997
+
     >>> m.reset_state()
     >>> m.update_state([[0., 1.], [1., 1.]], [[1., 0.], [1., 1.]],
     ...                sample_weight=[0.3, 0.7])
@@ -323,14 +317,13 @@ class LogCoshError(reduction_metrics.MeanMetricWrapper):
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
-    Example:
-
-    Example:
+    Examples:
 
     >>> m = keras.metrics.LogCoshError()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]])
     >>> m.result()
     0.10844523
+
     >>> m.reset_state()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]],
     ...                sample_weight=[1, 0])

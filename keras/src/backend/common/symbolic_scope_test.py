@@ -8,7 +8,6 @@ from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 
 class TestSymbolicScope(testing.TestCase):
     def test_basic_flow(self):
-
         # Define a function that behaves differently according to
         # `in_symbolic_scope`.
         def compute_loss(y, y_pred):

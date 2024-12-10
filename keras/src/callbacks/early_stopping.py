@@ -136,14 +136,12 @@ class EarlyStopping(Callback):
             )
         if self.monitor_op == ops.less:
             self.min_delta *= -1
-        self.best = (
-            float("inf") if self.monitor_op == ops.less else -float("inf")
-        )
 
     def on_train_begin(self, logs=None):
         # Allow instances to be re-used
         self.wait = 0
         self.stopped_epoch = 0
+        self.best = None
         self.best_weights = None
         self.best_epoch = 0
 
@@ -210,4 +208,6 @@ class EarlyStopping(Callback):
         return monitor_value
 
     def _is_improvement(self, monitor_value, reference_value):
+        if reference_value is None:
+            return True
         return self.monitor_op(monitor_value - self.min_delta, reference_value)

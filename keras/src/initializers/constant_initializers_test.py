@@ -69,6 +69,10 @@ class ConstantInitializersTest(testing.TestCase):
 
         self.run_class_serialization_test(initializer)
 
+        # Test compatible class_name
+        initializer = initializers.get("IdentityInitializer")
+        self.assertIsInstance(initializer, initializers.Identity)
+
     def test_stft_initializer(self):
         shape = (256, 1, 513)
         time_range = np.arange(256).reshape((-1, 1, 1))
@@ -82,12 +86,12 @@ class ConstantInitializersTest(testing.TestCase):
             # of non-small error in jax and torch
             tol_kwargs = {"atol": 1e-4, "rtol": 1e-6}
 
-        initializer = initializers.STFTInitializer("real", None)
+        initializer = initializers.STFT("real", None)
         values = backend.convert_to_numpy(initializer(shape))
         self.assertAllClose(np.cos(args), values, atol=1e-4)
         self.run_class_serialization_test(initializer)
 
-        initializer = initializers.STFTInitializer(
+        initializer = initializers.STFT(
             "real",
             "hamming",
             None,
@@ -99,7 +103,7 @@ class ConstantInitializersTest(testing.TestCase):
         self.assertAllClose(np.cos(args) * window, values, **tol_kwargs)
         self.run_class_serialization_test(initializer)
 
-        initializer = initializers.STFTInitializer(
+        initializer = initializers.STFT(
             "imag",
             "tukey",
             "density",
@@ -112,7 +116,7 @@ class ConstantInitializersTest(testing.TestCase):
         self.assertAllClose(np.sin(args) * window, values, **tol_kwargs)
         self.run_class_serialization_test(initializer)
 
-        initializer = initializers.STFTInitializer(
+        initializer = initializers.STFT(
             "imag",
             list(range(1, 257)),
             "spectrum",
@@ -125,8 +129,12 @@ class ConstantInitializersTest(testing.TestCase):
         self.run_class_serialization_test(initializer)
 
         with self.assertRaises(ValueError):
-            initializers.STFTInitializer("imaginary")
+            initializers.STFT("imaginary")
         with self.assertRaises(ValueError):
-            initializers.STFTInitializer("real", scaling="l2")
+            initializers.STFT("real", scaling="l2")
         with self.assertRaises(ValueError):
-            initializers.STFTInitializer("real", window="unknown")
+            initializers.STFT("real", window="unknown")
+
+        # Test compatible class_name
+        initializer = initializers.get("STFTInitializer")
+        self.assertIsInstance(initializer, initializers.STFT)

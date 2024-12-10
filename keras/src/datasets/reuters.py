@@ -124,8 +124,9 @@ def load_data(
         xs = [[w for w in x if skip_top <= w < num_words] for x in xs]
 
     idx = int(len(xs) * (1 - test_split))
-    x_train, y_train = np.array(xs[:idx], dtype="object"), np.array(
-        labels[:idx]
+    x_train, y_train = (
+        np.array(xs[:idx], dtype="object"),
+        np.array(labels[:idx]),
     )
     x_test, y_test = np.array(xs[idx:], dtype="object"), np.array(labels[idx:])
 

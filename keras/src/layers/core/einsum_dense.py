@@ -662,11 +662,7 @@ class EinsumDense(Layer):
             del self._kernel
             # Utilize a lambda expression as an initializer to prevent adding a
             # large constant to the computation graph.
-            self._int8_build(
-                kernel_shape,
-                lambda shape, dtype: kernel_value,
-                lambda shape, dtype: kernel_scale,
-            )
+            self._int8_build(kernel_shape, kernel_value, kernel_scale)
         elif mode == "float8":
             self._float8_build()
         else:
@@ -877,7 +873,6 @@ def _analyze_split_string(
 
 
 def _analyze_quantization_info(equation, input_shape):
-
     def get_specs(equation, input_shape):
         possible_labels = string.ascii_letters
         dot_replaced_string = re.sub(r"\.\.\.", "0", equation)

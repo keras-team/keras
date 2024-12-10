@@ -16,8 +16,10 @@ from keras.src.saving import serialization_lib
 # on exact weight ordering for each layer, so we need
 # to test across all types of layers.
 
-# TODO: reenable tests after tf_keras is available.
-tf_keras = None
+try:
+    import tf_keras
+except:
+    tf_keras = None
 
 
 def get_sequential_model(keras):
@@ -53,8 +55,21 @@ def get_subclassed_model(keras):
             self.dense_1 = keras.layers.Dense(3, activation="relu")
             self.dense_2 = keras.layers.Dense(1, activation="sigmoid")
 
+            # top_level_model_weights
+            self.bias = self.add_weight(
+                name="bias",
+                shape=[1],
+                trainable=True,
+                initializer=keras.initializers.Zeros(),
+            )
+
         def call(self, x):
-            return self.dense_2(self.dense_1(x))
+            x = self.dense_1(x)
+            x = self.dense_2(x)
+
+            # top_level_model_weights
+            x += ops.cast(self.bias, x.dtype)
+            return x
 
     model = MyModel()
     model(np.random.random((2, 3)))
@@ -62,6 +77,7 @@ def get_subclassed_model(keras):
 
 
 @pytest.mark.requires_trainable_backend
+@pytest.mark.skipif(tf_keras is None, reason="Test requires tf_keras")
 class LegacyH5WeightsTest(testing.TestCase):
     def _check_reloading_weights(self, ref_input, model, tf_keras_model):
         ref_output = tf_keras_model(ref_input)
@@ -77,19 +93,19 @@ class LegacyH5WeightsTest(testing.TestCase):
         output = model(ref_input)
         self.assertAllClose(ref_output, output, atol=1e-5)
 
-    def DISABLED_test_sequential_model_weights(self):
+    def test_sequential_model_weights(self):
         model = get_sequential_model(keras)
         tf_keras_model = get_sequential_model(tf_keras)
         ref_input = np.random.random((2, 3))
         self._check_reloading_weights(ref_input, model, tf_keras_model)
 
-    def DISABLED_test_functional_model_weights(self):
+    def test_functional_model_weights(self):
         model = get_functional_model(keras)
         tf_keras_model = get_functional_model(tf_keras)
         ref_input = np.random.random((2, 3))
         self._check_reloading_weights(ref_input, model, tf_keras_model)
 
-    def DISABLED_test_subclassed_model_weights(self):
+    def test_subclassed_model_weights(self):
         model = get_subclassed_model(keras)
         tf_keras_model = get_subclassed_model(tf_keras)
         ref_input = np.random.random((2, 3))
@@ -107,27 +123,27 @@ class LegacyH5WholeModelTest(testing.TestCase):
         output = loaded(ref_input)
         self.assertAllClose(ref_output, output, atol=1e-5)
 
-    def DISABLED_test_sequential_model(self):
+    def test_sequential_model(self):
         model = get_sequential_model(keras)
         ref_input = np.random.random((2, 3))
         self._check_reloading_model(ref_input, model)
 
-    def DISABLED_test_functional_model(self):
+    def test_functional_model(self):
         model = get_functional_model(keras)
         ref_input = np.random.random((2, 3))
         self._check_reloading_model(ref_input, model)
 
-    def DISABLED_test_compiled_model_with_various_layers(self):
+    def test_compiled_model_with_various_layers(self):
         model = models.Sequential()
         model.add(layers.Dense(2, input_shape=(3,)))
         model.add(layers.RepeatVector(3))
         model.add(layers.TimeDistributed(layers.Dense(3)))
 
-        model.compile(optimizer="rmsprop", loss="mse")
+        model.compile(optimizer="rmsprop", loss="mean_squared_error")
         ref_input = np.random.random((1, 3))
         self._check_reloading_model(ref_input, model)
 
-    def DISABLED_test_saving_lambda(self):
+    def test_saving_lambda(self):
         mean = ops.random.uniform((4, 2, 3))
         std = ops.abs(ops.random.uniform((4, 2, 3))) + 1e-5
         inputs = layers.Input(shape=(4, 2, 3))
@@ -136,7 +152,9 @@ class LegacyH5WholeModelTest(testing.TestCase):
             arguments={"mu": mean, "std": std},
         )(inputs)
         model = models.Model(inputs, output)
-        model.compile(loss="mse", optimizer="sgd", metrics=["acc"])
+        model.compile(
+            loss="mean_squared_error", optimizer="sgd", metrics=["acc"]
+        )
 
         temp_filepath = os.path.join(self.get_temp_dir(), "lambda_model.h5")
         legacy_h5_format.save_model_to_hdf5(model, temp_filepath)
@@ -145,10 +163,10 @@ class LegacyH5WholeModelTest(testing.TestCase):
         self.assertAllClose(mean, loaded.layers[1].arguments["mu"])
         self.assertAllClose(std, loaded.layers[1].arguments["std"])
 
-    def DISABLED_test_saving_include_optimizer_false(self):
+    def test_saving_include_optimizer_false(self):
         model = models.Sequential()
         model.add(layers.Dense(1))
-        model.compile("adam", loss="mse")
+        model.compile("adam", loss="mean_squared_error")
         x, y = np.ones((10, 10)), np.ones((10, 1))
         model.fit(x, y)
         ref_output = model(x)
@@ -167,7 +185,7 @@ class LegacyH5WholeModelTest(testing.TestCase):
         # Compare output
         self.assertAllClose(ref_output, output, atol=1e-5)
 
-    def DISABLED_test_custom_sequential_registered_no_scope(self):
+    def test_custom_sequential_registered_no_scope(self):
         @object_registration.register_keras_serializable(package="my_package")
         class MyDense(layers.Dense):
             def __init__(self, units, **kwargs):
@@ -180,7 +198,7 @@ class LegacyH5WholeModelTest(testing.TestCase):
         ref_input = np.array([5])
         self._check_reloading_model(ref_input, model)
 
-    def DISABLED_test_custom_functional_registered_no_scope(self):
+    def test_custom_functional_registered_no_scope(self):
         @object_registration.register_keras_serializable(package="my_package")
         class MyDense(layers.Dense):
             def __init__(self, units, **kwargs):
@@ -193,7 +211,7 @@ class LegacyH5WholeModelTest(testing.TestCase):
         ref_input = np.array([5])
         self._check_reloading_model(ref_input, model)
 
-    def DISABLED_test_nested_layers(self):
+    def test_nested_layers(self):
         class MyLayer(layers.Layer):
             def __init__(self, sublayers, **kwargs):
                 super().__init__(**kwargs)
@@ -263,6 +281,7 @@ class LegacyH5WholeModelTest(testing.TestCase):
 
 
 @pytest.mark.requires_trainable_backend
+@pytest.mark.skipif(tf_keras is None, reason="Test requires tf_keras")
 class LegacyH5BackwardsCompatTest(testing.TestCase):
     def _check_reloading_model(self, ref_input, model, tf_keras_model):
         # Whole model file
@@ -273,19 +292,19 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
         output = loaded(ref_input)
         self.assertAllClose(ref_output, output, atol=1e-5)
 
-    def DISABLED_test_sequential_model(self):
+    def test_sequential_model(self):
         model = get_sequential_model(keras)
         tf_keras_model = get_sequential_model(tf_keras)
         ref_input = np.random.random((2, 3))
         self._check_reloading_model(ref_input, model, tf_keras_model)
 
-    def DISABLED_test_functional_model(self):
+    def test_functional_model(self):
         tf_keras_model = get_functional_model(tf_keras)
         model = get_functional_model(keras)
         ref_input = np.random.random((2, 3))
         self._check_reloading_model(ref_input, model, tf_keras_model)
 
-    def DISABLED_test_compiled_model_with_various_layers(self):
+    def test_compiled_model_with_various_layers(self):
         model = models.Sequential()
         model.add(layers.Dense(2, input_shape=(3,)))
         model.add(layers.RepeatVector(3))
@@ -298,12 +317,12 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
         tf_keras_model.add(
             tf_keras.layers.TimeDistributed(tf_keras.layers.Dense(3))
         )
-        tf_keras_model.compile(optimizer="rmsprop", loss="mse")
+        tf_keras_model.compile(optimizer="rmsprop", loss="mean_squared_error")
 
         ref_input = np.random.random((1, 3))
         self._check_reloading_model(ref_input, model, tf_keras_model)
 
-    def DISABLED_test_saving_lambda(self):
+    def test_saving_lambda(self):
         mean = np.random.random((4, 2, 3))
         std = np.abs(np.random.random((4, 2, 3))) + 1e-5
         inputs = tf_keras.layers.Input(shape=(4, 2, 3))
@@ -313,7 +332,9 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
             output_shape=inputs.shape,
         )(inputs)
         tf_keras_model = tf_keras.Model(inputs, output)
-        tf_keras_model.compile(loss="mse", optimizer="sgd", metrics=["acc"])
+        tf_keras_model.compile(
+            loss="mean_squared_error", optimizer="sgd", metrics=["acc"]
+        )
 
         temp_filepath = os.path.join(self.get_temp_dir(), "lambda_model.h5")
         tf_keras_model.save(temp_filepath)
@@ -322,7 +343,7 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
         self.assertAllClose(mean, loaded.layers[1].arguments["mu"])
         self.assertAllClose(std, loaded.layers[1].arguments["std"])
 
-    def DISABLED_test_saving_include_optimizer_false(self):
+    def test_saving_include_optimizer_false(self):
         tf_keras_model = tf_keras.Sequential()
         tf_keras_model.add(tf_keras.layers.Dense(1))
         tf_keras_model.compile("adam", loss="mse")
@@ -342,7 +363,7 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
         # Compare output
         self.assertAllClose(ref_output, output, atol=1e-5)
 
-    def DISABLED_test_custom_sequential_registered_no_scope(self):
+    def test_custom_sequential_registered_no_scope(self):
         @tf_keras.saving.register_keras_serializable(package="my_package")
         class MyDense(tf_keras.layers.Dense):
             def __init__(self, units, **kwargs):
@@ -365,7 +386,7 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
         ref_input = np.array([5])
         self._check_reloading_model(ref_input, model, tf_keras_model)
 
-    def DISABLED_test_custom_functional_registered_no_scope(self):
+    def test_custom_functional_registered_no_scope(self):
         @tf_keras.saving.register_keras_serializable(package="my_package")
         class MyDense(tf_keras.layers.Dense):
             def __init__(self, units, **kwargs):
@@ -388,7 +409,7 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
         ref_input = np.array([5])
         self._check_reloading_model(ref_input, model, tf_keras_model)
 
-    def DISABLED_test_nested_layers(self):
+    def test_nested_layers(self):
         class MyLayer(tf_keras.layers.Layer):
             def __init__(self, sublayers, **kwargs):
                 super().__init__(**kwargs)
@@ -487,7 +508,7 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
 
 @pytest.mark.requires_trainable_backend
 class DirectoryCreationTest(testing.TestCase):
-    def DISABLED_test_directory_creation_on_save(self):
+    def test_directory_creation_on_save(self):
         """Test if directory is created on model save."""
         model = get_sequential_model(keras)
         nested_dirpath = os.path.join(

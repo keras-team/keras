@@ -29,6 +29,8 @@ if torch.backends.mps.is_available():
     DEFAULT_DEVICE = "mps"
 elif torch.cuda.is_available():
     DEFAULT_DEVICE = "cuda"
+elif hasattr(torch, "xpu") and torch.xpu.is_available():
+    DEFAULT_DEVICE = "xpu"
 else:
     DEFAULT_DEVICE = "cpu"
 
@@ -116,13 +118,11 @@ class Variable(KerasVariable):
     # Overload native accessor.
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
-        args = [
-            arg.value if isinstance(arg, KerasVariable) else arg for arg in args
-        ]
+        args = [arg.value if isinstance(arg, Variable) else arg for arg in args]
         if kwargs is None:
             kwargs = {}
         kwargs = {
-            key: value.value if isinstance(value, KerasVariable) else value
+            key: value.value if isinstance(value, Variable) else value
             for key, value in kwargs.items()
         }
         return func(*args, **kwargs)
@@ -273,7 +273,7 @@ def shape(x):
 
 def cast(x, dtype):
     dtype = to_torch_dtype(dtype)
-    if isinstance(x, KerasVariable):
+    if isinstance(x, Variable):
         x = x.value
     if is_tensor(x):
         if x.dtype == dtype:
@@ -642,7 +642,7 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 def stop_gradient(variable):
-    if isinstance(variable, KerasVariable):
+    if isinstance(variable, Variable):
         variable = variable.value
     # We can't use `.requires_grad_(False)` here since it only
     # works when the tensor is a leaf node in the graph.

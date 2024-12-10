@@ -525,6 +525,11 @@ def diag(x, k=0):
     return jnp.diag(x, k=k)
 
 
+def diagflat(x, k=0):
+    x = convert_to_tensor(x)
+    return jnp.diagflat(x, k=k)
+
+
 def diagonal(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     return jnp.diagonal(
@@ -571,6 +576,15 @@ def exp(x):
     if "int" in ori_dtype or ori_dtype == "bool":
         x = cast(x, config.floatx())
     return jnp.exp(x)
+
+
+@sparse.densifying_unary
+def exp2(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = cast(x, config.floatx())
+    return jnp.exp2(x)
 
 
 def expand_dims(x, axis):
@@ -890,6 +904,11 @@ def ravel(x):
     return jnp.ravel(x)
 
 
+def unravel_index(x, shape):
+    x = convert_to_tensor(x)
+    return jnp.unravel_index(x, shape)
+
+
 @sparse.elementwise_unary(linear=True)
 def real(x):
     x = convert_to_tensor(x)
@@ -1091,6 +1110,12 @@ def vdot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jnp.vdot(x1, x2)
+
+
+def inner(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.inner(x1, x2)
 
 
 def vstack(xs):

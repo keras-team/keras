@@ -168,3 +168,118 @@ class RandomFlipTest(testing.TestCase):
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         output = next(iter(ds)).numpy()
         self.assertAllClose(output, expected_output)
+
+    @parameterized.named_parameters(
+        (
+            "with_horizontal",
+            "horizontal",
+            [[4, 1, 6, 3], [0, 4, 2, 6]],
+        ),
+        (
+            "with_vertical",
+            "vertical",
+            [[2, 7, 4, 9], [6, 4, 8, 6]],
+        ),
+        (
+            "with_horizontal_and_vertical",
+            "horizontal_and_vertical",
+            [[4, 7, 6, 9], [0, 4, 2, 6]],
+        ),
+    )
+    def test_random_flip_bounding_boxes(self, mode, expected_boxes):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            image_shape = (10, 8, 3)
+        else:
+            image_shape = (3, 10, 8)
+        input_image = np.random.random(image_shape)
+        bounding_boxes = {
+            "boxes": np.array(
+                [
+                    [2, 1, 4, 3],
+                    [6, 4, 8, 6],
+                ]
+            ),
+            "labels": np.array([[1, 2]]),
+        }
+        input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
+        random_flip_layer = layers.RandomFlip(
+            mode,
+            data_format=data_format,
+            seed=42,
+            bounding_box_format="xyxy",
+        )
+
+        transformation = {
+            "flips": np.asarray([[True]]),
+            "input_shape": input_image.shape,
+        }
+        output = random_flip_layer.transform_bounding_boxes(
+            input_data["bounding_boxes"],
+            transformation=transformation,
+            training=True,
+        )
+
+        self.assertAllClose(output["boxes"], expected_boxes)
+
+    @parameterized.named_parameters(
+        (
+            "with_horizontal",
+            "horizontal",
+            [[4, 1, 6, 3], [0, 4, 2, 6]],
+        ),
+        (
+            "with_vertical",
+            "vertical",
+            [[2, 7, 4, 9], [6, 4, 8, 6]],
+        ),
+        (
+            "with_horizontal_and_vertical",
+            "horizontal_and_vertical",
+            [[4, 7, 6, 9], [0, 4, 2, 6]],
+        ),
+    )
+    def test_random_flip_tf_data_bounding_boxes(self, mode, expected_boxes):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            image_shape = (1, 10, 8, 3)
+        else:
+            image_shape = (1, 3, 10, 8)
+        input_image = np.random.random(image_shape)
+        bounding_boxes = {
+            "boxes": np.array(
+                [
+                    [
+                        [2, 1, 4, 3],
+                        [6, 4, 8, 6],
+                    ]
+                ]
+            ),
+            "labels": np.array([[1, 2]]),
+        }
+
+        input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
+
+        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        random_flip_layer = layers.RandomFlip(
+            mode,
+            data_format=data_format,
+            seed=42,
+            bounding_box_format="xyxy",
+        )
+
+        transformation = {
+            "flips": np.asarray([[True]]),
+            "input_shape": input_image.shape,
+        }
+        ds = ds.map(
+            lambda x: random_flip_layer.transform_bounding_boxes(
+                x["bounding_boxes"],
+                transformation=transformation,
+                training=True,
+            )
+        )
+
+        output = next(iter(ds))
+        expected_boxes = np.array(expected_boxes)
+        self.assertAllClose(output["boxes"], expected_boxes)

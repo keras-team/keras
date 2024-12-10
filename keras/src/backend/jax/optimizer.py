@@ -13,7 +13,6 @@ from keras.src.optimizers import base_optimizer
 
 
 class JaxOptimizer(base_optimizer.BaseOptimizer):
-
     def _backend_apply_gradients(self, grads, trainable_variables):
         if self.gradient_accumulation_steps:
             is_update_step = (

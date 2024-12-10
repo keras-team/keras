@@ -9,6 +9,7 @@ from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.common.name_scope import name_scope as base_name_scope
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
@@ -19,9 +20,8 @@ IS_THREAD_SAFE = True
 
 class Variable(KerasVariable):
     def _initialize(self, value):
-        value = jnp.array(value, dtype=self._dtype)
         # Note that variable.shape is needed by distribution_lib
-        self._shape = tuple(value.shape)
+        self._shape = self._validate_shape(value.shape)
         # We can't import the keras/distribution/distribution_lib
         # due to circular dependency.
         distribution = global_state.get_global_attribute("distribution")
@@ -153,7 +153,6 @@ def compute_output_spec(fn, *args, **kwargs):
             return x
 
         def wrapped_fn(*args, **kwargs):
-
             # Turn inputs that are sparse to BCOO tensors
             def to_bcoo_if_sparse(x, maybe_symbolic_x):
                 if (
@@ -361,6 +360,35 @@ def random_seed_dtype():
 
 def custom_gradient(fun):
     return jax.custom_gradient(fun=fun)
+
+
+class name_scope(base_name_scope):
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
+        self._jax_name_scope = jax.named_scope(name)
+
+    def __enter__(self):
+        name_scope_stack = global_state.get_global_attribute(
+            "name_scope_stack", default=[], set_to_default=True
+        )
+        if self.deduplicate and name_scope_stack:
+            parent_caller = name_scope_stack[-1].caller
+            parent_name = name_scope_stack[-1].name
+            if (
+                self.caller is not None
+                and self.caller is parent_caller
+                and self.name == parent_name
+            ):
+                return self
+        name_scope_stack.append(self)
+        self._pop_on_exit = True
+        self._jax_name_scope.__enter__()
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        super().__exit__(*args, **kwargs)
+        if self._pop_on_exit:
+            self._jax_name_scope.__exit__(*args, **kwargs)
 
 
 def device_scope(device_name):

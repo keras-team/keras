@@ -145,7 +145,6 @@ def _max_reduce(left, right):
 
 
 class MathOpsDynamicShapeTest(testing.TestCase):
-
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
         # 1D case
@@ -215,6 +214,15 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         imag = KerasTensor((None, 4, 3), dtype="float32")
         real_output, imag_output = kmath.fft2((real, imag))
         ref = np.fft.fft2(np.ones((2, 4, 3)))
+        ref_shape = (None,) + ref.shape[1:]
+        self.assertEqual(real_output.shape, ref_shape)
+        self.assertEqual(imag_output.shape, ref_shape)
+
+    def test_ifft2(self):
+        real = KerasTensor((None, 4, 3), dtype="float32")
+        imag = KerasTensor((None, 4, 3), dtype="float32")
+        real_output, imag_output = kmath.ifft2((real, imag))
+        ref = np.fft.ifft2(np.ones((2, 4, 3)))
         ref_shape = (None,) + ref.shape[1:]
         self.assertEqual(real_output.shape, ref_shape)
         self.assertEqual(imag_output.shape, ref_shape)
@@ -355,6 +363,14 @@ class MathOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(real_output.shape, ref.shape)
         self.assertEqual(imag_output.shape, ref.shape)
 
+    def test_ifft2(self):
+        real = KerasTensor((2, 4, 3), dtype="float32")
+        imag = KerasTensor((2, 4, 3), dtype="float32")
+        real_output, imag_output = kmath.ifft2((real, imag))
+        ref = np.fft.ifft2(np.ones((2, 4, 3)))
+        self.assertEqual(real_output.shape, ref.shape)
+        self.assertEqual(imag_output.shape, ref.shape)
+
     def test_rfft(self):
         x = KerasTensor((2, 4, 3), dtype="float32")
         real_output, imag_output = kmath.rfft(x)
@@ -418,7 +434,6 @@ class MathOpsStaticShapeTest(testing.TestCase):
 
 
 class MathOpsCorrectnessTest(testing.TestCase):
-
     def run_segment_reduce_test(
         self,
         segment_reduce_op,
@@ -712,6 +727,18 @@ class MathOpsCorrectnessTest(testing.TestCase):
 
         real_output, imag_output = kmath.fft2((real, imag))
         ref = np.fft.fft2(complex_arr)
+        real_ref = np.real(ref)
+        imag_ref = np.imag(ref)
+        self.assertAllClose(real_ref, real_output)
+        self.assertAllClose(imag_ref, imag_output)
+
+    def test_ifft2(self):
+        real = np.random.random((2, 4, 3)).astype(np.float32)
+        imag = np.random.random((2, 4, 3)).astype(np.float32)
+        complex_arr = real + 1j * imag
+
+        real_output, imag_output = kmath.ifft2((real, imag))
+        ref = np.fft.ifft2(complex_arr)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
         self.assertAllClose(real_ref, real_output)
@@ -1345,7 +1372,6 @@ class ISTFTTest(testing.TestCase):
 
 
 class TestMathErrors(testing.TestCase):
-
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
         backend.backend() != "jax", reason="Testing Jax errors only"

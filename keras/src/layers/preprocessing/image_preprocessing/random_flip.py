@@ -2,7 +2,14 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    clip_to_image_size,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    convert_format,
+)
 from keras.src.random.seed_generator import SeedGenerator
+from keras.src.utils import backend_utils
 
 HORIZONTAL = "horizontal"
 VERTICAL = "vertical"
@@ -48,7 +55,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
         mode=HORIZONTAL_AND_VERTICAL,
         seed=None,
         data_format=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(data_format=data_format, **kwargs)
         self.seed = seed
@@ -77,7 +84,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
         flips = self.backend.numpy.less_equal(
             self.backend.random.uniform(shape=flips_shape, seed=seed), 0.5
         )
-        return {"flips": flips}
+        return {"flips": flips, "input_shape": shape}
 
     def transform_images(self, images, transformation, training=True):
         images = self.backend.cast(images, self.compute_dtype)
@@ -94,7 +101,81 @@ class RandomFlip(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
-        raise NotImplementedError
+        if backend_utils.in_tf_graph():
+            self.backend.set_backend("tensorflow")
+
+        def _flip_boxes_horizontal(boxes):
+            x1, x2, x3, x4 = self.backend.numpy.split(boxes, 4, axis=-1)
+            outputs = self.backend.numpy.concatenate(
+                [1 - x3, x2, 1 - x1, x4], axis=-1
+            )
+            return outputs
+
+        def _flip_boxes_vertical(boxes):
+            x1, x2, x3, x4 = self.backend.numpy.split(boxes, 4, axis=-1)
+            outputs = self.backend.numpy.concatenate(
+                [x1, 1 - x4, x3, 1 - x2], axis=-1
+            )
+            return outputs
+
+        def _transform_xyxy(boxes, box_flips):
+            bboxes = boxes["boxes"]
+            if self.mode in {HORIZONTAL, HORIZONTAL_AND_VERTICAL}:
+                bboxes = self.backend.numpy.where(
+                    box_flips,
+                    _flip_boxes_horizontal(bboxes),
+                    bboxes,
+                )
+            if self.mode in {VERTICAL, HORIZONTAL_AND_VERTICAL}:
+                bboxes = self.backend.numpy.where(
+                    box_flips,
+                    _flip_boxes_vertical(bboxes),
+                    bboxes,
+                )
+            return bboxes
+
+        flips = self.backend.numpy.squeeze(transformation["flips"], axis=-1)
+
+        if self.data_format == "channels_first":
+            height_axis = -2
+            width_axis = -1
+        else:
+            height_axis = -3
+            width_axis = -2
+
+        input_height, input_width = (
+            transformation["input_shape"][height_axis],
+            transformation["input_shape"][width_axis],
+        )
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source=self.bounding_box_format,
+            target="rel_xyxy",
+            height=input_height,
+            width=input_width,
+        )
+
+        bounding_boxes["boxes"] = _transform_xyxy(bounding_boxes, flips)
+
+        bounding_boxes = clip_to_image_size(
+            bounding_boxes=bounding_boxes,
+            height=input_height,
+            width=input_width,
+            format="xyxy",
+        )
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source="rel_xyxy",
+            target=self.bounding_box_format,
+            height=input_height,
+            width=input_width,
+        )
+
+        self.backend.reset()
+
+        return bounding_boxes
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True

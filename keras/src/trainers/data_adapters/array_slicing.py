@@ -6,6 +6,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import tree
 from keras.src.trainers.data_adapters import data_adapter_utils
+from keras.src.utils.module_utils import tensorflow as tf
 
 try:
     import pandas
@@ -369,6 +370,15 @@ def convert_to_sliceable(arrays, target_backend=None):
         if x is None:
             return x
 
+        # Special case: handle np "object" arrays containing strings
+        if (
+            isinstance(x, np.ndarray)
+            and str(x.dtype) == "object"
+            and backend.backend() == "tensorflow"
+            and all(isinstance(e, str) for e in x)
+        ):
+            x = tf.convert_to_tensor(x, dtype="string")
+
         # Step 1. Determine which Sliceable class to use.
         if isinstance(x, np.ndarray):
             sliceable_class = NumpySliceable
@@ -408,7 +418,7 @@ def convert_to_sliceable(arrays, target_backend=None):
         # Step 2. Normalize floats to floatx.
         def is_non_floatx_float(dtype):
             return (
-                not dtype == object
+                dtype is not object
                 and backend.is_float_dtype(dtype)
                 and not backend.standardize_dtype(dtype) == backend.floatx()
             )

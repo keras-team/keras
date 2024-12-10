@@ -35,6 +35,11 @@ def tanh(x):
     return np.tanh(x)
 
 
+def tanh_shrink(x):
+    x = convert_to_tensor(x)
+    return x - np.tanh(x)
+
+
 def softplus(x):
     x = convert_to_tensor(x)
     return np.logaddexp(x, np.array(0.0, x.dtype))
@@ -45,9 +50,36 @@ def softsign(x):
     return x / (np.array(1.0, x.dtype) + np.abs(x))
 
 
+def soft_shrink(x, threshold=0.5):
+    return np.where(
+        x > threshold,
+        np.array(x - threshold, dtype=x.dtype),
+        np.where(
+            x < -threshold,
+            np.array(x + threshold, dtype=x.dtype),
+            np.array(0.0, dtype=x.dtype),
+        ),
+    )
+
+
+def sparse_plus(x):
+    return np.where(
+        x <= -1,
+        np.zeros_like(x, dtype=x.dtype),
+        np.where(x < 1, np.array((1 / 4) * (x + 1) ** 2, dtype=x.dtype), x),
+    )
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return x * sigmoid(x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b, dtype=x.dtype)
+    y = x + np.sqrt(x**2 + b)
+    return y / 2
 
 
 def log_sigmoid(x):
@@ -139,6 +171,20 @@ def hard_tanh(x):
     return np.array(np.clip(x, min_val, max_val), dtype=x.dtype)
 
 
+def hard_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    threshold = np.asarray(threshold, x.dtype)
+    return np.array(
+        np.where(np.abs(x) > threshold, x, np.array(0.0, dtype=x.dtype)),
+        dtype=x.dtype,
+    )
+
+
+def threshold(x, threshold, default_value):
+    x = convert_to_tensor(x)
+    return np.where(x > threshold, x, np.array(default_value, dtype=x.dtype))
+
+
 def softmax(x, axis=None):
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
@@ -148,6 +194,24 @@ def log_softmax(x, axis=None):
     max_x = np.max(x, axis=axis, keepdims=True)
     logsumexp = np.log(np.exp(x - max_x).sum(axis=axis, keepdims=True))
     return x - max_x - logsumexp
+
+
+def sparsemax(logits, axis=-1):
+    # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(logits)
+    logits_sorted = -1.0 * np.sort(-1.0 * logits, axis=axis)
+    logits_cumsum = np.cumsum(logits_sorted, axis=axis)
+    r = np.arange(1, logits.shape[axis] + 1)
+    r_shape = [1] * logits.ndim
+    r_shape[axis] = -1  # Broadcast to match the target axis
+    r = r.reshape(r_shape)
+    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    # Find the threshold
+    k = np.sum(support, axis=axis, keepdims=True)
+    logits_cumsum_safe = np.where(support, logits_cumsum, 0.0)
+    tau = (np.sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    output = np.maximum(logits - tau, 0.0)
+    return output
 
 
 def _convert_to_spatial_operand(
@@ -647,7 +711,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     batch_size, max_label_length = target.shape
     log_epsilon = -1e5
 
-    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
     dtype = backend.result_type(output.dtype, "float32")
     output = output.astype(dtype)
 
@@ -1032,12 +1096,14 @@ def _apply_masks(logits, mask, is_causal):
 
 
 def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
+    original_dtype = key.dtype
     logits_dtype = np.promote_types(query.dtype, np.float32)
-    logits = np.einsum(
-        "BTNH,BSNH->BNTS",
-        query.astype(logits_dtype),
-        key.astype(logits_dtype),
-    )
+    if backend.standardize_dtype(key.dtype) == "bfloat16":
+        # `np.einsum` doesn't support bfloat16
+        key = key.astype("float32")
+        value = value.astype("float32")
+    logits = np.einsum("BTNH,BSNH->BNTS", query, key)
+    logits = logits.astype(logits_dtype)
     logits *= np.array(scale, dtype=logits.dtype)
 
     if bias is not None:
@@ -1047,7 +1113,7 @@ def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
 
     # Softmax and it is always carried out in fp32.
     padded_logits = padded_logits.astype(np.float32)
-    probs = softmax(padded_logits, axis=-1).astype(key.dtype)
+    probs = softmax(padded_logits, axis=-1).astype(original_dtype)
     encoded_dtype = probs.dtype
     if backend.standardize_dtype(probs.dtype) == "bfloat16":
         # `np.einsum` doesn't support bfloat16
@@ -1066,10 +1132,13 @@ def dot_product_attention(
     mask=None,
     scale=None,
     is_causal=False,
-    flash_attention=False,
+    flash_attention=None,
 ):
+    if flash_attention is None:
+        flash_attention = False
     if flash_attention:
-        raise ValueError("Flash attention is not implemented in NumPy.")
+        raise ValueError("Flash attention is not supported in numpy backend.")
+
     # Ref: jax.nn.dot_product_attention
     # https://github.com/jax-ml/jax/blob/jax-v0.4.32/jax/_src/nn/functions.py#L828
     # Not support `query_seq_lengths` and `key_value_seq_lengths` args

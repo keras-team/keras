@@ -71,7 +71,7 @@ class MaxPooling3D(BasePooling):
         padding="valid",
         data_format=None,
         name=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             pool_size,

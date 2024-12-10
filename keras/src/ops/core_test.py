@@ -17,6 +17,7 @@ from keras.src import tree
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import core
+from keras.src.testing.test_utils import named_product
 
 
 class CoreOpsStaticShapeTest(testing.TestCase):
@@ -142,6 +143,29 @@ class CoreOpsStaticShapeTest(testing.TestCase):
             ValueError, r"Cannot infer argument `num` from shape"
         ):
             core.unstack(x, axis=axis)
+
+    def test_convert_to_tensor(self):
+        x = KerasTensor((2, 3))
+        out = core.convert_to_tensor(x)
+        self.assertEqual(out.shape, x.shape)
+        self.assertEqual(out.dtype, x.dtype)
+        self.assertFalse(out.sparse)
+
+        out = core.convert_to_tensor(x, dtype="int32")
+        self.assertEqual(out.dtype, "int32")
+
+        out = core.convert_to_tensor(x, sparse=True)
+        self.assertFalse(out.sparse)
+
+        x = KerasTensor((2, 3), sparse=True)
+        out = core.convert_to_tensor(x)
+        self.assertTrue(out.sparse)
+
+        out = core.convert_to_tensor(x, sparse=True)
+        self.assertTrue(out.sparse)
+
+        out = core.convert_to_tensor(x, sparse=False)
+        self.assertFalse(out.sparse)
 
 
 class CoreOpsCorrectnessTest(testing.TestCase):
@@ -650,9 +674,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         x = ops.convert_to_tensor((1, ops.array(2), 3))
         self.assertAllEqual(x, (1, 2, 3))
 
-        with self.assertRaises(ValueError):
-            ops.convert_to_numpy(KerasTensor((2,)))
-
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors.",
@@ -818,7 +839,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         reason=f"{backend.backend()} doesn't support `custom_gradient`.",
     )
     def test_custom_gradient(self):
-
         # function to test custom_gradient on
         @ops.custom_gradient
         def log1pexp(x):
@@ -864,8 +884,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
 
 class CoreOpsDtypeTest(testing.TestCase):
-    import jax  # enable bfloat16 for numpy
-
     # TODO: Using uint64 will lead to weak type promotion (`float`),
     # resulting in different behavior between JAX and Keras. Currently, we
     # are skipping the test for uint64
@@ -874,14 +892,30 @@ class CoreOpsDtypeTest(testing.TestCase):
         for x in dtypes.ALLOWED_DTYPES
         if x not in ["string", "uint64", "complex64", "complex128"]
     ] + [None]
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
+    FLOAT_DTYPES = dtypes.FLOAT_TYPES
 
     if backend.backend() == "torch":
         # TODO: torch doesn't support uint16, uint32 and uint64
         ALL_DTYPES = [
             x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
         ]
+        INT_DTYPES = [
+            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
+        ]
     # Remove float8 dtypes for the following tests
     ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
+
+    def setUp(self):
+        from jax.experimental import enable_x64
+
+        self.jax_enable_x64 = enable_x64()
+        self.jax_enable_x64.__enter__()
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        self.jax_enable_x64.__exit__(None, None, None)
+        return super().tearDown()
 
     @parameterized.parameters(
         ((), None, backend.floatx()),
@@ -889,6 +923,9 @@ class CoreOpsDtypeTest(testing.TestCase):
         (bool(0), None, "bool"),
         (int(0), None, "int32"),
         (float(0), None, backend.floatx()),
+        (1, "bool", "bool"),
+        (1.0, "int32", "int32"),
+        (1.0, "float32", "float32"),
         ([False, True, False], None, "bool"),
         ([1, 2, 3], None, "int32"),
         ([1.0, 2.0, 3.0], None, backend.floatx()),
@@ -920,12 +957,16 @@ class CoreOpsDtypeTest(testing.TestCase):
             jax_disable_x64 = contextlib.nullcontext()
 
         with jax_disable_x64:
-            self.assertEqual(
-                backend.standardize_dtype(
-                    ops.convert_to_tensor(x, dtype=dtype).dtype
-                ),
-                expected_dtype,
+            self.assertDType(
+                ops.convert_to_tensor(x, dtype=dtype), expected_dtype
             )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_saturate_cast(self, dtype):
+        x = np.ones((1,))
+
+        self.assertDType(core.saturate_cast(x, dtype), dtype)
+        self.assertDType(core.SaturateCast(dtype).symbolic_call(x), dtype)
 
 
 class CoreOpsCallsTests(testing.TestCase):
@@ -1240,6 +1281,9 @@ class CoreOpsBehaviorTests(testing.TestCase):
         self.assertIsInstance(y, np.ndarray)
         # Test assignment -- should not fail.
         y[0] = 1.0
+
+        with self.assertRaises(ValueError):
+            ops.convert_to_numpy(KerasTensor((2,)))
 
     def test_scan_invalid_arguments(self):
         def cumsum(carry, xs):

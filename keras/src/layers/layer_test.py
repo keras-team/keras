@@ -15,7 +15,6 @@ from keras.src.backend.common import global_state
 
 
 class LayerTest(testing.TestCase):
-
     def test_compute_output_spec(self):
         # Test that implementing compute_output_shape
         # is enough to make compute_output_spec work.
@@ -674,6 +673,23 @@ class LayerTest(testing.TestCase):
         layer((x1_1, x1_2), x2)
         layer(x1=(x1_1, x1_2), x2=x2)
 
+        class MaskUnsetDuringCallLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.supports_masking = True
+
+            def call(self, x, mask=None):
+                assert mask is not None
+                backend.set_keras_mask(x, None)  # Unset mask
+                return x
+
+        layer = MaskUnsetDuringCallLayer()
+        x = backend.numpy.ones((4, 4))
+        mask = backend.numpy.ones((4,))
+        backend.set_keras_mask(x, mask)
+        y = layer(x)
+        self.assertAllClose(y._keras_mask, mask)
+
     def test_stateless_call(self):
         class TestLayer(layers.Layer):
             def __init__(self):
@@ -1196,7 +1212,6 @@ class LayerTest(testing.TestCase):
                 return self.post_build_modify_layer(input)
 
         class PostBuildModifyLayer(layers.Layer):
-
             def call(self, input):
                 return self.var + input
 
@@ -1330,7 +1345,6 @@ class LayerTest(testing.TestCase):
         self.assertListEqual(layer1_names, layer2_names)
 
     def test_complex_dtype_support(self):
-
         class MyDenseLayer(layers.Layer):
             def __init__(self, num_outputs):
                 super(MyDenseLayer, self).__init__()

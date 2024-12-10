@@ -115,7 +115,7 @@ class STFTSpectrogram(layers.Layer):
         `(batch_size, input_channels, time_length)` if
         `data_format=="channels_first"`, where `time_length` is the length of
         the input signal, and `input_channels` is the number of input channels.
-        The same kernels are applied to each channel independetly.
+        The same kernels are applied to each channel independently.
 
     Output shape:
         If `data_format=="channels_first" and not expand_dims`, a 3D tensor:
@@ -150,14 +150,14 @@ class STFTSpectrogram(layers.Layer):
         ):
             raise ValueError(
                 "`frame_step` should be a positive integer not greater than "
-                f"`frame_length`. Recieved frame_step={frame_step}, "
+                f"`frame_length`. Received frame_step={frame_step}, "
                 f"frame_length={frame_length}"
             )
 
         if fft_length is not None and fft_length < frame_length:
             raise ValueError(
                 "`fft_length` should be not less than `frame_length`. "
-                f"Recieved fft_length={fft_length}, frame_length={frame_length}"
+                f"Received fft_length={fft_length}, frame_length={frame_length}"
             )
 
         if fft_length is not None and (fft_length & -fft_length) != fft_length:
@@ -217,7 +217,7 @@ class STFTSpectrogram(layers.Layer):
             self.real_kernel = self.add_weight(
                 name="real_kernel",
                 shape=shape,
-                initializer=initializers.STFTInitializer(
+                initializer=initializers.STFT(
                     "real", self.window, self.scaling, self.periodic
                 ),
             )
@@ -225,7 +225,7 @@ class STFTSpectrogram(layers.Layer):
             self.imag_kernel = self.add_weight(
                 name="imag_kernel",
                 shape=shape,
-                initializer=initializers.STFTInitializer(
+                initializer=initializers.STFT(
                     "imag", self.window, self.scaling, self.periodic
                 ),
             )

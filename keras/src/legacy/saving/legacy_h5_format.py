@@ -519,7 +519,9 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
             )
 
     if "top_level_model_weights" in f:
-        symbolic_weights = model.trainable_weights + model.non_trainable_weights
+        symbolic_weights = (
+            model._trainable_variables + model._non_trainable_variables
+        )
         weight_values = load_subset_weights_from_hdf5_group(
             f["top_level_model_weights"]
         )

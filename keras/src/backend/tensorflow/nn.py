@@ -30,6 +30,10 @@ def tanh(x):
     return tf.nn.tanh(x)
 
 
+def tanh_shrink(x):
+    return x - tf.math.tanh(x)
+
+
 def softplus(x):
     return tf.math.softplus(x)
 
@@ -38,8 +42,31 @@ def softsign(x):
     return tf.nn.softsign(x)
 
 
+def soft_shrink(x, threshold=0.5):
+    return tf.where(
+        x > threshold,
+        x - threshold,
+        tf.where(x < -threshold, x + threshold, tf.zeros_like(x)),
+    )
+
+
+def sparse_plus(x):
+    return tf.where(
+        x <= -1,
+        tf.zeros_like(x),
+        tf.where(x < 1, (1 / 4) * tf.pow(x + 1, 2), x),
+    )
+
+
 def silu(x):
     return tf.nn.silu(x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b, dtype=x.dtype)
+    y = x + tf.sqrt(tf.square(x) + b)
+    return y / 2
 
 
 def log_sigmoid(x):
@@ -96,6 +123,14 @@ def hard_tanh(x):
     return tf.clip_by_value(x, clip_value_min=-1.0, clip_value_max=1.0)
 
 
+def hard_shrink(x, threshold=0.5):
+    return tf.where(tf.abs(x) > threshold, x, tf.zeros_like(x))
+
+
+def threshold(x, threshold, default_value):
+    return tf.where(x > threshold, x, default_value)
+
+
 def softmax(x, axis=-1):
     logits = x
     if axis is None:
@@ -118,6 +153,24 @@ def log_softmax(x, axis=-1):
         output = tf.nn.log_softmax(output, axis=-1)
         return tf.reshape(output, tf.shape(x))
     return tf.nn.log_softmax(x, axis=axis)
+
+
+def sparsemax(logits, axis=-1):
+    # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(logits)
+    logits_sorted = tf.sort(logits, direction="DESCENDING", axis=axis)
+    logits_cumsum = tf.cumsum(logits_sorted, axis=axis)
+    r = tf.range(1, tf.shape(logits)[axis] + 1, dtype=logits.dtype)
+    r_shape = [1] * len(logits.shape)
+    r_shape[axis] = -1  # Broadcast to match the target axis
+    r = tf.reshape(r, r_shape)  # Reshape for broadcasting
+    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    # Find the threshold
+    logits_cumsum_safe = tf.where(support, logits_cumsum, 0.0)
+    k = tf.reduce_sum(tf.cast(support, logits.dtype), axis=axis, keepdims=True)
+    tau = (tf.reduce_sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    output = tf.maximum(logits - tau, 0.0)
+    return output
 
 
 def _transpose_spatial_inputs(inputs):
@@ -962,13 +1015,9 @@ def _apply_masks(logits, mask, is_causal):
 
 def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
     logits_dtype = backend.result_type(query.dtype, "float32")
-    logits = tf.einsum(
-        "BTNH,BSNH->BNTS",
-        tf.cast(query, dtype=logits_dtype),
-        tf.cast(key, dtype=logits_dtype),
-        optimize="optimal",
-    )
-    logits = tf.multiply(logits, tf.cast(logits, logits.dtype))
+    logits = tf.einsum("BTNH,BSNH->BNTS", query, key, optimize="optimal")
+    logits = tf.cast(logits, logits_dtype)
+    logits = tf.multiply(logits, tf.cast(scale, logits.dtype))
 
     if bias is not None:
         logits = tf.add(logits, tf.cast(bias, logits.dtype))
@@ -991,11 +1040,13 @@ def dot_product_attention(
     mask=None,
     scale=None,
     is_causal=False,
-    flash_attention=False,
+    flash_attention=None,
 ):
+    if flash_attention is None:
+        flash_attention = False
     if flash_attention:
         raise ValueError(
-            "Flash attention is not supported yet in TensorFlow backend."
+            "Flash attention is not supported in tensorflow backend."
         )
 
     # Ref: jax.nn.dot_product_attention
