@@ -3,6 +3,7 @@ import pytest
 from tensorflow import data as tf_data
 
 import keras
+from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 
@@ -32,9 +33,13 @@ class RandomHueTest(testing.TestCase):
         self.assertTrue(keras.ops.numpy.all(adjusted_image <= 1))
 
     def test_random_hue_no_change_with_zero_factor(self):
-        inputs = keras.random.randint((224, 224, 3), 0, 255)
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            inputs = keras.random.randint((224, 224, 3), 0, 255)
+        else:
+            inputs = keras.random.randint((3, 224, 224), 0, 255)
 
-        layer = layers.RandomHue(0, (0, 255))
+        layer = layers.RandomHue(0, (0, 255), data_format=data_format)
         output = layer(inputs, training=False)
         self.assertAllClose(inputs, output, atol=1e-4, rtol=1e-6)
 
@@ -47,8 +52,15 @@ class RandomHueTest(testing.TestCase):
         self.assertNotAllClose(adjusted_images, image)
 
     def test_tf_data_compatibility(self):
-        layer = layers.RandomHue(factor=0.5, value_range=[0, 1], seed=1337)
-        input_data = np.random.random((2, 8, 8, 3))
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_data = np.random.random((2, 8, 8, 3))
+        else:
+            input_data = np.random.random((2, 3, 8, 8))
+        layer = layers.RandomHue(
+            factor=0.5, value_range=[0, 1], data_format=data_format, seed=1337
+        )
+
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output.numpy()
