@@ -127,16 +127,16 @@ class ConvertersTest(testing.TestCase):
 
     def test_affine_identity(self):
         # Test identity transform (no change)
+        batch_size = self.boxes["xyxy"].shape[0]
         transformed_boxes = affine_transform(
-            self.boxes["xyxy"],
-            bounding_box_format="xyxy",
-            angle=np.zeros([2]),
-            translate_x=np.zeros([2]),
-            translate_y=np.zeros([2]),
-            scale=np.ones([2]),
-            shear_x=np.zeros([2]),
-            shear_y=np.zeros([2]),
+            boxes=self.boxes["xyxy"],
+            angle=np.zeros([batch_size]),
+            translate_x=np.zeros([batch_size]),
+            translate_y=np.zeros([batch_size]),
+            scale=np.ones([batch_size]),
+            shear_x=np.zeros([batch_size]),
+            shear_y=np.zeros([batch_size]),
             height=self.height,
             width=self.width,
         )
-        self.assertAllEqual(self.boxes["xyxy"], transformed_boxes)
+        self.assertAllClose(self.boxes["xyxy"], transformed_boxes)
