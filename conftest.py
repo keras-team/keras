@@ -26,6 +26,7 @@ def pytest_configure(config):
         "markers",
         "openvino_backend: mark test case supported by OpenVINO backend",
     )
+    pytest.mark.skip_if_backend = skip_if_backend
 
 
 def pytest_collection_modifyitems(config, items):
@@ -36,3 +37,7 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "requires_trainable_backend" in item.keywords:
             item.add_marker(requires_trainable_backend)
+
+
+def skip_if_backend(given_backend, reason):
+    return pytest.mark.skipif(backend() == given_backend, reason=reason)
