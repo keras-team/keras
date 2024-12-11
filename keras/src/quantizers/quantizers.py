@@ -130,7 +130,7 @@ class AbsMaxQuantizer(Quantizer):
         }
 
 
-@keras_export("keras.quantizers.adjust_and_nudge_quntization_range")
+@keras_export("keras.quantizers.adjust_and_nudge_quantization_range")
 def adjust_and_nudge_quantization_range(
     min_range: float, max_range: float, num_bits: int, narrow_range: bool
 ) -> Tuple[float, float, float]:
