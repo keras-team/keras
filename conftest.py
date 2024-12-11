@@ -26,7 +26,6 @@ def pytest_configure(config):
         "markers",
         "openvino_backend: mark test case supported by OpenVINO backend",
     )
-    pytest.mark.skip_if_backend = skip_if_backend
 
 
 def pytest_collection_modifyitems(config, items):
