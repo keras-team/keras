@@ -36,7 +36,7 @@ class MixUp(BaseImagePreprocessingLayer):
     """
 
     def __init__(self, alpha=0.2, data_format=None, seed=None, **kwargs):
-        super().__init__(data_format=None, **kwargs)
+        super().__init__(data_format=data_format, **kwargs)
         self.alpha = alpha
         self.seed = seed
         self.generator = SeedGenerator(seed)
@@ -100,10 +100,10 @@ class MixUp(BaseImagePreprocessingLayer):
         return labels
 
     def transform_bounding_boxes(
-        self,
-        bounding_boxes,
-        transformation,
-        training=True,
+            self,
+            bounding_boxes,
+            transformation,
+            training=True,
     ):
         permutation_order = transformation["permutation_order"]
         boxes, classes = bounding_boxes["boxes"], bounding_boxes["classes"]
@@ -116,7 +116,7 @@ class MixUp(BaseImagePreprocessingLayer):
         return {"boxes": boxes, "classes": classes}
 
     def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
+            self, segmentation_masks, transformation, training=True
     ):
         mix_weight = transformation["mix_weight"]
         permutation_order = transformation["permutation_order"]
@@ -128,8 +128,8 @@ class MixUp(BaseImagePreprocessingLayer):
         )
 
         segmentation_masks = (
-            mix_weight * segmentation_masks
-            + (1.0 - mix_weight) * segmentation_masks_for_mixup
+                mix_weight * segmentation_masks
+                + (1.0 - mix_weight) * segmentation_masks_for_mixup
         )
 
         return segmentation_masks
