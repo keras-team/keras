@@ -161,11 +161,11 @@ from keras.src.layers.preprocessing.image_preprocessing.random_contrast import (
 from keras.src.layers.preprocessing.image_preprocessing.random_crop import (
     RandomCrop,
 )
-from keras.src.layers.preprocessing.image_preprocessing.random_grayscale import (
-    RandomGrayscale,
-)
 from keras.src.layers.preprocessing.image_preprocessing.random_flip import (
     RandomFlip,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_grayscale import (
+    RandomGrayscale,
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_rotation import (
     RandomRotation,
