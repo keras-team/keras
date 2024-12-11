@@ -94,6 +94,7 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
 
 
 def shuffle(x, axis=0, seed=None):
+    seed = _cast_seed(draw_seed(seed))
     indices = tf.argsort(
         tf.random.stateless_uniform(shape=[tf.shape(x)[axis]], seed=seed)
     )
