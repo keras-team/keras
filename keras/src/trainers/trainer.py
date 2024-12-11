@@ -140,7 +140,6 @@ class Trainer:
                 wrapped in a `LossScaleOptimizer`, which will dynamically
                 scale the loss to prevent underflow.
         """
-        self._clear_previous_trainer_metrics()
         optimizer = optimizers.get(optimizer)
         self.optimizer = optimizer
         if (
@@ -287,21 +286,6 @@ class Trainer:
         metrics.extend(self._metrics)
         return metrics
 
-    def _clear_previous_trainer_metrics(self):
-        for layer in self._flatten_layers(include_self=False):
-            if not isinstance(layer, Trainer):
-                continue
-            # A sublayer might be a Trainer. In that case, we need to clear
-            # the Trainer-related metrics, as they are not usable when a
-            # new Trainer is instantiated.
-            for m in self._get_own_metrics():
-                layer._tracker.untrack(m)
-            layer._loss_tracker = None
-            layer._compile_metrics = None
-            if layer._compile_loss is not None:
-                layer._compile_loss._metrics.clear()
-            layer._metrics.clear()
-
     def compute_loss(
         self,
         x=None,
@@ -368,7 +352,7 @@ class Trainer:
             if loss is not None:
                 losses.append(loss)
         for loss in self.losses:
-            losses.append(ops.sum(ops.cast(loss, dtype=backend.floatx())))
+            losses.append(self._aggregate_additional_loss(loss))
         if backend.backend() != "jax" and len(losses) == 0:
             raise ValueError(
                 "No loss to compute. Provide a `loss` argument in `compile()`."
@@ -401,6 +385,20 @@ class Trainer:
             )
         else:
             return self.compute_loss(x, y, y_pred, sample_weight)
+
+    def _aggregate_additional_loss(self, loss):
+        """Aggregates losses from `add_loss`, regularizers and sublayers.
+
+        Args:
+            loss: A tensor representing the additional loss to aggregate.
+
+        Returns:
+            A tensor representing the summed loss, cast to the `floatx()` if
+            necessary.
+        """
+        if not backend.is_float_dtype(loss.dtype):
+            loss = ops.cast(loss, dtype=backend.floatx())
+        return ops.sum(loss)
 
     def stateless_compute_loss(
         self,

@@ -32,7 +32,7 @@ class Masking(Layer):
     inputs[:, 5, :] = 0.
 
     model = keras.models.Sequential()
-    model.add(keras.layers.Masking(mask_value=0.)
+    model.add(keras.layers.Masking(mask_value=0.0))
     model.add(keras.layers.LSTM(32))
     output = model(inputs)
     # The time step 3 and 5 will be skipped from LSTM calculation.

@@ -1455,6 +1455,26 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.ravel(x).shape, (None,))
 
+    def test_unravel_index(self):
+        x = KerasTensor((None,))
+        indices = knp.unravel_index(x, (2, 3))
+        self.assertEqual(len(indices), 2)
+        self.assertEqual(indices[0].shape, (None,))
+        self.assertEqual(indices[1].shape, (None,))
+
+        x = KerasTensor((None, 4))
+        indices = knp.unravel_index(x, (3, 4))
+        self.assertEqual(len(indices), 2)
+        self.assertEqual(indices[0].shape, (None, 4))
+        self.assertEqual(indices[1].shape, (None, 4))
+
+        x = KerasTensor((None, 3, 2))
+        indices = knp.unravel_index(x, (5, 6, 4))
+        self.assertEqual(len(indices), 3)
+        self.assertEqual(indices[0].shape, (None, 3, 2))
+        self.assertEqual(indices[1].shape, (None, 3, 2))
+        self.assertEqual(indices[2].shape, (None, 3, 2))
+
     def test_real(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.real(x).shape, (None, 3))
@@ -1998,6 +2018,19 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_ravel(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.ravel(x).shape, (6,))
+
+    def test_unravel_index(self):
+        x = KerasTensor((6,))
+        indices = knp.unravel_index(x, (2, 3))
+        self.assertEqual(len(indices), 2)
+        self.assertEqual(indices[0].shape, (6,))
+        self.assertEqual(indices[1].shape, (6,))
+
+        x = KerasTensor((2, 3))
+        indices = knp.unravel_index(x, (3, 4))
+        self.assertEqual(len(indices), 2)
+        self.assertEqual(indices[0].shape, (2, 3))
+        self.assertEqual(indices[1].shape, (2, 3))
 
     def test_real(self):
         x = KerasTensor((2, 3))
@@ -4113,6 +4146,19 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.ravel(x), np.ravel(x))
         self.assertAllClose(knp.Ravel()(x), np.ravel(x))
+
+    def test_unravel_index(self):
+        x = np.array([0, 1, 2, 3])
+        shape = (2, 2)
+        self.assertAllClose(
+            knp.unravel_index(x, shape), np.unravel_index(x, shape)
+        )
+
+        x = np.array([[0, 1], [2, 3]])
+        shape = (2, 2)
+        self.assertAllClose(
+            knp.unravel_index(x, shape), np.unravel_index(x, shape)
+        )
 
     def test_real(self):
         x = np.array([[1, 2, 3 - 3j], [3, 2, 1 + 5j]])
@@ -7788,6 +7834,33 @@ class NumpyDtypeTest(testing.TestCase):
             standardize_dtype(knp.Ravel().symbolic_call(x).dtype),
             expected_dtype,
         )
+
+    @parameterized.named_parameters(named_product(dtype=INT_DTYPES))
+    def test_unravel_index(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((3,), dtype=dtype)
+        x_jax = jnp.ones((3,), dtype=dtype)
+
+        indices = knp.array([2, 0], dtype=dtype)
+        indices_jax = jnp.array([2, 0], dtype=dtype)
+
+        unravel_result_knp = knp.unravel_index(indices, x.shape)
+        unravel_result_jax = jnp.unravel_index(indices_jax, x_jax.shape)
+
+        expected_dtype_knp = standardize_dtype(unravel_result_knp[0].dtype)
+        expected_dtype_jax = standardize_dtype(unravel_result_jax[0].dtype)
+
+        self.assertEqual(expected_dtype_knp, expected_dtype_jax)
+
+        unravel_result_knp_symbolic = knp.UnravelIndex(x.shape).symbolic_call(
+            indices
+        )
+        expected_dtype_symbolic = standardize_dtype(
+            unravel_result_knp_symbolic[0].dtype
+        )
+
+        self.assertEqual(expected_dtype_symbolic, expected_dtype_jax)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_repeat(self, dtype):

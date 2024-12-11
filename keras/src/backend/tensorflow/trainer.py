@@ -9,6 +9,7 @@ from keras.src import callbacks as callbacks_module
 from keras.src import metrics as metrics_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
+from keras.src.losses import loss as loss_module
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
@@ -64,7 +65,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 training=True,
             )
             self._loss_tracker.update_state(
-                loss, sample_weight=tf.shape(tree.flatten(x)[0])[0]
+                loss_module.unscale_loss_for_distribution(loss),
+                sample_weight=tf.shape(tree.flatten(x)[0])[0],
             )
             if self.optimizer is not None:
                 loss = self.optimizer.scale_loss(loss)
@@ -91,7 +93,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
         self._loss_tracker.update_state(
-            loss, sample_weight=tf.shape(tree.flatten(x)[0])[0]
+            loss_module.unscale_loss_for_distribution(loss),
+            sample_weight=tf.shape(tree.flatten(x)[0])[0],
         )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
@@ -706,6 +709,10 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 break
         with self.distribute_strategy.scope():
             self._symbolic_build(data_batch=data_batch)
+
+    def _aggregate_additional_loss(self, loss):
+        loss = super()._aggregate_additional_loss(loss)
+        return loss_module.scale_loss_for_distribution(loss)
 
 
 class TFEpochIterator(EpochIterator):

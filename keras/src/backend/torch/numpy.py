@@ -1214,6 +1214,12 @@ def ravel(x):
     return torch.ravel(x)
 
 
+def unravel_index(x, shape):
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype)
+    return tuple(cast(idx, dtype) for idx in torch.unravel_index(x, shape))
+
+
 def real(x):
     if not isinstance(x, torch.Tensor):
         x = torch.from_numpy(x)  # needed for complex type conversion

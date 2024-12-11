@@ -115,7 +115,6 @@ class Variable:
             self._path = current_path() + "/" + name
         else:
             self._path = name
-        self._dtype = standardize_dtype(dtype)
         self._shape = None
         self._initializer = None
         self._regularizer = None
@@ -139,6 +138,12 @@ class Variable:
                     f"Received: initializer={initializer} "
                     f"and shape={shape}"
                 )
+        else:
+            initializer = self._convert_to_tensor(initializer, dtype=dtype)
+            # If dtype is None and `initializer` is an array, use its dtype.
+            if dtype is None:
+                dtype = initializer.dtype
+        self._dtype = standardize_dtype(dtype)
 
         if in_stateless_scope():
             if callable(initializer):
@@ -364,7 +369,9 @@ class Variable:
         raise NotImplementedError
 
     def _initialize_with_initializer(self, initializer):
-        value = initializer(self._shape, dtype=self._dtype)
+        value = self._convert_to_tensor(
+            initializer(self._shape, dtype=self._dtype)
+        )
         self._initialize(value)
 
     def _convert_to_tensor(self, value, dtype=None):

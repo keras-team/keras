@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import numpy as np
 import pytest
@@ -315,6 +316,7 @@ class MultiHeadAttentionTest(testing.TestCase):
                 [[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]]
             )
             masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
+            query_mask = backend.get_keras_mask(masked_query)
             value = np.random.normal(size=(3, 3, 8))
             output = layer(query=masked_query, value=value)
         except RuntimeError as e:
@@ -325,7 +327,7 @@ class MultiHeadAttentionTest(testing.TestCase):
                     "PyTorch errors out on GPU: issue to track bug is here "
                     "https://github.com/keras-team/keras/issues/20459"
                 )
-        self.assertAllClose(masked_query._keras_mask, output._keras_mask)
+        self.assertAllClose(query_mask, output._keras_mask)
 
     @parameterized.named_parameters(("causal", True), ("not_causal", 0))
     @pytest.mark.skipif(
@@ -372,6 +374,21 @@ class MultiHeadAttentionTest(testing.TestCase):
 
         self.assertAllClose(output_1, output_2)
         self.assertAllClose(output_1, output_3)
+
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
+    def test_no_warning_with_keras_mask(self):
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
+        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
+        value = np.array([[5, 4, 0], [3, 0, 0], [2, 1, 1]])
+        masked_value = layers.Embedding(6, 8, mask_zero=True)(value)
+
+        with warnings.catch_warnings(record=True) as warning_logs:
+            _ = layer(query=masked_query, value=masked_value)
+            self.assertLen(warning_logs, 0)
 
     @parameterized.named_parameters(
         ("disable_flash_attention", False), ("enable_flash_attention", True)
@@ -646,3 +663,31 @@ class MultiHeadAttentionTest(testing.TestCase):
     def test_multi_head_attention_output_shape_error(self):
         with self.assertRaisesRegex(ValueError, r"Invalid `output_shape`"):
             layers.MultiHeadAttention(num_heads=2, key_dim=16, output_shape=8.0)
+
+    def test_quantize_int8(self):
+        query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
+        key = np.array([[[0.0, 1.0], [1.0, 0.0]]])
+        value = np.array([[[1.0, 2.0], [3.0, 4.0]]])
+        layer = layers.MultiHeadAttention(
+            num_heads=3,
+            key_dim=8,
+            use_bias=False,
+        )
+        layer.build(query.shape, value.shape, key.shape)
+        output_float = layer(query, key, value)
+        for sublayer in layer._flatten_layers():
+            try:
+                sublayer.quantize("int8")
+            except:
+                pass
+
+        # Verify weights dtype
+        self.assertDType(layer._query_dense._kernel, "int8")
+        self.assertDType(layer._key_dense._kernel, "int8")
+        self.assertDType(layer._value_dense._kernel, "int8")
+        self.assertDType(layer._output_dense._kernel, "int8")
+
+        # Try eager call and verify output correctness
+        output_quantized = layer(query, key, value)
+        mse = ops.mean(ops.square(output_float - output_quantized))
+        self.assertLess(mse, 1e-3)  # A weak correctness test

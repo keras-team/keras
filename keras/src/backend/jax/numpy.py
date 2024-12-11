@@ -904,6 +904,11 @@ def ravel(x):
     return jnp.ravel(x)
 
 
+def unravel_index(x, shape):
+    x = convert_to_tensor(x)
+    return jnp.unravel_index(x, shape)
+
+
 @sparse.elementwise_unary(linear=True)
 def real(x):
     x = convert_to_tensor(x)
