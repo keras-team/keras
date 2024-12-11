@@ -110,6 +110,9 @@ from keras.src.layers.preprocessing.image_preprocessing.random_flip import (
 from keras.src.layers.preprocessing.image_preprocessing.random_rotation import (
     RandomRotation,
 )
+from keras.src.layers.preprocessing.image_preprocessing.random_saturation import (
+    RandomSaturation,
+)
 from keras.src.layers.preprocessing.image_preprocessing.random_translation import (
     RandomTranslation,
 )
