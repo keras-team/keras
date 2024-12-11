@@ -95,9 +95,7 @@ from keras.src.layers.preprocessing.image_preprocessing.max_num_bounding_box imp
     MaxNumBoundingBoxes,
 )
 from keras.src.layers.preprocessing.image_preprocessing.mix_up import MixUp
-from keras.src.layers.preprocessing.image_preprocessing.random_grayscale import (
-    RandomGrayscale,
-)
+
 from keras.src.layers.preprocessing.image_preprocessing.random_brightness import (
     RandomBrightness,
 )
@@ -109,6 +107,9 @@ from keras.src.layers.preprocessing.image_preprocessing.random_crop import (
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_flip import (
     RandomFlip,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_grayscale import (
+    RandomGrayscale,
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_rotation import (
     RandomRotation,
