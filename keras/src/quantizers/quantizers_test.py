@@ -1,5 +1,3 @@
-import numpy as np
-
 from keras.src import ops
 from keras.src import quantizers
 from keras.src import random
@@ -114,7 +112,7 @@ class QuantizersTest(testing.TestCase):
         expected_nudged_input_max,
         expected_step,
     ):
-        inputs = np.array(
+        inputs = ops.array(
             [
                 expected_nudged_input_min - expected_step,
                 expected_nudged_input_min - 0.01,
@@ -128,9 +126,9 @@ class QuantizersTest(testing.TestCase):
                 expected_nudged_input_max + 0.01,
                 expected_nudged_input_max + expected_step,
             ],
-            dtype=np.float32,
+            dtype="float32",
         )
-        expected = np.array(
+        expected = ops.array(
             [
                 expected_nudged_input_min,
                 expected_nudged_input_min,
@@ -144,7 +142,7 @@ class QuantizersTest(testing.TestCase):
                 expected_nudged_input_max,
                 expected_nudged_input_max,
             ],
-            dtype=np.float32,
+            dtype="float32",
         )
 
         outputs = op(
@@ -154,8 +152,7 @@ class QuantizersTest(testing.TestCase):
             num_bits=num_bits,
             narrow_range=narrow_range,
         )
-        result = np.isclose(outputs, expected).all()
-        self.assertTrue(result)
+        self.assertAllClose(outputs, expected)
 
     def _TestGradOp(
         self,
@@ -168,7 +165,7 @@ class QuantizersTest(testing.TestCase):
         expected_nudged_input_max,
         expected_step,
     ):
-        inputs = np.array(
+        inputs = ops.array(
             [
                 expected_nudged_input_min - expected_step,
                 expected_nudged_input_min - 0.01,
@@ -182,12 +179,12 @@ class QuantizersTest(testing.TestCase):
                 expected_nudged_input_max + 0.01,
                 expected_nudged_input_max + expected_step,
             ],
-            dtype=np.float32,
+            dtype="float32",
         )
-        initial_gradients = np.arange(1, len(inputs) + 1, dtype=np.float32)
-        expected_backprops = np.array(
+        initial_gradients = ops.arange(1, len(inputs) + 1, dtype="float32")
+        expected_backprops = ops.array(
             [0.0, 0.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 0.0, 0.0],
-            dtype=np.float32,
+            dtype=float,
         )
         _, gradients = grad_op(
             initial_gradients,
@@ -197,7 +194,7 @@ class QuantizersTest(testing.TestCase):
             num_bits=num_bits,
             narrow_range=narrow_range,
         )
-        result = np.isclose(gradients, expected_backprops).all()
+        result = self.assertAllClose(gradients, expected_backprops)
         if not result:
             print(f"initial_gradients: {initial_gradients}")
             print(f"gradients: {gradients}")
@@ -254,10 +251,10 @@ class QuantizersTest(testing.TestCase):
                     expected_nudged_input_max,
                 ]
             )
-        inputs = np.transpose(np.array(inputs_list, dtype=np.float32))
-        expected = np.transpose(np.array(expected_list, dtype=np.float32))
-        input_min = np.array(input_mins, dtype=np.float32)
-        input_max = np.array(input_maxs, dtype=np.float32)
+        inputs = ops.transpose(ops.array(inputs_list, dtype="float32"))
+        expected = ops.transpose(ops.array(expected_list, dtype="float32"))
+        input_min = ops.array(input_mins, dtype="float32")
+        input_max = ops.array(input_maxs, dtype="float32")
         outputs = op(
             inputs,
             input_min,
@@ -265,8 +262,7 @@ class QuantizersTest(testing.TestCase):
             num_bits=num_bits,
             narrow_range=narrow_range,
         )
-        result = np.isclose(outputs, expected).all()
-        self.assertTrue(result)
+        self.assertAllClose(outputs, expected)
 
     def _TestChannelsGradOp(
         self,
@@ -325,23 +321,23 @@ class QuantizersTest(testing.TestCase):
                     expected_nudged_input_max,
                 ]
             )
-        expected = np.transpose(np.array(expected_list, dtype=np.float32))
+        expected = ops.transpose(ops.array(expected_list, dtype="float32"))
 
-        inputs = np.transpose(np.array(inputs_list, dtype=np.float32))
-        input_gradients = np.transpose(
-            np.array(gradients_list, dtype=np.float32)
+        inputs = ops.transpose(ops.array(inputs_list, dtype="float32"))
+        input_gradients = ops.transpose(
+            ops.array(gradients_list, dtype="float32")
         )
-        expected_backprops_wrt_input = np.transpose(
-            np.array(expected_backprops_wrt_input_list, dtype=np.float32)
+        expected_backprops_wrt_input = ops.transpose(
+            ops.array(expected_backprops_wrt_input_list, dtype="float32")
         )
-        expected_backprops_wrt_min = np.array(
-            expected_backprops_wrt_min_list, dtype=np.float32
+        expected_backprops_wrt_min = ops.array(
+            expected_backprops_wrt_min_list, dtype="float32"
         )
-        expected_backprops_wrt_max = np.array(
-            expected_backprops_wrt_max_list, dtype=np.float32
+        expected_backprops_wrt_max = ops.array(
+            expected_backprops_wrt_max_list, dtype="float32"
         )
-        input_min = np.array(input_mins, dtype=np.float32)
-        input_max = np.array(input_maxs, dtype=np.float32)
+        input_min = ops.array(input_mins, dtype="float32")
+        input_max = ops.array(input_maxs, dtype="float32")
         outputs, backprops_wrt_input, backprops_wrt_min, backprops_wrt_max = op(
             input_gradients,
             inputs,
@@ -350,16 +346,11 @@ class QuantizersTest(testing.TestCase):
             num_bits=num_bits,
             narrow_range=narrow_range,
         )
-        self.assertTrue(np.isclose(outputs, expected).all())
-        self.assertTrue(
-            np.isclose(backprops_wrt_input, expected_backprops_wrt_input).all()
-        )
-        self.assertTrue(
-            np.isclose(expected_backprops_wrt_min, backprops_wrt_min).all()
-        )
-        self.assertTrue(
-            np.isclose(expected_backprops_wrt_max, backprops_wrt_max).all()
-        )
+        self.assertAllClose(outputs, expected)
+
+        self.assertAllClose(backprops_wrt_input, expected_backprops_wrt_input)
+        self.assertAllClose(expected_backprops_wrt_min, backprops_wrt_min)
+        self.assertAllClose(expected_backprops_wrt_max, backprops_wrt_max)
 
     def test_fakeQuantWithMinMaxArgs_with8BitsNoSclngNoNdgng(self):
         self._TestOp(
