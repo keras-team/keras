@@ -26,7 +26,10 @@ ALL_OBJECTS_DICT.update(
 @keras_export("keras.constraints.serialize")
 def serialize(constraint):
     return serialization_lib.serialize_keras_object(constraint)
+    """It is used to convert a Keras constraint object into a dictionary that can be saved and restored. 
+    This function is useful when saving models, especially when the model contains custom constraints."""
 
+    
 
 @keras_export("keras.constraints.deserialize")
 def deserialize(config, custom_objects=None):
