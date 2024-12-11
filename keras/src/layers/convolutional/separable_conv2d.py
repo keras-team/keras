@@ -91,7 +91,8 @@ class SeparableConv2D(BaseSeparableConv):
     Example:
 
     >>> x = np.random.rand(4, 10, 10, 12)
-    >>> y = keras.layers.SeparableConv2D(3, 4, 3, 2, activation='relu')(x)
+    >>> y = SeparableConv2D(filters=4, kernel_size=(4, 4), 
+                strides=(2, 2), activation='relu')(x)
     >>> print(y.shape)
     (4, 4, 4, 4)
     """
