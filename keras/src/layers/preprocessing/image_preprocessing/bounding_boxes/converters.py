@@ -252,6 +252,7 @@ def pad(boxes, top, left, height=None, width=None, bounding_box_format="xyxy"):
     return outputs
 
 
+@keras_export("keras.utils.bounding_boxes.encode_box_to_deltas")
 def encode_box_to_deltas(
     anchors,
     boxes,
@@ -343,6 +344,7 @@ def encode_box_to_deltas(
     return boxes_delta
 
 
+@keras_export("keras.utils.bounding_boxes.decode_deltas_to_boxes")
 def decode_deltas_to_boxes(
     anchors,
     boxes_delta,
