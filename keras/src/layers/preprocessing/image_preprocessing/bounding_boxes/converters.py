@@ -1,3 +1,5 @@
+from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.bounding_box import (  # noqa: E501
     BoundingBox,
@@ -224,9 +226,8 @@ def pad(boxes, top, left, height=None, width=None, bounding_box_format="xyxy"):
     """Pads bounding boxes by adding top and left offsets.
 
     This function adds padding to the bounding boxes by increasing the 'top'
-    and 'left' coordinates by the specified amounts. The boxes are first
-    converted to `"xyxy"` format, padded, and then converted back to the
-    original format.
+    and 'left' coordinates by the specified amounts. The method assume the
+    input bounding_box_format is `xyxy`.
 
     Args:
         boxes: Bounding boxes to pad. Shape `(N, 4)` or `(batch, N, 4)`.
@@ -249,3 +250,197 @@ def pad(boxes, top, left, height=None, width=None, bounding_box_format="xyxy"):
     outputs = box_utils.pad(boxes, top, left)
     box_utils.backend.reset()
     return outputs
+
+
+def encode_box_to_deltas(
+    anchors,
+    boxes,
+    anchor_format,
+    box_format,
+    encoding_format="center_yxhw",
+    variance=None,
+    image_shape=None,
+):
+    """Encodes bounding boxes relative to anchors as deltas.
+
+    This function calculates the deltas that represent the difference between
+    bounding boxes and provided anchors. Deltas encode the offsets and scaling
+    factors to apply to anchors to obtain the target boxes.
+
+    Boxes and anchors are first converted to the specified `encoding_format`
+    (defaulting to `center_yxhw`) for consistent delta representation.
+
+    Args:
+        anchors: `Tensors`. Anchor boxes with shape of `(N, 4)` where N is the
+            number of anchors.
+        boxes:  `Tensors` Bounding boxes to encode. Boxes can be of shape
+            `(B, N, 4)` or `(N, 4)`.
+        anchor_format: str. The format of the input `anchors`
+            (e.g., "xyxy", "xywh", etc.).
+        box_format: str. The format of the input `boxes`
+            (e.g., "xyxy", "xywh", etc.).
+        encoding_format: str. The intermediate format to which boxes and anchors
+            are converted before delta calculation. Defaults to "center_yxhw".
+        variance: `List[float]`. A 4-element array/tensor representing variance
+            factors to scale the box deltas. If provided, the calculated deltas
+            are divided by the variance. Defaults to None.
+        image_shape: `Tuple[int]`. The shape of the image (height, width, 3).
+            When using relative bounding box format for `box_format` the
+            `image_shape` is used for normalization.
+    Returns:
+        Encoded box deltas. The return type matches the `encode_format`.
+
+    Raises:
+        ValueError: If `variance` is not None and its length is not 4.
+        ValueError: If `encoding_format` is not `"center_xywh"` or
+            `"center_yxhw"`.
+
+    """
+    if variance is not None:
+        variance = ops.convert_to_tensor(variance, "float32")
+        var_len = variance.shape[-1]
+
+        if var_len != 4:
+            raise ValueError(f"`variance` must be length 4, got {variance}")
+
+    if encoding_format not in ["center_xywh", "center_yxhw"]:
+        raise ValueError(
+            "`encoding_format` should be one of 'center_xywh' or "
+            f"'center_yxhw', got {encoding_format}"
+        )
+
+    if image_shape is None:
+        height, width = None, None
+    else:
+        height, width, _ = image_shape
+
+    encoded_anchors = convert_format(
+        anchors,
+        source=anchor_format,
+        target=encoding_format,
+        height=height,
+        width=width,
+    )
+    boxes = convert_format(
+        boxes,
+        source=box_format,
+        target=encoding_format,
+        height=height,
+        width=width,
+    )
+    anchor_dimensions = ops.maximum(encoded_anchors[..., 2:], backend.epsilon())
+    box_dimensions = ops.maximum(boxes[..., 2:], backend.epsilon())
+    # anchors be unbatched, boxes can either be batched or unbatched.
+    boxes_delta = ops.concatenate(
+        [
+            (boxes[..., :2] - encoded_anchors[..., :2]) / anchor_dimensions,
+            ops.log(box_dimensions / anchor_dimensions),
+        ],
+        axis=-1,
+    )
+    if variance is not None:
+        boxes_delta /= variance
+    return boxes_delta
+
+
+def decode_deltas_to_boxes(
+    anchors,
+    boxes_delta,
+    anchor_format,
+    box_format,
+    encoded_format="center_yxhw",
+    variance=None,
+    image_shape=None,
+):
+    """Converts bounding boxes from delta format to the specified `box_format`.
+
+    This function decodes bounding box deltas relative to anchors to obtain the
+    final bounding box coordinates. The boxes are encoded in a specific
+    `encoded_format` (center_yxhw by default) during the decoding process.
+    This allows flexibility in how the deltas are applied to the anchors.
+
+    Args:
+        anchors: Can be `Tensors` or `Dict[Tensors]` where keys are level
+            indices and values are corresponding anchor boxes.
+            The shape of the array/tensor should be `(N, 4)` where N is the
+            number of anchors.
+        boxes_delta Can be `Tensors` or `Dict[Tensors]` Bounding box deltas
+            must have the same type and structure as `anchors`.  The
+            shape of the array/tensor can be `(N, 4)` or `(B, N, 4)` where N is
+            the number of boxes.
+        anchor_format: str. The format of the input `anchors`.
+            (e.g., `"xyxy"`, `"xywh"`, etc.)
+        box_format: str. The desired format for the output boxes.
+            (e.g., `"xyxy"`, `"xywh"`, etc.)
+        encoded_format: str. Raw output format from regression head. Defaults
+            to `"center_yxhw"`.
+        variance: `List[floats]`. A 4-element array/tensor representing
+            variance factors to scale the box deltas. If provided, the deltas
+            are multiplied by the variance before being applied to the anchors.
+            Defaults to None.
+        image_shape: `Tuple[int]`. The shape of the image (height, width, 3).
+            When using relative bounding box format for `box_format` the
+            `image_shape` is used for normalization.
+
+    Returns:
+        Decoded box coordinates. The return type matches the `box_format`.
+
+    Raises:
+        ValueError: If `variance` is not None and its length is not 4.
+        ValueError: If `encoded_format` is not `"center_xywh"` or
+            `"center_yxhw"`.
+
+    """
+    if variance is not None:
+        variance = ops.convert_to_tensor(variance, "float32")
+        var_len = variance.shape[-1]
+
+        if var_len != 4:
+            raise ValueError(f"`variance` must be length 4, got {variance}")
+
+    if encoded_format not in ["center_xywh", "center_yxhw"]:
+        raise ValueError(
+            f"`encoded_format` should be 'center_xywh' or 'center_yxhw', "
+            f"but got '{encoded_format}'."
+        )
+
+    if image_shape is None:
+        height, width = None, None
+    else:
+        height, width, _ = image_shape
+
+    def decode_single_level(anchor, box_delta):
+        encoded_anchor = convert_format(
+            anchor,
+            source=anchor_format,
+            target=encoded_format,
+            height=height,
+            width=width,
+        )
+        if variance is not None:
+            box_delta = box_delta * variance
+        # anchors be unbatched, boxes can either be batched or unbatched.
+        box = ops.concatenate(
+            [
+                box_delta[..., :2] * encoded_anchor[..., 2:]
+                + encoded_anchor[..., :2],
+                ops.exp(box_delta[..., 2:]) * encoded_anchor[..., 2:],
+            ],
+            axis=-1,
+        )
+        box = convert_format(
+            box,
+            source=encoded_format,
+            target=box_format,
+            height=height,
+            width=width,
+        )
+        return box
+
+    if isinstance(anchors, dict) and isinstance(boxes_delta, dict):
+        boxes = {}
+        for lvl, anchor in anchors.items():
+            boxes[lvl] = decode_single_level(anchor, boxes_delta[lvl])
+        return boxes
+    else:
+        return decode_single_level(anchors, boxes_delta)

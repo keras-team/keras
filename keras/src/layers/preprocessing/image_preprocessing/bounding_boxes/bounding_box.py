@@ -28,7 +28,6 @@ class BoundingBox:
         width=None,
         dtype="float32",
     ):
-
         if isinstance(boxes, dict):
             boxes["boxes"] = self.convert_format(
                 boxes["boxes"],
@@ -78,9 +77,6 @@ class BoundingBox:
                 f"Supported formats: {SUPPORTED_FORMATS}"
             )
 
-        if source == target:
-            return boxes
-
         if (source.startswith("rel_") or target.startswith("rel_")) and (
             width is None or height is None
         ):
@@ -91,9 +87,14 @@ class BoundingBox:
                 f"target=`{target}, "
                 f"but height={height} and width={width}."
             )
-        width = ops.cast(width, dtype)
-        height = ops.cast(height, dtype)
         boxes = ops.cast(boxes, dtype)
+        if source == target:
+            return boxes
+        if width is not None:
+            width = ops.cast(width, dtype)
+        if height is not None:
+            height = ops.cast(height, dtype)
+
         if source.startswith("rel_") and target.startswith("rel_"):
             source = source.replace("rel_", "", 1)
             target = target.replace("rel_", "", 1)

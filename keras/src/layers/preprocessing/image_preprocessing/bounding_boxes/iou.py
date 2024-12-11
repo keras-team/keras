@@ -77,23 +77,25 @@ def compute_iou(
     4) `boxes1`: [M, 4], `boxes2`: [N, 4] -> return [M, N]
 
     Args:
-      boxes1: a list of bounding boxes in 'corners' format. Can be batched or
-        unbatched.
-      boxes2: a list of bounding boxes in 'corners' format. Can be batched or
-        unbatched.
-      bounding_box_format: a case-insensitive string which is one of `"xyxy"`,
-        `"rel_xyxy"`, `"xyWH"`, `"center_xyWH"`, `"yxyx"`, `"rel_yxyx"`.
-        For detailed information on the supported format, see the
-        [KerasCV bounding box documentation](https://keras.io/api/keras_cv/bounding_box/formats/).
-      use_masking: whether masking will be applied. This will mask all `boxes1`
-        or `boxes2` that have values less than 0 in all its 4 dimensions.
-        Default to `False`.
-      mask_val: int to mask those returned IOUs if the masking is True, defaults
-        to -1.
+        boxes1: a list of bounding boxes in 'corners' format. Can be batched or
+            unbatched.
+        boxes2: a list of bounding boxes in 'corners' format. Can be batched or
+            unbatched.
+        bounding_box_format: a case-insensitive string which is one of `"xyxy"`,
+            `"rel_xyxy"`, `"xyWH"`, `"center_xyWH"`, `"yxyx"`, `"rel_yxyx"`.
+            For detailed information on the supported format, see the
+        use_masking: whether masking will be applied. This will mask all
+            `boxes1` or `boxes2` that have values less than 0 in all its 4
+            dimensions. Default to `False`.
+        mask_val: int to mask those returned IOUs if the masking is True,
+            defaults to -1.
+        image_shape: `Tuple[int]`. The shape of the image (height, width, 3).
+            When using relative bounding box format for `box_format` the
+            `image_shape` is used for normalization.
 
     Returns:
-      iou_lookup_table: a vector containing the pairwise ious of boxes1 and
-        boxes2.
+        iou_lookup_table: a vector containing the pairwise ious of boxes1 and
+            boxes2.
     """  # noqa: E501
 
     boxes1_rank = len(ops.shape(boxes1))
@@ -122,20 +124,25 @@ def compute_iou(
             f"Received `image_shape`: {image_shape}"
         )
 
+    if image_shape is None:
+        height, width = None, None
+    else:
+        height, width, _ = image_shape
+
     boxes1 = converters.convert_format(
         boxes1,
         source=bounding_box_format,
         target=target_format,
-        height=image_shape[0],
-        width=image_shape[1],
+        height=height,
+        width=width,
     )
 
     boxes2 = converters.convert_format(
         boxes2,
         source=bounding_box_format,
         target=target_format,
-        height=image_shape[0],
-        width=image_shape[1],
+        height=height,
+        width=width,
     )
 
     intersect_area = _compute_intersection(boxes1, boxes2)
@@ -187,6 +194,9 @@ def compute_ciou(boxes1, boxes2, bounding_box_format, image_shape=None):
             Each bounding box is defined by these 4 values. For detailed
             information on the supported formats, see the [KerasCV bounding box
             documentation](https://keras.io/api/keras_cv/bounding_box/formats/).
+        image_shape: `Tuple[int]`. The shape of the image (height, width, 3).
+            When using relative bounding box format for `box_format` the
+            `image_shape` is used for normalization.
 
     Returns:
         tensor: The CIoU distance between the two bounding boxes.
@@ -199,14 +209,25 @@ def compute_ciou(boxes1, boxes2, bounding_box_format, image_shape=None):
             f"Received `image_shape`: {image_shape}"
         )
 
+    if image_shape is None:
+        height, width = None, None
+    else:
+        height, width, _ = image_shape
+
     boxes1 = converters.convert_format(
         boxes1,
         source=bounding_box_format,
         target=target_format,
+        height=height,
+        width=width,
     )
 
     boxes2 = converters.convert_format(
-        boxes2, source=bounding_box_format, target=target_format
+        boxes2,
+        source=bounding_box_format,
+        target=target_format,
+        height=height,
+        width=width,
     )
 
     x_min1, y_min1, x_max1, y_max1 = ops.split(boxes1[..., :4], 4, axis=-1)
