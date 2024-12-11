@@ -89,11 +89,10 @@ jobs:
         run: |
           python integration_tests/import_test.py
           pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml -m openvino_backend
-          coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Test with pytest
-        if: ${{ matrix.backend != 'openvino'}}
         run: |
-          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
+          ADD_EXCLUDED_TESTS=${{ matrix.backend != 'openvino' && ' ' || ' -c keras/src/backend/openvino/pytest_excluded_tests.ini ' }}
+          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml $ADD_EXCLUDED_TESTS
           coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Codecov keras
         uses: codecov/codecov-action@v5
