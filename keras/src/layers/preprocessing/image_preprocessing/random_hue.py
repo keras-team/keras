@@ -1,4 +1,3 @@
-import keras
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -37,21 +36,20 @@ class RandomHue(BaseImagePreprocessingLayer):
 
     Args:
         factor: A single float or a tuple of two floats.
-             `factor` controls the extent to which the
+            `factor` controls the extent to which the
             image hue is impacted. `factor=0.0` makes this layer perform a
-            no-op operation, while a value of 1.0 performs the most aggressive
+            no-op operation, while a value of `1.0` performs the most aggressive
             contrast adjustment available. If a tuple is used, a `factor` is
             sampled between the two values for every image augmented. If a
             single float is used, a value between `0.0` and the passed float is
             sampled. In order to ensure the value is always the same, please
             pass a tuple with two identical floats: `(0.5, 0.5)`.
         value_range: the range of values the incoming images will have.
-            Represented as a two number tuple written [low, high]. This is
+            Represented as a two-number tuple written `[low, high]`. This is
             typically either `[0, 1]` or `[0, 255]` depending on how your
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
 
-    Example:
     ```python
     (images, labels), _ = keras.datasets.cifar10.load_data()
     random_hue = keras.layers.RandomHue(factor=0.5, value_range=[0, 1])
@@ -66,7 +64,7 @@ class RandomHue(BaseImagePreprocessingLayer):
         self.factor = factor
         self.value_range = value_range
         self.seed = seed
-        self.seed_generator = SeedGenerator(seed)
+        self.generator = SeedGenerator(seed)
 
     def parse_factor(
         self, min_value=0.0, max_value=1.0, param_name="factor", shape=None
@@ -94,7 +92,7 @@ class RandomHue(BaseImagePreprocessingLayer):
 
         return self.backend.random.uniform(
             shape,
-            seed=self.seed_generator,
+            seed=self.generator,
             minval=factors[0],
             maxval=factors[1],
         )
@@ -116,7 +114,9 @@ class RandomHue(BaseImagePreprocessingLayer):
                 f"inputs.shape={images_shape}"
             )
 
-        invert = keras.random.uniform((1,), seed=self.seed_generator)
+        if seed is None:
+            seed = self._get_seed_generator(self.backend._backend)
+        invert = self.backend.random.uniform((1,), seed=seed)
 
         invert = self.backend.numpy.where(
             invert > 0.5,

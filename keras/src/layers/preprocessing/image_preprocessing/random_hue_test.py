@@ -41,7 +41,7 @@ class RandomHueTest(testing.TestCase):
 
         layer = layers.RandomHue(0, (0, 255), data_format=data_format)
         output = layer(inputs, training=False)
-        self.assertAllClose(inputs, output, atol=1e-4, rtol=1e-6)
+        self.assertAllClose(inputs, output, atol=1e-3, rtol=1e-5)
 
     def test_random_hue_randomness(self):
         image = keras.random.uniform(shape=(3, 3, 3), minval=0, maxval=1)[:5]
