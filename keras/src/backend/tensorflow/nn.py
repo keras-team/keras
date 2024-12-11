@@ -1015,12 +1015,8 @@ def _apply_masks(logits, mask, is_causal):
 
 def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
     logits_dtype = backend.result_type(query.dtype, "float32")
-    logits = tf.einsum(
-        "BTNH,BSNH->BNTS",
-        tf.cast(query, dtype=logits_dtype),
-        tf.cast(key, dtype=logits_dtype),
-        optimize="optimal",
-    )
+    logits = tf.einsum("BTNH,BSNH->BNTS", query, key, optimize="optimal")
+    logits = tf.cast(logits, logits_dtype)
     logits = tf.multiply(logits, tf.cast(scale, logits.dtype))
 
     if bias is not None:
