@@ -194,13 +194,7 @@ class QuantizersTest(testing.TestCase):
             num_bits=num_bits,
             narrow_range=narrow_range,
         )
-        result = self.assertAllClose(gradients, expected_backprops)
-        if not result:
-            print(f"initial_gradients: {initial_gradients}")
-            print(f"gradients: {gradients}")
-            print(f"expected_backprops: {expected_backprops}")
-            print("")
-        self.assertTrue(result)
+        self.assertAllClose(gradients, expected_backprops)
 
     def _TestChannelsOp(
         self,
