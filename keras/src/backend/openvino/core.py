@@ -1,4 +1,5 @@
 import contextlib
+import warnings
 
 import numpy as np
 import openvino as ov
@@ -563,6 +564,20 @@ def random_seed_dtype():
 
 
 def custom_gradient(fun):
-    raise NotImplementedError(
-        "`custom_gradient` is not supported with openvino backend"
-    )
+    """Decorator for custom gradients.
+
+    Args:
+        fun: Forward pass function.
+    """
+
+    def __init__(self, fun):
+        warnings.warn(
+            "`custom_gradient` for the openvino backend acts as a pass-through to "
+            "support the forward pass. No gradient computation or modification "
+            "takes place."
+        )
+        self.fun = fun
+
+    def __call__(self, *args, **kwargs):
+        outputs, _ = self.fun(*args, **kwargs)
+        return outputs
