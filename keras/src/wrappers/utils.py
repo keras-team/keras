@@ -28,10 +28,9 @@ class TargetReshaper(TransformerMixin, BaseEstimator):
     def fit(self, y):
         """Fit the transformer to a target y.
 
-        Returns
-        -------
-        TargetReshaper
-            A reference to the current instance of TargetReshaper.
+        Returns:
+            TargetReshaper
+                A reference to the current instance of TargetReshaper.
         """
         self.ndim_ = y.ndim
         return self
@@ -39,15 +38,13 @@ class TargetReshaper(TransformerMixin, BaseEstimator):
     def transform(self, y):
         """Makes 1D y 2D.
 
-        Parameters
-        ----------
-        y : np.ndarray
-            Target y to be transformed.
+        Args:
+            y : np.ndarray
+                Target y to be transformed.
 
-        Returns
-        -------
-        np.ndarray
-            A numpy array, of dimension at least 2.
+        Returns:
+            np.ndarray
+                A numpy array, of dimension at least 2.
         """
         if y.ndim == 1:
             return y.reshape(-1, 1)
@@ -56,18 +53,16 @@ class TargetReshaper(TransformerMixin, BaseEstimator):
     def inverse_transform(self, y):
         """Revert the transformation of transform.
 
-        Parameters
-        ----------
-        y : np.ndarray
-            Transformed numpy array.
+        Args:
+            y: np.ndarray
+                Transformed numpy array.
 
-        Returns
-        -------
-        np.ndarray
-            If the transformer was fit to a 1D numpy array,
-            and a 2D numpy array with a singleton second dimension
-            is passed, it will be squeezed back to 1D. Otherwise, it
-            will eb left untouched.
+        Returns:
+            np.ndarray
+                If the transformer was fit to a 1D numpy array,
+                and a 2D numpy array with a singleton second dimension
+                is passed, it will be squeezed back to 1D. Otherwise, it
+                will eb left untouched.
         """
         check_is_fitted(self)
         xp, _ = get_namespace(y)
