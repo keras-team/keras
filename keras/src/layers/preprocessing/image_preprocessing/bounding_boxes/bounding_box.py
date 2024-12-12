@@ -414,8 +414,6 @@ class BoundingBox:
         ops = self.backend
         batch_size = ops.shape(angle)[0]
         dtype = angle.dtype
-        width = ops.cast(width, dtype)
-        height = ops.cast(height, dtype)
 
         angle = -angle
         shear_x = -shear_x
