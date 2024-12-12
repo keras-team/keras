@@ -33,6 +33,8 @@ def logsumexp(x, axis=None, keepdims=False):
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
+    if isinstance(axis, tuple):
+        axis = list(axis)
     axis = ov_opset.constant(axis, Type.i32).output(0)
     const_zero = ov_opset.constant(0, x.get_element_type()).output(0)
     reduce_max = ov_opset.reduce_max(x, axis, keepdims).output(0)
