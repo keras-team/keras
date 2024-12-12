@@ -236,7 +236,7 @@ class PyDatasetAdapter(DataAdapter):
 
     def _infinite_generator(self):
         for i in itertools.count():
-            yield self.py_dataset[i]
+            yield self._standardize_batch(self.py_dataset[i])
 
     def _finite_generator(self):
         indices = range(self.py_dataset.num_batches)
@@ -245,7 +245,7 @@ class PyDatasetAdapter(DataAdapter):
             random.shuffle(indices)
 
         for i in indices:
-            yield self.py_dataset[i]
+            yield self._standardize_batch(self.py_dataset[i])
 
     def _infinite_enqueuer_generator(self):
         self.enqueuer.start()
