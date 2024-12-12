@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras.src import backend
 from keras.src import dtype_policies
@@ -61,6 +62,7 @@ class OpWithCustomDtype(operation.Operation):
 
 
 class OperationTest(testing.TestCase):
+    @pytest.mark.openvino_backend
     def test_symbolic_call(self):
         x = keras_tensor.KerasTensor(shape=(2, 3), name="x")
         y = keras_tensor.KerasTensor(shape=(2, 3), name="y")
@@ -114,6 +116,7 @@ class OperationTest(testing.TestCase):
         self.assertEqual(len(op._inbound_nodes), 1)
         self.assertEqual(op.output, list(out))
 
+    @pytest.mark.openvino_backend
     def test_eager_call(self):
         x = knp.ones((2, 3))
         y = knp.ones((2, 3))
@@ -145,6 +148,7 @@ class OperationTest(testing.TestCase):
         self.assertAllClose(out[0], np.ones((2, 3)))
         self.assertAllClose(out[1], np.ones((2, 3)) + 1)
 
+    @pytest.mark.openvino_backend
     def test_serialization(self):
         op = OpWithMultipleOutputs(name="test_op")
         config = op.get_config()
@@ -152,6 +156,7 @@ class OperationTest(testing.TestCase):
         op = OpWithMultipleOutputs.from_config(config)
         self.assertEqual(op.name, "test_op")
 
+    @pytest.mark.openvino_backend
     def test_autoconfig(self):
         op = OpWithCustomConstructor(alpha=0.2, mode="bar")
         config = op.get_config()
@@ -170,6 +175,7 @@ class OperationTest(testing.TestCase):
         self.assertTrue(backend.is_tensor(out))
         self.assertAllClose(out, 6 * np.ones((2,)))
 
+    @pytest.mark.openvino_backend
     def test_valid_naming(self):
         OpWithMultipleOutputs(name="test_op")
 
@@ -178,6 +184,7 @@ class OperationTest(testing.TestCase):
         ):
             OpWithMultipleOutputs(name="test/op")
 
+    @pytest.mark.openvino_backend
     def test_dtype(self):
         # Test dtype argument
         op = OpWithCustomDtype(dtype="bfloat16")

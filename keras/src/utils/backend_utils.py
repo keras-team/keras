@@ -60,10 +60,10 @@ class DynamicBackend:
         self._backend = backend or backend_module.backend()
 
     def set_backend(self, backend):
-        if backend not in ("tensorflow", "jax", "torch", "numpy"):
+        if backend not in ("tensorflow", "jax", "torch", "numpy", "openvino"):
             raise ValueError(
-                "Available backends are ('tensorflow', 'jax', 'torch' and "
-                f"'numpy'). Received: backend={backend}"
+                "Available backends are ('tensorflow', 'jax', 'torch', "
+                f"'numpy' and 'openvino'). Received: backend={backend}"
             )
         self._backend = backend
 
@@ -92,6 +92,9 @@ class DynamicBackend:
                     "Currently, we cannot dynamically import the numpy backend "
                     "because it would disrupt the namespace of the import."
                 )
+        if self._backend == "openvino":
+            module = importlib.import_module("keras.src.backend.openvino")
+            return getattr(module, name)
 
 
 @keras_export("keras.config.set_backend")

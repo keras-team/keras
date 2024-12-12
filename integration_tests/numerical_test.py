@@ -137,6 +137,7 @@ def numerical_test():
 
 
 if __name__ == "__main__":
-    keras.utils.set_random_seed(1337)
-    tf_keras.utils.set_random_seed(1337)
-    numerical_test()
+    if keras.backend.backend() != "openvino":
+        keras.utils.set_random_seed(1337)
+        tf_keras.utils.set_random_seed(1337)
+        numerical_test()

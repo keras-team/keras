@@ -1,9 +1,12 @@
+import pytest
+
 from keras.src import testing
 from keras.src import tree
 from keras.src.backend import KerasTensor
 from keras.src.ops.symbolic_arguments import SymbolicArguments
 
 
+@pytest.mark.openvino_backend
 class SymbolicArgumentsTest(testing.TestCase):
     # Testing multiple args and empty kwargs
     def test_args(self):

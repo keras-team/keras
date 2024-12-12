@@ -144,6 +144,7 @@ def _max_reduce(left, right):
     return np.max(np.stack([left, right]), axis=0)
 
 
+@pytest.mark.openvino_backend
 class MathOpsDynamicShapeTest(testing.TestCase):
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
@@ -289,6 +290,7 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None,))
 
 
+@pytest.mark.openvino_backend
 class MathOpsStaticShapeTest(testing.TestCase):
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
@@ -892,11 +894,13 @@ class MathOpsCorrectnessTest(testing.TestCase):
             ref = ref[..., truncated_len:-truncated_len]
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
+    @pytest.mark.openvino_backend
     def test_rsqrt(self):
         x = np.array([[1, 4, 9], [16, 25, 36]], dtype="float32")
         self.assertAllClose(kmath.rsqrt(x), 1 / np.sqrt(x))
         self.assertAllClose(kmath.Rsqrt()(x), 1 / np.sqrt(x))
 
+    @pytest.mark.openvino_backend
     def test_erf_operation_basic(self):
         # Sample values for testing
         sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
@@ -910,6 +914,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         # Assert that the outputs are close
         self.assertAllClose(expected_output, output_from_erf_op, atol=1e-4)
 
+    @pytest.mark.openvino_backend
     def test_erf_operation_dtype(self):
         # Test for float32 and float64 data types
         for dtype in ("float32", "float64"):
@@ -920,6 +925,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             output_from_erf_op = kmath.erf(sample_values)
             self.assertAllClose(expected_output, output_from_erf_op, atol=1e-4)
 
+    @pytest.mark.openvino_backend
     def test_erf_operation_edge_cases(self):
         # Test for edge cases
         edge_values = np.array([1e5, -1e5, 1e-5, -1e-5], dtype=np.float64)
@@ -1009,6 +1015,7 @@ class MathDtypeTest(testing.TestCase):
 
 
 class ExtractSequencesOpTest(testing.TestCase):
+    @pytest.mark.openvino_backend
     def test_extract_sequences_init_length_1_stride_1(self):
         extract_op = kmath.ExtractSequences(
             sequence_length=1, sequence_stride=1
@@ -1017,6 +1024,7 @@ class ExtractSequencesOpTest(testing.TestCase):
         self.assertEqual(extract_op.sequence_length, 1)
         self.assertEqual(extract_op.sequence_stride, 1)
 
+    @pytest.mark.openvino_backend
     def test_extract_sequences_init_length_5_stride_2(self):
         extract_op = kmath.ExtractSequences(
             sequence_length=5, sequence_stride=2
@@ -1025,6 +1033,7 @@ class ExtractSequencesOpTest(testing.TestCase):
         self.assertEqual(extract_op.sequence_length, 5)
         self.assertEqual(extract_op.sequence_stride, 2)
 
+    @pytest.mark.openvino_backend
     def test_compute_output_spec_low_rank(self):
         extract_op = kmath.ExtractSequences(
             sequence_length=5, sequence_stride=1
@@ -1129,6 +1138,7 @@ class LogsumexpTest(testing.TestCase):
         self.assertAllClose(output, expected_output)
 
 
+@pytest.mark.openvino_backend
 class FFTTest(testing.TestCase):
     def test_fft_input_not_tuple_or_list(self):
         fft_op = kmath.FFT()
@@ -1168,6 +1178,7 @@ class FFTTest(testing.TestCase):
         self.assertEqual(fft_op.axis, -1, "Default axis should be -1")
 
 
+@pytest.mark.openvino_backend
 class FFT2Test(testing.TestCase):
     def test_fft2_correct_input(self):
         fft2_op = kmath.FFT2()
@@ -1210,6 +1221,7 @@ class FFT2Test(testing.TestCase):
             fft2_op.compute_output_spec((real_part, imag_part))
 
 
+@pytest.mark.openvino_backend
 class RFFTTest(testing.TestCase):
     def test_rfft_low_rank_input(self):
         rfft_op = kmath.RFFT()
@@ -1249,6 +1261,7 @@ class RFFTTest(testing.TestCase):
             self.assertEqual(output_tensor.shape, expected_shape)
 
 
+@pytest.mark.openvino_backend
 class ISTFTTest(testing.TestCase):
     def test_istft_incorrect_input_type(self):
         istft_op = kmath.ISTFT(
@@ -1400,6 +1413,7 @@ class TestMathErrors(testing.TestCase):
             segment_reduce_op(data, segment_ids, num_segments=2, sorted=True)
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
+    @pytest.mark.openvino_backend
     def test_segment_reduce_multi_dim_segment_ids(self, segment_reduce_op):
         data = np.array([1, 2, 3, 4])
         segment_ids = np.array([0, 0, 1, 1]).reshape((2, 2))
@@ -1410,6 +1424,7 @@ class TestMathErrors(testing.TestCase):
             segment_reduce_op(data, segment_ids)
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
+    @pytest.mark.openvino_backend
     def test_segment_reduce_leading_not_match(self, segment_reduce_op):
         data = np.array([])
         segment_ids = np.array([0, 0, 1, 1])
