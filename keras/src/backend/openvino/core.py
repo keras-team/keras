@@ -424,10 +424,7 @@ def shape(x):
 
 def cast(x, dtype):
     ov_type = OPENVINO_DTYPES[dtype]
-    if isinstance(x, OpenVINOKerasTensor):
-        x = x.output
-    else:
-        x = ov_opset.constant(x, ov_type).output(0)
+    x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.convert(x, ov_type).output(0))
 
 
