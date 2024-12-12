@@ -64,9 +64,11 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
             maxval=1,
             seed=self.random_generator,
         )
-        
+
         broadcast_shape = (
-            [1, 1, 1, 1] if self.data_format == "channels_last" else [1, 1, 1, 1]
+            [1, 1, 1, 1]
+            if self.data_format == "channels_last"
+            else [1, 1, 1, 1]
         )
         should_apply = self.backend.numpy.reshape(
             random_values < self.factor, (-1,) + tuple(broadcast_shape[1:])
@@ -79,15 +81,19 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
             if transformations is not None
             else self.get_random_transformation(images)
         )
-        
+
         grayscale_images = self.backend.image.rgb_to_grayscale(
             images, data_format=self.data_format
         )
-        
+
         if self.data_format == "channels_last":
-            grayscale_images = self.backend.numpy.repeat(grayscale_images, 3, axis=-1)
-        else:  
-            grayscale_images = self.backend.numpy.repeat(grayscale_images, 3, axis=1)
+            grayscale_images = self.backend.numpy.repeat(
+                grayscale_images, 3, axis=-1
+            )
+        else:
+            grayscale_images = self.backend.numpy.repeat(
+                grayscale_images, 3, axis=1
+            )
 
         return self.backend.numpy.where(should_apply, grayscale_images, images)
 
