@@ -1,5 +1,3 @@
-import pytest
-
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
@@ -7,7 +5,6 @@ from keras.src.layers.core import input_layer
 from keras.src.ops import operation_utils
 
 
-@pytest.mark.openvino_backend
 class OperationUtilsTest(testing.TestCase):
     def test_get_source_inputs(self):
         x1 = backend.KerasTensor(shape=(2,))

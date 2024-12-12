@@ -291,7 +291,6 @@ class DepthwiseConvBasicTest(testing.TestCase):
             supports_masking=False,
         )
 
-    @pytest.mark.openvino_backend
     def test_bad_init_args(self):
         # `depth_multiplier` is not positive.
         with self.assertRaisesRegex(
@@ -364,7 +363,6 @@ class DepthwiseConvCorrectnessTest(testing.TestCase):
             "dilation_rate": 1,
         },
     )
-    @pytest.mark.openvino_backend
     def test_depthwise_conv1d(
         self,
         depth_multiplier,
@@ -430,7 +428,6 @@ class DepthwiseConvCorrectnessTest(testing.TestCase):
             "dilation_rate": (1, 1),
         },
     )
-    @pytest.mark.openvino_backend
     def test_depthwise_conv2d(
         self,
         depth_multiplier,

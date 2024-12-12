@@ -20,7 +20,6 @@ from keras.src.ops import core
 from keras.src.testing.test_utils import named_product
 
 
-@pytest.mark.openvino_backend
 class CoreOpsStaticShapeTest(testing.TestCase):
     def test_map(self):
         def f(x):
@@ -608,7 +607,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         y = ops.stop_gradient(x)
         self.assertAllClose(x, y)
 
-    @pytest.mark.openvino_backend
     def test_stop_gradient_functional(self):
         a = layers.Input(shape=(2,))
         b = layers.Dense(4, kernel_initializer="ones", use_bias=False)(a)
@@ -618,7 +616,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         output = model(ops.convert_to_tensor([[1.0, 2.0]]))
         self.assertAllClose(ops.convert_to_numpy(output), 15.0)
 
-    @pytest.mark.openvino_backend
     def test_shape(self):
         x = ops.ones((2, 3, 7, 1))
         self.assertEqual(core.shape(x).__class__, tuple)
@@ -761,7 +758,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             o = ops.convert_to_numpy(o)
             self.assertAllClose(o, o_e)
 
-    @pytest.mark.openvino_backend
     def test_cast(self):
         x = ops.ones((2,), dtype="float32")
         y = ops.cast(x, "float16")
@@ -776,7 +772,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
     @parameterized.named_parameters(
         ("float8_e4m3fn", "float8_e4m3fn"), ("float8_e5m2", "float8_e5m2")
     )
-    @pytest.mark.openvino_backend
     def test_cast_float8(self, float8_dtype):
         # Cast to float8 and cast back
         x = ops.ones((2,), dtype="float32")
@@ -795,7 +790,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(x.shape, y.shape)
         self.assertTrue(hasattr(x, "_keras_history"))
 
-    @pytest.mark.openvino_backend
     def test_saturate_cast(self):
         x = ops.ones((2,), dtype="float32")
         y = ops.saturate_cast(x, "float16")
@@ -832,7 +826,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             backend.convert_to_numpy(output), 2 * np.ones((2, 3))
         )
 
-    @pytest.mark.openvino_backend
     def test_is_tensor(self):
         np_x = np.array([[1, 2, 3], [3, 2, 1]])
         x = backend.convert_to_tensor(np_x)
@@ -969,7 +962,6 @@ class CoreOpsDtypeTest(testing.TestCase):
             )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    @pytest.mark.openvino_backend
     def test_saturate_cast(self, dtype):
         x = np.ones((1,))
 
@@ -1033,7 +1025,6 @@ class CoreOpsCallsTests(testing.TestCase):
         expected_output = np.array([[5, 6], [8, 9]])
         self.assertAllClose(core.convert_to_numpy(result), expected_output)
 
-    @pytest.mark.openvino_backend
     def test_slice_compute_output_spec(self):
         inputs = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32)
         start_indices = np.array([1, 1])
@@ -1043,7 +1034,6 @@ class CoreOpsCallsTests(testing.TestCase):
         self.assertEqual(output_spec.shape, shape)
         self.assertEqual(output_spec.dtype, inputs.dtype)
 
-    @pytest.mark.openvino_backend
     def test_slice_with_symbolic_tensors(self):
         inputs = KerasTensor(shape=(3, 3), dtype=np.float32)
         start_indices = KerasTensor(shape=(2,), dtype=np.int32)
@@ -1102,7 +1092,6 @@ class CoreOpsCallsTests(testing.TestCase):
         result = while_loop.call(loop_vars)
         self.assertEqual(result[0], 5)
 
-    @pytest.mark.openvino_backend
     def test_while_loop_output_spec(self):
         # Define dummy cond and body functions
         def cond(x):
@@ -1129,7 +1118,6 @@ class CoreOpsCallsTests(testing.TestCase):
         result = while_loop.call((0,))
         self.assertEqual(result[0], 5)
 
-    @pytest.mark.openvino_backend
     def test_whileloop_compute_output_spec(self):
         # Define loop variables with different shapes and data types
         loop_vars = (np.random.rand(5, 5), np.random.randint(10, size=(3, 7)))
@@ -1150,7 +1138,6 @@ class CoreOpsCallsTests(testing.TestCase):
         self.assertEqual(output_specs[1].shape, keras_loop_vars[1].shape)
         self.assertEqual(output_specs[1].dtype, keras_loop_vars[1].dtype)
 
-    @pytest.mark.openvino_backend
     def test_stop_gradient_call(self):
         variable_np = np.array([1.0, 2.0, 3.0], dtype=np.float32)
         variable = core.convert_to_tensor(variable_np)
@@ -1160,7 +1147,6 @@ class CoreOpsCallsTests(testing.TestCase):
         self.assertTrue(np.array_equal(result_np, variable_np))
         self.assertEqual(result_np.dtype, variable_np.dtype)
 
-    @pytest.mark.openvino_backend
     def test_stop_gradient_compute_output_spec(self):
         variable = KerasTensor(shape=(3,), dtype=np.float32)
         stop_gradient = core.StopGradient()
@@ -1197,7 +1183,6 @@ class CoreOpsCallsTests(testing.TestCase):
         if len(result) > 2:
             self.assertEqual(result[2].shape, expected_shape)
 
-    @pytest.mark.openvino_backend
     def test_cast_basic_functionality(self):
         x = np.array([1.0, 2.0, 3.0], dtype=np.float32)
         target_dtype = np.int32
@@ -1209,7 +1194,6 @@ class CoreOpsCallsTests(testing.TestCase):
         expected_values = x.astype(target_dtype)
         self.assertTrue(np.array_equal(result, expected_values))
 
-    @pytest.mark.openvino_backend
     def test_saturate_cast_basic_functionality(self):
         x = np.array([-256, 1.0, 257.0], dtype=np.float32)
         target_dtype = np.uint8
@@ -1223,7 +1207,6 @@ class CoreOpsCallsTests(testing.TestCase):
         print(expected_values)
         self.assertTrue(np.array_equal(result, expected_values))
 
-    @pytest.mark.openvino_backend
     def test_cond_check_output_spec_list_tuple(self):
         cond_op = core.Cond()
         mock_spec = Mock(dtype="float32", shape=(2, 2))
@@ -1233,14 +1216,12 @@ class CoreOpsCallsTests(testing.TestCase):
             )
         )
 
-    @pytest.mark.openvino_backend
     def test_cond_check_output_spec_other_types(self):
         cond_op = core.Cond()
         mock_spec1 = KerasTensor(shape=(2, 2), dtype="float32")
         mock_spec2 = KerasTensor(shape=(2, 2), dtype="float32")
         self.assertTrue(cond_op._check_output_spec(mock_spec1, mock_spec2))
 
-    @pytest.mark.openvino_backend
     def test_cond_check_output_spec_none(self):
         cond_op = core.Cond()
         self.assertTrue(cond_op._check_output_spec(None, None))
@@ -1255,7 +1236,6 @@ class CoreOpsCallsTests(testing.TestCase):
             )
         )
 
-    @pytest.mark.openvino_backend
     def test_cond_check_output_spec_dict(self):
         cond_op = core.Cond()
         mock_spec = Mock(dtype="float32", shape=(2, 2))
@@ -1271,7 +1251,6 @@ class CoreOpsCallsTests(testing.TestCase):
             )
         )
 
-    @pytest.mark.openvino_backend
     def test_cond_check_output_spec_list(self):
         cond_op = core.Cond()
         mock_spec = Mock(dtype="float32", shape=(2, 2))
@@ -1283,7 +1262,6 @@ class CoreOpsCallsTests(testing.TestCase):
             )
         )
 
-    @pytest.mark.openvino_backend
     def test_cond_check_output_spec_tuple(self):
         cond_op = core.Cond()
         mock_spec = Mock(dtype="float32", shape=(2, 2))
@@ -1297,7 +1275,6 @@ class CoreOpsCallsTests(testing.TestCase):
 
 
 class CoreOpsBehaviorTests(testing.TestCase):
-    @pytest.mark.openvino_backend
     def test_convert_to_numpy(self):
         x = ops.array([1, 2, 3], dtype="float32")
         y = ops.convert_to_numpy(x)

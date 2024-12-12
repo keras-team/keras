@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -11,7 +10,6 @@ from keras.src.testing.test_utils import named_product
 
 
 class LinalgOpsDynamicShapeTest(testing.TestCase):
-    @pytest.mark.openvino_backend
     def test_cholesky(self):
         x = KerasTensor([None, 20, 20])
         out = linalg.cholesky(x)
@@ -25,7 +23,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.cholesky(x)
 
-    @pytest.mark.openvino_backend
     def test_det(self):
         x = KerasTensor([None, 20, 20])
         out = linalg.det(x)
@@ -39,21 +36,18 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.det(x)
 
-    @pytest.mark.openvino_backend
     def test_eig(self):
         x = KerasTensor([None, 20, 20])
         w, v = linalg.eig(x)
         self.assertEqual(w.shape, (None, 20))
         self.assertEqual(v.shape, (None, 20, 20))
 
-    @pytest.mark.openvino_backend
     def test_eigh(self):
         x = KerasTensor([None, 20, 20])
         w, v = linalg.eigh(x)
         self.assertEqual(w.shape, (None, 20))
         self.assertEqual(v.shape, (None, 20, 20))
 
-    @pytest.mark.openvino_backend
     def test_inv(self):
         x = KerasTensor([None, 20, 20])
         out = linalg.inv(x)
@@ -67,7 +61,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.inv(x)
 
-    @pytest.mark.openvino_backend
     def test_lu_factor(self):
         if testing.jax_uses_gpu():
             self.skipTest("Skipping test with JAX + GPU due to temporary error")
@@ -82,7 +75,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(lu.shape, (None, 2, 3))
         self.assertEqual(p.shape, (None, 2))
 
-    @pytest.mark.openvino_backend
     def test_norm(self):
         x = KerasTensor((None, 3))
         self.assertEqual(linalg.norm(x).shape, ())
@@ -93,7 +85,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
             linalg.norm(x, axis=1, keepdims=True).shape, (None, 1, 3)
         )
 
-    @pytest.mark.openvino_backend
     def test_qr(self):
         x = KerasTensor((None, 4, 3), dtype="float32")
         q, r = linalg.qr(x, mode="reduced")
@@ -119,7 +110,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         ):
             linalg.qr(x, mode=invalid_mode)
 
-    @pytest.mark.openvino_backend
     def test_solve(self):
         a = KerasTensor([None, 20, 20])
         b = KerasTensor([None, 20, 5])
@@ -146,7 +136,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.solve(a, b)
 
-    @pytest.mark.openvino_backend
     def test_solve_triangular(self):
         if testing.jax_uses_gpu():
             self.skipTest("Skipping test with JAX + GPU due to temporary error")
@@ -181,7 +170,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.solve_triangular(a, b)
 
-    @pytest.mark.openvino_backend
     def test_svd(self):
         x = KerasTensor((None, 3, 2))
         u, s, v = linalg.svd(x)
@@ -198,7 +186,6 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(s.shape, (None, 2))
 
 
-@pytest.mark.openvino_backend
 class LinalgOpsStaticShapeTest(testing.TestCase):
     def test_cholesky(self):
         x = KerasTensor([4, 3, 3])
@@ -573,17 +560,14 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
 
 
 class QrOpTest(testing.TestCase):
-    @pytest.mark.openvino_backend
     def test_qr_init_mode_reduced(self):
         qr_op = linalg.Qr(mode="reduced")
         self.assertIsNotNone(qr_op)
 
-    @pytest.mark.openvino_backend
     def test_qr_init_mode_complete(self):
         qr_op = linalg.Qr(mode="complete")
         self.assertIsNotNone(qr_op)
 
-    @pytest.mark.openvino_backend
     def test_qr_init_invalid_mode(self):
         invalid_mode = "invalid_mode"
         expected_error = (
@@ -594,7 +578,6 @@ class QrOpTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, expected_error):
             linalg.Qr(mode=invalid_mode)
 
-    @pytest.mark.openvino_backend
     def test_compute_output_spec_low_rank(self):
         qr_op = linalg.Qr(mode="reduced")
         low_rank_input = np.random.rand(3)
@@ -603,7 +586,6 @@ class QrOpTest(testing.TestCase):
         ):
             qr_op.compute_output_spec(low_rank_input)
 
-    @pytest.mark.openvino_backend
     def test_compute_output_spec_undefined_dimensions(self):
         qr_op = linalg.Qr(mode="reduced")
         undefined_dim_input = KerasTensor(shape=(None, 4), dtype="float32")

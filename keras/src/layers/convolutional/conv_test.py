@@ -489,7 +489,6 @@ class ConvBasicTest(testing.TestCase):
             supports_masking=False,
         )
 
-    @pytest.mark.openvino_backend
     def test_bad_init_args(self):
         # `filters` is not positive.
         with self.assertRaisesRegex(
@@ -806,7 +805,6 @@ class ConvCorrectnessTest(testing.TestCase):
             "groups": 2,
         },
     )
-    @pytest.mark.openvino_backend
     def test_conv1d(
         self,
         filters,
@@ -905,7 +903,6 @@ class ConvCorrectnessTest(testing.TestCase):
             "groups": 2,
         },
     )
-    @pytest.mark.openvino_backend
     def test_conv2d(
         self,
         filters,
@@ -995,7 +992,6 @@ class ConvCorrectnessTest(testing.TestCase):
             "groups": 2,
         },
     )
-    @pytest.mark.openvino_backend
     def test_conv3d(
         self,
         filters,
@@ -1038,7 +1034,6 @@ class ConvCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(outputs, expected, rtol=1e-3)
 
-    @pytest.mark.openvino_backend
     def test_conv_constraints(self):
         layer = layers.Conv2D(
             filters=4,

@@ -1,7 +1,6 @@
 import json
 
 import numpy as np
-import pytest
 
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
@@ -12,7 +11,6 @@ from keras.src.ops import function
 from keras.src.ops import numpy as knp
 
 
-@pytest.mark.openvino_backend
 class FunctionTest(testing.TestCase):
     def test_define_and_call(self):
         x1 = keras_tensor.KerasTensor((2, 3))

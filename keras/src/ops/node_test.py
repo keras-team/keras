@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import Layer
 from keras.src import testing
@@ -11,7 +10,6 @@ class DummyLayer(Layer):
     pass
 
 
-@pytest.mark.openvino_backend
 class NodeTest(testing.TestCase):
     # Testing a simple node and layer combination **a**
     def test_simple_case(self):
