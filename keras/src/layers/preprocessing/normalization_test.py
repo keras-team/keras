@@ -164,3 +164,8 @@ class NormalizationTest(testing.TestCase):
         )
         for output in ds.map(layer).take(1):
             output.numpy()
+
+    def test_normalization_with_scalar_mean_var(self):
+        input_data = np.array([[1, 2, 3]], dtype="float32")
+        layer = layers.Normalization(mean=3.0, variance=2.0)
+        layer(input_data)

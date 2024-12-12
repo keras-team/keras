@@ -2,6 +2,18 @@ import math
 
 from keras.src.utils import backend_utils
 
+SUPPORTED_FORMATS = (
+    "xyxy",
+    "yxyx",
+    "xywh",
+    "center_xywh",
+    "center_yxhw",
+    "rel_xyxy",
+    "rel_yxyx",
+    "rel_xywh",
+    "rel_center_xywh",
+)
+
 
 class BoundingBox:
     def __init__(self):
@@ -16,80 +28,6 @@ class BoundingBox:
         width=None,
         dtype="float32",
     ):
-        """Converts `boxes` from one format to another.
-
-        Supported formats are:
-
-        - `"xyxy"`, also known as `corners` format. In this format the first
-            four axes represent `[left, top, right, bottom]` in that order.
-        - `"rel_xyxy"`. In this format, the axes are the same as `"xyxy"` but
-            the x coordinates are normalized using the image width, and the y
-            axes the image height. All values in `rel_xyxy` are in the range
-            `(0, 1)`.
-        - `"xywh"`. In this format the first four axes represent
-            `[left, top, width, height]`.
-        - `"rel_xywh". In this format the first four axes represent
-            [left, top, width, height], just like `"xywh"`. Unlike `"xywh"`,
-            the values are in the range (0, 1) instead of absolute pixel values.
-        - `"center_xyWH"`. In this format the first two coordinates represent
-            the x and y coordinates of the center of the bounding box, while the
-            last two represent the width and height of the bounding box.
-        - `"center_yxHW"`. In this format the first two coordinates represent
-            the y and x coordinates of the center of the bounding box, while the
-            last two represent the height and width of the bounding box.
-        - `"yxyx"`. In this format the first four axes represent
-            [top, left, bottom, right] in that order.
-        - `"rel_yxyx"`. In this format, the axes are the same as `"yxyx"` but
-            the x coordinates are normalized using the image width, and the y
-            axes the image height. All values in `rel_yxyx` are in the range
-            (0, 1).
-        Formats are case insensitive. It is recommended that you capitalize
-        width and height to maximize the visual difference between `"xyWH"`
-        and `"xyxy"`.
-
-        Relative formats, abbreviated `rel`, make use of the shapes of the
-        `images` passed. In these formats, the coordinates, widths, and heights
-        are all specified as percentages of the host image.
-
-        Example:
-
-        ```python
-        boxes = {
-            "boxes": [TODO],
-            "labels": [TODO],
-        }
-        boxes_in_xywh = keras.utils.bounding_boxes.convert_format(
-            boxes,
-            source='xyxy',
-            target='xyWH'
-        )
-        ```
-
-        Args:
-            boxes: tensor representing bounding boxes in the format specified in
-                the `source` parameter. `boxes` can optionally have extra
-                dimensions stacked on the final axis to store metadata. boxes
-                should be a 3D tensor, with the shape
-                `[batch_size, num_boxes, 4]`. Alternatively, boxes can be a
-                dictionary with key 'boxes' containing a tensor matching the
-                aforementioned spec.
-            source:One of `"xyxy"`, `"yxyx"`, `"xywh"`, `"center_xywh"`,
-                `"center_yxhw"`, `"rel_xyxy"`, "rel_yxyx", "rel_xywh",
-                "rel_center_xywh". Used to specify the original format of the
-                `boxes` parameter.
-            target:One of `"xyxy"`, `"yxyx"`, `"xywh"`, `"center_xywh"`,
-                `"center_yxhw"`, `"rel_xyxy"`, "rel_yxyx", "rel_xywh",
-                "rel_center_xywh". Used to specify the destination format of
-                the `boxes` parameter.
-            images: (Optional) a batch of images aligned with `boxes` on the
-                first axis. Should be at least 3 dimensions, with the first 3
-                dimensions representing: `[batch_size, height, width]`. Used in
-                some converters to compute relative pixel values of the bounding
-                box dimensions. Required when transforming from a rel format to
-                a non-rel format.
-            dtype: the data type to use when transforming the boxes, defaults to
-                `"float32"`.
-        """
         if isinstance(boxes, dict):
             boxes["boxes"] = self.convert_format(
                 boxes["boxes"],
@@ -133,23 +71,29 @@ class BoundingBox:
             )
         source = source.lower()
         target = target.lower()
-        if source not in to_xyxy_converters.keys():
+        if source not in SUPPORTED_FORMATS or target not in SUPPORTED_FORMATS:
             raise ValueError(
-                f"Available source: {list(to_xyxy_converters.keys())}. "
-                f"Received: source={source}"
+                f"Invalid source or target format. "
+                f"Supported formats: {SUPPORTED_FORMATS}"
             )
-        if target not in from_xyxy_converters.keys():
+
+        if (source.startswith("rel_") or target.startswith("rel_")) and (
+            width is None or height is None
+        ):
             raise ValueError(
-                f"Available target: {list(from_xyxy_converters.keys())}. "
-                f"Received: target={target}"
+                "convert_format() must receive `height` and `width` "
+                "transforming between relative and absolute formats."
+                f"convert_format() received source=`{source}`, "
+                f"target=`{target}, "
+                f"but height={height} and width={width}."
             )
         boxes = ops.cast(boxes, dtype)
         if source == target:
             return boxes
-        if height is not None:
-            height = ops.cast(height, dtype)
         if width is not None:
             width = ops.cast(width, dtype)
+        if height is not None:
+            height = ops.cast(height, dtype)
 
         if source.startswith("rel_") and target.startswith("rel_"):
             source = source.replace("rel_", "", 1)
@@ -160,19 +104,27 @@ class BoundingBox:
         return from_xyxy_converter(in_xyxy_boxes, height, width)
 
     def clip_to_image_size(
-        self, bounding_boxes, height=None, width=None, format="xyxy"
+        self,
+        bounding_boxes,
+        height=None,
+        width=None,
+        bounding_box_format="xyxy",
     ):
-        if format not in ("xyxy", "rel_xyxy"):
+        if bounding_box_format not in ("xyxy", "rel_xyxy"):
             raise NotImplementedError
-        if format == "xyxy" and (height is None or width is None):
+        if bounding_box_format == "xyxy" and (height is None or width is None):
             raise ValueError(
                 "`height` and `width` must be set if `format='xyxy'`."
             )
 
         ops = self.backend
         boxes, labels = bounding_boxes["boxes"], bounding_boxes["labels"]
+        if width is not None:
+            width = ops.cast(width, boxes.dtype)
+        if height is not None:
+            height = ops.cast(height, boxes.dtype)
 
-        if format == "xyxy":
+        if bounding_box_format == "xyxy":
             x1, y1, x2, y2 = ops.numpy.split(boxes, 4, axis=-1)
             x1 = ops.numpy.clip(x1, 0, width)
             y1 = ops.numpy.clip(y1, 0, height)
@@ -183,7 +135,7 @@ class BoundingBox:
             areas = self._compute_area(boxes)
             areas = ops.numpy.squeeze(areas, axis=-1)
             labels = ops.numpy.where(areas > 0, labels, -1)
-        elif format == "rel_xyxy":
+        elif bounding_box_format == "rel_xyxy":
             x1, y1, x2, y2 = ops.numpy.split(boxes, 4, axis=-1)
             x1 = ops.numpy.clip(x1, 0.0, 1.0)
             y1 = ops.numpy.clip(y1, 0.0, 1.0)
@@ -223,7 +175,6 @@ class BoundingBox:
             center_x = 0.5
         if center_y is None:
             center_y = 0.5
-
         matrix = self._compute_inverse_affine_matrix(
             center_x,
             center_y,
@@ -236,6 +187,7 @@ class BoundingBox:
             height,
             width,
         )
+        boxes = ops.cast(boxes, dtype=matrix.dtype)
         transposed_matrix = ops.numpy.transpose(matrix[:, :2, :], [0, 2, 1])
         points = boxes  # [B, N, 4]
         points = ops.numpy.stack(
@@ -445,7 +397,6 @@ class BoundingBox:
         heights = y2 - y1
         return widths * heights
 
-    # Affine
     def _compute_inverse_affine_matrix(
         self,
         center_x,
@@ -463,18 +414,16 @@ class BoundingBox:
         ops = self.backend
         batch_size = ops.shape(angle)[0]
         dtype = angle.dtype
-        width = ops.cast(width, dtype)
-        height = ops.cast(height, dtype)
 
         angle = -angle
         shear_x = -shear_x
         shear_y = -shear_y
 
-        cx = center_x * width
-        cy = center_y * height
+        cx = center_x * (width - 1)
+        cy = center_y * (height - 1)
         rot = ops.numpy.multiply(angle, 1.0 / 180.0 * math.pi)
-        tx = -translate_x * width
-        ty = -translate_y * height
+        tx = -translate_x * (width - 1)
+        ty = -translate_y * (height - 1)
         sx = ops.numpy.multiply(shear_x, 1.0 / 180.0 * math.pi)
         sy = ops.numpy.multiply(shear_y, 1.0 / 180.0 * math.pi)
 
@@ -487,8 +436,8 @@ class BoundingBox:
 
         # Rotate Scale Shear (RSS) without scaling
         a = ops.numpy.cos(rot_minus_sy) / cos_sy
-        b = -(a * tan_sx + ops.numpy.sin(rot))
-        c = ops.numpy.sin(rot_minus_sy) / cos_sy
+        b = a * tan_sx + ops.numpy.sin(rot)
+        c = -ops.numpy.sin(rot_minus_sy) / cos_sy
         d = ops.numpy.cos(rot) - c * tan_sx
 
         # Inverted rotation matrix with scale and shear
