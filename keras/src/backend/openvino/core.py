@@ -572,8 +572,10 @@ def custom_gradient(fun):
 
     def __init__(self, fun):
         warnings.warn(
-            "`custom_gradient` for the openvino backend acts as a pass-through to "
-            "support the forward pass. No gradient computation or modification "
+            "`custom_gradient` for the openvino backend"
+            " acts as a pass-through to "
+            "support the forward pass."
+            " No gradient computation or modification "
             "takes place."
         )
         self.fun = fun
