@@ -1,3 +1,4 @@
+import os
 import pickle
 from collections import namedtuple
 
@@ -1217,3 +1218,47 @@ class ModelTest(testing.TestCase):
             ]
         )
         self.assertListEqual(hist_keys, ref_keys)
+
+    @pytest.mark.skipif(
+        backend.backend() not in ("tensorflow", "jax"),
+        reason=(
+            "Currently, `Model.export` only supports the tensorflow and jax"
+            " backends."
+        ),
+    )
+    @pytest.mark.skipif(
+        testing.jax_uses_gpu(), reason="Leads to core dumps on CI"
+    )
+    def test_export(self):
+        import tensorflow as tf
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = _get_model()
+        x1 = np.random.rand(2, 3)
+        x2 = np.random.rand(2, 3)
+        ref_output = model([x1, x2])
+
+        model.export(temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(ref_output, revived_model.serve([x1, x2]))
+
+        # Test with a different batch size
+        revived_model.serve(
+            [np.concatenate([x1, x1], axis=0), np.concatenate([x2, x2], axis=0)]
+        )
+
+    def test_export_error(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = _get_model()
+
+        # Bad format
+        with self.assertRaisesRegex(ValueError, "Unrecognized format="):
+            model.export(temp_filepath, format="bad_format")
+
+        # Bad backend
+        if backend.backend() not in ("tensorflow", "jax"):
+            with self.assertRaisesRegex(
+                NotImplementedError,
+                "The export API is only compatible with JAX and TF backends.",
+            ):
+                model.export(temp_filepath)

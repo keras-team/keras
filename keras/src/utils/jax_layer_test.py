@@ -15,7 +15,6 @@ from keras.src import saving
 from keras.src import testing
 from keras.src import tree
 from keras.src import utils
-from keras.src.export import export_lib
 from keras.src.saving import object_registration
 from keras.src.utils.jax_layer import FlaxLayer
 from keras.src.utils.jax_layer import JaxLayer
@@ -321,7 +320,7 @@ class TestJaxLayer(testing.TestCase):
 
         # export, load back and compare results
         path = os.path.join(self.get_temp_dir(), "jax_layer_export")
-        export_lib.export_model(model2, path)
+        model2.export(path, format="tf_saved_model")
         model4 = tf.saved_model.load(path)
         output4 = model4.serve(x_test)
         self.assertAllClose(output1, output4)
