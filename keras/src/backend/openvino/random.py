@@ -5,6 +5,7 @@ from openvino import Type
 from keras.src.backend.config import floatx
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
+from keras.src.backend.openvino.core import convert_to_numpy
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
@@ -19,12 +20,13 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
-    assert (
-        seed is not None
-    ), "openvino backend does not support `uniform` with None seed"
     dtype = dtype or floatx()
     ov_type = OPENVINO_DTYPES[dtype]
-    seed1, seed2 = draw_seed(seed).data
+    seed = draw_seed(seed)
+    if isinstance(seed, OpenVINOKerasTensor):
+        seed1, seed2 = convert_to_numpy(seed)
+    else:
+        seed1, seed2 = draw_seed(seed).data
     minval_const = ov_opset.constant(minval, dtype=dtype)
     maxval_const = ov_opset.constant(maxval, dtype=dtype)
     if isinstance(shape, tuple):

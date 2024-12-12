@@ -128,11 +128,27 @@ def abs(x):
 
 
 def all(x, axis=None, keepdims=False):
-    raise NotImplementedError("`all` is not supported with openvino backend")
+    x = get_ov_output(x)
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    return OpenVINOKerasTensor(
+        ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
+    )
 
 
 def any(x, axis=None, keepdims=False):
-    raise NotImplementedError("`any` is not supported with openvino backend")
+    x = get_ov_output(x)
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    return OpenVINOKerasTensor(
+        ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
+    )
 
 
 def amax(x, axis=None, keepdims=False):
@@ -405,7 +421,15 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
-    raise NotImplementedError("`full` is not supported with openvino backend")
+    dtype = dtype or config.floatx()
+    ov_type = OPENVINO_DTYPES[dtype]
+    fill_value = get_ov_output(fill_value, ov_type)
+    if isinstance(shape, tuple):
+        shape = list(shape)
+    target_shape = ov_opset.constant(shape, Type.i32)
+    return OpenVINOKerasTensor(
+        ov_opset.broadcast(fill_value, target_shape).output(0)
+    )
 
 
 def full_like(x, fill_value, dtype=None):
@@ -578,9 +602,10 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
-    raise NotImplementedError(
-        "`minimum` is not supported with openvino backend"
-    )
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "minimum()")
+    return OpenVINOKerasTensor(ov_opset.minimum(x1, x2).output(0))
 
 
 def mod(x1, x2):
@@ -769,7 +794,22 @@ def stack(x, axis=0):
 
 
 def std(x, axis=None, keepdims=False):
-    raise NotImplementedError("`std` is not supported with openvino backend")
+    x = get_ov_output(x)
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
+    # but less numerically stable.
+    mean = ov_opset.reduce_mean(x, axis, keepdims).output(0)
+    const_two = ov_opset.constant(2, x.get_element_type()).output(0)
+    squared_x = ov_opset.power(x, const_two).output(0)
+    squared_mean = ov_opset.power(mean, const_two).output(0)
+    squared_x_mean = ov_opset.reduce_mean(squared_x, axis, keepdims)
+    variance = ov_opset.subtract(squared_x_mean, squared_mean).output(0)
+    std_var = OpenVINOKerasTensor(ov_opset.sqrt(variance).output(0))
+    return std_var
 
 
 def swapaxes(x, axis1, axis2):
@@ -920,7 +960,10 @@ def sqrt(x):
 def squeeze(x, axis=None):
     x = get_ov_output(x)
     if axis is None:
-        return OpenVINOKerasTensor(ov_opset.squeeze(x).output(0))
+        axis = []
+        for idx, dim in enumerate(x.get_partial_shape()):
+            if dim == 1:
+                axis.append(idx)
     axis = ov_opset.constant(axis, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.squeeze(x, axis).output(0))
 
@@ -944,7 +987,23 @@ def transpose(x, axes=None):
 
 
 def var(x, axis=None, keepdims=False):
-    raise NotImplementedError("`var` is not supported with openvino backend")
+    x = get_ov_output(x)
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
+    # but less numerically stable.
+    mean = ov_opset.reduce_mean(x, axis, keepdims).output(0)
+    const_two = ov_opset.constant(2, x.get_element_type()).output(0)
+    squared_x = ov_opset.power(x, const_two).output(0)
+    squared_mean = ov_opset.power(mean, const_two).output(0)
+    squared_x_mean = ov_opset.reduce_mean(squared_x, axis, keepdims)
+    variance = OpenVINOKerasTensor(
+        ov_opset.subtract(squared_x_mean, squared_mean).output(0)
+    )
+    return variance
 
 
 def sum(x, axis=None, keepdims=False):

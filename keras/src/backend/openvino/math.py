@@ -1,4 +1,5 @@
 import openvino.runtime.opset14 as ov_opset
+from openvino import Type
 
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
@@ -27,9 +28,22 @@ def in_top_k(targets, predictions, k):
 
 
 def logsumexp(x, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`logsumexp` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    const_zero = ov_opset.constant(0, x.get_element_type()).output(0)
+    reduce_max = ov_opset.reduce_max(x, axis, keepdims).output(0)
+    is_finite = ov_opset.is_finite(reduce_max).output(0)
+    norm_max = ov_opset.select(is_finite, reduce_max, const_zero).output(0)
+    norm_max_sub = ov_opset.subtract(x, norm_max).output(0)
+    exp_norm_max = ov_opset.exp(norm_max_sub).output(0)
+    sum_exp = ov_opset.reduce_sum(exp_norm_max, axis, keepdims).output(0)
+    log_sum_exp = ov_opset.log(sum_exp).output(0)
+    log_sum_exp = ov_opset.add(norm_max, log_sum_exp).output(0)
+    return OpenVINOKerasTensor(log_sum_exp)
 
 
 def qr(x, mode="reduced"):
