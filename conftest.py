@@ -23,6 +23,13 @@ def pytest_configure(config):
         "requires_trainable_backend: mark test for trainable backend only",
     )
 
+    # add ignore files for openvino backend
+    if backend() == "openvino":
+        with open("keras/src/backend/openvino/excluded_tests.txt", "r") as file:
+            lines = file.readlines()
+            for ignore_file in lines:
+                config.addinivalue_line("addopts", "--ignore=" + ignore_file)
+
 
 def pytest_collection_modifyitems(config, items):
     requires_trainable_backend = pytest.mark.skipif(

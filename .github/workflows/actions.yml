@@ -86,12 +86,7 @@ jobs:
           python integration_tests/torch_custom_fit_test.py
       - name: Test with pytest
         run: |
-          if [ "${{ matrix.backend }}" == "openvino" ]; then
-            ADD_EXCLUDED_TESTS="-c keras/src/backend/openvino/pytest_excluded_tests.ini"
-          else
-            ADD_EXCLUDED_TESTS=""
-          fi
-          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml $ADD_EXCLUDED_TESTS
+          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
           coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Codecov keras
         uses: codecov/codecov-action@v5
