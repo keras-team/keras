@@ -131,12 +131,12 @@ class ConvertersTest(testing.TestCase):
         batch_size = self.boxes["xyxy"].shape[0]
         transformed_boxes = affine_transform(
             boxes=self.boxes["xyxy"],
-            angle=np.zeros([batch_size]),
-            translate_x=np.zeros([batch_size]),
-            translate_y=np.zeros([batch_size]),
-            scale=np.ones([batch_size]),
-            shear_x=np.zeros([batch_size]),
-            shear_y=np.zeros([batch_size]),
+            angle=np.zeros([batch_size], dtype="float32"),
+            translate_x=np.zeros([batch_size], dtype="float32"),
+            translate_y=np.zeros([batch_size], dtype="float32"),
+            scale=np.ones([batch_size], dtype="float32"),
+            shear_x=np.zeros([batch_size], dtype="float32"),
+            shear_y=np.zeros([batch_size], dtype="float32"),
             height=self.height,
             width=self.width,
         )
