@@ -3,6 +3,7 @@ import itertools
 import numpy as np
 from absl.testing import parameterized
 
+from keras.src import ops
 from keras.src import testing
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     affine_transform,
@@ -139,4 +140,5 @@ class ConvertersTest(testing.TestCase):
             height=self.height,
             width=self.width,
         )
+        transformed_boxes = ops.convert_to_numpy(transformed_boxes)
         self.assertAllClose(self.boxes["xyxy"], transformed_boxes)
