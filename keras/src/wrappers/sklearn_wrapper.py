@@ -419,28 +419,28 @@ class SKLearnTransformer(TransformerMixin, SKLBase):
             The history of the fit, returned by `model.fit`.
 
     Example:
-        A common use case for a scikit-learn transformer, is to have a step
-        which gives you the embedding of your data. Here we assume
-        `my_package.my_model` is a Keras model which takes the input and gives
-        embeddings of the data, and `my_package.my_data` is your dataset loader.
+    A common use case for a scikit-learn transformer, is to have a step
+    which gives you the embedding of your data. Here we assume
+    `my_package.my_model` is a Keras model which takes the input and gives
+    embeddings of the data, and `my_package.my_data` is your dataset loader.
 
-        ``` python
-        from my_package import my_model, my_data
-        from keras.wrappers import SKLearnTransformer
-        from sklearn.frozen import FrozenEstimator # requires scikit-learn>=1.6
-        from sklearn.pipeline import make_pipeline
-        from sklearn.ensemble import HistGradientBoostingClassifier
+    ``` python
+    from my_package import my_model, my_data
+    from keras.wrappers import SKLearnTransformer
+    from sklearn.frozen import FrozenEstimator # requires scikit-learn>=1.6
+    from sklearn.pipeline import make_pipeline
+    from sklearn.ensemble import HistGradientBoostingClassifier
 
-        X, y = my_data()
+    X, y = my_data()
 
-        trs = FrozenEstimator(SKLearnTransformer(model=my_model))
-        pipe = make_pipeline(trs, HistGradientBoostingClassifier())
-        pipe.fit(X, y)
-        ```
+    trs = FrozenEstimator(SKLearnTransformer(model=my_model))
+    pipe = make_pipeline(trs, HistGradientBoostingClassifier())
+    pipe.fit(X, y)
+    ```
 
-        Note that in the above example, `FrozenEstimator` prevents any further
-        training of the transformer step in the pipeline, which can be the case
-        if you don't want to change the embedding model at hand.
+    Note that in the above example, `FrozenEstimator` prevents any further
+    training of the transformer step in the pipeline, which can be the case
+    if you don't want to change the embedding model at hand.
     """
 
     def transform(self, X):
