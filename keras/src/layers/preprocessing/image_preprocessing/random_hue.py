@@ -50,10 +50,12 @@ class RandomHue(BaseImagePreprocessingLayer):
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
 
+    Example:
+
     ```python
     (images, labels), _ = keras.datasets.cifar10.load_data()
     random_hue = keras.layers.RandomHue(factor=0.5, value_range=[0, 1])
-    augmented_images = random_hue(images)
+    augmented_images_batch = random_hue(images[:32])
     ```
     """
 
