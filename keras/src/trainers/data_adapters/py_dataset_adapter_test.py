@@ -220,7 +220,7 @@ class PyDatasetAdapterTest(testing.TestCase):
     # TODO: test sample weights
     # TODO: test inference mode (single output)
 
-    def test_class_weights(self):
+    def test_class_weight(self):
         x = np.random.randint(1, 100, (4, 5))
         y = np.array([0, 1, 2, 1])
         class_w = {0: 2, 1: 1, 2: 3}
@@ -232,7 +232,7 @@ class PyDatasetAdapterTest(testing.TestCase):
 
         for index, batch in enumerate(gen):
             # Batch is a tuple of (x, y, class_weight)
-            assert len(batch) == 3
+            self.assertLen(batch, 3)
             # Let's verify the data and class weights match for each element
             # of the batch (2 elements in each batch)
             for sub_elem in range(2):
@@ -244,7 +244,7 @@ class PyDatasetAdapterTest(testing.TestCase):
                     batch[2][sub_elem], class_w[batch[1][sub_elem]]
                 )
 
-        assert index == 1  # 2 batches
+        self.assertEqual(index, 1)  # 2 batches
 
     def test_speedup(self):
         x = np.random.random((40, 4))

@@ -47,6 +47,6 @@ class TestClassWeightToSampleWeights(testing.TestCase):
         ]
     )
     def test_class_weight_to_sample_weights(self, y, class_weight, expected):
-        assert np.allclose(
+        self.assertAllClose(
             class_weight_to_sample_weights(y, class_weight), expected
         )
