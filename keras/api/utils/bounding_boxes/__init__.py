@@ -17,5 +17,17 @@ from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converter
     crop,
 )
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (
+    decode_deltas_to_boxes,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (
+    encode_box_to_deltas,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (
     pad,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.iou import (
+    compute_ciou,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.iou import (
+    compute_iou,
 )

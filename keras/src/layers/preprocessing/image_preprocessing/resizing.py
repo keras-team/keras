@@ -167,7 +167,6 @@ class Resizing(BaseImagePreprocessingLayer):
             bounding_boxes=bounding_boxes,
             height=self.height,
             width=self.width,
-            format="xyxy",
         )
 
         bounding_boxes["boxes"] = ops.numpy.where(
