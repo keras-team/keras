@@ -45,7 +45,7 @@ class ConvertersTest(testing.TestCase):
             [[[0.01, 0.02, 0.1, 0.1], [0.02, 0.03, 0.1, 0.1]]], dtype="float32"
         )
 
-        self.images = np.ones([2, 1000, 1000, 3])
+        self.images = np.ones([2, 1000, 1000, 3], dtype="float32")
         self.height = 1000
         self.width = 1000
 

@@ -419,11 +419,11 @@ class BoundingBox:
         shear_x = -shear_x
         shear_y = -shear_y
 
-        cx = center_x * (width - 1)
-        cy = center_y * (height - 1)
+        cx = ops.numpy.multiply(center_x, (width - 1))
+        cy = ops.numpy.multiply(center_y, (height - 1))
         rot = ops.numpy.multiply(angle, 1.0 / 180.0 * math.pi)
-        tx = -translate_x * (width - 1)
-        ty = -translate_y * (height - 1)
+        tx = ops.numpy.multiply(-translate_x, (width - 1))
+        ty = ops.numpy.multiply(-translate_y, (height - 1))
         sx = ops.numpy.multiply(shear_x, 1.0 / 180.0 * math.pi)
         sy = ops.numpy.multiply(shear_y, 1.0 / 180.0 * math.pi)
 
@@ -442,10 +442,10 @@ class BoundingBox:
 
         # Inverted rotation matrix with scale and shear
         # det([[a, b], [c, d]]) == 1, since det(rotation) = 1 and det(shear) = 1
-        a0 = d * scale
-        a1 = -b * scale
-        b0 = -c * scale
-        b1 = a * scale
+        a0 = ops.numpy.multiply(d, scale)
+        a1 = ops.numpy.multiply(-b, scale)
+        b0 = ops.numpy.multiply(-c, scale)
+        b1 = ops.numpy.multiply(a, scale)
         a2 = cx - a0 * cx_plus_tx - a1 * cy_plus_ty
         b2 = cy - b0 * cx_plus_tx - b1 * cy_plus_ty
 
