@@ -57,21 +57,14 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         self.random_generator = self.backend.random.SeedGenerator()
 
     def get_random_transformation(self, images, training=True, seed=None):
-        batch_size = self.backend.core.shape(images)[0]
         random_values = self.backend.random.uniform(
-            shape=(batch_size,),
+            shape=(self.backend.core.shape(images)[0],),
             minval=0,
             maxval=1,
             seed=self.random_generator,
         )
-
-        broadcast_shape = (
-            [1, 1, 1, 1]
-            if self.data_format == "channels_last"
-            else [1, 1, 1, 1]
-        )
-        should_apply = self.backend.numpy.reshape(
-            random_values < self.factor, (-1,) + tuple(broadcast_shape[1:])
+        should_apply = self.backend.numpy.expand_dims(
+            random_values < self.factor, axis=[1, 2, 3]
         )
         return should_apply
 
@@ -85,22 +78,6 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         grayscale_images = self.backend.image.rgb_to_grayscale(
             images, data_format=self.data_format
         )
-
-        if self.data_format == "channels_last":
-            grayscale_images = self.backend.numpy.repeat(
-                grayscale_images, 3, axis=-1
-            )
-            should_apply = self.backend.numpy.broadcast_to(
-                should_apply, self.backend.core.shape(images)
-            )
-        else:
-            grayscale_images = self.backend.numpy.repeat(
-                grayscale_images, 3, axis=1
-            )
-            should_apply = self.backend.numpy.broadcast_to(
-                should_apply, self.backend.core.shape(images)
-            )
-
         return self.backend.numpy.where(should_apply, grayscale_images, images)
 
     def compute_output_shape(self, input_shape):
