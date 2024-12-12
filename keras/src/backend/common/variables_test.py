@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from conftest import skip_if_backend
 from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
@@ -16,6 +17,11 @@ from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 
 
+@skip_if_backend(
+    "openvino",
+    "AttributeError: 'openvino._pyopenvino.Tensor' "
+    "object has no attribute 'dtype'",
+)
 class VariableInitializationTest(test_case.TestCase):
     """Tests for Variable.__init__()"""
 
@@ -143,6 +149,9 @@ class VariableInitializationTest(test_case.TestCase):
 class VariablePropertiesTest(test_case.TestCase):
     """Tests for Variable._deferred_initialize Variable._maybe_autocast"""
 
+    @skip_if_backend(
+        "openvino", "Can not constant fold eltwise node by CPU plugin"
+    )
     def test_deferred_assignment(self):
         """Tests deferred assignment to variables."""
         with backend.StatelessScope() as scope:
@@ -245,6 +254,12 @@ class VariablePropertiesTest(test_case.TestCase):
                 self.skipTest(
                     f"jax backend does not support {dtype} without x64 enabled"
                 )
+
+        if backend.backend() == "openvino" and dtype in (
+            "complex64",
+            "complex128",
+        ):
+            self.skipTest(f"openvino backend does not support dtype {dtype}")
 
         x = backend.convert_to_tensor(np.zeros(()), dtype)
         actual = standardize_dtype(x.dtype)
@@ -603,12 +618,18 @@ class VariableOpsCorrectnessTest(test_case.TestCase):
         v2 = backend.Variable(initializer=np.array([1.0, 2.0, 3.0]))
         self.assertAllClose(v1.__rtruediv__(v2), np.array([0.25, 0.4, 0.5]))
 
+    @skip_if_backend(
+        "openvino", "`floor_divide` is not supported with openvino backend"
+    )
     def test__floordiv__(self):
         """Test floordiv operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1.0, 2.0, 3.0]))
         v2 = backend.Variable(initializer=np.array([-4.0, 5.0, 6.0]))
         self.assertAllClose(v1.__floordiv__(v2), np.array([-1.0, 0.0, 0.0]))
 
+    @skip_if_backend(
+        "openvino", "`floor_divide` is not supported with openvino backend"
+    )
     def test__rfloordiv__(self):
         """Test reverse floordiv operation on a variable."""
         v1 = backend.Variable(initializer=np.array([-4.0, 5.0, 6.0]))
@@ -734,6 +755,9 @@ class VariableOpsCorrectnessTest(test_case.TestCase):
         result = v2**v1
         self.assertAllClose(result, np.array([4.0, 25.0, 216.0]))
 
+    @skip_if_backend(
+        "openvino", "`round` is not supported with openvino backend"
+    )
     def test_round(self):
         v = backend.Variable(initializer=np.array([1.1, 2.2, 3.3]))
         self.assertAllClose(round(v), np.array([1.0, 2.0, 3.0]))
@@ -783,6 +807,9 @@ if backend.backend() == "torch":
     INT_DTYPES = [
         x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
     ]
+elif backend.backend() == "openvino":
+    # TODO: openvino doesn't support complex
+    ALL_DTYPES = [x for x in ALL_DTYPES if x not in ["complex128", "complex64"]]
 # Remove float8 dtypes for the following tests
 ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
 NON_COMPLEX_DTYPES = [x for x in ALL_DTYPES if x and x not in COMPLEX_DTYPES]
@@ -975,6 +1002,9 @@ class VariableOpsDTypeTest(test_case.TestCase):
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))
+    )
+    @skip_if_backend(
+        "openvino", "`floor_divide` is not supported with openvino backend"
     )
     def test_floordiv(self, dtypes):
         import jax.numpy as jnp

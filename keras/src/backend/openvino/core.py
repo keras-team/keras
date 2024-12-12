@@ -37,6 +37,7 @@ OPENVINO_DTYPES = {
     "bool": ov.Type.boolean,
     "float8_e4m3fn": ov.Type.f8e4m3,
     "float8_e5m2": ov.Type.f8e5m2,
+    "string": ov.Type.string,
 }
 
 
@@ -358,9 +359,8 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         return x
     elif isinstance(x, np.ndarray):
         dtype = standardize_dtype(dtype)
-        return OpenVINOKerasTensor(
-            ov_opset.constant(x.astype(dtype)).output(0), x
-        )
+        ov_type = OPENVINO_DTYPES[dtype]
+        return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0))
     elif isinstance(x, (list, tuple)):
         dtype = standardize_dtype(dtype)
         x = np.array(x, dtype=dtype)

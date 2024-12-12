@@ -94,7 +94,7 @@ def max(x, axis=None, keepdims=False, initial=None):
 def ones(shape, dtype=None):
     dtype = dtype or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
-    const_one = ov_opset.constant(1, dtype=ov_type).output(0)
+    const_one = ov_opset.constant(1, ov_type).output(0)
     if isinstance(shape, tuple):
         shape = list(shape)
     elif isinstance(shape, int):
