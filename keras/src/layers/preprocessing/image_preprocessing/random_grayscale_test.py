@@ -14,7 +14,7 @@ class RandomGrayscaleTest(testing.TestCase):
         self.run_layer_test(
             layers.RandomGrayscale,
             init_kwargs={
-                "probability": 0.5,
+                "factor": 0.5,
                 "data_format": "channels_last",
             },
             input_shape=(1, 2, 2, 3),
@@ -25,7 +25,7 @@ class RandomGrayscaleTest(testing.TestCase):
         self.run_layer_test(
             layers.RandomGrayscale,
             init_kwargs={
-                "probability": 0.5,
+                "factor": 0.5,
                 "data_format": "channels_first",
             },
             input_shape=(1, 3, 2, 2),
@@ -39,9 +39,7 @@ class RandomGrayscaleTest(testing.TestCase):
     def test_grayscale_conversion(self, data_format):
         if data_format == "channels_last":
             xs = np.random.uniform(0, 255, size=(2, 4, 4, 3)).astype(np.float32)
-            layer = layers.RandomGrayscale(
-                probability=1.0, data_format=data_format
-            )
+            layer = layers.RandomGrayscale(factor=1.0, data_format=data_format)
             transformed = ops.convert_to_numpy(layer(xs))
             self.assertEqual(transformed.shape[-1], 3)
             for img in transformed:
@@ -49,24 +47,22 @@ class RandomGrayscaleTest(testing.TestCase):
                 self.assertTrue(np.allclose(r, g) and np.allclose(g, b))
         else:
             xs = np.random.uniform(0, 255, size=(2, 3, 4, 4)).astype(np.float32)
-            layer = layers.RandomGrayscale(
-                probability=1.0, data_format=data_format
-            )
+            layer = layers.RandomGrayscale(factor=1.0, data_format=data_format)
             transformed = ops.convert_to_numpy(layer(xs))
             self.assertEqual(transformed.shape[1], 3)
             for img in transformed:
                 r, g, b = img[0], img[1], img[2]
                 self.assertTrue(np.allclose(r, g) and np.allclose(g, b))
 
-    def test_invalid_probability(self):
+    def test_invalid_factor(self):
         with self.assertRaises(ValueError):
-            layers.RandomGrayscale(probability=-0.1)
+            layers.RandomGrayscale(factor=-0.1)
 
         with self.assertRaises(ValueError):
-            layers.RandomGrayscale(probability=1.1)
+            layers.RandomGrayscale(factor=1.1)
 
     def test_tf_data_compatibility(self):
-        layer = layers.RandomGrayscale(probability=0.5)
+        layer = layers.RandomGrayscale(factor=0.5)
         input_data = np.random.random((2, 8, 8, 3)) * 255
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
 
@@ -81,9 +77,7 @@ class RandomGrayscaleTest(testing.TestCase):
         ]
 
         for xs, data_format in test_cases:
-            layer = layers.RandomGrayscale(
-                probability=1.0, data_format=data_format
-            )
+            layer = layers.RandomGrayscale(factor=1.0, data_format=data_format)
             transformed = ops.convert_to_numpy(layer(xs))
 
             if data_format == "channels_last":

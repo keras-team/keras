@@ -1,6 +1,6 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (
     BaseImagePreprocessingLayer,
 )
 
@@ -10,7 +10,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
     """Preprocessing layer for random conversion of RGB images to grayscale.
 
     This layer randomly converts input images to grayscale with a specified
-    probability. When applied, it maintains the original number of channels
+    factor. When applied, it maintains the original number of channels
     but sets all channels to the same grayscale value. This can be useful
     for data augmentation and training models to be robust to color
     variations.
@@ -23,7 +23,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
     (independently of which backend you're using).
 
     Args:
-        probability: Float between 0 and 1, specifying the probability of
+        factor: Float between 0 and 1, specifying the factor of
             converting each image to grayscale. Defaults to 0.5. A value of
             1.0 means all images will be converted, while 0.0 means no images
             will be converted.
@@ -43,39 +43,20 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         Same as input shape. The output maintains the same number of channels
         as the input, even for grayscale-converted images where all channels
         will have the same value.
-
-    Example:
-
-    ```python
-    # Create a random grayscale layer with 50% probability
-    random_gray = keras.layers.RandomGrayscale(probability=0.5)
-
-    # Apply to a single color image
-    color_image = [...] # your input RGB image
-    output_image = random_gray(color_image)
-
-    # Use in a sequential model for data augmentation
-    model = keras.Sequential([
-        keras.layers.RandomGrayscale(probability=0.3),
-        keras.layers.Conv2D(16, 3, activation='relu'),
-        # ... rest of your model
-    ])
-    ```
     """
 
-    def __init__(self, probability=0.5, data_format=None, **kwargs):
+    def __init__(self, factor=0.5, data_format=None, **kwargs):
         super().__init__(**kwargs)
-        if probability < 0 or probability > 1:
+        if factor < 0 or factor > 1:
             raise ValueError(
-                "`probability` should be between 0 and 1. "
-                f"Received: probability={probability}"
+                "`factor` should be between 0 and 1. "
+                f"Received: factor={factor}"
             )
-        self.probability = probability
+        self.factor = factor
         self.data_format = backend.standardize_data_format(data_format)
         self.random_generator = self.backend.random.SeedGenerator()
 
-    def transform_images(self, images, transformations=None, **kwargs):
-        # Generate random values for batch
+    def get_random_transformation(self, images, training=True, seed=None):
         random_values = self.backend.random.uniform(
             shape=(self.backend.core.shape(images)[0],),
             minval=0,
@@ -83,19 +64,21 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
             seed=self.random_generator,
         )
         should_apply = self.backend.numpy.expand_dims(
-            random_values < self.probability, axis=[1, 2, 3]
+            random_values < self.factor, axis=[1, 2, 3]
+        )
+        return should_apply
+
+    def transform_images(self, images, transformations=None, **kwargs):
+        should_apply = (
+            transformations
+            if transformations is not None
+            else self.get_random_transformation(images)
         )
 
-        # Convert selected images to grayscale
         grayscale_images = self.backend.image.rgb_to_grayscale(
             images, data_format=self.data_format
         )
-
-        output_images = self.backend.numpy.where(
-            should_apply, grayscale_images, images
-        )
-
-        return output_images
+        return self.backend.numpy.where(should_apply, grayscale_images, images)
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -116,5 +99,5 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({"probability": self.probability})
+        config.update({"factor": self.factor})
         return config
