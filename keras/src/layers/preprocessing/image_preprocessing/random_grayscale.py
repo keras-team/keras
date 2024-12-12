@@ -90,9 +90,15 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
             grayscale_images = self.backend.numpy.repeat(
                 grayscale_images, 3, axis=-1
             )
+            should_apply = self.backend.numpy.broadcast_to(
+                should_apply, self.backend.core.shape(images)
+            )
         else:
             grayscale_images = self.backend.numpy.repeat(
                 grayscale_images, 3, axis=1
+            )
+            should_apply = self.backend.numpy.broadcast_to(
+                should_apply, self.backend.core.shape(images)
             )
 
         return self.backend.numpy.where(should_apply, grayscale_images, images)
