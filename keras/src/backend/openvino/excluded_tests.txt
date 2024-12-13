@@ -1,7 +1,7 @@
 keras/src/activations
 keras/src/backend/common/dtypes_test.py
 keras/src/backend/common/variables_test.py
-keras/src/callbacks
+keras/src/callbacks/early_stopping_test.py
 keras/src/dtype_policies/dtype_policy_map_test.py
 keras/src/layers/attention
 keras/src/layers/convolutional/conv_transpose_test.py
