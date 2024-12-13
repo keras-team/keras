@@ -34,6 +34,7 @@ dependencies = [
     "optree",
     "ml-dtypes",
     "packaging",
+    "scikit-learn",
 ]
 # Run also: pip install -r requirements.txt
 
