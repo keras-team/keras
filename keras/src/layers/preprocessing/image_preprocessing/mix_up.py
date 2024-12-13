@@ -23,14 +23,12 @@ class MixUp(BaseImagePreprocessingLayer):
     Example:
     ```python
     (images, labels), _ = keras.datasets.cifar10.load_data()
-    images, labels = images[:10], labels[:10]
-    # Labels must be floating-point and one-hot encoded
-    labels = tf.cast(tf.one_hot(labels, 10), tf.float32)
-    mixup = keras.layers.MixUp(alpha=0.2)
-    augmented_images, updated_labels = mixup(
+    images, labels = images[:8], labels[:8]
+    labels = keras.ops.cast(keras.ops.one_hot(labels.flatten(), 10), tf.float32)
+    mix_up = keras.layers.MixUp(alpha=0.2)
+    output = mix_up(
         {'images': images, 'labels': labels}
     )
-    # output == {'images': updated_images, 'labels': updated_labels}
     ```
     """
 
@@ -62,7 +60,7 @@ class MixUp(BaseImagePreprocessingLayer):
         )
 
         mix_weight = self.backend.random.beta(
-            (1,), self.alpha, self.alpha, seed=seed
+            (batch_size,), self.alpha, self.alpha, seed=seed
         )
         return {
             "mix_weight": mix_weight,
@@ -79,12 +77,12 @@ class MixUp(BaseImagePreprocessingLayer):
             dtype=self.compute_dtype,
         )
 
-        mixup_images = self.backend.cast(
+        mix_up_images = self.backend.cast(
             self.backend.numpy.take(images, permutation_order, axis=0),
             dtype=self.compute_dtype,
         )
 
-        images = mix_weight * images + (1.0 - mix_weight) * mixup_images
+        images = mix_weight * images + (1.0 - mix_weight) * mix_up_images
 
         return images
 
@@ -92,13 +90,13 @@ class MixUp(BaseImagePreprocessingLayer):
         mix_weight = transformation["mix_weight"]
         permutation_order = transformation["permutation_order"]
 
-        labels_for_mixup = self.backend.numpy.take(
+        labels_for_mix_up = self.backend.numpy.take(
             labels, permutation_order, axis=0
         )
 
         mix_weight = self.backend.numpy.reshape(mix_weight, [-1, 1])
 
-        labels = mix_weight * labels + (1.0 - mix_weight) * labels_for_mixup
+        labels = mix_weight * labels + (1.0 - mix_weight) * labels_for_mix_up
 
         return labels
 
@@ -110,11 +108,11 @@ class MixUp(BaseImagePreprocessingLayer):
     ):
         permutation_order = transformation["permutation_order"]
         boxes, classes = bounding_boxes["boxes"], bounding_boxes["classes"]
-        boxes_for_mixup = self.backend.numpy.take(boxes, permutation_order)
-        classes_for_mixup = self.backend.numpy.take(classes, permutation_order)
-        boxes = self.backend.numpy.concat([boxes, boxes_for_mixup], axis=1)
+        boxes_for_mix_up = self.backend.numpy.take(boxes, permutation_order)
+        classes_for_mix_up = self.backend.numpy.take(classes, permutation_order)
+        boxes = self.backend.numpy.concat([boxes, boxes_for_mix_up], axis=1)
         classes = self.backend.numpy.concat(
-            [classes, classes_for_mixup], axis=1
+            [classes, classes_for_mix_up], axis=1
         )
         return {"boxes": boxes, "classes": classes}
 
@@ -126,13 +124,13 @@ class MixUp(BaseImagePreprocessingLayer):
 
         mix_weight = self.backend.numpy.reshape(mix_weight, [-1, 1, 1, 1])
 
-        segmentation_masks_for_mixup = self.backend.numpy.take(
+        segmentation_masks_for_mix_up = self.backend.numpy.take(
             segmentation_masks, permutation_order
         )
 
         segmentation_masks = (
             mix_weight * segmentation_masks
-            + (1.0 - mix_weight) * segmentation_masks_for_mixup
+            + (1.0 - mix_weight) * segmentation_masks_for_mix_up
         )
 
         return segmentation_masks
