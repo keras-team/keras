@@ -24,11 +24,9 @@ class MixUp(BaseImagePreprocessingLayer):
     ```python
     (images, labels), _ = keras.datasets.cifar10.load_data()
     images, labels = images[:8], labels[:8]
-    labels = keras.ops.cast(keras.ops.one_hot(labels.flatten(), 10), tf.float32)
+    labels = keras.ops.cast(keras.ops.one_hot(labels.flatten(), 10), "float32")
     mix_up = keras.layers.MixUp(alpha=0.2)
-    output = mix_up(
-        {'images': images, 'labels': labels}
-    )
+    output = mix_up({"images": images, "labels": labels})
     ```
     """
 
