@@ -164,6 +164,9 @@ from keras.src.layers.preprocessing.image_preprocessing.random_crop import (
 from keras.src.layers.preprocessing.image_preprocessing.random_flip import (
     RandomFlip,
 )
+from keras.src.layers.preprocessing.image_preprocessing.random_hue import (
+    RandomHue,
+)
 from keras.src.layers.preprocessing.image_preprocessing.random_rotation import (
     RandomRotation,
 )

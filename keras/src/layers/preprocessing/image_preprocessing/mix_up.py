@@ -35,7 +35,7 @@ class MixUp(BaseImagePreprocessingLayer):
     """
 
     def __init__(self, alpha=0.2, data_format=None, seed=None, **kwargs):
-        super().__init__(data_format=None, **kwargs)
+        super().__init__(data_format=data_format, **kwargs)
         self.alpha = alpha
         self.seed = seed
         self.generator = SeedGenerator(seed)

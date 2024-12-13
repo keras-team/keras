@@ -161,7 +161,7 @@ class CenterCrop(BaseImagePreprocessingLayer):
             bounding_boxes=bounding_boxes,
             height=self.height,
             width=self.width,
-            format="xyxy",
+            bounding_box_format="xyxy",
         )
 
         bounding_boxes = convert_format(

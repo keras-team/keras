@@ -565,7 +565,7 @@ class DenseTest(testing.TestCase):
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
             ref_input = tf.random.normal((2, 8))
             ref_output = model(ref_input)
-            export_lib.export_model(model, temp_filepath)
+            model.export(temp_filepath, format="tf_saved_model")
             reloaded_layer = export_lib.TFSMLayer(temp_filepath)
             self.assertAllClose(
                 reloaded_layer(ref_input), ref_output, atol=1e-7
@@ -737,7 +737,7 @@ class DenseTest(testing.TestCase):
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
             ref_input = tf.random.normal((2, 8))
             ref_output = model(ref_input)
-            export_lib.export_model(model, temp_filepath)
+            model.export(temp_filepath, format="tf_saved_model")
             reloaded_layer = export_lib.TFSMLayer(temp_filepath)
             self.assertAllClose(reloaded_layer(ref_input), ref_output)
             self.assertLen(reloaded_layer.weights, len(model.weights))
