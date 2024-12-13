@@ -121,7 +121,15 @@ def class_weight_to_sample_weights(y, class_weight):
             y = np.argmax(y, axis=-1)
         else:
             y = np.squeeze(y, axis=-1)
-    y = np.round(y).astype("int32")
+    y = np.round(y)
+    if hasattr(y, "astype"):
+        y = y.astype("int32")
+    else:
+        # must be a torch tensor object
+        import torch
+
+        y = y.to(torch.int32)
+
     for i in range(y.shape[0]):
         sample_weight[i] = class_weight.get(int(y[i]), 1.0)
     return sample_weight

@@ -228,7 +228,14 @@ class PyDatasetAdapterTest(testing.TestCase):
         adapter = py_dataset_adapter.PyDatasetAdapter(
             py_dataset, shuffle=False, class_weight=class_w
         )
-        gen = adapter.get_numpy_iterator()
+        if backend.backend() == "numpy":
+            gen = adapter.get_numpy_iterator()
+        elif backend.backend() == "tensorflow":
+            gen = adapter.get_tf_dataset()
+        elif backend.backend() == "jax":
+            gen = adapter.get_jax_iterator()
+        elif backend.backend() == "torch":
+            gen = adapter.get_torch_dataloader()
 
         for index, batch in enumerate(gen):
             # Batch is a tuple of (x, y, class_weight)
@@ -240,9 +247,8 @@ class PyDatasetAdapterTest(testing.TestCase):
                     np.array_equal(batch[0][sub_elem], x[index * 2 + sub_elem])
                 )
                 self.assertEqual(batch[1][sub_elem], y[index * 2 + sub_elem])
-                self.assertEqual(
-                    batch[2][sub_elem], class_w[batch[1][sub_elem]]
-                )
+                class_key = np.int32(batch[1][sub_elem])
+                self.assertEqual(batch[2][sub_elem], class_w[class_key])
 
         self.assertEqual(index, 1)  # 2 batches
 
