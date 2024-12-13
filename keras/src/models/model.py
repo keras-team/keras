@@ -460,44 +460,72 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         model_config = serialization_lib.serialize_keras_object(self)
         return json.dumps(model_config, **kwargs)
 
-    def export(self, filepath, format="tf_saved_model", verbose=True):
-        """Create a TF SavedModel artifact for inference.
+    def export(
+        self,
+        filepath,
+        format="tf_saved_model",
+        verbose=True,
+        input_signature=None,
+        **kwargs,
+    ):
+        """Export the model as an artifact for inference.
 
-        **Note:** This can currently only be used with
-        the TensorFlow or JAX backends.
-
-        This method lets you export a model to a lightweight SavedModel artifact
-        that contains the model's forward pass only (its `call()` method)
-        and can be served via e.g. TF-Serving. The forward pass is registered
-        under the name `serve()` (see example below).
-
-        The original code of the model (including any custom layers you may
-        have used) is *no longer* necessary to reload the artifact -- it is
-        entirely standalone.
+        **Note:** This feature is currently supported only with TensorFlow and
+        JAX backends.
+        **Note:** Currently, only `format="tf_saved_model"` is supported.
 
         Args:
-            filepath: `str` or `pathlib.Path` object. Path where to save
-                the artifact.
-            verbose: whether to print all the variables of the exported model.
+            filepath: `str` or `pathlib.Path` object. The path to save the
+                artifact.
+            format: `str`. The export format. Supported value:
+                `"tf_saved_model"`.  Defaults to `"tf_saved_model"`.
+            verbose: `bool`. Whether to print a message during export. Defaults
+                to `True`.
+            input_signature: Optional. Specifies the shape and dtype of the
+                model inputs. Can be a structure of `keras.InputSpec`,
+                `tf.TensorSpec`, `backend.KerasTensor`, or backend tensor. If
+                not provided, it will be automatically computed. Defaults to
+                `None`.
+            **kwargs: Additional keyword arguments:
+                - Specific to the JAX backend:
+                    - `is_static`: Optional `bool`. Indicates whether `fn` is
+                        static. Set to `False` if `fn` involves state updates
+                        (e.g., RNG seeds and counters).
+                    - `jax2tf_kwargs`: Optional `dict`. Arguments for
+                        `jax2tf.convert`. See the documentation for
+                        [`jax2tf.convert`](
+                            https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
+                        If `native_serialization` and `polymorphic_shapes` are
+                        not provided, they will be automatically computed.
 
         Example:
 
         ```python
-        # Create the artifact
-        model.export("path/to/location")
+        # Export the model as a TensorFlow SavedModel artifact
+        model.export("path/to/location", format="tf_saved_model")
 
-        # Later, in a different process/environment...
+        # Load the artifact in a different process/environment
         reloaded_artifact = tf.saved_model.load("path/to/location")
         predictions = reloaded_artifact.serve(input_data)
         ```
-
-        If you would like to customize your serving endpoints, you can
-        use the lower-level `keras.export.ExportArchive` class. The
-        `export()` method relies on `ExportArchive` internally.
         """
         from keras.src.export import export_lib
 
-        export_lib.export_model(self, filepath, verbose)
+        available_formats = ("tf_saved_model",)
+        if format not in available_formats:
+            raise ValueError(
+                f"Unrecognized format={format}. Supported formats are: "
+                f"{list(available_formats)}."
+            )
+
+        if format == "tf_saved_model":
+            export_lib.export_saved_model(
+                self,
+                filepath,
+                verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
 
     @classmethod
     def from_config(cls, config, custom_objects=None):

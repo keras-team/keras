@@ -17,6 +17,8 @@ class MixUpTest(testing.TestCase):
             input_shape=(8, 3, 4, 3),
             supports_masking=False,
             expected_output_shape=(8, 3, 4, 3),
+            # StatelessRandomGammaV3 is not supported on XLA_GPU_JIT
+            run_training_check=not testing.tensorflow_uses_gpu(),
         )
 
     def test_mix_up_basic_functionality(self):

@@ -30,6 +30,7 @@ from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.core.lambda_layer import Lambda
 from keras.src.layers.core.masking import Masking
 from keras.src.layers.core.wrapper import Wrapper
+from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.layers.merging.add import Add
 from keras.src.layers.merging.add import add
@@ -106,6 +107,9 @@ from keras.src.layers.preprocessing.image_preprocessing.random_crop import (
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_flip import (
     RandomFlip,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_hue import (
+    RandomHue,
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_rotation import (
     RandomRotation,

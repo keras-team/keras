@@ -32,6 +32,7 @@ from keras.api import saving
 from keras.api import tree
 from keras.api import utils
 from keras.api import visualization
+from keras.api import wrappers
 from keras.src.backend import Variable
 from keras.src.backend import device
 from keras.src.backend import name_scope

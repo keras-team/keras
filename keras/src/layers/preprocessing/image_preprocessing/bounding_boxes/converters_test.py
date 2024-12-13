@@ -45,7 +45,7 @@ class ConvertersTest(testing.TestCase):
             [[[0.01, 0.02, 0.1, 0.1], [0.02, 0.03, 0.1, 0.1]]], dtype="float32"
         )
 
-        self.images = np.ones([2, 1000, 1000, 3])
+        self.images = np.ones([2, 1000, 1000, 3], dtype="float32")
         self.height = 1000
         self.width = 1000
 
@@ -131,12 +131,12 @@ class ConvertersTest(testing.TestCase):
         batch_size = self.boxes["xyxy"].shape[0]
         transformed_boxes = affine_transform(
             boxes=self.boxes["xyxy"],
-            angle=np.zeros([batch_size]),
-            translate_x=np.zeros([batch_size]),
-            translate_y=np.zeros([batch_size]),
-            scale=np.ones([batch_size]),
-            shear_x=np.zeros([batch_size]),
-            shear_y=np.zeros([batch_size]),
+            angle=np.zeros([batch_size], dtype="float32"),
+            translate_x=np.zeros([batch_size], dtype="float32"),
+            translate_y=np.zeros([batch_size], dtype="float32"),
+            scale=np.ones([batch_size], dtype="float32"),
+            shear_x=np.zeros([batch_size], dtype="float32"),
+            shear_y=np.zeros([batch_size], dtype="float32"),
             height=self.height,
             width=self.width,
         )
