@@ -59,45 +59,17 @@ class RandomHue(BaseImagePreprocessingLayer):
     ```
     """
 
+    _USE_BASE_FACTOR = True
+    _FACTOR_BOUNDS = (0, 1)
+
     def __init__(
         self, factor, value_range, data_format=None, seed=None, **kwargs
     ):
         super().__init__(data_format=data_format, **kwargs)
-        self.factor = factor
+        self._set_factor(factor)
         self.value_range = value_range
         self.seed = seed
         self.generator = SeedGenerator(seed)
-
-    def parse_factor(
-        self, min_value=0.0, max_value=1.0, param_name="factor", shape=None
-    ):
-        factors = self.factor
-        if isinstance(factors, float) or isinstance(factors, int):
-            factors = (min_value, factors)
-
-        if factors[0] > factors[1]:
-            raise ValueError(
-                f"`{param_name}[0] > {param_name}[1]`, "
-                f"`{param_name}[0]` must be "
-                f"<= `{param_name}[1]`. Got `{param_name}={factors}`"
-            )
-        if (min_value is not None and factors[0] < min_value) or (
-            max_value is not None and factors[1] > max_value
-        ):
-            raise ValueError(
-                f"`{param_name}` should be inside of range "
-                f"[{min_value}, {max_value}]. Got {param_name}={factors}"
-            )
-
-        if factors[0] == factors[1]:
-            return self.backend.numpy.ones(shape=shape) * factors[0]
-
-        return self.backend.random.uniform(
-            shape,
-            seed=self.generator,
-            minval=factors[0],
-            maxval=factors[1],
-        )
 
     def get_random_transformation(self, data, training=True, seed=None):
         if isinstance(data, dict):
@@ -125,9 +97,12 @@ class RandomHue(BaseImagePreprocessingLayer):
             -self.backend.numpy.ones_like(invert),
             self.backend.numpy.ones_like(invert),
         )
-
-        factor = self.parse_factor(shape=(batch_size,))
-
+        factor = self.backend.random.uniform(
+            (batch_size,),
+            minval=self.factor[0],
+            maxval=self.factor[1],
+            seed=seed,
+        )
         return {"factor": invert * factor * 0.5}
 
     def transform_images(self, images, transformation=None, training=True):
