@@ -54,7 +54,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
             )
         self.factor = factor
         self.data_format = backend.standardize_data_format(data_format)
-        self.random_generator = self.backend.random.SeedGenerator()
+        self.generator = self.backend.random.SeedGenerator()
 
     def get_random_transformation(self, images, training=True, seed=None):
         if seed is None:
