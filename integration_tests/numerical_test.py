@@ -1,5 +1,7 @@
 import keras  # isort: skip, keep it on top for torch test
 
+import sys
+
 import numpy as np
 import tf_keras
 
@@ -137,7 +139,9 @@ def numerical_test():
 
 
 if __name__ == "__main__":
-    if keras.backend.backend() != "openvino":
-        keras.utils.set_random_seed(1337)
-        tf_keras.utils.set_random_seed(1337)
-        numerical_test()
+    if keras.backend.backend() == "openvino":
+        # this test requires trainable backend
+        sys.exit(0)
+    keras.utils.set_random_seed(1337)
+    tf_keras.utils.set_random_seed(1337)
+    numerical_test()
