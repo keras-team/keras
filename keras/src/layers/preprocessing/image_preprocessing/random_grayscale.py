@@ -57,11 +57,13 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         self.random_generator = self.backend.random.SeedGenerator()
 
     def get_random_transformation(self, images, training=True, seed=None):
+        if seed is None:
+            seed = self._get_seed_generator(self.backend._backend)
         random_values = self.backend.random.uniform(
             shape=(self.backend.core.shape(images)[0],),
             minval=0,
             maxval=1,
-            seed=self.random_generator,
+            seed=seed,
         )
         should_apply = self.backend.numpy.expand_dims(
             random_values < self.factor, axis=[1, 2, 3]
