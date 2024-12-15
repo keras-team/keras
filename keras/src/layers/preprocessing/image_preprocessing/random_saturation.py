@@ -70,35 +70,36 @@ class RandomSaturation(BaseImagePreprocessingLayer):
         return {"factor": factor}
 
     def transform_images(self, images, transformation=None, training=True):
-        adjust_factors = transformation["factor"]
-        adjust_factors = self.backend.cast(adjust_factors, images.dtype)
-        adjust_factors = self.backend.numpy.expand_dims(adjust_factors, -1)
-        adjust_factors = self.backend.numpy.expand_dims(adjust_factors, -1)
+        if training:
+            adjust_factors = transformation["factor"]
+            adjust_factors = self.backend.cast(adjust_factors, images.dtype)
+            adjust_factors = self.backend.numpy.expand_dims(adjust_factors, -1)
+            adjust_factors = self.backend.numpy.expand_dims(adjust_factors, -1)
 
-        images = self.backend.image.rgb_to_hsv(
-            images, data_format=self.data_format
-        )
-
-        if self.data_format == "channels_first":
-            s_channel = self.backend.numpy.multiply(
-                images[:, 1, :, :], adjust_factors
-            )
-            s_channel = self.backend.numpy.clip(s_channel, 0.0, 1.0)
-            images = self.backend.numpy.stack(
-                [images[:, 0, :, :], s_channel, images[:, 2, :, :]], axis=1
-            )
-        else:
-            s_channel = self.backend.numpy.multiply(
-                images[..., 1], adjust_factors
-            )
-            s_channel = self.backend.numpy.clip(s_channel, 0.0, 1.0)
-            images = self.backend.numpy.stack(
-                [images[..., 0], s_channel, images[..., 2]], axis=-1
+            images = self.backend.image.rgb_to_hsv(
+                images, data_format=self.data_format
             )
 
-        images = self.backend.image.hsv_to_rgb(
-            images, data_format=self.data_format
-        )
+            if self.data_format == "channels_first":
+                s_channel = self.backend.numpy.multiply(
+                    images[:, 1, :, :], adjust_factors
+                )
+                s_channel = self.backend.numpy.clip(s_channel, 0.0, 1.0)
+                images = self.backend.numpy.stack(
+                    [images[:, 0, :, :], s_channel, images[:, 2, :, :]], axis=1
+                )
+            else:
+                s_channel = self.backend.numpy.multiply(
+                    images[..., 1], adjust_factors
+                )
+                s_channel = self.backend.numpy.clip(s_channel, 0.0, 1.0)
+                images = self.backend.numpy.stack(
+                    [images[..., 0], s_channel, images[..., 2]], axis=-1
+                )
+
+            images = self.backend.image.hsv_to_rgb(
+                images, data_format=self.data_format
+            )
         return images
 
     def transform_labels(self, labels, transformation, training=True):
