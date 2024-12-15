@@ -1,11 +1,9 @@
-import numpy as np
-
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
-from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
-    convert_format,
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import (
+    converters,
 )
 from keras.src.random.seed_generator import SeedGenerator
 
@@ -46,10 +44,10 @@ class RandomRotation(BaseImagePreprocessingLayer):
             float, this value is used for both the upper and lower bound.
             For instance, `factor=(-0.2, 0.3)`
             results in an output rotation by a random
-            amount in the range `[-20% * 2pi, 30% * 2pi]`.
+            amount in the range `[-20% * 360, 30% * 360]`.
             `factor=0.2` results in an
             output rotating by a random amount
-            in the range `[-20% * 2pi, 20% * 2pi]`.
+            in the range `[-20% * 360, 20% * 360]`.
         fill_mode: Points outside the boundaries of the input are filled
             according to the given mode
             (one of `{"constant", "reflect", "wrap", "nearest"}`).
@@ -133,35 +131,38 @@ class RandomRotation(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
+        ops = self.backend
         boxes = bounding_boxes["boxes"]
-        boxes = convert_format(
+        height = transformation["image_height"]
+        width = transformation["image_width"]
+        batch_size = transformation["batch_size"]
+        boxes = converters.affine_transform(
             boxes=boxes,
-            source=self.bounding_box_format,
-            target="xyxy",
-            height=self.height,
-            width=self.width,
+            angle=transformation["angle"],
+            translate_x=ops.numpy.zeros([batch_size]),
+            translate_y=ops.numpy.zeros([batch_size]),
+            scale=ops.numpy.ones([batch_size]),
+            shear_x=ops.numpy.zeros([batch_size]),
+            shear_y=ops.numpy.zeros([batch_size]),
+            height=height,
+            width=width,
         )
-        shape = self.backend.shape(boxes)
-        ones = self.backend.ones((shape[0], shape[1], 1, 1))
-        homogeneous_boxes = self.backend.concatenate([boxes, ones], axis=2)
-        transformed_boxes = self.backend.matmul(
-            transformation["rotation_matrix"], homogeneous_boxes
+
+        bounding_boxes["boxes"] = boxes
+        bounding_boxes = converters.clip_to_image_size(
+            bounding_boxes,
+            height=height,
+            width=width,
+            bounding_box_format="xyxy",
         )
-        # Convert back to xyxy format
-        transformed_boxes = (
-            transformed_boxes[:, :, :2, :] / transformed_boxes[:, :, 2:3, :]
-        )
-        transformed_boxes = self.backend.reshape(
-            transformed_boxes, (shape[0], shape[1], 4)
-        )
-        boxes = convert_format(
-            boxes=boxes,
+        bounding_boxes = converters.convert_format(
+            bounding_boxes,
             source="xyxy",
             target=self.bounding_box_format,
-            height=self.height,
-            width=self.width,
+            height=height,
+            width=width,
         )
-        return {"boxes": transformed_boxes, "labels": bounding_boxes["labels"]}
+        return bounding_boxes
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
@@ -170,23 +171,15 @@ class RandomRotation(BaseImagePreprocessingLayer):
             segmentation_masks, transformation, training=training
         )
 
-    """
-    Assume an angle ø, then rotation matrix is defined by
-    | cos(ø)   -sin(ø)  x_offset |
-    | sin(ø)    cos(ø)  y_offset |
-    |   0         0         1    |
-
-    This function is returning the 8 elements barring the final 1 as a 1D array
-    """
-
     def get_random_transformation(self, data, training=True, seed=None):
+        ops = self.backend
         if not training:
             return None
         if isinstance(data, dict):
             images = data["images"]
         else:
             images = data
-        shape = self.backend.core.shape(images)
+        shape = ops.core.shape(images)
         if len(shape) == 4:
             if self.data_format == "channels_last":
                 batch_size = shape[0]
@@ -205,50 +198,40 @@ class RandomRotation(BaseImagePreprocessingLayer):
                 image_height = shape[1]
                 image_width = shape[2]
 
-        lower = self.factor[0] * 2.0 * self.backend.convert_to_tensor(np.pi)
-        upper = self.factor[1] * 2.0 * self.backend.convert_to_tensor(np.pi)
-
         if seed is None:
-            seed = self._get_seed_generator(self.backend._backend)
-        angle = self.backend.random.uniform(
+            seed = self._get_seed_generator(ops._backend)
+        lower = self.factor[0] * 360.0
+        upper = self.factor[1] * 360.0
+        angle = ops.random.uniform(
             shape=(batch_size,),
             minval=lower,
             maxval=upper,
             seed=seed,
         )
-
-        cos_theta = self.backend.numpy.cos(angle)
-        sin_theta = self.backend.numpy.sin(angle)
-        image_height = self.backend.core.cast(image_height, cos_theta.dtype)
-        image_width = self.backend.core.cast(image_width, cos_theta.dtype)
-
-        x_offset = (
-            (image_width - 1)
-            - (cos_theta * (image_width - 1) - sin_theta * (image_height - 1))
-        ) / 2.0
-
-        y_offset = (
-            (image_height - 1)
-            - (sin_theta * (image_width - 1) + cos_theta * (image_height - 1))
-        ) / 2.0
-
-        rotation_matrix = self.backend.numpy.concatenate(
-            [
-                self.backend.numpy.cos(angle)[:, None],
-                -self.backend.numpy.sin(angle)[:, None],
-                x_offset[:, None],
-                self.backend.numpy.sin(angle)[:, None],
-                self.backend.numpy.cos(angle)[:, None],
-                y_offset[:, None],
-                self.backend.numpy.zeros((batch_size, 2)),
-            ],
-            axis=1,
+        center_x, center_y = 0.5, 0.5
+        rotation_matrix = self._compute_affine_matrix(
+            center_x=center_x,
+            center_y=center_y,
+            angle=angle,
+            translate_x=ops.numpy.zeros([batch_size]),
+            translate_y=ops.numpy.zeros([batch_size]),
+            scale=ops.numpy.ones([batch_size]),
+            shear_x=ops.numpy.zeros([batch_size]),
+            shear_y=ops.numpy.zeros([batch_size]),
+            height=image_height,
+            width=image_width,
         )
         if len(shape) == 3:
             rotation_matrix = self.backend.numpy.squeeze(
                 rotation_matrix, axis=0
             )
-        return {"rotation_matrix": rotation_matrix}
+        return {
+            "angle": angle,
+            "rotation_matrix": rotation_matrix,
+            "image_height": image_height,
+            "image_width": image_width,
+            "batch_size": batch_size,
+        }
 
     def compute_output_shape(self, input_shape):
         return input_shape

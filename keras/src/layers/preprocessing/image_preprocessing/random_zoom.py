@@ -283,7 +283,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
             bounding_boxes=bounding_boxes,
             height=height_transformed,
             width=width_transformed,
-            format="rel_xyxy",
+            bounding_box_format="rel_xyxy",
         )
 
         bounding_boxes = convert_format(

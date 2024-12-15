@@ -162,7 +162,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
             bounding_boxes=bounding_boxes,
             height=input_height,
             width=input_width,
-            format="xyxy",
+            bounding_box_format="xyxy",
         )
 
         bounding_boxes = convert_format(
