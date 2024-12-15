@@ -1,24 +1,38 @@
 """Library for exporting inference-only Keras models/layers."""
 
-import inspect
-import itertools
-import string
-
-from absl import logging
-
 from keras.src import backend
+from keras.src import layers
 from keras.src import tree
 from keras.src.api_export import keras_export
-from keras.src.backend.common.stateless_scope import StatelessScope
-from keras.src.layers import Layer
 from keras.src.models import Functional
 from keras.src.models import Sequential
 from keras.src.utils import io_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
+if backend.backend() == "tensorflow":
+    from keras.src.backend.tensorflow.export import (
+        TFExportArchive as BackendExportArchive,
+    )
+elif backend.backend() == "jax":
+    from keras.src.backend.jax.export import (
+        JaxExportArchive as BackendExportArchive,
+    )
+elif backend.backend() == "torch":
+    from keras.src.backend.torch.export import (
+        TorchExportArchive as BackendExportArchive,
+    )
+elif backend.backend() == "numpy":
+    from keras.src.backend.numpy.export import (
+        NumpyExportArchive as BackendExportArchive,
+    )
+else:
+    raise RuntimeError(
+        f"Backend '{backend.backend()}' must implement a layer mixin class."
+    )
+
 
 @keras_export("keras.export.ExportArchive")
-class ExportArchive:
+class ExportArchive(BackendExportArchive):
     """ExportArchive is used to write SavedModel artifacts (e.g. for inference).
 
     If you have a Keras model or layer that you want to export as SavedModel for
@@ -42,7 +56,7 @@ class ExportArchive:
     export_archive.add_endpoint(
         name="serve",
         fn=model.call,
-        input_signature=[tf.TensorSpec(shape=(None, 3), dtype=tf.float32)],
+        input_signature=[keras.InputSpec(shape=(None, 3), dtype="float32")],
     )
     export_archive.write_out("path/to/location")
 
@@ -61,12 +75,12 @@ class ExportArchive:
     export_archive.add_endpoint(
         name="call_inference",
         fn=lambda x: model.call(x, training=False),
-        input_signature=[tf.TensorSpec(shape=(None, 3), dtype=tf.float32)],
+        input_signature=[keras.InputSpec(shape=(None, 3), dtype="float32")],
     )
     export_archive.add_endpoint(
         name="call_training",
         fn=lambda x: model.call(x, training=True),
-        input_signature=[tf.TensorSpec(shape=(None, 3), dtype=tf.float32)],
+        input_signature=[keras.InputSpec(shape=(None, 3), dtype="float32")],
     )
     export_archive.write_out("path/to/location")
     ```
@@ -85,6 +99,12 @@ class ExportArchive:
     """
 
     def __init__(self):
+        super().__init__()
+        if backend.backend() not in ("tensorflow", "jax"):
+            raise NotImplementedError(
+                "The export API is only compatible with JAX and TF backends."
+            )
+
         self._endpoint_names = []
         self._endpoint_signatures = {}
         self.tensorflow_version = tf.__version__
@@ -93,16 +113,6 @@ class ExportArchive:
         self._tf_trackable.variables = []
         self._tf_trackable.trainable_variables = []
         self._tf_trackable.non_trainable_variables = []
-
-        if backend.backend() == "jax":
-            self._backend_variables = []
-            self._backend_trainable_variables = []
-            self._backend_non_trainable_variables = []
-
-        if backend.backend() not in ("tensorflow", "jax"):
-            raise NotImplementedError(
-                "The export API is only compatible with JAX and TF backends."
-            )
 
     @property
     def variables(self):
@@ -130,30 +140,11 @@ class ExportArchive:
         Arguments:
             resource: A trackable TensorFlow resource.
         """
-        if backend.backend() == "tensorflow" and not isinstance(
-            resource, tf.__internal__.tracking.Trackable
-        ):
+        if isinstance(resource, layers.Layer) and not resource.built:
             raise ValueError(
-                "Invalid resource type. Expected an instance of a "
-                "TensorFlow `Trackable` (such as a Keras `Layer` or `Model`). "
-                f"Received instead an object of type '{type(resource)}'. "
-                f"Object received: {resource}"
+                "The layer provided has not yet been built. "
+                "It must be built before export."
             )
-        if backend.backend() == "jax" and not isinstance(
-            resource, backend.jax.layer.JaxLayer
-        ):
-            raise ValueError(
-                "Invalid resource type. Expected an instance of a "
-                "JAX-based Keras `Layer` or `Model`. "
-                f"Received instead an object of type '{type(resource)}'. "
-                f"Object received: {resource}"
-            )
-        if isinstance(resource, Layer):
-            if not resource.built:
-                raise ValueError(
-                    "The layer provided has not yet been built. "
-                    "It must be built before export."
-                )
 
         # Layers in `_tracked` are not part of the trackables that get saved,
         # because we're creating the attribute in a
@@ -162,66 +153,39 @@ class ExportArchive:
             self._tracked = []
         self._tracked.append(resource)
 
-        if isinstance(resource, Layer):
-            # Variables in the lists below are actually part of the trackables
-            # that get saved, because the lists are created in __init__.
-            if backend.backend() == "jax":
-                trainable_variables = tree.flatten(resource.trainable_variables)
-                non_trainable_variables = tree.flatten(
-                    resource.non_trainable_variables
-                )
-                self._backend_trainable_variables += trainable_variables
-                self._backend_non_trainable_variables += non_trainable_variables
-                self._backend_variables = (
-                    self._backend_trainable_variables
-                    + self._backend_non_trainable_variables
-                )
+        BackendExportArchive.track(self, resource)
 
-                self._tf_trackable.trainable_variables += [
-                    tf.Variable(v) for v in trainable_variables
-                ]
-                self._tf_trackable.non_trainable_variables += [
-                    tf.Variable(v) for v in non_trainable_variables
-                ]
-                self._tf_trackable.variables = (
-                    self._tf_trackable.trainable_variables
-                    + self._tf_trackable.non_trainable_variables
-                )
-            else:
-                self._tf_trackable.variables += resource.variables
-                self._tf_trackable.trainable_variables += (
-                    resource.trainable_variables
-                )
-                self._tf_trackable.non_trainable_variables += (
-                    resource.non_trainable_variables
-                )
-
-    def add_endpoint(self, name, fn, input_signature=None, jax2tf_kwargs=None):
+    def add_endpoint(self, name, fn, input_signature=None, **kwargs):
         """Register a new serving endpoint.
 
-        Arguments:
-            name: Str, name of the endpoint.
-            fn: A function. It should only leverage resources
-                (e.g. `tf.Variable` objects or `tf.lookup.StaticHashTable`
-                objects) that are available on the models/layers
-                tracked by the `ExportArchive` (you can call `.track(model)`
-                to track a new model).
+        Args:
+            name: `str`. The name of the endpoint.
+            fn: A callable. It should only leverage resources
+                (e.g. `keras.Variable` objects or `tf.lookup.StaticHashTable`
+                objects) that are available on the models/layers tracked by the
+                `ExportArchive` (you can call `.track(model)` to track a new
+                model).
                 The shape and dtype of the inputs to the function must be
-                known. For that purpose, you can either 1) make sure that
-                `fn` is a `tf.function` that has been called at least once, or
-                2) provide an `input_signature` argument that specifies the
-                shape and dtype of the inputs (see below).
-            input_signature: Used to specify the shape and dtype of the
-                inputs to `fn`. List of `tf.TensorSpec` objects (one
-                per positional input argument of `fn`). Nested arguments are
-                allowed (see below for an example showing a Functional model
-                with 2 input arguments).
-            jax2tf_kwargs: Optional. A dict for arguments to pass to `jax2tf`.
-                Supported only when the backend is JAX. See documentation for
-                [`jax2tf.convert`](
-                    https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
-                The values for `native_serialization` and `polymorphic_shapes`,
-                if not provided, are automatically computed.
+                known. For that purpose, you can either 1) make sure that `fn`
+                is a `tf.function` that has been called at least once, or 2)
+                provide an `input_signature` argument that specifies the shape
+                and dtype of the inputs (see below).
+            input_signature: Optional. Specifies the shape and dtype of `fn`.
+                Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
+                `backend.KerasTensor`, or backend tensor (see below for an
+                example showing a `Functional` model with 2 input arguments). If
+                not provided, `fn` must be a `tf.function` that has been called
+                at least once. Defaults to `None`.
+            **kwargs: Additional keyword arguments:
+                - Specific to the JAX backend:
+                    - `is_static`: Optional `bool`. Indicates whether `fn` is
+                        static. Set to `False` if `fn` involves state updates
+                        (e.g., RNG seeds).
+                    - `jax2tf_kwargs`: Optional `dict`. Arguments for
+                        `jax2tf.convert`. See [`jax2tf.convert`](
+                            https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
+                        If `native_serialization` and `polymorphic_shapes` are
+                        not provided, they are automatically computed.
 
         Returns:
             The `tf.function` wrapping `fn` that was added to the archive.
@@ -237,7 +201,7 @@ class ExportArchive:
         export_archive.add_endpoint(
             name="serve",
             fn=model.call,
-            input_signature=[tf.TensorSpec(shape=(None, 3), dtype=tf.float32)],
+            input_signature=[keras.InputSpec(shape=(None, 3), dtype="float32")],
         )
         ```
 
@@ -251,8 +215,8 @@ class ExportArchive:
             name="serve",
             fn=model.call,
             input_signature=[
-                tf.TensorSpec(shape=(None, 3), dtype=tf.float32),
-                tf.TensorSpec(shape=(None, 4), dtype=tf.float32),
+                keras.InputSpec(shape=(None, 3), dtype="float32"),
+                keras.InputSpec(shape=(None, 4), dtype="float32"),
             ],
         )
         ```
@@ -271,8 +235,8 @@ class ExportArchive:
             fn=model.call,
             input_signature=[
                 [
-                    tf.TensorSpec(shape=(None, 3), dtype=tf.float32),
-                    tf.TensorSpec(shape=(None, 4), dtype=tf.float32),
+                    keras.InputSpec(shape=(None, 3), dtype="float32"),
+                    keras.InputSpec(shape=(None, 4), dtype="float32"),
                 ],
             ],
         )
@@ -290,8 +254,8 @@ class ExportArchive:
             fn=model.call,
             input_signature=[
                 {
-                    "x1": tf.TensorSpec(shape=(None, 3), dtype=tf.float32),
-                    "x2": tf.TensorSpec(shape=(None, 4), dtype=tf.float32),
+                    "x1": keras.InputSpec(shape=(None, 3), dtype="float32"),
+                    "x2": keras.InputSpec(shape=(None, 4), dtype="float32"),
                 },
             ],
         )
@@ -315,73 +279,15 @@ class ExportArchive:
         if name in self._endpoint_names:
             raise ValueError(f"Endpoint name '{name}' is already taken.")
 
-        if jax2tf_kwargs and backend.backend() != "jax":
-            raise ValueError(
-                "'jax2tf_kwargs' is only supported with the jax backend. "
-                f"Current backend: {backend.backend()}"
-            )
-
-        if input_signature:
-            if backend.backend() == "tensorflow":
-                decorated_fn = tf.function(
-                    fn, input_signature=input_signature, autograph=False
-                )
-            else:  # JAX backend
-                # 1. Create a stateless wrapper for `fn`
-                # 2. jax2tf the stateless wrapper
-                # 3. Create a stateful function that binds the variables with
-                #    the jax2tf converted stateless wrapper
-                # 4. Make the signature of the stateful function the same as the
-                #    original function
-                # 5. Wrap in a `tf.function`
-                def stateless_fn(variables, *args, **kwargs):
-                    state_mapping = zip(self._backend_variables, variables)
-                    with StatelessScope(state_mapping=state_mapping) as scope:
-                        output = fn(*args, **kwargs)
-
-                    # Gather updated non-trainable variables
-                    non_trainable_variables = []
-                    for var in self._backend_non_trainable_variables:
-                        new_value = scope.get_current_value(var)
-                        non_trainable_variables.append(new_value)
-                    return output, non_trainable_variables
-
-                jax2tf_stateless_fn = self._convert_jax2tf_function(
-                    stateless_fn,
-                    input_signature,
-                    jax2tf_kwargs=jax2tf_kwargs,
+        if backend.backend() != "jax":
+            if "jax2tf_kwargs" in kwargs or "is_static" in kwargs:
+                raise ValueError(
+                    "'jax2tf_kwargs' and 'is_static' are only supported with "
+                    f"the jax backend. Current backend: {backend.backend()}"
                 )
 
-                def stateful_fn(*args, **kwargs):
-                    output, non_trainable_variables = jax2tf_stateless_fn(
-                        # Change the trackable `ListWrapper` to a plain `list`
-                        list(self._tf_trackable.variables),
-                        *args,
-                        **kwargs,
-                    )
-                    for var, new_value in zip(
-                        self._tf_trackable.non_trainable_variables,
-                        non_trainable_variables,
-                    ):
-                        var.assign(new_value)
-                    return output
-
-                # Note: we truncate the number of parameters to what is
-                # specified by `input_signature`.
-                fn_signature = inspect.signature(fn)
-                fn_parameters = list(fn_signature.parameters.values())
-                stateful_fn.__signature__ = inspect.Signature(
-                    parameters=fn_parameters[0 : len(input_signature)],
-                    return_annotation=fn_signature.return_annotation,
-                )
-
-                decorated_fn = tf.function(
-                    stateful_fn,
-                    input_signature=input_signature,
-                    autograph=False,
-                )
-            self._endpoint_signatures[name] = input_signature
-        else:
+        # The fast path if `fn` is already a `tf.function`.
+        if input_signature is None:
             if isinstance(fn, tf.types.experimental.GenericFunction):
                 if not fn._list_all_concrete_functions():
                     raise ValueError(
@@ -404,13 +310,22 @@ class ExportArchive:
                     "    name='call',\n"
                     "    fn=model.call,\n"
                     "    input_signature=[\n"
-                    "        tf.TensorSpec(\n"
+                    "        keras.InputSpec(\n"
                     "            shape=(None, 224, 224, 3),\n"
-                    "            dtype=tf.float32,\n"
+                    "            dtype='float32',\n"
                     "        )\n"
                     "    ],\n"
                     ")"
                 )
+            setattr(self._tf_trackable, name, decorated_fn)
+            self._endpoint_names.append(name)
+            return decorated_fn
+
+        input_signature = tree.map_structure(_make_tensor_spec, input_signature)
+        decorated_fn = BackendExportArchive.add_endpoint(
+            self, name, fn, input_signature, **kwargs
+        )
+        self._endpoint_signatures[name] = input_signature
         setattr(self._tf_trackable, name, decorated_fn)
         self._endpoint_names.append(name)
         return decorated_fn
@@ -431,7 +346,7 @@ class ExportArchive:
         export_archive.add_endpoint(
             name="serve",
             fn=model.call,
-            input_signature=[tf.TensorSpec(shape=(None, 3), dtype=tf.float32)],
+            input_signature=[keras.InputSpec(shape=(None, 3), dtype="float32")],
         )
         # Save a variable collection
         export_archive.add_variable_collection(
@@ -460,7 +375,9 @@ class ExportArchive:
                 f"{list(set(type(v) for v in variables))}"
             )
         if backend.backend() == "jax":
-            variables = tree.flatten(tree.map_structure(tf.Variable, variables))
+            variables = tree.flatten(
+                tree.map_structure(self._convert_to_tf_variable, variables)
+            )
         setattr(self._tf_trackable, name, list(variables))
 
     def write_out(self, filepath, options=None, verbose=True):
@@ -517,6 +434,20 @@ class ExportArchive:
             f"{endpoints}"
         )
 
+    def _convert_to_tf_variable(self, backend_variable):
+        if not isinstance(backend_variable, backend.Variable):
+            raise TypeError(
+                "`backend_variable` must be a `backend.Variable`. "
+                f"Recevied: backend_variable={backend_variable} of type "
+                f"({type(backend_variable)})"
+            )
+        return tf.Variable(
+            backend_variable.value,
+            dtype=backend_variable.dtype,
+            trainable=backend_variable.trainable,
+            name=backend_variable.name,
+        )
+
     def _get_concrete_fn(self, endpoint):
         """Workaround for some SavedModel quirks."""
         if endpoint in self._endpoint_signatures:
@@ -555,94 +486,81 @@ class ExportArchive:
                     ):
                         self._tf_trackable._misc_assets.append(trackable)
 
-    def _convert_jax2tf_function(self, fn, input_signature, jax2tf_kwargs=None):
-        from jax.experimental import jax2tf
 
-        if jax2tf_kwargs is None:
-            jax2tf_kwargs = {}
+def export_saved_model(
+    model, filepath, verbose=True, input_signature=None, **kwargs
+):
+    """Export the model as a TensorFlow SavedModel artifact for inference.
 
-        if "native_serialization" not in jax2tf_kwargs:
-            jax2tf_kwargs["native_serialization"] = (
-                self._check_device_compatible()
-            )
+    **Note:** This feature is currently supported only with TensorFlow and
+    JAX backends.
 
-        variables_shapes = self._to_polymorphic_shape(
-            self._backend_variables, allow_none=False
-        )
-        if "polymorphic_shapes" in jax2tf_kwargs:
-            input_shapes = jax2tf_kwargs["polymorphic_shapes"]
-        else:
-            input_shapes = self._to_polymorphic_shape(input_signature)
-        jax2tf_kwargs["polymorphic_shapes"] = [variables_shapes] + input_shapes
+    This method lets you export a model to a lightweight SavedModel artifact
+    that contains the model's forward pass only (its `call()` method)
+    and can be served via e.g. TensorFlow Serving. The forward pass is
+    registered under the name `serve()` (see example below).
 
-        return jax2tf.convert(fn, **jax2tf_kwargs)
+    The original code of the model (including any custom layers you may
+    have used) is *no longer* necessary to reload the artifact -- it is
+    entirely standalone.
 
-    def _to_polymorphic_shape(self, struct, allow_none=True):
-        if allow_none:
-            # Generates unique names: a, b, ... z, aa, ab, ... az, ba, ... zz
-            # for unknown non-batch dims. Defined here to be scope per endpoint.
-            dim_names = itertools.chain(
-                string.ascii_lowercase,
-                itertools.starmap(
-                    lambda a, b: a + b,
-                    itertools.product(string.ascii_lowercase, repeat=2),
-                ),
-            )
+    Args:
+        filepath: `str` or `pathlib.Path` object. The path to save the artifact.
+        verbose: `bool`. Whether to print a message during export. Defaults to
+            True`.
+        input_signature: Optional. Specifies the shape and dtype of the model
+            inputs. Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
+            `backend.KerasTensor`, or backend tensor. If not provided, it will
+            be automatically computed. Defaults to `None`.
+        **kwargs: Additional keyword arguments:
+            - Specific to the JAX backend:
+                - `is_static`: Optional `bool`. Indicates whether `fn` is
+                    static. Set to `False` if `fn` involves state updates
+                    (e.g., RNG seeds).
+                - `jax2tf_kwargs`: Optional `dict`. Arguments for
+                    `jax2tf.convert`. See [`jax2tf.convert`](
+                        https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
+                    If `native_serialization` and `polymorphic_shapes` are not
+                    provided, they are automatically computed.
 
-        def convert_shape(x):
-            poly_shape = []
-            for index, dim in enumerate(list(x.shape)):
-                if dim is not None:
-                    poly_shape.append(str(dim))
-                elif not allow_none:
-                    raise ValueError(
-                        f"Illegal None dimension in {x} with shape {x.shape}"
-                    )
-                elif index == 0:
-                    poly_shape.append("batch")
-                else:
-                    poly_shape.append(next(dim_names))
-            return "(" + ", ".join(poly_shape) + ")"
+    Example:
 
-        return tree.map_structure(convert_shape, struct)
+    ```python
+    # Export the model as a TensorFlow SavedModel artifact
+    model.export("path/to/location", format="tf_saved_model")
 
-    def _check_device_compatible(self):
-        from jax import default_backend as jax_device
+    # Load the artifact in a different process/environment
+    reloaded_artifact = tf.saved_model.load("path/to/location")
+    predictions = reloaded_artifact.serve(input_data)
+    ```
 
-        if (
-            jax_device() == "gpu"
-            and len(tf.config.list_physical_devices("GPU")) == 0
-        ):
-            logging.warning(
-                "JAX backend is using GPU for export, but installed "
-                "TF package cannot access GPU, so reloading the model with "
-                "the TF runtime in the same environment will not work. "
-                "To use JAX-native serialization for high-performance export "
-                "and serving, please install `tensorflow-gpu` and ensure "
-                "CUDA version compatibility between your JAX and TF "
-                "installations."
-            )
-            return False
-        else:
-            return True
-
-
-def export_model(model, filepath, verbose=True):
+    If you would like to customize your serving endpoints, you can
+    use the lower-level `keras.export.ExportArchive` class. The
+    `export()` method relies on `ExportArchive` internally.
+    """
     export_archive = ExportArchive()
     export_archive.track(model)
     if isinstance(model, (Functional, Sequential)):
-        input_signature = tree.map_structure(_make_tensor_spec, model.inputs)
+        if input_signature is None:
+            input_signature = tree.map_structure(
+                _make_tensor_spec, model.inputs
+            )
         if isinstance(input_signature, list) and len(input_signature) > 1:
             input_signature = [input_signature]
-        export_archive.add_endpoint("serve", model.__call__, input_signature)
+        export_archive.add_endpoint(
+            "serve", model.__call__, input_signature, **kwargs
+        )
     else:
-        input_signature = _get_input_signature(model)
+        if input_signature is None:
+            input_signature = _get_input_signature(model)
         if not input_signature or not model._called:
             raise ValueError(
                 "The model provided has never called. "
                 "It must be called at least once before export."
             )
-        export_archive.add_endpoint("serve", model.__call__, input_signature)
+        export_archive.add_endpoint(
+            "serve", model.__call__, input_signature, **kwargs
+        )
     export_archive.write_out(filepath, verbose=verbose)
 
 
@@ -677,7 +595,7 @@ def _get_input_signature(model):
 
 
 @keras_export("keras.layers.TFSMLayer")
-class TFSMLayer(Layer):
+class TFSMLayer(layers.Layer):
     """Reload a Keras model/layer that was saved via SavedModel / ExportArchive.
 
     Arguments:
@@ -811,8 +729,28 @@ class TFSMLayer(Layer):
 
 
 def _make_tensor_spec(x):
-    shape = (None,) + x.shape[1:]
-    return tf.TensorSpec(shape, dtype=x.dtype, name=x.name)
+    if isinstance(x, layers.InputSpec):
+        if x.shape is None or x.dtype is None:
+            raise ValueError(
+                "The `shape` and `dtype` must be provided. " f"Received: x={x}"
+            )
+        tensor_spec = tf.TensorSpec(x.shape, dtype=x.dtype, name=x.name)
+    elif isinstance(x, tf.TensorSpec):
+        tensor_spec = x
+    elif isinstance(x, backend.KerasTensor):
+        shape = (None,) + backend.standardize_shape(x.shape)[1:]
+        tensor_spec = tf.TensorSpec(shape, dtype=x.dtype, name=x.name)
+    elif backend.is_tensor(x):
+        shape = (None,) + backend.standardize_shape(x.shape)[1:]
+        dtype = backend.standardize_dtype(x.dtype)
+        tensor_spec = tf.TensorSpec(shape, dtype=dtype, name=None)
+    else:
+        raise TypeError(
+            f"Unsupported x={x} of the type ({type(x)}). Supported types are: "
+            "`keras.InputSpec`, `tf.TensorSpec`, `keras.KerasTensor` and "
+            "backend tensor."
+        )
+    return tensor_spec
 
 
 def _print_signature(fn, name, verbose=True):
