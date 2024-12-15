@@ -83,7 +83,7 @@ class RandomSaturation(BaseImagePreprocessingLayer):
             s_channel = self.backend.numpy.multiply(
                 images[:, 1, :, :], adjust_factors
             )
-            s_channel = self.backend.numpy.clip_by_value(s_channel, 0.0, 1.0)
+            s_channel = self.backend.numpy.clip(s_channel, 0.0, 1.0)
             images = self.backend.numpy.stack(
                 [images[:, 0, :, :], s_channel, images[:, 2, :, :]], axis=1
             )
