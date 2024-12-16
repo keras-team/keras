@@ -70,7 +70,9 @@ class RandomSaturationTest(testing.TestCase):
         hsv = backend.image.rgb_to_hsv(result)
         s_channel = hsv[..., 1]
 
-        self.assertAllClose(keras.ops.numpy.max(s_channel), 1.0)
+        self.assertAllClose(
+            keras.ops.numpy.max(s_channel), layer.value_range[1]
+        )
 
     def test_random_saturation_randomness(self):
         image = keras.random.uniform(shape=(3, 3, 3), minval=0, maxval=1)[:5]
