@@ -47,7 +47,12 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt --progress-bar off --upgrade
+          if [ "${{ matrix.backend }}" == "openvino" ]; then
+            REQUIREMENTS_FILE="requirements-openvino.txt"
+          else
+            REQUIREMENTS_FILE="requirements.txt"
+          fi
+          pip install -r $REQUIREMENTS_FILE --progress-bar off --upgrade
           pip uninstall -y keras keras-nightly
           pip install tf_keras==2.16.0 --progress-bar off --upgrade
           pip install -e "." --progress-bar off --upgrade
