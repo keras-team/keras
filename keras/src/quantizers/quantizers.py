@@ -1,4 +1,3 @@
-from typing import Optional
 from typing import Tuple
 
 import ml_dtypes
@@ -130,9 +129,8 @@ class AbsMaxQuantizer(Quantizer):
         }
 
 
-@keras_export("keras.quantizers.adjust_and_nudge_quantization_range")
-def adjust_and_nudge_quantization_range(
-    min_range: float, max_range: float, num_bits: int, narrow_range: bool
+def adjust_and_nudge(
+    min_range, max_range, num_bits, narrow_range
 ) -> Tuple[float, float, float]:
     """Adjusts and nudges the quantization range for better accuracy."""
     if num_bits < 2:
@@ -198,11 +196,10 @@ def adjust_and_nudge_quantization_range(
 @keras_export("keras.quantizers.fake_quant_with_min_max_args")
 def fake_quant_with_min_max_args(
     inputs,
-    min_range: float = -6.0,
-    max_range: float = 6.0,
-    num_bits: int = 8,
-    narrow_range: bool = False,
-    name: Optional[str] = None,
+    min_range=-6.0,
+    max_range=6.0,
+    num_bits=8,
+    narrow_range=False,
 ):
     """Fake quantization operation matching TensorFlow's implementation."""
 
@@ -211,7 +208,7 @@ def fake_quant_with_min_max_args(
 
     @ops.custom_gradient
     def _fake_quant_with_min_max_args(x):
-        quant_min, quant_max, step_size = adjust_and_nudge_quantization_range(
+        quant_min, quant_max, step_size = adjust_and_nudge(
             min_range, max_range, num_bits, narrow_range
         )
 
@@ -244,11 +241,10 @@ def fake_quant_with_min_max_args(
 def fake_quant_with_min_max_args_gradient(
     gradients,
     inputs,
-    min_range: float = -6.0,
-    max_range: float = 6.0,
-    num_bits: int = 8,
-    narrow_range: bool = False,
-    name: Optional[str] = None,
+    min_range=-6.0,
+    max_range=6.0,
+    num_bits=8,
+    narrow_range=False,
 ):
     """Fake quantization operation with gradient,
     matching TensorFlow's implementation."""
@@ -257,7 +253,7 @@ def fake_quant_with_min_max_args_gradient(
         inputs = ops.convert_to_tensor(inputs)
 
     def _fake_quant_with_min_max_args_gradient(x):
-        quant_min, quant_max, step_size = adjust_and_nudge_quantization_range(
+        quant_min, quant_max, step_size = adjust_and_nudge(
             min_range, max_range, num_bits, narrow_range
         )
 
@@ -289,12 +285,11 @@ def fake_quant_with_min_max_args_gradient(
 
 @keras_export("keras.quantizers.fake_quant_with_min_max_vars_per_channel")
 def fake_quant_with_min_max_vars_per_channel(
-    inputs: np.ndarray,
-    min_vals: np.ndarray,
-    max_vals: np.ndarray,
-    num_bits: int = 8,
-    narrow_range: bool = False,
-    name: Optional[str] = None,
+    inputs,
+    min_vals,
+    max_vals,
+    num_bits,
+    narrow_range,
 ):
     """
     Perform per-channel fake quantization with custom gradient.
@@ -331,7 +326,7 @@ def fake_quant_with_min_max_vars_per_channel(
             current_max = max_val[..., i]
 
             # Calculate step size and quantized min/max using _adjust_range
-            qnt_min, qnt_max, step_size = adjust_and_nudge_quantization_range(
+            qnt_min, qnt_max, step_size = adjust_and_nudge(
                 current_min, current_max, num_bits, narrow_range
             )
             # Calculate the number of steps
@@ -372,13 +367,12 @@ def fake_quant_with_min_max_vars_per_channel(
     "keras.quantizers.fake_quant_with_min_max_vars_per_channel_gradient"
 )
 def fake_quant_with_min_max_vars_per_channel_gradient(
-    gradients: np.ndarray,
-    inputs: np.ndarray,
-    min_vals: np.ndarray,
-    max_vals: np.ndarray,
-    num_bits: int = 8,
-    narrow_range: bool = False,
-    name: Optional[str] = None,
+    gradients,
+    inputs,
+    min_vals,
+    max_vals,
+    num_bits,
+    narrow_range,
 ):
     """
     Perform per-channel fake quantization with custom gradient.
@@ -417,7 +411,7 @@ def fake_quant_with_min_max_vars_per_channel_gradient(
             current_max = max_val[..., i]
 
             # Calculate step size and quantized min/max using _adjust_range
-            qnt_min, qnt_max, step_size = adjust_and_nudge_quantization_range(
+            qnt_min, qnt_max, step_size = adjust_and_nudge(
                 current_min, current_max, num_bits, narrow_range
             )
 

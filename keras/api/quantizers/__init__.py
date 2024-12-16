@@ -10,7 +10,6 @@ from keras.src.quantizers import serialize
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.quantizers.quantizers import Quantizer
 from keras.src.quantizers.quantizers import abs_max_quantize
-from keras.src.quantizers.quantizers import adjust_and_nudge_quantization_range
 from keras.src.quantizers.quantizers import compute_float8_amax_history
 from keras.src.quantizers.quantizers import compute_float8_scale
 from keras.src.quantizers.quantizers import fake_quant_with_min_max_args
