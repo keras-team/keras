@@ -23,6 +23,14 @@ class RandomHueTest(testing.TestCase):
             expected_output_shape=(8, 3, 4, 3),
         )
 
+    def test_random_hue_inference(self):
+        seed = 3481
+        layer = layers.RandomHue(0.2, [0, 1.0])
+        np.random.seed(seed)
+        inputs = np.random.randint(0, 255, size=(224, 224, 3))
+        output = layer(inputs, training=False)
+        self.assertAllClose(inputs, output)
+
     def test_random_hue_value_range(self):
         image = keras.random.uniform(shape=(3, 3, 3), minval=0, maxval=1)
 

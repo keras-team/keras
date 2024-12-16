@@ -21,6 +21,14 @@ class MixUpTest(testing.TestCase):
             run_training_check=not testing.tensorflow_uses_gpu(),
         )
 
+    def test_mix_up_inference(self):
+        seed = 3481
+        layer = layers.MixUp(alpha=0.2)
+        np.random.seed(seed)
+        inputs = np.random.randint(0, 255, size=(224, 224, 3))
+        output = layer(inputs, training=False)
+        self.assertAllClose(inputs, output)
+
     def test_mix_up_basic_functionality(self):
         image = np.random.random((64, 64, 3))
         mix_up_layer = layers.MixUp(alpha=1)
