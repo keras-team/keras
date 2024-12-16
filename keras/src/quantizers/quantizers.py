@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import ml_dtypes
 import numpy as np
 
@@ -129,9 +127,7 @@ class AbsMaxQuantizer(Quantizer):
         }
 
 
-def adjust_and_nudge(
-    min_range, max_range, num_bits, narrow_range
-) -> Tuple[float, float, float]:
+def adjust_and_nudge(min_range, max_range, num_bits, narrow_range):
     """Adjusts and nudges the quantization range for better accuracy."""
     if num_bits < 2:
         raise ValueError("num_bits must be >= 2")
