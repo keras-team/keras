@@ -55,7 +55,8 @@ class RandomHue(BaseImagePreprocessingLayer):
     ```python
     (images, labels), _ = keras.datasets.cifar10.load_data()
     random_hue = keras.layers.RandomHue(factor=0.5, value_range=[0, 1])
-    augmented_images_batch = random_hue(images[:32])
+    images = keras.ops.cast(images, "float32")
+    augmented_images_batch = random_hue(images[:8])
     ```
     """
 
@@ -90,7 +91,7 @@ class RandomHue(BaseImagePreprocessingLayer):
 
         if seed is None:
             seed = self._get_seed_generator(self.backend._backend)
-        invert = self.backend.random.uniform((1,), seed=seed)
+        invert = self.backend.random.uniform((batch_size,), seed=seed)
 
         invert = self.backend.numpy.where(
             invert > 0.5,
