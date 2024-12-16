@@ -130,6 +130,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt --progress-bar off --upgrade
+          pip install -r requirements-openvino.txt --progress-bar off --upgrade
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
       - name: Lint
