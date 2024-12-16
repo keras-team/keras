@@ -23,6 +23,10 @@ class RandomSaturation(BaseImagePreprocessingLayer):
             If a single float is used, a value between `0.0` and the passed
             float is sampled. To ensure the value is always the same,
             pass a tuple with two identical floats: `(0.5, 0.5)`.
+        value_range: the range of values the incoming images will have.
+            Represented as a two-number tuple written `[low, high]`. This is
+            typically either `[0, 1]` or `[0, 255]` depending on how your
+            preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
 
     Example:
