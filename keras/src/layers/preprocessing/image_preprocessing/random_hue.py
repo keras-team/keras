@@ -2,7 +2,6 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
-from keras.src.random import SeedGenerator
 
 
 @keras_export("keras.layers.RandomHue")
@@ -51,7 +50,7 @@ class RandomHue(BaseImagePreprocessingLayer):
         self._set_factor(factor)
         self.value_range = value_range
         self.seed = seed
-        self.generator = SeedGenerator(seed)
+        self.generator = self.backend.random.SeedGenerator(seed)
 
     def get_random_transformation(self, data, training=True, seed=None):
         if isinstance(data, dict):
