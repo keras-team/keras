@@ -99,7 +99,7 @@ class RandomSaturation(BaseImagePreprocessingLayer):
         return {"factor": factor}
 
     def transform_images(self, images, transformation=None, training=True):
-        def _apply_random_saturation(images, transformation):
+        if training:
             adjust_factors = transformation["factor"]
             adjust_factors = self.backend.cast(
                 adjust_factors, self.compute_dtype
@@ -133,10 +133,6 @@ class RandomSaturation(BaseImagePreprocessingLayer):
             images = self.backend.image.hsv_to_rgb(
                 images, data_format=self.data_format
             )
-            return images
-
-        if training:
-            images = _apply_random_saturation(images, transformation)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
