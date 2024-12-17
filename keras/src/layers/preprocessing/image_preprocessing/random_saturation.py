@@ -99,42 +99,44 @@ class RandomSaturation(BaseImagePreprocessingLayer):
         return {"factor": factor}
 
     def transform_images(self, images, transformation=None, training=True):
-        if training:
-            images = self._apply_random_saturation(images, transformation)
-        return images
+        def _apply_random_saturation(images, transformation):
+            adjust_factors = transformation["factor"]
+            adjust_factors = self.backend.cast(
+                adjust_factors, self.compute_dtype
+            )
+            adjust_factors = self.backend.numpy.reshape(
+                adjust_factors, self.backend.shape(adjust_factors) + (1, 1)
+            )
+            images = self.backend.image.rgb_to_hsv(
+                images, data_format=self.data_format
+            )
+            if self.data_format == "channels_first":
+                s_channel = self.backend.numpy.multiply(
+                    images[:, 1, :, :], adjust_factors
+                )
+                s_channel = self.backend.numpy.clip(
+                    s_channel, self.value_range[0], self.value_range[1]
+                )
+                images = self.backend.numpy.stack(
+                    [images[:, 0, :, :], s_channel, images[:, 2, :, :]], axis=1
+                )
+            else:
+                s_channel = self.backend.numpy.multiply(
+                    images[..., 1], adjust_factors
+                )
+                s_channel = self.backend.numpy.clip(
+                    s_channel, self.value_range[0], self.value_range[1]
+                )
+                images = self.backend.numpy.stack(
+                    [images[..., 0], s_channel, images[..., 2]], axis=-1
+                )
+            images = self.backend.image.hsv_to_rgb(
+                images, data_format=self.data_format
+            )
+            return images
 
-    def _apply_random_saturation(self, images, transformation):
-        adjust_factors = transformation["factor"]
-        adjust_factors = self.backend.cast(adjust_factors, self.compute_dtype)
-        adjust_factors = self.backend.numpy.reshape(
-            adjust_factors, self.backend.shape(adjust_factors) + (1, 1)
-        )
-        images = self.backend.image.rgb_to_hsv(
-            images, data_format=self.data_format
-        )
-        if self.data_format == "channels_first":
-            s_channel = self.backend.numpy.multiply(
-                images[:, 1, :, :], adjust_factors
-            )
-            s_channel = self.backend.numpy.clip(
-                s_channel, self.value_range[0], self.value_range[1]
-            )
-            images = self.backend.numpy.stack(
-                [images[:, 0, :, :], s_channel, images[:, 2, :, :]], axis=1
-            )
-        else:
-            s_channel = self.backend.numpy.multiply(
-                images[..., 1], adjust_factors
-            )
-            s_channel = self.backend.numpy.clip(
-                s_channel, self.value_range[0], self.value_range[1]
-            )
-            images = self.backend.numpy.stack(
-                [images[..., 0], s_channel, images[..., 2]], axis=-1
-            )
-        images = self.backend.image.hsv_to_rgb(
-            images, data_format=self.data_format
-        )
+        if training:
+            images = _apply_random_saturation(images, transformation)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
