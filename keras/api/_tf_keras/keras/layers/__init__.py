@@ -148,6 +148,9 @@ from keras.src.layers.preprocessing.image_preprocessing.center_crop import (
 from keras.src.layers.preprocessing.image_preprocessing.equalization import (
     Equalization,
 )
+from keras.src.layers.preprocessing.image_preprocessing.grayscale import (
+    Grayscale,
+)
 from keras.src.layers.preprocessing.image_preprocessing.max_num_bounding_box import (
     MaxNumBoundingBoxes,
 )
