@@ -17,11 +17,6 @@ from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 
 
-@skip_if_backend(
-    "openvino",
-    "AttributeError: 'openvino._pyopenvino.Tensor' "
-    "object has no attribute 'dtype'",
-)
 class VariableInitializationTest(test_case.TestCase):
     """Tests for Variable.__init__()"""
 
