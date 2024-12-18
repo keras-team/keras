@@ -23,6 +23,12 @@ class DtypesTest(test_case.TestCase):
                 if x not in ALL_DTYPES:  # skip duplicates created by remapping
                     ALL_DTYPES.append(x)
         ALL_DTYPES += [None]
+    elif backend.backend() == "openvino":
+        ALL_DTYPES = [
+            x
+            for x in dtypes.ALLOWED_DTYPES
+            if x not in ["string", "complex64", "complex128"]
+        ] + [None]
     else:
         ALL_DTYPES = [x for x in dtypes.ALLOWED_DTYPES if x != "string"] + [
             None
