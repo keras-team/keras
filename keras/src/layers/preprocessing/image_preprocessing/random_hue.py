@@ -87,46 +87,52 @@ class RandomHue(BaseImagePreprocessingLayer):
         return {"factor": invert * factor * 0.5}
 
     def transform_images(self, images, transformation=None, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
-        images = self._transform_value_range(images, self.value_range, (0, 1))
-        adjust_factors = transformation["factor"]
-        adjust_factors = self.backend.cast(adjust_factors, images.dtype)
-        adjust_factors = self.backend.numpy.expand_dims(adjust_factors, -1)
-        adjust_factors = self.backend.numpy.expand_dims(adjust_factors, -1)
+        def _apply_random_hue(images, transformation):
+            images = self.backend.cast(images, self.compute_dtype)
+            images = self._transform_value_range(
+                images, self.value_range, (0, 1)
+            )
+            adjust_factors = transformation["factor"]
+            adjust_factors = self.backend.cast(adjust_factors, images.dtype)
+            adjust_factors = self.backend.numpy.expand_dims(adjust_factors, -1)
+            adjust_factors = self.backend.numpy.expand_dims(adjust_factors, -1)
+            images = self.backend.image.rgb_to_hsv(
+                images, data_format=self.data_format
+            )
+            if self.data_format == "channels_first":
+                h_channel = images[:, 0, :, :] + adjust_factors
+                h_channel = self.backend.numpy.where(
+                    h_channel > 1.0, h_channel - 1.0, h_channel
+                )
+                h_channel = self.backend.numpy.where(
+                    h_channel < 0.0, h_channel + 1.0, h_channel
+                )
+                images = self.backend.numpy.stack(
+                    [h_channel, images[:, 1, :, :], images[:, 2, :, :]], axis=1
+                )
+            else:
+                h_channel = images[..., 0] + adjust_factors
+                h_channel = self.backend.numpy.where(
+                    h_channel > 1.0, h_channel - 1.0, h_channel
+                )
+                h_channel = self.backend.numpy.where(
+                    h_channel < 0.0, h_channel + 1.0, h_channel
+                )
+                images = self.backend.numpy.stack(
+                    [h_channel, images[..., 1], images[..., 2]], axis=-1
+                )
+            images = self.backend.image.hsv_to_rgb(
+                images, data_format=self.data_format
+            )
+            images = self.backend.numpy.clip(images, 0, 1)
+            images = self._transform_value_range(
+                images, (0, 1), self.value_range
+            )
+            images = self.backend.cast(images, self.compute_dtype)
+            return images
 
-        images = self.backend.image.rgb_to_hsv(
-            images, data_format=self.data_format
-        )
-
-        if self.data_format == "channels_first":
-            h_channel = images[:, 0, :, :] + adjust_factors
-            h_channel = self.backend.numpy.where(
-                h_channel > 1.0, h_channel - 1.0, h_channel
-            )
-            h_channel = self.backend.numpy.where(
-                h_channel < 0.0, h_channel + 1.0, h_channel
-            )
-            images = self.backend.numpy.stack(
-                [h_channel, images[:, 1, :, :], images[:, 2, :, :]], axis=1
-            )
-        else:
-            h_channel = images[..., 0] + adjust_factors
-            h_channel = self.backend.numpy.where(
-                h_channel > 1.0, h_channel - 1.0, h_channel
-            )
-            h_channel = self.backend.numpy.where(
-                h_channel < 0.0, h_channel + 1.0, h_channel
-            )
-            images = self.backend.numpy.stack(
-                [h_channel, images[..., 1], images[..., 2]], axis=-1
-            )
-        images = self.backend.image.hsv_to_rgb(
-            images, data_format=self.data_format
-        )
-
-        images = self.backend.numpy.clip(images, 0, 1)
-        images = self._transform_value_range(images, (0, 1), self.value_range)
-        images = self.backend.cast(images, self.compute_dtype)
+        if training:
+            images = _apply_random_hue(images, transformation)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
