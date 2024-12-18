@@ -113,6 +113,7 @@ class LSTMCell(Layer, DropoutRNNCell):
             )
         implementation = kwargs.pop("implementation", 2)
         super().__init__(**kwargs)
+        self.implementation = implementation
         self.units = units
         self.activation = activations.get(activation)
         self.recurrent_activation = activations.get(recurrent_activation)
@@ -132,13 +133,16 @@ class LSTMCell(Layer, DropoutRNNCell):
 
         self.dropout = min(1.0, max(0.0, dropout))
         self.recurrent_dropout = min(1.0, max(0.0, recurrent_dropout))
+        if self.recurrent_dropout != 0.0:
+            self.implementation = 1
+        if self.implementation == 1:
+            self.dropout_mask_count = 4
         self.seed = seed
         self.seed_generator = backend.random.SeedGenerator(seed=seed)
 
         self.unit_forget_bias = unit_forget_bias
         self.state_size = [self.units, self.units]
         self.output_size = self.units
-        self.implementation = implementation
 
     def build(self, input_shape):
         super().build(input_shape)
@@ -228,19 +232,18 @@ class LSTMCell(Layer, DropoutRNNCell):
         h_tm1 = states[0]  # previous memory state
         c_tm1 = states[1]  # previous carry state
 
-        dp_mask = self.get_dropout_mask(inputs)
-        rec_dp_mask = self.get_recurrent_dropout_mask(h_tm1)
-
-        if training and 0.0 < self.dropout < 1.0:
-            inputs = inputs * dp_mask
-        if training and 0.0 < self.recurrent_dropout < 1.0:
-            h_tm1 = h_tm1 * rec_dp_mask
-
         if self.implementation == 1:
-            inputs_i = inputs
-            inputs_f = inputs
-            inputs_c = inputs
-            inputs_o = inputs
+            if training and 0.0 < self.dropout < 1.0:
+                dp_mask = self.get_dropout_mask(inputs)
+                inputs_i = inputs * dp_mask[0]
+                inputs_f = inputs * dp_mask[1]
+                inputs_c = inputs * dp_mask[2]
+                inputs_o = inputs * dp_mask[3]
+            else:
+                inputs_i = inputs
+                inputs_f = inputs
+                inputs_c = inputs
+                inputs_o = inputs
             k_i, k_f, k_c, k_o = ops.split(self.kernel, 4, axis=1)
             x_i = ops.matmul(inputs_i, k_i)
             x_f = ops.matmul(inputs_f, k_f)
@@ -253,14 +256,25 @@ class LSTMCell(Layer, DropoutRNNCell):
                 x_c += b_c
                 x_o += b_o
 
-            h_tm1_i = h_tm1
-            h_tm1_f = h_tm1
-            h_tm1_c = h_tm1
-            h_tm1_o = h_tm1
+            if training and 0.0 < self.recurrent_dropout < 1.0:
+                rec_dp_mask = self.get_recurrent_dropout_mask(h_tm1)
+                h_tm1_i = h_tm1 * rec_dp_mask[0]
+                h_tm1_f = h_tm1 * rec_dp_mask[1]
+                h_tm1_c = h_tm1 * rec_dp_mask[2]
+                h_tm1_o = h_tm1 * rec_dp_mask[3]
+            else:
+                h_tm1_i = h_tm1
+                h_tm1_f = h_tm1
+                h_tm1_c = h_tm1
+                h_tm1_o = h_tm1
             x = (x_i, x_f, x_c, x_o)
             h_tm1 = (h_tm1_i, h_tm1_f, h_tm1_c, h_tm1_o)
             c, o = self._compute_carry_and_output(x, h_tm1, c_tm1)
         else:
+            if training and 0.0 < self.dropout < 1.0:
+                dp_mask = self.get_dropout_mask(inputs)
+                inputs = inputs * dp_mask
+
             z = ops.matmul(inputs, self.kernel)
 
             z += ops.matmul(h_tm1, self.recurrent_kernel)
