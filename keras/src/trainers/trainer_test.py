@@ -30,6 +30,8 @@ elif backend.backend() == "tensorflow":
     )
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
+elif backend.backend() == "openvino":
+    from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
 else:
     raise ImportError(f"Invalid backend: {backend.backend()}")
 
@@ -523,15 +525,35 @@ class TestTrainer(testing.TestCase):
                 "dataset_type": "py_dataset",
             },
             {
+                "testcase_name": "py_dataset_cw",
+                "dataset_type": "py_dataset",
+                "fit_kwargs": {"class_weight": {0: 1, 1: 2}},
+            },
+            {
                 "testcase_name": "py_dataset_infinite",
                 "dataset_type": "py_dataset",
                 "dataset_kwargs": {"infinite": True},
                 "fit_kwargs": {"steps_per_epoch": 20},
             },
             {
+                "testcase_name": "py_dataset_infinite_cw",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {"infinite": True},
+                "fit_kwargs": {
+                    "steps_per_epoch": 20,
+                    "class_weight": {0: 1, 1: 2},
+                },
+            },
+            {
                 "testcase_name": "py_dataset_multithreading",
                 "dataset_type": "py_dataset",
                 "dataset_kwargs": {"workers": 2},
+            },
+            {
+                "testcase_name": "py_dataset_multithreading_cw",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {"workers": 2},
+                "fit_kwargs": {"class_weight": {0: 1, 1: 2}},
             },
             {
                 "testcase_name": "py_dataset_multithreading_infinite",
@@ -543,6 +565,12 @@ class TestTrainer(testing.TestCase):
                 "testcase_name": "py_dataset_multiprocessing",
                 "dataset_type": "py_dataset",
                 "dataset_kwargs": {"workers": 2, "use_multiprocessing": True},
+            },
+            {
+                "testcase_name": "py_dataset_multiprocessing_cw",
+                "dataset_type": "py_dataset",
+                "dataset_kwargs": {"workers": 2, "use_multiprocessing": True},
+                "fit_kwargs": {"class_weight": {0: 1, 1: 2}},
             },
             {
                 "testcase_name": "py_dataset_multiprocessing_infinite",

@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras.src import backend
+from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
 
@@ -115,15 +116,20 @@ def check_data_cardinality(data):
 
 
 def class_weight_to_sample_weights(y, class_weight):
-    sample_weight = np.ones(shape=(y.shape[0],), dtype=backend.floatx())
-    if len(y.shape) > 1:
-        if y.shape[-1] != 1:
-            y = np.argmax(y, axis=-1)
+    # Convert to numpy to ensure consistent handling of operations
+    # (e.g., np.round()) across frameworks like TensorFlow, JAX, and PyTorch
+
+    y_numpy = ops.convert_to_numpy(y)
+    sample_weight = np.ones(shape=(y_numpy.shape[0],), dtype=backend.floatx())
+    if len(y_numpy.shape) > 1:
+        if y_numpy.shape[-1] != 1:
+            y_numpy = np.argmax(y_numpy, axis=-1)
         else:
-            y = np.squeeze(y, axis=-1)
-    y = np.round(y).astype("int32")
-    for i in range(y.shape[0]):
-        sample_weight[i] = class_weight.get(int(y[i]), 1.0)
+            y_numpy = np.squeeze(y_numpy, axis=-1)
+    y_numpy = np.round(y_numpy).astype("int32")
+
+    for i in range(y_numpy.shape[0]):
+        sample_weight[i] = class_weight.get(int(y_numpy[i]), 1.0)
     return sample_weight
 
 

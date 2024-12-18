@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [3.9]
-        backend: [tensorflow, jax, torch, numpy]
+        backend: [tensorflow, jax, torch, numpy, openvino]
     name: Run tests
     runs-on: ubuntu-latest
     env:
@@ -47,7 +47,12 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt --progress-bar off --upgrade
+          if [ "${{ matrix.backend }}" == "openvino" ]; then
+            REQUIREMENTS_FILE="requirements-openvino.txt"
+          else
+            REQUIREMENTS_FILE="requirements.txt"
+          fi
+          pip install -r $REQUIREMENTS_FILE --progress-bar off --upgrade
           pip uninstall -y keras keras-nightly
           pip install tf_keras==2.16.0 --progress-bar off --upgrade
           pip install -e "." --progress-bar off --upgrade
@@ -86,7 +91,13 @@ jobs:
           python integration_tests/torch_custom_fit_test.py
       - name: Test with pytest
         run: |
-          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
+          if [ "${{ matrix.backend }}" == "openvino" ]; then
+            IGNORE_FILE="keras/src/backend/openvino/excluded_tests.txt"
+            IGNORE_ARGS=$(awk '{print "--ignore=" $0}' "$IGNORE_FILE")
+          else
+            IGNORE_ARGS=""
+          fi
+          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml $IGNORE_ARGS
           coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Codecov keras
         uses: codecov/codecov-action@v5
@@ -119,6 +130,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt --progress-bar off --upgrade
+          pip install -r requirements-openvino.txt --progress-bar off --upgrade
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
       - name: Lint
