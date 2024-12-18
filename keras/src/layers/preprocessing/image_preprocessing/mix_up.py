@@ -110,19 +110,27 @@ class MixUp(BaseImagePreprocessingLayer):
     ):
         def _mix_up_bounding_boxes(bounding_boxes, transformation):
             permutation_order = transformation["permutation_order"]
-            boxes, classes = bounding_boxes["boxes"], bounding_boxes["classes"]
-            boxes_for_mix_up = self.backend.numpy.take(boxes, permutation_order)
-            classes_for_mix_up = self.backend.numpy.take(
-                classes, permutation_order
+            boxes, labels = bounding_boxes["boxes"], bounding_boxes["labels"]
+            boxes_for_mix_up = self.backend.numpy.take(
+                boxes, permutation_order, axis=0
             )
-            boxes = self.backend.numpy.concat([boxes, boxes_for_mix_up], axis=1)
-            classes = self.backend.numpy.concat(
-                [classes, classes_for_mix_up], axis=1
+
+            labels_for_mix_up = self.backend.numpy.take(
+                labels, permutation_order, axis=0
             )
-            return {"boxes": boxes, "classes": classes}
+            boxes = self.backend.numpy.concatenate(
+                [boxes, boxes_for_mix_up], axis=1
+            )
+
+            labels = self.backend.numpy.concatenate(
+                [labels, labels_for_mix_up], axis=0
+            )
+            return {"boxes": boxes, "labels": labels}
 
         if training:
-            return _mix_up_bounding_boxes(bounding_boxes, transformation)
+            bounding_boxes = _mix_up_bounding_boxes(
+                bounding_boxes, transformation
+            )
         return bounding_boxes
 
     def transform_segmentation_masks(
