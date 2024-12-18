@@ -1,0 +1,5 @@
+# OpenVINO
+openvino
+
+# All testing deps.
+-r requirements.txt

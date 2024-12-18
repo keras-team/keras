@@ -110,7 +110,7 @@ def test_sklearn_estimator_checks(estimator, check):
     try:
         check(estimator)
     except Exception as exc:
-        if keras.config.backend() == "numpy" and (
+        if keras.config.backend() in ["numpy", "openvino"] and (
             isinstance(exc, NotImplementedError)
             or "NotImplementedError" in str(exc)
         ):
