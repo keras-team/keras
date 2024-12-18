@@ -66,38 +66,40 @@ class MixUp(BaseImagePreprocessingLayer):
         }
 
     def transform_images(self, images, transformation=None, training=True):
-        if training:
-            images = self._mix_up_input(images, transformation)
-        return images
+        def _mix_up_input(images, transformation):
+            images = self.backend.cast(images, self.compute_dtype)
+            mix_weight = transformation["mix_weight"]
+            permutation_order = transformation["permutation_order"]
+            mix_weight = self.backend.cast(
+                self.backend.numpy.reshape(mix_weight, [-1, 1, 1, 1]),
+                dtype=self.compute_dtype,
+            )
+            mix_up_images = self.backend.cast(
+                self.backend.numpy.take(images, permutation_order, axis=0),
+                dtype=self.compute_dtype,
+            )
+            images = mix_weight * images + (1.0 - mix_weight) * mix_up_images
+            return images
 
-    def _mix_up_input(self, images, transformation):
-        images = self.backend.cast(images, self.compute_dtype)
-        mix_weight = transformation["mix_weight"]
-        permutation_order = transformation["permutation_order"]
-        mix_weight = self.backend.cast(
-            self.backend.numpy.reshape(mix_weight, [-1, 1, 1, 1]),
-            dtype=self.compute_dtype,
-        )
-        mix_up_images = self.backend.cast(
-            self.backend.numpy.take(images, permutation_order, axis=0),
-            dtype=self.compute_dtype,
-        )
-        images = mix_weight * images + (1.0 - mix_weight) * mix_up_images
+        if training:
+            images = _mix_up_input(images, transformation)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
-        if training:
-            labels = self._mix_up_labels(labels, transformation)
-        return labels
+        def _mix_up_labels(labels, transformation):
+            mix_weight = transformation["mix_weight"]
+            permutation_order = transformation["permutation_order"]
+            labels_for_mix_up = self.backend.numpy.take(
+                labels, permutation_order, axis=0
+            )
+            mix_weight = self.backend.numpy.reshape(mix_weight, [-1, 1])
+            labels = (
+                mix_weight * labels + (1.0 - mix_weight) * labels_for_mix_up
+            )
+            return labels
 
-    def _mix_up_labels(self, labels, transformation):
-        mix_weight = transformation["mix_weight"]
-        permutation_order = transformation["permutation_order"]
-        labels_for_mix_up = self.backend.numpy.take(
-            labels, permutation_order, axis=0
-        )
-        mix_weight = self.backend.numpy.reshape(mix_weight, [-1, 1])
-        labels = mix_weight * labels + (1.0 - mix_weight) * labels_for_mix_up
+        if training:
+            labels = _mix_up_labels(labels, transformation)
         return labels
 
     def transform_bounding_boxes(
@@ -106,41 +108,43 @@ class MixUp(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
-        if training:
-            return self._mix_up_bounding_boxes(bounding_boxes, transformation)
-        return bounding_boxes
+        def _mix_up_bounding_boxes(bounding_boxes, transformation):
+            permutation_order = transformation["permutation_order"]
+            boxes, classes = bounding_boxes["boxes"], bounding_boxes["classes"]
+            boxes_for_mix_up = self.backend.numpy.take(boxes, permutation_order)
+            classes_for_mix_up = self.backend.numpy.take(
+                classes, permutation_order
+            )
+            boxes = self.backend.numpy.concat([boxes, boxes_for_mix_up], axis=1)
+            classes = self.backend.numpy.concat(
+                [classes, classes_for_mix_up], axis=1
+            )
+            return {"boxes": boxes, "classes": classes}
 
-    def _mix_up_bounding_boxes(self, bounding_boxes, transformation):
-        permutation_order = transformation["permutation_order"]
-        boxes, classes = bounding_boxes["boxes"], bounding_boxes["classes"]
-        boxes_for_mix_up = self.backend.numpy.take(boxes, permutation_order)
-        classes_for_mix_up = self.backend.numpy.take(classes, permutation_order)
-        boxes = self.backend.numpy.concat([boxes, boxes_for_mix_up], axis=1)
-        classes = self.backend.numpy.concat(
-            [classes, classes_for_mix_up], axis=1
-        )
-        return {"boxes": boxes, "classes": classes}
+        if training:
+            return _mix_up_bounding_boxes(bounding_boxes, transformation)
+        return bounding_boxes
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
+        def _mix_up_segmentation_masks(segmentation_masks, transformation):
+            mix_weight = transformation["mix_weight"]
+            permutation_order = transformation["permutation_order"]
+            mix_weight = self.backend.numpy.reshape(mix_weight, [-1, 1, 1, 1])
+            segmentation_masks_for_mix_up = self.backend.numpy.take(
+                segmentation_masks, permutation_order
+            )
+            segmentation_masks = (
+                mix_weight * segmentation_masks
+                + (1.0 - mix_weight) * segmentation_masks_for_mix_up
+            )
+            return segmentation_masks
+
         if training:
-            segmentation_masks = self._mix_up_segmentation_masks(
+            segmentation_masks = _mix_up_segmentation_masks(
                 segmentation_masks, transformation
             )
-        return segmentation_masks
-
-    def _mix_up_segmentation_masks(self, segmentation_masks, transformation):
-        mix_weight = transformation["mix_weight"]
-        permutation_order = transformation["permutation_order"]
-        mix_weight = self.backend.numpy.reshape(mix_weight, [-1, 1, 1, 1])
-        segmentation_masks_for_mix_up = self.backend.numpy.take(
-            segmentation_masks, permutation_order
-        )
-        segmentation_masks = (
-            mix_weight * segmentation_masks
-            + (1.0 - mix_weight) * segmentation_masks_for_mix_up
-        )
         return segmentation_masks
 
     def compute_output_shape(self, input_shape):
