@@ -1,14 +1,6 @@
 import copy
 
 import numpy as np
-from sklearn.base import BaseEstimator
-from sklearn.base import ClassifierMixin
-from sklearn.base import RegressorMixin
-from sklearn.base import TransformerMixin
-from sklearn.base import check_is_fitted
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.utils.metadata_routing import MetadataRequest
 
 from keras.src.api_export import keras_export
 from keras.src.models.cloning import clone_model
@@ -18,6 +10,28 @@ from keras.src.wrappers.fixes import _validate_data
 from keras.src.wrappers.fixes import type_of_target
 from keras.src.wrappers.utils import TargetReshaper
 from keras.src.wrappers.utils import _check_model
+from keras.src.wrappers.utils import assert_sklearn_installed
+
+try:
+    import sklearn
+    from sklearn.base import BaseEstimator
+    from sklearn.base import ClassifierMixin
+    from sklearn.base import RegressorMixin
+    from sklearn.base import TransformerMixin
+except ImportError:
+    sklearn = None
+
+    class BaseEstimator:
+        pass
+
+    class ClassifierMixin:
+        pass
+
+    class RegressorMixin:
+        pass
+
+    class TransformerMixin:
+        pass
 
 
 class SKLBase(BaseEstimator):
@@ -64,6 +78,7 @@ class SKLBase(BaseEstimator):
         model_kwargs=None,
         fit_kwargs=None,
     ):
+        assert_sklearn_installed(self.__class__.__name__)
         self.model = model
         self.warm_start = warm_start
         self.model_kwargs = model_kwargs
@@ -119,7 +134,9 @@ class SKLBase(BaseEstimator):
                 "sklearn.set_config(enable_metadata_routing=True)."
             )
 
-        self._metadata_request = MetadataRequest(owner=self.__class__.__name__)
+        self._metadata_request = sklearn.utils.metadata_routing.MetadataRequest(
+            owner=self.__class__.__name__
+        )
         for param, alias in kwargs.items():
             self._metadata_request.score.add_request(param=param, alias=alias)
         return self
@@ -155,7 +172,7 @@ class SKLBase(BaseEstimator):
 
     def predict(self, X):
         """Predict using the model."""
-        check_is_fitted(self)
+        sklearn.base.check_is_fitted(self)
         X = _validate_data(self, X, reset=False)
         raw_output = self.model_.predict(X)
         return self._reverse_process_target(raw_output)
@@ -267,8 +284,9 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
                 f" Target type: {target_type}"
             )
         if reset:
-            self._target_encoder = make_pipeline(
-                TargetReshaper(), OneHotEncoder(sparse_output=False)
+            self._target_encoder = sklearn.pipeline.make_pipeline(
+                TargetReshaper(),
+                sklearn.preprocessing.OneHotEncoder(sparse_output=False),
             ).fit(y)
             self.classes_ = np.unique(y)
             if len(self.classes_) == 1:
@@ -454,7 +472,7 @@ class SKLearnTransformer(TransformerMixin, SKLBase):
             X_transformed: array-like, shape=(n_samples, n_features)
                 The transformed data.
         """
-        check_is_fitted(self)
+        sklearn.base.check_is_fitted(self)
         X = _validate_data(self, X, reset=False)
         return self.model_.predict(X)
 
