@@ -1,7 +1,23 @@
-from sklearn.base import BaseEstimator
-from sklearn.base import TransformerMixin
-from sklearn.base import check_is_fitted
-from sklearn.utils._array_api import get_namespace
+try:
+    import sklearn
+    from sklearn.base import BaseEstimator
+    from sklearn.base import TransformerMixin
+except ImportError:
+    sklearn = None
+
+    class BaseEstimator:
+        pass
+
+    class TransformerMixin:
+        pass
+
+
+def assert_sklearn_installed(symbol_name):
+    if sklearn is None:
+        raise ImportError(
+            f"{symbol_name} requires `scikit-learn` to be installed. "
+            "Run `pip install scikit-learn` to install it."
+        )
 
 
 def _check_model(model):
@@ -64,8 +80,8 @@ class TargetReshaper(TransformerMixin, BaseEstimator):
                 is passed, it will be squeezed back to 1D. Otherwise, it
                 will eb left untouched.
         """
-        check_is_fitted(self)
-        xp, _ = get_namespace(y)
+        sklearn.base.check_is_fitted(self)
+        xp, _ = sklearn.utils._array_api.get_namespace(y)
         if self.ndim_ == 1 and y.ndim == 2:
             return xp.squeeze(y, axis=1)
         return y
