@@ -3,6 +3,7 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
     BaseImagePreprocessingLayer,
 )
 from keras.src.random import SeedGenerator
+from keras.src.utils import backend_utils
 
 
 @keras_export("keras.layers.MixUp")
@@ -109,7 +110,11 @@ class MixUp(BaseImagePreprocessingLayer):
         training=True,
     ):
         def _mix_up_bounding_boxes(bounding_boxes, transformation):
+            if backend_utils.in_tf_graph():
+                self.backend.set_backend("tensorflow")
+
             permutation_order = transformation["permutation_order"]
+
             boxes, labels = bounding_boxes["boxes"], bounding_boxes["labels"]
             boxes_for_mix_up = self.backend.numpy.take(
                 boxes, permutation_order, axis=0
@@ -125,6 +130,9 @@ class MixUp(BaseImagePreprocessingLayer):
             labels = self.backend.numpy.concatenate(
                 [labels, labels_for_mix_up], axis=0
             )
+
+            self.backend.reset()
+
             return {"boxes": boxes, "labels": labels}
 
         if training:
