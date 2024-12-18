@@ -133,7 +133,8 @@ class GRUCell(Layer, DropoutRNNCell):
         self.recurrent_dropout = min(1.0, max(0.0, recurrent_dropout))
         if self.recurrent_dropout != 0.0:
             self.implementation = 1
-        self.dropout_mask_count = 3
+        if self.implementation == 1:
+            self.dropout_mask_count = 3
         self.seed = seed
         self.seed_generator = backend.random.SeedGenerator(seed=seed)
 
@@ -255,7 +256,7 @@ class GRUCell(Layer, DropoutRNNCell):
         else:
             if training and 0.0 < self.dropout < 1.0:
                 dp_mask = self.get_dropout_mask(inputs)
-                inputs = inputs * dp_mask[0]
+                inputs = inputs * dp_mask
 
             # inputs projected by all gate matrices at once
             matrix_x = ops.matmul(inputs, self.kernel)
