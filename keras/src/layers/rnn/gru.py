@@ -131,6 +131,9 @@ class GRUCell(Layer, DropoutRNNCell):
 
         self.dropout = min(1.0, max(0.0, dropout))
         self.recurrent_dropout = min(1.0, max(0.0, recurrent_dropout))
+        if self.recurrent_dropout != 0.0:
+            self.implementation = 1
+        self.dropout_mask_count = 3
         self.seed = seed
         self.seed_generator = backend.random.SeedGenerator(seed=seed)
 
@@ -181,9 +184,6 @@ class GRUCell(Layer, DropoutRNNCell):
             states[0] if tree.is_nested(states) else states
         )  # previous state
 
-        dp_mask = self.get_dropout_mask(inputs)
-        rec_dp_mask = self.get_recurrent_dropout_mask(h_tm1)
-
         if self.use_bias:
             if not self.reset_after:
                 input_bias, recurrent_bias = self.bias, None
@@ -193,15 +193,16 @@ class GRUCell(Layer, DropoutRNNCell):
                     for e in ops.split(self.bias, self.bias.shape[0], axis=0)
                 )
 
-        if training and 0.0 < self.dropout < 1.0:
-            inputs = inputs * dp_mask
-        if training and 0.0 < self.recurrent_dropout < 1.0:
-            h_tm1 = h_tm1 * rec_dp_mask
-
         if self.implementation == 1:
-            inputs_z = inputs
-            inputs_r = inputs
-            inputs_h = inputs
+            if training and 0.0 < self.dropout < 1.0:
+                dp_mask = self.get_dropout_mask(inputs)
+                inputs_z = inputs * dp_mask[0]
+                inputs_r = inputs * dp_mask[1]
+                inputs_h = inputs * dp_mask[2]
+            else:
+                inputs_z = inputs
+                inputs_r = inputs
+                inputs_h = inputs
 
             x_z = ops.matmul(inputs_z, self.kernel[:, : self.units])
             x_r = ops.matmul(
@@ -214,9 +215,15 @@ class GRUCell(Layer, DropoutRNNCell):
                 x_r += input_bias[self.units : self.units * 2]
                 x_h += input_bias[self.units * 2 :]
 
-            h_tm1_z = h_tm1
-            h_tm1_r = h_tm1
-            h_tm1_h = h_tm1
+            if training and 0.0 < self.recurrent_dropout < 1.0:
+                rec_dp_mask = self.get_recurrent_dropout_mask(h_tm1)
+                h_tm1_z = h_tm1 * rec_dp_mask[0]
+                h_tm1_r = h_tm1 * rec_dp_mask[1]
+                h_tm1_h = h_tm1 * rec_dp_mask[2]
+            else:
+                h_tm1_z = h_tm1
+                h_tm1_r = h_tm1
+                h_tm1_h = h_tm1
 
             recurrent_z = ops.matmul(
                 h_tm1_z, self.recurrent_kernel[:, : self.units]
@@ -246,6 +253,10 @@ class GRUCell(Layer, DropoutRNNCell):
 
             hh = self.activation(x_h + recurrent_h)
         else:
+            if training and 0.0 < self.dropout < 1.0:
+                dp_mask = self.get_dropout_mask(inputs)
+                inputs = inputs * dp_mask[0]
+
             # inputs projected by all gate matrices at once
             matrix_x = ops.matmul(inputs, self.kernel)
             if self.use_bias:
