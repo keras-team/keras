@@ -240,12 +240,11 @@ class PyDatasetAdapterTest(testing.TestCase):
         for index, batch in enumerate(gen):
             # Batch is a tuple of (x, y, class_weight)
             self.assertLen(batch, 3)
+            batch = [backend.convert_to_numpy(x) for x in batch]
             # Let's verify the data and class weights match for each element
             # of the batch (2 elements in each batch)
             for sub_elem in range(2):
-                self.assertTrue(
-                    np.array_equal(batch[0][sub_elem], x[index * 2 + sub_elem])
-                )
+                self.assertAllEqual(batch[0][sub_elem], x[index * 2 + sub_elem])
                 self.assertEqual(batch[1][sub_elem], y[index * 2 + sub_elem])
                 class_key = np.int32(batch[1][sub_elem])
                 self.assertEqual(batch[2][sub_elem], class_w[class_key])
