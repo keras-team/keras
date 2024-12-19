@@ -45,9 +45,10 @@ class RandomContrast(BaseImagePreprocessingLayer):
 
     _FACTOR_BOUNDS = (0, 1)
 
-    def __init__(self, factor, seed=None, **kwargs):
+    def __init__(self, factor, value_range=(0, 255), seed=None, **kwargs):
         super().__init__(**kwargs)
         self._set_factor(factor)
+        self.value_range = value_range
         self.seed = seed
         self.generator = SeedGenerator(seed)
 
@@ -89,7 +90,9 @@ class RandomContrast(BaseImagePreprocessingLayer):
         if training:
             constrast_factor = transformation["contrast_factor"]
             outputs = self._adjust_constrast(images, constrast_factor)
-            outputs = self.backend.numpy.clip(outputs, 0, 255)
+            outputs = self.backend.numpy.clip(
+                outputs, self.value_range[0], self.value_range[1]
+            )
             self.backend.numpy.reshape(outputs, self.backend.shape(images))
             return outputs
         return images
@@ -135,6 +138,7 @@ class RandomContrast(BaseImagePreprocessingLayer):
     def get_config(self):
         config = {
             "factor": self.factor,
+            "value_range": self.value_range,
             "seed": self.seed,
         }
         base_config = super().get_config()
