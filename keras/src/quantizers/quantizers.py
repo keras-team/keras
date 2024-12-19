@@ -161,8 +161,8 @@ def adjust_and_nudge(min_range, max_range, num_bits, narrow_range):
     )
 
     # Convert quantization limits to float
-    quant_min_float = float(quantized_min)
-    quant_max_float = float(quantized_max)
+    quant_min_float = ops.cast(quantized_min, "float32")
+    quant_max_float = ops.cast(quantized_max, "float32")
 
     # Calculate the scale
     nudged_scale = (max_range - min_range) / (quant_max_float - quant_min_float)
@@ -171,12 +171,15 @@ def adjust_and_nudge(min_range, max_range, num_bits, narrow_range):
     zero_point_from_min = quant_min_float - min_range / nudged_scale
 
     # Determine nudged zero point
-    if zero_point_from_min < quant_min_float:
-        nudged_zero_point = quantized_min
-    elif zero_point_from_min > quant_max_float:
-        nudged_zero_point = quantized_max
-    else:
-        nudged_zero_point = ops.round(zero_point_from_min)
+    nudged_zero_point = ops.where(
+        zero_point_from_min < quant_min_float,
+        quantized_min,
+        ops.where(
+            zero_point_from_min > quant_max_float,
+            quantized_max,
+            ops.round(zero_point_from_min),
+        ),
+    )
 
     # Calculate nudged min and max
     nudged_min = (quant_min_float - nudged_zero_point) * nudged_scale
@@ -233,6 +236,20 @@ def fake_quant_with_min_max_args(
     return _fake_quant_with_min_max_args(inputs)
 
 
+@keras_export("keras.quantizers.fake_quant_with_min_max_vars")
+def fake_quant_with_min_max_vars(
+    inputs,
+    min_range=-6.0,
+    max_range=6.0,
+    num_bits=8,
+    narrow_range=False,
+):
+    """Fake quantization operation matching TensorFlow's implementation."""
+    return fake_quant_with_min_max_args(
+        inputs, min_range, max_range, num_bits, narrow_range
+    )
+
+
 @keras_export("keras.quantizers.fake_quant_with_min_max_args_gradient")
 def fake_quant_with_min_max_args_gradient(
     gradients,
@@ -245,8 +262,7 @@ def fake_quant_with_min_max_args_gradient(
     """Fake quantization operation with gradient,
     matching TensorFlow's implementation."""
 
-    if isinstance(inputs, np.ndarray):
-        inputs = ops.convert_to_tensor(inputs)
+    inputs = ops.convert_to_tensor(inputs)
 
     def _fake_quant_with_min_max_args_gradient(x):
         quant_min, quant_max, step_size = adjust_and_nudge(
@@ -301,8 +317,7 @@ def fake_quant_with_min_max_vars_per_channel(
         Fake-quantized tensor
     """
 
-    if isinstance(inputs, np.ndarray):
-        inputs = ops.convert_to_tensor(inputs)
+    inputs = ops.convert_to_tensor(inputs)
     min_vals = ops.convert_to_tensor(min_vals)
     max_vals = ops.convert_to_tensor(max_vals)
 
