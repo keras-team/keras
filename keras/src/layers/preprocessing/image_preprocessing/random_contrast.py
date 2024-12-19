@@ -40,6 +40,10 @@ class RandomContrast(BaseImagePreprocessingLayer):
             `[1.0 - lower, 1.0 + upper]`. For any pixel x in the channel,
             the output will be `(x - mean) * factor + mean`
             where `mean` is the mean value of the channel.
+        value_range: the range of values the incoming images will have.
+            Represented as a two-number tuple written `[low, high]`. This is
+            typically either `[0, 1]` or `[0, 255]` depending on how your
+            preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
     """
 
