@@ -702,7 +702,6 @@ class OneHotMeanIoU(MeanIoU):
             associated label.
         axis: (Optional) The dimension containing the logits. Defaults to `-1`.
 
-    Example:
 
     Example:
 
