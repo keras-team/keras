@@ -3,6 +3,9 @@
 from contextlib import contextmanager
 
 import pytest
+import sklearn
+from packaging.version import parse as parse_version
+from sklearn.utils.estimator_checks import parametrize_with_checks
 
 import keras
 from keras.src.backend import floatx
@@ -13,7 +16,45 @@ from keras.src.models import Model
 from keras.src.wrappers import SKLearnClassifier
 from keras.src.wrappers import SKLearnRegressor
 from keras.src.wrappers import SKLearnTransformer
-from keras.src.wrappers.fixes import parametrize_with_checks
+
+
+def wrapped_parametrize_with_checks(
+    estimators,
+    *,
+    legacy: bool = True,
+    expected_failed_checks=None,
+):
+    """Wrapped `parametrize_with_checks` handling backwards compat."""
+    sklearn_version = parse_version(
+        parse_version(sklearn.__version__).base_version
+    )
+
+    if sklearn_version >= parse_version("1.6"):
+        return parametrize_with_checks(
+            estimators,
+            legacy=legacy,
+            expected_failed_checks=expected_failed_checks,
+        )
+
+    def patched_more_tags(estimator, expected_failed_checks):
+        import copy
+
+        original_tags = copy.deepcopy(sklearn.utils._tags._safe_tags(estimator))
+
+        def patched_more_tags(self):
+            original_tags.update({"_xfail_checks": expected_failed_checks})
+            return original_tags
+
+        estimator.__class__._more_tags = patched_more_tags
+        return estimator
+
+    estimators = [
+        patched_more_tags(estimator, expected_failed_checks(estimator))
+        for estimator in estimators
+    ]
+
+    # legacy is not supported and ignored
+    return parametrize_with_checks(estimators)
 
 
 def dynamic_model(X, y, loss, layers=[10]):
@@ -80,7 +121,7 @@ EXPECTED_FAILED_CHECKS = {
 }
 
 
-@parametrize_with_checks(
+@wrapped_parametrize_with_checks(
     estimators=[
         SKLearnClassifier(
             model=dynamic_model,
@@ -110,7 +151,7 @@ def test_sklearn_estimator_checks(estimator, check):
     try:
         check(estimator)
     except Exception as exc:
-        if keras.config.backend() == "numpy" and (
+        if keras.config.backend() in ["numpy", "openvino"] and (
             isinstance(exc, NotImplementedError)
             or "NotImplementedError" in str(exc)
         ):

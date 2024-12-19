@@ -275,7 +275,7 @@ class ExportSavedModelTest(testing.TestCase):
             is_static=(True, False),
             jax2tf_kwargs=(
                 None,
-                {"enable_xla": False, "native_serialization": False},
+                {"enable_xla": True, "native_serialization": True},
             ),
         )
     )
