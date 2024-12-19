@@ -31,14 +31,23 @@ class RandomHueTest(testing.TestCase):
         output = layer(inputs, training=False)
         self.assertAllClose(inputs, output)
 
-    def test_random_hue_value_range(self):
+    def test_random_hue_value_range_0_to_1(self):
         image = keras.random.uniform(shape=(3, 3, 3), minval=0, maxval=1)
+
+        layer = layers.RandomHue(0.2, (0, 1))
+        adjusted_image = layer(image)
+
+        self.assertTrue(keras.ops.numpy.all(adjusted_image >= 0))
+        self.assertTrue(keras.ops.numpy.all(adjusted_image <= 1))
+
+    def test_random_hue_value_range_0_to_255(self):
+        image = keras.random.uniform(shape=(3, 3, 3), minval=0, maxval=255)
 
         layer = layers.RandomHue(0.2, (0, 255))
         adjusted_image = layer(image)
 
         self.assertTrue(keras.ops.numpy.all(adjusted_image >= 0))
-        self.assertTrue(keras.ops.numpy.all(adjusted_image <= 1))
+        self.assertTrue(keras.ops.numpy.all(adjusted_image <= 255))
 
     def test_random_hue_no_change_with_zero_factor(self):
         data_format = backend.config.image_data_format()
