@@ -45,7 +45,7 @@ class StringLookup(IndexLookup):
     It can however be used with any backend when running eagerly.
     It can also always be used as part of an input preprocessing pipeline
     with any backend (outside the model itself), which is how we recommend
-    to use this layer.
+    using this layer.
 
     **Note:** This layer is safe to use inside a `tf.data` pipeline
     (independently of which backend you're using).
@@ -62,16 +62,16 @@ class StringLookup(IndexLookup):
             If this value is 0, OOV inputs will cause an error when calling
             the layer. Defaults to `1`.
         mask_token: A token that represents masked inputs. When `output_mode` is
-            `"int"`, the token is included in vocabulary and mapped to index 0.
+            `"int"`, the token is included in the vocabulary and mapped to index 0.
             In other output modes, the token will not appear
             in the vocabulary and instances of the mask token
             in the input will be dropped. If set to `None`,
             no mask term will be added. Defaults to `None`.
-        oov_token: Only used when `invert` is True. The token to return for OOV
+        oov_token: Only used when `invert` is true. The token to return for OOV
             indices. Defaults to `"[UNK]"`.
         vocabulary: Optional. Either an array of integers or a string path to a
-            text file. If passing an array, can pass a tuple, list,
-            1D NumPy array, or 1D tensor containing the integer vocbulary terms.
+            text file. If passing an array,you can pass a tuple, list,
+            1D NumPy array, or 1D tensor containing the integer vocabulary terms.
             If passing a file path, the file should contain one line per term
             in the vocabulary. If this argument is set,
             there is no need to `adapt()` the layer.
@@ -82,7 +82,7 @@ class StringLookup(IndexLookup):
             as the vocabulary, containing the floating point inverse document
             frequency weights, which will be multiplied by per sample term
             counts for the final TF-IDF weight.
-            If the `vocabulary` argument is set, and `output_mode` is
+            If the `vocabulary` argument is set and `output_mode` is
             `"tf_idf"`, this argument must be supplied.
         invert: Only valid when `output_mode` is `"int"`.
             If `True`, this layer will map indices to vocabulary items
@@ -103,7 +103,7 @@ class StringLookup(IndexLookup):
                 containing a 1 for each vocabulary term present in the sample.
                 Treats the last dimension as the sample dimension,
                 if input shape is `(..., sample_length)`,
-                output shape will be `(..., num_tokens)`.
+                the output shape will be `(..., num_tokens)`.
             - `"count"`: As `"multi_hot"`, but the int array contains
                 a count of the number of times the token at that index
                 appeared in the sample.
@@ -266,7 +266,7 @@ class StringLookup(IndexLookup):
     array([[b'a', b'c', b'd'],
            [b'd', b'[UNK]', b'b']], dtype=object)
 
-    Note that the first index correspond to the oov token by default.
+    Note that the first index corresponds to the oov token by default.
 
 
     **Forward and inverse lookup pairs**
@@ -346,7 +346,7 @@ class StringLookup(IndexLookup):
 
         During `adapt()`, the layer will build a vocabulary of all string tokens
         seen in the dataset, sorted by occurrence count, with ties broken by
-        sort order of the tokens (high to low). At the end of `adapt()`, if
+        the sort order of the tokens (high to low). At the end of `adapt()`, if
         `max_tokens` is set, the vocabulary will be truncated to `max_tokens`
         size. For example, adapting a layer with `max_tokens=1000` will compute
         the 1000 most frequent tokens occurring in the input dataset. If
