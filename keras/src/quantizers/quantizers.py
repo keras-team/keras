@@ -132,7 +132,7 @@ def adjust_and_nudge(min_range, max_range, num_bits, narrow_range):
     if num_bits < 2:
         raise ValueError("num_bits must be >= 2")
 
-    n_steps = float(2**num_bits - 1)
+    n_steps = ops.cast(2**num_bits - 1, "float32")
     if narrow_range:
         n_steps -= 1.0
 
@@ -202,8 +202,7 @@ def fake_quant_with_min_max_args(
 ):
     """Fake quantization operation matching TensorFlow's implementation."""
 
-    if isinstance(inputs, np.ndarray):
-        inputs = ops.convert_to_tensor(inputs)
+    inputs = ops.convert_to_tensor(inputs)
 
     @ops.custom_gradient
     def _fake_quant_with_min_max_args(x):

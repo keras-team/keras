@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import ops
 from keras.src import quantizers
 from keras.src import random
@@ -144,6 +145,55 @@ class QuantizersTest(testing.TestCase):
             ],
             dtype="float32",
         )
+        initial_gradients = ops.arange(1, len(inputs) + 1, dtype="float32")
+        expected_backprops = ops.array(
+            [0.0, 0.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 0.0, 0.0],
+            dtype=float,
+        )
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            @tf.function(jit_compile=True)
+            def test_op(inputs, input_min, input_max, num_bits, narrow_range):
+                with tf.GradientTape() as tape:
+                    tape.watch(inputs)
+                    result = op(
+                        inputs, input_min, input_max, num_bits, narrow_range
+                    )
+                return initial_gradients * tape.gradient(result, inputs)
+
+            gradients = test_op(
+                inputs, input_min, input_max, num_bits, narrow_range
+            )
+
+        if backend.backend() == "torch":
+            import torch
+
+            def test_op(inputs, input_min, input_max, num_bits, narrow_range):
+                # Create tensor and enable gradient tracking
+                inputs = torch.tensor(
+                    inputs, dtype=torch.float32, requires_grad=True
+                )
+
+                # Apply the quantization operation
+                result = op(
+                    inputs, input_min, input_max, num_bits, narrow_range
+                )
+
+                # Compute gradients
+                result.backward(torch.ones_like(result))  # Compute gradient
+
+                # Multiply gradients by initial_gradients
+                gradients = initial_gradients * inputs.grad
+
+                return gradients
+
+            gradients = test_op(
+                inputs, input_min, input_max, num_bits, narrow_range
+            )
+
+        # test gradients
+        self.assertAllClose(gradients, expected_backprops)
 
         outputs = op(
             inputs,
