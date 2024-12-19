@@ -1,3 +1,4 @@
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -114,6 +115,8 @@ class MixUp(BaseImagePreprocessingLayer):
                 self.backend.set_backend("tensorflow")
 
             permutation_order = transformation["permutation_order"]
+            # Make sure we are on cpu for torch tensors.
+            permutation_order = ops.convert_to_numpy(permutation_order)
 
             boxes, labels = bounding_boxes["boxes"], bounding_boxes["labels"]
             boxes_for_mix_up = self.backend.numpy.take(
@@ -146,6 +149,8 @@ class MixUp(BaseImagePreprocessingLayer):
     ):
         def _mix_up_segmentation_masks(segmentation_masks, transformation):
             mix_weight = transformation["mix_weight"]
+            # Make sure we are on cpu for torch tensors.
+            mix_weight = ops.convert_to_numpy(mix_weight)
             permutation_order = transformation["permutation_order"]
             mix_weight = self.backend.numpy.reshape(mix_weight, [-1, 1, 1, 1])
             segmentation_masks_for_mix_up = self.backend.numpy.take(
