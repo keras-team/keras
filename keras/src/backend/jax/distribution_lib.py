@@ -117,7 +117,7 @@ def distribute_data_input(per_process_batch, layout, batch_dim_name):
     if not isinstance(layout, jax.sharding.Sharding):
         layout = _to_jax_layout(layout)
 
-    num_model_replicas_total = layout.mesh.shape[batch_dim_name]  # batch dimension of the mesh
+    num_model_replicas_total = layout.mesh.shape[batch_dim_name]
     mesh_shape = list(layout.mesh.shape.values())
 
     # TODO: THIS IS COMPLETELY WRONG AS WELL FOR REPLICATING DATA ON "MODEL"
