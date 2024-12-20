@@ -8,7 +8,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class RandomHueTest(testing.TestCase):
+class RandomSaturationTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
@@ -22,7 +22,7 @@ class RandomHueTest(testing.TestCase):
             expected_output_shape=(8, 3, 4, 3),
         )
 
-    def test_random_hue_value_range(self):
+    def test_random_saturation_value_range(self):
         image = keras.random.uniform(shape=(3, 3, 3), minval=0, maxval=1)
 
         layer = layers.RandomSaturation(0.2)
@@ -51,8 +51,12 @@ class RandomHueTest(testing.TestCase):
         layer = layers.RandomSaturation(factor=(0.0, 0.0))
         result = layer(inputs)
 
-        self.assertAllClose(result[..., 0], result[..., 1])
-        self.assertAllClose(result[..., 1], result[..., 2])
+        if data_format == "channels_last":
+            self.assertAllClose(result[..., 0], result[..., 1])
+            self.assertAllClose(result[..., 1], result[..., 2])
+        else:
+            self.assertAllClose(result[:, 0, :, :], result[:, 1, :, :])
+            self.assertAllClose(result[:, 1, :, :], result[:, 2, :, :])
 
     def test_random_saturation_full_saturation(self):
         data_format = backend.config.image_data_format()
@@ -66,7 +70,9 @@ class RandomHueTest(testing.TestCase):
         hsv = backend.image.rgb_to_hsv(result)
         s_channel = hsv[..., 1]
 
-        self.assertAllClose(keras.ops.numpy.max(s_channel), 1.0)
+        self.assertAllClose(
+            keras.ops.numpy.max(s_channel), layer.value_range[1]
+        )
 
     def test_random_saturation_randomness(self):
         image = keras.random.uniform(shape=(3, 3, 3), minval=0, maxval=1)[:5]

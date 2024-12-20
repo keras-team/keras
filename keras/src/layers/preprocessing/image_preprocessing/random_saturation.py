@@ -23,22 +23,51 @@ class RandomSaturation(BaseImagePreprocessingLayer):
             If a single float is used, a value between `0.0` and the passed
             float is sampled. To ensure the value is always the same,
             pass a tuple with two identical floats: `(0.5, 0.5)`.
+        value_range: the range of values the incoming images will have.
+            Represented as a two-number tuple written `[low, high]`. This is
+            typically either `[0, 1]` or `[0, 255]` depending on how your
+            preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
 
     Example:
     ```python
     (images, labels), _ = keras.datasets.cifar10.load_data()
-    images = images.astype("float32") / 255.0
+    images = images.astype("float32")
     random_saturation = keras.layers.RandomSaturation(factor=0.2)
     augmented_images = random_saturation(images)
     ```
     """
 
-    def __init__(self, factor, data_format=None, seed=None, **kwargs):
+    _VALUE_RANGE_VALIDATION_ERROR = (
+        "The `value_range` argument should be a list of two numbers. "
+    )
+
+    def __init__(
+        self,
+        factor,
+        value_range=(0, 255),
+        data_format=None,
+        seed=None,
+        **kwargs,
+    ):
         super().__init__(data_format=data_format, **kwargs)
         self._set_factor(factor)
+        self._set_value_range(value_range)
         self.seed = seed
         self.generator = SeedGenerator(seed)
+
+    def _set_value_range(self, value_range):
+        if not isinstance(value_range, (tuple, list)):
+            raise ValueError(
+                self._VALUE_RANGE_VALIDATION_ERROR
+                + f"Received: value_range={value_range}"
+            )
+        if len(value_range) != 2:
+            raise ValueError(
+                self._VALUE_RANGE_VALIDATION_ERROR
+                + f"Received: value_range={value_range}"
+            )
+        self.value_range = sorted(value_range)
 
     def get_random_transformation(self, data, training=True, seed=None):
         if isinstance(data, dict):
@@ -53,7 +82,7 @@ class RandomSaturation(BaseImagePreprocessingLayer):
             batch_size = images_shape[0]
         else:
             raise ValueError(
-                "Expected the input image to be rank 3 or 4. Received "
+                "Expected the input image to be rank 3 or 4. Received: "
                 f"inputs.shape={images_shape}"
             )
 
@@ -70,35 +99,40 @@ class RandomSaturation(BaseImagePreprocessingLayer):
         return {"factor": factor}
 
     def transform_images(self, images, transformation=None, training=True):
-        adjust_factors = transformation["factor"]
-        adjust_factors = self.backend.cast(adjust_factors, images.dtype)
-        adjust_factors = self.backend.numpy.expand_dims(adjust_factors, -1)
-        adjust_factors = self.backend.numpy.expand_dims(adjust_factors, -1)
-
-        images = self.backend.image.rgb_to_hsv(
-            images, data_format=self.data_format
-        )
-
-        if self.data_format == "channels_first":
-            s_channel = self.backend.numpy.multiply(
-                images[:, 1, :, :], adjust_factors
+        if training:
+            adjust_factors = transformation["factor"]
+            adjust_factors = self.backend.cast(
+                adjust_factors, self.compute_dtype
             )
-            s_channel = self.backend.numpy.clip_by_value(s_channel, 0.0, 1.0)
-            images = self.backend.numpy.stack(
-                [images[:, 0, :, :], s_channel, images[:, 2, :, :]], axis=1
+            adjust_factors = self.backend.numpy.reshape(
+                adjust_factors, self.backend.shape(adjust_factors) + (1, 1)
             )
-        else:
-            s_channel = self.backend.numpy.multiply(
-                images[..., 1], adjust_factors
+            images = self.backend.image.rgb_to_hsv(
+                images, data_format=self.data_format
             )
-            s_channel = self.backend.numpy.clip(s_channel, 0.0, 1.0)
-            images = self.backend.numpy.stack(
-                [images[..., 0], s_channel, images[..., 2]], axis=-1
+            if self.data_format == "channels_first":
+                s_channel = self.backend.numpy.multiply(
+                    images[:, 1, :, :], adjust_factors
+                )
+                s_channel = self.backend.numpy.clip(
+                    s_channel, self.value_range[0], self.value_range[1]
+                )
+                images = self.backend.numpy.stack(
+                    [images[:, 0, :, :], s_channel, images[:, 2, :, :]], axis=1
+                )
+            else:
+                s_channel = self.backend.numpy.multiply(
+                    images[..., 1], adjust_factors
+                )
+                s_channel = self.backend.numpy.clip(
+                    s_channel, self.value_range[0], self.value_range[1]
+                )
+                images = self.backend.numpy.stack(
+                    [images[..., 0], s_channel, images[..., 2]], axis=-1
+                )
+            images = self.backend.image.hsv_to_rgb(
+                images, data_format=self.data_format
             )
-
-        images = self.backend.image.hsv_to_rgb(
-            images, data_format=self.data_format
-        )
         return images
 
     def transform_labels(self, labels, transformation, training=True):
@@ -119,6 +153,7 @@ class RandomSaturation(BaseImagePreprocessingLayer):
         config.update(
             {
                 "factor": self.factor,
+                "value_range": self.value_range,
                 "seed": self.seed,
             }
         )

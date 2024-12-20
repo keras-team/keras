@@ -44,7 +44,12 @@ class RandomHue(BaseImagePreprocessingLayer):
     _FACTOR_BOUNDS = (0, 1)
 
     def __init__(
-        self, factor, value_range, data_format=None, seed=None, **kwargs
+        self,
+        factor,
+        value_range=(0, 255),
+        data_format=None,
+        seed=None,
+        **kwargs,
     ):
         super().__init__(data_format=data_format, **kwargs)
         self._set_factor(factor)
