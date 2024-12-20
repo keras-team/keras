@@ -989,7 +989,7 @@ class JAXTrainer(base_trainer.Trainer):
 
 def _distribute_data(data, layouts=None):
     distribution = distribution_lib.distribution()
-    
+
     if distribution is not None:
         if layouts is None:
             layouts = tree.map_structure(
