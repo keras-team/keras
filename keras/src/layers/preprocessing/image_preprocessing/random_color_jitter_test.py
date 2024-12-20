@@ -117,6 +117,11 @@ class RandomColorJitterTest(testing.TestCase):
         self.assertAllClose(output, sub_output)
 
     def test_tf_data_compatibility(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_data = np.random.random((2, 8, 8, 3))
+        else:
+            input_data = np.random.random((2, 3, 8, 8))
         layer = layers.RandomColorJitter(
             value_range=(0, 1),
             brightness_factor=0.1,
@@ -124,7 +129,7 @@ class RandomColorJitterTest(testing.TestCase):
             saturation_factor=0.9,
             hue_factor=0.1,
         )
-        input_data = np.random.random((2, 8, 8, 3))
+
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output.numpy()
