@@ -48,7 +48,7 @@ class RandomColorJitterTest(testing.TestCase):
         if data_format == "channels_last":
             inputs = np.random.random((12, 8, 16, 3))
         else:
-            inputs = np.random.random((12, 3, 16, 3))
+            inputs = np.random.random((12, 3, 8, 16))
 
         layer = layers.RandomColorJitter(
             brightness_factor=[0.5, 0.5], seed=seed
@@ -68,7 +68,7 @@ class RandomColorJitterTest(testing.TestCase):
         if data_format == "channels_last":
             inputs = np.random.random((12, 8, 16, 3))
         else:
-            inputs = np.random.random((12, 3, 16, 3))
+            inputs = np.random.random((12, 3, 8, 16))
 
         layer = layers.RandomColorJitter(
             saturation_factor=[0.5, 0.5], seed=seed
@@ -88,7 +88,7 @@ class RandomColorJitterTest(testing.TestCase):
         if data_format == "channels_last":
             inputs = np.random.random((12, 8, 16, 3))
         else:
-            inputs = np.random.random((12, 3, 16, 3))
+            inputs = np.random.random((12, 3, 8, 16))
 
         layer = layers.RandomColorJitter(hue_factor=[0.5, 0.5], seed=seed)
         output = layer(inputs)
@@ -106,7 +106,7 @@ class RandomColorJitterTest(testing.TestCase):
         if data_format == "channels_last":
             inputs = np.random.random((12, 8, 16, 3))
         else:
-            inputs = np.random.random((12, 3, 16, 3))
+            inputs = np.random.random((12, 3, 8, 16))
 
         layer = layers.RandomColorJitter(contrast_factor=[0.5, 0.5], seed=seed)
         output = layer(inputs)
