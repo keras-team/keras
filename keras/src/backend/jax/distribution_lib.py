@@ -118,7 +118,6 @@ def distribute_data_input(per_process_batch, layout, batch_dim_name):
         layout = _to_jax_layout(layout)
 
     num_model_replicas_total = layout.mesh.shape[batch_dim_name]
-    mesh_shape = list(layout.mesh.shape.values())
 
     mesh_model_dim_size = 1
     for name, dim_size in layout.mesh.shape.items():

@@ -337,7 +337,9 @@ class JaxDistributionLibTest(testing.TestCase):
             mesh, jax.sharding.PartitionSpec("batch", None)
         )
 
-        result = backend_dlib.distribute_data_input(per_process_batch, layout, "batch")
+        result = backend_dlib.distribute_data_input(
+            per_process_batch, layout, "batch"
+        )
 
         # Check the shape of the global batch array
         self.assertEqual(
