@@ -989,16 +989,17 @@ class JAXTrainer(base_trainer.Trainer):
 
 def _distribute_data(data, layouts=None):
     distribution = distribution_lib.distribution()
-    jax_dist_data_input = partial(
-        jax_distribution_lib.distribute_data_input,
-        batch_dim_name=distribution._batch_dim_name,
-    )
+    
     if distribution is not None:
         if layouts is None:
             layouts = tree.map_structure(
                 lambda d: distribution.get_data_layout(d.shape),
                 data,
             )
+        jax_dist_data_input = partial(
+            jax_distribution_lib.distribute_data_input,
+            batch_dim_name=distribution._batch_dim_name,
+        )
         return tree.map_structure(jax_dist_data_input, data, layouts)
 
     return tree.map_structure(jax.device_put, data)
