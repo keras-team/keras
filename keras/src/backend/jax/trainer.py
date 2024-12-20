@@ -995,7 +995,7 @@ def _distribute_data(data, layouts=None):
                 data,
             )
         return tree.map_structure(
-            jax_distribution_lib.distribute_data_input, data, layouts
+            jax_distribution_lib.distribute_data_input, data, layouts, distribution._batch_dim_name
         )
 
     return tree.map_structure(jax.device_put, data)
