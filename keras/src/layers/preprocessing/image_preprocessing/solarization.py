@@ -156,33 +156,36 @@ class Solarization(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation, training=True):
         images = self.backend.cast(images, self.compute_dtype)
-        if transformation is None:
-            return images
 
-        thresholds = transformation["thresholds"]
-        additions = transformation["additions"]
-        images = self._transform_value_range(
-            images,
-            original_range=self.value_range,
-            target_range=(0, 255),
-            dtype=self.compute_dtype,
-        )
-        results = images + additions
-        results = self.backend.numpy.clip(results, 0, 255)
-        results = self.backend.numpy.where(
-            results < thresholds, results, 255 - results
-        )
-        results = self._transform_value_range(
-            results,
-            original_range=(0, 255),
-            target_range=self.value_range,
-            dtype=self.compute_dtype,
-        )
-        if results.dtype == images.dtype:
-            return results
-        if backend.is_int_dtype(images.dtype):
-            results = self.backend.numpy.round(results)
-        return _saturate_cast(results, images.dtype, self.backend)
+        if training:
+            if transformation is None:
+                return images
+
+            thresholds = transformation["thresholds"]
+            additions = transformation["additions"]
+            images = self._transform_value_range(
+                images,
+                original_range=self.value_range,
+                target_range=(0, 255),
+                dtype=self.compute_dtype,
+            )
+            results = images + additions
+            results = self.backend.numpy.clip(results, 0, 255)
+            results = self.backend.numpy.where(
+                results < thresholds, results, 255 - results
+            )
+            results = self._transform_value_range(
+                results,
+                original_range=(0, 255),
+                target_range=self.value_range,
+                dtype=self.compute_dtype,
+            )
+            if results.dtype == images.dtype:
+                return results
+            if backend.is_int_dtype(images.dtype):
+                results = self.backend.numpy.round(results)
+            return _saturate_cast(results, images.dtype, self.backend)
+        return images
 
     def transform_labels(self, labels, transformation, training=True):
         return labels

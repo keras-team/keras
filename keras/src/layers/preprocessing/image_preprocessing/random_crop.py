@@ -122,59 +122,60 @@ class RandomCrop(BaseImagePreprocessingLayer):
         return h_start, w_start
 
     def transform_images(self, images, transformation, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
-        crop_box_hstart, crop_box_wstart = transformation
-        crop_height = self.height
-        crop_width = self.width
-
-        if self.data_format == "channels_last":
-            if len(images.shape) == 4:
-                images = images[
-                    :,
-                    crop_box_hstart : crop_box_hstart + crop_height,
-                    crop_box_wstart : crop_box_wstart + crop_width,
-                    :,
-                ]
-            else:
-                images = images[
-                    crop_box_hstart : crop_box_hstart + crop_height,
-                    crop_box_wstart : crop_box_wstart + crop_width,
-                    :,
-                ]
-        else:
-            if len(images.shape) == 4:
-                images = images[
-                    :,
-                    :,
-                    crop_box_hstart : crop_box_hstart + crop_height,
-                    crop_box_wstart : crop_box_wstart + crop_width,
-                ]
-            else:
-                images = images[
-                    :,
-                    crop_box_hstart : crop_box_hstart + crop_height,
-                    crop_box_wstart : crop_box_wstart + crop_width,
-                ]
-
-        shape = self.backend.shape(images)
-        new_height = shape[self.height_axis]
-        new_width = shape[self.width_axis]
-        if (
-            not isinstance(new_height, int)
-            or not isinstance(new_width, int)
-            or new_height != self.height
-            or new_width != self.width
-        ):
-            # Resize images if size mismatch or
-            # if size mismatch cannot be determined
-            # (in the case of a TF dynamic shape).
-            images = self.backend.image.resize(
-                images,
-                size=(self.height, self.width),
-                data_format=self.data_format,
-            )
-            # Resize may have upcasted the outputs
+        if training:
             images = self.backend.cast(images, self.compute_dtype)
+            crop_box_hstart, crop_box_wstart = transformation
+            crop_height = self.height
+            crop_width = self.width
+
+            if self.data_format == "channels_last":
+                if len(images.shape) == 4:
+                    images = images[
+                        :,
+                        crop_box_hstart : crop_box_hstart + crop_height,
+                        crop_box_wstart : crop_box_wstart + crop_width,
+                        :,
+                    ]
+                else:
+                    images = images[
+                        crop_box_hstart : crop_box_hstart + crop_height,
+                        crop_box_wstart : crop_box_wstart + crop_width,
+                        :,
+                    ]
+            else:
+                if len(images.shape) == 4:
+                    images = images[
+                        :,
+                        :,
+                        crop_box_hstart : crop_box_hstart + crop_height,
+                        crop_box_wstart : crop_box_wstart + crop_width,
+                    ]
+                else:
+                    images = images[
+                        :,
+                        crop_box_hstart : crop_box_hstart + crop_height,
+                        crop_box_wstart : crop_box_wstart + crop_width,
+                    ]
+
+            shape = self.backend.shape(images)
+            new_height = shape[self.height_axis]
+            new_width = shape[self.width_axis]
+            if (
+                not isinstance(new_height, int)
+                or not isinstance(new_width, int)
+                or new_height != self.height
+                or new_width != self.width
+            ):
+                # Resize images if size mismatch or
+                # if size mismatch cannot be determined
+                # (in the case of a TF dynamic shape).
+                images = self.backend.image.resize(
+                    images,
+                    size=(self.height, self.width),
+                    data_format=self.data_format,
+                )
+                # Resize may have upcasted the outputs
+                images = self.backend.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
@@ -197,56 +198,59 @@ class RandomCrop(BaseImagePreprocessingLayer):
             "labels": (num_boxes, num_classes),
         }
         """
-        h_start, w_start = transformation
-        if not self.backend.is_tensor(bounding_boxes["boxes"]):
-            bounding_boxes = densify_bounding_boxes(
-                bounding_boxes, backend=self.backend
+
+        if training:
+            h_start, w_start = transformation
+            if not self.backend.is_tensor(bounding_boxes["boxes"]):
+                bounding_boxes = densify_bounding_boxes(
+                    bounding_boxes, backend=self.backend
+                )
+            boxes = bounding_boxes["boxes"]
+            # Convert to a standard xyxy as operations are done xyxy by default.
+            boxes = convert_format(
+                boxes=boxes,
+                source=self.bounding_box_format,
+                target="xyxy",
+                height=self.height,
+                width=self.width,
             )
-        boxes = bounding_boxes["boxes"]
-        # Convert to a standard xyxy as operations are done xyxy by default.
-        boxes = convert_format(
-            boxes=boxes,
-            source=self.bounding_box_format,
-            target="xyxy",
-            height=self.height,
-            width=self.width,
-        )
-        h_start = self.backend.cast(h_start, boxes.dtype)
-        w_start = self.backend.cast(w_start, boxes.dtype)
-        if len(self.backend.shape(boxes)) == 3:
-            boxes = self.backend.numpy.stack(
-                [
-                    self.backend.numpy.maximum(boxes[:, :, 0] - h_start, 0),
-                    self.backend.numpy.maximum(boxes[:, :, 1] - w_start, 0),
-                    self.backend.numpy.maximum(boxes[:, :, 2] - h_start, 0),
-                    self.backend.numpy.maximum(boxes[:, :, 3] - w_start, 0),
-                ],
-                axis=-1,
-            )
-        else:
-            boxes = self.backend.numpy.stack(
-                [
-                    self.backend.numpy.maximum(boxes[:, 0] - h_start, 0),
-                    self.backend.numpy.maximum(boxes[:, 1] - w_start, 0),
-                    self.backend.numpy.maximum(boxes[:, 2] - h_start, 0),
-                    self.backend.numpy.maximum(boxes[:, 3] - w_start, 0),
-                ],
-                axis=-1,
+            h_start = self.backend.cast(h_start, boxes.dtype)
+            w_start = self.backend.cast(w_start, boxes.dtype)
+            if len(self.backend.shape(boxes)) == 3:
+                boxes = self.backend.numpy.stack(
+                    [
+                        self.backend.numpy.maximum(boxes[:, :, 0] - h_start, 0),
+                        self.backend.numpy.maximum(boxes[:, :, 1] - w_start, 0),
+                        self.backend.numpy.maximum(boxes[:, :, 2] - h_start, 0),
+                        self.backend.numpy.maximum(boxes[:, :, 3] - w_start, 0),
+                    ],
+                    axis=-1,
+                )
+            else:
+                boxes = self.backend.numpy.stack(
+                    [
+                        self.backend.numpy.maximum(boxes[:, 0] - h_start, 0),
+                        self.backend.numpy.maximum(boxes[:, 1] - w_start, 0),
+                        self.backend.numpy.maximum(boxes[:, 2] - h_start, 0),
+                        self.backend.numpy.maximum(boxes[:, 3] - w_start, 0),
+                    ],
+                    axis=-1,
+                )
+
+            # Convert to user defined bounding box format
+            boxes = convert_format(
+                boxes=boxes,
+                source="xyxy",
+                target=self.bounding_box_format,
+                height=self.height,
+                width=self.width,
             )
 
-        # Convert to user defined bounding box format
-        boxes = convert_format(
-            boxes=boxes,
-            source="xyxy",
-            target=self.bounding_box_format,
-            height=self.height,
-            width=self.width,
-        )
-
-        return {
-            "boxes": boxes,
-            "labels": bounding_boxes["labels"],
-        }
+            return {
+                "boxes": boxes,
+                "labels": bounding_boxes["labels"],
+            }
+        return bounding_boxes
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
