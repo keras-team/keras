@@ -131,38 +131,37 @@ class RandomRotation(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
-        if training:
-            ops = self.backend
-            boxes = bounding_boxes["boxes"]
-            height = transformation["image_height"]
-            width = transformation["image_width"]
-            batch_size = transformation["batch_size"]
-            boxes = converters.affine_transform(
-                boxes=boxes,
-                angle=transformation["angle"],
-                translate_x=ops.numpy.zeros([batch_size]),
-                translate_y=ops.numpy.zeros([batch_size]),
-                scale=ops.numpy.ones([batch_size]),
-                shear_x=ops.numpy.zeros([batch_size]),
-                shear_y=ops.numpy.zeros([batch_size]),
-                height=height,
-                width=width,
-            )
+        ops = self.backend
+        boxes = bounding_boxes["boxes"]
+        height = transformation["image_height"]
+        width = transformation["image_width"]
+        batch_size = transformation["batch_size"]
+        boxes = converters.affine_transform(
+            boxes=boxes,
+            angle=transformation["angle"],
+            translate_x=ops.numpy.zeros([batch_size]),
+            translate_y=ops.numpy.zeros([batch_size]),
+            scale=ops.numpy.ones([batch_size]),
+            shear_x=ops.numpy.zeros([batch_size]),
+            shear_y=ops.numpy.zeros([batch_size]),
+            height=height,
+            width=width,
+        )
 
-            bounding_boxes["boxes"] = boxes
-            bounding_boxes = converters.clip_to_image_size(
-                bounding_boxes,
-                height=height,
-                width=width,
-                bounding_box_format="xyxy",
-            )
-            bounding_boxes = converters.convert_format(
-                bounding_boxes,
-                source="xyxy",
-                target=self.bounding_box_format,
-                height=height,
-                width=width,
-            )
+        bounding_boxes["boxes"] = boxes
+        bounding_boxes = converters.clip_to_image_size(
+            bounding_boxes,
+            height=height,
+            width=width,
+            bounding_box_format="xyxy",
+        )
+        bounding_boxes = converters.convert_format(
+            bounding_boxes,
+            source="xyxy",
+            target=self.bounding_box_format,
+            height=height,
+            width=width,
+        )
         return bounding_boxes
 
     def transform_segmentation_masks(

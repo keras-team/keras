@@ -217,87 +217,84 @@ class RandomZoom(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
-        if training:
-            if backend_utils.in_tf_graph():
-                self.backend.set_backend("tensorflow")
+        if backend_utils.in_tf_graph():
+            self.backend.set_backend("tensorflow")
 
-            width_zoom = transformation["width_zoom"]
-            height_zoom = transformation["height_zoom"]
-            inputs_shape = transformation["input_shape"]
+        width_zoom = transformation["width_zoom"]
+        height_zoom = transformation["height_zoom"]
+        inputs_shape = transformation["input_shape"]
 
-            if self.data_format == "channels_first":
-                height = inputs_shape[-2]
-                width = inputs_shape[-1]
-            else:
-                height = inputs_shape[-3]
-                width = inputs_shape[-2]
+        if self.data_format == "channels_first":
+            height = inputs_shape[-2]
+            width = inputs_shape[-1]
+        else:
+            height = inputs_shape[-3]
+            width = inputs_shape[-2]
 
-            bounding_boxes = convert_format(
-                bounding_boxes,
-                source=self.bounding_box_format,
-                target="xyxy",
-                height=height,
-                width=width,
-            )
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source=self.bounding_box_format,
+            target="xyxy",
+            height=height,
+            width=width,
+        )
 
-            zooms = self.backend.cast(
-                self.backend.numpy.concatenate(
-                    [width_zoom, height_zoom], axis=1
-                ),
-                dtype="float32",
-            )
-            transform = self._get_zoom_matrix(zooms, height, width)
+        zooms = self.backend.cast(
+            self.backend.numpy.concatenate([width_zoom, height_zoom], axis=1),
+            dtype="float32",
+        )
+        transform = self._get_zoom_matrix(zooms, height, width)
 
-            w_start, h_start = self.get_transformed_x_y(
-                0,
-                0,
-                transform,
-            )
+        w_start, h_start = self.get_transformed_x_y(
+            0,
+            0,
+            transform,
+        )
 
-            w_end, h_end = self.get_transformed_x_y(
-                width,
-                height,
-                transform,
-            )
+        w_end, h_end = self.get_transformed_x_y(
+            width,
+            height,
+            transform,
+        )
 
-            bounding_boxes = self.get_clipped_bbox(
-                bounding_boxes, h_end, h_start, w_end, w_start
-            )
+        bounding_boxes = self.get_clipped_bbox(
+            bounding_boxes, h_end, h_start, w_end, w_start
+        )
 
-            height_transformed = h_end - h_start
-            width_transformed = w_end - w_start
+        height_transformed = h_end - h_start
+        width_transformed = w_end - w_start
 
-            height_transformed = self.backend.numpy.expand_dims(
-                height_transformed, -1
-            )
-            width_transformed = self.backend.numpy.expand_dims(
-                width_transformed, -1
-            )
+        height_transformed = self.backend.numpy.expand_dims(
+            height_transformed, -1
+        )
+        width_transformed = self.backend.numpy.expand_dims(
+            width_transformed, -1
+        )
 
-            bounding_boxes = convert_format(
-                bounding_boxes,
-                source="xyxy",
-                target="rel_xyxy",
-                height=height_transformed,
-                width=width_transformed,
-            )
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source="xyxy",
+            target="rel_xyxy",
+            height=height_transformed,
+            width=width_transformed,
+        )
 
-            bounding_boxes = clip_to_image_size(
-                bounding_boxes=bounding_boxes,
-                height=height_transformed,
-                width=width_transformed,
-                bounding_box_format="rel_xyxy",
-            )
+        bounding_boxes = clip_to_image_size(
+            bounding_boxes=bounding_boxes,
+            height=height_transformed,
+            width=width_transformed,
+            bounding_box_format="rel_xyxy",
+        )
 
-            bounding_boxes = convert_format(
-                bounding_boxes,
-                source="rel_xyxy",
-                target=self.bounding_box_format,
-                height=height,
-                width=width,
-            )
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source="rel_xyxy",
+            target=self.bounding_box_format,
+            height=height,
+            width=width,
+        )
 
-            self.backend.reset()
+        self.backend.reset()
 
         return bounding_boxes
 

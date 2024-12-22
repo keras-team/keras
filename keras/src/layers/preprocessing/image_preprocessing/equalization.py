@@ -170,31 +170,25 @@ class Equalization(BaseImagePreprocessingLayer):
         )
         return self.backend.numpy.take(lookup_table, indices)
 
-    def transform_images(self, images, transformation, training=True):
-        if training:
-            images = self.backend.cast(images, self.compute_dtype)
+    def transform_images(self, images, transformations=None, **kwargs):
+        images = self.backend.cast(images, self.compute_dtype)
 
-            if self.data_format == "channels_first":
-                channels = []
-                for i in range(self.backend.core.shape(images)[-3]):
-                    channel = images[..., i, :, :]
-                    equalized = self._equalize_channel(
-                        channel, self.value_range
-                    )
-                    channels.append(equalized)
-                equalized_images = self.backend.numpy.stack(channels, axis=-3)
-            else:
-                channels = []
-                for i in range(self.backend.core.shape(images)[-1]):
-                    channel = images[..., i]
-                    equalized = self._equalize_channel(
-                        channel, self.value_range
-                    )
-                    channels.append(equalized)
-                equalized_images = self.backend.numpy.stack(channels, axis=-1)
+        if self.data_format == "channels_first":
+            channels = []
+            for i in range(self.backend.core.shape(images)[-3]):
+                channel = images[..., i, :, :]
+                equalized = self._equalize_channel(channel, self.value_range)
+                channels.append(equalized)
+            equalized_images = self.backend.numpy.stack(channels, axis=-3)
+        else:
+            channels = []
+            for i in range(self.backend.core.shape(images)[-1]):
+                channel = images[..., i]
+                equalized = self._equalize_channel(channel, self.value_range)
+                channels.append(equalized)
+            equalized_images = self.backend.numpy.stack(channels, axis=-1)
 
-            return self.backend.cast(equalized_images, self.compute_dtype)
-        return images
+        return self.backend.cast(equalized_images, self.compute_dtype)
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -202,19 +196,14 @@ class Equalization(BaseImagePreprocessingLayer):
     def compute_output_spec(self, inputs, **kwargs):
         return inputs
 
-    def transform_bounding_boxes(
-        self,
-        bounding_boxes,
-        transformation,
-        training=True,
-    ):
+    def transform_bounding_boxes(self, bounding_boxes, **kwargs):
         return bounding_boxes
 
-    def transform_labels(self, labels, transformation, training=True):
+    def transform_labels(self, labels, transformations=None, **kwargs):
         return labels
 
     def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
+        self, segmentation_masks, transformations, **kwargs
     ):
         return segmentation_masks
 

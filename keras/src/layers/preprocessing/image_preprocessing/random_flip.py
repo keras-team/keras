@@ -101,6 +101,9 @@ class RandomFlip(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
+        if backend_utils.in_tf_graph():
+            self.backend.set_backend("tensorflow")
+
         def _flip_boxes_horizontal(boxes):
             x1, x2, x3, x4 = self.backend.numpy.split(boxes, 4, axis=-1)
             outputs = self.backend.numpy.concatenate(
@@ -131,50 +134,46 @@ class RandomFlip(BaseImagePreprocessingLayer):
                 )
             return bboxes
 
-        if training:
-            if backend_utils.in_tf_graph():
-                self.backend.set_backend("tensorflow")
+        flips = self.backend.numpy.squeeze(transformation["flips"], axis=-1)
 
-            flips = self.backend.numpy.squeeze(transformation["flips"], axis=-1)
+        if self.data_format == "channels_first":
+            height_axis = -2
+            width_axis = -1
+        else:
+            height_axis = -3
+            width_axis = -2
 
-            if self.data_format == "channels_first":
-                height_axis = -2
-                width_axis = -1
-            else:
-                height_axis = -3
-                width_axis = -2
+        input_height, input_width = (
+            transformation["input_shape"][height_axis],
+            transformation["input_shape"][width_axis],
+        )
 
-            input_height, input_width = (
-                transformation["input_shape"][height_axis],
-                transformation["input_shape"][width_axis],
-            )
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source=self.bounding_box_format,
+            target="rel_xyxy",
+            height=input_height,
+            width=input_width,
+        )
 
-            bounding_boxes = convert_format(
-                bounding_boxes,
-                source=self.bounding_box_format,
-                target="rel_xyxy",
-                height=input_height,
-                width=input_width,
-            )
+        bounding_boxes["boxes"] = _transform_xyxy(bounding_boxes, flips)
 
-            bounding_boxes["boxes"] = _transform_xyxy(bounding_boxes, flips)
+        bounding_boxes = clip_to_image_size(
+            bounding_boxes=bounding_boxes,
+            height=input_height,
+            width=input_width,
+            bounding_box_format="xyxy",
+        )
 
-            bounding_boxes = clip_to_image_size(
-                bounding_boxes=bounding_boxes,
-                height=input_height,
-                width=input_width,
-                bounding_box_format="xyxy",
-            )
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source="rel_xyxy",
+            target=self.bounding_box_format,
+            height=input_height,
+            width=input_width,
+        )
 
-            bounding_boxes = convert_format(
-                bounding_boxes,
-                source="rel_xyxy",
-                target=self.bounding_box_format,
-                height=input_height,
-                width=input_width,
-            )
-
-            self.backend.reset()
+        self.backend.reset()
 
         return bounding_boxes
 

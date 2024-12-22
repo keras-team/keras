@@ -215,56 +215,55 @@ class RandomTranslation(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
-        if training:
-            if backend_utils.in_tf_graph():
-                self.backend.set_backend("tensorflow")
+        if backend_utils.in_tf_graph():
+            self.backend.set_backend("tensorflow")
 
-            if self.data_format == "channels_first":
-                height_axis = -2
-                width_axis = -1
-            else:
-                height_axis = -3
-                width_axis = -2
+        if self.data_format == "channels_first":
+            height_axis = -2
+            width_axis = -1
+        else:
+            height_axis = -3
+            width_axis = -2
 
-            input_height, input_width = (
-                transformation["input_shape"][height_axis],
-                transformation["input_shape"][width_axis],
-            )
+        input_height, input_width = (
+            transformation["input_shape"][height_axis],
+            transformation["input_shape"][width_axis],
+        )
 
-            bounding_boxes = convert_format(
-                bounding_boxes,
-                source=self.bounding_box_format,
-                target="xyxy",
-                height=input_height,
-                width=input_width,
-            )
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source=self.bounding_box_format,
+            target="xyxy",
+            height=input_height,
+            width=input_width,
+        )
 
-            translations = transformation["translations"]
-            transform = self._get_translation_matrix(translations)
+        translations = transformation["translations"]
+        transform = self._get_translation_matrix(translations)
 
-            w_shift_factor, h_shift_factor = self.get_transformed_x_y(
-                0, 0, transform
-            )
-            bounding_boxes = self.get_shifted_bbox(
-                bounding_boxes, w_shift_factor, h_shift_factor
-            )
+        w_shift_factor, h_shift_factor = self.get_transformed_x_y(
+            0, 0, transform
+        )
+        bounding_boxes = self.get_shifted_bbox(
+            bounding_boxes, w_shift_factor, h_shift_factor
+        )
 
-            bounding_boxes = clip_to_image_size(
-                bounding_boxes=bounding_boxes,
-                height=input_height,
-                width=input_width,
-                bounding_box_format="xyxy",
-            )
+        bounding_boxes = clip_to_image_size(
+            bounding_boxes=bounding_boxes,
+            height=input_height,
+            width=input_width,
+            bounding_box_format="xyxy",
+        )
 
-            bounding_boxes = convert_format(
-                bounding_boxes,
-                source="xyxy",
-                target=self.bounding_box_format,
-                height=input_height,
-                width=input_width,
-            )
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source="xyxy",
+            target=self.bounding_box_format,
+            height=input_height,
+            width=input_width,
+        )
 
-            self.backend.reset()
+        self.backend.reset()
 
         return bounding_boxes
 
