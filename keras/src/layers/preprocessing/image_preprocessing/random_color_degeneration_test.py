@@ -39,7 +39,7 @@ class RandomColorDegenerationTest(testing.TestCase):
         else:
             inputs = np.random.random((2, 3, 8, 8))
 
-        layer = layers.Randomcolor_degeneration((0.5, 0.5))
+        layer = layers.RandomColorDegeneration((0.5, 0.5))
         output = layer(inputs, training=False)
         self.assertAllClose(inputs, output, atol=1e-3, rtol=1e-5)
 
