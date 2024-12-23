@@ -714,3 +714,19 @@ class FunctionalTest(testing.TestCase):
             "The structure of `inputs` doesn't match the expected structure",
         ):
             model([x1, x2])
+
+    def test_nested_model_call_as_arg(self):
+        model_1 = Sequential([
+            Input(shape=(6,)),
+            layers.Dense(3, activation="sigmoid"),
+        ])
+
+        model_2 = Sequential([
+            Input(shape=(3,)),
+            layers.Dense(1, activation="sigmoid"),
+        ], )
+
+        combined = Model(Input(shape=(6,)), model_2(model_1(Input(shape=(6,)))), name='nested_model')
+        combined.compile(loss='binary_crossentropy', optimizer='adam')
+        output = combined.train_on_batch(np.random.normal(0, 1, (8, 6)), np.random.normal(0, 1, (8, 1)))
+        self.assertNotIsInstance(output, type(None))
