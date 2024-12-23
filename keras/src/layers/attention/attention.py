@@ -140,7 +140,6 @@ class Attention(Layer):
         else:
             raise ValueError("scores not computed")
 
-        print("scores", scores)
         return scores
 
     def _apply_scores(self, scores, value, scores_mask=None, training=False):
