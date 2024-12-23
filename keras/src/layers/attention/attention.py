@@ -246,7 +246,11 @@ class Attention(Layer):
     def compute_output_shape(self, input_shape):
         output_shape = (*input_shape[0][:-1], input_shape[1][-1])
         if self.return_attention_scores:
-            scores_shape = (input_shape[0][0], input_shape[0][1], input_shape[1][1])
+            scores_shape = (
+                input_shape[0][0],
+                input_shape[0][1],
+                input_shape[1][1],
+            )
             return output_shape, scores_shape
         return output_shape
 
