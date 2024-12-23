@@ -91,10 +91,13 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
     def transform_images(self, images, transformation=None, training=True):
         if training:
             images = self.backend.cast(images, self.compute_dtype)
+            factor = self.backend.cast(
+                transformation["factor"], self.compute_dtype
+            )
             degenerates = self.backend.image.rgb_to_grayscale(
                 images, data_format=self.data_format
             )
-            images = images + transformation["factor"] * (degenerates - images)
+            images = images + factor * (degenerates - images)
             images = self.backend.numpy.clip(
                 images, self.value_range[0], self.value_range[1]
             )
