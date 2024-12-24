@@ -160,8 +160,14 @@ class Function(Operation):
                 if not node.operation or node.is_input:
                     continue  # Input tensors already exist.
 
-                if any(id(x) not in tensor_dict for x in node.input_tensors):
-                    continue  # Node is not computable, try skipping.
+                for x in node.input_tensors:
+                    if id(x) not in tensor_dict:
+                        if id(node.outputs[0]) == id(self.outputs[0]):
+                            tensor_dict[id(x)] = inputs[0]
+                        elif x.shape == self.inputs[0].shape:
+                            tensor_dict[id(x)] = inputs[0]
+                        else:
+                            pass  # Node is not computable, try skipping.
 
                 args, kwargs = node.arguments.fill_in(tensor_dict)
                 op = operation_fn(node.operation)
