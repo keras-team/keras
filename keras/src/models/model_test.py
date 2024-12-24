@@ -1220,10 +1220,10 @@ class ModelTest(testing.TestCase):
         self.assertListEqual(hist_keys, ref_keys)
 
     @pytest.mark.skipif(
-        backend.backend() not in ("tensorflow", "jax"),
+        backend.backend() not in ("tensorflow", "jax", "torch"),
         reason=(
-            "Currently, `Model.export` only supports the tensorflow and jax"
-            " backends."
+            "Currently, `Model.export` only supports the tensorflow, jax and "
+            "torch backends."
         ),
     )
     @pytest.mark.skipif(
@@ -1234,8 +1234,8 @@ class ModelTest(testing.TestCase):
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = _get_model()
-        x1 = np.random.rand(2, 3)
-        x2 = np.random.rand(2, 3)
+        x1 = np.random.rand(1, 3)
+        x2 = np.random.rand(1, 3)
         ref_output = model([x1, x2])
 
         model.export(temp_filepath)
@@ -1243,6 +1243,9 @@ class ModelTest(testing.TestCase):
         self.assertAllClose(ref_output, revived_model.serve([x1, x2]))
 
         # Test with a different batch size
+        if backend.backend() == "torch":
+            # TODO: Dynamic shape is not supported yet in the torch backend
+            return
         revived_model.serve(
             [np.concatenate([x1, x1], axis=0), np.concatenate([x2, x2], axis=0)]
         )
@@ -1256,9 +1259,12 @@ class ModelTest(testing.TestCase):
             model.export(temp_filepath, format="bad_format")
 
         # Bad backend
-        if backend.backend() not in ("tensorflow", "jax"):
+        if backend.backend() not in ("tensorflow", "jax", "torch"):
             with self.assertRaisesRegex(
                 NotImplementedError,
-                "The export API is only compatible with JAX and TF backends.",
+                (
+                    r"`export_saved_model` only currently supports the "
+                    r"tensorflow, jax and torch backends."
+                ),
             ):
-                model.export(temp_filepath)
+                model.export(temp_filepath, format="tf_saved_model")

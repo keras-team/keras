@@ -50,8 +50,11 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
 
 
 @pytest.mark.skipif(
-    backend.backend() not in ("tensorflow", "jax"),
-    reason="Export only currently supports the TF and JAX backends.",
+    backend.backend() not in ("tensorflow", "jax", "torch"),
+    reason=(
+        "`export_saved_model` only currently supports the tensorflow, jax and "
+        "torch backends."
+    ),
 )
 @pytest.mark.skipif(testing.jax_uses_gpu(), reason="Leads to core dumps on CI")
 class ExportSavedModelTest(testing.TestCase):
@@ -61,17 +64,28 @@ class ExportSavedModelTest(testing.TestCase):
     def test_standard_model_export(self, model_type):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type)
-        ref_input = tf.random.normal((3, 10))
+        batch_size = 3 if backend.backend() != "torch" else 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input)
 
         export_lib.export_saved_model(model, temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
         # Test with a different batch size
+        if backend.backend() == "torch":
+            # TODO: Dynamic shape is not supported yet in the torch backend
+            return
         revived_model.serve(tf.random.normal((6, 10)))
 
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason=(
+            "RuntimeError: mutating a non-functional tensor with a "
+            "functional tensor is not allowed in the torch backend."
+        ),
     )
     def test_model_with_rng_export(self, model_type):
         class RandomLayer(layers.Layer):
@@ -101,6 +115,13 @@ class ExportSavedModelTest(testing.TestCase):
 
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason=(
+            "RuntimeError: mutating a non-functional tensor with a "
+            "functional tensor is not allowed in the torch backend."
+        ),
     )
     def test_model_with_non_trainable_state_export(self, model_type):
         class StateLayer(layers.Layer):
@@ -136,13 +157,17 @@ class ExportSavedModelTest(testing.TestCase):
     def test_model_with_tf_data_layer(self, model_type):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type, layer_list=[layers.Rescaling(scale=2.0)])
-        ref_input = tf.random.normal((3, 10))
+        batch_size = 3 if backend.backend() != "torch" else 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input)
 
         export_lib.export_saved_model(model, temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
         # Test with a different batch size
+        if backend.backend() == "torch":
+            # TODO: Dynamic shape is not supported yet in the torch backend
+            return
         revived_model.serve(tf.random.normal((6, 10)))
 
     @parameterized.named_parameters(
@@ -166,18 +191,17 @@ class ExportSavedModelTest(testing.TestCase):
                 y = inputs["y"]
                 return ops.add(x, y)
 
+        batch_size = 3 if backend.backend() != "torch" else 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
         if struct_type == "tuple":
             model = TupleModel()
-            ref_input = (tf.random.normal((3, 10)), tf.random.normal((3, 10)))
+            ref_input = (ref_input, ref_input * 2)
         elif struct_type == "array":
             model = ArrayModel()
-            ref_input = [tf.random.normal((3, 10)), tf.random.normal((3, 10))]
+            ref_input = [ref_input, ref_input * 2]
         elif struct_type == "dict":
             model = DictModel()
-            ref_input = {
-                "x": tf.random.normal((3, 10)),
-                "y": tf.random.normal((3, 10)),
-            }
+            ref_input = {"x": ref_input, "y": ref_input * 2}
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         ref_output = model(tree.map_structure(ops.convert_to_tensor, ref_input))
@@ -185,11 +209,6 @@ class ExportSavedModelTest(testing.TestCase):
         export_lib.export_saved_model(model, temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
-        # Test with a different batch size
-        bigger_input = tree.map_structure(
-            lambda x: tf.concat([x, x], axis=0), ref_input
-        )
-        revived_model.serve(bigger_input)
 
         # Test with keras.saving_lib
         temp_filepath = os.path.join(
@@ -207,6 +226,15 @@ class ExportSavedModelTest(testing.TestCase):
         self.assertAllClose(ref_output, revived_model(ref_input))
         export_lib.export_saved_model(revived_model, self.get_temp_dir())
 
+        # Test with a different batch size
+        if backend.backend() == "torch":
+            # TODO: Dynamic shape is not supported yet in the torch backend
+            return
+        bigger_input = tree.map_structure(
+            lambda x: tf.concat([x, x], axis=0), ref_input
+        )
+        revived_model(bigger_input)
+
     def test_model_with_multiple_inputs(self):
         class TwoInputsModel(models.Model):
             def call(self, x, y):
@@ -217,8 +245,9 @@ class ExportSavedModelTest(testing.TestCase):
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = TwoInputsModel()
-        ref_input_x = tf.random.normal((3, 10))
-        ref_input_y = tf.random.normal((3, 10))
+        batch_size = 3 if backend.backend() != "torch" else 1
+        ref_input_x = np.random.normal(size=(batch_size, 10)).astype("float32")
+        ref_input_y = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input_x, ref_input_y)
 
         export_lib.export_saved_model(model, temp_filepath)
@@ -227,6 +256,9 @@ class ExportSavedModelTest(testing.TestCase):
             ref_output, revived_model.serve(ref_input_x, ref_input_y)
         )
         # Test with a different batch size
+        if backend.backend() == "torch":
+            # TODO: Dynamic shape is not supported yet in the torch backend
+            return
         revived_model.serve(
             tf.random.normal((6, 10)), tf.random.normal((6, 10))
         )
@@ -247,7 +279,8 @@ class ExportSavedModelTest(testing.TestCase):
     def test_input_signature(self, model_type, input_signature):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type)
-        ref_input = ops.random.uniform((3, 10))
+        batch_size = 3 if backend.backend() != "torch" else 1
+        ref_input = ops.random.normal((batch_size, 10))
         ref_output = model(ref_input)
 
         if input_signature == "backend_tensor":
@@ -258,7 +291,9 @@ class ExportSavedModelTest(testing.TestCase):
             model, temp_filepath, input_signature=input_signature
         )
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        self.assertAllClose(
+            ref_output, revived_model.serve(ops.convert_to_numpy(ref_input))
+        )
 
     def test_input_signature_error(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -300,7 +335,12 @@ class ExportSavedModelTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() not in ("tensorflow", "jax"),
+    backend.backend()
+    not in (
+        "tensorflow",
+        "jax",
+        # "torch",  # TODO: Support low-level operations in the torch backend.
+    ),
     reason="Export only currently supports the TF and JAX backends.",
 )
 @pytest.mark.skipif(testing.jax_uses_gpu(), reason="Leads to core dumps on CI")
