@@ -1,5 +1,4 @@
 import copy
-import re
 import warnings
 
 import torch
@@ -74,18 +73,9 @@ class TorchExportArchive:
             if "lifted" not in k:
                 stablehlo_model._bundle.state_dict.pop(k)
 
-        def _mangle_tf_root_scope_name(name):
-            # TF has more restricted constrain on the variable names.
-            if name[0] in "._\\-/":
-                name = "k" + name
-            name = re.sub(r"[^^\w\-/\\]+", "_", name)
-            return name
-
         bundle = copy.deepcopy(stablehlo_model._bundle)
         bundle.state_dict = {
-            k: tf.Variable(
-                v, trainable=False, name=_mangle_tf_root_scope_name(k)
-            )
+            k: tf.Variable(v, trainable=False, name=k)
             for k, v in bundle.state_dict.items()
         }
         bundle.additional_constants = [
