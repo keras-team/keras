@@ -120,6 +120,9 @@ from keras.src.layers.preprocessing.image_preprocessing.random_grayscale import 
 from keras.src.layers.preprocessing.image_preprocessing.random_hue import (
     RandomHue,
 )
+from keras.src.layers.preprocessing.image_preprocessing.random_posterization import (
+    RandomPosterization,
+)
 from keras.src.layers.preprocessing.image_preprocessing.random_rotation import (
     RandomRotation,
 )

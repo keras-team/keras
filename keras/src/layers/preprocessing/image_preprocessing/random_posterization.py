@@ -93,32 +93,33 @@ class RandomPosterization(BaseImagePreprocessingLayer):
         return {"shift_factor": shift_factor}
 
     def transform_images(self, images, transformation=None, training=True):
-        shift_factor = transformation["shift_factor"]
+        if training:
+            shift_factor = transformation["shift_factor"]
 
-        shift_factor = self.backend.numpy.reshape(
-            shift_factor, self.backend.shape(shift_factor) + (1, 1, 1)
-        )
+            shift_factor = self.backend.numpy.reshape(
+                shift_factor, self.backend.shape(shift_factor) + (1, 1, 1)
+            )
 
-        images = self._transform_value_range(
-            images,
-            original_range=self.value_range,
-            target_range=(0, 255),
-            dtype=self.compute_dtype,
-        )
+            images = self._transform_value_range(
+                images,
+                original_range=self.value_range,
+                target_range=(0, 255),
+                dtype=self.compute_dtype,
+            )
 
-        images = self.backend.cast(images, "uint8")
-        images = self.backend.numpy.bitwise_left_shift(
-            self.backend.numpy.bitwise_right_shift(images, shift_factor),
-            shift_factor,
-        )
-        images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.cast(images, "uint8")
+            images = self.backend.numpy.bitwise_left_shift(
+                self.backend.numpy.bitwise_right_shift(images, shift_factor),
+                shift_factor,
+            )
+            images = self.backend.cast(images, self.compute_dtype)
 
-        images = self._transform_value_range(
-            images,
-            original_range=(0, 255),
-            target_range=self.value_range,
-            dtype=self.compute_dtype,
-        )
+            images = self._transform_value_range(
+                images,
+                original_range=(0, 255),
+                target_range=self.value_range,
+                dtype=self.compute_dtype,
+            )
 
         return images
 
