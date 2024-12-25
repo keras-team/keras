@@ -37,13 +37,13 @@ class RandomPosterizationTest(testing.TestCase):
             1, [0, 255], data_format="channels_last", seed=seed
         )
         np.random.seed(seed)
-        inputs = [
-            [[128.0, 235.0, 87.0], [12.0, 1.0, 23.0], [24.0, 18.0, 121.0]]
-        ]
+        inputs = np.asarray(
+            [[[128.0, 235.0, 87.0], [12.0, 1.0, 23.0], [24.0, 18.0, 121.0]]]
+        )
         output = layer(inputs)
-        expected_output = [
-            [[128.0, 128.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
-        ]
+        expected_output = np.asarray(
+            [[[128.0, 128.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]
+        )
         self.assertAllClose(expected_output, output)
 
     def test_random_posterization_value_range_0_to_1(self):
