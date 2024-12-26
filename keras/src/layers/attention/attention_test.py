@@ -417,3 +417,15 @@ class AttentionTest(testing.TestCase):
         self.assertEqual(
             attention_scores.shape, (2, 8, 4)
         )  # Attention scores shape
+
+    def test_return_attention_scores_with_symbolic_tensors(self):
+        """Test to check outputs with symbolic tensors with
+        return_attention_scores = True"""
+        attention = layers.Attention()
+        x = layers.Input(shape=(3, 5))
+        y = layers.Input(shape=(4, 5))
+        output, attention_scores = attention(
+            [x, y], return_attention_scores=True
+        )
+        self.assertEqual(output.shape, (None, 3, 5))  # Output shape
+        self.assertEqual(attention_scores.shape, (None, 3, 4))
