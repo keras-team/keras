@@ -91,7 +91,7 @@ class ExportArchive(BackendExportArchive):
 
     **Note on resource tracking:**
 
-    `ExportArchive` is able to automatically track all `tf.Variables` used
+    `ExportArchive` is able to automatically track all `keras.Variables` used
     by its endpoints, so most of the time calling `.track(model)`
     is not strictly required. However, if your model uses lookup layers such
     as `IntegerLookup`, `StringLookup`, or `TextVectorization`,
@@ -104,9 +104,10 @@ class ExportArchive(BackendExportArchive):
 
     def __init__(self):
         super().__init__()
-        if backend.backend() not in ("tensorflow", "jax"):
+        if backend.backend() not in ("tensorflow", "jax", "torch"):
             raise NotImplementedError(
-                "The export API is only compatible with JAX and TF backends."
+                "`ExportArchive` is only compatible with TensorFlow, JAX and "
+                "Torch backends."
             )
 
         self._endpoint_names = []
@@ -141,8 +142,8 @@ class ExportArchive(BackendExportArchive):
         (`TextVectorization`, `IntegerLookup`, `StringLookup`)
         are automatically tracked in `add_endpoint()`.
 
-        Arguments:
-            resource: A trackable TensorFlow resource.
+        Args:
+            resource: A trackable Keras resource, such as a layer or model.
         """
         if isinstance(resource, layers.Layer) and not resource.built:
             raise ValueError(
@@ -334,12 +335,78 @@ class ExportArchive(BackendExportArchive):
         self._endpoint_names.append(name)
         return decorated_fn
 
+    def track_and_add_endpoint(self, name, resource, input_signature, **kwargs):
+        """Track the variables and register a new serving endpoint.
+
+        This function combines the functionality of `track` and `add_endpoint`.
+        It tracks the variables of the `resource` (either a layer or a model)
+        and registers a serving endpoint using `resource.__call__`.
+
+        Args:
+            name: `str`. The name of the endpoint.
+            resource: A trackable Keras resource, such as a layer or model.
+            input_signature: Optional. Specifies the shape and dtype of `fn`.
+                Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
+                `backend.KerasTensor`, or backend tensor (see below for an
+                example showing a `Functional` model with 2 input arguments). If
+                not provided, `fn` must be a `tf.function` that has been called
+                at least once. Defaults to `None`.
+            **kwargs: Additional keyword arguments:
+                - Specific to the JAX backend:
+                    - `is_static`: Optional `bool`. Indicates whether `fn` is
+                        static. Set to `False` if `fn` involves state updates
+                        (e.g., RNG seeds).
+                    - `jax2tf_kwargs`: Optional `dict`. Arguments for
+                        `jax2tf.convert`. See [`jax2tf.convert`](
+                            https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
+                        If `native_serialization` and `polymorphic_shapes` are
+                        not provided, they are automatically computed.
+
+        """
+        if name in self._endpoint_names:
+            raise ValueError(f"Endpoint name '{name}' is already taken.")
+        if not isinstance(resource, layers.Layer):
+            raise ValueError(
+                "Invalid resource type. Expected an instance of a Keras "
+                "`Layer` or `Model`. "
+                f"Received: resource={resource} (of type {type(resource)})"
+            )
+        if not resource.built:
+            raise ValueError(
+                "The layer provided has not yet been built. "
+                "It must be built before export."
+            )
+        if backend.backend() != "jax":
+            if "jax2tf_kwargs" in kwargs or "is_static" in kwargs:
+                raise ValueError(
+                    "'jax2tf_kwargs' and 'is_static' are only supported with "
+                    f"the jax backend. Current backend: {backend.backend()}"
+                )
+
+        input_signature = tree.map_structure(_make_tensor_spec, input_signature)
+
+        if not hasattr(BackendExportArchive, "track_and_add_endpoint"):
+            # Default behavior.
+            self.track(resource)
+            return self.add_endpoint(
+                name, resource.__call__, input_signature, **kwargs
+            )
+        else:
+            # Special case for the torch backend.
+            decorated_fn = BackendExportArchive.track_and_add_endpoint(
+                self, name, resource, input_signature, **kwargs
+            )
+            self._endpoint_signatures[name] = input_signature
+            setattr(self._tf_trackable, name, decorated_fn)
+            self._endpoint_names.append(name)
+            return decorated_fn
+
     def add_variable_collection(self, name, variables):
         """Register a set of variables to be retrieved after reloading.
 
         Arguments:
             name: The string name for the collection.
-            variables: A tuple/list/set of `tf.Variable` instances.
+            variables: A tuple/list/set of `keras.Variable` instances.
 
         Example:
 
@@ -496,9 +563,6 @@ def export_saved_model(
 ):
     """Export the model as a TensorFlow SavedModel artifact for inference.
 
-    **Note:** This feature is currently supported only with TensorFlow and
-    JAX backends.
-
     This method lets you export a model to a lightweight SavedModel artifact
     that contains the model's forward pass only (its `call()` method)
     and can be served via e.g. TensorFlow Serving. The forward pass is
@@ -527,6 +591,14 @@ def export_saved_model(
                     If `native_serialization` and `polymorphic_shapes` are not
                     provided, they are automatically computed.
 
+    **Note:** This feature is currently supported only with TensorFlow, JAX and
+    Torch backends. Support for the Torch backend is experimental.
+
+    **Note:** The dynamic shape feature is not yet supported with Torch
+    backend. As a result, you must fully define the shapes of the inputs using
+    `input_signature`. If `input_signature` is not provided, all instances of
+    `None` (such as the batch size) will be replaced with `1`.
+
     Example:
 
     ```python
@@ -543,28 +615,29 @@ def export_saved_model(
     `export()` method relies on `ExportArchive` internally.
     """
     export_archive = ExportArchive()
-    export_archive.track(model)
-    if isinstance(model, (Functional, Sequential)):
-        if input_signature is None:
+    if input_signature is None:
+        if not model.built:
+            raise ValueError(
+                "The layer provided has not yet been built. "
+                "It must be built before export."
+            )
+        if isinstance(model, (Functional, Sequential)):
             input_signature = tree.map_structure(
                 _make_tensor_spec, model.inputs
             )
-        if isinstance(input_signature, list) and len(input_signature) > 1:
-            input_signature = [input_signature]
-        export_archive.add_endpoint(
-            "serve", model.__call__, input_signature, **kwargs
-        )
-    else:
-        if input_signature is None:
+            if isinstance(input_signature, list) and len(input_signature) > 1:
+                input_signature = [input_signature]
+        else:
             input_signature = _get_input_signature(model)
-        if not input_signature or not model._called:
-            raise ValueError(
-                "The model provided has never called. "
-                "It must be called at least once before export."
-            )
-        export_archive.add_endpoint(
-            "serve", model.__call__, input_signature, **kwargs
-        )
+            if not input_signature or not model._called:
+                raise ValueError(
+                    "The model provided has never called. "
+                    "It must be called at least once before export."
+                )
+
+    export_archive.track_and_add_endpoint(
+        "serve", model, input_signature, **kwargs
+    )
     export_archive.write_out(filepath, verbose=verbose)
 
 

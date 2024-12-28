@@ -1,10 +1,11 @@
 # Tensorflow cpu-only version (needed for testing).
-tensorflow-cpu~=2.18.0  # Pin to TF 2.16
+tensorflow-cpu~=2.18.0
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.1.0
 torchvision>=0.16.0
+torch-xla
 
 # Jax with cuda support.
 # TODO: Higher version breaks CI.

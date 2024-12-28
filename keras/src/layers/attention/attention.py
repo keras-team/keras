@@ -280,7 +280,7 @@ class Attention(Layer):
         output_spec = KerasTensor(output_shape, dtype=self.compute_dtype)
 
         # Handle attention scores if requested
-        if self._return_attention_scores:
+        if self._return_attention_scores or return_attention_scores:
             scores_shape = (
                 query.shape[0],
                 query.shape[1],
