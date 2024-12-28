@@ -57,6 +57,9 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
     ),
 )
 @pytest.mark.skipif(testing.jax_uses_gpu(), reason="Leads to core dumps on CI")
+@pytest.mark.skipif(
+    testing.torch_uses_gpu(), reason="Leads to core dumps on CI"
+)
 class ExportSavedModelTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
@@ -344,6 +347,9 @@ class ExportSavedModelTest(testing.TestCase):
     reason="Export only currently supports the TF and JAX backends.",
 )
 @pytest.mark.skipif(testing.jax_uses_gpu(), reason="Leads to core dumps on CI")
+@pytest.mark.skipif(
+    testing.torch_uses_gpu(), reason="Leads to core dumps on CI"
+)
 class ExportArchiveTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])

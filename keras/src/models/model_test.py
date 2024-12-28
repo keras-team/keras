@@ -1229,6 +1229,9 @@ class ModelTest(testing.TestCase):
     @pytest.mark.skipif(
         testing.jax_uses_gpu(), reason="Leads to core dumps on CI"
     )
+    @pytest.mark.skipif(
+        testing.torch_uses_gpu(), reason="Leads to core dumps on CI"
+    )
     def test_export(self):
         import tensorflow as tf
 
