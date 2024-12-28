@@ -74,7 +74,6 @@ then
 
    # TODO: keras/src/export/export_lib_test.py update LD_LIBRARY_PATH 
    pytest keras --ignore keras/src/applications \
-               --ignore keras/src/export/export_lib_test.py \
                --cov=keras \
                --cov-config=pyproject.toml
 
