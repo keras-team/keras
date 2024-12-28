@@ -1,6 +1,3 @@
-import tensorflow as tf
-
-import keras
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -12,17 +9,17 @@ from keras.src.random import SeedGenerator
 class RandomSharpness(BaseImagePreprocessingLayer):
     """Randomly performs the sharpness operation on given images.
 
-    The sharpness operation first performs a blur operation, then blends between
-    the original image and the blurred image. This operation makes the edges of
-    an image less sharp than they were in the original image.
+    The sharpness operation first performs a blur, then blends between the
+    original image and the processed image. This operation adjusts the clarity
+    of the edges in an image, ranging from blurred to enhanced sharpness.
 
     Args:
         factor: A tuple of two floats or a single float.
-            `factor` controls the extent to which the image saturation
-            is impacted. `factor=0.5` makes this layer perform a no-op
-            operation. `factor=0.0` makes the image fully grayscale.
-            `factor=1.0` makes the image fully saturated. Values should
-            be between `0.0` and `1.0`. If a tuple is used, a `factor`
+            `factor` controls the extent to which the image sharpness
+            is impacted. `factor=0.0` results in a fully blurred image,
+            `factor=0.5` applies no operation (preserving the original image),
+            and `factor=1.0` enhances the sharpness beyond the original. Values
+            should be between `0.0` and `1.0`. If a tuple is used, a `factor`
             is sampled between the two values for every image augmented.
             If a single float is used, a value between `0.0` and the passed
             float is sampled. To ensure the value is always the same,
@@ -42,12 +39,12 @@ class RandomSharpness(BaseImagePreprocessingLayer):
     )
 
     def __init__(
-            self,
-            factor,
-            value_range=(0, 255),
-            data_format=None,
-            seed=None,
-            **kwargs,
+        self,
+        factor,
+        value_range=(0, 255),
+        data_format=None,
+        seed=None,
+        **kwargs,
     ):
         super().__init__(data_format=data_format, **kwargs)
         self._set_factor(factor)
@@ -98,52 +95,60 @@ class RandomSharpness(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation=None, training=True):
         if training:
-            sharpness_factor = transformation["factor"] * 2
-            sharpness_factor = tf.reshape(sharpness_factor, (-1, 1, 1, 1))
+            if self.data_format == "channels_first":
+                images = self.backend.numpy.swapaxes(images, -3, -1)
 
-            height, width, num_channels = images.shape[-3:]
+            sharpness_factor = self.backend.cast(
+                transformation["factor"] * 2, dtype=self.compute_dtype
+            )
+            sharpness_factor = self.backend.numpy.reshape(
+                sharpness_factor, (-1, 1, 1, 1)
+            )
 
-            # Normalize the kernel (3x3) with 1s in the edges and a 5 in the middle
+            num_channels = self.backend.shape(images)[-1]
+
             a, b = 1.0 / 13.0, 5.0 / 13.0
             kernel = self.backend.convert_to_tensor(
-                [[a, a, a], [a, b, a], [a, a, a]], dtype=tf.float32
+                [[a, a, a], [a, b, a], [a, a, a]], dtype=self.compute_dtype
             )
-            kernel = self.backend.numpy.reshape(kernel, (3, 3, 1, 1))  # Making it compatible with depthwise_conv2d
+            kernel = self.backend.numpy.reshape(kernel, (3, 3, 1, 1))
+            kernel = self.backend.numpy.tile(kernel, [1, 1, num_channels, 1])
 
-            # Expand kernel to match the number of channels in the image
-            kernel = self.backend.numpy.tile(kernel, [1, 1, num_channels, 1])  # Shape becomes (3, 3, num_channels, 1)
-            # Perform depthwise convolution to blur the image
             smoothed_image = self.backend.nn.depthwise_conv(
                 images,
                 kernel,
                 strides=1,
                 padding="SAME",
-                data_format=self.data_format,
+                data_format="channels_last",
                 dilation_rate=None,
             )
 
-            # Ensure floating point output
-            smoothed_image = self.backend.cast(smoothed_image, dtype=self.compute_dtype)
+            smoothed_image = self.backend.cast(
+                smoothed_image, dtype=self.compute_dtype
+            )
+            images = images + (1.0 - sharpness_factor) * (
+                smoothed_image - images
+            )
 
-            # Perform blending: original_image + (1-sharpness_factor) * (blurred_image - original_image)
-            images = images + (1.0 - sharpness_factor) * (smoothed_image - images)
-
-            # Clip the output to the valid range of the image (assuming [0, 255] for uint8 images)
             images = self.backend.numpy.clip(
                 images, self.value_range[0], self.value_range[1]
             )
+
+            if self.data_format == "channels_first":
+                images = self.backend.numpy.swapaxes(images, -3, -1)
+
         return images
 
     def transform_labels(self, labels, transformation, training=True):
         return labels
 
     def transform_segmentation_masks(
-            self, segmentation_masks, transformation, training=True
+        self, segmentation_masks, transformation, training=True
     ):
         return segmentation_masks
 
     def transform_bounding_boxes(
-            self, bounding_boxes, transformation, training=True
+        self, bounding_boxes, transformation, training=True
     ):
         return bounding_boxes
 
