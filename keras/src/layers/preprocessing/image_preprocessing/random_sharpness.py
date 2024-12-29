@@ -94,6 +94,7 @@ class RandomSharpness(BaseImagePreprocessingLayer):
         return {"factor": factor}
 
     def transform_images(self, images, transformation=None, training=True):
+        images = self.backend.cast(images, self.compute_dtype)
         if training:
             if self.data_format == "channels_first":
                 images = self.backend.numpy.swapaxes(images, -3, -1)
@@ -113,14 +114,14 @@ class RandomSharpness(BaseImagePreprocessingLayer):
             )
             kernel = self.backend.numpy.reshape(kernel, (3, 3, 1, 1))
             kernel = self.backend.numpy.tile(kernel, [1, 1, num_channels, 1])
+            kernel = self.backend.cast(kernel, self.compute_dtype)
 
             smoothed_image = self.backend.nn.depthwise_conv(
                 images,
                 kernel,
                 strides=1,
-                padding="SAME",
+                padding="same",
                 data_format="channels_last",
-                dilation_rate=None,
             )
 
             smoothed_image = self.backend.cast(
