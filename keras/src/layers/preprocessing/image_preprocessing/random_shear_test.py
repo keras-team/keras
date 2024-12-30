@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from tensorflow import data as tf_data
 
+import keras
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
@@ -34,13 +35,14 @@ class RandomShearTest(testing.TestCase):
         self.assertAllClose(inputs, output)
 
     def test_shear_pixel_level(self):
-        image = np.zeros((1, 5, 5, 3), dtype=np.float32)
+        image = np.zeros((1, 5, 5, 3))
         image[0, 1:4, 1:4, :] = 1.0
         image[0, 2, 2, :] = [0.0, 1.0, 0.0]
+        image = keras.ops.convert_to_tensor(image)
 
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
-            image = np.transpose(image, (0, 2, 3, 1))
+            image = keras.ops.transpose(image, (0, 2, 3, 1))
 
         shear_layer = layers.RandomShear(
             x_factor=(0.2, 0.3),
