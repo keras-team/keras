@@ -38,7 +38,7 @@ class RandomShearTest(testing.TestCase):
         image = np.zeros((1, 5, 5, 3))
         image[0, 1:4, 1:4, :] = 1.0
         image[0, 2, 2, :] = [0.0, 1.0, 0.0]
-        image = keras.ops.convert_to_tensor(image)
+        image = keras.ops.convert_to_tensor(image, dtype="float32")
 
         data_format = backend.config.image_data_format()
         if data_format == "channels_first":
