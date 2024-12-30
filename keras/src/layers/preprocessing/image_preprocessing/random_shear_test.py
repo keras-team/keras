@@ -41,8 +41,8 @@ class RandomShearTest(testing.TestCase):
         image = keras.ops.convert_to_tensor(image)
 
         data_format = backend.config.image_data_format()
-        if data_format == "channels_last":
-            image = keras.ops.transpose(image, (0, 2, 3, 1))
+        if data_format == "channels_first":
+            image = keras.ops.transpose(image, (0, 3, 1, 2))
 
         shear_layer = layers.RandomShear(
             x_factor=(0.2, 0.3),
@@ -51,20 +51,17 @@ class RandomShearTest(testing.TestCase):
             fill_mode="constant",
             fill_value=0.0,
             seed=42,
+            data_format=data_format,
         )
 
         sheared_image = shear_layer(image)
-        original_pixel = (
-            image[0, 1, 2, 2]
-            if data_format == "channels_first"
-            else image[0, 2, 1, 2]
-        )
-        sheared_pixel = (
-            sheared_image[0, 1, 2, 2]
-            if data_format == "channels_first"
-            else sheared_image[0, 2, 1, 2]
-        )
-        self.assertNotEqual(original_pixel, sheared_pixel)
+
+        if data_format == "channels_first":
+            sheared_image = keras.ops.transpose(sheared_image, (0, 2, 3, 1))
+
+        original_pixel = image[0, 2, 2, :]
+        sheared_pixel = sheared_image[0, 2, 2, :]
+        self.assertNotAllClose(original_pixel, sheared_pixel)
 
     def test_tf_data_compatibility(self):
         data_format = backend.config.image_data_format()
