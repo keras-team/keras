@@ -180,10 +180,10 @@ class RandomShear(BaseImagePreprocessingLayer):
     def transform_images(self, images, transformation, training=True):
         images = self.backend.cast(images, self.compute_dtype)
         if training:
-            return self._translate_inputs(images, transformation)
+            return self._shear_inputs(images, transformation)
         return images
 
-    def _translate_inputs(self, inputs, transformation):
+    def _shear_inputs(self, inputs, transformation):
         if transformation is None:
             return inputs
 
