@@ -188,6 +188,9 @@ from keras.src.layers.preprocessing.image_preprocessing.random_saturation import
 from keras.src.layers.preprocessing.image_preprocessing.random_sharpness import (
     RandomSharpness,
 )
+from keras.src.layers.preprocessing.image_preprocessing.random_shear import (
+    RandomShear,
+)
 from keras.src.layers.preprocessing.image_preprocessing.random_translation import (
     RandomTranslation,
 )
