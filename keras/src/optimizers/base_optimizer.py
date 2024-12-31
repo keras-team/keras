@@ -245,9 +245,29 @@ class BaseOptimizer(KerasSaveable):
         shape,
         initializer="zeros",
         dtype=None,
-        aggregation="mean",
+        aggregation="none",
         name=None,
     ):
+        """Add a variable to the optimizer.
+
+        Args:
+            shape: Shape tuple for the variable. Must be fully-defined
+                (no `None` entries).
+            initializer: Initializer object to use to populate the initial
+                variable value, or string name of a built-in initializer
+                (e.g. `"random_normal"`). Defaults to `"zeros"`.
+            dtype: Dtype of the variable to create, e.g. `"float32"`. If
+                unspecified, defaults to the `keras.backend.floatx()`.
+            aggregation: Optional string, one of `None`, `"none"`, `"mean"`,
+                `"sum"` or `"only_first_replica"`. Annotates the variable with
+                the type of multi-replica aggregation to be used for this
+                variable when writing custom data parallel training loops.
+                Defaults to `"none"`.
+            name: String name of the variable. Useful for debugging purposes.
+
+        Returns:
+            An optimizer variable, in the format of `keras.Variable`.
+        """
         self._check_super_called()
         initializer = initializers.get(initializer)
         with backend.name_scope(self.name, caller=self):
@@ -265,8 +285,27 @@ class BaseOptimizer(KerasSaveable):
     def add_variable_from_reference(
         self, reference_variable, name=None, initializer="zeros"
     ):
-        """Add an all-zeros variable with the shape and dtype of a reference
-        variable.
+        """Add an optimizer variable from the model variable.
+
+        Create an optimizer variable based on the information of model variable.
+        For example, in SGD optimizer momemtum, for each model variable, a
+        corresponding momemtum variable is created of the same shape and dtype.
+
+        Args:
+            reference_variable: `keras.Variable`. The corresponding model
+                variable to the optimizer variable to be created.
+            name: Optional string. The name prefix of the optimizer variable to
+                be created. If not provided, it will be set to `"var"`. The
+                variable name will follow the pattern
+                `{variable_name}_{reference_variable.name}`,
+                e.g., `momemtum/dense_1`. Defaults to `None`.
+            initializer: Initializer object to use to populate the initial
+                variable value, or string name of a built-in initializer
+                (e.g. `"random_normal"`). If unspecified, defaults to
+                `"zeros"`.
+
+        Returns:
+            An optimizer variable, in the format of `keras.Variable`.
         """
         name = name or "var"
         if hasattr(reference_variable, "path"):

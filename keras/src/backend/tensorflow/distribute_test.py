@@ -130,8 +130,8 @@ class DistributeTest(testing.TestCase):
         with strategy.scope():
             x = np.random.random((4, 4))
             v1 = backend.Variable(x, dtype="float32")
-            self.assertEqual(v1.aggregation, "mean")
-            self.assertEqual(v1.value.aggregation, tf.VariableAggregation.MEAN)
+            self.assertEqual(v1.aggregation, "none")
+            self.assertEqual(v1.value.aggregation, tf.VariableAggregation.NONE)
 
             v2 = backend.Variable(x, dtype="float32", aggregation="sum")
             self.assertEqual(v2.aggregation, "sum")
