@@ -33,9 +33,11 @@ class Variable:
         autocast: Optional. Boolean indicating whether the variable supports
             autocasting. If `True`, the layer may first convert the variable
             to the compute data type when accessed. Defaults to `True`.
-        aggregation: Optional. String specifying how a distributed variable will
-            be aggregated. This serves as a semantic annotation, to be taken
-            into account by downstream backends or users. Defaults to `"mean"`.
+        aggregation: Optional string, one of `None`, `"none"`, `"mean"`,
+            `"sum"` or `"only_first_replica"` specifying how a distributed
+            variable will be aggregated. This serves as a semantic annotation,
+            to be taken into account by downstream backends or users. Defaults
+            to `"none"`.
         name: Optional. A unique name for the variable. Automatically generated
             if not set.
 
@@ -93,7 +95,7 @@ class Variable:
         dtype=None,
         trainable=True,
         autocast=True,
-        aggregation="mean",
+        aggregation="none",
         name=None,
     ):
         name = name or auto_name(self.__class__.__name__)
@@ -103,12 +105,21 @@ class Variable:
                 "cannot contain character `/`. "
                 f"Received: name={name}"
             )
-        if aggregation not in ("none", "mean", "sum", "only_first_replica"):
+        if aggregation not in (
+            None,
+            "none",
+            "mean",
+            "sum",
+            "only_first_replica",
+        ):
             raise ValueError(
                 "Invalid valid for argument `aggregation`. Expected "
-                "one of {'none', 'mean', 'sum', 'only_first_replica'}. "
+                "one of `None`, `'none'`, `'mean'`, `'sum'`, "
+                "`'only_first_replica'`. "
                 f"Received: aggregation={aggregation}"
             )
+        if aggregation is None:
+            aggregation = "none"
         self._name = name
         parent_path = current_path()
         if parent_path:
