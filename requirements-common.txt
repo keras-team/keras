@@ -1,7 +1,7 @@
 namex>=0.0.8
 ruff
 pytest
-numpy
+numpy<2.0.0  # TODO: Remove the restriction when tf2onnx supports numpy>2.0.0
 scipy
 scikit-learn
 pandas
