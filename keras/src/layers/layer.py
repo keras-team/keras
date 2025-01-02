@@ -214,6 +214,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     ```
     """
 
+    def __init_subclass__(cls):
+        super(BackendLayer, cls).__init_subclass__()
+
     def __new__(cls, *args, **kwargs):
         obj = super().__new__(cls, *args, **kwargs)
 
@@ -541,7 +544,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 initializer = "zeros"
         initializer = initializers.get(initializer)
         with backend.name_scope(self.name, caller=self):
+            value = initializer(shape, dtype)
             variable = backend.Variable(
+                value,
                 initializer=initializer,
                 shape=shape,
                 dtype=dtype,
