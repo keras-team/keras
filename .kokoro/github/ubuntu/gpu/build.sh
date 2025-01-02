@@ -72,7 +72,6 @@ then
    # Raise error if GPU is not detected.
    python3 -c 'import torch;assert torch.cuda.is_available()'
 
-   # TODO: keras/src/export/export_lib_test.py update LD_LIBRARY_PATH 
    pytest keras --ignore keras/src/applications \
                --cov=keras \
                --cov-config=pyproject.toml

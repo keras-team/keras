@@ -2,6 +2,7 @@
 tensorflow-cpu~=2.18.0;sys_platform != 'darwin'
 tensorflow~=2.18.0;sys_platform == 'darwin'
 tf_keras
+tf2onnx
 
 # Torch.
 # TODO: Pin to < 2.3.0 (GitHub issue #19602)
