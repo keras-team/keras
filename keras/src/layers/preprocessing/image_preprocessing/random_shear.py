@@ -2,7 +2,14 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    clip_to_image_size,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    convert_format,
+)
 from keras.src.random.seed_generator import SeedGenerator
+from keras.src.utils import backend_utils
 
 
 @keras_export("keras.layers.RandomShear")
@@ -175,7 +182,7 @@ class RandomShear(BaseImagePreprocessingLayer):
             )
             * invert
         )
-        return {"shear_factor": shear_factor}
+        return {"shear_factor": shear_factor, "input_shape": images_shape}
 
     def transform_images(self, images, transformation, training=True):
         images = self.backend.cast(images, self.compute_dtype)
@@ -231,13 +238,144 @@ class RandomShear(BaseImagePreprocessingLayer):
     def transform_labels(self, labels, transformation, training=True):
         return labels
 
+    def get_transformed_x_y(self, x, y, transform):
+        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.numpy.split(
+            transform, 8, axis=-1
+        )
+
+        k = c0 * x + c1 * y + 1
+        x_transformed = (a0 * x + a1 * y + a2) / k
+        y_transformed = (b0 * x + b1 * y + b2) / k
+        return x_transformed, y_transformed
+
+    def get_shifted_bbox(self, bounding_boxes, w_shift_factor, h_shift_factor):
+        bboxes = bounding_boxes["boxes"]
+        x1, x2, x3, x4 = self.backend.numpy.split(bboxes, 4, axis=-1)
+
+        w_shift_factor = self.backend.convert_to_tensor(
+            w_shift_factor, dtype=x1.dtype
+        )
+        h_shift_factor = self.backend.convert_to_tensor(
+            h_shift_factor, dtype=x1.dtype
+        )
+
+        if len(bboxes.shape) == 3:
+            w_shift_factor = self.backend.numpy.expand_dims(w_shift_factor, -1)
+            h_shift_factor = self.backend.numpy.expand_dims(h_shift_factor, -1)
+
+        bounding_boxes["boxes"] = self.backend.numpy.concatenate(
+            [
+                x1 - w_shift_factor,
+                x2 - h_shift_factor,
+                x3 - w_shift_factor,
+                x4 - h_shift_factor,
+            ],
+            axis=-1,
+        )
+        return bounding_boxes
+
     def transform_bounding_boxes(
         self,
         bounding_boxes,
         transformation,
         training=True,
     ):
-        raise NotImplementedError
+        def _get_height_width(transformation):
+            if self.data_format == "channels_first":
+                height_axis = -2
+                width_axis = -1
+            else:
+                height_axis = -3
+                width_axis = -2
+            input_height, input_width = (
+                transformation["input_shape"][height_axis],
+                transformation["input_shape"][width_axis],
+            )
+            return input_height, input_width
+
+        if training:
+            if backend_utils.in_tf_graph():
+                self.backend.set_backend("tensorflow")
+
+            input_height, input_width = _get_height_width(transformation)
+
+            bounding_boxes = convert_format(
+                bounding_boxes,
+                source=self.bounding_box_format,
+                target="rel_xyxy",
+                height=input_height,
+                width=input_width,
+                dtype=self.compute_dtype,
+            )
+
+            bounding_boxes = self._shear_bboxes(bounding_boxes, transformation)
+
+            bounding_boxes = clip_to_image_size(
+                bounding_boxes=bounding_boxes,
+                height=input_height,
+                width=input_width,
+                bounding_box_format="rel_xyxy",
+            )
+
+            bounding_boxes = convert_format(
+                bounding_boxes,
+                source="rel_xyxy",
+                target=self.bounding_box_format,
+                height=input_height,
+                width=input_width,
+                dtype=self.compute_dtype,
+            )
+
+            self.backend.reset()
+
+        return bounding_boxes
+
+    def _shear_bboxes(self, bounding_boxes, transformation):
+        shear_factor = self.backend.cast(
+            transformation["shear_factor"], dtype=self.compute_dtype
+        )
+        shear_x_amount, shear_y_amount = self.backend.numpy.split(
+            shear_factor, 2, axis=-1
+        )
+
+        x1, y1, x2, y2 = self.backend.numpy.split(
+            bounding_boxes["boxes"], 4, axis=-1
+        )
+        x1 = self.backend.numpy.squeeze(x1, axis=-1)
+        y1 = self.backend.numpy.squeeze(y1, axis=-1)
+        x2 = self.backend.numpy.squeeze(x2, axis=-1)
+        y2 = self.backend.numpy.squeeze(y2, axis=-1)
+
+        if shear_x_amount is not None:
+            x1_top = x1 - (shear_x_amount * y1)
+            x1_bottom = x1 - (shear_x_amount * y2)
+            x1 = self.backend.numpy.where(shear_x_amount < 0, x1_top, x1_bottom)
+
+            x2_top = x2 - (shear_x_amount * y1)
+            x2_bottom = x2 - (shear_x_amount * y2)
+            x2 = self.backend.numpy.where(shear_x_amount < 0, x2_bottom, x2_top)
+
+        if shear_y_amount is not None:
+            y1_left = y1 - (shear_y_amount * x1)
+            y1_right = y1 - (shear_y_amount * x2)
+            y1 = self.backend.numpy.where(shear_y_amount > 0, y1_right, y1_left)
+
+            y2_left = y2 - (shear_y_amount * x1)
+            y2_right = y2 - (shear_y_amount * x2)
+            y2 = self.backend.numpy.where(shear_y_amount > 0, y2_left, y2_right)
+
+        boxes = self.backend.numpy.concatenate(
+            [
+                self.backend.numpy.expand_dims(x1, axis=-1),
+                self.backend.numpy.expand_dims(y1, axis=-1),
+                self.backend.numpy.expand_dims(x2, axis=-1),
+                self.backend.numpy.expand_dims(y2, axis=-1),
+            ],
+            axis=-1,
+        )
+        bounding_boxes["boxes"] = boxes
+
+        return bounding_boxes
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
