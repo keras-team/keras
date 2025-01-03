@@ -49,7 +49,8 @@ class Operation:
                 (not self._call_has_training_arg or kwargs.get('training')):
                 if backend.backend()=='torch':
                     from torch.utils.checkpoint import checkpoint
-                    return checkpoint(call_fn,use_reentrant=False,*args, **kwargs)
+                    return checkpoint(call_fn,use_reentrant=False,\
+                                      *args, **kwargs)
                 elif backend.backend()=='tensorflow':
                     from tensorflow import recompute_grad
                     return recompute_grad(call_fn)(*args, **kwargs)

@@ -112,6 +112,16 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             as part of `layer.trainable_weights`.
         input_spec: Optional (list of) `InputSpec` object(s) specifying the
             constraints on inputs that can be accepted by the layer.
+        enable_gradient_checkpoint: bool variable,
+        Whether to start the gradient_checkpoint.
+        In the Torch backend, your layer need to meet the following conditions:
+        Ensure that there are no dropout layers.
+        Ensure that there are no normalization layers (such as BN, LN).
+        Ensure consistent forward and backward behaviors in your function.
+        In the TensorFlow backend, you can only enable this setting at eager.
+        In the JAX backend, your inputs should meet the following conditions:
+        Ensure that there are no strings.
+        Ensure that there are no other non-differentiable JAX valid types.
 
     We recommend that descendants of `Layer` implement the following methods:
 
@@ -266,12 +276,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         enable_gradient_ckeckpoint:bool=False,
         **kwargs,
     ):
-        '''
-        enable_gradient_ckeckpoint:bool variable, Whether to start the gradient_checkpoint.
-        In the Torch backend, you should ensure that there are no dropout layers or normalization layers (such as BN, LN, GN, etc.) with inconsistent forward and backward behaviors in the layer of the function you're starting.
-        In the TensorFlow backend, you can only enable this setting in eager mode.
-        In the JAX backend, you should ensure that there are no strings or other non-differentiable JAX vaild types in the inputs of your function.
-        '''
         BackendLayer.__init__(self)
         self._lock = False
         Operation.__init__(self, dtype=dtype, name=name)
