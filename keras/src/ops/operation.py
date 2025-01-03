@@ -30,6 +30,7 @@ class Operation:
 
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
+        check_point_flag = False
         if traceback_utils.is_traceback_filtering_enabled():
             # Wrap self.call to provide helpful info in case of exception
             if any_symbolic_tensors(args, kwargs):
@@ -39,10 +40,22 @@ class Operation:
                     call_fn = self.quantized_call
                 else:
                     call_fn = self.call
+                    check_point_flag = True
             call_fn = traceback_utils.inject_argument_info_in_traceback(
                 call_fn,
                 object_name=(f"{self.__class__.__name__}.call()"),
             )
+            if check_point_flag and self.enable_gradient_ckeckpoint and \
+                (not self._call_has_training_arg or kwargs.get('training')):
+                if backend.backend()=='torch':
+                    from torch.utils.checkpoint import checkpoint
+                    return checkpoint(call_fn,use_reentrant=False,*args, **kwargs)
+                elif backend.backend()=='tensorflow':
+                    from tensorflow import recompute_grad
+                    return recompute_grad(call_fn)(*args, **kwargs)
+                elif backend.backend()=='jax':
+                    from jax import checkpoint
+                    return checkpoint(call_fn)(*args,**kwargs)
             return call_fn(*args, **kwargs)
 
         # Plain flow.

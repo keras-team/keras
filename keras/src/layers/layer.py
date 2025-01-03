@@ -263,8 +263,15 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         dtype=None,
         autocast=True,
         name=None,
+        enable_gradient_ckeckpoint:bool=False,
         **kwargs,
     ):
+        '''
+        enable_gradient_ckeckpoint:bool variable, Whether to start the gradient_checkpoint.
+        In the Torch backend, you should ensure that there are no dropout layers or normalization layers (such as BN, LN, GN, etc.) with inconsistent forward and backward behaviors in the layer of the function you're starting.
+        In the TensorFlow backend, you can only enable this setting in eager mode.
+        In the JAX backend, you should ensure that there are no strings or other non-differentiable JAX vaild types in the inputs of your function.
+        '''
         BackendLayer.__init__(self)
         self._lock = False
         Operation.__init__(self, dtype=dtype, name=name)
@@ -318,6 +325,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # Parent path
         self._parent_path = None
         self._initialize_tracker()
+        self.enable_gradient_ckeckpoint = enable_gradient_ckeckpoint
 
     @tracking.no_automatic_dependency_tracking
     def _initialize_tracker(self):
